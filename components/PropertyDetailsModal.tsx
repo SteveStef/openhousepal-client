@@ -107,14 +107,14 @@ export default function PropertyDetailsModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-800/60 max-w-7xl w-full max-h-[95vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200/60 max-w-7xl w-full max-h-[95vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-zinc-800/40">
-          <h2 className="text-2xl font-bold text-white">Property Details</h2>
+        <div className="flex items-center justify-between p-6 border-b border-gray-200/60">
+          <h2 className="text-2xl font-bold text-gray-900">Property Details</h2>
           <button
             onClick={onClose}
-            className="text-zinc-400 hover:text-white transition-colors p-2 hover:bg-zinc-800/50 rounded-lg"
+            className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100/50 rounded-lg"
           >
             <X size={20} />
           </button>
@@ -124,10 +124,10 @@ export default function PropertyDetailsModal({
           {/* Property Information */}
           <div className="p-6 space-y-8">
             {/* First Row - Image Carousel and Quick Stats */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Left Column - Image Carousel */}
-              <div>
-                <div className="relative aspect-square bg-zinc-800/60 rounded-xl overflow-hidden">
+              <div className="lg:col-span-2">
+                <div className="relative h-96 bg-gray-100 rounded-xl overflow-hidden">
                   {images.length > 0 ? (
                     <>
                       <img
@@ -167,7 +167,7 @@ export default function PropertyDetailsModal({
                     </>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <svg className="w-16 h-16 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1"></path>
                       </svg>
                     </div>
@@ -177,109 +177,44 @@ export default function PropertyDetailsModal({
 
               {/* Right Column - Property Stats */}
               <div>
-                <div className="bg-zinc-800/20 rounded-xl p-6 h-full">
+                <div className="bg-gray-50/60 rounded-xl p-6 h-96 border border-gray-200/40 flex flex-col">
                   <div className="mb-6">
-                    <p className="text-zinc-400 text-sm mb-2">
+                    <p className="text-gray-600 text-sm mb-2">
                       {property.city}, {property.state} {property.zipCode}
                     </p>
-                    <h3 className="text-2xl font-bold text-white mb-4">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-4">
                       {property.address}
                     </h3>
                   </div>
 
-                  <h4 className="text-lg font-semibold text-white mb-4">Quick Stats</h4>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h4>
                   <div className="space-y-4">
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-green-400">{formatPrice(property.price)}</div>
-                      <div className="text-zinc-400 text-sm">List Price</div>
+                      <div className="text-3xl font-bold text-[#8b7355]">{formatPrice(property.price)}</div>
+                      <div className="text-gray-600 text-sm">List Price</div>
                     </div>
                     
                     <div className="grid grid-cols-3 gap-3 text-center">
                       {property.beds && (
-                        <div className="bg-zinc-700/30 rounded-lg p-4">
-                          <div className="text-2xl font-bold text-white">{property.beds}</div>
-                          <div className="text-zinc-400 text-sm">Beds</div>
+                        <div className="bg-white/60 rounded-lg p-4 border border-gray-200/30">
+                          <div className="text-2xl font-bold text-gray-900">{property.beds}</div>
+                          <div className="text-gray-600 text-sm">Beds</div>
                         </div>
                       )}
                       {property.baths && (
-                        <div className="bg-zinc-700/30 rounded-lg p-4">
-                          <div className="text-2xl font-bold text-white">{property.baths}</div>
-                          <div className="text-zinc-400 text-sm">Baths</div>
+                        <div className="bg-white/60 rounded-lg p-4 border border-gray-200/30">
+                          <div className="text-2xl font-bold text-gray-900">{property.baths}</div>
+                          <div className="text-gray-600 text-sm">Baths</div>
                         </div>
                       )}
                       {property.squareFeet && (
-                        <div className="bg-zinc-700/30 rounded-lg p-4">
-                          <div className="text-xl font-bold text-white">{(property.squareFeet / 1000).toFixed(1)}k</div>
-                          <div className="text-zinc-400 text-sm">Sq Ft</div>
+                        <div className="bg-white/60 rounded-lg p-4 border border-gray-200/30">
+                          <div className="text-xl font-bold text-gray-900">{(property.squareFeet / 1000).toFixed(1)}k</div>
+                          <div className="text-gray-600 text-sm">Sq Ft</div>
                         </div>
                       )}
                     </div>
 
-                    <div className="space-y-3 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-zinc-400">Status</span>
-                        <span className="text-green-300">{property.status || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-zinc-400">Days on Market</span>
-                        <span className="text-white">{property.daysOnMarket || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-zinc-400">Year Built</span>
-                        <span className="text-white">{property.yearBuilt || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-zinc-400">Lot Size</span>
-                        <span className="text-white">{formatLotSize(property.lotSizeAcres, property.lotSizeSquareFeet)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-zinc-400">Property Type</span>
-                        <span className="text-white">{property.compassType || 'N/A'}</span>
-                      </div>
-                    </div>
-
-                    {/* Property Actions */}
-                    <div className="flex items-center justify-center space-x-4 pt-4 border-t border-zinc-700/30">
-                      <button 
-                        onClick={() => onLike?.(property.id!, !property.liked)}
-                        className={`flex items-center transition-colors p-3 rounded-lg hover:bg-zinc-700/30 ${
-                          property.liked 
-                            ? 'text-green-400 hover:text-green-300' 
-                            : 'text-zinc-400 hover:text-green-400'
-                        }`}
-                      >
-                        <ThumbsUp 
-                          size={24} 
-                          fill={property.liked ? "currentColor" : "none"}
-                        />
-                      </button>
-                      <button 
-                        onClick={() => onDislike?.(property.id!, !property.disliked)}
-                        className={`flex items-center transition-colors p-3 rounded-lg hover:bg-zinc-700/30 ${
-                          property.disliked 
-                            ? 'text-red-400 hover:text-red-300' 
-                            : 'text-zinc-400 hover:text-red-400'
-                        }`}
-                      >
-                        <ThumbsDown 
-                          size={24} 
-                          fill={property.disliked ? "currentColor" : "none"}
-                        />
-                      </button>
-                      <button 
-                        onClick={() => onFavorite?.(property.id!, !property.favorited)}
-                        className={`flex items-center transition-colors p-3 rounded-lg hover:bg-zinc-700/30 ${
-                          property.favorited 
-                            ? 'text-amber-400 hover:text-amber-300' 
-                            : 'text-zinc-400 hover:text-amber-400'
-                        }`}
-                      >
-                        <Bookmark 
-                          size={24} 
-                          fill={property.favorited ? "currentColor" : "none"}
-                        />
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -292,46 +227,128 @@ export default function PropertyDetailsModal({
                 {/* Property Description */}
                 {property.description && (
                   <div className="mb-6">
-                    <h4 className="text-xl font-semibold text-white mb-3">Description</h4>
-                    <p className="text-zinc-300 leading-relaxed">{property.description}</p>
+                    <h4 className="text-xl font-semibold text-gray-900 mb-3">Description</h4>
+                    <p className="text-gray-700 leading-relaxed">{property.description}</p>
                   </div>
                 )}
 
                 {/* Detailed Property Information */}
-                <div className="bg-zinc-800/20 rounded-xl p-6">
-                  <h4 className="text-xl font-semibold text-white mb-4">Property Details</h4>
+                <div className="bg-gray-50/60 rounded-xl p-6 border border-gray-200/40">
+                  <h4 className="text-xl font-semibold text-gray-900 mb-4">Property Details</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div className="space-y-3">
                       <div className="flex justify-between">
-                        <span className="text-zinc-400">LISTING UPDATED:</span>
-                        <span className="text-white text-xs">{formatListingDate(property.listingUpdated)}</span>
+                        <span className="text-gray-600">LISTING UPDATED:</span>
+                        <span className="text-gray-900 text-xs">{formatListingDate(property.listingUpdated)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-zinc-400">MLS #</span>
-                        <span className="text-white">{property.mlsNumber || 'N/A'}</span>
+                        <span className="text-gray-600">MLS #</span>
+                        <span className="text-gray-900">{property.mlsNumber || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-zinc-400">Taxes</span>
-                        <span className="text-white">{formatTaxes(property.taxes)}</span>
+                        <span className="text-gray-600">Taxes</span>
+                        <span className="text-gray-900">{formatTaxes(property.taxes)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-zinc-400">HOA Fees</span>
-                        <span className="text-white">{formatCurrency(property.hoaFees)}</span>
+                        <span className="text-gray-600">HOA Fees</span>
+                        <span className="text-gray-900">{formatCurrency(property.hoaFees)}</span>
                       </div>
                     </div>
                     <div className="space-y-3">
                       <div className="flex justify-between">
-                        <span className="text-zinc-400">Condo/Co-op Fees</span>
-                        <span className="text-white">{formatCurrency(property.condoCoopFees)}</span>
+                        <span className="text-gray-600">Condo/Co-op Fees</span>
+                        <span className="text-gray-900">{formatCurrency(property.condoCoopFees)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-zinc-400">MLS Type</span>
-                        <span className="text-white">{property.mlsType || 'N/A'}</span>
+                        <span className="text-gray-600">MLS Type</span>
+                        <span className="text-gray-900">{property.mlsType || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-zinc-400">County</span>
-                        <span className="text-white">{property.county || 'N/A'}</span>
+                        <span className="text-gray-600">County</span>
+                        <span className="text-gray-900">{property.county || 'N/A'}</span>
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Property Status and Actions */}
+                <div className="bg-gray-50/60 rounded-xl p-6 border border-gray-200/40 mt-6">
+                  <h4 className="text-xl font-semibold text-gray-900 mb-4">Property Status & Actions</h4>
+                  
+                  {/* Status Information */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-6">
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Status</span>
+                        <span className="text-green-600">{property.status || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Days on Market</span>
+                        <span className="text-gray-900">{property.daysOnMarket || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Year Built</span>
+                        <span className="text-gray-900">{property.yearBuilt || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Lot Size</span>
+                        <span className="text-gray-900">{formatLotSize(property.lotSizeAcres, property.lotSizeSquareFeet)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Property Type</span>
+                        <span className="text-gray-900">{property.compassType || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Property Actions */}
+                  <div className="border-t border-gray-200/60 pt-4">
+                    <h5 className="text-lg font-medium text-gray-900 mb-3">Your Feedback</h5>
+                    <div className="flex items-center justify-center space-x-6">
+                      <button 
+                        onClick={() => onLike?.(property.id!, !property.liked)}
+                        className={`flex flex-col items-center transition-colors p-4 rounded-xl hover:bg-gray-100/60 ${
+                          property.liked 
+                            ? 'text-green-500 hover:text-green-600' 
+                            : 'text-gray-400 hover:text-green-500'
+                        }`}
+                      >
+                        <ThumbsUp 
+                          size={24} 
+                          fill={property.liked ? "currentColor" : "none"}
+                        />
+                        <span className="text-sm mt-1 font-medium">Like</span>
+                      </button>
+                      <button 
+                        onClick={() => onDislike?.(property.id!, !property.disliked)}
+                        className={`flex flex-col items-center transition-colors p-4 rounded-xl hover:bg-gray-100/60 ${
+                          property.disliked 
+                            ? 'text-red-500 hover:text-red-600' 
+                            : 'text-gray-400 hover:text-red-500'
+                        }`}
+                      >
+                        <ThumbsDown 
+                          size={24} 
+                          fill={property.disliked ? "currentColor" : "none"}
+                        />
+                        <span className="text-sm mt-1 font-medium">Dislike</span>
+                      </button>
+                      <button 
+                        onClick={() => onFavorite?.(property.id!, !property.favorited)}
+                        className={`flex flex-col items-center transition-colors p-4 rounded-xl hover:bg-gray-100/60 ${
+                          property.favorited 
+                            ? 'text-amber-500 hover:text-amber-600' 
+                            : 'text-gray-400 hover:text-amber-500'
+                        }`}
+                      >
+                        <Bookmark 
+                          size={24} 
+                          fill={property.favorited ? "currentColor" : "none"}
+                        />
+                        <span className="text-sm mt-1 font-medium">Save</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -339,10 +356,10 @@ export default function PropertyDetailsModal({
 
               {/* Right Column - Comments Section */}
               <div>
-                <div className="bg-zinc-800/20 rounded-xl p-6 h-fit">
+                <div className="bg-gray-50/60 rounded-xl p-6 h-fit border border-gray-200/40">
                   <div className="flex items-center space-x-2 mb-6">
-                    <MessageCircle size={20} className="text-blue-400" />
-                    <h4 className="text-xl font-semibold text-white">
+                    <MessageCircle size={20} className="text-[#8b7355]" />
+                    <h4 className="text-xl font-semibold text-gray-900">
                       Comments ({property.comments?.length || 0})
                     </h4>
                   </div>
@@ -351,19 +368,19 @@ export default function PropertyDetailsModal({
                   <div className="space-y-4 mb-6 max-h-80 overflow-y-auto">
                     {property.comments && property.comments.length > 0 ? (
                       property.comments.map((comment) => (
-                        <div key={comment.id} className="bg-zinc-700/30 rounded-lg p-4">
+                        <div key={comment.id} className="bg-white/60 rounded-lg p-4 border border-gray-200/30">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-white text-sm">{comment.author}</span>
-                            <span className="text-xs text-zinc-400">{formatDate(comment.createdAt)}</span>
+                            <span className="font-medium text-gray-900 text-sm">{comment.author}</span>
+                            <span className="text-xs text-gray-600">{formatDate(comment.createdAt)}</span>
                           </div>
-                          <p className="text-zinc-300 text-sm leading-relaxed">{comment.content}</p>
+                          <p className="text-gray-700 text-sm leading-relaxed">{comment.content}</p>
                         </div>
                       ))
                     ) : (
                       <div className="text-center py-8">
-                        <MessageCircle size={32} className="text-zinc-500 mx-auto mb-2" />
-                        <p className="text-zinc-400">No comments yet</p>
-                        <p className="text-zinc-500 text-sm">Be the first to add a comment!</p>
+                        <MessageCircle size={32} className="text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-600">No comments yet</p>
+                        <p className="text-gray-500 text-sm">Be the first to add a comment!</p>
                       </div>
                     )}
                   </div>
@@ -374,14 +391,14 @@ export default function PropertyDetailsModal({
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
                       placeholder="Add a comment..."
-                      className="w-full px-3 py-2 bg-zinc-700/40 border border-zinc-600/50 rounded-lg text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-400/60 transition-all duration-300 resize-none text-sm"
+                      className="w-full px-3 py-2 bg-white/60 border border-gray-200/50 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#8b7355]/60 focus:border-[#8b7355]/60 transition-all duration-300 resize-none text-sm"
                       rows={3}
                       disabled={isSubmittingComment}
                     />
                     <button
                       type="submit"
                       disabled={!newComment.trim() || isSubmittingComment}
-                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-400 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2 text-sm"
+                      className="w-full bg-[#8b7355] hover:bg-[#7a6549] disabled:bg-zinc-700 disabled:text-zinc-400 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2 text-sm"
                     >
                       <Send size={16} />
                       <span>{isSubmittingComment ? 'Adding...' : 'Add Comment'}</span>

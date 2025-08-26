@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom CSS Variables */
+:root {
+  --luxury: #8b7355;
+  --cream: #faf9f7;
+  --pearl: #f5f4f2;
+}
+
 /* Custom animations and effects for landing page */
 @keyframes gradient-x {
   0%, 100% {
@@ -141,15 +148,15 @@
 
 /* Enhanced button styles */
 .btn-primary {
-  @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  @apply bg-[#8b7355] hover:bg-[#7a6549] text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
 }
 
 .btn-secondary {
-  @apply bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  @apply bg-[#f5f4f2] hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded-lg transition-colors duration-200;
 }
 
 .input-field {
-  @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500;
+  @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#8b7355] focus:border-[#8b7355];
 }
 
 .form-label {
@@ -162,16 +169,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(39, 39, 42, 0.3);
+  background: rgba(229, 231, 235, 0.3);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(113, 113, 122, 0.6);
+  background: rgba(156, 163, 175, 0.6);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(113, 113, 122, 0.8);
+  background: rgba(156, 163, 175, 0.8);
 }
 
 /* Text selection styling */

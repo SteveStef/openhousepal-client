@@ -1,4 +1,4 @@
-import { Property, SignInFormData, ApiResponse } from '@/types'
+import { Property, SignInFormData, ApiResponse, CollectionPreferences } from '@/types'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
@@ -47,21 +47,40 @@ class ApiClient {
   }
 
   // Property endpoints
-  async getPropertyByQR(qrCode: string): Promise<ApiResponse<{ property: Property; openHouse: any }>> {
-    return this.request(`/open-houses/qr/${qrCode}`)
-  }
-
-  async getProperty(id: number): Promise<ApiResponse<Property>> {
+  async getProperty(id: string): Promise<ApiResponse<Property>> {
     return this.request(`/properties/${id}`)
   }
 
-  // Customer endpoints
+  // Property endpoints
+  async getPropertyByQR(qrCode: string): Promise<ApiResponse<{ property: any; openHouse: any }>> {
+    return this.request(`/open-house/property/${qrCode}`)
+  }
+
+  // Open house form submission
   async submitSignIn(data: {
     formData: SignInFormData
     propertyId: number
     qrCode: string
   }): Promise<ApiResponse<{ customerId: number; collectionId?: number }>> {
-    return this.request('/customers/sign-in', {
+    return this.request('/open-house/submit', {
+      method: 'POST',
+      body: JSON.stringify(data.formData),
+    })
+  }
+
+  // Property visit endpoints (legacy)
+  async submitPropertyVisit(data: {
+    full_name: string
+    email: string
+    phone: string
+    visiting_reason: string
+    timeframe: string
+    has_agent: string
+    property_id: string
+    agent_id?: string
+    interested_in_similar: boolean
+  }): Promise<ApiResponse<{ success: boolean; message: string; collection_id?: string }>> {
+    return this.request('/property-visit/submit', {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -83,6 +102,18 @@ class ApiClient {
     return this.request(`/collections/${collectionId}/properties`)
   }
 
+  // Collection preferences endpoints
+  async getCollectionPreferences(collectionId: string): Promise<ApiResponse<CollectionPreferences>> {
+    return this.request(`/collection-preferences/collection/${collectionId}`)
+  }
+
+  async updateCollectionPreferences(collectionId: string, preferences: Partial<CollectionPreferences>): Promise<ApiResponse<CollectionPreferences>> {
+    return this.request(`/collection-preferences/collection/${collectionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(preferences),
+    })
+  }
+
   // Analytics endpoints
   async trackPropertyView(propertyId: number, customerId?: number): Promise<ApiResponse<void>> {
     return this.request('/analytics/property-view', {
@@ -98,7 +129,7 @@ export const api = new ApiClient(API_BASE_URL)
 // Utility functions for common operations
 export const propertyApi = {
   getByQR: (qrCode: string) => api.getPropertyByQR(qrCode),
-  getById: (id: number) => api.getProperty(id),
+  getById: (id: string) => api.getProperty(id),
 }
 
 export const customerApi = {
@@ -108,9 +139,29 @@ export const customerApi = {
     api.updateCollectionPreference(customerId, interested),
 }
 
+export const propertyVisitApi = {
+  submit: (data: {
+    full_name: string
+    email: string
+    phone: string
+    visiting_reason: string
+    timeframe: string
+    has_agent: string
+    property_id: string
+    agent_id?: string
+    interested_in_similar: boolean
+  }) => api.submitPropertyVisit(data),
+}
+
 export const agentApi = {
   getCollections: (agentId: number) => api.getAgentCollections(agentId),
   getCollectionProperties: (collectionId: number) => api.getCollectionProperties(collectionId),
+}
+
+export const collectionPreferencesApi = {
+  get: (collectionId: string) => api.getCollectionPreferences(collectionId),
+  update: (collectionId: string, preferences: Partial<CollectionPreferences>) => 
+    api.updateCollectionPreferences(collectionId, preferences),
 }
 
 export const analyticsApi = {

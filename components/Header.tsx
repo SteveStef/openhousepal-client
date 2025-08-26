@@ -1,33 +1,74 @@
 'use client'
 
-export default function Header() {
+import Link from 'next/link'
+
+interface HeaderProps {
+  mode?: 'landing' | 'app' | 'shared'
+}
+
+export default function Header({ mode = 'app' }: HeaderProps) {
   return (
-    <header className="bg-black/80 backdrop-blur-lg border-b border-zinc-800/60">
+    <header className="bg-white/95 backdrop-blur-xl border-b border-gray-200/80 shadow-sm">
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <div className="w-8 h-8 bg-gradient-to-r from-zinc-700 via-zinc-800 to-black rounded-lg flex items-center justify-center mr-3 border border-zinc-600/40">
-              <svg className="w-4 h-4 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1"></path>
-              </svg>
+          {/* House Logo */}
+          <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-all duration-200">
+            <svg className="w-8 h-8 text-[#8b7355]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" strokeLinecap="round" strokeLinejoin="round"/>
+              <polyline points="9,22 9,12 15,12 15,22" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Open House Pal</h1>
+              <p className="text-xs text-gray-500 font-medium">Real Estate Lead Engine</p>
             </div>
-            <h1 className="text-xl font-bold text-white font-light">EntryPoint™</h1>
-          </div>
+          </Link>
           
-          <nav className="hidden md:flex items-center space-x-6">
-            <a href="/collections" className="text-white font-medium">Collections</a>
-            <a href="/dashboard" className="text-zinc-400 hover:text-white transition-colors font-light">QR Codes</a>
-          </nav>
 
+          {/* Right Side Actions */}
           <div className="flex items-center space-x-4">
-            <button className="text-zinc-400 hover:text-white transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-5 5-5-5h5v-12"></path>
-              </svg>
-            </button>
-            <div className="w-8 h-8 bg-zinc-700 rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-medium">JD</span>
-            </div>
+            {mode === 'landing' ? (
+              // Landing page buttons
+              <>
+                <Link
+                  href="/login"
+                  className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/register"
+                  className="px-4 py-2 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all duration-300 text-sm"
+                >
+                  Get Started
+                </Link>
+              </>
+            ) : mode === 'shared' ? (
+              // Shared collection view - minimal navigation
+              <>
+                <Link
+                  href="/login"
+                  className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200"
+                >
+                  Agent Login
+                </Link>
+              </>
+            ) : (
+              // App mode navigation (authenticated users)
+              <>
+                <Link href="/open-houses" className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1" />
+                  </svg>
+                  Open Houses
+                </Link>
+                <Link href="/collections" className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  Collections
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

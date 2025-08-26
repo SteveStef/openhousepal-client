@@ -56,7 +56,7 @@ export interface OpenHouse {
 }
 
 export interface Customer {
-  id?: number;
+  id?: string; // Changed to string to match backend UUID
   firstName: string;
   lastName: string;
   email: string;
@@ -80,21 +80,44 @@ export interface SignInFormData {
   priceRange: string;
   interestedInSimilar: boolean;
   additionalComments: string;
+  fullName: string;
+  hasAgent: string;
+}
+
+export interface CollectionPreferences {
+  id?: string;
+  collection_id?: string;
+  min_beds?: number | null;
+  max_beds?: number | null;
+  min_baths?: number | null;
+  max_baths?: number | null;
+  min_price?: number | null;
+  max_price?: number | null;
+  lat?: number | null;
+  long?: number | null;
+  diameter?: number;
+  special_features?: string;
+  timeframe?: string | null;
+  visiting_reason?: string | null;
+  has_agent?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Collection {
-  id: number;
+  id: string; // Changed to string to match backend UUID
   customer: Customer;
   propertyId: number;
   originalProperty: Property;
   matchedProperties: Property[];
   createdAt: string;
   updatedAt: string;
-  status: 'ACTIVE' | 'PAUSED' | 'COMPLETED';
-  preferences: {
+  status: 'ACTIVE' | 'INACTIVE';
+  preferences?: CollectionPreferences | {
     priceRange: string;
     timeframe: string;
-    visitingReason: string;
+    visitingReason?: string;
+    hasAgent?: string;
     additionalComments?: string;
   };
   stats: {

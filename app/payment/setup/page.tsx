@@ -50,9 +50,9 @@ export default function PaymentSetupPage() {
         <div className="text-center">
           <Link href="/" className="inline-flex items-center space-x-3 mb-6">
             <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold">EP</span>
+              <span className="text-white font-bold">OH</span>
             </div>
-            <span className="text-2xl font-bold text-white">EntryPoint™</span>
+            <span className="text-2xl font-bold text-white">Open House Pal</span>
           </Link>
           <h2 className="text-3xl font-bold text-white mb-2">Complete your setup</h2>
           <p className="text-zinc-400">Start your free month, then $50/month. Cancel anytime.</p>
@@ -64,7 +64,7 @@ export default function PaymentSetupPage() {
           <div className="bg-zinc-800/50 rounded-xl p-4 mb-5 border border-zinc-700/30">
             <h3 className="text-lg font-semibold text-white mb-3">Your Plan</h3>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-zinc-300">EntryPoint™ Pro</span>
+              <span className="text-zinc-300">Open House Pal Pro</span>
               <span className="text-white font-semibold">Free</span>
             </div>
             <div className="flex justify-between items-center mb-2">

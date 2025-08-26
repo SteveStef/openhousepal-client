@@ -132,7 +132,7 @@ export default function ChatAssistant({ collectionData, customerName }: ChatAssi
       <div className="fixed bottom-6 right-6 z-50">
         <button
           onClick={toggleChat}
-          className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-2xl border border-blue-500/30 hover:scale-105 transition-all duration-300 group"
+          className="bg-[#8b7355] hover:bg-[#7a6549] text-white rounded-full p-4 shadow-2xl border border-[#8b7355]/30 hover:scale-105 transition-all duration-300 group"
         >
           <MessageCircle size={24} />
           <div className="absolute -top-2 -right-2 w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
@@ -153,7 +153,7 @@ export default function ChatAssistant({ collectionData, customerName }: ChatAssi
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-zinc-800/40">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-[#8b7355] rounded-full flex items-center justify-center">
               <Bot size={16} className="text-white" />
             </div>
             <div>
@@ -194,7 +194,7 @@ export default function ChatAssistant({ collectionData, customerName }: ChatAssi
                   }`}>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                       msg.type === 'user' 
-                        ? 'bg-blue-600 text-white' 
+                        ? 'bg-[#8b7355] text-white' 
                         : 'bg-zinc-700 text-zinc-300'
                     }`}>
                       {msg.type === 'user' ? <User size={14} /> : <Bot size={14} />}
@@ -202,7 +202,7 @@ export default function ChatAssistant({ collectionData, customerName }: ChatAssi
                     <div>
                       <div className={`rounded-2xl px-4 py-3 ${
                         msg.type === 'user'
-                          ? 'bg-blue-600 text-white ml-2'
+                          ? 'bg-[#8b7355] text-white ml-2'
                           : 'bg-zinc-800 text-zinc-100 mr-2'
                       }`}>
                         <p className="text-sm leading-relaxed">{msg.message}</p>
@@ -244,7 +244,7 @@ export default function ChatAssistant({ collectionData, customerName }: ChatAssi
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
                     placeholder="Ask about properties, neighborhoods, schools..."
-                    className="w-full bg-zinc-800/60 border border-zinc-700/50 rounded-xl px-4 py-3 text-white placeholder-zinc-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-400/60 transition-all duration-300 max-h-20"
+                    className="w-full bg-zinc-800/60 border border-zinc-700/50 rounded-xl px-4 py-3 text-white placeholder-zinc-400 resize-none focus:outline-none focus:ring-2 focus:ring-[#8b7355]/60 focus:border-[#8b7355]/60 transition-all duration-300 max-h-20"
                     rows={1}
                     style={{ minHeight: '44px' }}
                   />
@@ -252,7 +252,7 @@ export default function ChatAssistant({ collectionData, customerName }: ChatAssi
                 <button
                   onClick={handleSendMessage}
                   disabled={!message.trim() || isAssistantTyping}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white p-3 rounded-xl transition-colors duration-200 flex items-center justify-center"
+                  className="bg-[#8b7355] hover:bg-[#7a6549] disabled:bg-zinc-700 disabled:cursor-not-allowed text-white p-3 rounded-xl transition-colors duration-200 flex items-center justify-center"
                 >
                   <Send size={16} />
                 </button>
