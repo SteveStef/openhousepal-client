@@ -68,7 +68,7 @@ export async function apiRequest<T = any>(
     
     // Add Authorization header if token exists
     if (token) {
-      headers.Authorization = `Bearer ${token}`;
+      (headers as Record<string, string>).Authorization = `Bearer ${token}`;
     }
     
     const response = await fetch(url, {
@@ -250,6 +250,8 @@ export async function register(userData: {
   password: string;
   first_name: string;
   last_name: string;
+  state?: string;
+  brokerage?: string;
 }): Promise<ApiResponse> {
   const response = await apiRequest('/auth/signup', {
     method: 'POST',

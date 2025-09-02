@@ -6,8 +6,21 @@ export interface Comment {
   avatar?: string;
 }
 
+export interface PropertyInteraction {
+  id: string;
+  collection_id: string;
+  property_id: string;
+  user_id?: string;
+  visitor_email?: string;
+  liked: boolean;
+  disliked: boolean;
+  favorited: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Property {
-  id?: number;
+  id?: number | string;
   mlsId?: string;
   address: string;
   city?: string;
@@ -21,12 +34,14 @@ export interface Property {
   propertyType?: string;
   description?: string;
   imageUrl?: string;
+  imageSrc?: string; // Added for open house event metadata
   images?: string[];
   liked?: boolean;
   disliked?: boolean;
   favorited?: boolean;
   viewed?: boolean;
   comments?: Comment[];
+  visitorInteractions?: PropertyInteraction[];
   // Additional MLS fields
   listingUpdated?: string;
   status?: string;
@@ -43,6 +58,22 @@ export interface Property {
   county?: string;
 }
 
+// New Open House Event interface matching backend schema
+export interface OpenHouseEvent {
+  id: string;
+  open_house_event_id: string;
+  address: string;
+  cover_image_url: string;
+  qr_code_url: string;
+  form_url: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  living_area?: number;
+  price?: number;
+  created_at: string;
+}
+
+// Legacy interface for backwards compatibility
 export interface OpenHouse {
   id: number;
   property: Property;
@@ -82,6 +113,8 @@ export interface SignInFormData {
   additionalComments: string;
   fullName: string;
   hasAgent: string;
+  // Updated for new schema
+  open_house_event_id?: string;
 }
 
 export interface CollectionPreferences {
@@ -97,6 +130,12 @@ export interface CollectionPreferences {
   long?: number | null;
   diameter?: number;
   special_features?: string;
+  is_town_house?: boolean | null;
+  is_lot_land?: boolean | null;
+  is_condo?: boolean | null;
+  is_multi_family?: boolean | null;
+  is_single_family?: boolean | null;
+  is_apartment?: boolean | null;
   timeframe?: string | null;
   visiting_reason?: string | null;
   has_agent?: string | null;
@@ -109,7 +148,6 @@ export interface Collection {
   customer: Customer;
   propertyId: number;
   originalProperty: Property;
-  matchedProperties: Property[];
   createdAt: string;
   updatedAt: string;
   status: 'ACTIVE' | 'INACTIVE';

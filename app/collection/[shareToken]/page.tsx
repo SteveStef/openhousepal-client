@@ -1,7 +1,5 @@
 'use client'
 
-export const runtime = 'edge';
-
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { Collection, Property, Comment } from '@/types'
@@ -12,263 +10,10 @@ import Footer from '@/components/Footer'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import ChatAssistant from '@/components/ChatAssistant'
 
-// Mock data for development
-const mockCollections: Collection[] = [
-  {
-    id: 1,
-    customer: {
-      id: 1,
-      firstName: 'Sarah',
-      lastName: 'Johnson',
-      email: 'sarah.johnson@email.com',
-      phone: '(555) 123-4567',
-      preferredContact: 'EMAIL',
-    },
-    propertyId: 1,
-    originalProperty: {
-      id: 1,
-      address: '123 Main Street, West Chester, PA 19380',
-      city: 'West Chester',
-      state: 'PA',
-      zipCode: '19380',
-      price: 1200000,
-      beds: 5,
-      baths: 3.5,
-      squareFeet: 5000,
-      propertyType: 'Single Family',
-      imageUrl: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400'
-    },
-    matchedProperties: [
-      {
-        id: 2,
-        address: '456 Oak Avenue, West Chester, PA 19380',
-        city: 'West Chester',
-        state: 'PA',
-        price: 1150000,
-        beds: 4,
-        baths: 3,
-        squareFeet: 4200,
-        propertyType: 'Single Family',
-        imageUrl: 'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400',
-        images: [
-          'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=600',
-          'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=600',
-          'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600',
-          'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600',
-          'https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?w=600'
-        ],
-        liked: true,
-        favorited: true,
-        viewed: true,
-        description: 'Beautiful colonial home featuring a recently renovated kitchen with granite countertops and stainless steel appliances. The spacious backyard is perfect for entertaining, and the mature trees provide excellent privacy. Located in a highly sought-after neighborhood with excellent schools.',
-        listingUpdated: '2025-08-15T12:37:00Z',
-        status: 'Active',
-        mlsNumber: 'PADE2094478',
-        daysOnMarket: 16,
-        taxes: 8648,
-        hoaFees: null,
-        condoCoopFees: null,
-        compassType: 'Single Family',
-        mlsType: 'Residential / Fee Simple',
-        yearBuilt: 1950,
-        lotSizeAcres: 0.29,
-        lotSizeSquareFeet: 12632,
-        county: 'Delaware County',
-        comments: [
-          {
-            id: 1,
-            author: 'Agent Smith',
-            content: 'Beautiful property with great potential. The kitchen has been recently renovated.',
-            createdAt: '2024-01-20T10:30:00Z'
-          },
-          {
-            id: 2,
-            author: 'Sarah Johnson',
-            content: 'Love the location and the spacious backyard. Perfect for families.',
-            createdAt: '2024-01-20T14:15:00Z'
-          }
-        ]
-      },
-      {
-        id: 3,
-        address: '789 Pine Lane, West Chester, PA 19380',
-        city: 'West Chester',
-        state: 'PA',
-        price: 1350000,
-        beds: 5,
-        baths: 4,
-        squareFeet: 5500,
-        propertyType: 'Single Family',
-        imageUrl: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400',
-        disliked: true,
-        viewed: true,
-        comments: [
-          {
-            id: 3,
-            author: 'Michael Chen',
-            content: 'Price seems a bit high for the area. Would like to see more photos of the interior.',
-            createdAt: '2024-01-19T16:45:00Z'
-          }
-        ]
-      },
-      {
-        id: 4,
-        address: '321 Elm Street, West Chester, PA 19380',
-        city: 'West Chester',
-        state: 'PA',
-        price: 1050000,
-        beds: 4,
-        baths: 2.5,
-        squareFeet: 3800,
-        propertyType: 'Single Family',
-        imageUrl: 'https://images.unsplash.com/photo-1613977257363-707ba9348227?w=400',
-        images: [
-          'https://images.unsplash.com/photo-1613977257363-707ba9348227?w=600',
-          'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600',
-          'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=600',
-          'https://images.unsplash.com/photo-1600607687644-c7171b42498b?w=600'
-        ],
-        liked: true,
-        viewed: true,
-        description: 'Charming traditional home with hardwood floors throughout and a cozy fireplace in the living room. The master suite features a walk-in closet and ensuite bathroom. Beautifully landscaped front and back yards with mature plantings.',
-        listingUpdated: '2025-08-10T09:15:00Z',
-        status: 'Active',
-        mlsNumber: 'PADE2094512',
-        daysOnMarket: 21,
-        taxes: 7250,
-        hoaFees: null,
-        condoCoopFees: null,
-        compassType: 'Single Family',
-        mlsType: 'Residential / Fee Simple',
-        yearBuilt: 1975,
-        lotSizeAcres: 0.22,
-        lotSizeSquareFeet: 9583,
-        county: 'Delaware County',
-        comments: [
-          {
-            id: 4,
-            author: 'Agent Smith',
-            content: 'Great value for money. Well-maintained property with excellent curb appeal.',
-            createdAt: '2024-01-21T09:20:00Z'
-          },
-          {
-            id: 5,
-            author: 'Sarah Johnson',
-            content: 'This one is definitely worth a visit. The neighborhood is very quiet.',
-            createdAt: '2024-01-21T11:30:00Z'
-          },
-          {
-            id: 6,
-            author: 'John Davis',
-            content: 'Interested in scheduling a showing. The layout looks perfect for our needs.',
-            createdAt: '2024-01-21T15:45:00Z'
-          }
-        ]
-      }
-    ],
-    createdAt: '2024-01-15T10:30:00Z',
-    updatedAt: '2024-01-20T14:22:00Z',
-    status: 'ACTIVE',
-    preferences: {
-      priceRange: '1M_1_5M',
-      timeframe: '3_6_MONTHS',
-      visitingReason: 'BUYING_SOON',
-      additionalComments: 'Looking for modern kitchen and large backyard'
-    },
-    stats: {
-      totalProperties: 12,
-      viewedProperties: 8,
-      likedProperties: 3,
-      lastActivity: '2024-01-20T14:22:00Z'
-    },
-    shareToken: 'coll-sarah-johnson-xyz789',
-    sharedAt: '2024-01-20T15:30:00Z',
-    isPublic: true
-  },
-  {
-    id: 2,
-    customer: {
-      id: 2,
-      firstName: 'Michael',
-      lastName: 'Chen',
-      email: 'michael.chen@email.com',
-      phone: '(555) 987-6543',
-      preferredContact: 'PHONE',
-    },
-    propertyId: 5,
-    originalProperty: {
-      id: 5,
-      address: '567 Maple Drive, Exton, PA 19341',
-      city: 'Exton',
-      state: 'PA',
-      price: 850000,
-      beds: 3,
-      baths: 2.5,
-      squareFeet: 2800,
-      propertyType: 'Townhouse',
-      imageUrl: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400'
-    },
-    matchedProperties: [
-      {
-        id: 6,
-        address: '890 Cedar Court, Exton, PA 19341',
-        city: 'Exton',
-        state: 'PA',
-        price: 780000,
-        beds: 3,
-        baths: 2,
-        squareFeet: 2600,
-        propertyType: 'Townhouse',
-        imageUrl: 'https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=400',
-        favorited: true,
-        viewed: true,
-        comments: [
-          {
-            id: 7,
-            author: 'Michael Chen',
-            content: 'Modern townhouse with excellent amenities. Close to shopping centers.',
-            createdAt: '2024-01-18T12:00:00Z'
-          }
-        ]
-      },
-      {
-        id: 7,
-        address: '234 Birch Way, Exton, PA 19341',
-        city: 'Exton',
-        state: 'PA',
-        price: 920000,
-        beds: 4,
-        baths: 3,
-        squareFeet: 3200,
-        propertyType: 'Townhouse',
-        imageUrl: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400',
-        viewed: true,
-        comments: []
-      }
-    ],
-    createdAt: '2024-01-18T09:15:00Z',
-    updatedAt: '2024-01-19T16:45:00Z',
-    status: 'ACTIVE',
-    preferences: {
-      priceRange: '750K_1M',
-      timeframe: '1_3_MONTHS',
-      visitingReason: 'INVESTMENT',
-      additionalComments: 'Prefer newer construction'
-    },
-    stats: {
-      totalProperties: 8,
-      viewedProperties: 5,
-      likedProperties: 1,
-      lastActivity: '2024-01-19T16:45:00Z'
-    },
-    shareToken: 'coll-michael-chen-abc123',
-    isPublic: false
-  }
-]
-
 export default function CustomerCollectionPage() {
   const params = useParams()
   const [collection, setCollection] = useState<Collection | null>(null)
+  const [matchedProperties, setMatchedProperties] = useState<Property[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -316,6 +61,7 @@ export default function CustomerCollectionPage() {
         setIsLoading(true)
         setError(null)
         
+        // First get the collection data to get visitor email
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/collections/shared/${shareToken}`)
         
         if (response.status === 404) {
@@ -328,7 +74,15 @@ export default function CustomerCollectionPage() {
         }
         
         const collectionData = await response.json()
+        
+        // Backend will resolve visitor interactions based on collection context
+        // No need to pass visitor_email in URL (security risk)
         setCollection(collectionData)
+        
+        // Extract properties and set them in separate state
+        if (collectionData.matchedProperties) {
+          setMatchedProperties(collectionData.matchedProperties)
+        }
         
       } catch (err) {
         setError('Failed to load collection. Please try again.')
@@ -345,9 +99,9 @@ export default function CustomerCollectionPage() {
 
   // Filter and sort properties based on tabs and sorting
   const getFilteredProperties = () => {
-    if (!collection) return []
+    if (!collection || !matchedProperties) return []
     
-    let filtered = collection.matchedProperties
+    let filtered = matchedProperties
 
     // Apply tab filter
     switch (activeTab) {
@@ -400,9 +154,9 @@ export default function CustomerCollectionPage() {
   const filteredProperties = getFilteredProperties()
 
   const getTabCounts = () => {
-    if (!collection) return { all: 0, liked: 0, disliked: 0, favorited: 0 }
+    if (!collection || !matchedProperties) return { all: 0, liked: 0, disliked: 0, favorited: 0 }
     
-    const properties = collection.matchedProperties
+    const properties = matchedProperties
     return {
       all: properties.length,
       liked: properties.filter(p => p.liked).length,
@@ -417,113 +171,112 @@ export default function CustomerCollectionPage() {
   const handlePropertyLike = async (propertyId: number, liked: boolean) => {
     if (!collection) return
     
-    // Update local state immediately for better UX
-    const updatedProperties = collection.matchedProperties.map(property =>
-      property.id === propertyId ? { ...property, liked, disliked: liked ? false : property.disliked } : property
-    )
-    
-    setCollection({
-      ...collection,
-      matchedProperties: updatedProperties
-    })
-
-    // Update selected property if it's the one being modified
-    if (selectedProperty && selectedProperty.id === propertyId) {
-      setSelectedProperty(prevProperty => ({
-        ...prevProperty!,
-        liked,
-        disliked: liked ? false : prevProperty!.disliked
-      }))
-    }
-    
-    // Make API call to persist the interaction
     try {
-      await apiRequest(`/collections/${collection.id}/properties/${propertyId}/interact`, {
+      const response = await apiRequest(`/collections/${collection.id}/properties/${propertyId}/interact`, {
         method: 'POST',
         body: JSON.stringify({
           interaction_type: 'like',
-          value: liked,
-          visitor_email: collection.customer.email
+          value: liked
         })
       })
+
+      if (response.status === 200) {
+        // Update local state with server response
+        const updatedProperties = matchedProperties.map(property =>
+          property.id === propertyId ? { 
+            ...property, 
+            liked: response.data.interaction.liked,
+            disliked: response.data.interaction.disliked
+          } : property
+        )
+        
+        setMatchedProperties(updatedProperties)
+
+        // Update selected property if it's the one being modified
+        if (selectedProperty && selectedProperty.id === propertyId) {
+          setSelectedProperty(prevProperty => ({
+            ...prevProperty!,
+            liked: response.data.interaction.liked,
+            disliked: response.data.interaction.disliked
+          }))
+        }
+      }
     } catch (error) {
       console.error('Error updating property like status:', error)
-      // Could implement rollback logic here if needed
     }
   }
 
   const handlePropertyDislike = async (propertyId: number, disliked: boolean) => {
     if (!collection) return
     
-    // Update local state immediately for better UX
-    const updatedProperties = collection.matchedProperties.map(property =>
-      property.id === propertyId ? { ...property, disliked, liked: disliked ? false : property.liked } : property
-    )
-    
-    setCollection({
-      ...collection,
-      matchedProperties: updatedProperties
-    })
-
-    // Update selected property if it's the one being modified
-    if (selectedProperty && selectedProperty.id === propertyId) {
-      setSelectedProperty(prevProperty => ({
-        ...prevProperty!,
-        disliked,
-        liked: disliked ? false : prevProperty!.liked
-      }))
-    }
-    
-    // Make API call to persist the interaction
     try {
-      await apiRequest(`/collections/${collection.id}/properties/${propertyId}/interact`, {
+      const response = await apiRequest(`/collections/${collection.id}/properties/${propertyId}/interact`, {
         method: 'POST',
         body: JSON.stringify({
           interaction_type: 'dislike',
-          value: disliked,
-          visitor_email: collection.customer.email
+          value: disliked
         })
       })
+
+      if (response.status === 200) {
+        // Update local state with server response
+        const updatedProperties = matchedProperties.map(property =>
+          property.id === propertyId ? { 
+            ...property, 
+            liked: response.data.interaction.liked,
+            disliked: response.data.interaction.disliked
+          } : property
+        )
+        
+        setMatchedProperties(updatedProperties)
+
+        // Update selected property if it's the one being modified
+        if (selectedProperty && selectedProperty.id === propertyId) {
+          setSelectedProperty(prevProperty => ({
+            ...prevProperty!,
+            liked: response.data.interaction.liked,
+            disliked: response.data.interaction.disliked
+          }))
+        }
+      }
     } catch (error) {
       console.error('Error updating property dislike status:', error)
-      // Could implement rollback logic here if needed
     }
   }
 
   const handlePropertyFavorite = async (propertyId: number, favorited: boolean) => {
     if (!collection) return
     
-    // Update local state immediately for better UX
-    const updatedProperties = collection.matchedProperties.map(property =>
-      property.id === propertyId ? { ...property, favorited } : property
-    )
-    
-    setCollection({
-      ...collection,
-      matchedProperties: updatedProperties
-    })
-
-    // Update selected property if it's the one being modified
-    if (selectedProperty && selectedProperty.id === propertyId) {
-      setSelectedProperty(prevProperty => ({
-        ...prevProperty!,
-        favorited
-      }))
-    }
-    
-    // Make API call to persist the interaction
     try {
-      await apiRequest(`/collections/${collection.id}/properties/${propertyId}/interact`, {
+      const response = await apiRequest(`/collections/${collection.id}/properties/${propertyId}/interact`, {
         method: 'POST',
         body: JSON.stringify({
           interaction_type: 'favorite',
-          value: favorited,
-          visitor_email: collection.customer.email
+          value: favorited
         })
       })
+
+      if (response.status === 200) {
+        // Update local state with server response
+        const updatedProperties = matchedProperties.map(property =>
+          property.id === propertyId ? { 
+            ...property, 
+            favorited: response.data.interaction.favorited
+          } : property
+        )
+        
+        setMatchedProperties(updatedProperties)
+
+        // Update selected property if it's the one being modified
+        if (selectedProperty && selectedProperty.id === propertyId) {
+          setSelectedProperty(prevProperty => ({
+            ...prevProperty!,
+            favorited: response.data.interaction.favorited
+          }))
+        }
+      }
     } catch (error) {
       console.error('Error updating property favorite status:', error)
-      // Could implement rollback logic here if needed
     }
   }
 
@@ -538,16 +291,13 @@ export default function CustomerCollectionPage() {
     }
 
     // Update local state immediately for better UX
-    const updatedProperties = collection.matchedProperties.map(property =>
+    const updatedProperties = matchedProperties.map(property =>
       property.id === propertyId 
         ? { ...property, comments: [...(property.comments || []), newComment] }
         : property
     )
     
-    setCollection({
-      ...collection,
-      matchedProperties: updatedProperties
-    })
+    setMatchedProperties(updatedProperties)
 
     // Update the selected property in modal if it's the same property
     if (selectedProperty && selectedProperty.id === propertyId) {
@@ -563,7 +313,6 @@ export default function CustomerCollectionPage() {
         method: 'POST',
         body: JSON.stringify({
           comment: comment,
-          visitor_email: collection.customer.email,
           visitor_name: `${collection.customer.firstName} ${collection.customer.lastName}`
         })
       })
@@ -638,8 +387,6 @@ export default function CustomerCollectionPage() {
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${
                   collection.status === 'ACTIVE' 
                     ? 'bg-green-100 text-green-800 border-green-200'
-                    : collection.status === 'PAUSED'
-                    ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
                     : 'bg-gray-100 text-gray-700 border-gray-200'
                 }`}>
                   {collection.status}

@@ -32,28 +32,19 @@ export default function DashboardPage() {
     setIsLoadingProperty(true)
 
     try {
-      // Fetch property data from the backend
-      const response = await apiRequest(`/api/property?address=${encodeURIComponent(address)}`)
+      // Fetch property data and save to database in one request
+      const response = await apiRequest('/api/property', {
+        method: 'POST',
+        body: JSON.stringify({
+          address: address
+        })
+      })
       
       if (response.status === 200 && response.data) {
         setPropertyData(response.data)
-        
-        // Use the zpid (Zillow Property ID) or create one based on address
-        const propertyId = response.data.zpid || btoa(address).replace(/[^a-zA-Z0-9]/g, '').substring(0, 12)
-        
-        // Store the property data in the backend for later retrieval
-        await apiRequest('/api/properties', {
-          method: 'POST',
-          body: JSON.stringify({
-            property_id: propertyId,
-            property_data: response.data,
-            address: address
-          })
-        })
+        const propertyId = response.data.property_id
         
         const formLink = `${window.location.origin}/open-house/${propertyId}`
-        
-        // Generate QR code
         const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(formLink)}`
         
         setQrCode(qrCodeUrl)

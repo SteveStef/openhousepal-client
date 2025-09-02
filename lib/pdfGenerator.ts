@@ -1,10 +1,13 @@
-import { PDFDocument, StandardFonts } from 'pdf-lib'
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 
 interface PropertyDetails {
   beds?: number
   baths?: number
   squareFeet?: number
   price?: number
+  yearBuilt?: number
+  homeType?: string
+  lotSize?: number
 }
 
 interface PDFGenerationOptions {
@@ -60,7 +63,6 @@ async function createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails
       y: 0,
       width: pageWidth,
       height: borderWidth,
-      color: { type: 'RGB', red: bronzeRed, green: bronzeGreen, blue: bronzeBlue },
     })
     // Top border
     firstPage.drawRectangle({
@@ -68,7 +70,6 @@ async function createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails
       y: pageHeight - borderWidth,
       width: pageWidth,
       height: borderWidth,
-      color: { type: 'RGB', red: bronzeRed, green: bronzeGreen, blue: bronzeBlue },
     })
     // Left border
     firstPage.drawRectangle({
@@ -76,7 +77,6 @@ async function createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails
       y: 0,
       width: borderWidth,
       height: pageHeight,
-      color: { type: 'RGB', red: bronzeRed, green: bronzeGreen, blue: bronzeBlue },
     })
     // Right border
     firstPage.drawRectangle({
@@ -84,7 +84,6 @@ async function createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails
       y: 0,
       width: borderWidth,
       height: pageHeight,
-      color: { type: 'RGB', red: bronzeRed, green: bronzeGreen, blue: bronzeBlue },
     })
     
     // Add horizontal line separator above QR code
@@ -96,7 +95,6 @@ async function createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails
       start: { x: lineStartX, y: lineY },
       end: { x: lineEndX, y: lineY },
       thickness: 4,
-      color: { type: 'RGB', red: bronzeRed, green: bronzeGreen, blue: bronzeBlue },
     })
 
     // Add horizontal line separator above QR code
@@ -108,7 +106,6 @@ async function createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails
       start: { x: lineStartX2, y: lineY2 },
       end: { x: lineEndX2, y: lineY },
       thickness: 4,
-      color: { type: 'RGB', red: bronzeRed, green: bronzeGreen, blue: bronzeBlue },
     })
 
     // // Add horizontal line separator above QR code
@@ -162,8 +159,7 @@ async function createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails
           y: imgY - borderWidth,
           width: imgWidth + (borderWidth * 2),
           height: imgHeight + (borderWidth * 2),
-          color: { type: 'RGB', red: bronzeRed, green: bronzeGreen, blue: bronzeBlue },
-        })
+            })
         
         // Draw white background inside border
         firstPage.drawRectangle({
@@ -171,7 +167,6 @@ async function createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails
           y: imgY,
           width: imgWidth,
           height: imgHeight,
-          color: { type: 'RGB', red: 1, green: 1, blue: 1 },
         })
         
         // Draw property image on top
@@ -189,7 +184,6 @@ async function createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails
           y: imgY,
           width: imgWidth,
           height: overlayHeight,
-          color: { type: 'RGB', red: 0, green: 0, blue: 0 },
           opacity: 0.8, // Semi-transparent black
         })
         
@@ -209,7 +203,7 @@ async function createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails
             y: textY + 5,
             size: fontSize,
             font: boldFont,
-            color: { type: 'RGB', red: 1, green: 1, blue: 1 },
+            color: rgb(1, 1, 1),
           })
 
           // Property details on second line (left-aligned within image)
@@ -229,7 +223,7 @@ async function createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails
             y: textY - 20,
             size: detailFontSize,
             font: boldFont,
-            color: { type: 'RGB', red: 1, green: 1, blue: 1 },
+            color: rgb(1, 1, 1),
           })
         }
       } catch (error) {
@@ -255,7 +249,7 @@ export async function generateQRCodePDF({ qrCodeUrl, address, propertyImageUrl, 
     const pdfFilename = filename || `property-qr-${address.replace(/\s+/g, '-').toLowerCase()}.pdf`
     
     // Create blob and download
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+    const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' })
     const url = URL.createObjectURL(blob)
     
     const link = document.createElement('a')
@@ -279,7 +273,7 @@ export async function generatePDFPreview({ qrCodeUrl, address, propertyImageUrl,
     const pdfBytes = await createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails })
     
     // Convert to base64 data URL for preview
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+    const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' })
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = () => resolve(reader.result as string)

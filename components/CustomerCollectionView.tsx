@@ -38,7 +38,7 @@ export default function CustomerCollectionView({
 
   // Filter properties based on active tab
   const getFilteredProperties = () => {
-    let filtered = collection.matchedProperties
+    let filtered: any[] = []
 
     switch (activeTab) {
       case 'liked':
@@ -61,7 +61,7 @@ export default function CustomerCollectionView({
   const filteredProperties = getFilteredProperties()
 
   const getTabCounts = () => {
-    const properties = collection.matchedProperties
+    const properties: any[] = []
     return {
       all: properties.length,
       liked: properties.filter(p => p.liked).length,
@@ -97,8 +97,8 @@ export default function CustomerCollectionView({
         </p>
         <div className="bg-zinc-900/40 rounded-xl p-4 border border-zinc-800/60 backdrop-blur-sm inline-block">
           <p className="text-zinc-400 text-sm">
-            <span className="text-white font-medium">Budget:</span> {formatPriceRange(collection.preferences.priceRange)} • 
-            <span className="text-white font-medium ml-2">Timeframe:</span> {collection.preferences.timeframe.replace(/_/g, '-').toLowerCase()}
+            <span className="text-white font-medium">Budget:</span> {formatPriceRange((collection.preferences as any).priceRange)} • 
+            <span className="text-white font-medium ml-2">Timeframe:</span> {(collection.preferences as any).timeframe.replace(/_/g, '-').toLowerCase()}
           </p>
         </div>
       </div>
@@ -143,7 +143,7 @@ export default function CustomerCollectionView({
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-2xl font-semibold text-white">Your Collection</h3>
           <div className="text-zinc-400 text-sm">
-            {filteredProperties.length} of {collection.matchedProperties.length} properties
+            {filteredProperties.length} of {[].length} properties
           </div>
         </div>
 

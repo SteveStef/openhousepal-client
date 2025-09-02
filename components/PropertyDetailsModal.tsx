@@ -89,7 +89,7 @@ export default function PropertyDetailsModal({
 
     setIsSubmittingComment(true)
     try {
-      onAddComment?.(property.id, newComment.trim())
+      onAddComment?.(Number(property.id), newComment.trim())
       setNewComment('')
     } finally {
       setIsSubmittingComment(false)
@@ -308,7 +308,7 @@ export default function PropertyDetailsModal({
                     <h5 className="text-lg font-medium text-gray-900 mb-3">Your Feedback</h5>
                     <div className="flex items-center justify-center space-x-6">
                       <button 
-                        onClick={() => onLike?.(property.id!, !property.liked)}
+                        onClick={() => onLike?.(Number(property.id!), !property.liked)}
                         className={`flex flex-col items-center transition-colors p-4 rounded-xl hover:bg-gray-100/60 ${
                           property.liked 
                             ? 'text-green-500 hover:text-green-600' 
@@ -322,7 +322,7 @@ export default function PropertyDetailsModal({
                         <span className="text-sm mt-1 font-medium">Like</span>
                       </button>
                       <button 
-                        onClick={() => onDislike?.(property.id!, !property.disliked)}
+                        onClick={() => onDislike?.(Number(property.id!), !property.disliked)}
                         className={`flex flex-col items-center transition-colors p-4 rounded-xl hover:bg-gray-100/60 ${
                           property.disliked 
                             ? 'text-red-500 hover:text-red-600' 
@@ -336,7 +336,7 @@ export default function PropertyDetailsModal({
                         <span className="text-sm mt-1 font-medium">Dislike</span>
                       </button>
                       <button 
-                        onClick={() => onFavorite?.(property.id!, !property.favorited)}
+                        onClick={() => onFavorite?.(Number(property.id!), !property.favorited)}
                         className={`flex flex-col items-center transition-colors p-4 rounded-xl hover:bg-gray-100/60 ${
                           property.favorited 
                             ? 'text-amber-500 hover:text-amber-600' 
@@ -351,6 +351,38 @@ export default function PropertyDetailsModal({
                       </button>
                     </div>
                   </div>
+                  
+                  {/* Visitor Feedback Section */}
+                  {property.visitorInteractions && property.visitorInteractions.length > 0 && (
+                    <div className="border-t border-gray-200/60 pt-4 mt-4">
+                      <h5 className="text-lg font-medium text-gray-900 mb-3">Visitor Feedback</h5>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-500 mb-1">
+                            {property.visitorInteractions.filter(vi => vi.liked).length}
+                          </div>
+                          <div className="text-sm text-gray-600">Likes</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-red-500 mb-1">
+                            {property.visitorInteractions.filter(vi => vi.disliked).length}
+                          </div>
+                          <div className="text-sm text-gray-600">Dislikes</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-amber-500 mb-1">
+                            {property.visitorInteractions.filter(vi => vi.favorited).length}
+                          </div>
+                          <div className="text-sm text-gray-600">Favorites</div>
+                        </div>
+                      </div>
+                      {property.visitorInteractions.length > 0 && (
+                        <div className="mt-3 text-xs text-gray-500 text-center">
+                          Based on {property.visitorInteractions.length} visitor response{property.visitorInteractions.length === 1 ? '' : 's'}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

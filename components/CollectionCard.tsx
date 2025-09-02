@@ -108,7 +108,11 @@ export default function CollectionCard({
           
           {/* Budget Row */}
           <span className="text-xs font-medium text-gray-700">
-            {formatPriceRange(collection.preferences.priceRange)}
+            {collection.preferences && 'priceRange' in collection.preferences 
+              ? formatPriceRange((collection.preferences as any).priceRange) 
+              : collection.preferences?.min_price || collection.preferences?.max_price
+              ? `$${(collection.preferences as any).min_price || 0}K - $${(collection.preferences as any).max_price || 0}K`
+              : 'Not specified'}
           </span>
         </div>
       </div>
@@ -138,7 +142,7 @@ export default function CollectionCard({
       </div>
 
       {/* Visitor Context or Preferences Section */}
-      {(collection.preferences.visitingReason || collection.preferences.hasAgent) ? (
+      {collection.preferences && ((collection.preferences as any).visitingReason || (collection.preferences as any).visiting_reason || (collection.preferences as any).hasAgent || (collection.preferences as any).has_agent) ? (
         <div className="bg-blue-50/80 rounded-xl p-4 border border-blue-200/60 mb-5">
           <div className="flex items-center mb-3">
             <svg className="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,22 +171,22 @@ export default function CollectionCard({
 
             {/* Visit Information */}
             <div className="grid grid-cols-3 gap-2">
-              {collection.preferences.visitingReason && (
+              {(collection.preferences as any).visitingReason && (
                 <div className="bg-blue-100/60 rounded-lg px-2 py-1 text-center">
                   <span className="text-xs font-medium text-blue-800">
-                    {collection.preferences.visitingReason.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
+                    {(collection.preferences as any).visitingReason.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())}
                   </span>
                 </div>
               )}
-              {collection.preferences.hasAgent && (
+              {(collection.preferences as any).hasAgent && (
                 <div className="bg-blue-100/60 rounded-lg px-2 py-1 text-center">
                   <span className="text-xs font-medium text-blue-800">
-                    {collection.preferences.hasAgent === 'YES' ? 'Has Agent' : collection.preferences.hasAgent === 'NO' ? 'No Agent' : 'Seeking Agent'}
+                    {(collection.preferences as any).hasAgent === 'YES' ? 'Has Agent' : (collection.preferences as any).hasAgent === 'NO' ? 'No Agent' : 'Seeking Agent'}
                   </span>
                 </div>
               )}
               <div className="bg-blue-100/60 rounded-lg px-2 py-1 text-center">
-                <span className="text-xs font-medium text-blue-800">{formatTimeframe(collection.preferences.timeframe)}</span>
+                <span className="text-xs font-medium text-blue-800">{formatTimeframe((collection.preferences as any).timeframe)}</span>
               </div>
             </div>
           </div>
@@ -220,13 +224,13 @@ export default function CollectionCard({
                 <svg className="w-3 h-3 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
                 </svg>
-                <span className="text-xs font-medium text-gray-800">{formatPriceRange(collection.preferences.priceRange)}</span>
+                <span className="text-xs font-medium text-gray-800">{formatPriceRange((collection.preferences as any).priceRange)}</span>
               </div>
               <div className="flex items-center space-x-1.5 bg-gray-100/60 rounded-lg px-2 py-1">
                 <svg className="w-3 h-3 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                <span className="text-xs font-medium text-gray-800">{formatTimeframe(collection.preferences.timeframe)}</span>
+                <span className="text-xs font-medium text-gray-800">{formatTimeframe((collection.preferences as any).timeframe)}</span>
               </div>
             </div>
           </div>

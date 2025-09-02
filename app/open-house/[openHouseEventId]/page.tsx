@@ -13,52 +13,44 @@ export default function OpenHouseSignInPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const [agentInfo, setAgentInfo] = useState<any>(null)
 
-  const agentId = params.agentId as string
-  const propertyId = params.propertyId as string
+  const openHouseEventId = params.openHouseEventId as string
 
   useEffect(() => {
-    // Fetch property data and agent info based on IDs from URL
+    // Fetch property data from open house event by ID
     const fetchData = async () => {
       try {
         setIsLoading(true)
         
-        // Fetch property data using the property ID from the URL
-        const propertyResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/properties/${propertyId}`)
+        // Fetch property data using the open house event ID from the URL
+        const propertyResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/open-house/property/${openHouseEventId}`)
         
         if (!propertyResponse.ok) {
           throw new Error('Property not found')
         }
         
-        const propertyData = await propertyResponse.json()
-        console.log(propertyData);
+        const responseData = await propertyResponse.json()
+        const propertyData = responseData.property
+        console.log('Property data:', propertyData);
         
         // Transform the API response to match the Property interface
         const transformedProperty: Property = {
-          id: propertyData.property_data.zpid || propertyData.id,
+          id: propertyData.id,
           address: propertyData.address,
-          city: propertyData.property_data.city || '',
-          state: propertyData.property_data.state || '',
-          zipCode: propertyData.property_data.zipCode || '',
-          price: propertyData.property_data.price || 0,
-          beds: propertyData.property_data.bedrooms || 0,
-          baths: propertyData.property_data.bathrooms || 0,
-          squareFeet: propertyData.property_data.sqft || "",
-          lotSize: propertyData.property_data.lotSize || "",
-          propertyType: propertyData.property_data.propertyType || '',
-          description: propertyData.property_data.description || ''
+          city: propertyData.city || '',
+          state: propertyData.state || '',
+          zipCode: propertyData.zipCode || '',
+          price: propertyData.price || 0,
+          beds: propertyData.beds || 0,
+          baths: propertyData.baths || 0,
+          squareFeet: propertyData.squareFeet || 0,
+          lotSize: propertyData.lotSize || 0,
+          propertyType: propertyData.propertyType || '',
+          description: propertyData.description || '',
+          imageSrc: propertyData.imageSrc || ''
         }
         
         setProperty(transformedProperty)
-        
-        // TODO: Optionally fetch agent information for display
-        // const agentResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agents/${agentId}`)
-        // if (agentResponse.ok) {
-        //   const agentData = await agentResponse.json()
-        //   setAgentInfo(agentData)
-        // }
-        
         setError(null)
       } catch (err) {
         setError('Failed to load property information. Please try again.')
@@ -68,10 +60,10 @@ export default function OpenHouseSignInPage() {
       }
     }
 
-    if (propertyId && agentId) {
+    if (openHouseEventId) {
       fetchData()
     }
-  }, [propertyId, agentId])
+  }, [openHouseEventId])
 
   const handleFormSubmit = async (formData: SignInFormData) => {
     try {
@@ -92,21 +84,19 @@ export default function OpenHouseSignInPage() {
           visiting_reason: formData.visitingReason,
           timeframe: formData.timeframe,
           has_agent: formData.hasAgent,
-          property_id: propertyId,
-          agent_id: agentId, // Include agent ID for proper collection assignment
-          additional_comments: formData.additionalComments,
+          open_house_event_id: openHouseEventId,
           interested_in_similar: formData.interestedInSimilar,
         }),
       });
 
       console.log('Form submitted:', { 
         ...formData, 
-        propertyId, 
-        agentId,
+        openHouseEventId, 
         timestamp: new Date().toISOString() 
       })
       
       if (response.ok) {
+        const result = await response.json()
         setSuccess(true)
       } else {
         throw new Error('Failed to submit form')
@@ -216,41 +206,8 @@ export default function OpenHouseSignInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Header with property info */}
-        <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg p-6 mb-6">
-          <div className="flex items-start space-x-4">
-            <div className="w-16 h-16 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-xl flex items-center justify-center">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1"></path>
-              </svg>
-            </div>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome to Our Open House</h1>
-              <p className="text-gray-600 mb-3">{property.address}</p>
-              <div className="flex flex-wrap gap-4 text-sm text-gray-700">
-                <div className="flex items-center">
-                  <span className="font-medium">Price:</span>
-                  <span className="ml-1">${property.price?.toLocaleString() || 'Contact Agent'}</span>
-                </div>
-                <div className="flex items-center">
-                  <span className="font-medium">{property.beds}</span>
-                  <span className="ml-1">beds</span>
-                </div>
-                <div className="flex items-center">
-                  <span className="font-medium">{property.baths}</span>
-                  <span className="ml-1">baths</span>
-                </div>
-                <div className="flex items-center">
-                  <span className="font-medium">{property.squareFeet?.toLocaleString()}</span>
-                  <span className="ml-1">sq ft</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
+    <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex items-center justify-center p-4">
+      <div className="w-full max-w-lg">
         {/* Form */}
         <OpenHouseSignInForm
           property={property}

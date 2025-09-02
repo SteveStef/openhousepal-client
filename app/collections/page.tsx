@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Collection, Property, Comment } from '@/types'
+import { Collection, Property } from '@/types'
 import PropertyGrid from '@/components/PropertyGrid'
 import CollectionCard from '@/components/CollectionCard'
 import Header from '@/components/Header'
@@ -31,6 +31,7 @@ export default function CollectionsPage() {
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthenticating, setIsAuthenticating] = useState(true)
+  const [matchedProperties, setMatchedProperties] = useState<Property[] | null>(null);
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PAUSED' | 'COMPLETED'>('ALL')
   
@@ -75,57 +76,6 @@ export default function CollectionsPage() {
   }, [router])
 
   // Load property interactions when a collection is selected
-  useEffect(() => {
-    if (selectedCollection && selectedCollection.matchedProperties.length > 0) {
-      const loadPropertyInteractions = async () => {
-        try {
-          // Load interactions and comments for each property
-          const updatedProperties = await Promise.all(
-            selectedCollection.matchedProperties.map(async (property) => {
-              try {
-                const interactionResponse = await apiRequest(
-                  `/collections/${selectedCollection.id}/properties/${property.id}/interactions`
-                )
-                
-                if (interactionResponse.status === 200) {
-                  const { interaction, comments } = interactionResponse.data
-                  return {
-                    ...property,
-                    liked: interaction?.liked || false,
-                    disliked: interaction?.disliked || false,
-                    favorited: interaction?.favorited || false,
-                    comments: comments || []
-                  }
-                }
-              } catch (error) {
-                console.error(`Error loading interactions for property ${property.id}:`, error)
-              }
-              return property
-            })
-          )
-
-          // Update selected collection with interaction data
-          setSelectedCollection(prev => prev ? {
-            ...prev,
-            matchedProperties: updatedProperties
-          } : null)
-
-          // Also update main collections array
-          setCollections(prevCollections =>
-            prevCollections.map(collection =>
-              collection.id === selectedCollection.id
-                ? { ...collection, matchedProperties: updatedProperties }
-                : collection
-            )
-          )
-        } catch (error) {
-          console.error('Error loading property interactions:', error)
-        }
-      }
-
-      loadPropertyInteractions()
-    }
-  }, [selectedCollection?.id]) // Only depend on collection ID to avoid infinite loops
 
 
   useEffect(() => {
@@ -158,7 +108,7 @@ export default function CollectionsPage() {
               phone: '(000) 000-0000',
               preferredContact: 'EMAIL' as const,
             },
-            propertyId: 1, // This could be derived from actual property data if available
+            // propertyId: 1, // This could be derived from actual property data if available
             originalProperty: {
               id: backendCollection.original_property?.id || 1,
               address: backendCollection.original_property?.address || backendCollection.name || "Collection Name Not Set",
@@ -172,7 +122,6 @@ export default function CollectionsPage() {
               propertyType: backendCollection.original_property?.propertyType || "Property",
               imageUrl: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400'
             },
-            matchedProperties: [], // This would be populated with actual properties from the backend
             createdAt: backendCollection.created_at,
             updatedAt: backendCollection.updated_at,
             status: (backendCollection.status || 'ACTIVE') as 'ACTIVE' | 'INACTIVE',
@@ -227,7 +176,27 @@ export default function CollectionsPage() {
 
       fetchCollections()
     }
-  }, [isAuthenticating])
+  }, [isAuthenticating]);
+
+  useEffect(() => {
+    if(!selectedCollection) return;
+
+    const fetchPropertiesFromCollection = async () => {
+      try {
+        // Backend will return properties with visitor interactions already applied
+        // Properties will have liked/disliked/favorited flags based on collection's visitor
+        const response = await apiRequest(`/collections/${selectedCollection.id}/properties`);
+        if(response.status === 200) {
+          const matchedProperties = response.data;
+          setMatchedProperties(matchedProperties);
+        }
+      } catch(err) {
+        console.log(err);
+      }
+    }
+    fetchPropertiesFromCollection();
+
+  }, [selectedCollection]);
 
   const filteredCollections = collections.filter(collection => {
     const matchesSearch = 
@@ -260,8 +229,9 @@ export default function CollectionsPage() {
   // Filter and sort properties based on tabs and sorting
   const getFilteredProperties = () => {
     if (!selectedCollection) return []
+    if (!matchedProperties) return []
     
-    let filtered = selectedCollection.matchedProperties
+    let filtered = matchedProperties;
 
     // Apply tab filter
     switch (activeTab) {
@@ -314,9 +284,9 @@ export default function CollectionsPage() {
   const filteredProperties = getFilteredProperties()
 
   const getTabCounts = () => {
-    if (!selectedCollection) return { all: 0, liked: 0, disliked: 0, favorited: 0 }
+    if (!selectedCollection || !matchedProperties) return { all: 0, liked: 0, disliked: 0, favorited: 0 }
     
-    const properties = selectedCollection.matchedProperties
+    const properties = matchedProperties
     return {
       all: properties.length,
       liked: properties.filter(p => p.liked).length,
@@ -329,20 +299,20 @@ export default function CollectionsPage() {
 
   // Handle property interactions
   const handlePropertyLike = async (propertyId: number, liked: boolean) => {
-    if (!selectedCollection) return
+    if (!selectedCollection || !matchedProperties) return
     
     try {
       const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${propertyId}/interact`, {
         method: 'POST',
         body: JSON.stringify({
-          liked: liked,
-          disliked: liked ? false : undefined // Clear dislike if liking
+          interaction_type: 'like',
+          value: liked
         })
       })
 
       if (response.status === 200) {
         // Update local state with server response
-        const updatedProperties = selectedCollection.matchedProperties.map(property =>
+        const updatedProperties = matchedProperties.map(property =>
           property.id === propertyId ? { 
             ...property, 
             liked: response.data.interaction.liked,
@@ -350,28 +320,7 @@ export default function CollectionsPage() {
           } : property
         )
         
-        setSelectedCollection({
-          ...selectedCollection,
-          matchedProperties: updatedProperties
-        })
-
-        // Also update the main collections array
-        setCollections(prevCollections =>
-          prevCollections.map(collection =>
-            collection.id === selectedCollection.id
-              ? { ...collection, matchedProperties: updatedProperties }
-              : collection
-          )
-        )
-
-        // Update selected property if it's the one being modified
-        if (selectedProperty && selectedProperty.id === propertyId) {
-          setSelectedProperty(prevProperty => ({
-            ...prevProperty!,
-            liked: response.data.interaction.liked,
-            disliked: response.data.interaction.disliked
-          }))
-        }
+        setMatchedProperties(updatedProperties)
       }
     } catch (error) {
       console.error('Error updating property like:', error)
@@ -379,20 +328,20 @@ export default function CollectionsPage() {
   }
 
   const handlePropertyDislike = async (propertyId: number, disliked: boolean) => {
-    if (!selectedCollection) return
+    if (!selectedCollection || !matchedProperties) return
     
     try {
       const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${propertyId}/interact`, {
         method: 'POST',
         body: JSON.stringify({
-          disliked: disliked,
-          liked: disliked ? false : undefined // Clear like if disliking
+          interaction_type: 'dislike',
+          value: disliked
         })
       })
 
       if (response.status === 200) {
         // Update local state with server response
-        const updatedProperties = selectedCollection.matchedProperties.map(property =>
+        const updatedProperties = matchedProperties.map(property =>
           property.id === propertyId ? { 
             ...property, 
             liked: response.data.interaction.liked,
@@ -400,28 +349,8 @@ export default function CollectionsPage() {
           } : property
         )
         
-        setSelectedCollection({
-          ...selectedCollection,
-          matchedProperties: updatedProperties
-        })
+        setMatchedProperties(updatedProperties)
 
-        // Also update the main collections array
-        setCollections(prevCollections =>
-          prevCollections.map(collection =>
-            collection.id === selectedCollection.id
-              ? { ...collection, matchedProperties: updatedProperties }
-              : collection
-          )
-        )
-
-        // Update selected property if it's the one being modified
-        if (selectedProperty && selectedProperty.id === propertyId) {
-          setSelectedProperty(prevProperty => ({
-            ...prevProperty!,
-            liked: response.data.interaction.liked,
-            disliked: response.data.interaction.disliked
-          }))
-        }
       }
     } catch (error) {
       console.error('Error updating property dislike:', error)
@@ -429,46 +358,26 @@ export default function CollectionsPage() {
   }
 
   const handlePropertyFavorite = async (propertyId: number, favorited: boolean) => {
-    if (!selectedCollection) return
+    if (!selectedCollection || !matchedProperties) return
     
     try {
       const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${propertyId}/interact`, {
         method: 'POST',
         body: JSON.stringify({
-          favorited: favorited
+          interaction_type: 'favorite',
+          value: favorited
         })
       })
 
       if (response.status === 200) {
         // Update local state with server response
-        const updatedProperties = selectedCollection.matchedProperties.map(property =>
+        const updatedProperties = matchedProperties.map(property =>
           property.id === propertyId ? { 
             ...property, 
             favorited: response.data.interaction.favorited
           } : property
         )
-        
-        setSelectedCollection({
-          ...selectedCollection,
-          matchedProperties: updatedProperties
-        })
-
-        // Also update the main collections array
-        setCollections(prevCollections =>
-          prevCollections.map(collection =>
-            collection.id === selectedCollection.id
-              ? { ...collection, matchedProperties: updatedProperties }
-              : collection
-          )
-        )
-
-        // Update selected property if it's the one being modified
-        if (selectedProperty && selectedProperty.id === propertyId) {
-          setSelectedProperty(prevProperty => ({
-            ...prevProperty!,
-            favorited: response.data.interaction.favorited
-          }))
-        }
+        setMatchedProperties(updatedProperties)
       }
     } catch (error) {
       console.error('Error updating property favorite:', error)
@@ -476,7 +385,7 @@ export default function CollectionsPage() {
   }
 
   const handleAddComment = async (propertyId: number, comment: string) => {
-    if (!selectedCollection) return
+    if (!selectedCollection || !matchedProperties) return
 
     try {
       const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${propertyId}/comments`, {
@@ -489,33 +398,13 @@ export default function CollectionsPage() {
       if (response.status === 200) {
         const newComment = response.data.comment
 
-        const updatedProperties = selectedCollection.matchedProperties.map(property =>
+        const updatedProperties = matchedProperties.map(property =>
           property.id === propertyId 
             ? { ...property, comments: [...(property.comments || []), newComment] }
             : property
         )
         
-        setSelectedCollection({
-          ...selectedCollection,
-          matchedProperties: updatedProperties
-        })
-
-        // Also update the main collections array
-        setCollections(prevCollections =>
-          prevCollections.map(collection =>
-            collection.id === selectedCollection.id
-              ? { ...collection, matchedProperties: updatedProperties }
-              : collection
-          )
-        )
-
-        // Update the selected property in modal if it's the same property
-        if (selectedProperty && selectedProperty.id === propertyId) {
-          setSelectedProperty({
-            ...selectedProperty,
-            comments: [...(selectedProperty.comments || []), newComment]
-          })
-        }
+        setMatchedProperties(updatedProperties)
       }
     } catch (error) {
       console.error('Error adding property comment:', error)
@@ -729,7 +618,6 @@ export default function CollectionsPage() {
                 phone: '(000) 000-0000',
                 preferredContact: 'EMAIL' as const,
               },
-              propertyId: 1,
               originalProperty: {
                 id: backendCollection.original_property?.id || 1,
                 address: backendCollection.original_property?.address || backendCollection.name || "Collection Name Not Set",
@@ -741,9 +629,7 @@ export default function CollectionsPage() {
                 baths: backendCollection.original_property?.baths || 0,
                 squareFeet: backendCollection.original_property?.squareFeet || 0,
                 propertyType: backendCollection.original_property?.propertyType || "Property",
-                imageUrl: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400'
               },
-              matchedProperties: [], // Keep existing matched properties if available
               createdAt: backendCollection.created_at,
               updatedAt: backendCollection.updated_at,
               status: (backendCollection.status || 'ACTIVE') as 'ACTIVE' | 'INACTIVE',
@@ -788,10 +674,7 @@ export default function CollectionsPage() {
           if (selectedCollection) {
             const updatedSelectedCollection = transformedCollections.find(c => c.id === selectedCollection.id)
             if (updatedSelectedCollection) {
-              setSelectedCollection({
-                ...updatedSelectedCollection,
-                matchedProperties: selectedCollection.matchedProperties // Preserve existing matched properties
-              })
+              setSelectedCollection(updatedSelectedCollection)
             }
           }
         }
@@ -895,7 +778,6 @@ export default function CollectionsPage() {
               propertyType: "Collection",
               imageUrl: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400'
             },
-            matchedProperties: [],
             createdAt: backendCollection.created_at,
             updatedAt: backendCollection.updated_at,
             status: (backendCollection.status || 'ACTIVE') as 'ACTIVE' | 'INACTIVE',
@@ -1077,9 +959,9 @@ export default function CollectionsPage() {
           <PropertyGrid 
             properties={filteredProperties}
             title="Matched Properties"
-            onLike={handlePropertyLike}
-            onDislike={handlePropertyDislike}
-            onFavorite={handlePropertyFavorite}
+            onLike={undefined}
+            onDislike={undefined}
+            onFavorite={undefined}
             onPropertyClick={handlePropertyClick}
           />
 
@@ -1088,9 +970,9 @@ export default function CollectionsPage() {
             property={selectedProperty}
             isOpen={isModalOpen}
             onClose={handleCloseModal}
-            onLike={handlePropertyLike}
-            onDislike={handlePropertyDislike}
-            onFavorite={handlePropertyFavorite}
+            onLike={undefined}
+            onDislike={undefined}
+            onFavorite={undefined}
             onAddComment={handleAddComment}
           />
 
@@ -1288,7 +1170,7 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
   
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleInputChange = (field: string, value: string | number) => {
+  const handleInputChange = (field: string, value: string | number | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 

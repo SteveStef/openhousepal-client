@@ -29,7 +29,13 @@ export default function EditPreferencesModal({
     lat: null,
     long: null,
     diameter: 2.0,
-    special_features: ''
+    special_features: '',
+    is_town_house: false,
+    is_lot_land: false,
+    is_condo: false,
+    is_multi_family: false,
+    is_single_family: false,
+    is_apartment: false
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(false)
@@ -54,6 +60,12 @@ export default function EditPreferencesModal({
               long: prefs.long || null,
               diameter: prefs.diameter || 2.0,
               special_features: prefs.special_features || '',
+              is_town_house: prefs.is_town_house || false,
+              is_lot_land: prefs.is_lot_land || false,
+              is_condo: prefs.is_condo || false,
+              is_multi_family: prefs.is_multi_family || false,
+              is_single_family: prefs.is_single_family || false,
+              is_apartment: prefs.is_apartment || false,
               timeframe: prefs.timeframe || null,
               visiting_reason: prefs.visiting_reason || null,
               has_agent: prefs.has_agent || null
@@ -74,6 +86,12 @@ export default function EditPreferencesModal({
                 long: prefs.long || null,
                 diameter: prefs.diameter || 2.0,
                 special_features: prefs.special_features || '',
+                is_town_house: prefs.is_town_house || false,
+                is_lot_land: prefs.is_lot_land || false,
+                is_condo: prefs.is_condo || false,
+                is_multi_family: prefs.is_multi_family || false,
+                is_single_family: prefs.is_single_family || false,
+                is_apartment: prefs.is_apartment || false,
                 timeframe: prefs.timeframe || null,
                 visiting_reason: prefs.visiting_reason || null,
                 has_agent: prefs.has_agent || null
@@ -91,6 +109,12 @@ export default function EditPreferencesModal({
                 long: null,
                 diameter: 2.0,
                 special_features: '',
+                is_town_house: false,
+                is_lot_land: false,
+                is_condo: false,
+                is_multi_family: false,
+                is_single_family: false,
+                is_apartment: false,
                 timeframe: null,
                 visiting_reason: null,
                 has_agent: null
@@ -111,6 +135,12 @@ export default function EditPreferencesModal({
             long: null,
             diameter: 2.0,
             special_features: '',
+            is_town_house: false,
+            is_lot_land: false,
+            is_condo: false,
+            is_multi_family: false,
+            is_single_family: false,
+            is_apartment: false,
             timeframe: null,
             visiting_reason: null,
             has_agent: null
@@ -124,7 +154,7 @@ export default function EditPreferencesModal({
     }
   }, [isOpen, collection])
 
-  const handleInputChange = (field: keyof CollectionPreferences, value: string | number | null) => {
+  const handleInputChange = (field: keyof CollectionPreferences, value: string | number | boolean | null) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
@@ -341,6 +371,73 @@ export default function EditPreferencesModal({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
                 placeholder="e.g., pool, garage, modern kitchen, hardwood floors..."
               />
+            </div>
+          </div>
+
+          {/* Home Type Preferences */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-medium text-gray-900">Home Type Preferences</h4>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.is_single_family || false}
+                  onChange={(e) => handleInputChange('is_single_family', e.target.checked)}
+                  className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
+                />
+                <span className="text-sm font-medium text-gray-700">Single Family</span>
+              </label>
+
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.is_condo || false}
+                  onChange={(e) => handleInputChange('is_condo', e.target.checked)}
+                  className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
+                />
+                <span className="text-sm font-medium text-gray-700">Condo</span>
+              </label>
+
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.is_town_house || false}
+                  onChange={(e) => handleInputChange('is_town_house', e.target.checked)}
+                  className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
+                />
+                <span className="text-sm font-medium text-gray-700">Townhouse</span>
+              </label>
+
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.is_apartment || false}
+                  onChange={(e) => handleInputChange('is_apartment', e.target.checked)}
+                  className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
+                />
+                <span className="text-sm font-medium text-gray-700">Apartment</span>
+              </label>
+
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.is_multi_family || false}
+                  onChange={(e) => handleInputChange('is_multi_family', e.target.checked)}
+                  className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
+                />
+                <span className="text-sm font-medium text-gray-700">Multi-Family</span>
+              </label>
+
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.is_lot_land || false}
+                  onChange={(e) => handleInputChange('is_lot_land', e.target.checked)}
+                  className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
+                />
+                <span className="text-sm font-medium text-gray-700">Lot/Land</span>
+              </label>
             </div>
           </div>
 

@@ -109,8 +109,7 @@ export default function ShareCollectionModal({
               <div>
                 <span className="text-gray-600">Status:</span>
                 <span className={`ml-2 ${
-                  collection.status === 'ACTIVE' ? 'text-green-400' : 
-                  collection.status === 'PAUSED' ? 'text-yellow-400' : 'text-gray-400'
+                  collection.status === 'ACTIVE' ? 'text-green-400' : 'text-gray-400'
                 }`}>
                   {collection.status}
                 </span>

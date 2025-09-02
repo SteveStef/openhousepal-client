@@ -1,8 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { v4 as uuidv4 } from 'uuid'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { generateQRCodePDF, generatePDFPreview } from '@/lib/pdfGenerator'
@@ -23,6 +23,10 @@ interface OpenHouse {
   qr_code_url: string;
   cover_image_url: string;
   form_url: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  living_area?: number;
+  price?: number;
 }
 
 export default function OpenHousesPage() {
@@ -51,6 +55,7 @@ export default function OpenHousesPage() {
   }>({ show: false, type: 'success', message: '' })
   const [selectedOpenHouseForPDF, setSelectedOpenHouseForPDF] = useState<OpenHouse | null>(null)
   const [showPDFViewer, setShowPDFViewer] = useState(false)
+  const [generatedOpenHouseId, setGeneratedOpenHouseId] = useState<string>('')
 
   // Notification helper function
   const showNotification = (type: 'success' | 'error', message: string) => {
@@ -75,11 +80,6 @@ export default function OpenHousesPage() {
     }
   }
 
-  // Debug state changes
-  useEffect(() => {
-    console.log('PDF Viewer state changed:', { showPDFViewer, selectedOpenHouseForPDF: !!selectedOpenHouseForPDF })
-  }, [showPDFViewer, selectedOpenHouseForPDF])
-
   // Check authentication and load data
   useEffect(() => {
     checkAuthAndLoadData()
@@ -88,11 +88,6 @@ export default function OpenHousesPage() {
   const checkAuthAndLoadData = async () => {
     try {
       setIsAuthenticating(true)
-      
-      // NOTE: Fixed the token removal issue by preventing automatic token deletion
-      // on authentication check failures. The token will only be removed when 
-      // the user explicitly logs out or when handleAuthError() is called for other API requests
-      
       // Check if user is authenticated
       const isAuthenticated = await checkAuth()
       
@@ -167,8 +162,12 @@ export default function OpenHousesPage() {
     setIsLoadingProperty(true)
 
     try {
-      // Fetch property data from the backend
-      const response = await apiRequest(`/api/property?address=${encodeURIComponent(address)}`)
+      const response = await apiRequest('/api/property', {
+        method: 'POST',
+        body: JSON.stringify({
+          address: address
+        })
+      })
       
       if (response.status === 200 && response.data) {
         setPropertyData(response.data)
@@ -193,52 +192,33 @@ export default function OpenHousesPage() {
       return
     }
 
-    try {
-      // Use the zpid (Zillow Property ID) or create one based on address
-      const propertyId = String(propertyData.zpid) || String(btoa(address).replace(/[^a-zA-Z0-9]/g, '').substring(0, 12))
-      
-      // Store the property data with agent ID and selected image
-      await apiRequest('/api/properties', {
-        method: 'POST',
-        body: JSON.stringify({
-          property_id: propertyId,
-          property_data: propertyData,
-          address: address,
-          agent_id: currentUser.id,
-          cover_image_url: image.url
-        })
-      })
-      
-      // Generate QR code with agent ID
-      const formLink = `${window.location.origin}/open-house/${currentUser.id}/${propertyId}`
-      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(formLink)}`
-      
-      setQrCode(qrCodeUrl)
-      setShowSaveDialog(true)
-      
-    } catch (error) {
-      console.error('Error processing selection:', error)
-      setError('Failed to process image selection. Please try again.')
-    }
+    // Generate actual UUID that will be used consistently as open house event ID
+    const openHouseEventId = uuidv4()
+    setGeneratedOpenHouseId(openHouseEventId)
+    
+    // Generate QR code URL with new routing pattern (no agent ID in path)
+    const formLink = `${window.location.origin}/open-house/${openHouseEventId}`
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(formLink)}`
+    
+    setQrCode(qrCodeUrl)
+    setShowSaveDialog(true)
   }
+  console.log(propertyData);
 
   const saveOpenHouse = async () => {
     try {
-      if (!currentUser || !propertyData || !selectedImage || !qrCode) {
+      if (!currentUser || !propertyData || !selectedImage || !qrCode || !generatedOpenHouseId) {
         setError('Missing required information to save open house')
         return
       }
 
-      const propertyId = String(propertyData.zpid) || String(btoa(address).replace(/[^a-zA-Z0-9]/g, '').substring(0, 12))
-      
       const response = await apiRequest('/api/open-houses', {
         method: 'POST',
         body: JSON.stringify({
-          property_id: propertyId,
-          property_data: propertyData,
           address: address,
+          property_data: propertyData,
           cover_image_url: selectedImage.url,
-          qr_code_url: qrCode
+          open_house_event_id: generatedOpenHouseId
         })
       })
 
@@ -254,6 +234,7 @@ export default function OpenHousesPage() {
         setPropertyData(null)
         setSelectedImage(null)
         setQrCode('')
+        setGeneratedOpenHouseId('')
         
         showNotification('success', '🎉 Open House created successfully!')
       } else {
@@ -304,7 +285,7 @@ export default function OpenHousesPage() {
       try {
         const previewUrl = await generatePDFPreview({
           qrCodeUrl: qrCode,
-          address: address,
+          address: propertyData.abbreviatedAddress || address,
           propertyImageUrl: selectedImage.url,
           propertyDetails: {
             price: propertyData.price || 0,
@@ -800,11 +781,10 @@ function OpenHousePDFViewer({ openHouse, onClose }: { openHouse: OpenHouse, onCl
           address: openHouse.address,
           propertyImageUrl: openHouse.cover_image_url,
           propertyDetails: {
-            // We don't have these details for saved open houses, but the function handles missing data
-            beds: undefined,
-            baths: undefined,
-            squareFeet: undefined,
-            price: undefined
+            beds: openHouse.bedrooms,
+            baths: openHouse.bathrooms,
+            squareFeet: openHouse.living_area,
+            price: openHouse.price
           }
         })
         console.log('Generated PDF data URL')
@@ -827,10 +807,10 @@ function OpenHousePDFViewer({ openHouse, onClose }: { openHouse: OpenHouse, onCl
         address: openHouse.address,
         propertyImageUrl: openHouse.cover_image_url,
         propertyDetails: {
-          beds: undefined,
-          baths: undefined,
-          squareFeet: undefined,
-          price: undefined
+          beds: openHouse.bedrooms,
+          baths: openHouse.bathrooms,
+          squareFeet: openHouse.living_area,
+          price: openHouse.price
         },
         filename: `${openHouse.address.replace(/[^a-zA-Z0-9]/g, '_')}_OpenHouse.pdf`
       })

@@ -59,12 +59,14 @@ class ApiClient {
   // Open house form submission
   async submitSignIn(data: {
     formData: SignInFormData
-    propertyId: number
-    qrCode: string
-  }): Promise<ApiResponse<{ customerId: number; collectionId?: number }>> {
+    openHouseEventId: string
+  }): Promise<ApiResponse<{ success: boolean; message: string; visitor_id?: string; collection_created?: boolean }>> {
     return this.request('/open-house/submit', {
       method: 'POST',
-      body: JSON.stringify(data.formData),
+      body: JSON.stringify({
+        ...data.formData,
+        open_house_event_id: data.openHouseEventId
+      }),
     })
   }
 
@@ -133,8 +135,8 @@ export const propertyApi = {
 }
 
 export const customerApi = {
-  signIn: (formData: SignInFormData, propertyId: number, qrCode: string) => 
-    api.submitSignIn({ formData, propertyId, qrCode }),
+  signIn: (formData: SignInFormData, openHouseEventId: string) => 
+    api.submitSignIn({ formData, openHouseEventId }),
   updateCollectionPreference: (customerId: number, interested: boolean) =>
     api.updateCollectionPreference(customerId, interested),
 }
