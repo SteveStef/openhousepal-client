@@ -328,162 +328,376 @@ export default function OpenHousesPage() {
     <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col">
       <Header />
       <div className="flex-1 p-6">
-        <div className="max-w-6xl mx-auto">
-          {/* Page Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Open House Management</h1>
-                <p className="text-gray-600">Create and manage your open house events with professional QR codes</p>
-              </div>
-              {currentUser && (
-                <div className="flex items-center space-x-3 bg-white/60 rounded-xl px-4 py-2 border border-gray-200/50">
-                  <div className="w-8 h-8 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-lg flex items-center justify-center">
-                    <span className="text-white text-sm font-semibold">
-                      {currentUser.first_name?.charAt(0)}{currentUser.last_name?.charAt(0)}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {currentUser.first_name} {currentUser.last_name}
-                    </p>
-                    <p className="text-xs text-gray-500">Real Estate Agent</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="max-w-7xl mx-auto">
 
           {!showImageSelection ? (
-            <div className="grid lg:grid-cols-2 gap-6">
-              {/* Create New Open House Form */}
-              <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                  <div className="w-8 h-8 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-lg flex items-center justify-center mr-3">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                  </div>
-                  Create New Open House
-                </h2>
-                
-                <form onSubmit={generateQRCode} className="space-y-4">
-                  <div>
-                    <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
-                      Property Address
-                    </label>
-                    <input
-                      id="address"
-                      name="address"
-                      type="text"
-                      required
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      className="w-full px-4 py-3 bg-white/60 border border-gray-200/50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#8b7355]/60 focus:border-[#8b7355]/60 transition-all duration-300"
-                      placeholder="123 Main Street, City, State, ZIP"
-                    />
-                    {error && <p className="text-red-500 text-sm mt-2 flex items-center">
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      {error}
-                    </p>}
-                  </div>
-
-                  <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-xl p-4 border border-blue-200/30">
-                    <h3 className="text-gray-900 font-semibold mb-2 text-sm flex items-center">
-                      <svg className="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      How it works
-                    </h3>
-                    <ul className="text-gray-700 text-xs space-y-1">
-                      <li>• Enter property address and select cover image</li>
-                      <li>• Generate professional QR code and PDF materials</li>
-                      <li>• Visitors scan QR code to access property details form</li>
-                      <li>• Collect visitor information and build your leads database</li>
-                      <li>• Track engagement and manage follow-ups</li>
-                    </ul>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isGenerating || isLoadingProperty}
-                    className="w-full px-6 py-3 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isGenerating || isLoadingProperty ? (
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        {isLoadingProperty ? 'Loading Property...' : 'Processing...'}
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center">
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        Find Property & Select Image
-                      </div>
-                    )}
-                  </button>
-                </form>
-              </div>
-
-              {/* Open House History */}
-              <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                  <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg flex items-center justify-center mr-3">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  My Open Houses
-                </h2>
-                
-                {isLoadingHistory ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8b7355]"></div>
-                    <span className="ml-2 text-gray-600">Loading...</span>
-                  </div>
-                ) : openHouses.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-gray-100/50 rounded-xl flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg">
+              {/* Page Header */}
+              <div className="border-b border-gray-200/50 p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-2xl flex items-center justify-center mr-4 shadow-lg">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1" />
                       </svg>
                     </div>
-                    <p className="text-gray-600 font-medium">No open houses yet</p>
-                    <p className="text-gray-500 text-sm mt-1">Create your first open house to get started</p>
+                    <div>
+                      <h1 className="text-3xl font-bold text-gray-900">Property Portfolio</h1>
+                      <p className="text-gray-600 mt-1">Create new listings and manage your open house events</p>
+                    </div>
                   </div>
-                ) : (
-                  <div className="space-y-3 max-h-64 overflow-y-auto">
-                    {openHouses.map((openHouse) => (
-                      <div key={openHouse.id} className="bg-gray-50/50 rounded-xl p-4 border border-gray-200/30 hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 bg-white rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden">
-                            <img 
-                              src={openHouse.cover_image_url} 
-                              alt="Property" 
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{openHouse.address}</p>
-                            <p className="text-xs text-gray-500">Created {new Date(openHouse.created_at).toLocaleDateString()}</p>
-                          </div>
-                          <button 
-                            onClick={() => handleViewPDF(openHouse)}
-                            className="px-3 py-1.5 bg-[#8b7355] hover:bg-[#7a6549] text-white text-xs font-medium rounded-lg transition-colors duration-200 flex items-center space-x-1"
-                          >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span>View PDF</span>
-                          </button>
+                  {currentUser && (
+                    <div className="flex items-center space-x-4">
+                      {openHouses.length > 0 && (
+                        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/50 rounded-xl px-4 py-2">
+                          <span className="text-emerald-700 font-semibold text-sm">
+                            {openHouses.length} Active Listing{openHouses.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center space-x-3 bg-gray-50/60 rounded-xl px-4 py-2 border border-gray-200/50">
+                        <div className="w-8 h-8 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-lg flex items-center justify-center">
+                          <span className="text-white text-sm font-semibold">
+                            {currentUser.first_name?.charAt(0)}{currentUser.last_name?.charAt(0)}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            {currentUser.first_name} {currentUser.last_name}
+                          </p>
+                          <p className="text-xs text-gray-500">Real Estate Agent</p>
                         </div>
                       </div>
-                    ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Content Area */}
+              <div className="p-6">
+                <div className="grid lg:grid-cols-3 gap-6">
+                  {/* Create Form - Left Side */}
+                  <div className="lg:col-span-1">
+                    <div className="sticky top-6">
+                      <div className="bg-gradient-to-br from-[#8b7355]/5 to-[#7a6549]/10 rounded-2xl p-6 border border-[#8b7355]/20">
+                        <div className="flex items-center mb-4">
+                          <div className="w-8 h-8 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-lg flex items-center justify-center mr-3">
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                          </div>
+                          <h2 className="text-xl font-bold text-gray-900">Create New Listing</h2>
+                        </div>
+                        
+                        <form onSubmit={generateQRCode} className="space-y-4">
+                          <div>
+                            <label htmlFor="address" className="block text-sm font-semibold text-gray-700 mb-2">
+                              Property Address
+                            </label>
+                            <input
+                              id="address"
+                              name="address"
+                              type="text"
+                              required
+                              value={address}
+                              onChange={(e) => setAddress(e.target.value)}
+                              className="w-full px-4 py-3 bg-white/80 border border-gray-200/50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#8b7355]/60 focus:border-[#8b7355]/60 transition-all duration-300 shadow-sm"
+                              placeholder="123 Main Street, City, State, ZIP"
+                            />
+                            {error && <p className="text-red-500 text-sm mt-2 flex items-center">
+                              <svg className="w-4 h-4 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              {error}
+                            </p>}
+                          </div>
+
+                          <div className="bg-gradient-to-r from-blue-50/80 to-indigo-50/80 rounded-xl p-4 border border-blue-200/40">
+                            <h3 className="text-gray-900 font-semibold mb-2 text-sm flex items-center">
+                              <svg className="w-4 h-4 mr-2 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Quick Start Guide
+                            </h3>
+                            <ul className="text-gray-700 text-xs space-y-1">
+                              <li>• Enter property address to begin</li>
+                              <li>• Select the best cover image</li>
+                              <li>• Generate QR code & materials</li>
+                              <li>• Share with potential buyers</li>
+                            </ul>
+                          </div>
+
+                          <button
+                            type="submit"
+                            disabled={isGenerating || isLoadingProperty}
+                            className="w-full px-6 py-3 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isGenerating || isLoadingProperty ? (
+                              <div className="flex items-center justify-center">
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                {isLoadingProperty ? 'Loading Property...' : 'Processing...'}
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center">
+                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                Find Property & Continue
+                              </div>
+                            )}
+                          </button>
+                        </form>
+                      </div>
+                    </div>
                   </div>
-                )}
+
+                  {/* Listings History - Right Side */}
+                  <div className="lg:col-span-2">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center mr-3">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-900">Your Listings</h2>
+                      </div>
+                    </div>
+
+                    {isLoadingHistory ? (
+                      <div className="flex items-center justify-center py-16">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355] mx-auto mb-4"></div>
+                          <p className="text-gray-600 font-medium">Loading your listings...</p>
+                        </div>
+                      </div>
+                    ) : openHouses.length === 0 ? (
+                      <div className="text-center py-16 bg-gradient-to-br from-gray-50/50 to-gray-100/30 rounded-2xl border-2 border-dashed border-gray-200">
+                        <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1" />
+                          </svg>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">No Open Houses Yet</h3>
+                        <p className="text-gray-600 mb-4 max-w-sm mx-auto">Get started by creating your first open house listing with professional marketing materials.</p>
+                        <div className="inline-flex items-center text-sm text-[#8b7355] font-medium">
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                          </svg>
+                          Enter an address to get started
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                        {openHouses.map((openHouse, index) => (
+                          <div key={openHouse.id} className="bg-gradient-to-r from-white to-gray-50/50 rounded-xl border border-gray-200/60 hover:border-gray-300/80 transition-all duration-300 hover:shadow-md group">
+                            <div className="p-4">
+                              <div className="flex items-start space-x-4">
+                                {/* Property Image */}
+                                <div className="relative flex-shrink-0">
+                                  <div className="w-16 h-16 bg-white rounded-xl border border-gray-200/60 shadow-sm overflow-hidden">
+                                    <img 
+                                      src={openHouse.cover_image_url} 
+                                      alt={`Property at ${openHouse.address}`}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    />
+                                  </div>
+                                  <div className="absolute -top-1 -left-1 w-5 h-5 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center shadow-sm">
+                                    <span className="text-white text-xs font-bold">{index + 1}</span>
+                                  </div>
+                                </div>
+
+                                {/* Property Details */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <h3 className="text-base font-bold text-gray-900 mb-1 group-hover:text-[#8b7355] transition-colors">
+                                        {openHouse.address}
+                                      </h3>
+                                      <div className="flex items-center space-x-3 text-xs text-gray-600 mb-2">
+                                        <div className="flex items-center">
+                                          <svg className="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4h3a1 1 0 011 1v9a1 1 0 01-1 1H5a1 1 0 01-1-1V8a1 1 0 011-1h3z" />
+                                          </svg>
+                                          {new Date(openHouse.created_at).toLocaleDateString('en-US', { 
+                                            month: 'short', 
+                                            day: 'numeric', 
+                                            year: 'numeric' 
+                                          })}
+                                        </div>
+                                        {openHouse.bedrooms && (
+                                          <div className="flex items-center">
+                                            <svg className="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2v0" />
+                                            </svg>
+                                            {openHouse.bedrooms} beds
+                                          </div>
+                                        )}
+                                        {openHouse.bathrooms && (
+                                          <div className="flex items-center">
+                                            <svg className="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 117.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+                                            </svg>
+                                            {openHouse.bathrooms} baths
+                                          </div>
+                                        )}
+                                      </div>
+                                      {openHouse.price && (
+                                        <div className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/50 rounded-md">
+                                          <svg className="w-3 h-3 mr-1 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                                          </svg>
+                                          <span className="text-green-800 font-semibold text-xs">
+                                            ${openHouse.price.toLocaleString()}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="flex items-center space-x-2 ml-3">
+                                      <button 
+                                        onClick={() => handleViewPDF(openHouse)}
+                                        className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-lg font-medium hover:shadow-md hover:shadow-[#8b7355]/25 transition-all duration-300 text-xs"
+                                      >
+                                        <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                            View PDF
+                                      </button>
+                                      
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* QR Code Footer */}
+                            <div className="border-t border-gray-100/60 bg-gradient-to-r from-gray-50/50 to-white px-4 py-2 rounded-b-xl">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center text-xs text-gray-500">
+                                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                                  </svg>
+                                  QR: {openHouse.id?.substring(0, 8)}...
+                                </div>
+                                <a 
+                                  href={openHouse.form_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center text-xs text-[#8b7355] hover:text-[#7a6549] font-medium hover:underline transition-colors"
+                                >
+                                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                  View Form
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {/* Listing Count Footer */}
+                        {openHouses.length > 5 && (
+                          <div className="mt-4 pt-4 border-t border-gray-100 text-center">
+                            <p className="text-sm text-gray-500">
+                              Showing all {openHouses.length} listings • Scroll to view more
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Coming Soon - Find Open Houses Section */}
+              <div className="mt-8">
+                <div className="bg-gradient-to-br from-[#8b7355]/5 via-[#7a6549]/3 to-amber-50/40 rounded-2xl border-2 border-dashed border-[#8b7355]/30 backdrop-blur-sm">
+                  <div className="p-8 text-center relative overflow-hidden">
+                    {/* Background Pattern */}
+                    <div className="absolute inset-0 opacity-5 text-[#8b7355]">
+                      <svg className="w-full h-full" fill="currentColor" viewBox="0 0 100 100">
+                        <circle cx="20" cy="20" r="2"/>
+                        <circle cx="80" cy="20" r="2"/>
+                        <circle cx="50" cy="50" r="2"/>
+                        <circle cx="20" cy="80" r="2"/>
+                        <circle cx="80" cy="80" r="2"/>
+                      </svg>
+                    </div>
+                    
+                    {/* Coming Soon Badge */}
+                    <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#8b7355]/10 to-amber-100/60 border border-[#8b7355]/20 rounded-full mb-6">
+                      <svg className="w-4 h-4 mr-2 text-[#8b7355]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-[#7a6549] font-semibold text-sm">Coming Soon</span>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="max-w-2xl mx-auto">
+                      <div className="flex items-center justify-center mb-6">
+                        <div className="w-16 h-16 bg-gradient-to-br from-[#8b7355] to-[#7a6549] rounded-2xl flex items-center justify-center shadow-lg">
+                          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                        </div>
+                      </div>
+                      
+                      <h2 className="text-2xl font-bold text-gray-900 mb-3">Discover Open Houses</h2>
+                      <p className="text-gray-600 mb-6 leading-relaxed">
+                        Find and explore open houses from other agents in your area. Perfect for market research, 
+                        networking, and staying informed about local property trends.
+                      </p>
+
+                      {/* Feature Preview */}
+                      <div className="grid md:grid-cols-3 gap-4 mb-8">
+                        <div className="bg-white/60 rounded-xl p-4 border border-[#8b7355]/15">
+                          <div className="w-8 h-8 bg-[#8b7355]/10 rounded-lg flex items-center justify-center mb-3 mx-auto">
+                            <svg className="w-4 h-4 text-[#8b7355]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          </div>
+                          <h3 className="font-semibold text-gray-900 text-sm mb-2">Location Search</h3>
+                          <p className="text-xs text-gray-600">Find open houses by neighborhood, city, or radius</p>
+                        </div>
+
+                        <div className="bg-white/60 rounded-xl p-4 border border-[#8b7355]/15">
+                          <div className="w-8 h-8 bg-[#8b7355]/10 rounded-lg flex items-center justify-center mb-3 mx-auto">
+                            <svg className="w-4 h-4 text-[#8b7355]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                            </svg>
+                          </div>
+                          <h3 className="font-semibold text-gray-900 text-sm mb-2">Smart Filters</h3>
+                          <p className="text-xs text-gray-600">Filter by price range, property type, and dates</p>
+                        </div>
+
+                        <div className="bg-white/60 rounded-xl p-4 border border-[#8b7355]/15">
+                          <div className="w-8 h-8 bg-[#8b7355]/10 rounded-lg flex items-center justify-center mb-3 mx-auto">
+                            <svg className="w-4 h-4 text-[#8b7355]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4h3a1 1 0 011 1v9a1 1 0 01-1 1H5a1 1 0 01-1-1V8a1 1 0 011-1h3z" />
+                            </svg>
+                          </div>
+                          <h3 className="font-semibold text-gray-900 text-sm mb-2">Save Favorites</h3>
+                          <p className="text-xs text-gray-600">Bookmark properties and track market insights</p>
+                        </div>
+                      </div>
+
+                      {/* CTA */}
+                      <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-500 rounded-xl font-medium cursor-not-allowed">
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        Feature In Development
+                      </div>
+                      
+                      <p className="text-xs text-gray-500 mt-4">
+                        We're working hard to bring you this feature. Stay tuned for updates!
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           ) : (

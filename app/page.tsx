@@ -88,8 +88,8 @@ export default function HomePage() {
                 </h2>
                 
                 <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-                  Revolutionary QR code system that creates personalized property collections for every visitor. 
-                  Convert casual browsers into qualified prospects with intelligent matching algorithms.
+                  Help agents capture visitor information at open houses and organize property recommendations. 
+                  Keep track of leads and follow up with interested buyers efficiently.
                 </p>
                 
                 <div className="flex flex-col sm:flex-row gap-4 mb-12">
@@ -181,7 +181,7 @@ export default function HomePage() {
                         </div>
                         <div className="bg-gray-100 rounded-lg p-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-600 text-sm">Collections Created</span>
+                            <span className="text-gray-600 text-sm">Showcases Created</span>
                             <span className="text-[#8b7355] font-bold">8</span>
                           </div>
                         </div>
@@ -245,8 +245,8 @@ export default function HomePage() {
                 },
                 {
                   step: 2,
-                  title: "Auto-Build Collections",
-                  description: "Advanced AI algorithms analyze visitor preferences and automatically create personalized property collections using intelligent filtering based on price range, location proximity, and feature matching.",
+                  title: "Auto-Build Showcases",
+                  description: "Advanced AI algorithms analyze visitor preferences and automatically create personalized property showcases using intelligent filtering based on price range, location proximity, and feature matching.",
                   icon: (
                     <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
@@ -320,7 +320,7 @@ export default function HomePage() {
                 },
                 { 
                   title: 'Customer Portal', 
-                  desc: 'Interactive collections where visitors engage with properties and request tours',
+                  desc: 'Interactive showcases where visitors engage with properties and request tours',
                   icon: '🏠',
                   color: 'hover:shadow-[#8b7355]/20'
                 },
@@ -331,8 +331,8 @@ export default function HomePage() {
                   color: 'hover:shadow-[#8b7355]/20'
                 },
                 { 
-                  title: 'BrightMLS Integration', 
-                  desc: 'Real-time property data synchronization and automatic listing updates',
+                  title: 'Cloud Storage', 
+                  desc: 'Secure cloud backup and synchronization of all your property data',
                   icon: '🔄',
                   color: 'hover:shadow-[#8b7355]/20'
                 },
@@ -400,7 +400,7 @@ export default function HomePage() {
                 {
                   name: "Jennifer Chen",
                   title: "Luxury Specialist, Sotheby's",
-                  quote: "My clients love the personalized collections. It shows I understand their preferences and saves everyone time.",
+                  quote: "My clients love the personalized showcases. It shows I understand their preferences and saves everyone time.",
                   image: "JC"
                 }
               ].map((testimonial, index) => (
@@ -467,8 +467,8 @@ export default function HomePage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                         </svg>
                       ),
-                      title: "Smart Collections",
-                      description: "AI-powered property matching and automated collections"
+                      title: "Smart Showcases",
+                      description: "AI-powered property matching and automated showcases"
                     },
                     {
                       icon: (
@@ -485,8 +485,8 @@ export default function HomePage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
                       ),
-                      title: "BrightMLS Integration",
-                      description: "Seamless property data sync and listing updates"
+                      title: "Data Analytics",
+                      description: "Advanced insights and reporting on visitor engagement"
                     }
                   ].map((feature, index) => (
                     <div key={index} className="flex space-x-4">
@@ -551,15 +551,8 @@ export default function HomePage() {
       
       {/* Footer */}
       <div className="p-6 border-t border-gray-200/60">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between text-gray-600 text-sm">
-          <div className="mb-4 md:mb-0">
-            <p>© 2024 Open House Pal. Built for real estate agents • Powered by BrightMLS</p>
-          </div>
-          <div className="flex space-x-6">
-            <Link href="/privacy" className="hover:text-gray-900 transition-colors duration-200">Privacy</Link>
-            <Link href="/terms" className="hover:text-gray-900 transition-colors duration-200">Terms</Link>
-            <Link href="/contact" className="hover:text-gray-900 transition-colors duration-200">Contact</Link>
-          </div>
+        <div className="max-w-7xl mx-auto text-center text-gray-600 text-sm">
+          <p>Open House Pal - Built for real estate agents</p>
         </div>
       </div>
     </div>

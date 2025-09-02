@@ -10,9 +10,9 @@ import Footer from '@/components/Footer'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import ChatAssistant from '@/components/ChatAssistant'
 
-export default function CustomerCollectionPage() {
+export default function CustomerShowcasePage() {
   const params = useParams()
-  const [collection, setCollection] = useState<Collection | null>(null)
+  const [showcase, setShowcase] = useState<Collection | null>(null)
   const [matchedProperties, setMatchedProperties] = useState<Property[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -61,8 +61,8 @@ export default function CustomerCollectionPage() {
         setIsLoading(true)
         setError(null)
         
-        // First get the collection data to get visitor email
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/collections/shared/${shareToken}`)
+        // First get the showcase data to get visitor email
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/showcases/shared/${shareToken}`)
         
         if (response.status === 404) {
           setError('Collection not found or not available for sharing')
@@ -70,23 +70,23 @@ export default function CustomerCollectionPage() {
         }
         
         if (!response.ok) {
-          throw new Error('Failed to fetch collection')
+          throw new Error('Failed to fetch showcase')
         }
         
-        const collectionData = await response.json()
+        const showcaseData = await response.json()
         
-        // Backend will resolve visitor interactions based on collection context
+        // Backend will resolve visitor interactions based on showcase context
         // No need to pass visitor_email in URL (security risk)
-        setCollection(collectionData)
+        setCollection(showcaseData)
         
         // Extract properties and set them in separate state
-        if (collectionData.matchedProperties) {
-          setMatchedProperties(collectionData.matchedProperties)
+        if (showcaseData.matchedProperties) {
+          setMatchedProperties(showcaseData.matchedProperties)
         }
         
       } catch (err) {
-        setError('Failed to load collection. Please try again.')
-        console.error('Error fetching collection:', err)
+        setError('Failed to load showcase. Please try again.')
+        console.error('Error fetching showcase:', err)
       } finally {
         setIsLoading(false)
       }
@@ -99,7 +99,7 @@ export default function CustomerCollectionPage() {
 
   // Filter and sort properties based on tabs and sorting
   const getFilteredProperties = () => {
-    if (!collection || !matchedProperties) return []
+    if (!showcase || !matchedProperties) return []
     
     let filtered = matchedProperties
 
@@ -154,7 +154,7 @@ export default function CustomerCollectionPage() {
   const filteredProperties = getFilteredProperties()
 
   const getTabCounts = () => {
-    if (!collection || !matchedProperties) return { all: 0, liked: 0, disliked: 0, favorited: 0 }
+    if (!showcase || !matchedProperties) return { all: 0, liked: 0, disliked: 0, favorited: 0 }
     
     const properties = matchedProperties
     return {
@@ -169,10 +169,10 @@ export default function CustomerCollectionPage() {
 
   // Handle property interactions
   const handlePropertyLike = async (propertyId: number, liked: boolean) => {
-    if (!collection) return
+    if (!showcase) return
     
     try {
-      const response = await apiRequest(`/collections/${collection.id}/properties/${propertyId}/interact`, {
+      const response = await apiRequest(`/showcases/${showcase.id}/properties/${propertyId}/interact`, {
         method: 'POST',
         body: JSON.stringify({
           interaction_type: 'like',
@@ -207,10 +207,10 @@ export default function CustomerCollectionPage() {
   }
 
   const handlePropertyDislike = async (propertyId: number, disliked: boolean) => {
-    if (!collection) return
+    if (!showcase) return
     
     try {
-      const response = await apiRequest(`/collections/${collection.id}/properties/${propertyId}/interact`, {
+      const response = await apiRequest(`/showcases/${showcase.id}/properties/${propertyId}/interact`, {
         method: 'POST',
         body: JSON.stringify({
           interaction_type: 'dislike',
@@ -245,10 +245,10 @@ export default function CustomerCollectionPage() {
   }
 
   const handlePropertyFavorite = async (propertyId: number, favorited: boolean) => {
-    if (!collection) return
+    if (!showcase) return
     
     try {
-      const response = await apiRequest(`/collections/${collection.id}/properties/${propertyId}/interact`, {
+      const response = await apiRequest(`/showcases/${showcase.id}/properties/${propertyId}/interact`, {
         method: 'POST',
         body: JSON.stringify({
           interaction_type: 'favorite',
@@ -281,11 +281,11 @@ export default function CustomerCollectionPage() {
   }
 
   const handleAddComment = async (propertyId: number, comment: string) => {
-    if (!collection) return
+    if (!showcase) return
 
     const newComment: Comment = {
       id: Date.now(), // Simple ID generation for demo
-      author: `${collection.customer.firstName} ${collection.customer.lastName}`, // Customer name for shared view
+      author: `${showcase.customer.firstName} ${showcase.customer.lastName}`, // Customer name for shared view
       content: comment,
       createdAt: new Date().toISOString()
     }
@@ -309,11 +309,11 @@ export default function CustomerCollectionPage() {
     
     // Make API call to persist the comment
     try {
-      await apiRequest(`/collections/${collection.id}/properties/${propertyId}/comments`, {
+      await apiRequest(`/showcases/${showcase.id}/properties/${propertyId}/comments`, {
         method: 'POST',
         body: JSON.stringify({
           comment: comment,
-          visitor_name: `${collection.customer.firstName} ${collection.customer.lastName}`
+          visitor_name: `${showcase.customer.firstName} ${showcase.customer.lastName}`
         })
       })
     } catch (error) {
@@ -339,7 +339,7 @@ export default function CustomerCollectionPage() {
         <div className="flex-1 flex items-center justify-center py-20">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355] mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading collection...</p>
+            <p className="text-gray-600">Loading showcase...</p>
           </div>
         </div>
         <Footer />
@@ -347,7 +347,7 @@ export default function CustomerCollectionPage() {
     )
   }
 
-  if (error || !collection) {
+  if (error || !showcase) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col">
         <Header mode={isAuthenticated ? 'app' : 'shared'} />
@@ -377,19 +377,19 @@ export default function CustomerCollectionPage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 mb-1 font-light">Property Recommendations</h1>
-                <p className="text-gray-600 text-sm font-light">Curated properties for {collection.customer.firstName} {collection.customer.lastName}</p>
+                <p className="text-gray-600 text-sm font-light">Curated properties for {showcase.customer.firstName} {showcase.customer.lastName}</p>
               </div>
               
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-gray-600 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
-                  {filteredProperties.length} of {collection.stats.totalProperties} properties
+                  {filteredProperties.length} of {showcase.stats.totalProperties} properties
                 </span>
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${
-                  collection.status === 'ACTIVE' 
+                  showcase.status === 'ACTIVE' 
                     ? 'bg-green-100 text-green-800 border-green-200'
                     : 'bg-gray-100 text-gray-700 border-gray-200'
                 }`}>
-                  {collection.status}
+                  {showcase.status}
                 </span>
               </div>
             </div>
@@ -503,8 +503,8 @@ export default function CustomerCollectionPage() {
 
           {/* AI Chat Assistant for Individual Collection */}
           <ChatAssistant 
-            collectionData={collection}
-            customerName={collection.customer.firstName}
+            showcaseData={showcase}
+            customerName={showcase.customer.firstName}
           />
         </div>
       </div>

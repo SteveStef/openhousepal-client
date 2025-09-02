@@ -280,7 +280,7 @@ export default function EditPreferencesModal({
                 <input
                   type="number"
                   min="0"
-                  step="1000"
+                  step="any"
                   value={formData.min_price || ''}
                   onChange={(e) => handleInputChange('min_price', e.target.value ? parseInt(e.target.value) : null)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
@@ -295,7 +295,7 @@ export default function EditPreferencesModal({
                 <input
                   type="number"
                   min="0"
-                  step="1000"
+                  step="any"
                   value={formData.max_price || ''}
                   onChange={(e) => handleInputChange('max_price', e.target.value ? parseInt(e.target.value) : null)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"

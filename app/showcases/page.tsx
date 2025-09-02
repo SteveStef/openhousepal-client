@@ -25,7 +25,7 @@ const formatPrice = (price: number): string => {
   }
 }
 
-export default function CollectionsPage() {
+export default function ShowcasesPage() {
   const router = useRouter()
   const [collections, setCollections] = useState<Collection[]>([])
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null)
@@ -422,7 +422,7 @@ export default function CollectionsPage() {
   }
 
   // Share functionality handlers
-  const handleShareCollection = (collection: Collection) => {
+  const handleShareShowcase = (collection: Collection) => {
     setSelectedCollectionForShare(collection)
     setIsShareModalOpen(true)
   }
@@ -445,8 +445,8 @@ export default function CollectionsPage() {
         const { share_token, is_public, share_url } = response.data
         console.log(`[SHARE] Generated: is_public=${is_public}, share_token=${share_token}`)
         
-        setCollections(prevCollections =>
-          prevCollections.map(collection =>
+        setCollections(prevShowcases =>
+          prevShowcases.map(collection =>
             collection.id === collectionId
               ? { 
                   ...collection, 
@@ -492,8 +492,8 @@ export default function CollectionsPage() {
         console.log(`[SHARE] API Response: is_public=${is_public}, share_token=${share_token}`)
         
         // Use actual backend response values, not assumptions
-        setCollections(prevCollections =>
-          prevCollections.map(collection =>
+        setCollections(prevShowcases =>
+          prevShowcases.map(collection =>
             collection.id === collectionId
               ? { 
                   ...collection, 
@@ -538,8 +538,8 @@ export default function CollectionsPage() {
         const { share_token, is_public, share_url } = response.data
         console.log(`[SHARE] Regenerated: is_public=${is_public}, share_token=${share_token}`)
         
-        setCollections(prevCollections =>
-          prevCollections.map(collection =>
+        setCollections(prevShowcases =>
+          prevShowcases.map(collection =>
             collection.id === collectionId
               ? { 
                   ...collection, 
@@ -583,6 +583,7 @@ export default function CollectionsPage() {
   }
 
   const handleSavePreferences = async (collectionId: string, preferences: any) => {
+  console.log(preferences)
     try {
       console.log(`[PREFERENCES] Updating preferences for collection ${collectionId}:`, preferences)
       
@@ -701,8 +702,8 @@ export default function CollectionsPage() {
 
       if (response.status === 200) {
         // Update collections list
-        setCollections(prevCollections =>
-          prevCollections.map(c =>
+        setCollections(prevShowcases =>
+          prevShowcases.map(c =>
             c.id === collectionId
               ? { ...c, status: newStatus as 'ACTIVE' | 'INACTIVE' }
               : c
@@ -729,7 +730,7 @@ export default function CollectionsPage() {
       const response = await apiRequest('/collections/create-from-address', {
         method: 'POST',
         body: JSON.stringify({
-          name: collectionData.collectionName,
+          name: collectionData.showcaseName,
           address: collectionData.address,
           visitor_name: collectionData.fullName,
           visitor_email: collectionData.email,
@@ -837,7 +838,7 @@ export default function CollectionsPage() {
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
             </svg>
-            Back to Collections
+            Back to Showcases
           </button>
 
           {/* Combined Property Recommendations and Status Section */}
@@ -1014,8 +1015,8 @@ export default function CollectionsPage() {
           {/* Header Section */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6">
             <div className="flex-1 mb-4 lg:mb-0">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2 font-light">Collections</h1>
-              <p className="text-gray-600 font-light">Manage customer property collections and preferences</p>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2 font-light">Showcases</h1>
+              <p className="text-gray-600 font-light">Manage customer property showcases and preferences</p>
             </div>
             <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-6">
               <button
@@ -1025,17 +1026,17 @@ export default function CollectionsPage() {
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
-                <span>Create Collection</span>
+                <span>Create Showcase</span>
               </button>
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                <span className="text-sm text-gray-600 font-medium">Active Collections</span>
+                <span className="text-sm text-gray-600 font-medium">Active Showcases</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
                   <Share2 className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-sm text-gray-600 font-medium">Share collections with customers</span>
+                <span className="text-sm text-gray-600 font-medium">Share showcases with buyers</span>
               </div>
             </div>
           </div>
@@ -1043,8 +1044,8 @@ export default function CollectionsPage() {
           {/* Filters Section */}
           <div className="border-t border-gray-200/60 pt-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Filter Collections</h3>
-              <span className="text-sm text-gray-500">{filteredCollections.length} collections found</span>
+              <h3 className="text-lg font-semibold text-gray-900">Filter Showcases</h3>
+              <span className="text-sm text-gray-500">{filteredCollections.length} showcases found</span>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
@@ -1072,12 +1073,12 @@ export default function CollectionsPage() {
         </div>
 
 
-        {/* Collections Grid */}
+        {/* Showcases Grid */}
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355] mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading collections...</p>
+              <p className="text-gray-600">Loading showcases...</p>
             </div>
           </div>
         ) : filteredCollections.length === 0 ? (
@@ -1087,7 +1088,7 @@ export default function CollectionsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2 font-light">No collections found</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-2 font-light">No showcases found</h3>
             <p className="text-gray-600 font-light">Try adjusting your search or filters</p>
           </div>
         ) : (
@@ -1097,7 +1098,7 @@ export default function CollectionsPage() {
                 key={collection.id}
                 collection={collection}
                 onClick={() => setSelectedCollection(collection)}
-                onShare={handleShareCollection}
+                onShare={handleShareShowcase}
                 onEditPreferences={handleEditPreferences}
                 formatTimeframe={formatTimeframe}
                 formatPriceRange={formatPriceRange}
@@ -1109,7 +1110,7 @@ export default function CollectionsPage() {
       </div>
       <Footer />
       
-      {/* AI Chat Assistant for Collections Overview */}
+      {/* AI Chat Assistant for Showcases Overview */}
       <ChatAssistant 
         collectionData={collections}
         customerName="Agent"
@@ -1133,7 +1134,7 @@ export default function CollectionsPage() {
         onSave={handleSavePreferences}
       />
       
-      {/* Create Collection Modal */}
+      {/* Create Showcase Modal */}
       <CreateCollectionModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
@@ -1144,7 +1145,7 @@ export default function CollectionsPage() {
   )
 }
 
-// Create Collection Modal Component
+// Create Showcase Modal Component
 function CreateCollectionModal({ isOpen, onClose, onSubmit }: { 
   isOpen: boolean, 
   onClose: () => void, 
@@ -1152,7 +1153,7 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
 }) {
   const [formData, setFormData] = useState({
     // Collection Info
-    collectionName: '',
+    showcaseName: '',
     address: '',
     
     // Customer Info (matching open house form)
@@ -1182,7 +1183,7 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
       await onSubmit(formData)
       // Reset form
       setFormData({
-        collectionName: '',
+        showcaseName: '',
         address: '',
         fullName: '',
         email: '',
@@ -1205,7 +1206,7 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold text-gray-900">Create New Collection</h3>
+            <h3 className="text-xl font-semibold text-gray-900">Create New Showcase</h3>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -1215,25 +1216,25 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
               </svg>
             </button>
           </div>
-          <p className="text-gray-600 text-sm mt-1">Create a collection based on a property address and customer preferences</p>
+          <p className="text-gray-600 text-sm mt-1">Create a showcase based on a property address and customer preferences</p>
         </div>
         
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Collection Information */}
           <div className="space-y-4">
-            <h4 className="text-lg font-medium text-gray-900">Collection Information</h4>
+            <h4 className="text-lg font-medium text-gray-900">Showcase Information</h4>
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Collection Name *
+                  Showcase Name *
                 </label>
                 <input
                   type="text"
                   required
-                  value={formData.collectionName}
-                  onChange={(e) => handleInputChange('collectionName', e.target.value)}
+                  value={formData.showcaseName}
+                  onChange={(e) => handleInputChange('showcaseName', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
-                  placeholder="e.g., West Chester Family Homes"
+                  placeholder="e.g., West Chester Family Showcase"
                 />
               </div>
               <div>
@@ -1397,7 +1398,7 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
               disabled={isSubmitting}
               className="px-6 py-2 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-lg hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Creating...' : 'Create Collection'}
+              {isSubmitting ? 'Creating...' : 'Create Showcase'}
             </button>
           </div>
         </form>

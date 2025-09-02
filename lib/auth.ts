@@ -282,6 +282,12 @@ export async function updateCollectionPreferences(
     long?: number | null;
     diameter?: number;
     special_features?: string;
+    is_town_house?: boolean; 
+    is_lot_land?: boolean;
+    is_condo?: boolean;
+    is_multi_family?: boolean;
+    is_single_family?: boolean
+    is_apartment?: boolean;
   }
 ): Promise<ApiResponse> {
   return await apiRequest(`/collection-preferences/collection/${collectionId}`, {

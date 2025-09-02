@@ -54,7 +54,6 @@ export default function CollectionCard({
     if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`
     return formatDate(collection.stats.lastActivity)
   }
-  console.log(collection);
 
   return (
     <div
