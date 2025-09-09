@@ -96,7 +96,7 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
         {property.propertyType && (
           <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
             <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full border border-gray-200">
-              {property.propertyType}
+              {property.propertyType[0]}{property.propertyType?.toLowerCase().substring(1,property.propertyType?.length)}
             </span>
             
             <div className="flex items-center space-x-2">
@@ -105,7 +105,7 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    onLike?.(Number(property.id!), !property.liked);
+                    onLike?.(String(property.id), !property.liked);
                   }}
                   className={`flex items-center transition-colors p-1 rounded-md hover:bg-gray-100 ${
                     property.liked 
@@ -134,7 +134,7 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDislike?.(Number(property.id!), !property.disliked);
+                    onDislike?.(String(property.id!), !property.disliked);
                   }}
                   className={`flex items-center transition-colors p-1 rounded-md hover:bg-gray-100 ${
                     property.disliked 
@@ -162,7 +162,7 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    onFavorite?.(Number(property.id!), !property.favorited);
+                    onFavorite?.(String(property.id!), !property.favorited);
                   }}
                   className={`flex items-center transition-colors p-1 rounded-md hover:bg-gray-100 ${
                     property.favorited 

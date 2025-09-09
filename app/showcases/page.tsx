@@ -43,6 +43,8 @@ export default function ShowcasesPage() {
   // Modal states
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false)
+  const [detailsError, setDetailsError] = useState<string | null>(null)
   
   // Share modal states
   const [selectedCollectionForShare, setSelectedCollectionForShare] = useState<Collection | null>(null)
@@ -411,14 +413,53 @@ export default function ShowcasesPage() {
     }
   }
 
-  const handlePropertyClick = (property: Property) => {
+  const handlePropertyClick = async (property: Property) => {
+    // Open modal immediately with basic property data
     setSelectedProperty(property)
     setIsModalOpen(true)
+    setIsLoadingDetails(true)
+    setDetailsError(null)
+    
+    // Skip loading if property already has details
+    if (property.details) {
+      setIsLoadingDetails(false)
+      return
+    }
+    
+    // Fetch detailed property information in background
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/properties/${property.id}/cache`)
+      
+      if (response.ok) {
+        const cacheResponse = await response.json()
+        console.log(cacheResponse);
+        
+        if (cacheResponse.success && cacheResponse.details) {
+          // Update property with detailed information
+          const enhancedProperty = {
+            ...property,
+            details: cacheResponse.details
+          }
+          setSelectedProperty(enhancedProperty)
+        } else {
+          setDetailsError('Failed to load additional property details')
+        }
+      } else {
+        setDetailsError('Failed to connect to property service')
+      }
+    } catch (error) {
+      console.error('Error fetching property details:', error)
+      setDetailsError('Failed to load additional property details')
+    } finally {
+      setIsLoadingDetails(false)
+    }
   }
 
   const handleCloseModal = () => {
     setIsModalOpen(false)
     setSelectedProperty(null)
+    setIsLoadingDetails(false)
+    setDetailsError(null)
   }
 
   // Share functionality handlers
@@ -731,7 +772,6 @@ export default function ShowcasesPage() {
         method: 'POST',
         body: JSON.stringify({
           name: collectionData.showcaseName,
-          address: collectionData.address,
           visitor_name: collectionData.fullName,
           visitor_email: collectionData.email,
           visitor_phone: collectionData.phone,
@@ -739,7 +779,24 @@ export default function ShowcasesPage() {
           timeframe: collectionData.timeframe,
           has_agent: collectionData.hasAgent,
           additional_comments: collectionData.additionalComments || '',
-          interested_in_similar: collectionData.interestedInSimilar
+          
+          // Preferences
+          min_beds: collectionData.minBeds ? parseInt(collectionData.minBeds) : null,
+          max_beds: collectionData.maxBeds ? parseInt(collectionData.maxBeds) : null,
+          min_baths: collectionData.minBaths ? parseFloat(collectionData.minBaths) : null,
+          max_baths: collectionData.maxBaths ? parseFloat(collectionData.maxBaths) : null,
+          min_price: collectionData.minPrice ? parseInt(collectionData.minPrice) : null,
+          max_price: collectionData.maxPrice ? parseInt(collectionData.maxPrice) : null,
+          address: collectionData.address,
+          diameter: parseFloat(collectionData.diameter) || 2.0,
+          
+          // Property types
+          is_town_house: collectionData.isTownHouse || false,
+          is_lot_land: collectionData.isLotLand || false,
+          is_condo: collectionData.isCondo || false,
+          is_multi_family: collectionData.isMultiFamily || false,
+          is_single_family: collectionData.isSingleFamily || false,
+          is_apartment: collectionData.isApartment || false
         })
       })
 
@@ -975,6 +1032,9 @@ export default function ShowcasesPage() {
             onDislike={undefined}
             onFavorite={undefined}
             onAddComment={handleAddComment}
+            isLoadingDetails={isLoadingDetails}
+            detailsError={detailsError}
+            onRetryDetails={() => handlePropertyClick(selectedProperty!)}
           />
 
           {/* AI Chat Assistant for Individual Collection */}
@@ -1154,19 +1214,33 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
   const [formData, setFormData] = useState({
     // Collection Info
     showcaseName: '',
-    address: '',
     
-    // Customer Info (matching open house form)
+    // Customer Info
     fullName: '',
     email: '',
     phone: '',
     
-    // Preferences (matching open house form exactly)
+    // Customer Preferences
     visitingReason: 'BUYING_SOON',
     timeframe: '3_6_MONTHS',
     hasAgent: 'NO',
     additionalComments: '',
-    interestedInSimilar: true
+    
+    // Search Preferences
+    minBeds: '',
+    maxBeds: '',
+    minBaths: '',
+    maxBaths: '',
+    minPrice: '',
+    maxPrice: '',
+    address: '',
+    diameter: '2',
+    isTownHouse: false,
+    isLotLand: false,
+    isCondo: false,
+    isMultiFamily: false,
+    isSingleFamily: false,
+    isApartment: false
   })
   
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -1177,6 +1251,22 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validate that at least one property type is selected
+    const propertyTypesSelected = [
+      formData.isTownHouse,
+      formData.isLotLand,
+      formData.isCondo,
+      formData.isMultiFamily,
+      formData.isSingleFamily,
+      formData.isApartment
+    ]
+    
+    if (!propertyTypesSelected.some(type => type)) {
+      alert('Please select at least one property type.')
+      return
+    }
+    
     setIsSubmitting(true)
     
     try {
@@ -1184,7 +1274,6 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
       // Reset form
       setFormData({
         showcaseName: '',
-        address: '',
         fullName: '',
         email: '',
         phone: '',
@@ -1192,7 +1281,20 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
         timeframe: '3_6_MONTHS',
         hasAgent: 'NO',
         additionalComments: '',
-        interestedInSimilar: true
+        minBeds: '',
+        maxBeds: '',
+        minBaths: '',
+        maxBaths: '',
+        minPrice: '',
+        maxPrice: '',
+        address: '',
+        diameter: '2',
+        isTownHouse: false,
+        isLotLand: false,
+        isCondo: false,
+        isMultiFamily: false,
+        isSingleFamily: false,
+        isApartment: false
       })
     } finally {
       setIsSubmitting(false)
@@ -1216,7 +1318,7 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
               </svg>
             </button>
           </div>
-          <p className="text-gray-600 text-sm mt-1">Create a showcase based on a property address and customer preferences</p>
+          <p className="text-gray-600 text-sm mt-1">Create a showcase based on customer preferences and search criteria</p>
         </div>
         
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -1235,19 +1337,6 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
                   onChange={(e) => handleInputChange('showcaseName', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
                   placeholder="e.g., West Chester Family Showcase"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Property Address *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.address}
-                  onChange={(e) => handleInputChange('address', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
-                  placeholder="123 Main Street, City, State, ZIP"
                 />
               </div>
             </div>
@@ -1286,11 +1375,10 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone *
+                    Phone
                   </label>
                   <input
                     type="tel"
-                    required
                     value={formData.phone}
                     onChange={(e) => handleInputChange('phone', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
@@ -1368,18 +1456,159 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
                   placeholder="pool, garage, modern kitchen..."
                 />
               </div>
-              <div>
-                <label className="flex items-center space-x-2">
+            </div>
+          </div>
+
+          {/* Property Search Preferences */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-medium text-gray-900">Property Search Criteria</h4>
+            <div className="grid grid-cols-1 gap-4">
+              {/* Beds and Baths */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Min Beds
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={formData.interestedInSimilar}
-                    onChange={(e) => handleInputChange('interestedInSimilar', e.target.checked)}
-                    className="rounded border-gray-300 text-[#8b7355] focus:ring-[#8b7355]"
+                    type="number"
+                    min="0"
+                    value={formData.minBeds}
+                    onChange={(e) => handleInputChange('minBeds', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    placeholder="0"
                   />
-                  <span className="text-sm font-medium text-gray-700">
-                    Interested in similar properties
-                  </span>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Max Beds
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.maxBeds}
+                    onChange={(e) => handleInputChange('maxBeds', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    placeholder="Any"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Min Baths
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={formData.minBaths}
+                    onChange={(e) => handleInputChange('minBaths', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Max Baths
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={formData.maxBaths}
+                    onChange={(e) => handleInputChange('maxBaths', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    placeholder="Any"
+                  />
+                </div>
+              </div>
+
+              {/* Price Range */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Min Price ($)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.minPrice}
+                    onChange={(e) => handleInputChange('minPrice', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Max Price ($)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.maxPrice}
+                    onChange={(e) => handleInputChange('maxPrice', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    placeholder="No limit"
+                  />
+                </div>
+              </div>
+
+              {/* Location */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Address *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.address}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    placeholder="123 Main St, West Chester, PA 19380"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Search Radius (miles)
+                  </label>
+                  <input
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={formData.diameter}
+                    onChange={(e) => handleInputChange('diameter', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    placeholder="2"
+                  />
+                </div>
+              </div>
+
+              {/* Property Types */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Property Types
                 </label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {[
+                    { key: 'isSingleFamily', label: 'Single Family' },
+                    { key: 'isTownHouse', label: 'Town House' },
+                    { key: 'isCondo', label: 'Condo' },
+                    { key: 'isApartment', label: 'Apartment' },
+                    { key: 'isMultiFamily', label: 'Multi Family' },
+                    { key: 'isLotLand', label: 'Lot/Land' }
+                  ].map((type) => (
+                    <label key={type.key} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={formData[type.key as keyof typeof formData] as boolean}
+                        onChange={(e) => handleInputChange(type.key, e.target.checked)}
+                        className="rounded border-gray-300 text-[#8b7355] focus:ring-[#8b7355]"
+                      />
+                      <span className="text-sm text-gray-700">
+                        {type.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

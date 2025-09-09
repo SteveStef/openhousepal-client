@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Property, Comment } from '@/types'
-import { X, MessageCircle, Send, ThumbsUp, ThumbsDown, Bookmark, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, MessageCircle, Send, ThumbsUp, ThumbsDown, Bookmark, ChevronLeft, ChevronRight, Maximize2, Home, Calendar, Palette, Wrench, DollarSign, TrendingUp, MapPin, Copy, ExternalLink, User, Star, Car } from 'lucide-react'
 
 interface PropertyDetailsModalProps {
   property: Property | null
@@ -12,6 +12,9 @@ interface PropertyDetailsModalProps {
   onDislike?: (propertyId: number, disliked: boolean) => void
   onFavorite?: (propertyId: number, favorited: boolean) => void
   onAddComment?: (propertyId: number, comment: string) => void
+  isLoadingDetails?: boolean
+  detailsError?: string | null
+  onRetryDetails?: () => void
 }
 
 export default function PropertyDetailsModal({
@@ -21,18 +24,83 @@ export default function PropertyDetailsModal({
   onLike,
   onDislike,
   onFavorite,
-  onAddComment
+  onAddComment,
+  isLoadingDetails = false,
+  detailsError = null,
+  onRetryDetails
 }: PropertyDetailsModalProps) {
   const [newComment, setNewComment] = useState('')
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false)
+
+  // Enhanced photo handling for Zillow API data
+  const getPropertyImages = useCallback(() => {
+    if (property?.details?.originalPhotos && property.details.originalPhotos.length > 0) {
+      // Use high-quality photos from Zillow API
+      return property.details.originalPhotos
+        .map(photo => photo.mixedSources?.jpeg?.[0]?.url || photo.mixedSources?.webp?.[0]?.url)
+        .filter(Boolean) as string[]
+    }
+    // Fallback to basic images
+    return (property?.images || [property?.imageUrl].filter(Boolean)) as string[]
+  }, [property])
+  
+  const images = getPropertyImages()
+  
+  const nextImage = useCallback(() => {
+    if (images.length > 0) {
+      setCurrentImageIndex((prev) => (prev + 1) % images.length)
+    }
+  }, [images.length])
+
+  const prevImage = useCallback(() => {
+    if (images.length > 0) {
+      setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length)
+    }
+  }, [images.length])
+  
+  // Reset image index when property changes or images change
+  useEffect(() => {
+    if (currentImageIndex >= images.length && images.length > 0) {
+      setCurrentImageIndex(0)
+    }
+  }, [property?.id, images.length, currentImageIndex])
+
+  console.log(property);
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (!isOpen) return
+      
+      switch (e.key) {
+        case 'Escape':
+          if (isLightboxOpen) {
+            setIsLightboxOpen(false)
+          } else {
+            onClose()
+          }
+          break
+        case 'ArrowLeft':
+          if (isLightboxOpen) {
+            e.preventDefault()
+            prevImage()
+          }
+          break
+        case 'ArrowRight':
+          if (isLightboxOpen) {
+            e.preventDefault()
+            nextImage()
+          }
+          break
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [isOpen, isLightboxOpen, onClose, prevImage, nextImage])
 
   if (!isOpen || !property) return null
-
-  // Reset image index when property changes
-  if (property && currentImageIndex >= (property.images?.length || 1)) {
-    setCurrentImageIndex(0)
-  }
 
   const formatPrice = (price?: number) => {
     return price ? price.toLocaleString('en-US', {
@@ -96,352 +164,846 @@ export default function PropertyDetailsModal({
     }
   }
 
-  const images = property.images || [property.imageUrl].filter(Boolean)
-  
-  const nextImage = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % images.length)
-  }
+  const renderLightbox = () => {
+    if (!isLightboxOpen || images.length === 0) return null
+    
+    const handleBackgroundClick = (e: React.MouseEvent) => {
+      if (e.target === e.currentTarget) {
+        setIsLightboxOpen(false)
+      }
+    }
 
-  const prevImage = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length)
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200/60 max-w-7xl w-full max-h-[95vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200/60">
-          <h2 className="text-2xl font-bold text-gray-900">Property Details</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100/50 rounded-lg"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="overflow-y-auto max-h-[calc(95vh-80px)]">
-          {/* Property Information */}
-          <div className="p-6 space-y-8">
-            {/* First Row - Image Carousel and Quick Stats */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Left Column - Image Carousel */}
-              <div className="lg:col-span-2">
-                <div className="relative h-96 bg-gray-100 rounded-xl overflow-hidden">
-                  {images.length > 0 ? (
-                    <>
-                      <img
-                        src={images[currentImageIndex]}
-                        alt={`${property.address} - Image ${currentImageIndex + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                      {images.length > 1 && (
-                        <>
-                          <button
-                            onClick={prevImage}
-                            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-all duration-200"
-                          >
-                            <ChevronLeft size={20} />
-                          </button>
-                          <button
-                            onClick={nextImage}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-all duration-200"
-                          >
-                            <ChevronRight size={20} />
-                          </button>
-                          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
-                            {images.map((_, index) => (
-                              <button
-                                key={index}
-                                onClick={() => setCurrentImageIndex(index)}
-                                className={`w-2 h-2 rounded-full transition-all duration-200 ${
-                                  index === currentImageIndex 
-                                    ? 'bg-white' 
-                                    : 'bg-white/50 hover:bg-white/75'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1"></path>
-                      </svg>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Right Column - Property Stats */}
-              <div>
-                <div className="bg-gray-50/60 rounded-xl p-6 h-96 border border-gray-200/40 flex flex-col">
-                  <div className="mb-6">
-                    <p className="text-gray-600 text-sm mb-2">
-                      {property.city}, {property.state} {property.zipCode}
-                    </p>
-                    <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                      {property.address}
-                    </h3>
-                  </div>
-
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h4>
-                  <div className="space-y-4">
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-[#8b7355]">{formatPrice(property.price)}</div>
-                      <div className="text-gray-600 text-sm">List Price</div>
-                    </div>
-                    
-                    <div className="grid grid-cols-3 gap-3 text-center">
-                      {property.beds && (
-                        <div className="bg-white/60 rounded-lg p-4 border border-gray-200/30">
-                          <div className="text-2xl font-bold text-gray-900">{property.beds}</div>
-                          <div className="text-gray-600 text-sm">Beds</div>
-                        </div>
-                      )}
-                      {property.baths && (
-                        <div className="bg-white/60 rounded-lg p-4 border border-gray-200/30">
-                          <div className="text-2xl font-bold text-gray-900">{property.baths}</div>
-                          <div className="text-gray-600 text-sm">Baths</div>
-                        </div>
-                      )}
-                      {property.squareFeet && (
-                        <div className="bg-white/60 rounded-lg p-4 border border-gray-200/30">
-                          <div className="text-xl font-bold text-gray-900">{(property.squareFeet / 1000).toFixed(1)}k</div>
-                          <div className="text-gray-600 text-sm">Sq Ft</div>
-                        </div>
-                      )}
-                    </div>
-
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Second Row - Property Details and Comments */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Left Column - Property Details & Description */}
-              <div>
-                {/* Property Description */}
-                {property.description && (
-                  <div className="mb-6">
-                    <h4 className="text-xl font-semibold text-gray-900 mb-3">Description</h4>
-                    <p className="text-gray-700 leading-relaxed">{property.description}</p>
-                  </div>
-                )}
-
-                {/* Detailed Property Information */}
-                <div className="bg-gray-50/60 rounded-xl p-6 border border-gray-200/40">
-                  <h4 className="text-xl font-semibold text-gray-900 mb-4">Property Details</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">LISTING UPDATED:</span>
-                        <span className="text-gray-900 text-xs">{formatListingDate(property.listingUpdated)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">MLS #</span>
-                        <span className="text-gray-900">{property.mlsNumber || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Taxes</span>
-                        <span className="text-gray-900">{formatTaxes(property.taxes)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">HOA Fees</span>
-                        <span className="text-gray-900">{formatCurrency(property.hoaFees)}</span>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Condo/Co-op Fees</span>
-                        <span className="text-gray-900">{formatCurrency(property.condoCoopFees)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">MLS Type</span>
-                        <span className="text-gray-900">{property.mlsType || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">County</span>
-                        <span className="text-gray-900">{property.county || 'N/A'}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Property Status and Actions */}
-                <div className="bg-gray-50/60 rounded-xl p-6 border border-gray-200/40 mt-6">
-                  <h4 className="text-xl font-semibold text-gray-900 mb-4">Property Status & Actions</h4>
-                  
-                  {/* Status Information */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-6">
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Status</span>
-                        <span className="text-green-600">{property.status || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Days on Market</span>
-                        <span className="text-gray-900">{property.daysOnMarket || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Year Built</span>
-                        <span className="text-gray-900">{property.yearBuilt || 'N/A'}</span>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Lot Size</span>
-                        <span className="text-gray-900">{formatLotSize(property.lotSizeAcres, property.lotSizeSquareFeet)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Property Type</span>
-                        <span className="text-gray-900">{property.compassType || 'N/A'}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Property Actions */}
-                  <div className="border-t border-gray-200/60 pt-4">
-                    <h5 className="text-lg font-medium text-gray-900 mb-3">Your Feedback</h5>
-                    <div className="flex items-center justify-center space-x-6">
-                      <button 
-                        onClick={() => onLike?.(Number(property.id!), !property.liked)}
-                        className={`flex flex-col items-center transition-colors p-4 rounded-xl hover:bg-gray-100/60 ${
-                          property.liked 
-                            ? 'text-green-500 hover:text-green-600' 
-                            : 'text-gray-400 hover:text-green-500'
-                        }`}
-                      >
-                        <ThumbsUp 
-                          size={24} 
-                          fill={property.liked ? "currentColor" : "none"}
-                        />
-                        <span className="text-sm mt-1 font-medium">Like</span>
-                      </button>
-                      <button 
-                        onClick={() => onDislike?.(Number(property.id!), !property.disliked)}
-                        className={`flex flex-col items-center transition-colors p-4 rounded-xl hover:bg-gray-100/60 ${
-                          property.disliked 
-                            ? 'text-red-500 hover:text-red-600' 
-                            : 'text-gray-400 hover:text-red-500'
-                        }`}
-                      >
-                        <ThumbsDown 
-                          size={24} 
-                          fill={property.disliked ? "currentColor" : "none"}
-                        />
-                        <span className="text-sm mt-1 font-medium">Dislike</span>
-                      </button>
-                      <button 
-                        onClick={() => onFavorite?.(Number(property.id!), !property.favorited)}
-                        className={`flex flex-col items-center transition-colors p-4 rounded-xl hover:bg-gray-100/60 ${
-                          property.favorited 
-                            ? 'text-amber-500 hover:text-amber-600' 
-                            : 'text-gray-400 hover:text-amber-500'
-                        }`}
-                      >
-                        <Bookmark 
-                          size={24} 
-                          fill={property.favorited ? "currentColor" : "none"}
-                        />
-                        <span className="text-sm mt-1 font-medium">Save</span>
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Visitor Feedback Section */}
-                  {property.visitorInteractions && property.visitorInteractions.length > 0 && (
-                    <div className="border-t border-gray-200/60 pt-4 mt-4">
-                      <h5 className="text-lg font-medium text-gray-900 mb-3">Visitor Feedback</h5>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-green-500 mb-1">
-                            {property.visitorInteractions.filter(vi => vi.liked).length}
-                          </div>
-                          <div className="text-sm text-gray-600">Likes</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-red-500 mb-1">
-                            {property.visitorInteractions.filter(vi => vi.disliked).length}
-                          </div>
-                          <div className="text-sm text-gray-600">Dislikes</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-amber-500 mb-1">
-                            {property.visitorInteractions.filter(vi => vi.favorited).length}
-                          </div>
-                          <div className="text-sm text-gray-600">Favorites</div>
-                        </div>
-                      </div>
-                      {property.visitorInteractions.length > 0 && (
-                        <div className="mt-3 text-xs text-gray-500 text-center">
-                          Based on {property.visitorInteractions.length} visitor response{property.visitorInteractions.length === 1 ? '' : 's'}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Right Column - Comments Section */}
-              <div>
-                <div className="bg-gray-50/60 rounded-xl p-6 h-fit border border-gray-200/40">
-                  <div className="flex items-center space-x-2 mb-6">
-                    <MessageCircle size={20} className="text-[#8b7355]" />
-                    <h4 className="text-xl font-semibold text-gray-900">
-                      Comments ({property.comments?.length || 0})
-                    </h4>
-                  </div>
-
-                  {/* Comments List */}
-                  <div className="space-y-4 mb-6 max-h-80 overflow-y-auto">
-                    {property.comments && property.comments.length > 0 ? (
-                      property.comments.map((comment) => (
-                        <div key={comment.id} className="bg-white/60 rounded-lg p-4 border border-gray-200/30">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-gray-900 text-sm">{comment.author}</span>
-                            <span className="text-xs text-gray-600">{formatDate(comment.createdAt)}</span>
-                          </div>
-                          <p className="text-gray-700 text-sm leading-relaxed">{comment.content}</p>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8">
-                        <MessageCircle size={32} className="text-gray-400 mx-auto mb-2" />
-                        <p className="text-gray-600">No comments yet</p>
-                        <p className="text-gray-500 text-sm">Be the first to add a comment!</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Add Comment Form */}
-                  <form onSubmit={handleSubmitComment} className="space-y-3">
-                    <textarea
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Add a comment..."
-                      className="w-full px-3 py-2 bg-white/60 border border-gray-200/50 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#8b7355]/60 focus:border-[#8b7355]/60 transition-all duration-300 resize-none text-sm"
-                      rows={3}
-                      disabled={isSubmittingComment}
-                    />
-                    <button
-                      type="submit"
-                      disabled={!newComment.trim() || isSubmittingComment}
-                      className="w-full bg-[#8b7355] hover:bg-[#7a6549] disabled:bg-zinc-700 disabled:text-zinc-400 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2 text-sm"
-                    >
-                      <Send size={16} />
-                      <span>{isSubmittingComment ? 'Adding...' : 'Add Comment'}</span>
-                    </button>
-                  </form>
-                </div>
-              </div>
-            </div>
+    const handleCloseClick = (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setIsLightboxOpen(false)
+    }
+    
+    return (
+      <div 
+        className="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center"
+        onClick={handleBackgroundClick}
+      >
+        <button
+          onClick={handleCloseClick}
+          className="absolute top-4 right-4 text-white hover:text-white p-3 rounded-full bg-black/40 hover:bg-black/60 transition-all z-[70] border border-white/20"
+          type="button"
+        >
+          <X size={24} />
+        </button>
+        
+        <div className="relative w-full h-full flex items-center justify-center p-8">
+          <img
+            src={images[currentImageIndex]}
+            alt={`${property.address} - Image ${currentImageIndex + 1}`}
+            className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  prevImage()
+                }}
+                className="absolute left-8 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-4 rounded-full bg-black/20 hover:bg-black/40 transition-all"
+                type="button"
+              >
+                <ChevronLeft size={32} />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  nextImage()
+                }}
+                className="absolute right-8 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-4 rounded-full bg-black/20 hover:bg-black/40 transition-all"
+                type="button"
+              >
+                <ChevronRight size={32} />
+              </button>
+            </>
+          )}
+          
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/80 text-sm">
+            {currentImageIndex + 1} / {images.length}
           </div>
         </div>
       </div>
-    </div>
+    )
+  }
+  
+  return (
+    <>
+      {renderLightbox()}
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" style={{transform: 'translate3d(0,0,0)'}}>
+        <div className="bg-white rounded-2xl shadow-2xl border border-gray-200/60 max-w-7xl w-full max-h-[95vh] overflow-hidden" style={{contain: 'layout style', transform: 'translateZ(0)'}}>
+          {/* Enhanced Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200/60 bg-gradient-to-r from-gray-50 to-white">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {property.details?.address?.streetAddress || property.address}
+              </h2>
+              <p className="text-gray-600 text-sm mt-1">
+                {property.details?.city || property.city}, {property.details?.address?.state || property.state} {property.details?.address?.zipcode || property.zipCode}
+              </p>
+            </div>
+            <div className="flex items-center space-x-4">
+              {property.details?.homeStatus && (
+                <span className={`px-3 py-1 text-sm font-medium rounded-full ${
+                  property.details.homeStatus === 'forSale' 
+                    ? 'bg-green-100 text-green-800' 
+                    : property.details.homeStatus === 'forRent'
+                    ? 'bg-blue-100 text-blue-800'
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {property.details.homeStatus === 'forSale' ? 'For Sale' :
+                   property.details.homeStatus === 'forRent' ? 'For Rent' :
+                   property.details.homeStatus === 'recentlySold' ? 'Recently Sold' :
+                   property.details.homeStatus}
+                </span>
+              )}
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100/50 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+          
+
+          <div className="overflow-y-auto max-h-[calc(95vh-140px)] overscroll-contain" style={{transform: 'translate3d(0,0,0)', willChange: 'scroll-position'}}>
+            <div className="p-6 space-y-8">
+              {/* Loading State */}
+              {isLoadingDetails && (
+                <div className="text-center py-8">
+                  <div className="inline-flex items-center space-x-2 text-blue-600">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+                    <span className="text-sm font-medium">Loading additional property details...</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Error State */}
+              {detailsError && (
+                <div className="text-center py-8 bg-red-50 rounded-2xl border border-red-200">
+                  <div className="text-red-600 mb-4">
+                    <svg className="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <p className="font-medium text-lg">{detailsError}</p>
+                  </div>
+                  {onRetryDetails && (
+                    <button
+                      onClick={onRetryDetails}
+                      className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors duration-200 font-medium"
+                    >
+                      Try Again
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Hero Section - Image Gallery and Key Stats */}
+              <div className="space-y-8">
+                  {/* Hero Section - Image and Key Info */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    {/* Enhanced Photo Gallery */}
+                    <div className="lg:col-span-8">
+                      <div className="relative h-[500px] bg-gray-100 rounded-2xl overflow-hidden group shadow-lg">
+                        {images.length > 0 ? (
+                          <>
+                            <img
+                              src={images[currentImageIndex]}
+                              alt={`${property.address} - Image ${currentImageIndex + 1}`}
+                              className="w-full h-full object-cover cursor-pointer"
+                              onClick={() => setIsLightboxOpen(true)}
+                            />
+                            
+                            {/* Expand Button */}
+                            <button
+                              onClick={() => setIsLightboxOpen(true)}
+                              className="absolute top-4 left-4 bg-black/60 hover:bg-black/80 text-white p-2 rounded-lg transition-colors duration-150 opacity-0 group-hover:opacity-100"
+                            >
+                              <Maximize2 size={16} />
+                            </button>
+                            
+                            {/* Photo Counter Badge */}
+                            <div className="absolute top-4 right-4 bg-black/70 text-white text-sm px-3 py-1.5 rounded-full font-medium">
+                              {currentImageIndex + 1} / {images.length}
+                            </div>
+                            
+                            {/* Photo Caption */}
+                            {property.details?.originalPhotos?.[currentImageIndex]?.caption && (
+                              <div className="absolute bottom-20 left-4 right-4 bg-black/70 text-white text-sm p-3 rounded-lg">
+                                {property.details.originalPhotos[currentImageIndex].caption}
+                              </div>
+                            )}
+                            
+                            {/* Navigation */}
+                            {images.length > 1 && (
+                              <>
+                                <button
+                                  onClick={prevImage}
+                                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 p-3 rounded-full shadow-lg transition-colors duration-150 opacity-0 group-hover:opacity-100"
+                                >
+                                  <ChevronLeft size={20} />
+                                </button>
+                                <button
+                                  onClick={nextImage}
+                                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 p-3 rounded-full shadow-lg transition-colors duration-150 opacity-0 group-hover:opacity-100"
+                                >
+                                  <ChevronRight size={20} />
+                                </button>
+                              </>
+                            )}
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Enhanced Thumbnail Strip */}
+                      {images.length > 1 && (
+                        <div className="mt-6 relative">
+                          <div className="flex space-x-3 overflow-x-auto pb-3 scrollbar-hide">
+                            {images.map((imageUrl, index) => (
+                              <button
+                                key={index}
+                                onClick={() => setCurrentImageIndex(index)}
+                                className={`flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-3 transition-colors duration-150 ${
+                                  index === currentImageIndex 
+                                    ? 'border-blue-500 ring-2 ring-blue-200 shadow-md' 
+                                    : 'border-gray-200 hover:border-gray-400'
+                                }`}
+                              >
+                                <img
+                                  src={imageUrl}
+                                  alt={`Thumbnail ${index + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              </button>
+                            ))}
+                          </div>
+                          {/* Scroll Indicators */}
+                          <div className="absolute -right-2 top-1/2 -translate-y-1/2 text-gray-400">
+                            <ChevronRight size={16} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Price and Action Buttons Section */}
+                    <div className="lg:col-span-4">
+                      <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 h-fit">
+                        {/* Price Section */}
+                        <div className="text-center mb-8">
+                          <div className="text-4xl font-bold text-gray-900 mb-2">
+                            {formatPrice(property.details?.price || property.price)}
+                          </div>
+                          <div className="text-gray-600 text-sm mb-2">List Price</div>
+                          {property.details?.resoFacts?.pricePerSquareFoot && (
+                            <div className="text-gray-500 text-xs mb-4">${property.details.resoFacts.pricePerSquareFoot}/sq ft</div>
+                          )}
+                          {property.details?.zestimate && (
+                            <div className="bg-blue-50 rounded-lg p-4 mt-3">
+                              <div className="text-xl font-semibold text-blue-900 mb-1">
+                                {formatPrice(property.details.zestimate)}
+                              </div>
+                              <div className="text-blue-700 text-xs mb-2">Zestimate®</div>
+                              {(() => {
+                                const listPrice = property.details?.price || property.price;
+                                const zestimate = property.details.zestimate;
+                                if (listPrice && zestimate) {
+                                  const difference = zestimate - listPrice;
+                                  const percentDiff = ((difference / listPrice) * 100).toFixed(1);
+                                  return (
+                                    <div className={`text-xs font-medium ${difference > 0 ? 'text-green-700' : difference < 0 ? 'text-red-700' : 'text-gray-700'}`}>
+                                      {difference > 0 ? '+' : ''}{formatPrice(difference)} ({difference > 0 ? '+' : ''}{percentDiff}% vs list)
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Property Specs */}
+                        <div className="grid grid-cols-3 gap-4 mb-8">
+                          <div className="text-center">
+                            <div className="text-3xl font-bold text-gray-900 mb-1">
+                              {property.details?.bedrooms || property.beds || '-'}
+                            </div>
+                            <div className="text-gray-600 text-sm">Beds</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-3xl font-bold text-gray-900 mb-1">
+                              {property.details?.bathrooms || property.baths || '-'}
+                            </div>
+                            <div className="text-gray-600 text-sm">Baths</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-gray-900 mb-1">
+                              {((property.details?.livingArea || property.squareFeet || 0) / 1000).toFixed(1)}k
+                            </div>
+                            <div className="text-gray-600 text-sm">Sq Ft</div>
+                          </div>
+                        </div>
+                        
+                        {/* Key Details */}
+                        <div className="space-y-3 text-sm border-t pt-6 mb-8">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Home Type:</span>
+                            <span className="text-gray-900 font-medium">
+                              {property.details?.homeType?.replace(/_/g, ' ') || property.propertyType?.replace(/_/g, ' ') || 'N/A'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Year Built:</span>
+                            <span className="text-gray-900 font-medium">
+                              {property.details?.yearBuilt || property.yearBuilt || 'N/A'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Price/Sq Ft:</span>
+                            <span className="text-gray-900 font-medium">
+                              {property.details?.resoFacts?.pricePerSquareFoot ? `$${property.details.resoFacts.pricePerSquareFoot}` : 'N/A'}
+                            </span>
+                          </div>
+                          {property.details?.resoFacts?.stories && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Stories:</span>
+                              <span className="text-gray-900 font-medium">{property.details.resoFacts.stories}</span>
+                            </div>
+                          )}
+                          {property.details?.lotSize && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Lot Size:</span>
+                              <span className="text-gray-900 font-medium">
+                                {(property.details.lotSize / 43560).toFixed(2)} acres
+                              </span>
+                            </div>
+                          )}
+                          {(property.details?.daysOnZillow || property.details?.resoFacts?.atAGlanceFacts?.find(fact => fact.factLabel === 'Days on Zillow')?.factValue) && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Days on Market:</span>
+                              <span className="text-gray-900 font-medium">
+                                {property.details?.daysOnZillow || property.details?.resoFacts?.atAGlanceFacts?.find(fact => fact.factLabel === 'Days on Zillow')?.factValue}
+                              </span>
+                            </div>
+                          )}
+                          {property.details?.resoFacts?.propertyCondition && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Condition:</span>
+                              <span className="text-gray-900 font-medium">{property.details.resoFacts.propertyCondition}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-3 gap-2">
+                            <button 
+                              onClick={() => onLike?.(Number(property.id!), !property.liked)}
+                              className={`flex flex-col items-center p-3 rounded-xl transition-all ${
+                                property.liked 
+                                  ? 'bg-green-100 text-green-600' 
+                                  : 'bg-gray-50 text-gray-400 hover:bg-green-50 hover:text-green-500'
+                              }`}
+                            >
+                              <ThumbsUp size={20} fill={property.liked ? "currentColor" : "none"} />
+                              <span className="text-xs mt-1 font-medium">Like</span>
+                            </button>
+                            <button 
+                              onClick={() => onFavorite?.(Number(property.id!), !property.favorited)}
+                              className={`flex flex-col items-center p-3 rounded-xl transition-all ${
+                                property.favorited 
+                                  ? 'bg-amber-100 text-amber-600' 
+                                  : 'bg-gray-50 text-gray-400 hover:bg-amber-50 hover:text-amber-500'
+                              }`}
+                            >
+                              <Bookmark size={20} fill={property.favorited ? "currentColor" : "none"} />
+                              <span className="text-xs mt-1 font-medium">Save</span>
+                            </button>
+                            <button 
+                              onClick={() => onDislike?.(Number(property.id!), !property.disliked)}
+                              className={`flex flex-col items-center p-3 rounded-xl transition-all ${
+                                property.disliked 
+                                  ? 'bg-red-100 text-red-600' 
+                                  : 'bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500'
+                              }`}
+                            >
+                              <ThumbsDown size={20} fill={property.disliked ? "currentColor" : "none"} />
+                              <span className="text-xs mt-1 font-medium">Pass</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+
+                {/* Property Overview and Comments Row */}
+                <div className="flex flex-col lg:flex-row gap-8">
+                  {/* Property Overview Section - 66.67% width */}
+                  <div className="w-full lg:w-2/3">
+                    <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+                      <h3 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center">
+                        <div className="bg-orange-100 p-2 rounded-lg mr-3">
+                          <Home className="text-orange-600" size={20} />
+                        </div>
+                        Property Overview
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {property.details?.resoFacts?.subdivisionName && (
+                          <div className="flex justify-between py-2 border-b border-gray-100">
+                            <span className="text-gray-600 font-medium">Subdivision:</span>
+                            <span className="text-gray-900 font-semibold">{property.details.resoFacts.subdivisionName}</span>
+                          </div>
+                        )}
+                        {property.details?.resoFacts?.municipality && (
+                          <div className="flex justify-between py-2 border-b border-gray-100">
+                            <span className="text-gray-600 font-medium">Municipality:</span>
+                            <span className="text-gray-900 font-semibold">{property.details.resoFacts.municipality}</span>
+                          </div>
+                        )}
+                        {property.details?.resoFacts?.parcelNumber && (
+                          <div className="flex justify-between py-2 border-b border-gray-100">
+                            <span className="text-gray-600 font-medium">Parcel Number:</span>
+                            <span className="text-gray-900 font-mono text-sm">{property.details.resoFacts.parcelNumber}</span>
+                          </div>
+                        )}
+                        {property.details?.resoFacts?.zoning && (
+                          <div className="flex justify-between py-2 border-b border-gray-100">
+                            <span className="text-gray-600 font-medium">Zoning:</span>
+                            <span className="text-gray-900 font-semibold">{property.details.resoFacts.zoning}</span>
+                          </div>
+                        )}
+                        {property.details?.resoFacts?.ownership && (
+                          <div className="flex justify-between py-2 border-b border-gray-100">
+                            <span className="text-gray-600 font-medium">Ownership Type:</span>
+                            <span className="text-gray-900 font-semibold">{property.details.resoFacts.ownership}</span>
+                          </div>
+                        )}
+                        {property.details?.propertyTaxRate && (
+                          <div className="flex justify-between py-2 border-b border-gray-100">
+                            <span className="text-gray-600 font-medium">Tax Rate:</span>
+                            <span className="text-gray-900 font-semibold">{property.details.propertyTaxRate}%</span>
+                          </div>
+                        )}
+                        
+                        {/* Description Field - Full Width */}
+                        {property.description && (
+                          <div className="md:col-span-2 py-4 border-t border-gray-200 mt-4">
+                            <h4 className="text-gray-600 font-medium mb-3">Description:</h4>
+                            <p className="text-gray-900 leading-relaxed text-sm">{property.description}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Comments Section - 33.33% width */}
+                  <div className="w-full lg:w-1/3">
+                    <div className="bg-gradient-to-br from-white to-indigo-50 rounded-3xl p-7 shadow-lg border border-indigo-100" style={{contain: 'layout style paint', transform: 'translateZ(0)'}}>
+                      <div className="flex items-center mb-6">
+                        <div className="bg-indigo-500 p-3 rounded-xl mr-4">
+                          <MessageCircle className="text-white" size={24} />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900">
+                          Comments ({property.comments?.length || 0})
+                        </h3>
+                      </div>
+
+                      {/* Comments List */}
+                      <div className="space-y-4 mb-6 max-h-64 overflow-y-auto">
+                        {property.comments && property.comments.length > 0 ? (
+                          property.comments.map((comment, index) => (
+                            <div key={comment.id} className="bg-white rounded-2xl p-4 border border-indigo-100">
+                              <div className="flex items-start">
+                                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-2 rounded-full mr-3 flex-shrink-0">
+                                  <User className="text-white" size={14} />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="font-bold text-gray-900 text-sm">{comment.author}</span>
+                                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{formatDate(comment.createdAt)}</span>
+                                  </div>
+                                  <p className="text-gray-700 leading-relaxed text-sm">{comment.content}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-8 bg-white rounded-2xl border-2 border-dashed border-indigo-200">
+                            <div className="bg-indigo-100 p-3 rounded-full w-12 h-12 mx-auto mb-3 flex items-center justify-center">
+                              <MessageCircle size={20} className="text-indigo-500" />
+                            </div>
+                            <h4 className="text-md font-bold text-gray-900 mb-2">No comments yet</h4>
+                            <p className="text-gray-500 text-xs">Be the first to share your thoughts!</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Add Comment Form */}
+                      <div className="border-t-2 border-indigo-100 pt-4">
+                        <h4 className="text-md font-bold text-gray-900 mb-3 flex items-center">
+                          <div className="bg-purple-100 p-2 rounded-lg mr-2">
+                            <Send className="text-purple-600" size={14} />
+                          </div>
+                          Add Comment
+                        </h4>
+                        <form onSubmit={handleSubmitComment} className="space-y-3">
+                          <textarea
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            placeholder="Share your thoughts about this property..."
+                            className="w-full px-4 py-3 bg-white border-2 border-indigo-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors resize-none text-sm"
+                            rows={3}
+                            disabled={isSubmittingComment}
+                          />
+                          <div className="flex justify-end">
+                            <button
+                              type="submit"
+                              disabled={!newComment.trim() || isSubmittingComment}
+                              className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-300 disabled:text-gray-500 text-white font-medium py-2 px-4 rounded-xl transition-colors duration-150 flex items-center space-x-2 text-sm"
+                            >
+                              <Send size={14} />
+                              <span>{isSubmittingComment ? 'Adding...' : 'Add Comment'}</span>
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Building & Interior Details */}
+              {!isLoadingDetails && !detailsError && property.details?.resoFacts && (
+                <div className="space-y-8">
+                  <div className="text-center mb-8">
+                    <div className="flex items-center justify-center mb-4">
+                      <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-3 rounded-xl shadow-lg">
+                        <Home className="text-white" size={32} />
+                      </div>
+                    </div>
+                    <h2 className="text-3xl font-bold text-gray-900 mb-2">Building & Interior Details</h2>
+                    <p className="text-gray-600 max-w-2xl mx-auto">Comprehensive construction, architectural, and interior information showcasing the property's quality and features</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Building & Construction Card */}
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-3xl p-8 shadow-xl border border-gray-100 hover:shadow-lg transition-shadow duration-150" style={{contain: 'layout style paint', transform: 'translateZ(0)'}}>
+                      <div className="flex items-center mb-6">
+                        <div className="bg-blue-500 p-3 rounded-xl mr-4 shadow-lg">
+                          <Wrench className="text-white" size={24} />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900">Building & Construction</h3>
+                      </div>
+                      
+                      <div className="space-y-6">
+                        {property.details.resoFacts.yearBuilt && (
+                          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                            <div className="flex items-center">
+                              <Calendar className="text-blue-500 mr-3" size={20} />
+                              <div>
+                                <span className="text-gray-600 text-sm font-medium block">Year Built</span>
+                                <div className="text-xl font-bold text-gray-900">{property.details.resoFacts.yearBuilt}</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {property.details.resoFacts.architecturalStyle && (
+                          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                            <div className="flex items-center">
+                              <Palette className="text-purple-500 mr-3" size={20} />
+                              <div>
+                                <span className="text-gray-600 text-sm font-medium block">Architectural Style</span>
+                                <div className="text-xl font-bold text-gray-900">{property.details.resoFacts.architecturalStyle}</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {property.details.resoFacts.constructionMaterials && (
+                          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                            <div className="flex items-start">
+                              <Home className="text-green-500 mr-3 mt-1" size={20} />
+                              <div className="flex-1">
+                                <span className="text-gray-600 text-sm font-medium block mb-3">Construction Materials</span>
+                                <div className="flex flex-wrap gap-2">
+                                  {property.details.resoFacts.constructionMaterials.map((material, index) => (
+                                    <span key={index} className="px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm rounded-lg font-medium shadow-sm hover:shadow-md transition-shadow">
+                                      {material}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Interior Features Card */}
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-3xl p-8 shadow-xl border border-gray-100 hover:shadow-lg transition-shadow duration-150" style={{contain: 'layout style paint', transform: 'translateZ(0)'}}>
+                      <div className="flex items-center mb-6">
+                        <div className="bg-indigo-500 p-3 rounded-xl mr-4 shadow-lg">
+                          <Star className="text-white" size={24} />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900">Interior Features</h3>
+                      </div>
+                      
+                      <div className="space-y-6">
+                        {property.details.resoFacts.appliances && (
+                          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                            <div className="flex items-start">
+                              <div className="bg-green-100 p-2 rounded-lg mr-3">
+                                <Wrench className="text-green-600" size={16} />
+                              </div>
+                              <div className="flex-1">
+                                <span className="text-gray-600 text-sm font-medium block mb-3">Appliances</span>
+                                <div className="flex flex-wrap gap-2">
+                                  {property.details.resoFacts.appliances.map((appliance, index) => (
+                                    <span key={index} className="px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm rounded-lg font-medium shadow-sm hover:shadow-md transition-shadow">
+                                      {appliance}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {property.details.resoFacts.interiorFeatures && (
+                          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                            <div className="flex items-start">
+                              <div className="bg-purple-100 p-2 rounded-lg mr-3">
+                                <Star className="text-purple-600" size={16} />
+                              </div>
+                              <div className="flex-1">
+                                <span className="text-gray-600 text-sm font-medium block mb-3">Interior Features</span>
+                                <div className="flex flex-wrap gap-2">
+                                  {property.details.resoFacts.interiorFeatures.map((feature, index) => (
+                                    <span key={index} className="px-3 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-sm rounded-lg font-medium shadow-sm hover:shadow-md transition-shadow">
+                                      {feature}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* HVAC & Systems Section */}
+              {!isLoadingDetails && !detailsError && property.details?.resoFacts && (
+                <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+                  <h3 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center">
+                    <div className="bg-red-100 p-2 rounded-lg mr-3">
+                      <Wrench className="text-red-600" size={20} />
+                    </div>
+                    HVAC & Systems
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {property.details.resoFacts.heating && (
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Heating</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {property.details.resoFacts.heating.map((type, index) => (
+                            <span key={index} className="px-3 py-1 bg-red-500 text-white text-sm rounded-lg">
+                              {type}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {property.details.resoFacts.cooling && (
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Cooling</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {property.details.resoFacts.cooling.map((type, index) => (
+                            <span key={index} className="px-3 py-1 bg-blue-500 text-white text-sm rounded-lg">
+                              {type}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {property.details.resoFacts.waterSource && (
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Water Source</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {property.details.resoFacts.waterSource.map((source, index) => (
+                            <span key={index} className="px-3 py-1 bg-cyan-500 text-white text-sm rounded-lg">
+                              {source}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {property.details.resoFacts.sewer && (
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Sewer</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {property.details.resoFacts.sewer.map((type, index) => (
+                            <span key={index} className="px-3 py-1 bg-green-500 text-white text-sm rounded-lg">
+                              {type}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Parking & Access Section */}
+              {!isLoadingDetails && !detailsError && property.details?.resoFacts && (
+                <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+                  <h3 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center">
+                    <div className="bg-purple-100 p-2 rounded-lg mr-3">
+                      <Car className="text-purple-600" size={20} />
+                    </div>
+                    Parking & Access
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {property.details.resoFacts.parkingCapacity && (
+                      <div className="bg-purple-50 rounded-xl p-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Total Parking</h4>
+                        <div className="text-2xl font-bold text-purple-600">{property.details.resoFacts.parkingCapacity} spaces</div>
+                      </div>
+                    )}
+                    {property.details.resoFacts.garageParkingCapacity && (
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Garage Parking</h4>
+                        <div className="text-xl font-bold text-gray-700">{property.details.resoFacts.garageParkingCapacity} spaces</div>
+                      </div>
+                    )}
+                    {property.details.resoFacts.parkingFeatures && (
+                      <div className="bg-gray-50 rounded-xl p-4 md:col-span-2">
+                        <h4 className="font-semibold text-gray-900 mb-2">Parking Features</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {property.details.resoFacts.parkingFeatures.map((feature, index) => (
+                            <span key={index} className="px-3 py-1 bg-purple-500 text-white text-sm rounded-lg">
+                              {feature}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {property.details.resoFacts.accessibilityFeatures && (
+                      <div className="bg-gray-50 rounded-xl p-4 md:col-span-2">
+                        <h4 className="font-semibold text-gray-900 mb-2">Accessibility Features</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {property.details.resoFacts.accessibilityFeatures.map((feature, index) => (
+                            <span key={index} className="px-3 py-1 bg-green-500 text-white text-sm rounded-lg">
+                              {feature}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* HOA & Fees Section */}
+              {!isLoadingDetails && !detailsError && property.details?.resoFacts && property.details.resoFacts.hasAssociation && (
+                <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+                  <h3 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center">
+                    <div className="bg-amber-100 p-2 rounded-lg mr-3">
+                      <DollarSign className="text-amber-600" size={20} />
+                    </div>
+                    HOA & Monthly Fees
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {property.details.resoFacts.hoaFee && (
+                      <div className="bg-amber-50 rounded-xl p-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">HOA Fee</h4>
+                        <div className="text-2xl font-bold text-amber-600">{property.details.resoFacts.hoaFee}</div>
+                      </div>
+                    )}
+                    {property.details.resoFacts.taxAnnualAmount && (
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Annual Property Tax</h4>
+                        <div className="text-xl font-bold text-gray-700">${property.details.resoFacts.taxAnnualAmount.toLocaleString()}</div>
+                      </div>
+                    )}
+                    {property.details.resoFacts.associationFeeIncludes && (
+                      <div className="bg-gray-50 rounded-xl p-4 md:col-span-2">
+                        <h4 className="font-semibold text-gray-900 mb-2">HOA Includes</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {property.details.resoFacts.associationFeeIncludes.map((service, index) => (
+                            <span key={index} className="px-3 py-1 bg-amber-500 text-white text-sm rounded-lg">
+                              {service}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Schools Section */}
+              {!isLoadingDetails && !detailsError && property.details?.resoFacts && (
+                <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+                  <h3 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center">
+                    <div className="bg-blue-100 p-2 rounded-lg mr-3">
+                      <User className="text-blue-600" size={20} />
+                    </div>
+                    Schools & District
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {property.details.resoFacts.elementarySchool && (
+                      <div className="bg-blue-50 rounded-xl p-4">
+                        <h4 className="font-semibold text-blue-900 mb-2">Elementary</h4>
+                        <div className="text-gray-700 font-medium">{property.details.resoFacts.elementarySchool}</div>
+                        {property.details.resoFacts.elementarySchoolDistrict && (
+                          <div className="text-sm text-gray-500 mt-1">{property.details.resoFacts.elementarySchoolDistrict} District</div>
+                        )}
+                      </div>
+                    )}
+                    {property.details.resoFacts.middleOrJuniorSchool && (
+                      <div className="bg-green-50 rounded-xl p-4">
+                        <h4 className="font-semibold text-green-900 mb-2">Middle School</h4>
+                        <div className="text-gray-700 font-medium">{property.details.resoFacts.middleOrJuniorSchool}</div>
+                        {property.details.resoFacts.middleOrJuniorSchoolDistrict && (
+                          <div className="text-sm text-gray-500 mt-1">{property.details.resoFacts.middleOrJuniorSchoolDistrict} District</div>
+                        )}
+                      </div>
+                    )}
+                    {property.details.resoFacts.highSchool && (
+                      <div className="bg-purple-50 rounded-xl p-4">
+                        <h4 className="font-semibold text-purple-900 mb-2">High School</h4>
+                        <div className="text-gray-700 font-medium">{property.details.resoFacts.highSchool}</div>
+                        {property.details.resoFacts.highSchoolDistrict && (
+                          <div className="text-sm text-gray-500 mt-1">{property.details.resoFacts.highSchoolDistrict} District</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+
+            </div>
+          </div>
+          </div>
+        </div>
+    </>
   )
 }

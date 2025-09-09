@@ -75,7 +75,7 @@ export default function LoginPage() {
       if (result.status === 200) {
         // Success - cookie is automatically set by backend
         showNotification('success', 'Login successful! Redirecting...')
-        window.location.href = redirectPath || '/collections'
+        window.location.href = redirectPath || '/showcases'
       } else {
         // Handle specific API errors
         if (result.status === 401) {

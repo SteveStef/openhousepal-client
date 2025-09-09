@@ -27,7 +27,7 @@ export default function ShareCollectionModal({
   if (!isOpen || !collection) return null
 
   const shareUrl = collection.shareToken 
-    ? `${window.location.origin}/collection/${collection.shareToken}`
+    ? `${window.location.origin}/showcase/${collection.shareToken}`
     : null
 
   const handleCopyLink = async () => {

@@ -8,7 +8,6 @@ import PropertyGrid from '@/components/PropertyGrid'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
-import ChatAssistant from '@/components/ChatAssistant'
 
 export default function CustomerShowcasePage() {
   const params = useParams()
@@ -26,6 +25,8 @@ export default function CustomerShowcasePage() {
   // Modal states
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false)
+  const [detailsError, setDetailsError] = useState<string | null>(null)
 
   const shareToken = params.shareToken as string
 
@@ -62,7 +63,7 @@ export default function CustomerShowcasePage() {
         setError(null)
         
         // First get the showcase data to get visitor email
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/showcases/shared/${shareToken}`)
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/collections/shared/${shareToken}`)
         
         if (response.status === 404) {
           setError('Collection not found or not available for sharing')
@@ -77,7 +78,7 @@ export default function CustomerShowcasePage() {
         
         // Backend will resolve visitor interactions based on showcase context
         // No need to pass visitor_email in URL (security risk)
-        setCollection(showcaseData)
+        setShowcase(showcaseData)
         
         // Extract properties and set them in separate state
         if (showcaseData.matchedProperties) {
@@ -168,11 +169,13 @@ export default function CustomerShowcasePage() {
   const tabCounts = getTabCounts()
 
   // Handle property interactions
-  const handlePropertyLike = async (propertyId: number, liked: boolean) => {
+  const handlePropertyLike = async (propertyId: string, liked: boolean) => {
+    console.log(showcase);
+    console.log(propertyId);
     if (!showcase) return
     
     try {
-      const response = await apiRequest(`/showcases/${showcase.id}/properties/${propertyId}/interact`, {
+      const response = await apiRequest(`/collections/${showcase.id}/properties/${propertyId}/interact`, {
         method: 'POST',
         body: JSON.stringify({
           interaction_type: 'like',
@@ -206,11 +209,11 @@ export default function CustomerShowcasePage() {
     }
   }
 
-  const handlePropertyDislike = async (propertyId: number, disliked: boolean) => {
+  const handlePropertyDislike = async (propertyId: string, disliked: boolean) => {
     if (!showcase) return
     
     try {
-      const response = await apiRequest(`/showcases/${showcase.id}/properties/${propertyId}/interact`, {
+      const response = await apiRequest(`/collections/${showcase.id}/properties/${propertyId}/interact`, {
         method: 'POST',
         body: JSON.stringify({
           interaction_type: 'dislike',
@@ -244,11 +247,11 @@ export default function CustomerShowcasePage() {
     }
   }
 
-  const handlePropertyFavorite = async (propertyId: number, favorited: boolean) => {
+  const handlePropertyFavorite = async (propertyId: string, favorited: boolean) => {
     if (!showcase) return
     
     try {
-      const response = await apiRequest(`/showcases/${showcase.id}/properties/${propertyId}/interact`, {
+      const response = await apiRequest(`/collections/${showcase.id}/properties/${propertyId}/interact`, {
         method: 'POST',
         body: JSON.stringify({
           interaction_type: 'favorite',
@@ -280,7 +283,7 @@ export default function CustomerShowcasePage() {
     }
   }
 
-  const handleAddComment = async (propertyId: number, comment: string) => {
+  const handleAddComment = async (propertyId: string, comment: string) => {
     if (!showcase) return
 
     const newComment: Comment = {
@@ -309,7 +312,7 @@ export default function CustomerShowcasePage() {
     
     // Make API call to persist the comment
     try {
-      await apiRequest(`/showcases/${showcase.id}/properties/${propertyId}/comments`, {
+      await apiRequest(`/collections/${showcase.id}/properties/${propertyId}/comments`, {
         method: 'POST',
         body: JSON.stringify({
           comment: comment,
@@ -322,8 +325,35 @@ export default function CustomerShowcasePage() {
     }
   }
 
-  const handlePropertyClick = (property: Property) => {
-    setSelectedProperty(property)
+  const handlePropertyClick = async (property: Property) => {
+    try {
+      // Fetch/cache detailed property information
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/properties/${property.id}/cache`)
+      
+      if (response.ok) {
+        const cacheResponse = await response.json()
+        
+        if (cacheResponse.success && cacheResponse.details) {
+          // Create enhanced property with detailed information
+          const enhancedProperty = {
+            ...property,
+            details: cacheResponse.details
+          }
+          setSelectedProperty(enhancedProperty)
+        } else {
+          // Fallback to basic property if cache fails
+          setSelectedProperty(property)
+        }
+      } else {
+        // Fallback to basic property if API call fails
+        setSelectedProperty(property)
+      }
+    } catch (error) {
+      console.error('Error fetching property details:', error)
+      // Fallback to basic property
+      setSelectedProperty(property)
+    }
+    
     setIsModalOpen(true)
   }
 
@@ -501,11 +531,6 @@ export default function CustomerShowcasePage() {
             onAddComment={handleAddComment}
           />
 
-          {/* AI Chat Assistant for Individual Collection */}
-          <ChatAssistant 
-            showcaseData={showcase}
-            customerName={showcase.customer.firstName}
-          />
         </div>
       </div>
       <Footer />

@@ -24,16 +24,56 @@ export default function CustomerCollectionView({
 }: CustomerCollectionViewProps) {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false)
+  const [detailsError, setDetailsError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'all' | 'liked' | 'disliked' | 'favorited'>('all')
 
-  const handlePropertyClick = (property: Property) => {
+  const handlePropertyClick = async (property: Property) => {
+    // Open modal immediately with basic property data
     setSelectedProperty(property)
     setIsModalOpen(true)
+    setIsLoadingDetails(true)
+    setDetailsError(null)
+    
+    // Skip loading if property already has details
+    if (property.details) {
+      setIsLoadingDetails(false)
+      return
+    }
+    
+    // Fetch detailed property information in background
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/properties/${property.id}/cache`)
+      
+      if (response.ok) {
+        const cacheResponse = await response.json()
+        
+        if (cacheResponse.success && cacheResponse.details) {
+          // Update property with detailed information
+          const enhancedProperty = {
+            ...property,
+            details: cacheResponse.details
+          }
+          setSelectedProperty(enhancedProperty)
+        } else {
+          setDetailsError('Failed to load additional property details')
+        }
+      } else {
+        setDetailsError('Failed to connect to property service')
+      }
+    } catch (error) {
+      console.error('Error fetching property details:', error)
+      setDetailsError('Failed to load additional property details')
+    } finally {
+      setIsLoadingDetails(false)
+    }
   }
 
   const handleCloseModal = () => {
     setIsModalOpen(false)
     setSelectedProperty(null)
+    setIsLoadingDetails(false)
+    setDetailsError(null)
   }
 
   // Filter properties based on active tab
@@ -241,6 +281,9 @@ export default function CustomerCollectionView({
         onDislike={onDislike}
         onFavorite={onFavorite}
         onAddComment={onAddComment}
+        isLoadingDetails={isLoadingDetails}
+        detailsError={detailsError}
+        onRetryDetails={() => handlePropertyClick(selectedProperty!)}
       />
 
       {/* AI Chat Assistant */}
