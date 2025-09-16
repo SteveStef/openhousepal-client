@@ -16,6 +16,7 @@
   "author": "Peter Stefanatos",
   "license": "ISC",
   "dependencies": {
+    "@googlemaps/js-api-loader": "^1.16.10",
     "@types/node": "^24.2.1",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",

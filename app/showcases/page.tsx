@@ -13,6 +13,9 @@ import EditPreferencesModal from '@/components/EditPreferencesModal'
 import ChatAssistant from '@/components/ChatAssistant'
 import { Share2 } from 'lucide-react'
 import { apiRequest, checkAuth, updateCollectionPreferences } from '@/lib/auth'
+import MultiCityPlacesInput from '@/components/MultiCityPlacesInput'
+import MultiTownshipPlacesInput from '@/components/MultiTownshipPlacesInput'
+import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
 
 // Helper function to format prices properly
 const formatPrice = (price: number): string => {
@@ -768,7 +771,7 @@ export default function ShowcasesPage() {
 
   const handleCreateCollection = async (collectionData: any) => {
     try {
-      const response = await apiRequest('/collections/create-from-address', {
+      const response = await apiRequest('/collections/create-manually', {
         method: 'POST',
         body: JSON.stringify({
           name: collectionData.showcaseName,
@@ -787,8 +790,10 @@ export default function ShowcasesPage() {
           max_baths: collectionData.maxBaths ? parseFloat(collectionData.maxBaths) : null,
           min_price: collectionData.minPrice ? parseInt(collectionData.minPrice) : null,
           max_price: collectionData.maxPrice ? parseInt(collectionData.maxPrice) : null,
+          cities: collectionData.cities || [],
+          townships: collectionData.townships || [],
           address: collectionData.address,
-          diameter: parseFloat(collectionData.diameter) || 2.0,
+          diameter: parseFloat(collectionData.diameter) || 10.0,
           
           // Property types
           is_town_house: collectionData.isTownHouse || false,
@@ -1234,7 +1239,9 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
     minPrice: '',
     maxPrice: '',
     address: '',
-    diameter: '2',
+    cities: [] as string[],
+    townships: [] as string[],
+    diameter: '0',
     isTownHouse: false,
     isLotLand: false,
     isCondo: false,
@@ -1244,26 +1251,118 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
   })
   
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [validationErrors, setValidationErrors] = useState({
+    location: '',
+    propertyTypes: ''
+  })
 
-  const handleInputChange = (field: string, value: string | number | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+  // Validation helper functions
+  const validatePropertyTypes = () => {
+    const hasPropertyType = formData.isSingleFamily || formData.isCondo || formData.isTownHouse || 
+                           formData.isApartment || formData.isMultiFamily || formData.isLotLand
+    return hasPropertyType
+  }
+
+  const validateLocationPreferences = () => {
+    const hasAddress = formData.address && formData.address.trim()
+    const hasAreaFilters = (formData.cities && formData.cities.length > 0) || 
+                          (formData.townships && formData.townships.length > 0)
+    
+    // If address is provided, diameter must be provided
+    if (hasAddress && !formData.diameter) {
+      return { isValid: false, error: 'Search diameter is required when using address-based search' }
+    }
+    
+    // Must have either address or area filters
+    if (!hasAddress && !hasAreaFilters) {
+      return { isValid: false, error: 'Please specify either an address with search diameter OR select cities/townships' }
+    }
+    
+    return { isValid: true, error: '' }
+  }
+
+  const isUsingAddressSearch = () => {
+    return formData.address && formData.address.trim()
+  }
+
+  const isUsingAreaSearch = () => {
+    return (formData.cities && formData.cities.length > 0) || 
+           (formData.townships && formData.townships.length > 0)
+  }
+
+  const handleInputChange = (field: string, value: string | number | boolean | string[]) => {
+    let updatedFormData = { ...formData, [field]: value }
+    
+    // Handle location field conflicts
+    if (field === 'address') {
+      // If address is being filled and we have area filters, clear them
+      if (value && (formData.cities?.length || formData.townships?.length)) {
+        updatedFormData = {
+          ...updatedFormData,
+          cities: [],
+          townships: []
+        }
+      }
+    } else if (field === 'cities' || field === 'townships') {
+      // Check combined cities/townships limit (max 10 total)
+      const newValue = value as string[]
+      const currentCities = field === 'cities' ? [] : formData.cities || []
+      const currentTownships = field === 'townships' ? [] : formData.townships || []
+      const otherFieldCount = field === 'cities' ? currentTownships.length : currentCities.length
+      
+      // Prevent adding if it would exceed combined limit of 10
+      if (newValue.length + otherFieldCount > 10) {
+        setValidationErrors(prev => ({ 
+          ...prev, 
+          location: `Maximum 10 total cities and townships combined. You currently have ${otherFieldCount} ${field === 'cities' ? 'townships' : 'cities'}.`
+        }))
+        return // Don't update the form data
+      }
+      
+      // If area filters are being used and we have an address, clear it
+      if (newValue.length > 0 && formData.address) {
+        updatedFormData = {
+          ...updatedFormData,
+          address: ''
+        }
+      }
+    }
+    
+    setFormData(updatedFormData)
+    
+    // Clear validation errors when relevant fields change
+    if ((field === 'address' || field === 'diameter' || field === 'cities' || field === 'townships') && validationErrors.location) {
+      setValidationErrors(prev => ({ ...prev, location: '' }))
+    }
+    
+    if ((field === 'isSingleFamily' || field === 'isCondo' || field === 'isTownHouse' || 
+         field === 'isApartment' || field === 'isMultiFamily' || field === 'isLotLand') && validationErrors.propertyTypes) {
+      setValidationErrors(prev => ({ ...prev, propertyTypes: '' }))
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Validate that at least one property type is selected
-    const propertyTypesSelected = [
-      formData.isTownHouse,
-      formData.isLotLand,
-      formData.isCondo,
-      formData.isMultiFamily,
-      formData.isSingleFamily,
-      formData.isApartment
-    ]
+    // Validate form
+    const locationValidation = validateLocationPreferences()
+    const hasValidPropertyTypes = validatePropertyTypes()
     
-    if (!propertyTypesSelected.some(type => type)) {
-      alert('Please select at least one property type.')
+    let hasErrors = false
+    const errors = { location: '', propertyTypes: '' }
+    
+    if (!locationValidation.isValid) {
+      errors.location = locationValidation.error
+      hasErrors = true
+    }
+    
+    if (!hasValidPropertyTypes) {
+      errors.propertyTypes = 'Please select at least one property type'
+      hasErrors = true
+    }
+    
+    if (hasErrors) {
+      setValidationErrors(errors)
       return
     }
     
@@ -1288,6 +1387,8 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
         minPrice: '',
         maxPrice: '',
         address: '',
+        cities: [],
+        townships: [],
         diameter: '2',
         isTownHouse: false,
         isLotLand: false,
@@ -1295,6 +1396,11 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
         isMultiFamily: false,
         isSingleFamily: false,
         isApartment: false
+      })
+      // Reset validation errors
+      setValidationErrors({
+        location: '',
+        propertyTypes: ''
       })
     } finally {
       setIsSubmitting(false)
@@ -1552,63 +1658,205 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
               </div>
 
               {/* Location */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Address *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.address}
-                    onChange={(e) => handleInputChange('address', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
-                    placeholder="123 Main St, West Chester, PA 19380"
-                  />
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600 mb-4">
+                  Choose either address-based search OR city/township filtering (not both)
+                </p>
+                
+                {/* Address-Based Search */}
+                <div className={`p-4 rounded-lg border-2 ${isUsingAddressSearch() ? 'border-[#8b7355] bg-[#8b7355]/5' : 'border-gray-200 bg-gray-50/50'}`}>
+                  <h5 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Address-Based Search
+                  </h5>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Address
+                      </label>
+                      <GooglePlacesAutocomplete
+                        value={formData.address}
+                        onChange={(address) => handleInputChange('address', address)}
+                        disabled={isUsingAreaSearch()}
+                        className={`${
+                          isUsingAreaSearch() 
+                            ? 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed' 
+                            : 'border-gray-300'
+                        }`}
+                        placeholder={isUsingAreaSearch() ? 'Disabled - using city/township search' : '123 Main Street, City, State'}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Search Diameter (miles) {formData.address ? '*' : ''}
+                      </label>
+                      <input
+                        type="number"
+                        min="0.1"
+                        max="50"
+                        step="0.1"
+                        value={formData.diameter}
+                        onChange={(e) => handleInputChange('diameter', e.target.value)}
+                        disabled={isUsingAreaSearch()}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355] ${
+                          isUsingAreaSearch() 
+                            ? 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed' 
+                            : 'border-gray-300'
+                        }`}
+                        placeholder="10"
+                      />
+                      {formData.address && (
+                        <p className="text-xs text-gray-600 mt-1">* Required when using address search</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Search Radius (miles)
-                  </label>
-                  <input
-                    type="number"
-                    min="0.1"
-                    step="0.1"
-                    value={formData.diameter}
-                    onChange={(e) => handleInputChange('diameter', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
-                    placeholder="2"
-                  />
+
+                {/* Area-Based Search */}
+                <div className={`p-4 rounded-lg border-2 ${isUsingAreaSearch() ? 'border-[#8b7355] bg-[#8b7355]/5' : 'border-gray-200 bg-gray-50/50'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h5 className="text-md font-medium text-gray-800 flex items-center">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                      </svg>
+                      City/Township Search
+                    </h5>
+                    {((formData.cities?.length || 0) + (formData.townships?.length || 0)) > 0 && (
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        ((formData.cities?.length || 0) + (formData.townships?.length || 0)) >= 10
+                          ? 'bg-red-100 text-red-800 border border-red-200'
+                          : 'bg-blue-100 text-blue-800 border border-blue-200'
+                      }`}>
+                        {(formData.cities?.length || 0) + (formData.townships?.length || 0)}/10 locations
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Cities
+                      </label>
+                      <MultiCityPlacesInput
+                        cities={formData.cities}
+                        onChange={(cities) => handleInputChange('cities', cities)}
+                        placeholder={isUsingAddressSearch() ? 'Disabled - using address search' : 'Type city names and press Enter...'}
+                        maxCities={Math.max(1, 10 - (formData.townships?.length || 0))}
+                        className="mb-4"
+                        disabled={isUsingAddressSearch()}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Townships
+                      </label>
+                      <MultiTownshipPlacesInput
+                        townships={formData.townships}
+                        onChange={(townships) => handleInputChange('townships', townships)}
+                        placeholder={isUsingAddressSearch() ? 'Disabled - using address search' : 'Type township names and press Enter...'}
+                        maxTownships={Math.max(1, 10 - (formData.cities?.length || 0))}
+                        className="mb-4"
+                        disabled={isUsingAddressSearch()}
+                      />
+                    </div>
+                  </div>
                 </div>
+
+                {/* Location Validation Error */}
+                {validationErrors.location && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
+                    <svg className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm text-red-700">{validationErrors.location}</p>
+                  </div>
+                )}
               </div>
 
               {/* Property Types */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Property Types
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {[
-                    { key: 'isSingleFamily', label: 'Single Family' },
-                    { key: 'isTownHouse', label: 'Town House' },
-                    { key: 'isCondo', label: 'Condo' },
-                    { key: 'isApartment', label: 'Apartment' },
-                    { key: 'isMultiFamily', label: 'Multi Family' },
-                    { key: 'isLotLand', label: 'Lot/Land' }
-                  ].map((type) => (
-                    <label key={type.key} className="flex items-center space-x-2">
+              <div className="space-y-4">
+                <h4 className="text-lg font-medium text-gray-900">Home Type Preferences</h4>
+                <p className="text-sm text-gray-600">Select at least one property type *</p>
+                
+                <div className={`p-4 rounded-lg border-2 ${validationErrors.propertyTypes ? 'border-red-200 bg-red-50/50' : 'border-gray-200 bg-gray-50/50'}`}>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <label className="flex items-center space-x-3 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={formData[type.key as keyof typeof formData] as boolean}
-                        onChange={(e) => handleInputChange(type.key, e.target.checked)}
-                        className="rounded border-gray-300 text-[#8b7355] focus:ring-[#8b7355]"
+                        checked={formData.isSingleFamily || false}
+                        onChange={(e) => handleInputChange('isSingleFamily', e.target.checked)}
+                        className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
                       />
-                      <span className="text-sm text-gray-700">
-                        {type.label}
-                      </span>
+                      <span className="text-sm font-medium text-gray-700">Single Family</span>
                     </label>
-                  ))}
+
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.isCondo || false}
+                        onChange={(e) => handleInputChange('isCondo', e.target.checked)}
+                        className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Condo</span>
+                    </label>
+
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.isTownHouse || false}
+                        onChange={(e) => handleInputChange('isTownHouse', e.target.checked)}
+                        className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Townhouse</span>
+                    </label>
+
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.isApartment || false}
+                        onChange={(e) => handleInputChange('isApartment', e.target.checked)}
+                        className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Apartment</span>
+                    </label>
+
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.isMultiFamily || false}
+                        onChange={(e) => handleInputChange('isMultiFamily', e.target.checked)}
+                        className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Multi-Family</span>
+                    </label>
+
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.isLotLand || false}
+                        onChange={(e) => handleInputChange('isLotLand', e.target.checked)}
+                        className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Lot/Land</span>
+                    </label>
+                  </div>
                 </div>
+
+                {/* Property Type Validation Error */}
+                {validationErrors.propertyTypes && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
+                    <svg className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm text-red-700">{validationErrors.propertyTypes}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

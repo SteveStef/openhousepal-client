@@ -31,6 +31,7 @@ export default function OpenHouseSignInPage() {
         
         const responseData = await propertyResponse.json()
         const propertyData = responseData.property
+        console.log('Property data:', propertyData);
         
         // Transform the API response to match the Property interface
         const transformedProperty: Property = {

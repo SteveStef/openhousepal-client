@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { v4 as uuidv4 } from 'uuid'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
 import { generateQRCodePDF, generatePDFPreview } from '@/lib/pdfGenerator'
 import { apiRequest, getCurrentUser, checkAuth } from '@/lib/auth'
 
@@ -394,14 +395,12 @@ export default function OpenHousesPage() {
                             <label htmlFor="address" className="block text-sm font-semibold text-gray-700 mb-2">
                               Property Address
                             </label>
-                            <input
+                            <GooglePlacesAutocomplete
                               id="address"
                               name="address"
-                              type="text"
                               required
                               value={address}
-                              onChange={(e) => setAddress(e.target.value)}
-                              className="w-full px-4 py-3 bg-white/80 border border-gray-200/50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#8b7355]/60 focus:border-[#8b7355]/60 transition-all duration-300 shadow-sm"
+                              onChange={setAddress}
                               placeholder="123 Main Street, City, State, ZIP"
                             />
                             {error && <p className="text-red-500 text-sm mt-2 flex items-center">

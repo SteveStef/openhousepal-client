@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { checkAuth } from '@/lib/auth'
+import { checkAuth, logout } from '@/lib/auth'
 
 interface HeaderProps {
   mode?: 'landing' | 'app' | 'shared'
@@ -11,10 +11,11 @@ interface HeaderProps {
 export default function Header({ mode = 'app' }: HeaderProps) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
   const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true)
+  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false)
 
   useEffect(() => {
     const verifyAuth = async () => {
-      if (mode === 'landing') {
+      if (mode === 'landing' || mode === 'app') {
         const isAuth = await checkAuth()
         setIsAuthenticated(isAuth)
       }
@@ -23,6 +24,17 @@ export default function Header({ mode = 'app' }: HeaderProps) {
 
     verifyAuth()
   }, [mode])
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      await logout()
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }
 
   return (
     <header className="bg-white/95 backdrop-blur-xl border-b border-gray-200/80 shadow-sm">
@@ -60,6 +72,25 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                       </svg>
                       Showcases
                     </Link>
+                    <button
+                      onClick={handleLogout}
+                      disabled={isLoggingOut}
+                      className="text-gray-700 hover:text-red-600 font-medium text-sm transition-colors duration-200 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isLoggingOut ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-1"></div>
+                          Logging out...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                          </svg>
+                          Logout
+                        </>
+                      )}
+                    </button>
                   </>
                 )}
                 {!isCheckingAuth && !isAuthenticated && (
@@ -104,6 +135,27 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                   </svg>
                   Showcases
                 </Link>
+                {!isCheckingAuth && isAuthenticated && (
+                  <button
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="text-gray-700 hover:text-red-600 font-medium text-sm transition-colors duration-200 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoggingOut ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-1"></div>
+                        Logging out...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Logout
+                      </>
+                    )}
+                  </button>
+                )}
               </>
             )}
           </div>

@@ -41,8 +41,8 @@ export interface Property {
   favorited?: boolean;
   viewed?: boolean;
   comments?: Comment[];
+  details?: JSON;
   visitorInteractions?: PropertyInteraction[];
-  // Additional MLS fields
   listingUpdated?: string;
   status?: string;
   mlsNumber?: string;
@@ -128,6 +128,11 @@ export interface CollectionPreferences {
   max_price?: number | null;
   lat?: number | null;
   long?: number | null;
+  address?: string | null;
+  city?: string | null; // Keep for backward compatibility
+  cities?: string[]; // New field for multiple cities
+  township?: string | null; // Keep for backward compatibility
+  townships?: string[]; // New field for multiple townships
   diameter?: number;
   special_features?: string;
   is_town_house?: boolean | null;

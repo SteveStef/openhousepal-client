@@ -272,6 +272,9 @@ export async function register(userData: {
 export async function updateCollectionPreferences(
   collectionId: string, 
   preferences: {
+    address?: string | null;
+    cities?: string[] | null;
+    townships?: string[] | null;
     min_beds?: number | null;
     max_beds?: number | null;
     min_baths?: number | null;

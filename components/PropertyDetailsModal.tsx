@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Property, Comment } from '@/types'
-import { X, MessageCircle, Send, ThumbsUp, ThumbsDown, Bookmark, ChevronLeft, ChevronRight, Maximize2, Home, Calendar, Palette, Wrench, DollarSign, TrendingUp, MapPin, Copy, ExternalLink, User, Star, Car } from 'lucide-react'
+import { X, MessageCircle, Send, ThumbsUp, ThumbsDown, Bookmark, ChevronLeft, ChevronRight, Maximize2, Home, User } from 'lucide-react'
 
 interface PropertyDetailsModalProps {
   property: Property | null
@@ -15,6 +15,190 @@ interface PropertyDetailsModalProps {
   isLoadingDetails?: boolean
   detailsError?: string | null
   onRetryDetails?: () => void
+}
+
+// Property Report Table Component
+function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, propertyAddress?: string }) {
+  const formatList = (items: string[] | null | undefined): string | null => {
+    if (!items || items.length === 0) return null;
+    return items.join(", ");
+  };
+
+  const formatCurrency = (amount: number | null | undefined): string | null => {
+    if (!amount) return null;
+    return `$${amount.toLocaleString()}`;
+  };
+
+  const allReportData = [
+    // Building & Construction
+    { property: "BUILDING & CONSTRUCTION", value: "", isHeader: true },
+    { property: "Year Built", value: resoFacts.yearBuilt },
+    { property: "Architectural Style", value: resoFacts.architecturalStyle },
+    { property: "Construction Materials", value: formatList(resoFacts.constructionMaterials) },
+    { property: "Stories", value: resoFacts.stories },
+    { property: "Square Footage", value: resoFacts.livingArea },
+
+    // Interior Features
+    { property: "INTERIOR FEATURES", value: "", isHeader: true },
+    { property: "Appliances", value: formatList(resoFacts.appliances) },
+    { property: "Interior Features", value: formatList(resoFacts.interiorFeatures) },
+    { property: "Flooring", value: formatList(resoFacts.flooring) },
+    { property: "Window Features", value: formatList(resoFacts.windowFeatures) },
+    { property: "Fireplace Features", value: formatList(resoFacts.fireplaceFeatures) },
+
+    // HVAC & Systems
+    { property: "HVAC & SYSTEMS", value: "", isHeader: true },
+    { property: "Heating", value: formatList(resoFacts.heating) },
+    { property: "Cooling", value: formatList(resoFacts.cooling) },
+    { property: "Water Source", value: formatList(resoFacts.waterSource) },
+    { property: "Sewer", value: formatList(resoFacts.sewer) },
+    { property: "Electric", value: formatList(resoFacts.electric) },
+
+    // Parking & Access
+    { property: "PARKING & ACCESS", value: "", isHeader: true },
+    { property: "Total Parking", value: resoFacts.parkingCapacity ? `${resoFacts.parkingCapacity} spaces` : null },
+    { property: "Garage Parking", value: resoFacts.garageParkingCapacity ? `${resoFacts.garageParkingCapacity} spaces` : null },
+    { property: "Parking Features", value: formatList(resoFacts.parkingFeatures) },
+    { property: "Accessibility Features", value: formatList(resoFacts.accessibilityFeatures) },
+
+    // HOA & Fees (only if has association)
+    ...(resoFacts.hasAssociation ? [
+      { property: "HOA & FEES", value: "", isHeader: true },
+      { property: "HOA Fee", value: resoFacts.hoaFee },
+      { property: "Annual Property Tax", value: formatCurrency(resoFacts.taxAnnualAmount) },
+      { property: "HOA Includes", value: formatList(resoFacts.associationFeeIncludes) },
+    ] : []),
+
+    // Schools & District
+    { property: "SCHOOLS & DISTRICT", value: "", isHeader: true },
+    { property: "Elementary School", value: resoFacts.elementarySchool ? `${resoFacts.elementarySchool}${resoFacts.elementarySchoolDistrict ? ` (${resoFacts.elementarySchoolDistrict} District)` : ''}` : null },
+    { property: "Middle School", value: resoFacts.middleOrJuniorSchool ? `${resoFacts.middleOrJuniorSchool}${resoFacts.middleOrJuniorSchoolDistrict ? ` (${resoFacts.middleOrJuniorSchoolDistrict} District)` : ''}` : null },
+    { property: "High School", value: resoFacts.highSchool ? `${resoFacts.highSchool}${resoFacts.highSchoolDistrict ? ` (${resoFacts.highSchoolDistrict} District)` : ''}` : null },
+
+    // Additional Features
+    { property: "ADDITIONAL FEATURES", value: "", isHeader: true },
+    { property: "Exterior Features", value: formatList(resoFacts.exteriorFeatures) },
+    { property: "Lot Features", value: formatList(resoFacts.lotFeatures) },
+    { property: "Community Features", value: formatList(resoFacts.communityFeatures) },
+    { property: "Security Features", value: formatList(resoFacts.securityFeatures) },
+  ];
+
+  // Filter out rows with null or empty values, but keep headers
+  const reportData = allReportData.filter(row => row.isHeader || (row.value !== null && row.value !== undefined && row.value !== ''));
+
+  // Filter out empty sections - keep headers only if they have data rows below them
+  const filteredData = reportData.filter((row, index) => {
+    if (!row.isHeader) return true; // Keep all data rows
+    // For header rows, check if there are any actual data rows in the same section
+    const nextRows = reportData.slice(index + 1);
+    const hasDataInSection = nextRows.some((nextRow) => {
+      if (nextRow.isHeader) return false; // Stop at next header
+      return !nextRow.isHeader; // Only count actual data rows, not headers
+    });
+    return hasDataInSection;
+  });
+
+  return (
+    <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+      {/* Report Header */}
+      <div className="bg-gray-900 px-8 py-6 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Property Details Report</h2>
+            <p className="text-gray-300 mt-1">Comprehensive Property Information</p>
+          </div>
+          <div className="text-right">
+            <div className="text-sm text-gray-300">Generated</div>
+            <div className="font-medium">{new Date().toLocaleDateString()}</div>
+          </div>
+        </div>
+        {propertyAddress && (
+          <div className="mt-4 pt-4 border-t border-gray-700">
+            <div className="text-sm text-gray-300">Property Address</div>
+            <div className="font-medium">{propertyAddress}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Report Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-50 border-b-2 border-gray-200">
+              <th className="px-8 py-4 text-left text-sm font-semibold text-gray-900 uppercase tracking-wider w-1/2">
+                Property
+              </th>
+              <th className="px-8 py-4 text-left text-sm font-semibold text-gray-900 uppercase tracking-wider w-1/2">
+                Details
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredData.map((row, index) => (
+              <tr
+                key={index}
+                className={`
+                  ${row.isHeader 
+                    ? 'bg-gray-800 border-t-2 border-gray-300' 
+                    : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                  }
+                  border-b border-gray-200 ${!row.isHeader ? 'hover:bg-gray-100 transition-colors duration-150' : ''}
+                `}
+              >
+                {row.isHeader ? (
+                  <td 
+                    colSpan={2} 
+                    className="px-8 py-4 font-bold text-white text-sm uppercase tracking-wide text-center"
+                  >
+                    {row.property}
+                  </td>
+                ) : (
+                  <>
+                    <td className="px-8 py-4 font-medium text-gray-900">
+                      {row.property}
+                    </td>
+                    <td className="px-8 py-4 text-gray-700">
+                      {row.value}
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Report Footer */}
+    </div>
+  );
+}
+
+// Description component with truncation
+function DescriptionSection({ description }: { description: string }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const maxLength = 532 // Maximum characters to show before truncating
+
+  const shouldTruncate = description.length > maxLength
+  const displayText = isExpanded || !shouldTruncate 
+    ? description 
+    : description.slice(0, maxLength) + '...'
+
+  return (
+    <div className="md:col-span-2 py-4 border-t border-gray-200 mt-4">
+      <h4 className="text-gray-600 font-medium mb-3">Description:</h4>
+      <div className="space-y-2">
+        <p className="text-gray-900 leading-relaxed text-sm">{displayText}</p>
+        {shouldTruncate && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors duration-200"
+          >
+            {isExpanded ? 'Show Less' : 'Show More'}
+          </button>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export default function PropertyDetailsModal({
@@ -458,24 +642,30 @@ export default function PropertyDetailsModal({
                         
                         {/* Key Details */}
                         <div className="space-y-3 text-sm border-t pt-6 mb-8">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Home Type:</span>
-                            <span className="text-gray-900 font-medium">
-                              {property.details?.homeType?.replace(/_/g, ' ') || property.propertyType?.replace(/_/g, ' ') || 'N/A'}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Year Built:</span>
-                            <span className="text-gray-900 font-medium">
-                              {property.details?.yearBuilt || property.yearBuilt || 'N/A'}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Price/Sq Ft:</span>
-                            <span className="text-gray-900 font-medium">
-                              {property.details?.resoFacts?.pricePerSquareFoot ? `$${property.details.resoFacts.pricePerSquareFoot}` : 'N/A'}
-                            </span>
-                          </div>
+                          {(property.details?.homeType || property.propertyType) && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Home Type:</span>
+                              <span className="text-gray-900 font-medium">
+                                {property.details?.homeType?.replace(/_/g, ' ') || property.propertyType?.replace(/_/g, ' ')}
+                              </span>
+                            </div>
+                          )}
+                          {(property.details?.yearBuilt || property.yearBuilt) && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Year Built:</span>
+                              <span className="text-gray-900 font-medium">
+                                {property.details?.yearBuilt || property.yearBuilt}
+                              </span>
+                            </div>
+                          )}
+                          {property.details?.resoFacts?.pricePerSquareFoot && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Price/Sq Ft:</span>
+                              <span className="text-gray-900 font-medium">
+                                ${property.details.resoFacts.pricePerSquareFoot}
+                              </span>
+                            </div>
+                          )}
                           {property.details?.resoFacts?.stories && (
                             <div className="flex justify-between">
                               <span className="text-gray-600">Stories:</span>
@@ -599,11 +789,8 @@ export default function PropertyDetailsModal({
                         )}
                         
                         {/* Description Field - Full Width */}
-                        {property.description && (
-                          <div className="md:col-span-2 py-4 border-t border-gray-200 mt-4">
-                            <h4 className="text-gray-600 font-medium mb-3">Description:</h4>
-                            <p className="text-gray-900 leading-relaxed text-sm">{property.description}</p>
-                          </div>
+                        {property.details?.description && (
+                          <DescriptionSection description={property.details.description} />
                         )}
                       </div>
                     </div>
@@ -685,318 +872,12 @@ export default function PropertyDetailsModal({
                 </div>
               </div>
               
-              {/* Building & Interior Details */}
+              {/* Property Details Report - Professional Table Format */}
               {!isLoadingDetails && !detailsError && property.details?.resoFacts && (
-                <div className="space-y-8">
-                  <div className="text-center mb-8">
-                    <div className="flex items-center justify-center mb-4">
-                      <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-3 rounded-xl shadow-lg">
-                        <Home className="text-white" size={32} />
-                      </div>
-                    </div>
-                    <h2 className="text-3xl font-bold text-gray-900 mb-2">Building & Interior Details</h2>
-                    <p className="text-gray-600 max-w-2xl mx-auto">Comprehensive construction, architectural, and interior information showcasing the property's quality and features</p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Building & Construction Card */}
-                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-3xl p-8 shadow-xl border border-gray-100 hover:shadow-lg transition-shadow duration-150" style={{contain: 'layout style paint', transform: 'translateZ(0)'}}>
-                      <div className="flex items-center mb-6">
-                        <div className="bg-blue-500 p-3 rounded-xl mr-4 shadow-lg">
-                          <Wrench className="text-white" size={24} />
-                        </div>
-                        <h3 className="text-2xl font-bold text-gray-900">Building & Construction</h3>
-                      </div>
-                      
-                      <div className="space-y-6">
-                        {property.details.resoFacts.yearBuilt && (
-                          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                            <div className="flex items-center">
-                              <Calendar className="text-blue-500 mr-3" size={20} />
-                              <div>
-                                <span className="text-gray-600 text-sm font-medium block">Year Built</span>
-                                <div className="text-xl font-bold text-gray-900">{property.details.resoFacts.yearBuilt}</div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {property.details.resoFacts.architecturalStyle && (
-                          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                            <div className="flex items-center">
-                              <Palette className="text-purple-500 mr-3" size={20} />
-                              <div>
-                                <span className="text-gray-600 text-sm font-medium block">Architectural Style</span>
-                                <div className="text-xl font-bold text-gray-900">{property.details.resoFacts.architecturalStyle}</div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {property.details.resoFacts.constructionMaterials && (
-                          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                            <div className="flex items-start">
-                              <Home className="text-green-500 mr-3 mt-1" size={20} />
-                              <div className="flex-1">
-                                <span className="text-gray-600 text-sm font-medium block mb-3">Construction Materials</span>
-                                <div className="flex flex-wrap gap-2">
-                                  {property.details.resoFacts.constructionMaterials.map((material, index) => (
-                                    <span key={index} className="px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm rounded-lg font-medium shadow-sm hover:shadow-md transition-shadow">
-                                      {material}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Interior Features Card */}
-                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-3xl p-8 shadow-xl border border-gray-100 hover:shadow-lg transition-shadow duration-150" style={{contain: 'layout style paint', transform: 'translateZ(0)'}}>
-                      <div className="flex items-center mb-6">
-                        <div className="bg-indigo-500 p-3 rounded-xl mr-4 shadow-lg">
-                          <Star className="text-white" size={24} />
-                        </div>
-                        <h3 className="text-2xl font-bold text-gray-900">Interior Features</h3>
-                      </div>
-                      
-                      <div className="space-y-6">
-                        {property.details.resoFacts.appliances && (
-                          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                            <div className="flex items-start">
-                              <div className="bg-green-100 p-2 rounded-lg mr-3">
-                                <Wrench className="text-green-600" size={16} />
-                              </div>
-                              <div className="flex-1">
-                                <span className="text-gray-600 text-sm font-medium block mb-3">Appliances</span>
-                                <div className="flex flex-wrap gap-2">
-                                  {property.details.resoFacts.appliances.map((appliance, index) => (
-                                    <span key={index} className="px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm rounded-lg font-medium shadow-sm hover:shadow-md transition-shadow">
-                                      {appliance}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {property.details.resoFacts.interiorFeatures && (
-                          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                            <div className="flex items-start">
-                              <div className="bg-purple-100 p-2 rounded-lg mr-3">
-                                <Star className="text-purple-600" size={16} />
-                              </div>
-                              <div className="flex-1">
-                                <span className="text-gray-600 text-sm font-medium block mb-3">Interior Features</span>
-                                <div className="flex flex-wrap gap-2">
-                                  {property.details.resoFacts.interiorFeatures.map((feature, index) => (
-                                    <span key={index} className="px-3 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-sm rounded-lg font-medium shadow-sm hover:shadow-md transition-shadow">
-                                      {feature}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* HVAC & Systems Section */}
-              {!isLoadingDetails && !detailsError && property.details?.resoFacts && (
-                <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center">
-                    <div className="bg-red-100 p-2 rounded-lg mr-3">
-                      <Wrench className="text-red-600" size={20} />
-                    </div>
-                    HVAC & Systems
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {property.details.resoFacts.heating && (
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-gray-900 mb-2">Heating</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {property.details.resoFacts.heating.map((type, index) => (
-                            <span key={index} className="px-3 py-1 bg-red-500 text-white text-sm rounded-lg">
-                              {type}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {property.details.resoFacts.cooling && (
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-gray-900 mb-2">Cooling</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {property.details.resoFacts.cooling.map((type, index) => (
-                            <span key={index} className="px-3 py-1 bg-blue-500 text-white text-sm rounded-lg">
-                              {type}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {property.details.resoFacts.waterSource && (
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-gray-900 mb-2">Water Source</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {property.details.resoFacts.waterSource.map((source, index) => (
-                            <span key={index} className="px-3 py-1 bg-cyan-500 text-white text-sm rounded-lg">
-                              {source}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {property.details.resoFacts.sewer && (
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-gray-900 mb-2">Sewer</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {property.details.resoFacts.sewer.map((type, index) => (
-                            <span key={index} className="px-3 py-1 bg-green-500 text-white text-sm rounded-lg">
-                              {type}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Parking & Access Section */}
-              {!isLoadingDetails && !detailsError && property.details?.resoFacts && (
-                <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center">
-                    <div className="bg-purple-100 p-2 rounded-lg mr-3">
-                      <Car className="text-purple-600" size={20} />
-                    </div>
-                    Parking & Access
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {property.details.resoFacts.parkingCapacity && (
-                      <div className="bg-purple-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-gray-900 mb-2">Total Parking</h4>
-                        <div className="text-2xl font-bold text-purple-600">{property.details.resoFacts.parkingCapacity} spaces</div>
-                      </div>
-                    )}
-                    {property.details.resoFacts.garageParkingCapacity && (
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-gray-900 mb-2">Garage Parking</h4>
-                        <div className="text-xl font-bold text-gray-700">{property.details.resoFacts.garageParkingCapacity} spaces</div>
-                      </div>
-                    )}
-                    {property.details.resoFacts.parkingFeatures && (
-                      <div className="bg-gray-50 rounded-xl p-4 md:col-span-2">
-                        <h4 className="font-semibold text-gray-900 mb-2">Parking Features</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {property.details.resoFacts.parkingFeatures.map((feature, index) => (
-                            <span key={index} className="px-3 py-1 bg-purple-500 text-white text-sm rounded-lg">
-                              {feature}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {property.details.resoFacts.accessibilityFeatures && (
-                      <div className="bg-gray-50 rounded-xl p-4 md:col-span-2">
-                        <h4 className="font-semibold text-gray-900 mb-2">Accessibility Features</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {property.details.resoFacts.accessibilityFeatures.map((feature, index) => (
-                            <span key={index} className="px-3 py-1 bg-green-500 text-white text-sm rounded-lg">
-                              {feature}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* HOA & Fees Section */}
-              {!isLoadingDetails && !detailsError && property.details?.resoFacts && property.details.resoFacts.hasAssociation && (
-                <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center">
-                    <div className="bg-amber-100 p-2 rounded-lg mr-3">
-                      <DollarSign className="text-amber-600" size={20} />
-                    </div>
-                    HOA & Monthly Fees
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {property.details.resoFacts.hoaFee && (
-                      <div className="bg-amber-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-gray-900 mb-2">HOA Fee</h4>
-                        <div className="text-2xl font-bold text-amber-600">{property.details.resoFacts.hoaFee}</div>
-                      </div>
-                    )}
-                    {property.details.resoFacts.taxAnnualAmount && (
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-gray-900 mb-2">Annual Property Tax</h4>
-                        <div className="text-xl font-bold text-gray-700">${property.details.resoFacts.taxAnnualAmount.toLocaleString()}</div>
-                      </div>
-                    )}
-                    {property.details.resoFacts.associationFeeIncludes && (
-                      <div className="bg-gray-50 rounded-xl p-4 md:col-span-2">
-                        <h4 className="font-semibold text-gray-900 mb-2">HOA Includes</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {property.details.resoFacts.associationFeeIncludes.map((service, index) => (
-                            <span key={index} className="px-3 py-1 bg-amber-500 text-white text-sm rounded-lg">
-                              {service}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Schools Section */}
-              {!isLoadingDetails && !detailsError && property.details?.resoFacts && (
-                <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center">
-                    <div className="bg-blue-100 p-2 rounded-lg mr-3">
-                      <User className="text-blue-600" size={20} />
-                    </div>
-                    Schools & District
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {property.details.resoFacts.elementarySchool && (
-                      <div className="bg-blue-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-blue-900 mb-2">Elementary</h4>
-                        <div className="text-gray-700 font-medium">{property.details.resoFacts.elementarySchool}</div>
-                        {property.details.resoFacts.elementarySchoolDistrict && (
-                          <div className="text-sm text-gray-500 mt-1">{property.details.resoFacts.elementarySchoolDistrict} District</div>
-                        )}
-                      </div>
-                    )}
-                    {property.details.resoFacts.middleOrJuniorSchool && (
-                      <div className="bg-green-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-green-900 mb-2">Middle School</h4>
-                        <div className="text-gray-700 font-medium">{property.details.resoFacts.middleOrJuniorSchool}</div>
-                        {property.details.resoFacts.middleOrJuniorSchoolDistrict && (
-                          <div className="text-sm text-gray-500 mt-1">{property.details.resoFacts.middleOrJuniorSchoolDistrict} District</div>
-                        )}
-                      </div>
-                    )}
-                    {property.details.resoFacts.highSchool && (
-                      <div className="bg-purple-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-purple-900 mb-2">High School</h4>
-                        <div className="text-gray-700 font-medium">{property.details.resoFacts.highSchool}</div>
-                        {property.details.resoFacts.highSchoolDistrict && (
-                          <div className="text-sm text-gray-500 mt-1">{property.details.resoFacts.highSchoolDistrict} District</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <PropertyReport 
+                  resoFacts={property.details.resoFacts} 
+                  propertyAddress={property.details.abbreviatedAddress}
+                />
               )}
               
 
