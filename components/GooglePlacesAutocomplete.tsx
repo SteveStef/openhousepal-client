@@ -30,6 +30,67 @@ export default function GooglePlacesAutocomplete({
   const [isLoaded, setIsLoaded] = useState(false)
   const [error, setError] = useState<string>('')
 
+  // Format address without country
+  const formatAddressWithoutCountry = (place: google.maps.places.PlaceResult): string => {
+    if (!place.address_components) {
+      return place.formatted_address || ''
+    }
+
+    const components: string[] = []
+
+    // Define the order we want the components to appear
+    const componentOrder = [
+      'street_number',
+      'route',
+      'subpremise', // apartment, suite, etc.
+      'locality', // city
+      'administrative_area_level_1', // state
+      'postal_code'
+    ]
+
+    // Extract components in the desired order
+    for (const type of componentOrder) {
+      const component = place.address_components.find(comp =>
+        comp.types.includes(type)
+      )
+      if (component) {
+        // Use short_name for state and long_name for others
+        const value = type === 'administrative_area_level_1'
+          ? component.short_name
+          : component.long_name
+        components.push(value)
+      }
+    }
+
+    // Join components with appropriate separators
+    if (components.length === 0) {
+      // Fallback to formatted_address but remove country
+      return place.formatted_address?.replace(/, USA$/, '') || ''
+    }
+
+    // Format: "123 Main St, Springfield, IL 62701"
+    const addressParts: string[] = []
+
+    // Street address (number + route + subpremise)
+    const streetParts = components.slice(0, 3).filter(Boolean)
+    if (streetParts.length > 0) {
+      addressParts.push(streetParts.join(' '))
+    }
+
+    // City
+    if (components[3]) {
+      addressParts.push(components[3])
+    }
+
+    // State and ZIP together
+    const stateZipParts = components.slice(4).filter(Boolean)
+    if (stateZipParts.length > 0) {
+      addressParts.push(stateZipParts.join(' '))
+    }
+
+    return addressParts.join(', ')
+  }
+
   useEffect(() => {
     const initializeAutocomplete = async () => {
       if (!process.env.NEXT_PUBLIC_GOOGLE_API_KEY) {
@@ -58,12 +119,14 @@ export default function GooglePlacesAutocomplete({
           // Listen for place selection
           autocompleteRef.current.addListener('place_changed', () => {
             const place = autocompleteRef.current?.getPlace()
-            if (place && place.formatted_address) {
+            if (place && (place.formatted_address || place.address_components)) {
+              // Format address without country
+              const formattedAddress = formatAddressWithoutCountry(place)
               // Update the React state
-              onChange(place.formatted_address)
+              onChange(formattedAddress)
               // Also directly update the input field to ensure visual sync
               if (inputRef.current) {
-                inputRef.current.value = place.formatted_address
+                inputRef.current.value = formattedAddress
               }
             }
           })

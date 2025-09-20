@@ -248,7 +248,6 @@ export default function EditPreferencesModal({
       loadPreferences()
     }
   }, [isOpen, collection])
-  console.log(formData)
 
   const handleInputChange = (field: keyof CollectionPreferences, value: string | number | boolean | null | string[]) => {
     let updatedFormData = { ...formData, [field]: value }

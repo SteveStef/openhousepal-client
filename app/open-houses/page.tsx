@@ -57,6 +57,9 @@ export default function OpenHousesPage() {
   const [selectedOpenHouseForPDF, setSelectedOpenHouseForPDF] = useState<OpenHouse | null>(null)
   const [showPDFViewer, setShowPDFViewer] = useState(false)
   const [generatedOpenHouseId, setGeneratedOpenHouseId] = useState<string>('')
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [openHouseToDelete, setOpenHouseToDelete] = useState<OpenHouse | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Notification helper function
   const showNotification = (type: 'success' | 'error', message: string) => {
@@ -79,6 +82,42 @@ export default function OpenHousesPage() {
       console.error('Error opening PDF viewer:', error)
       showNotification('error', 'Failed to load PDF')
     }
+  }
+
+  // Delete handlers
+  const handleDeleteClick = (openHouse: OpenHouse) => {
+    setOpenHouseToDelete(openHouse)
+    setShowDeleteDialog(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!openHouseToDelete) return
+
+    setIsDeleting(true)
+    try {
+      const response = await apiRequest(`/api/open-houses/${openHouseToDelete.id}`, {
+        method: 'DELETE'
+      })
+
+      if (response.status === 200) {
+        showNotification('success', '🗑️ Listing removed successfully. All related data is preserved.')
+        await loadOpenHouseHistory() // Refresh the list
+        setShowDeleteDialog(false)
+        setOpenHouseToDelete(null)
+      } else {
+        throw new Error(response.error || 'Failed to delete open house')
+      }
+    } catch (error) {
+      console.error('Error deleting open house:', error)
+      showNotification('error', 'Failed to remove listing. Please try again.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleDeleteCancel = () => {
+    setShowDeleteDialog(false)
+    setOpenHouseToDelete(null)
   }
 
   // Check authentication and load data
@@ -204,7 +243,8 @@ export default function OpenHousesPage() {
     setQrCode(qrCodeUrl)
     setShowSaveDialog(true)
   }
-  console.log(propertyData);
+
+  //console.log(propertyData);
 
   const saveOpenHouse = async () => {
     try {
@@ -555,16 +595,25 @@ export default function OpenHousesPage() {
 
                                     {/* Action Buttons */}
                                     <div className="flex items-center space-x-2 ml-3">
-                                      <button 
+                                      <button
                                         onClick={() => handleViewPDF(openHouse)}
                                         className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-lg font-medium hover:shadow-md hover:shadow-[#8b7355]/25 transition-all duration-300 text-xs"
                                       >
                                         <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
-                                            View PDF
+                                        View PDF
                                       </button>
-                                      
+
+                                      <button
+                                        onClick={() => handleDeleteClick(openHouse)}
+                                        className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:shadow-md hover:shadow-red-500/25 transition-all duration-300 text-xs"
+                                      >
+                                        <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                        Remove
+                                      </button>
                                     </div>
                                   </div>
                                 </div>
@@ -736,10 +785,20 @@ export default function OpenHousesPage() {
           isGeneratingPDF={isGeneratingPDF}
         />
       )}
-      
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && openHouseToDelete && (
+        <DeleteConfirmationDialog
+          openHouse={openHouseToDelete}
+          onConfirm={handleDeleteConfirm}
+          onCancel={handleDeleteCancel}
+          isDeleting={isDeleting}
+        />
+      )}
+
       {/* Open House PDF Viewer Modal */}
       {showPDFViewer && selectedOpenHouseForPDF && (
-        <OpenHousePDFViewer 
+        <OpenHousePDFViewer
           openHouse={selectedOpenHouseForPDF}
           onClose={() => {
             console.log('Closing PDF viewer')
@@ -966,6 +1025,91 @@ function PDFPreviewModal({ pdfPreview, onClose, onDownload, isGeneratingPDF }: a
           >
             {isGeneratingPDF ? 'Downloading...' : 'Download PDF'}
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Delete Confirmation Dialog Component
+function DeleteConfirmationDialog({
+  openHouse,
+  onConfirm,
+  onCancel,
+  isDeleting
+}: {
+  openHouse: OpenHouse
+  onConfirm: () => void
+  onCancel: () => void
+  isDeleting: boolean
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center">
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-4">
+              <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Remove Listing</h3>
+              <p className="text-gray-600 text-sm mt-1">This action is safe and reversible</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6">
+          <div className="mb-4">
+            <p className="text-sm font-medium text-gray-900 mb-2">
+              {openHouse.address}
+            </p>
+            <p className="text-sm text-gray-600 mb-4">
+              This listing will be removed from your dashboard, but all data will be preserved for your records.
+            </p>
+          </div>
+
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start">
+              <svg className="w-5 h-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <h4 className="text-sm font-medium text-green-900 mb-1">Data Protection</h4>
+                <ul className="text-xs text-green-800 space-y-1">
+                  <li>• All visitor information is preserved</li>
+                  <li>• Property collections remain intact</li>
+                  <li>• QR codes continue to work</li>
+                  <li>• Visitor can still access their collections</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex space-x-3">
+            <button
+              onClick={onCancel}
+              disabled={isDeleting}
+              className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={isDeleting}
+              className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:shadow-lg hover:shadow-red-500/25 transition-all duration-300 disabled:opacity-50"
+            >
+              {isDeleting ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Removing...
+                </div>
+              ) : (
+                'Remove Listing'
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

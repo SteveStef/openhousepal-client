@@ -1,24 +1,26 @@
 'use client'
 
 import { Collection } from '@/types'
-import { Share2, Edit3 } from 'lucide-react'
+import { Share2, Edit3, Trash2 } from 'lucide-react'
 
 interface CollectionCardProps {
   collection: Collection
   onClick: () => void
   onShare?: (collection: Collection) => void
   onEditPreferences?: (collection: Collection) => void
+  onDelete?: (collection: Collection) => void
   formatTimeframe: (timeframe: string) => string
   formatPriceRange: (priceRange: string) => string
 }
 
-export default function CollectionCard({ 
-  collection, 
-  onClick, 
+export default function CollectionCard({
+  collection,
+  onClick,
   onShare,
   onEditPreferences,
-  formatTimeframe, 
-  formatPriceRange 
+  onDelete,
+  formatTimeframe,
+  formatPriceRange
 }: CollectionCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -84,7 +86,7 @@ export default function CollectionCard({
           {/* Actions and Status */}
           <div className="flex items-center space-x-2 ml-4">
             {/* Action Buttons */}
-            <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center space-x-1 opacity-100 transition-opacity">
               {onEditPreferences && (
                 <button
                   onClick={(e) => {
@@ -107,6 +109,18 @@ export default function CollectionCard({
                   title="Share collection"
                 >
                   <Share2 size={14} />
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDelete(collection)
+                  }}
+                  className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                  title="Delete collection"
+                >
+                  <Trash2 size={14} />
                 </button>
               )}
             </div>

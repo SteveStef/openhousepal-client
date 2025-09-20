@@ -1,6 +1,6 @@
 import { Property, SignInFormData, ApiResponse, CollectionPreferences } from '@/types'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 class ApiClient {
   private baseURL: string
@@ -14,12 +14,33 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`
-    
+
+    // Get token from cookie for authentication
+    const getToken = (): string | null => {
+      if (typeof document === 'undefined') return null;
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'auth_token') {
+          return value;
+        }
+      }
+      return null;
+    }
+
+    const token = getToken()
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    }
+
+    // Add Authorization header if token exists
+    if (token) {
+      (headers as Record<string, string>).Authorization = `Bearer ${token}`
+    }
+
     const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
       ...options,
     }
 
@@ -116,6 +137,18 @@ class ApiClient {
     })
   }
 
+  async refreshCollectionProperties(collectionId: string): Promise<ApiResponse<{success: boolean, message: string, properties_replaced: number}>> {
+    return this.request(`/collections/${collectionId}/refresh-properties`, {
+      method: 'POST',
+    })
+  }
+
+  async deleteCollection(collectionId: string): Promise<ApiResponse<void>> {
+    return this.request(`/collections/${collectionId}`, {
+      method: 'DELETE',
+    })
+  }
+
   // Analytics endpoints
   async trackPropertyView(propertyId: number, customerId?: number): Promise<ApiResponse<void>> {
     return this.request('/analytics/property-view', {
@@ -162,8 +195,13 @@ export const agentApi = {
 
 export const collectionPreferencesApi = {
   get: (collectionId: string) => api.getCollectionPreferences(collectionId),
-  update: (collectionId: string, preferences: Partial<CollectionPreferences>) => 
+  update: (collectionId: string, preferences: Partial<CollectionPreferences>) =>
     api.updateCollectionPreferences(collectionId, preferences),
+}
+
+export const collectionsApi = {
+  refreshProperties: (collectionId: string) => api.refreshCollectionProperties(collectionId),
+  delete: (collectionId: string) => api.deleteCollection(collectionId),
 }
 
 export const analyticsApi = {

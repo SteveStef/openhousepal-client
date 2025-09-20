@@ -10,9 +10,11 @@ import Footer from '@/components/Footer'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import ShareCollectionModal from '@/components/ShareCollectionModal'
 import EditPreferencesModal from '@/components/EditPreferencesModal'
+import DeleteConfirmationModal from '@/components/DeleteConfirmationModal'
 import ChatAssistant from '@/components/ChatAssistant'
 import { Share2 } from 'lucide-react'
 import { apiRequest, checkAuth, updateCollectionPreferences } from '@/lib/auth'
+import { collectionsApi } from '@/lib/api'
 import MultiCityPlacesInput from '@/components/MultiCityPlacesInput'
 import MultiTownshipPlacesInput from '@/components/MultiTownshipPlacesInput'
 import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
@@ -59,7 +61,13 @@ export default function ShowcasesPage() {
   
   // Create collection modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  
+
+  // Delete confirmation modal states
+  const [deleteModalState, setDeleteModalState] = useState<{
+    isOpen: boolean;
+    collection: Collection | null;
+  }>({ isOpen: false, collection: null })
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Check authentication first
   useEffect(() => {
@@ -626,6 +634,41 @@ export default function ShowcasesPage() {
     setSelectedCollectionForEdit(null)
   }
 
+  // Delete functionality handlers
+  const handleDeleteCollection = (collection: Collection) => {
+    setDeleteModalState({ isOpen: true, collection })
+  }
+
+  const handleCloseDeleteModal = () => {
+    if (!isDeleting) {
+      setDeleteModalState({ isOpen: false, collection: null })
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModalState.collection) return
+
+    setIsDeleting(true)
+    try {
+      const response = await collectionsApi.delete(deleteModalState.collection.id)
+      if (response.success) {
+        // Remove from local state
+        setCollections(prev => prev.filter(c => c.id !== deleteModalState.collection!.id))
+        // Clear selection if deleted collection was selected
+        if (selectedCollection?.id === deleteModalState.collection.id) {
+          setSelectedCollection(null)
+        }
+        // Close modal
+        setDeleteModalState({ isOpen: false, collection: null })
+      }
+    } catch (error) {
+      console.error('Error deleting collection:', error)
+      alert('Failed to delete collection. Please try again.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const handleSavePreferences = async (collectionId: string, preferences: any) => {
   console.log(preferences)
     try {
@@ -635,12 +678,26 @@ export default function ShowcasesPage() {
 
       if (response.status === 200) {
         console.log('[PREFERENCES] Successfully updated preferences:', response.data)
-        
+
+        // Refresh properties with updated preferences
+        console.log('[PROPERTIES] Refreshing properties for collection with updated preferences...')
+        try {
+          const refreshResponse = await collectionsApi.refreshProperties(collectionId)
+          if (refreshResponse.success && refreshResponse.data) {
+            console.log(`[PROPERTIES] Successfully refreshed properties: ${refreshResponse.data.properties_replaced} properties replaced`)
+          } else {
+            console.warn('[PROPERTIES] Failed to refresh properties:', refreshResponse.error)
+          }
+        } catch (error) {
+          console.error('[PROPERTIES] Error refreshing properties:', error)
+          // Don't fail the whole operation if property refresh fails
+        }
+
         // Close the modal
         setIsEditPreferencesModalOpen(false)
         setSelectedCollectionForEdit(null)
-        
-        // Refresh collections to show updated preferences
+
+        // Refresh collections to show updated preferences and properties
         const collectionsResponse = await apiRequest('/collections/')
         if (collectionsResponse.status === 200 && collectionsResponse.data) {
           console.log('[PREFERENCES] Refreshing collections data after preference update')
@@ -1165,6 +1222,7 @@ export default function ShowcasesPage() {
                 onClick={() => setSelectedCollection(collection)}
                 onShare={handleShareShowcase}
                 onEditPreferences={handleEditPreferences}
+                onDelete={handleDeleteCollection}
                 formatTimeframe={formatTimeframe}
                 formatPriceRange={formatPriceRange}
               />
@@ -1198,7 +1256,16 @@ export default function ShowcasesPage() {
         onClose={handleCloseEditPreferencesModal}
         onSave={handleSavePreferences}
       />
-      
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        collection={deleteModalState.collection}
+        isOpen={deleteModalState.isOpen}
+        onClose={handleCloseDeleteModal}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeleting}
+      />
+
       {/* Create Showcase Modal */}
       <CreateCollectionModal
         isOpen={isCreateModalOpen}
