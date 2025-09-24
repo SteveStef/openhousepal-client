@@ -114,7 +114,7 @@ export default function MultiCityPlacesInput({
         google.maps.event.clearInstanceListeners(autocompleteRef.current)
       }
     }
-  }, [disabled])
+  }, [disabled, onChange])
 
   const addCity = (cityName: string) => {
     const trimmedCity = cityName.trim()

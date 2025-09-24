@@ -33,13 +33,39 @@ async function createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails
       throw new Error('Failed to load template.pdf')
     }
     const templateBytes = await templateResponse.arrayBuffer()
-    
+
     // Load the PDF document
     const pdfDoc = await PDFDocument.load(templateBytes)
     const firstPage = pdfDoc.getPages()[0]
-    
+
     // Get page dimensions
-    const { width: pageWidth, height: pageHeight } = firstPage.getSize()
+    let { width: pageWidth, height: pageHeight } = firstPage.getSize()
+
+    // Define target dimensions: 8.5 x 11 inches in points (1 inch = 72 points)
+    const targetWidth = 8.5 * 72  // 612 points
+    const targetHeight = 11 * 72  // 792 points
+
+    // Check if template dimensions match target 8.5 x 11 inches
+    const widthDiff = Math.abs(pageWidth - targetWidth)
+    const heightDiff = Math.abs(pageHeight - targetHeight)
+    const tolerance = 1 // Allow 1 point tolerance for rounding
+
+    // Debug: Always log dimensions for troubleshooting
+    console.log(`Template PDF size: ${(pageWidth/72).toFixed(2)} x ${(pageHeight/72).toFixed(2)} inches (${pageWidth} x ${pageHeight} points)`)
+    console.log(`Target size: 8.5 x 11 inches (${targetWidth} x ${targetHeight} points)`)
+
+    if (widthDiff > tolerance || heightDiff > tolerance) {
+      console.warn('Template size mismatch - resizing to ensure 8.5 x 11 inch output...')
+
+      // Resize the page to exactly 8.5 x 11 inches
+      firstPage.setSize(targetWidth, targetHeight)
+
+      // Update our working dimensions
+      const newSize = firstPage.getSize()
+      pageWidth = newSize.width
+      pageHeight = newSize.height
+      console.log(`After resize: ${(pageWidth/72).toFixed(2)} x ${(pageHeight/72).toFixed(2)} inches (${pageWidth} x ${pageHeight} points)`)
+    }
     
     // Load and embed QR code image
     const qrCodeImageBytes = await loadImageAsBytes(qrCodeUrl)
@@ -50,76 +76,6 @@ async function createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails
     const qrSize = 225 // Size in points (about 2.8 inches) - made bigger
     const qrX = (pageWidth - qrSize) / 2 // Center horizontally
     const qrY = 310 // At top position
-    
-    // Add bronze border around entire PDF
-    const borderWidth = 8 // Border width in points
-    const bronzeRed = 139 / 255
-    const bronzeGreen = 115 / 255 
-    const bronzeBlue = 85 / 255
-    
-    // Draw bronze border around entire page
-    firstPage.drawRectangle({
-      x: 0,
-      y: 0,
-      width: pageWidth,
-      height: borderWidth,
-    })
-    // Top border
-    firstPage.drawRectangle({
-      x: 0,
-      y: pageHeight - borderWidth,
-      width: pageWidth,
-      height: borderWidth,
-    })
-    // Left border
-    firstPage.drawRectangle({
-      x: 0,
-      y: 0,
-      width: borderWidth,
-      height: pageHeight,
-    })
-    // Right border
-    firstPage.drawRectangle({
-      x: pageWidth - borderWidth,
-      y: 0,
-      width: borderWidth,
-      height: pageHeight,
-    })
-    
-    // Add horizontal line separator above QR code
-    const lineY = qrY + qrSize + 35 // Position above QR code
-    const lineStartX = pageWidth * 0.1 // Start at 25% of page width
-    const lineEndX = pageWidth * 0.90 // End at 75% of page width
-    
-    firstPage.drawLine({
-      start: { x: lineStartX, y: lineY },
-      end: { x: lineEndX, y: lineY },
-      thickness: 4,
-    })
-
-    // Add horizontal line separator above QR code
-    const lineY2 = qrY + qrSize - (qrSize / 2)// Position above QR code
-    const lineStartX2 = pageWidth * 0.1 // Start at 25% of page width
-    const lineEndX2 = pageWidth * 0.25 // End at 75% of page width
-
-    firstPage.drawLine({
-      start: { x: lineStartX2, y: lineY2 },
-      end: { x: lineEndX2, y: lineY },
-      thickness: 4,
-    })
-
-    // // Add horizontal line separator above QR code
-    // const lineY3 = qrY + qrSize - (qrSize / 2) // Position above QR code
-    // const lineStartX3 = pageWidth * 0.95 // Start at 25% of page width
-    // const lineEndX3 = pageWidth * 0.75 // End at 75% of page width
-    //
-    // firstPage.drawLine({
-    //   start: { x: lineStartX3, y: lineY3 },
-    //   end: { x: lineEndX3, y: lineY },
-    //   thickness: 4,
-    //   color: { type: 'RGB', red: bronzeRed, green: bronzeGreen, blue: bronzeBlue },
-    // })
-
     // Draw QR code on the template
     firstPage.drawImage(qrCodeImage, {
       x: qrX,
@@ -193,8 +149,22 @@ async function createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails
           
           // Embed a custom font (you can choose from StandardFonts)
           const boldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic)
-          
-          const fontSize = 23
+
+          // Calculate available width for address text (image width minus padding)
+          const padding = 20 // 10 points padding on each side
+          const availableWidth = imgWidth - padding
+
+          // Dynamic font scaling for long addresses
+          const defaultFontSize = 23
+          const minFontSize = 14 // Minimum readable size
+          const initialAddressWidth = boldFont.widthOfTextAtSize(address, defaultFontSize)
+
+          let fontSize = defaultFontSize
+          if (initialAddressWidth > availableWidth) {
+            // Calculate scaled font size to fit within available width
+            fontSize = Math.max((availableWidth / initialAddressWidth) * defaultFontSize, minFontSize)
+          }
+
           const addressWidth = boldFont.widthOfTextAtSize(address, fontSize)
           const addressX = imgX + (imgWidth - addressWidth) / 2
 

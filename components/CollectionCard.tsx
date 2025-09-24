@@ -9,6 +9,7 @@ interface CollectionCardProps {
   onShare?: (collection: Collection) => void
   onEditPreferences?: (collection: Collection) => void
   onDelete?: (collection: Collection) => void
+  onStatusToggle?: (collection: Collection) => void
   formatTimeframe: (timeframe: string) => string
   formatPriceRange: (priceRange: string) => string
 }
@@ -19,6 +20,7 @@ export default function CollectionCard({
   onShare,
   onEditPreferences,
   onDelete,
+  onStatusToggle,
   formatTimeframe,
   formatPriceRange
 }: CollectionCardProps) {
@@ -75,7 +77,7 @@ export default function CollectionCard({
                 <h3 className="font-semibold text-gray-900 text-base truncate">
                   {collection.customer.firstName} {collection.customer.lastName}
                 </h3>
-                <p className="text-sm text-gray-500 truncate">{collection.customer.email}</p>
+                <p className="text-sm text-gray-500">{collection.customer.email}</p>
                 {collection.customer.phone && collection.customer.phone !== '(000) 000-0000' && (
                   <p className="text-xs text-gray-400">{collection.customer.phone}</p>
                 )}
@@ -125,11 +127,29 @@ export default function CollectionCard({
               )}
             </div>
             
-            {/* Status Tab */}
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(collection.status)}`}>
-              <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${collection.status === 'ACTIVE' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-              {collection.status}
-            </span>
+            {/* Status Tab - Clickable */}
+            {onStatusToggle ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onStatusToggle(collection.id)
+                }}
+                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 hover:shadow-sm ${getStatusColor(collection.status)} ${
+                  collection.status === 'ACTIVE'
+                    ? 'hover:bg-green-200 hover:border-green-300'
+                    : 'hover:bg-gray-200 hover:border-gray-300'
+                } cursor-pointer`}
+                title={`Click to ${collection.status === 'ACTIVE' ? 'deactivate' : 'activate'} showcase`}
+              >
+                <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${collection.status === 'ACTIVE' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                {collection.status}
+              </button>
+            ) : (
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(collection.status)}`}>
+                <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${collection.status === 'ACTIVE' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                {collection.status}
+              </span>
+            )}
           </div>
         </div>
       </div>

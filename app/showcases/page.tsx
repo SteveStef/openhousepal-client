@@ -11,7 +11,6 @@ import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import ShareCollectionModal from '@/components/ShareCollectionModal'
 import EditPreferencesModal from '@/components/EditPreferencesModal'
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal'
-import ChatAssistant from '@/components/ChatAssistant'
 import { Share2 } from 'lucide-react'
 import { apiRequest, checkAuth, updateCollectionPreferences } from '@/lib/auth'
 import { collectionsApi } from '@/lib/api'
@@ -212,15 +211,21 @@ export default function ShowcasesPage() {
   }, [selectedCollection]);
 
   const filteredCollections = collections.filter(collection => {
-    const matchesSearch = 
+    const matchesSearch =
       collection.customer.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       collection.customer.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       collection.customer.email.toLowerCase().includes(searchTerm.toLowerCase())
-    
+
     const matchesStatus = statusFilter === 'ALL' || collection.status === statusFilter
 
     return matchesSearch && matchesStatus
   })
+
+  // Calculate active showcases count and limit status
+  const activeShowcasesCount = collections.filter(collection => collection.status === 'ACTIVE').length
+  const maxActiveShowcases = 10
+  const isAtLimit = activeShowcasesCount >= maxActiveShowcases
+  const isNearLimit = activeShowcasesCount >= 8
 
   const formatTimeframe = (timeframe: string) => {
     return timeframe.replace(/_/g, '-').toLowerCase()
@@ -827,6 +832,12 @@ export default function ShowcasesPage() {
   }
 
   const handleCreateCollection = async (collectionData: any) => {
+    // Check active showcases limit before creating
+    if (activeShowcasesCount >= maxActiveShowcases) {
+      alert('You have reached the maximum limit of 10 active showcases. Please deactivate some showcases before creating a new one.')
+      return
+    }
+
     try {
       const response = await apiRequest('/collections/create-manually', {
         method: 'POST',
@@ -1099,11 +1110,6 @@ export default function ShowcasesPage() {
             onRetryDetails={() => handlePropertyClick(selectedProperty!)}
           />
 
-          {/* AI Chat Assistant for Individual Collection */}
-          <ChatAssistant 
-            collectionData={selectedCollection}
-            customerName={selectedCollection.customer.firstName}
-          />
           </div>
         </div>
         <Footer />
@@ -1143,17 +1149,46 @@ export default function ShowcasesPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-6">
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="px-3 py-1.5 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-md text-sm font-medium hover:shadow-md hover:shadow-[#8b7355]/25 transition-all duration-200 flex items-center space-x-1.5"
+                disabled={isAtLimit}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center space-x-1.5 ${
+                  isAtLimit
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white hover:shadow-md hover:shadow-[#8b7355]/25'
+                }`}
+                title={isAtLimit ? 'Maximum 10 active showcases reached' : 'Create a new showcase'}
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
-                <span>Create Showcase</span>
+                <span>{isAtLimit ? 'Limit Reached' : 'Create Showcase'}</span>
               </button>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                <span className="text-sm text-gray-600 font-medium">Active Showcases</span>
+
+              {/* Active Showcases Counter */}
+              <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border ${
+                isAtLimit
+                  ? 'bg-red-50 border-red-200'
+                  : isNearLimit
+                  ? 'bg-amber-50 border-amber-200'
+                  : 'bg-green-50 border-green-200'
+              }`}>
+                <div className={`w-3 h-3 rounded-full ${
+                  isAtLimit
+                    ? 'bg-red-400'
+                    : isNearLimit
+                    ? 'bg-amber-400'
+                    : 'bg-green-400'
+                }`}></div>
+                <span className={`text-sm font-medium ${
+                  isAtLimit
+                    ? 'text-red-800'
+                    : isNearLimit
+                    ? 'text-amber-800'
+                    : 'text-green-800'
+                }`}>
+                  {activeShowcasesCount}/{maxActiveShowcases} Active Showcases
+                </span>
               </div>
+
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
                   <Share2 className="w-4 h-4 text-white" />
@@ -1167,7 +1202,16 @@ export default function ShowcasesPage() {
           <div className="border-t border-gray-200/60 pt-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Filter Showcases</h3>
-              <span className="text-sm text-gray-500">{filteredCollections.length} showcases found</span>
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-500">
+                  {filteredCollections.length} showcases found • {activeShowcasesCount}/{maxActiveShowcases} active
+                </span>
+                {isAtLimit && (
+                  <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full border border-red-200 font-medium">
+                    Limit Reached
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
@@ -1223,6 +1267,7 @@ export default function ShowcasesPage() {
                 onShare={handleShareShowcase}
                 onEditPreferences={handleEditPreferences}
                 onDelete={handleDeleteCollection}
+                onStatusToggle={handleStatusToggle}
                 formatTimeframe={formatTimeframe}
                 formatPriceRange={formatPriceRange}
               />
@@ -1232,12 +1277,6 @@ export default function ShowcasesPage() {
         </div>
       </div>
       <Footer />
-      
-      {/* AI Chat Assistant for Showcases Overview */}
-      <ChatAssistant 
-        collectionData={collections}
-        customerName="Agent"
-      />
       
       {/* Share Collection Modal */}
       <ShareCollectionModal
@@ -1271,6 +1310,9 @@ export default function ShowcasesPage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateCollection}
+        activeShowcasesCount={activeShowcasesCount}
+        maxActiveShowcases={maxActiveShowcases}
+        isNearLimit={isNearLimit}
       />
 
     </div>
@@ -1278,10 +1320,20 @@ export default function ShowcasesPage() {
 }
 
 // Create Showcase Modal Component
-function CreateCollectionModal({ isOpen, onClose, onSubmit }: { 
-  isOpen: boolean, 
-  onClose: () => void, 
-  onSubmit: (data: any) => void 
+function CreateCollectionModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  activeShowcasesCount = 0,
+  maxActiveShowcases = 10,
+  isNearLimit = false
+}: {
+  isOpen: boolean,
+  onClose: () => void,
+  onSubmit: (data: any) => void,
+  activeShowcasesCount?: number,
+  maxActiveShowcases?: number,
+  isNearLimit?: boolean
 }) {
   const [formData, setFormData] = useState({
     // Collection Info
@@ -1373,14 +1425,14 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
     } else if (field === 'cities' || field === 'townships') {
       // Check combined cities/townships limit (max 10 total)
       const newValue = value as string[]
-      const currentCities = field === 'cities' ? [] : formData.cities || []
-      const currentTownships = field === 'townships' ? [] : formData.townships || []
-      const otherFieldCount = field === 'cities' ? currentTownships.length : currentCities.length
-      
+      const newCities = field === 'cities' ? newValue : formData.cities || []
+      const newTownships = field === 'townships' ? newValue : formData.townships || []
+
       // Prevent adding if it would exceed combined limit of 10
-      if (newValue.length + otherFieldCount > 10) {
-        setValidationErrors(prev => ({ 
-          ...prev, 
+      if (newCities.length + newTownships.length > 10) {
+        const otherFieldCount = field === 'cities' ? newTownships.length : newCities.length
+        setValidationErrors(prev => ({
+          ...prev,
           location: `Maximum 10 total cities and townships combined. You currently have ${otherFieldCount} ${field === 'cities' ? 'townships' : 'cities'}.`
         }))
         return // Don't update the form data
@@ -1492,6 +1544,29 @@ function CreateCollectionModal({ isOpen, onClose, onSubmit }: {
             </button>
           </div>
           <p className="text-gray-600 text-sm mt-1">Create a showcase based on customer preferences and search criteria</p>
+
+          {/* Limit Warning */}
+          {isNearLimit && (
+            <div className={`mt-3 p-3 rounded-lg flex items-center ${
+              activeShowcasesCount >= maxActiveShowcases
+                ? 'bg-red-50 border border-red-200'
+                : 'bg-amber-50 border border-amber-200'
+            }`}>
+              <svg className={`w-5 h-5 mr-2 flex-shrink-0 ${
+                activeShowcasesCount >= maxActiveShowcases ? 'text-red-500' : 'text-amber-500'
+              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className={`text-sm ${
+                activeShowcasesCount >= maxActiveShowcases ? 'text-red-700' : 'text-amber-700'
+              }`}>
+                {activeShowcasesCount >= maxActiveShowcases
+                  ? `You have reached the maximum limit of ${maxActiveShowcases} active showcases. Please deactivate some showcases before creating a new one.`
+                  : `You are near the limit of ${maxActiveShowcases} active showcases (${activeShowcasesCount}/${maxActiveShowcases}). Consider deactivating inactive showcases.`
+                }
+              </p>
+            </div>
+          )}
         </div>
         
         <form onSubmit={handleSubmit} className="p-6 space-y-6">

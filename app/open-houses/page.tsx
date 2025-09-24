@@ -416,9 +416,9 @@ export default function OpenHousesPage() {
 
               {/* Content Area */}
               <div className="p-6">
-                <div className="grid lg:grid-cols-3 gap-6">
+                <div className="grid lg:grid-cols-2 gap-6">
                   {/* Create Form - Left Side */}
-                  <div className="lg:col-span-1">
+                  <div>
                     <div className="sticky top-6">
                       <div className="bg-gradient-to-br from-[#8b7355]/5 to-[#7a6549]/10 rounded-2xl p-6 border border-[#8b7355]/20">
                         <div className="flex items-center mb-4">
@@ -491,7 +491,7 @@ export default function OpenHousesPage() {
                   </div>
 
                   {/* Listings History - Right Side */}
-                  <div className="lg:col-span-2">
+                  <div>
                     <div className="flex items-center justify-between mb-6">
                       <div className="flex items-center">
                         <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center mr-3">
@@ -499,7 +499,7 @@ export default function OpenHousesPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
                         </div>
-                        <h2 className="text-xl font-bold text-gray-900">Your Listings</h2>
+                        <h2 className="text-xl font-bold text-gray-900">Your Open Houses</h2>
                       </div>
                     </div>
 
