@@ -26,7 +26,34 @@ export default function CustomerCollectionView({
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isLoadingDetails, setIsLoadingDetails] = useState(false)
   const [detailsError, setDetailsError] = useState<string | null>(null)
+  const [isLoadingComments, setIsLoadingComments] = useState(false)
+  const [commentsError, setCommentsError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'all' | 'liked' | 'disliked' | 'favorited'>('all')
+
+  const fetchPropertyComments = async (propertyId: string) => {
+    setIsLoadingComments(true)
+    setCommentsError(null)
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/collections/${collection.id}/properties/${propertyId}/comments`)
+
+      if (response.ok) {
+        const data = await response.json()
+        // Update selected property with fresh comments
+        setSelectedProperty(prev => prev ? {
+          ...prev,
+          comments: data || []
+        } : prev)
+      } else {
+        setCommentsError('Failed to load comments')
+      }
+    } catch (error) {
+      console.error('Error fetching property comments:', error)
+      setCommentsError('Failed to load comments')
+    } finally {
+      setIsLoadingComments(false)
+    }
+  }
 
   const handlePropertyClick = async (property: Property) => {
     // Open modal immediately with basic property data
@@ -34,7 +61,12 @@ export default function CustomerCollectionView({
     setIsModalOpen(true)
     setIsLoadingDetails(true)
     setDetailsError(null)
-    
+
+    // Always fetch fresh comments
+    if (property.id) {
+      fetchPropertyComments(String(property.id))
+    }
+
     // Skip loading if property already has details
     if (property.details) {
       setIsLoadingDetails(false)
@@ -284,6 +316,8 @@ export default function CustomerCollectionView({
         isLoadingDetails={isLoadingDetails}
         detailsError={detailsError}
         onRetryDetails={() => handlePropertyClick(selectedProperty!)}
+        isLoadingComments={isLoadingComments}
+        commentsError={commentsError}
       />
 
       {/* AI Chat Assistant */}

@@ -11,10 +11,12 @@ interface PropertyDetailsModalProps {
   onLike?: (propertyId: number, liked: boolean) => void
   onDislike?: (propertyId: number, disliked: boolean) => void
   onFavorite?: (propertyId: number, favorited: boolean) => void
-  onAddComment?: (propertyId: number, comment: string) => void
+  onAddComment?: (propertyId: string, comment: string) => void
   isLoadingDetails?: boolean
   detailsError?: string | null
   onRetryDetails?: () => void
+  isLoadingComments?: boolean
+  commentsError?: string | null
 }
 
 // Property Report Table Component
@@ -211,7 +213,9 @@ export default function PropertyDetailsModal({
   onAddComment,
   isLoadingDetails = false,
   detailsError = null,
-  onRetryDetails
+  onRetryDetails,
+  isLoadingComments = false,
+  commentsError = null
 }: PropertyDetailsModalProps) {
   const [newComment, setNewComment] = useState('')
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
@@ -295,13 +299,27 @@ export default function PropertyDetailsModal({
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+    try {
+      if (!dateString) return 'Date unavailable'
+
+      const date = new Date(dateString)
+
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return 'Date unavailable'
+      }
+
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch (error) {
+      console.error('Error formatting date:', error)
+      return 'Date unavailable'
+    }
   }
 
   const formatListingDate = (dateString?: string) => {
@@ -341,7 +359,7 @@ export default function PropertyDetailsModal({
 
     setIsSubmittingComment(true)
     try {
-      onAddComment?.(Number(property.id), newComment.trim())
+      onAddComment?.(String(property.id), newComment.trim())
       setNewComment('')
     } finally {
       setIsSubmittingComment(false)
@@ -810,21 +828,30 @@ export default function PropertyDetailsModal({
 
                       {/* Comments List */}
                       <div className="space-y-4 mb-6 max-h-64 overflow-y-auto">
-                        {property.comments && property.comments.length > 0 ? (
+                        {isLoadingComments ? (
+                          <div className="text-center py-8 bg-white rounded-2xl border border-indigo-100">
+                            <div className="inline-flex items-center space-x-2 text-indigo-600">
+                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 border-t-transparent"></div>
+                              <span className="text-sm font-medium">Loading comments...</span>
+                            </div>
+                          </div>
+                        ) : commentsError ? (
+                          <div className="text-center py-8 bg-red-50 rounded-2xl border border-red-200">
+                            <div className="text-red-600 mb-3">
+                              <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01"></path>
+                              </svg>
+                            </div>
+                            <p className="text-red-600 text-sm font-medium">{commentsError}</p>
+                          </div>
+                        ) : property.comments && property.comments.length > 0 ? (
                           property.comments.map((comment, index) => (
                             <div key={comment.id} className="bg-white rounded-2xl p-4 border border-indigo-100">
-                              <div className="flex items-start">
-                                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-2 rounded-full mr-3 flex-shrink-0">
-                                  <User className="text-white" size={14} />
-                                </div>
-                                <div className="flex-1">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <span className="font-bold text-gray-900 text-sm">{comment.author}</span>
-                                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{formatDate(comment.createdAt)}</span>
-                                  </div>
-                                  <p className="text-gray-700 leading-relaxed text-sm">{comment.content}</p>
-                                </div>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="font-bold text-gray-900 text-sm">{comment.author}</span>
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{formatDate(comment.createdAt)}</span>
                               </div>
+                              <p className="text-gray-700 leading-relaxed text-sm">{comment.content}</p>
                             </div>
                           ))
                         ) : (

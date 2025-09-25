@@ -27,6 +27,8 @@ export default function CustomerShowcasePage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isLoadingDetails, setIsLoadingDetails] = useState(false)
   const [detailsError, setDetailsError] = useState<string | null>(null)
+  const [isLoadingComments, setIsLoadingComments] = useState(false)
+  const [commentsError, setCommentsError] = useState<string | null>(null)
 
   const shareToken = params.shareToken as string
 
@@ -117,7 +119,8 @@ export default function CustomerShowcasePage() {
         break
       case 'all':
       default:
-        // Show all properties
+        // Show all properties except disliked ones
+        filtered = filtered.filter(property => !property.disliked)
         break
     }
 
@@ -156,10 +159,10 @@ export default function CustomerShowcasePage() {
 
   const getTabCounts = () => {
     if (!showcase || !matchedProperties) return { all: 0, liked: 0, disliked: 0, favorited: 0 }
-    
+
     const properties = matchedProperties
     return {
-      all: properties.length,
+      all: properties.filter(p => !p.disliked).length,
       liked: properties.filter(p => p.liked).length,
       disliked: properties.filter(p => p.disliked).length,
       favorited: properties.filter(p => p.favorited).length
@@ -312,16 +315,84 @@ export default function CustomerShowcasePage() {
     
     // Make API call to persist the comment
     try {
-      await apiRequest(`/collections/${showcase.id}/properties/${propertyId}/comments`, {
+      const response = await apiRequest(`/collections/${showcase.id}/properties/${propertyId}/comments`, {
         method: 'POST',
         body: JSON.stringify({
           comment: comment,
           visitor_name: `${showcase.customer.firstName} ${showcase.customer.lastName}`
         })
       })
+
+      if (response.ok) {
+        const responseData = await response.json()
+        const serverComment = responseData.comment || responseData
+
+        // Replace optimistic comment with server response if different
+        if (serverComment && serverComment.id !== newComment.id) {
+          const replaceOptimisticComment = (comments: Comment[]) =>
+            comments.map(c => c.id === newComment.id ? serverComment : c)
+
+          setMatchedProperties(prev => prev.map(property =>
+            property.id === propertyId
+              ? { ...property, comments: replaceOptimisticComment(property.comments || []) }
+              : property
+          ))
+
+          if (selectedProperty && selectedProperty.id === propertyId) {
+            setSelectedProperty(prev => prev ? {
+              ...prev,
+              comments: replaceOptimisticComment(prev.comments || [])
+            } : prev)
+          }
+        }
+      } else {
+        throw new Error('Failed to post comment')
+      }
     } catch (error) {
       console.error('Error adding property comment:', error)
-      // Could implement rollback logic here if needed
+      // Rollback optimistic update on error
+      const removeOptimisticComment = (comments: Comment[]) =>
+        comments.filter(c => c.id !== newComment.id)
+
+      setMatchedProperties(prev => prev.map(property =>
+        property.id === propertyId
+          ? { ...property, comments: removeOptimisticComment(property.comments || []) }
+          : property
+      ))
+
+      if (selectedProperty && selectedProperty.id === propertyId) {
+        setSelectedProperty(prev => prev ? {
+          ...prev,
+          comments: removeOptimisticComment(prev.comments || [])
+        } : prev)
+      }
+    }
+  }
+
+  const fetchPropertyComments = async (propertyId: string) => {
+    if (!showcase) return
+
+    setIsLoadingComments(true)
+    setCommentsError(null)
+
+    try {
+      const response = await apiRequest(`/collections/${showcase.id}/properties/${propertyId}/comments`)
+
+      if (response.ok) {
+        const data = await response.json()
+        // Update selected property with fresh comments
+        setSelectedProperty(prev => prev ? {
+          ...prev,
+          comments: data || []
+        } : prev)
+      } else {
+        setCommentsError('Failed to load comments')
+      }
+    } catch (error) {
+      console.error('Error fetching property comments:', error)
+      setCommentsError('Failed to load comments')
+    } finally {
+      setIsLoadingComments(false)
     }
   }
 
@@ -353,8 +424,13 @@ export default function CustomerShowcasePage() {
       // Fallback to basic property
       setSelectedProperty(property)
     }
-    
+
     setIsModalOpen(true)
+
+    // Always fetch fresh comments
+    if (property.id) {
+      fetchPropertyComments(String(property.id))
+    }
   }
 
   const handleCloseModal = () => {
@@ -529,6 +605,8 @@ export default function CustomerShowcasePage() {
             onDislike={handlePropertyDislike}
             onFavorite={handlePropertyFavorite}
             onAddComment={handleAddComment}
+            isLoadingComments={isLoadingComments}
+            commentsError={commentsError}
           />
 
         </div>

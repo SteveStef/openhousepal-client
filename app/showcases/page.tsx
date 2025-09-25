@@ -49,6 +49,8 @@ export default function ShowcasesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isLoadingDetails, setIsLoadingDetails] = useState(false)
   const [detailsError, setDetailsError] = useState<string | null>(null)
+  const [isLoadingComments, setIsLoadingComments] = useState(false)
+  const [commentsError, setCommentsError] = useState<string | null>(null)
   
   // Share modal states
   const [selectedCollectionForShare, setSelectedCollectionForShare] = useState<Collection | null>(null)
@@ -98,11 +100,8 @@ export default function ShowcasesPage() {
         const response = await apiRequest('/collections/')
         
         if (response.status === 200 && response.data) {
-          console.log('[LOAD] Backend collections data:', JSON.stringify(response.data, null, 2))
           // Transform backend data to match frontend interface
           const transformedCollections: Collection[] = response.data.map((backendCollection: any) => {
-            console.log(`[LOAD] Processing collection: ${backendCollection.name} - ID: ${backendCollection.id} - isPublic: ${backendCollection.is_public} - shareToken: ${backendCollection.share_token}`)
-            console.log(`[DEBUG] Original property data:`, backendCollection.original_property)
             return {
             id: backendCollection.id, // Keep as string since backend uses UUID strings
             customer: (backendCollection.visitor_name || backendCollection.visitor_email) ? {
@@ -264,7 +263,8 @@ export default function ShowcasesPage() {
         break
       case 'all':
       default:
-        // Show all properties
+        // Show all properties except disliked ones
+        filtered = filtered.filter(property => !property.disliked)
         break
     }
 
@@ -303,10 +303,10 @@ export default function ShowcasesPage() {
 
   const getTabCounts = () => {
     if (!selectedCollection || !matchedProperties) return { all: 0, liked: 0, disliked: 0, favorited: 0 }
-    
+
     const properties = matchedProperties
     return {
-      all: properties.length,
+      all: properties.filter(p => !p.disliked).length,
       liked: properties.filter(p => p.liked).length,
       disliked: properties.filter(p => p.disliked).length,
       favorited: properties.filter(p => p.favorited).length
@@ -405,27 +405,82 @@ export default function ShowcasesPage() {
   const handleAddComment = async (propertyId: number, comment: string) => {
     if (!selectedCollection || !matchedProperties) return
 
+    // Create optimistic comment for immediate UI update
+    const optimisticComment = {
+      id: `temp-${Date.now()}`,
+      content: comment,
+      author: 'You',
+      createdAt: new Date().toISOString()
+    }
+
+    // Update selected property immediately for instant feedback
+    setSelectedProperty(prev => prev && prev.id === propertyId ? {
+      ...prev,
+      comments: [...(prev.comments || []), optimisticComment]
+    } : prev)
+
     try {
       const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${propertyId}/comments`, {
         method: 'POST',
         body: JSON.stringify({
-          content: comment
+          content: comment,
+          visitor_name: `${selectedCollection.customer.firstName} ${selectedCollection.customer.lastName}`,
+          visitor_email: selectedCollection.customer.email
         })
       })
 
       if (response.status === 200) {
-        const newComment = response.data.comment
+        const serverComment = response.data.comment
 
+        // Replace optimistic comment with server response
+        setSelectedProperty(prev => prev && prev.id === propertyId ? {
+          ...prev,
+          comments: (prev.comments || []).map(c =>
+            c.id === optimisticComment.id ? serverComment : c
+          )
+        } : prev)
+
+        // Also update the main properties list
         const updatedProperties = matchedProperties.map(property =>
-          property.id === propertyId 
-            ? { ...property, comments: [...(property.comments || []), newComment] }
+          property.id === propertyId
+            ? { ...property, comments: [...(property.comments || []).filter(c => c.id !== optimisticComment.id), serverComment] }
             : property
         )
-        
         setMatchedProperties(updatedProperties)
       }
     } catch (error) {
       console.error('Error adding property comment:', error)
+      // Remove optimistic comment on error
+      setSelectedProperty(prev => prev && prev.id === propertyId ? {
+        ...prev,
+        comments: (prev.comments || []).filter(c => c.id !== optimisticComment.id)
+      } : prev)
+    }
+  }
+
+  const fetchPropertyComments = async (propertyId: string) => {
+    if (!selectedCollection) return
+
+    setIsLoadingComments(true)
+    setCommentsError(null)
+
+    try {
+      const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${propertyId}/comments`)
+
+      if (response.status === 200 && response.data) {
+        // Update selected property with fresh comments
+        setSelectedProperty(prev => prev ? {
+          ...prev,
+          comments: response.data
+        } : prev)
+      } else {
+        setCommentsError('Failed to load comments')
+      }
+    } catch (error) {
+      console.error('Error fetching property comments:', error)
+      setCommentsError('Failed to load comments')
+    } finally {
+      setIsLoadingComments(false)
     }
   }
 
@@ -435,7 +490,12 @@ export default function ShowcasesPage() {
     setIsModalOpen(true)
     setIsLoadingDetails(true)
     setDetailsError(null)
-    
+
+    // Always fetch fresh comments
+    if (property.id) {
+      fetchPropertyComments(String(property.id))
+    }
+
     // Skip loading if property already has details
     if (property.details) {
       setIsLoadingDetails(false)
@@ -448,7 +508,6 @@ export default function ShowcasesPage() {
       
       if (response.ok) {
         const cacheResponse = await response.json()
-        console.log(cacheResponse);
         
         if (cacheResponse.success && cacheResponse.details) {
           // Update property with detailed information
@@ -491,7 +550,6 @@ export default function ShowcasesPage() {
 
   const handleGenerateShareLink = async (collectionId: string) => {
     try {
-      console.log(`[SHARE] Generating share link for collection ${collectionId}`)
       
       const response = await apiRequest(`/collections/${collectionId}/share`, {
         method: 'PATCH',
@@ -500,7 +558,6 @@ export default function ShowcasesPage() {
 
       if (response.status === 200) {
         const { share_token, is_public, share_url } = response.data
-        console.log(`[SHARE] Generated: is_public=${is_public}, share_token=${share_token}`)
         
         setCollections(prevShowcases =>
           prevShowcases.map(collection =>
@@ -525,7 +582,6 @@ export default function ShowcasesPage() {
           } : null)
         }
         
-        console.log(`[SHARE] Generation complete: token ${share_token}`)
       } else {
         console.error('[SHARE] Generation failed:', response.status, response.data)
       }
@@ -537,7 +593,6 @@ export default function ShowcasesPage() {
 
   const handleUpdateShareSettings = async (collectionId: string, isPublic: boolean) => {
     try {
-      console.log(`[SHARE] Toggling collection ${collectionId} to ${isPublic ? 'public' : 'private'}`)
       
       const response = await apiRequest(`/collections/${collectionId}/share`, {
         method: 'PATCH',
@@ -546,7 +601,6 @@ export default function ShowcasesPage() {
 
       if (response.status === 200) {
         const { share_token, is_public } = response.data
-        console.log(`[SHARE] API Response: is_public=${is_public}, share_token=${share_token}`)
         
         // Use actual backend response values, not assumptions
         setCollections(prevShowcases =>
@@ -572,7 +626,6 @@ export default function ShowcasesPage() {
           } : null)
         }
         
-        console.log(`[SHARE] Frontend state updated: isPublic=${is_public}`)
       } else {
         console.error('[SHARE] API request failed:', response.status, response.data)
       }
@@ -584,7 +637,6 @@ export default function ShowcasesPage() {
 
   const handleRegenerateShareLink = async (collectionId: string) => {
     try {
-      console.log(`[SHARE] Regenerating share link for collection ${collectionId}`)
       
       const response = await apiRequest(`/collections/${collectionId}/share`, {
         method: 'PATCH',
@@ -593,7 +645,6 @@ export default function ShowcasesPage() {
 
       if (response.status === 200) {
         const { share_token, is_public, share_url } = response.data
-        console.log(`[SHARE] Regenerated: is_public=${is_public}, share_token=${share_token}`)
         
         setCollections(prevShowcases =>
           prevShowcases.map(collection =>
@@ -618,7 +669,6 @@ export default function ShowcasesPage() {
           } : null)
         }
         
-        console.log(`[SHARE] Regeneration complete: new token ${share_token}`)
       } else {
         console.error('[SHARE] Regeneration failed:', response.status, response.data)
       }
@@ -675,7 +725,6 @@ export default function ShowcasesPage() {
   }
 
   const handleSavePreferences = async (collectionId: string, preferences: any) => {
-  console.log(preferences)
     try {
       console.log(`[PREFERENCES] Updating preferences for collection ${collectionId}:`, preferences)
       
@@ -1087,12 +1136,12 @@ export default function ShowcasesPage() {
           </div>
 
           {/* Property Grid */}
-          <PropertyGrid 
+          <PropertyGrid
             properties={filteredProperties}
             title="Matched Properties"
-            onLike={undefined}
-            onDislike={undefined}
-            onFavorite={undefined}
+            onLike={handlePropertyLike}
+            onDislike={handlePropertyDislike}
+            onFavorite={handlePropertyFavorite}
             onPropertyClick={handlePropertyClick}
           />
 
@@ -1101,13 +1150,15 @@ export default function ShowcasesPage() {
             property={selectedProperty}
             isOpen={isModalOpen}
             onClose={handleCloseModal}
-            onLike={undefined}
-            onDislike={undefined}
-            onFavorite={undefined}
+            onLike={handlePropertyLike}
+            onDislike={handlePropertyDislike}
+            onFavorite={handlePropertyFavorite}
             onAddComment={handleAddComment}
             isLoadingDetails={isLoadingDetails}
             detailsError={detailsError}
             onRetryDetails={() => handlePropertyClick(selectedProperty!)}
+            isLoadingComments={isLoadingComments}
+            commentsError={commentsError}
           />
 
           </div>
