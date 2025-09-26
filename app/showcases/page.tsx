@@ -1318,7 +1318,7 @@ export default function ShowcasesPage() {
                 onShare={handleShareShowcase}
                 onEditPreferences={handleEditPreferences}
                 onDelete={handleDeleteCollection}
-                onStatusToggle={handleStatusToggle}
+                onStatusToggle={(collection: Collection) => handleStatusToggle(collection.id)}
                 formatTimeframe={formatTimeframe}
                 formatPriceRange={formatPriceRange}
               />
@@ -1452,7 +1452,7 @@ function CreateCollectionModal({
   }
 
   const isUsingAddressSearch = () => {
-    return formData.address && formData.address.trim()
+    return !!(formData.address && formData.address.trim())
   }
 
   const isUsingAreaSearch = () => {

@@ -1,5 +1,33 @@
 // TypeScript declarations for Google Places web components
 
+// Basic Google Maps API namespace declarations
+declare global {
+  namespace google {
+  namespace maps {
+    namespace event {
+      function clearInstanceListeners(instance: any): void;
+    }
+
+    namespace places {
+      interface PlaceResult {
+        address_components?: any[];
+        formatted_address?: string;
+        geometry?: any;
+        place_id?: string;
+        [key: string]: any;
+      }
+
+      class Autocomplete {
+        constructor(inputElement: HTMLInputElement, opts?: any);
+        addListener(eventName: string, handler: () => void): void;
+        getPlace(): PlaceResult;
+        [key: string]: any;
+      }
+    }
+  }
+  }
+}
+
 declare namespace JSX {
   interface IntrinsicElements {
     'gmp-place-autocomplete': React.DetailedHTMLProps<

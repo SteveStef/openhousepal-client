@@ -11,7 +11,7 @@ interface PropertyDetailsModalProps {
   onLike?: (propertyId: number, liked: boolean) => void
   onDislike?: (propertyId: number, disliked: boolean) => void
   onFavorite?: (propertyId: number, favorited: boolean) => void
-  onAddComment?: (propertyId: string, comment: string) => void
+  onAddComment?: (propertyId: number, comment: string) => void
   isLoadingDetails?: boolean
   detailsError?: string | null
   onRetryDetails?: () => void
@@ -224,10 +224,10 @@ export default function PropertyDetailsModal({
 
   // Enhanced photo handling for Zillow API data
   const getPropertyImages = useCallback(() => {
-    if (property?.details?.originalPhotos && property.details.originalPhotos.length > 0) {
+    if ((property?.details as any)?.originalPhotos && (property?.details as any)?.originalPhotos?.length > 0) {
       // Use high-quality photos from Zillow API
-      return property.details.originalPhotos
-        .map(photo => photo.mixedSources?.jpeg?.[0]?.url || photo.mixedSources?.webp?.[0]?.url)
+      return (property?.details as any).originalPhotos
+        .map((photo: any) => photo.mixedSources?.jpeg?.[0]?.url || photo.mixedSources?.webp?.[0]?.url)
         .filter(Boolean) as string[]
     }
     // Fallback to basic images
@@ -359,7 +359,7 @@ export default function PropertyDetailsModal({
 
     setIsSubmittingComment(true)
     try {
-      onAddComment?.(String(property.id), newComment.trim())
+      onAddComment?.(Number(property.id), newComment.trim())
       setNewComment('')
     } finally {
       setIsSubmittingComment(false)
@@ -444,25 +444,25 @@ export default function PropertyDetailsModal({
           <div className="flex items-center justify-between p-6 border-b border-gray-200/60 bg-gradient-to-r from-gray-50 to-white">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
-                {property.details?.address?.streetAddress || property.address}
+                {(property.details as any)?.address?.streetAddress || property.address}
               </h2>
               <p className="text-gray-600 text-sm mt-1">
-                {property.details?.city || property.city}, {property.details?.address?.state || property.state} {property.details?.address?.zipcode || property.zipCode}
+                {(property.details as any)?.city || property.city}, {(property.details as any)?.address?.state || property.state} {(property.details as any)?.address?.zipcode || property.zipCode}
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              {property.details?.homeStatus && (
+              {(property.details as any)?.homeStatus && (
                 <span className={`px-3 py-1 text-sm font-medium rounded-full ${
-                  property.details.homeStatus === 'forSale' 
+                  (property.details as any).homeStatus === 'forSale' 
                     ? 'bg-green-100 text-green-800' 
-                    : property.details.homeStatus === 'forRent'
+                    : (property.details as any).homeStatus === 'forRent'
                     ? 'bg-blue-100 text-blue-800'
                     : 'bg-gray-100 text-gray-800'
                 }`}>
-                  {property.details.homeStatus === 'forSale' ? 'For Sale' :
-                   property.details.homeStatus === 'forRent' ? 'For Rent' :
-                   property.details.homeStatus === 'recentlySold' ? 'Recently Sold' :
-                   property.details.homeStatus}
+                  {(property.details as any).homeStatus === 'forSale' ? 'For Sale' :
+                   (property.details as any).homeStatus === 'forRent' ? 'For Rent' :
+                   (property.details as any).homeStatus === 'recentlySold' ? 'Recently Sold' :
+                   (property.details as any).homeStatus}
                 </span>
               )}
               <button
@@ -537,9 +537,9 @@ export default function PropertyDetailsModal({
                             </div>
                             
                             {/* Photo Caption */}
-                            {property.details?.originalPhotos?.[currentImageIndex]?.caption && (
+                            {(property.details as any)?.originalPhotos?.[currentImageIndex]?.caption && (
                               <div className="absolute bottom-20 left-4 right-4 bg-black/70 text-white text-sm p-3 rounded-lg">
-                                {property.details.originalPhotos[currentImageIndex].caption}
+                                {(property.details as any).originalPhotos[currentImageIndex].caption}
                               </div>
                             )}
                             
@@ -606,21 +606,21 @@ export default function PropertyDetailsModal({
                         {/* Price Section */}
                         <div className="text-center mb-8">
                           <div className="text-4xl font-bold text-gray-900 mb-2">
-                            {formatPrice(property.details?.price || property.price)}
+                            {formatPrice((property.details as any)?.price || property.price)}
                           </div>
                           <div className="text-gray-600 text-sm mb-2">List Price</div>
-                          {property.details?.resoFacts?.pricePerSquareFoot && (
-                            <div className="text-gray-500 text-xs mb-4">${property.details.resoFacts.pricePerSquareFoot}/sq ft</div>
+                          {(property.details as any)?.resoFacts?.pricePerSquareFoot && (
+                            <div className="text-gray-500 text-xs mb-4">${(property.details as any).resoFacts.pricePerSquareFoot}/sq ft</div>
                           )}
-                          {property.details?.zestimate && (
+                          {(property.details as any)?.zestimate && (
                             <div className="bg-blue-50 rounded-lg p-4 mt-3">
                               <div className="text-xl font-semibold text-blue-900 mb-1">
-                                {formatPrice(property.details.zestimate)}
+                                {formatPrice((property.details as any).zestimate)}
                               </div>
                               <div className="text-blue-700 text-xs mb-2">Zestimate®</div>
                               {(() => {
-                                const listPrice = property.details?.price || property.price;
-                                const zestimate = property.details.zestimate;
+                                const listPrice = (property.details as any)?.price || property.price;
+                                const zestimate = (property.details as any).zestimate;
                                 if (listPrice && zestimate) {
                                   const difference = zestimate - listPrice;
                                   const percentDiff = ((difference / listPrice) * 100).toFixed(1);
@@ -640,19 +640,19 @@ export default function PropertyDetailsModal({
                         <div className="grid grid-cols-3 gap-4 mb-8">
                           <div className="text-center">
                             <div className="text-3xl font-bold text-gray-900 mb-1">
-                              {property.details?.bedrooms || property.beds || '-'}
+                              {(property.details as any)?.bedrooms || property.beds || '-'}
                             </div>
                             <div className="text-gray-600 text-sm">Beds</div>
                           </div>
                           <div className="text-center">
                             <div className="text-3xl font-bold text-gray-900 mb-1">
-                              {property.details?.bathrooms || property.baths || '-'}
+                              {(property.details as any)?.bathrooms || property.baths || '-'}
                             </div>
                             <div className="text-gray-600 text-sm">Baths</div>
                           </div>
                           <div className="text-center">
                             <div className="text-2xl font-bold text-gray-900 mb-1">
-                              {((property.details?.livingArea || property.squareFeet || 0) / 1000).toFixed(1)}k
+                              {(((property.details as any)?.livingArea || property.squareFeet || 0) / 1000).toFixed(1)}k
                             </div>
                             <div className="text-gray-600 text-sm">Sq Ft</div>
                           </div>
@@ -660,56 +660,56 @@ export default function PropertyDetailsModal({
                         
                         {/* Key Details */}
                         <div className="space-y-3 text-sm border-t pt-6 mb-8">
-                          {(property.details?.homeType || property.propertyType) && (
+                          {((property.details as any)?.homeType || property.propertyType) && (
                             <div className="flex justify-between">
                               <span className="text-gray-600">Home Type:</span>
                               <span className="text-gray-900 font-medium">
-                                {property.details?.homeType?.replace(/_/g, ' ') || property.propertyType?.replace(/_/g, ' ')}
+                                {(property.details as any)?.homeType?.replace(/_/g, ' ') || property.propertyType?.replace(/_/g, ' ')}
                               </span>
                             </div>
                           )}
-                          {(property.details?.yearBuilt || property.yearBuilt) && (
+                          {((property.details as any)?.yearBuilt || property.yearBuilt) && (
                             <div className="flex justify-between">
                               <span className="text-gray-600">Year Built:</span>
                               <span className="text-gray-900 font-medium">
-                                {property.details?.yearBuilt || property.yearBuilt}
+                                {(property.details as any)?.yearBuilt || property.yearBuilt}
                               </span>
                             </div>
                           )}
-                          {property.details?.resoFacts?.pricePerSquareFoot && (
+                          {(property.details as any)?.resoFacts?.pricePerSquareFoot && (
                             <div className="flex justify-between">
                               <span className="text-gray-600">Price/Sq Ft:</span>
                               <span className="text-gray-900 font-medium">
-                                ${property.details.resoFacts.pricePerSquareFoot}
+                                ${(property.details as any).resoFacts.pricePerSquareFoot}
                               </span>
                             </div>
                           )}
-                          {property.details?.resoFacts?.stories && (
+                          {(property.details as any)?.resoFacts?.stories && (
                             <div className="flex justify-between">
                               <span className="text-gray-600">Stories:</span>
-                              <span className="text-gray-900 font-medium">{property.details.resoFacts.stories}</span>
+                              <span className="text-gray-900 font-medium">{(property.details as any).resoFacts.stories}</span>
                             </div>
                           )}
-                          {property.details?.lotSize && (
+                          {(property.details as any)?.lotSize && (
                             <div className="flex justify-between">
                               <span className="text-gray-600">Lot Size:</span>
                               <span className="text-gray-900 font-medium">
-                                {(property.details.lotSize / 43560).toFixed(2)} acres
+                                {((property.details as any).lotSize / 43560).toFixed(2)} acres
                               </span>
                             </div>
                           )}
-                          {(property.details?.daysOnZillow || property.details?.resoFacts?.atAGlanceFacts?.find(fact => fact.factLabel === 'Days on Zillow')?.factValue) && (
+                          {((property.details as any)?.daysOnZillow || (property.details as any)?.resoFacts?.atAGlanceFacts?.find((fact: any) => fact.factLabel === 'Days on Zillow')?.factValue) && (
                             <div className="flex justify-between">
                               <span className="text-gray-600">Days on Market:</span>
                               <span className="text-gray-900 font-medium">
-                                {property.details?.daysOnZillow || property.details?.resoFacts?.atAGlanceFacts?.find(fact => fact.factLabel === 'Days on Zillow')?.factValue}
+                                {(property.details as any)?.daysOnZillow || (property.details as any)?.resoFacts?.atAGlanceFacts?.find((fact: any) => fact.factLabel === 'Days on Zillow')?.factValue}
                               </span>
                             </div>
                           )}
-                          {property.details?.resoFacts?.propertyCondition && (
+                          {(property.details as any)?.resoFacts?.propertyCondition && (
                             <div className="flex justify-between">
                               <span className="text-gray-600">Condition:</span>
-                              <span className="text-gray-900 font-medium">{property.details.resoFacts.propertyCondition}</span>
+                              <span className="text-gray-900 font-medium">{(property.details as any).resoFacts.propertyCondition}</span>
                             </div>
                           )}
                         </div>
@@ -769,46 +769,46 @@ export default function PropertyDetailsModal({
                         Property Overview
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {property.details?.resoFacts?.subdivisionName && (
+                        {(property.details as any)?.resoFacts?.subdivisionName && (
                           <div className="flex justify-between py-2 border-b border-gray-100">
                             <span className="text-gray-600 font-medium">Subdivision:</span>
-                            <span className="text-gray-900 font-semibold">{property.details.resoFacts.subdivisionName}</span>
+                            <span className="text-gray-900 font-semibold">{(property.details as any).resoFacts.subdivisionName}</span>
                           </div>
                         )}
-                        {property.details?.resoFacts?.municipality && (
+                        {(property.details as any)?.resoFacts?.municipality && (
                           <div className="flex justify-between py-2 border-b border-gray-100">
                             <span className="text-gray-600 font-medium">Municipality:</span>
-                            <span className="text-gray-900 font-semibold">{property.details.resoFacts.municipality}</span>
+                            <span className="text-gray-900 font-semibold">{(property.details as any).resoFacts.municipality}</span>
                           </div>
                         )}
-                        {property.details?.resoFacts?.parcelNumber && (
+                        {(property.details as any)?.resoFacts?.parcelNumber && (
                           <div className="flex justify-between py-2 border-b border-gray-100">
                             <span className="text-gray-600 font-medium">Parcel Number:</span>
-                            <span className="text-gray-900 font-mono text-sm">{property.details.resoFacts.parcelNumber}</span>
+                            <span className="text-gray-900 font-mono text-sm">{(property.details as any).resoFacts.parcelNumber}</span>
                           </div>
                         )}
-                        {property.details?.resoFacts?.zoning && (
+                        {(property.details as any)?.resoFacts?.zoning && (
                           <div className="flex justify-between py-2 border-b border-gray-100">
                             <span className="text-gray-600 font-medium">Zoning:</span>
-                            <span className="text-gray-900 font-semibold">{property.details.resoFacts.zoning}</span>
+                            <span className="text-gray-900 font-semibold">{(property.details as any).resoFacts.zoning}</span>
                           </div>
                         )}
-                        {property.details?.resoFacts?.ownership && (
+                        {(property.details as any)?.resoFacts?.ownership && (
                           <div className="flex justify-between py-2 border-b border-gray-100">
                             <span className="text-gray-600 font-medium">Ownership Type:</span>
-                            <span className="text-gray-900 font-semibold">{property.details.resoFacts.ownership}</span>
+                            <span className="text-gray-900 font-semibold">{(property.details as any).resoFacts.ownership}</span>
                           </div>
                         )}
-                        {property.details?.propertyTaxRate && (
+                        {(property.details as any)?.propertyTaxRate && (
                           <div className="flex justify-between py-2 border-b border-gray-100">
                             <span className="text-gray-600 font-medium">Tax Rate:</span>
-                            <span className="text-gray-900 font-semibold">{property.details.propertyTaxRate}%</span>
+                            <span className="text-gray-900 font-semibold">{(property.details as any).propertyTaxRate}%</span>
                           </div>
                         )}
                         
                         {/* Description Field - Full Width */}
-                        {property.details?.description && (
-                          <DescriptionSection description={property.details.description} />
+                        {(property.details as any)?.description && (
+                          <DescriptionSection description={(property.details as any).description} />
                         )}
                       </div>
                     </div>
@@ -900,10 +900,10 @@ export default function PropertyDetailsModal({
               </div>
               
               {/* Property Details Report - Professional Table Format */}
-              {!isLoadingDetails && !detailsError && property.details?.resoFacts && (
+              {!isLoadingDetails && !detailsError && (property.details as any)?.resoFacts && (
                 <PropertyReport 
-                  resoFacts={property.details.resoFacts} 
-                  propertyAddress={property.details.abbreviatedAddress}
+                  resoFacts={(property.details as any).resoFacts} 
+                  propertyAddress={(property.details as any).abbreviatedAddress}
                 />
               )}
               

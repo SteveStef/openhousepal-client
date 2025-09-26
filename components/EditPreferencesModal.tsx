@@ -75,7 +75,7 @@ export default function EditPreferencesModal({
   }
 
   const isUsingAddressSearch = () => {
-    return formData.address && formData.address.trim()
+    return !!(formData.address && formData.address.trim())
   }
 
   const isUsingAreaSearch = () => {

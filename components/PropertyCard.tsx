@@ -105,7 +105,7 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    onLike?.(String(property.id), !property.liked);
+                    onLike?.(Number(property.id), !property.liked);
                   }}
                   className={`flex items-center transition-colors p-1 rounded-md hover:bg-gray-100 ${
                     property.liked 
@@ -134,7 +134,7 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDislike?.(String(property.id!), !property.disliked);
+                    onDislike?.(Number(property.id!), !property.disliked);
                   }}
                   className={`flex items-center transition-colors p-1 rounded-md hover:bg-gray-100 ${
                     property.disliked 
@@ -162,7 +162,7 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    onFavorite?.(String(property.id!), !property.favorited);
+                    onFavorite?.(Number(property.id!), !property.favorited);
                   }}
                   className={`flex items-center transition-colors p-1 rounded-md hover:bg-gray-100 ${
                     property.favorited 

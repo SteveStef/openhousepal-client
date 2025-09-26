@@ -132,7 +132,7 @@ export default function CollectionCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  onStatusToggle(collection.id)
+                  onStatusToggle(collection)
                 }}
                 className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 hover:shadow-sm ${getStatusColor(collection.status)} ${
                   collection.status === 'ACTIVE'
@@ -167,7 +167,7 @@ export default function CollectionCard({
           </div>
           <div className="text-center">
             <div className="text-sm font-semibold text-blue-600 leading-tight">
-              {collection.preferences?.priceRange ? formatPriceRange(collection.preferences.priceRange) : 'N/A'}
+              {(collection.preferences && 'priceRange' in collection.preferences) ? formatPriceRange(collection.preferences.priceRange) : 'N/A'}
             </div>
             <div className="text-xs text-gray-500">Budget</div>
           </div>

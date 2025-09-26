@@ -172,13 +172,13 @@ export default function CustomerShowcasePage() {
   const tabCounts = getTabCounts()
 
   // Handle property interactions
-  const handlePropertyLike = async (propertyId: string, liked: boolean) => {
+  const handlePropertyLike = async (propertyId: number, liked: boolean) => {
     console.log(showcase);
     console.log(propertyId);
     if (!showcase) return
     
     try {
-      const response = await apiRequest(`/collections/${showcase.id}/properties/${propertyId}/interact`, {
+      const response = await apiRequest(`/collections/${showcase.id}/properties/${String(propertyId)}/interact`, {
         method: 'POST',
         body: JSON.stringify({
           interaction_type: 'like',
@@ -189,7 +189,7 @@ export default function CustomerShowcasePage() {
       if (response.status === 200) {
         // Update local state with server response
         const updatedProperties = matchedProperties.map(property =>
-          property.id === propertyId ? { 
+          property.id === String(propertyId) ? { 
             ...property, 
             liked: response.data.interaction.liked,
             disliked: response.data.interaction.disliked
@@ -199,7 +199,7 @@ export default function CustomerShowcasePage() {
         setMatchedProperties(updatedProperties)
 
         // Update selected property if it's the one being modified
-        if (selectedProperty && selectedProperty.id === propertyId) {
+        if (selectedProperty && selectedProperty.id === String(propertyId)) {
           setSelectedProperty(prevProperty => ({
             ...prevProperty!,
             liked: response.data.interaction.liked,
@@ -212,11 +212,11 @@ export default function CustomerShowcasePage() {
     }
   }
 
-  const handlePropertyDislike = async (propertyId: string, disliked: boolean) => {
+  const handlePropertyDislike = async (propertyId: number, disliked: boolean) => {
     if (!showcase) return
     
     try {
-      const response = await apiRequest(`/collections/${showcase.id}/properties/${propertyId}/interact`, {
+      const response = await apiRequest(`/collections/${showcase.id}/properties/${String(propertyId)}/interact`, {
         method: 'POST',
         body: JSON.stringify({
           interaction_type: 'dislike',
@@ -227,7 +227,7 @@ export default function CustomerShowcasePage() {
       if (response.status === 200) {
         // Update local state with server response
         const updatedProperties = matchedProperties.map(property =>
-          property.id === propertyId ? { 
+          property.id === String(propertyId) ? { 
             ...property, 
             liked: response.data.interaction.liked,
             disliked: response.data.interaction.disliked
@@ -237,7 +237,7 @@ export default function CustomerShowcasePage() {
         setMatchedProperties(updatedProperties)
 
         // Update selected property if it's the one being modified
-        if (selectedProperty && selectedProperty.id === propertyId) {
+        if (selectedProperty && selectedProperty.id === String(propertyId)) {
           setSelectedProperty(prevProperty => ({
             ...prevProperty!,
             liked: response.data.interaction.liked,
@@ -250,11 +250,11 @@ export default function CustomerShowcasePage() {
     }
   }
 
-  const handlePropertyFavorite = async (propertyId: string, favorited: boolean) => {
+  const handlePropertyFavorite = async (propertyId: number, favorited: boolean) => {
     if (!showcase) return
     
     try {
-      const response = await apiRequest(`/collections/${showcase.id}/properties/${propertyId}/interact`, {
+      const response = await apiRequest(`/collections/${showcase.id}/properties/${String(propertyId)}/interact`, {
         method: 'POST',
         body: JSON.stringify({
           interaction_type: 'favorite',
@@ -265,7 +265,7 @@ export default function CustomerShowcasePage() {
       if (response.status === 200) {
         // Update local state with server response
         const updatedProperties = matchedProperties.map(property =>
-          property.id === propertyId ? { 
+          property.id === String(propertyId) ? { 
             ...property, 
             favorited: response.data.interaction.favorited
           } : property
@@ -274,7 +274,7 @@ export default function CustomerShowcasePage() {
         setMatchedProperties(updatedProperties)
 
         // Update selected property if it's the one being modified
-        if (selectedProperty && selectedProperty.id === propertyId) {
+        if (selectedProperty && selectedProperty.id === String(propertyId)) {
           setSelectedProperty(prevProperty => ({
             ...prevProperty!,
             favorited: response.data.interaction.favorited
@@ -286,7 +286,7 @@ export default function CustomerShowcasePage() {
     }
   }
 
-  const handleAddComment = async (propertyId: string, comment: string) => {
+  const handleAddComment = async (propertyId: number, comment: string) => {
     if (!showcase) return
 
     const newComment: Comment = {
@@ -298,7 +298,7 @@ export default function CustomerShowcasePage() {
 
     // Update local state immediately for better UX
     const updatedProperties = matchedProperties.map(property =>
-      property.id === propertyId 
+      property.id === String(propertyId) 
         ? { ...property, comments: [...(property.comments || []), newComment] }
         : property
     )
@@ -306,7 +306,7 @@ export default function CustomerShowcasePage() {
     setMatchedProperties(updatedProperties)
 
     // Update the selected property in modal if it's the same property
-    if (selectedProperty && selectedProperty.id === propertyId) {
+    if (selectedProperty && selectedProperty.id === String(propertyId)) {
       setSelectedProperty({
         ...selectedProperty,
         comments: [...(selectedProperty.comments || []), newComment]
@@ -315,7 +315,7 @@ export default function CustomerShowcasePage() {
     
     // Make API call to persist the comment
     try {
-      const response = await apiRequest(`/collections/${showcase.id}/properties/${propertyId}/comments`, {
+      const response = await apiRequest(`/collections/${showcase.id}/properties/${String(propertyId)}/comments`, {
         method: 'POST',
         body: JSON.stringify({
           comment: comment,
@@ -323,8 +323,8 @@ export default function CustomerShowcasePage() {
         })
       })
 
-      if (response.ok) {
-        const responseData = await response.json()
+      if (response.status === 200) {
+        const responseData = response.data
         const serverComment = responseData.comment || responseData
 
         // Replace optimistic comment with server response if different
@@ -333,12 +333,12 @@ export default function CustomerShowcasePage() {
             comments.map(c => c.id === newComment.id ? serverComment : c)
 
           setMatchedProperties(prev => prev.map(property =>
-            property.id === propertyId
+            property.id === String(propertyId)
               ? { ...property, comments: replaceOptimisticComment(property.comments || []) }
               : property
           ))
 
-          if (selectedProperty && selectedProperty.id === propertyId) {
+          if (selectedProperty && selectedProperty.id === String(propertyId)) {
             setSelectedProperty(prev => prev ? {
               ...prev,
               comments: replaceOptimisticComment(prev.comments || [])
@@ -355,12 +355,12 @@ export default function CustomerShowcasePage() {
         comments.filter(c => c.id !== newComment.id)
 
       setMatchedProperties(prev => prev.map(property =>
-        property.id === propertyId
+        property.id === String(propertyId)
           ? { ...property, comments: removeOptimisticComment(property.comments || []) }
           : property
       ))
 
-      if (selectedProperty && selectedProperty.id === propertyId) {
+      if (selectedProperty && selectedProperty.id === String(propertyId)) {
         setSelectedProperty(prev => prev ? {
           ...prev,
           comments: removeOptimisticComment(prev.comments || [])
@@ -369,17 +369,17 @@ export default function CustomerShowcasePage() {
     }
   }
 
-  const fetchPropertyComments = async (propertyId: string) => {
+  const fetchPropertyComments = async (propertyId: number) => {
     if (!showcase) return
 
     setIsLoadingComments(true)
     setCommentsError(null)
 
     try {
-      const response = await apiRequest(`/collections/${showcase.id}/properties/${propertyId}/comments`)
+      const response = await apiRequest(`/collections/${showcase.id}/properties/${String(propertyId)}/comments`)
 
-      if (response.ok) {
-        const data = await response.json()
+      if (response.status === 200) {
+        const data = response.data
         // Update selected property with fresh comments
         setSelectedProperty(prev => prev ? {
           ...prev,
@@ -429,7 +429,7 @@ export default function CustomerShowcasePage() {
 
     // Always fetch fresh comments
     if (property.id) {
-      fetchPropertyComments(String(property.id))
+      fetchPropertyComments(Number(property.id))
     }
   }
 
