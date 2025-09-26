@@ -172,7 +172,7 @@ export default function CustomerShowcasePage() {
   const tabCounts = getTabCounts()
 
   // Handle property interactions
-  const handlePropertyLike = async (propertyId: number, liked: boolean) => {
+  const handlePropertyLike = async (propertyId: string | number, liked: boolean) => {
     console.log(showcase);
     console.log(propertyId);
     if (!showcase) return
@@ -212,7 +212,7 @@ export default function CustomerShowcasePage() {
     }
   }
 
-  const handlePropertyDislike = async (propertyId: number, disliked: boolean) => {
+  const handlePropertyDislike = async (propertyId: string | number, disliked: boolean) => {
     if (!showcase) return
     
     try {
@@ -250,7 +250,7 @@ export default function CustomerShowcasePage() {
     }
   }
 
-  const handlePropertyFavorite = async (propertyId: number, favorited: boolean) => {
+  const handlePropertyFavorite = async (propertyId: string | number, favorited: boolean) => {
     if (!showcase) return
     
     try {
@@ -286,7 +286,7 @@ export default function CustomerShowcasePage() {
     }
   }
 
-  const handleAddComment = async (propertyId: number, comment: string) => {
+  const handleAddComment = async (propertyId: string | number, comment: string) => {
     if (!showcase) return
 
     const newComment: Comment = {

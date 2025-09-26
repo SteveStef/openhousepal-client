@@ -9,10 +9,10 @@ import { Phone, Mail, MessageSquare } from 'lucide-react'
 
 interface CustomerCollectionViewProps {
   collection: Collection
-  onLike?: (propertyId: number, liked: boolean) => void
-  onDislike?: (propertyId: number, disliked: boolean) => void
-  onFavorite?: (propertyId: number, favorited: boolean) => void
-  onAddComment?: (propertyId: number, comment: string) => void
+  onLike?: (propertyId: string | number, liked: boolean) => void
+  onDislike?: (propertyId: string | number, disliked: boolean) => void
+  onFavorite?: (propertyId: string | number, favorited: boolean) => void
+  onAddComment?: (propertyId: string | number, comment: string) => void
 }
 
 export default function CustomerCollectionView({

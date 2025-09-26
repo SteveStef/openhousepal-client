@@ -8,10 +8,10 @@ interface PropertyDetailsModalProps {
   property: Property | null
   isOpen: boolean
   onClose: () => void
-  onLike?: (propertyId: number, liked: boolean) => void
-  onDislike?: (propertyId: number, disliked: boolean) => void
-  onFavorite?: (propertyId: number, favorited: boolean) => void
-  onAddComment?: (propertyId: number, comment: string) => void
+  onLike?: (propertyId: string | number, liked: boolean) => void
+  onDislike?: (propertyId: string | number, disliked: boolean) => void
+  onFavorite?: (propertyId: string | number, favorited: boolean) => void
+  onAddComment?: (propertyId: string | number, comment: string) => void
   isLoadingDetails?: boolean
   detailsError?: string | null
   onRetryDetails?: () => void
@@ -359,7 +359,9 @@ export default function PropertyDetailsModal({
 
     setIsSubmittingComment(true)
     try {
-      onAddComment?.(Number(property.id), newComment.trim())
+      if (property.id !== undefined) {
+        onAddComment?.(property.id, newComment.trim())
+      }
       setNewComment('')
     } finally {
       setIsSubmittingComment(false)

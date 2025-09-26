@@ -6,9 +6,9 @@ import PropertyCard from './PropertyCard'
 interface PropertyGridProps {
   properties: Property[]
   title?: string
-  onLike?: (propertyId: number, liked: boolean) => void
-  onDislike?: (propertyId: number, disliked: boolean) => void
-  onFavorite?: (propertyId: number, favorited: boolean) => void
+  onLike?: (propertyId: string | number, liked: boolean) => void
+  onDislike?: (propertyId: string | number, disliked: boolean) => void
+  onFavorite?: (propertyId: string | number, favorited: boolean) => void
   onPropertyClick?: (property: Property) => void
 }
 

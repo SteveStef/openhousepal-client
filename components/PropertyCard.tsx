@@ -5,9 +5,9 @@ import { ThumbsUp, ThumbsDown, Bookmark, MessageCircle } from 'lucide-react'
 
 interface PropertyCardProps {
   property: Property
-  onLike?: (propertyId: number, liked: boolean) => void
-  onDislike?: (propertyId: number, disliked: boolean) => void
-  onFavorite?: (propertyId: number, favorited: boolean) => void
+  onLike?: (propertyId: string | number, liked: boolean) => void
+  onDislike?: (propertyId: string | number, disliked: boolean) => void
+  onFavorite?: (propertyId: string | number, favorited: boolean) => void
   onPropertyClick?: (property: Property) => void
 }
 
@@ -105,7 +105,9 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    onLike?.(Number(property.id), !property.liked);
+                    if (property.id !== undefined) {
+                      onLike?.(property.id, !property.liked);
+                    }
                   }}
                   className={`flex items-center transition-colors p-1 rounded-md hover:bg-gray-100 ${
                     property.liked 
@@ -134,7 +136,9 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDislike?.(Number(property.id!), !property.disliked);
+                    if (property.id !== undefined) {
+                      onDislike?.(property.id, !property.disliked);
+                    }
                   }}
                   className={`flex items-center transition-colors p-1 rounded-md hover:bg-gray-100 ${
                     property.disliked 

@@ -316,11 +316,11 @@ export default function ShowcasesPage() {
   const tabCounts = getTabCounts()
 
   // Handle property interactions
-  const handlePropertyLike = async (propertyId: number, liked: boolean) => {
+  const handlePropertyLike = async (propertyId: string | number, liked: boolean) => {
     if (!selectedCollection || !matchedProperties) return
     
     try {
-      const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${propertyId}/interact`, {
+      const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${String(propertyId)}/interact`, {
         method: 'POST',
         body: JSON.stringify({
           interaction_type: 'like',
@@ -345,11 +345,11 @@ export default function ShowcasesPage() {
     }
   }
 
-  const handlePropertyDislike = async (propertyId: number, disliked: boolean) => {
+  const handlePropertyDislike = async (propertyId: string | number, disliked: boolean) => {
     if (!selectedCollection || !matchedProperties) return
     
     try {
-      const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${propertyId}/interact`, {
+      const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${String(propertyId)}/interact`, {
         method: 'POST',
         body: JSON.stringify({
           interaction_type: 'dislike',
@@ -375,11 +375,11 @@ export default function ShowcasesPage() {
     }
   }
 
-  const handlePropertyFavorite = async (propertyId: number, favorited: boolean) => {
+  const handlePropertyFavorite = async (propertyId: string | number, favorited: boolean) => {
     if (!selectedCollection || !matchedProperties) return
     
     try {
-      const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${propertyId}/interact`, {
+      const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${String(propertyId)}/interact`, {
         method: 'POST',
         body: JSON.stringify({
           interaction_type: 'favorite',
@@ -402,7 +402,7 @@ export default function ShowcasesPage() {
     }
   }
 
-  const handleAddComment = async (propertyId: number, comment: string) => {
+  const handleAddComment = async (propertyId: string | number, comment: string) => {
     if (!selectedCollection || !matchedProperties) return
 
     // Create optimistic comment for immediate UI update
@@ -420,7 +420,7 @@ export default function ShowcasesPage() {
     } : prev)
 
     try {
-      const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${propertyId}/comments`, {
+      const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${String(propertyId)}/comments`, {
         method: 'POST',
         body: JSON.stringify({
           content: comment,
