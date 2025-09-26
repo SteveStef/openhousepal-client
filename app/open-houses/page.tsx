@@ -6,7 +6,6 @@ import { v4 as uuidv4 } from 'uuid'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
-import { generateQRCodePDF, generatePDFPreview } from '@/lib/pdfGenerator'
 import { apiRequest, getCurrentUser, checkAuth } from '@/lib/auth'
 
 interface PropertyImage {
@@ -294,6 +293,7 @@ export default function OpenHousesPage() {
       setError('')
       
       try {
+        const { generateQRCodePDF } = await import('@/lib/pdfGenerator')
         await generateQRCodePDF({
           qrCodeUrl: qrCode,
           address: address,
@@ -324,6 +324,7 @@ export default function OpenHousesPage() {
       setError('')
       
       try {
+        const { generatePDFPreview } = await import('@/lib/pdfGenerator')
         const previewUrl = await generatePDFPreview({
           qrCodeUrl: qrCode,
           address: propertyData.abbreviatedAddress || address,
@@ -1133,6 +1134,7 @@ function OpenHousePDFViewer({ openHouse, onClose }: { openHouse: OpenHouse, onCl
         console.log('Cover Image URL:', openHouse.cover_image_url)
         
         // Generate PDF preview using the existing generatePDFPreview function
+        const { generatePDFPreview } = await import('@/lib/pdfGenerator')
         const pdfDataUrl = await generatePDFPreview({
           qrCodeUrl: openHouse.qr_code_url,
           address: openHouse.address,
@@ -1159,6 +1161,7 @@ function OpenHousePDFViewer({ openHouse, onClose }: { openHouse: OpenHouse, onCl
   const downloadPDF = async () => {
     try {
       // Generate and download PDF using the download function
+      const { generateQRCodePDF } = await import('@/lib/pdfGenerator')
       await generateQRCodePDF({
         qrCodeUrl: openHouse.qr_code_url,
         address: openHouse.address,

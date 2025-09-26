@@ -212,26 +212,30 @@ async function createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails
 }
 
 export async function generateQRCodePDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails, filename }: PDFGenerationOptions): Promise<void> {
+  if (typeof window === 'undefined') {
+    throw new Error('PDF generation is only available in the browser environment')
+  }
+
   try {
     const pdfBytes = await createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails })
-    
+
     // Generate filename if not provided
     const pdfFilename = filename || `property-qr-${address.replace(/\s+/g, '-').toLowerCase()}.pdf`
-    
+
     // Create blob and download
     const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' })
     const url = URL.createObjectURL(blob)
-    
+
     const link = document.createElement('a')
     link.href = url
     link.download = pdfFilename
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    
+
     // Clean up the URL
     URL.revokeObjectURL(url)
-    
+
   } catch (error) {
     console.error('Error generating PDF:', error)
     throw new Error('Failed to generate PDF. Please try again.')
@@ -239,9 +243,13 @@ export async function generateQRCodePDF({ qrCodeUrl, address, propertyImageUrl, 
 }
 
 export async function generatePDFPreview({ qrCodeUrl, address, propertyImageUrl, propertyDetails }: PDFPreviewOptions): Promise<string> {
+  if (typeof window === 'undefined') {
+    throw new Error('PDF preview generation is only available in the browser environment')
+  }
+
   try {
     const pdfBytes = await createPDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails })
-    
+
     // Convert to base64 data URL for preview
     const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' })
     return new Promise((resolve, reject) => {
@@ -250,7 +258,7 @@ export async function generatePDFPreview({ qrCodeUrl, address, propertyImageUrl,
       reader.onerror = () => reject(new Error('Failed to create PDF preview'))
       reader.readAsDataURL(blob)
     })
-    
+
   } catch (error) {
     console.error('Error generating PDF preview:', error)
     throw new Error('Failed to generate PDF preview. Please try again.')
@@ -258,31 +266,35 @@ export async function generatePDFPreview({ qrCodeUrl, address, propertyImageUrl,
 }
 
 async function loadImageAsBytes(url: string): Promise<Uint8Array> {
+  if (typeof window === 'undefined') {
+    throw new Error('Image loading is only available in the browser environment')
+  }
+
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.crossOrigin = 'anonymous'
-    
+
     img.onload = () => {
       try {
         const canvas = document.createElement('canvas')
         const ctx = canvas.getContext('2d')
-        
+
         if (!ctx) {
           reject(new Error('Could not get canvas context'))
           return
         }
-        
+
         canvas.width = img.width
         canvas.height = img.height
-        
+
         ctx.drawImage(img, 0, 0)
-        
+
         canvas.toBlob((blob) => {
           if (!blob) {
             reject(new Error('Failed to create blob from canvas'))
             return
           }
-          
+
           const reader = new FileReader()
           reader.onload = () => {
             const arrayBuffer = reader.result as ArrayBuffer
@@ -291,16 +303,16 @@ async function loadImageAsBytes(url: string): Promise<Uint8Array> {
           reader.onerror = () => reject(new Error('Failed to read blob'))
           reader.readAsArrayBuffer(blob)
         }, 'image/png')
-        
+
       } catch (error) {
         reject(error)
       }
     }
-    
+
     img.onerror = () => {
       reject(new Error('Failed to load image'))
     }
-    
+
     img.src = url
   })
 }

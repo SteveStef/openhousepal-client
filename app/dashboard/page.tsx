@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { useState } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import { generateQRCodePDF, generatePDFPreview } from '@/lib/pdfGenerator'
 import { apiRequest } from '@/lib/auth'
 
 export default function DashboardPage() {
@@ -70,6 +69,7 @@ export default function DashboardPage() {
         const propertyImageUrl = propertyData.originalPhotos?.[0]?.mixedSources?.jpeg?.[0]?.url || 
                                 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&h=300&fit=crop'
         
+        const { generateQRCodePDF } = await import('@/lib/pdfGenerator')
         await generateQRCodePDF({
           qrCodeUrl: qrCode,
           address: address,
@@ -104,6 +104,7 @@ export default function DashboardPage() {
         const propertyImageUrl = propertyData.originalPhotos?.[0]?.mixedSources?.jpeg?.[0]?.url || 
                                 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&h=300&fit=crop'
         
+        const { generatePDFPreview } = await import('@/lib/pdfGenerator')
         const previewUrl = await generatePDFPreview({
           qrCodeUrl: qrCode,
           address: address,
