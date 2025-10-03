@@ -149,6 +149,11 @@ class ApiClient {
     })
   }
 
+  // Open house visitors endpoints
+  async getOpenHouseVisitors(openHouseId: string): Promise<ApiResponse<any[]>> {
+    return this.request(`/api/open-houses/${openHouseId}/visitors`)
+  }
+
   // Analytics endpoints
   async trackPropertyView(propertyId: number, customerId?: number): Promise<ApiResponse<void>> {
     return this.request('/analytics/property-view', {
@@ -205,8 +210,12 @@ export const collectionsApi = {
 }
 
 export const analyticsApi = {
-  trackView: (propertyId: number, customerId?: number) => 
+  trackView: (propertyId: number, customerId?: number) =>
     api.trackPropertyView(propertyId, customerId),
+}
+
+export const openHouseApi = {
+  getVisitors: (openHouseId: string) => api.getOpenHouseVisitors(openHouseId),
 }
 
 export default api

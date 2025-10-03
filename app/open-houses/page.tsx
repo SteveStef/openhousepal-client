@@ -68,6 +68,12 @@ export default function OpenHousesPage() {
     }, 5000) // Hide after 5 seconds
   }
 
+  const handleViewVisitors = (openHouse: any) => {
+    console.log(openHouse);
+    const url = `/open-houses/visitors/${openHouse.id}`;
+    router.push(url);
+  }
+
   // PDF viewing handler
   const handleViewPDF = async (openHouse: OpenHouse) => {
     try {
@@ -528,119 +534,99 @@ export default function OpenHousesPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                      <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2">
                         {openHouses.map((openHouse, index) => (
-                          <div key={openHouse.id} className="bg-gradient-to-r from-white to-gray-50/50 rounded-xl border border-gray-200/60 hover:border-gray-300/80 transition-all duration-300 hover:shadow-md group">
-                            <div className="p-4">
-                              <div className="flex items-start space-x-4">
+                          <div
+                            key={openHouse.id}
+                            onClick={() => handleViewVisitors(openHouse)}
+                            className="bg-white rounded-lg border border-gray-200/60 shadow-sm hover:shadow-lg hover:border-[#8b7355]/50 transition-all duration-200 overflow-hidden group cursor-pointer"
+                          >
+                            <div className="p-3">
+                              <div className="flex items-center gap-3">
                                 {/* Property Image */}
                                 <div className="relative flex-shrink-0">
-                                  <div className="w-16 h-16 bg-white rounded-xl border border-gray-200/60 shadow-sm overflow-hidden">
-                                    <img 
-                                      src={openHouse.cover_image_url} 
+                                  <div className="w-14 h-14 bg-gray-100 rounded-lg border border-gray-200/60 overflow-hidden">
+                                    <img
+                                      src={openHouse.cover_image_url}
                                       alt={`Property at ${openHouse.address}`}
-                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                                     />
                                   </div>
-                                  <div className="absolute -top-1 -left-1 w-5 h-5 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center shadow-sm">
-                                    <span className="text-white text-xs font-bold">{index + 1}</span>
+                                  <div className="absolute -top-1 -left-1 w-5 h-5 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-full flex items-center justify-center shadow-sm">
+                                    <span className="text-white text-[10px] font-bold">{index + 1}</span>
                                   </div>
                                 </div>
 
-                                {/* Property Details */}
+                                {/* Property Info */}
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                      <h3 className="text-base font-bold text-gray-900 mb-1 group-hover:text-[#8b7355] transition-colors">
-                                        {openHouse.address}
-                                      </h3>
-                                      <div className="flex items-center space-x-3 text-xs text-gray-600 mb-2">
-                                        <div className="flex items-center">
-                                          <svg className="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4h3a1 1 0 011 1v9a1 1 0 01-1 1H5a1 1 0 01-1-1V8a1 1 0 011-1h3z" />
-                                          </svg>
-                                          {new Date(openHouse.created_at).toLocaleDateString('en-US', { 
-                                            month: 'short', 
-                                            day: 'numeric', 
-                                            year: 'numeric' 
-                                          })}
-                                        </div>
-                                        {openHouse.bedrooms && (
-                                          <div className="flex items-center">
-                                            <svg className="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2v0" />
-                                            </svg>
-                                            {openHouse.bedrooms} beds
-                                          </div>
-                                        )}
-                                        {openHouse.bathrooms && (
-                                          <div className="flex items-center">
-                                            <svg className="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 117.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
-                                            </svg>
-                                            {openHouse.bathrooms} baths
-                                          </div>
-                                        )}
-                                      </div>
-                                      {openHouse.price && (
-                                        <div className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/50 rounded-md">
-                                          <svg className="w-3 h-3 mr-1 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                                          </svg>
-                                          <span className="text-green-800 font-semibold text-xs">
-                                            ${openHouse.price.toLocaleString()}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {/* Action Buttons */}
-                                    <div className="flex items-center space-x-2 ml-3">
-                                      <button
-                                        onClick={() => handleViewPDF(openHouse)}
-                                        className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-lg font-medium hover:shadow-md hover:shadow-[#8b7355]/25 transition-all duration-300 text-xs"
-                                      >
-                                        <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                        View PDF
-                                      </button>
-
-                                      <button
-                                        onClick={() => handleDeleteClick(openHouse)}
-                                        className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:shadow-md hover:shadow-red-500/25 transition-all duration-300 text-xs"
-                                      >
-                                        <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                        Remove
-                                      </button>
-                                    </div>
+                                  <h3 className="text-sm font-bold text-gray-900 group-hover:text-[#8b7355] transition-colors truncate mb-1">
+                                    {openHouse.address}
+                                  </h3>
+                                  <div className="flex items-center gap-3 text-xs text-gray-600">
+                                    {openHouse.price && (
+                                      <span className="font-semibold text-[#8b7355]">${openHouse.price?.toLocaleString()}</span>
+                                    )}
+                                    {openHouse.bedrooms && (
+                                      <span>{openHouse.bedrooms} bd</span>
+                                    )}
+                                    {openHouse.bathrooms && (
+                                      <span>{openHouse.bathrooms} ba</span>
+                                    )}
+                                    <span className="text-gray-400">•</span>
+                                    <span className="text-gray-500">
+                                      {new Date(openHouse.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                    </span>
                                   </div>
                                 </div>
-                              </div>
-                            </div>
-                            
-                            {/* QR Code Footer */}
-                            <div className="border-t border-gray-100/60 bg-gradient-to-r from-gray-50/50 to-white px-4 py-2 rounded-b-xl">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center text-xs text-gray-500">
-                                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                                  </svg>
-                                  QR: {openHouse.id?.substring(0, 8)}...
+
+                                {/* Action Buttons */}
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  <div className="inline-flex items-center px-2.5 py-1.5 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-lg font-medium text-xs shadow-sm group-hover:shadow-md transition-all">
+                                    <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                    Visitors
+                                  </div>
+
+                                  <a
+                                    href={openHouse.form_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="p-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all"
+                                    title="Open Form"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                  </a>
+
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleViewPDF(openHouse)
+                                    }}
+                                    className="p-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all"
+                                    title="View PDF"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                  </button>
+
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleDeleteClick(openHouse)
+                                    }}
+                                    className="p-1.5 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all"
+                                    title="Remove"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
                                 </div>
-                                <a 
-                                  href={openHouse.form_url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center text-xs text-[#8b7355] hover:text-[#7a6549] font-medium hover:underline transition-colors"
-                                >
-                                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                  </svg>
-                                  View Form
-                                </a>
                               </div>
                             </div>
                           </div>

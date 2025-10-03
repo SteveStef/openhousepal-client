@@ -99,36 +99,6 @@ export default function ShareCollectionModal({
 
         <div className="p-6 space-y-6">
           {/* Collection Summary */}
-          <div className="bg-gray-50/60 rounded-xl p-4 border border-gray-200/40">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Collection Summary</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-600">Properties:</span>
-                <span className="text-gray-900 ml-2">{collection.stats.totalProperties}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Status:</span>
-                <span className={`ml-2 ${
-                  collection.status === 'ACTIVE' ? 'text-green-400' : 'text-gray-400'
-                }`}>
-                  {collection.status}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-600">Last Activity:</span>
-                <span className="text-gray-900 ml-2">
-                  {collection.stats.lastActivity 
-                    ? new Date(collection.stats.lastActivity).toLocaleDateString()
-                    : 'Never'
-                  }
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-600">Shared:</span>
-                <span className="text-gray-900 ml-2">{formatDate(collection.sharedAt)}</span>
-              </div>
-            </div>
-          </div>
 
           {/* Share Settings */}
           <div className="space-y-4">

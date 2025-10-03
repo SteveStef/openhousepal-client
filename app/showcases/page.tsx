@@ -11,7 +11,8 @@ import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import ShareCollectionModal from '@/components/ShareCollectionModal'
 import EditPreferencesModal from '@/components/EditPreferencesModal'
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal'
-import { Share2 } from 'lucide-react'
+import ViewToursModal, { PropertyTour } from '@/components/ViewToursModal'
+import { Share2, Calendar } from 'lucide-react'
 import { apiRequest, checkAuth, updateCollectionPreferences } from '@/lib/auth'
 import { collectionsApi } from '@/lib/api'
 import MultiCityPlacesInput from '@/components/MultiCityPlacesInput'
@@ -69,6 +70,11 @@ export default function ShowcasesPage() {
     collection: Collection | null;
   }>({ isOpen: false, collection: null })
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Tour viewing modal states
+  const [collectionTours, setCollectionTours] = useState<PropertyTour[]>([])
+  const [isToursModalOpen, setIsToursModalOpen] = useState(false)
+  const [isLoadingTours, setIsLoadingTours] = useState(false)
 
   // Check authentication first
   useEffect(() => {
@@ -456,6 +462,70 @@ export default function ShowcasesPage() {
         comments: (prev.comments || []).filter(c => c.id !== optimisticComment.id)
       } : prev)
     }
+  }
+
+  const fetchCollectionTours = async (collectionId: string) => {
+    setIsLoadingTours(true)
+    try {
+      const response = await apiRequest(`/collections/${collectionId}/tours`, {
+        method: 'GET'
+      })
+
+      if (response.status === 200 && response.data) {
+        // Enrich tours with property information from matchedProperties
+        const enrichedTours = response.data.map((tour: PropertyTour) => {
+          const property = matchedProperties?.find(p => p.id === tour.property_id)
+          return {
+            ...tour,
+            property: property ? {
+              street_address: property.address,
+              city: property.city,
+              state: property.state,
+              imageUrl: property.imageUrl
+            } : undefined
+          }
+        })
+        setCollectionTours(enrichedTours)
+      }
+    } catch (error) {
+      console.error('Error fetching tours:', error)
+      alert('Failed to load tour requests')
+    } finally {
+      setIsLoadingTours(false)
+    }
+  }
+
+  const handleViewTours = () => {
+    if (selectedCollection) {
+      fetchCollectionTours(selectedCollection.id)
+      setIsToursModalOpen(true)
+    }
+  }
+
+  const handleUpdateTourStatus = async (tourId: string, status: string) => {
+    try {
+      const response = await apiRequest(`/collections/tours/${tourId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status })
+      })
+
+      if (response.status === 200) {
+        // Refresh tours list
+        if (selectedCollection) {
+          await fetchCollectionTours(selectedCollection.id)
+        }
+      } else {
+        throw new Error('Failed to update tour status')
+      }
+    } catch (error) {
+      console.error('Error updating tour status:', error)
+      alert('Failed to update tour status. Please try again.')
+    }
+  }
+
+  const handleCloseToursModal = () => {
+    setIsToursModalOpen(false)
+    setCollectionTours([])
   }
 
   const fetchPropertyComments = async (propertyId: string) => {
@@ -1033,9 +1103,17 @@ export default function ShowcasesPage() {
                   {filteredProperties.length} of {selectedCollection.stats.totalProperties} properties
                 </span>
                 <button
+                  onClick={handleViewTours}
+                  className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border border-[#8b7355] text-[#8b7355] hover:bg-[#8b7355] hover:text-white transition-all duration-200 shadow-sm hover:shadow-md"
+                  title="View tour requests for this collection"
+                >
+                  <Calendar size={16} className="mr-2" />
+                  View Tours
+                </button>
+                <button
                   onClick={() => handleStatusToggle(selectedCollection.id)}
                   className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 hover:shadow-sm ${
-                    selectedCollection.status === 'ACTIVE' 
+                    selectedCollection.status === 'ACTIVE'
                       ? 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200'
                       : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
                   }`}
@@ -1159,6 +1237,15 @@ export default function ShowcasesPage() {
             onRetryDetails={() => handlePropertyClick(selectedProperty!)}
             isLoadingComments={isLoadingComments}
             commentsError={commentsError}
+          />
+
+          {/* View Tours Modal */}
+          <ViewToursModal
+            isOpen={isToursModalOpen}
+            onClose={handleCloseToursModal}
+            tours={collectionTours}
+            onUpdateStatus={handleUpdateTourStatus}
+            isLoading={isLoadingTours}
           />
 
           </div>

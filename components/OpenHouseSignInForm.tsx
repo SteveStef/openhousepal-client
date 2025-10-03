@@ -20,7 +20,6 @@ export default function OpenHouseSignInForm({
     email: '',
     phone: '',
     preferredContact: 'EMAIL',
-    visitingReason: '',
     timeframe: '',
     priceRange: '',
     interestedInSimilar: false,
@@ -144,8 +143,7 @@ export default function OpenHouseSignInForm({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1"></path>
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-1">Open House Pal</h1>
-          <p className="text-gray-600 text-sm">Open House Sign-in</p>
+          <h1 className="text-xl font-bold text-gray-900 mb-1">Open House Sign-in</h1>
         </div>
         
         <div className="bg-white rounded-xl p-4 border border-gray-200">
@@ -170,14 +168,14 @@ export default function OpenHouseSignInForm({
                 {property.baths} baths
               </span>
             )}
-            {property.squareFeet && (
+            {/*{property.squareFeet && Number(property.squareFeet) > 0 && (
               <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full flex items-center text-xs">
                 <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
                 </svg>
                 {property.squareFeet.toLocaleString()} sqft
               </span>
-            )}
+            )}*/}
           </div>
         </div>
       </div>
@@ -259,26 +257,7 @@ export default function OpenHouseSignInForm({
           {currentStep === 3 && (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Why are you visiting?</label>
-                <select
-                  name="visitingReason"
-                  value={formData.visitingReason}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
-                  required
-                >
-                  <option value="">Select reason...</option>
-                  <option value="BUYING_SOON">Looking to buy soon</option>
-                  <option value="BROWSING">Just browsing</option>
-                  <option value="NEIGHBORHOOD">Interested in area</option>
-                  <option value="INVESTMENT">Investment opportunity</option>
-                  <option value="CURIOUS">Curious about property</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">When to buy?</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">What's your timeline?</label>
                 <select
                   name="timeframe"
                   value={formData.timeframe}

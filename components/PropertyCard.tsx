@@ -9,9 +9,10 @@ interface PropertyCardProps {
   onDislike?: (propertyId: string | number, disliked: boolean) => void
   onFavorite?: (propertyId: string | number, favorited: boolean) => void
   onPropertyClick?: (property: Property) => void
+  onScheduleTour?: (property: Property) => void
 }
 
-export default function PropertyCard({ property, onLike, onDislike, onFavorite, onPropertyClick }: PropertyCardProps) {
+export default function PropertyCard({ property, onLike, onDislike, onFavorite, onPropertyClick, onScheduleTour }: PropertyCardProps) {
   const formatPrice = (price?: number) => {
     return price ? price.toLocaleString('en-US', {
       style: 'currency',
@@ -212,7 +213,13 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
           >
             View Details
           </button>
-          <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-800 font-medium py-2 px-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-all duration-300 text-xs">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onScheduleTour?.(property);
+            }}
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-800 font-medium py-2 px-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-all duration-300 text-xs"
+          >
             Schedule Tour
           </button>
         </div>

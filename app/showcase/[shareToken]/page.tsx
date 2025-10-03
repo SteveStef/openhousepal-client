@@ -8,6 +8,7 @@ import PropertyGrid from '@/components/PropertyGrid'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
+import ScheduleTourModal, { TourRequest } from '@/components/ScheduleTourModal'
 
 export default function CustomerShowcasePage() {
   const params = useParams()
@@ -29,6 +30,10 @@ export default function CustomerShowcasePage() {
   const [detailsError, setDetailsError] = useState<string | null>(null)
   const [isLoadingComments, setIsLoadingComments] = useState(false)
   const [commentsError, setCommentsError] = useState<string | null>(null)
+
+  // Tour modal states
+  const [selectedPropertyForTour, setSelectedPropertyForTour] = useState<Property | null>(null)
+  const [isTourModalOpen, setIsTourModalOpen] = useState(false)
 
   const shareToken = params.shareToken as string
 
@@ -438,6 +443,59 @@ export default function CustomerShowcasePage() {
     setSelectedProperty(null)
   }
 
+  const handleScheduleTourClick = (property: Property) => {
+    setSelectedPropertyForTour(property)
+    setIsTourModalOpen(true)
+  }
+
+  const handleScheduleTourSubmit = async (tourRequest: TourRequest) => {
+    if (!showcase) {
+      alert('Collection information not available')
+      return
+    }
+
+    try {
+      const response = await apiRequest(`/collections/${showcase.id}/properties/${tourRequest.propertyId}/schedule-tour`, {
+        method: 'POST',
+        body: JSON.stringify({
+          preferred_date: tourRequest.preferredDate,
+          preferred_time: tourRequest.preferredTime,
+          preferred_date_2: tourRequest.preferredDate2,
+          preferred_time_2: tourRequest.preferredTime2,
+          preferred_date_3: tourRequest.preferredDate3,
+          preferred_time_3: tourRequest.preferredTime3,
+          message: tourRequest.message
+        })
+      })
+
+      if (response.status === 200) {
+        // Build success message with all preferred times
+        let successMessage = `Tour request submitted successfully!\n\nProperty: ${tourRequest.propertyAddress}\n\nPreferred Times:\n1. ${tourRequest.preferredDate} at ${tourRequest.preferredTime}`
+        if (tourRequest.preferredDate2 && tourRequest.preferredTime2) {
+          successMessage += `\n2. ${tourRequest.preferredDate2} at ${tourRequest.preferredTime2}`
+        }
+        if (tourRequest.preferredDate3 && tourRequest.preferredTime3) {
+          successMessage += `\n3. ${tourRequest.preferredDate3} at ${tourRequest.preferredTime3}`
+        }
+        successMessage += '\n\nThe agent will contact you to confirm.'
+
+        alert(successMessage)
+      } else {
+        throw new Error('Failed to submit tour request')
+      }
+
+    } catch (error) {
+      console.error('Error submitting tour request:', error)
+      alert('Failed to submit tour request. Please try again.')
+      throw error
+    }
+  }
+
+  const handleCloseTourModal = () => {
+    setIsTourModalOpen(false)
+    setSelectedPropertyForTour(null)
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col">
@@ -587,13 +645,14 @@ export default function CustomerShowcasePage() {
           </div>
 
           {/* Property Grid */}
-          <PropertyGrid 
+          <PropertyGrid
             properties={filteredProperties}
             title="Matched Properties"
             onLike={handlePropertyLike}
             onDislike={handlePropertyDislike}
             onFavorite={handlePropertyFavorite}
             onPropertyClick={handlePropertyClick}
+            onScheduleTour={handleScheduleTourClick}
           />
 
           {/* Property Details Modal */}
@@ -607,6 +666,14 @@ export default function CustomerShowcasePage() {
             onAddComment={handleAddComment}
             isLoadingComments={isLoadingComments}
             commentsError={commentsError}
+          />
+
+          {/* Schedule Tour Modal */}
+          <ScheduleTourModal
+            property={selectedPropertyForTour}
+            isOpen={isTourModalOpen}
+            onClose={handleCloseTourModal}
+            onSubmit={handleScheduleTourSubmit}
           />
 
         </div>

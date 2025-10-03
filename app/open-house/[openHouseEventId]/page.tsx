@@ -7,7 +7,6 @@ import { Property, SignInFormData } from '@/types'
 
 export default function OpenHouseSignInPage() {
   const params = useParams()
-  const router = useRouter()
   const [property, setProperty] = useState<Property | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -31,7 +30,7 @@ export default function OpenHouseSignInPage() {
         
         const responseData = await propertyResponse.json()
         const propertyData = responseData.property
-        console.log('Property data:', propertyData);
+        //console.log('Property data:', propertyData);
         
         // Transform the API response to match the Property interface
         const transformedProperty: Property = {
@@ -81,7 +80,6 @@ export default function OpenHouseSignInPage() {
           full_name: formData.fullName,
           email: formData.email,
           phone: formData.phone,
-          visiting_reason: formData.visitingReason,
           timeframe: formData.timeframe,
           has_agent: formData.hasAgent,
           open_house_event_id: openHouseEventId,
@@ -170,8 +168,6 @@ export default function OpenHouseSignInPage() {
                 <span>{property.beds} beds</span>
                 <span>•</span>
                 <span>{property.baths} baths</span>
-                <span>•</span>
-                <span>{property.squareFeet?.toLocaleString()} sq ft</span>
               </div>
             </div>
           )}

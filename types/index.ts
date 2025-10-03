@@ -106,7 +106,6 @@ export interface SignInFormData {
   email: string;
   phone: string;
   preferredContact: 'EMAIL' | 'PHONE' | 'TEXT';
-  visitingReason: string;
   timeframe: string;
   priceRange: string;
   interestedInSimilar: boolean;

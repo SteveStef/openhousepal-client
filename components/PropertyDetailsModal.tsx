@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Property, Comment } from '@/types'
+import { Property } from '@/types'
 import { X, MessageCircle, Send, ThumbsUp, ThumbsDown, Bookmark, ChevronLeft, ChevronRight, Maximize2, Home, User } from 'lucide-react'
 
 interface PropertyDetailsModalProps {
@@ -255,7 +255,6 @@ export default function PropertyDetailsModal({
     }
   }, [property?.id, images.length, currentImageIndex])
 
-  console.log(property);
   // Keyboard navigation
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -614,28 +613,6 @@ export default function PropertyDetailsModal({
                           {(property.details as any)?.resoFacts?.pricePerSquareFoot && (
                             <div className="text-gray-500 text-xs mb-4">${(property.details as any).resoFacts.pricePerSquareFoot}/sq ft</div>
                           )}
-                          {(property.details as any)?.zestimate && (
-                            <div className="bg-blue-50 rounded-lg p-4 mt-3">
-                              <div className="text-xl font-semibold text-blue-900 mb-1">
-                                {formatPrice((property.details as any).zestimate)}
-                              </div>
-                              <div className="text-blue-700 text-xs mb-2">Zestimate®</div>
-                              {(() => {
-                                const listPrice = (property.details as any)?.price || property.price;
-                                const zestimate = (property.details as any).zestimate;
-                                if (listPrice && zestimate) {
-                                  const difference = zestimate - listPrice;
-                                  const percentDiff = ((difference / listPrice) * 100).toFixed(1);
-                                  return (
-                                    <div className={`text-xs font-medium ${difference > 0 ? 'text-green-700' : difference < 0 ? 'text-red-700' : 'text-gray-700'}`}>
-                                      {difference > 0 ? '+' : ''}{formatPrice(difference)} ({difference > 0 ? '+' : ''}{percentDiff}% vs list)
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              })()}
-                            </div>
-                          )}
                         </div>
                         
                         {/* Property Specs */}
@@ -719,38 +696,38 @@ export default function PropertyDetailsModal({
                         {/* Action Buttons */}
                         <div className="space-y-3">
                           <div className="grid grid-cols-3 gap-2">
-                            <button 
+                            <button
                               onClick={() => onLike?.(Number(property.id!), !property.liked)}
-                              className={`flex flex-col items-center p-3 rounded-xl transition-all ${
-                                property.liked 
-                                  ? 'bg-green-100 text-green-600' 
+                              className={`flex flex-col items-center p-2 rounded-xl transition-all ${
+                                property.liked
+                                  ? 'bg-green-100 text-green-600'
                                   : 'bg-gray-50 text-gray-400 hover:bg-green-50 hover:text-green-500'
                               }`}
                             >
-                              <ThumbsUp size={20} fill={property.liked ? "currentColor" : "none"} />
-                              <span className="text-xs mt-1 font-medium">Like</span>
+                              <ThumbsUp size={18} fill={property.liked ? "currentColor" : "none"} />
+                              <span className="text-xs mt-0.5 font-medium">Like</span>
                             </button>
-                            <button 
+                            <button
                               onClick={() => onFavorite?.(Number(property.id!), !property.favorited)}
-                              className={`flex flex-col items-center p-3 rounded-xl transition-all ${
-                                property.favorited 
-                                  ? 'bg-amber-100 text-amber-600' 
+                              className={`flex flex-col items-center p-2 rounded-xl transition-all ${
+                                property.favorited
+                                  ? 'bg-amber-100 text-amber-600'
                                   : 'bg-gray-50 text-gray-400 hover:bg-amber-50 hover:text-amber-500'
                               }`}
                             >
-                              <Bookmark size={20} fill={property.favorited ? "currentColor" : "none"} />
-                              <span className="text-xs mt-1 font-medium">Save</span>
+                              <Bookmark size={18} fill={property.favorited ? "currentColor" : "none"} />
+                              <span className="text-xs mt-0.5 font-medium">Save</span>
                             </button>
-                            <button 
+                            <button
                               onClick={() => onDislike?.(Number(property.id!), !property.disliked)}
-                              className={`flex flex-col items-center p-3 rounded-xl transition-all ${
-                                property.disliked 
-                                  ? 'bg-red-100 text-red-600' 
+                              className={`flex flex-col items-center p-2 rounded-xl transition-all ${
+                                property.disliked
+                                  ? 'bg-red-100 text-red-600'
                                   : 'bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500'
                               }`}
                             >
-                              <ThumbsDown size={20} fill={property.disliked ? "currentColor" : "none"} />
-                              <span className="text-xs mt-1 font-medium">Pass</span>
+                              <ThumbsDown size={18} fill={property.disliked ? "currentColor" : "none"} />
+                              <span className="text-xs mt-0.5 font-medium">Pass</span>
                             </button>
                           </div>
                         </div>
