@@ -827,7 +827,7 @@ export default function PropertyDetailsModal({
                             <div key={comment.id} className="bg-white rounded-2xl p-4 border border-indigo-100">
                               <div className="flex items-center justify-between mb-2">
                                 <span className="font-bold text-gray-900 text-sm">{comment.author}</span>
-                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{formatDate(comment.created_at)}</span>
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{formatDate(comment.createdAt)}</span>
                               </div>
                               <p className="text-gray-700 leading-relaxed text-sm">{comment.content}</p>
                             </div>
