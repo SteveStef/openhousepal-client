@@ -38,56 +38,57 @@ export default function Header({ mode = 'app' }: HeaderProps) {
 
   return (
     <header className="bg-white/95 backdrop-blur-xl border-b border-gray-200/80 shadow-sm">
-      <div className="max-w-7xl mx-auto px-6 py-4">
+      <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center justify-between">
           {/* House Logo */}
-          <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-all duration-200">
-            <svg className="w-8 h-8 text-[#8b7355]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <Link href="/" className="flex items-center space-x-2 sm:space-x-3 hover:opacity-80 transition-all duration-200">
+            <svg className="w-7 h-7 sm:w-8 sm:h-8 text-[#8b7355]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" strokeLinecap="round" strokeLinejoin="round"/>
               <polyline points="9,22 9,12 15,12 15,22" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Open House Pal</h1>
-              <p className="text-xs text-gray-500 font-medium">Real Estate Lead Engine</p>
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900">Open House Pal</h1>
+              <p className="text-xs text-gray-500 font-medium hidden sm:block">Real Estate Lead Engine</p>
             </div>
           </Link>
           
 
           {/* Right Side Actions */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             {mode === 'landing' ? (
               // Landing page buttons
               <>
                 {!isCheckingAuth && isAuthenticated && (
                   <>
-                    <Link href="/open-houses" className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center">
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <Link href="/open-houses" className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center" title="Open Houses">
+                      <svg className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1" />
                       </svg>
-                      Open Houses
+                      <span className="hidden sm:inline">Open Houses</span>
                     </Link>
-                    <Link href="/showcases" className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center">
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <Link href="/showcases" className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center" title="Showcases">
+                      <svg className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                       </svg>
-                      Showcases
+                      <span className="hidden sm:inline">Showcases</span>
                     </Link>
                     <button
                       onClick={handleLogout}
                       disabled={isLoggingOut}
                       className="text-gray-700 hover:text-red-600 font-medium text-sm transition-colors duration-200 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Logout"
                     >
                       {isLoggingOut ? (
                         <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-1"></div>
-                          Logging out...
+                          <div className="animate-spin rounded-full h-5 w-5 sm:h-4 sm:w-4 sm:mr-1 border-b-2 border-gray-600"></div>
+                          <span className="hidden sm:inline">Logging out...</span>
                         </>
                       ) : (
                         <>
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                           </svg>
-                          Logout
+                          <span className="hidden sm:inline">Logout</span>
                         </>
                       )}
                     </button>
@@ -103,9 +104,10 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                     </Link>
                     <Link
                       href="/register"
-                      className="px-4 py-2 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all duration-300 text-sm"
+                      className="px-3 py-2 sm:px-4 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-medium hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all duration-300 text-xs sm:text-sm"
                     >
-                      Get Started
+                      <span className="hidden sm:inline">Get Started</span>
+                      <span className="sm:hidden">Start</span>
                     </Link>
                   </>
                 )}
@@ -115,43 +117,45 @@ export default function Header({ mode = 'app' }: HeaderProps) {
               <>
                 <Link
                   href="/login"
-                  className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200"
+                  className="text-gray-700 hover:text-[#8b7355] font-medium text-xs sm:text-sm transition-colors duration-200"
                 >
-                  Agent Login
+                  <span className="hidden sm:inline">Agent Login</span>
+                  <span className="sm:hidden">Login</span>
                 </Link>
               </>
             ) : (
               // App mode navigation (authenticated users)
               <>
-                <Link href="/open-houses" className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center">
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <Link href="/open-houses" className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center" title="Open Houses">
+                  <svg className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1" />
                   </svg>
-                  Open Houses
+                  <span className="hidden sm:inline">Open Houses</span>
                 </Link>
-                <Link href="/showcases" className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center">
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <Link href="/showcases" className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center" title="Showcases">
+                  <svg className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
-                  Showcases
+                  <span className="hidden sm:inline">Showcases</span>
                 </Link>
                 {!isCheckingAuth && isAuthenticated && (
                   <button
                     onClick={handleLogout}
                     disabled={isLoggingOut}
                     className="text-gray-700 hover:text-red-600 font-medium text-sm transition-colors duration-200 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Logout"
                   >
                     {isLoggingOut ? (
                       <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-1"></div>
-                        Logging out...
+                        <div className="animate-spin rounded-full h-5 w-5 sm:h-4 sm:w-4 sm:mr-1 border-b-2 border-gray-600"></div>
+                        <span className="hidden sm:inline">Logging out...</span>
                       </>
                     ) : (
                       <>
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
-                        Logout
+                        <span className="hidden sm:inline">Logout</span>
                       </>
                     )}
                   </button>

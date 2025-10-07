@@ -375,14 +375,14 @@ export default function OpenHousesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col">
       <Header />
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-4 sm:p-6">
         <div className="max-w-7xl mx-auto">
 
           {!showImageSelection ? (
             <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg">
               {/* Page Header */}
-              <div className="border-b border-gray-200/50 p-6">
-                <div className="flex items-center justify-between">
+              <div className="border-b border-gray-200/50 p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex items-center">
                     <div className="w-12 h-12 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-2xl flex items-center justify-center mr-4 shadow-lg">
                       <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -390,12 +390,12 @@ export default function OpenHousesPage() {
                       </svg>
                     </div>
                     <div>
-                      <h1 className="text-3xl font-bold text-gray-900">Property Portfolio</h1>
-                      <p className="text-gray-600 mt-1">Create new listings and manage your open house events</p>
+                      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Property Portfolio</h1>
+                      <p className="text-sm sm:text-base text-gray-600 mt-1">Create new listings and manage your open house events</p>
                     </div>
                   </div>
                   {currentUser && (
-                    <div className="flex items-center space-x-4">
+                    <div className="flex flex-wrap items-center gap-3">
                       {openHouses.length > 0 && (
                         <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/50 rounded-xl px-4 py-2">
                           <span className="text-emerald-700 font-semibold text-sm">
@@ -422,7 +422,7 @@ export default function OpenHousesPage() {
               </div>
 
               {/* Content Area */}
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="grid lg:grid-cols-2 gap-6">
                   {/* Create Form - Left Side */}
                   <div>
@@ -542,45 +542,48 @@ export default function OpenHousesPage() {
                             className="bg-white rounded-lg border border-gray-200/60 shadow-sm hover:shadow-lg hover:border-[#8b7355]/50 transition-all duration-200 overflow-hidden group cursor-pointer"
                           >
                             <div className="p-3">
-                              <div className="flex items-center gap-3">
-                                {/* Property Image */}
-                                <div className="relative flex-shrink-0">
-                                  <div className="w-14 h-14 bg-gray-100 rounded-lg border border-gray-200/60 overflow-hidden">
-                                    <img
-                                      src={openHouse.cover_image_url}
-                                      alt={`Property at ${openHouse.address}`}
-                                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                                    />
+                              <div className="flex flex-wrap items-start gap-3">
+                                {/* Property Image and Title Row */}
+                                <div className="flex items-start gap-3 w-full sm:flex-1">
+                                  {/* Property Image */}
+                                  <div className="relative flex-shrink-0">
+                                    <div className="w-14 h-14 bg-gray-100 rounded-lg border border-gray-200/60 overflow-hidden">
+                                      <img
+                                        src={openHouse.cover_image_url}
+                                        alt={`Property at ${openHouse.address}`}
+                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                      />
+                                    </div>
+                                    <div className="absolute -top-1 -left-1 w-5 h-5 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-full flex items-center justify-center shadow-sm">
+                                      <span className="text-white text-[10px] font-bold">{index + 1}</span>
+                                    </div>
                                   </div>
-                                  <div className="absolute -top-1 -left-1 w-5 h-5 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-full flex items-center justify-center shadow-sm">
-                                    <span className="text-white text-[10px] font-bold">{index + 1}</span>
-                                  </div>
-                                </div>
 
-                                {/* Property Info */}
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="text-sm font-bold text-gray-900 group-hover:text-[#8b7355] transition-colors truncate mb-1">
-                                    {openHouse.address}
-                                  </h3>
-                                  <div className="flex items-center gap-3 text-xs text-gray-600">
-                                    {openHouse.price && (
-                                      <span className="font-semibold text-[#8b7355]">${openHouse.price?.toLocaleString()}</span>
-                                    )}
-                                    {openHouse.bedrooms && (
-                                      <span>{openHouse.bedrooms} bd</span>
-                                    )}
-                                    {openHouse.bathrooms && (
-                                      <span>{openHouse.bathrooms} ba</span>
-                                    )}
-                                    <span className="text-gray-400">•</span>
-                                    <span className="text-gray-500">
-                                      {new Date(openHouse.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                    </span>
+                                  {/* Property Info */}
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="text-sm font-bold text-gray-900 group-hover:text-[#8b7355] transition-colors truncate mb-1">
+                                      {openHouse.address}
+                                    </h3>
+                                    <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-gray-600">
+                                      {openHouse.price && (
+                                        <span className="font-semibold text-[#8b7355]">${openHouse.price?.toLocaleString()}</span>
+                                      )}
+                                      {openHouse.bedrooms && (
+                                        <span>{openHouse.bedrooms} bd</span>
+                                      )}
+                                      {openHouse.bathrooms && (
+                                        <span>{openHouse.bathrooms} ba</span>
+                                      )}
+                                      <span className="text-gray-400">•</span>
+                                      <span className="text-gray-500">
+                                        {new Date(openHouse.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
 
                                 {/* Action Buttons */}
-                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <div className="flex items-center gap-1.5 w-full sm:w-auto sm:flex-shrink-0">
                                   <div className="inline-flex items-center px-2.5 py-1.5 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-lg font-medium text-xs shadow-sm group-hover:shadow-md transition-all">
                                     <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -647,9 +650,9 @@ export default function OpenHousesPage() {
               </div>
 
               {/* Coming Soon - Find Open Houses Section */}
-              <div className="mt-8">
+              <div className="mt-6 sm:mt-8">
                 <div className="bg-gradient-to-br from-[#8b7355]/5 via-[#7a6549]/3 to-amber-50/40 rounded-2xl border-2 border-dashed border-[#8b7355]/30 backdrop-blur-sm">
-                  <div className="p-8 text-center relative overflow-hidden">
+                  <div className="p-6 sm:p-8 text-center relative overflow-hidden">
                     {/* Background Pattern */}
                     <div className="absolute inset-0 opacity-5 text-[#8b7355]">
                       <svg className="w-full h-full" fill="currentColor" viewBox="0 0 100 100">
@@ -679,14 +682,14 @@ export default function OpenHousesPage() {
                         </div>
                       </div>
                       
-                      <h2 className="text-2xl font-bold text-gray-900 mb-3">Discover Open Houses</h2>
+                      <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Discover Open Houses</h2>
                       <p className="text-gray-600 mb-6 leading-relaxed">
                         Find and explore open houses from other agents in your area. Perfect for market research, 
                         networking, and staying informed about local property trends.
                       </p>
 
                       {/* Feature Preview */}
-                      <div className="grid md:grid-cols-3 gap-4 mb-8">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 sm:mb-8">
                         <div className="bg-white/60 rounded-xl p-4 border border-[#8b7355]/15">
                           <div className="w-8 h-8 bg-[#8b7355]/10 rounded-lg flex items-center justify-center mb-3 mx-auto">
                             <svg className="w-4 h-4 text-[#8b7355]" fill="none" stroke="currentColor" viewBox="0 0 24 24">

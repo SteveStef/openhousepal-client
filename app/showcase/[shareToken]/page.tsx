@@ -9,6 +9,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import ScheduleTourModal, { TourRequest } from '@/components/ScheduleTourModal'
+import Toast from '@/components/Toast'
 
 export default function CustomerShowcasePage() {
   const params = useParams()
@@ -35,7 +36,23 @@ export default function CustomerShowcasePage() {
   const [selectedPropertyForTour, setSelectedPropertyForTour] = useState<Property | null>(null)
   const [isTourModalOpen, setIsTourModalOpen] = useState(false)
 
+  // Toast notification state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; isVisible: boolean }>({
+    message: '',
+    type: 'success',
+    isVisible: false
+  })
+
   const shareToken = params.shareToken as string
+
+  // Toast helper function
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type, isVisible: true })
+  }
+
+  const closeToast = () => {
+    setToast(prev => ({ ...prev, isVisible: false }))
+  }
 
   // Simple API request helper for this page
   const apiRequest = async (endpoint: string, options: any = {}) => {
@@ -450,7 +467,7 @@ export default function CustomerShowcasePage() {
 
   const handleScheduleTourSubmit = async (tourRequest: TourRequest) => {
     if (!showcase) {
-      alert('Collection information not available')
+      showToast('Collection information not available', 'error')
       return
     }
 
@@ -479,14 +496,26 @@ export default function CustomerShowcasePage() {
         }
         successMessage += '\n\nThe agent will contact you to confirm.'
 
-        alert(successMessage)
+        showToast(successMessage, 'success')
+
+        // Update local state to mark property as having tour scheduled
+        const updatedProperties = matchedProperties.map(property =>
+          property.id === tourRequest.propertyId ? {
+            ...property,
+            hasTourScheduled: true
+          } : property
+        )
+        setMatchedProperties(updatedProperties)
+
+        // Close the tour modal
+        handleCloseTourModal()
       } else {
         throw new Error('Failed to submit tour request')
       }
 
     } catch (error) {
       console.error('Error submitting tour request:', error)
-      alert('Failed to submit tour request. Please try again.')
+      showToast('Failed to submit tour request. Please try again.', 'error')
       throw error
     }
   }
@@ -545,9 +574,6 @@ export default function CustomerShowcasePage() {
               </div>
               
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
-                  {filteredProperties.length} of {showcase.stats.totalProperties} properties
-                </span>
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${
                   showcase.status === 'ACTIVE' 
                     ? 'bg-green-100 text-green-800 border-green-200'
@@ -679,6 +705,14 @@ export default function CustomerShowcasePage() {
         </div>
       </div>
       <Footer />
+
+      {/* Toast Notification */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isVisible={toast.isVisible}
+        onClose={closeToast}
+      />
     </div>
   )
 }

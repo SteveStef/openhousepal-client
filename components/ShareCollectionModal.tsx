@@ -102,24 +102,6 @@ export default function ShareCollectionModal({
 
           {/* Share Settings */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Public Access</h3>
-                <p className="text-gray-600 text-sm">Allow customer to view their collection via share link</p>
-              </div>
-              <button
-                onClick={handleTogglePublic}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:ring-offset-2 focus:ring-offset-white ${
-                  collection.isPublic ? 'bg-[#8b7355]' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    collection.isPublic ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
 
             {collection.isPublic && (
               <div className="bg-[#8b7355]/20 border border-[#8b7355]/30 rounded-xl p-4">
@@ -163,14 +145,6 @@ export default function ShareCollectionModal({
                     <span className="text-gray-600">
                       Share this link with {collection.customer.firstName} to let them view their collection
                     </span>
-                    <button
-                      onClick={handleRegenerateLink}
-                      disabled={isGenerating}
-                      className="text-[#8b7355] hover:text-[#7a6549] transition-colors flex items-center space-x-1"
-                    >
-                      <RefreshCw size={14} className={isGenerating ? 'animate-spin' : ''} />
-                      <span>Regenerate</span>
-                    </button>
                   </div>
                 </div>
               ) : (

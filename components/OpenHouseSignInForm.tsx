@@ -39,7 +39,25 @@ export default function OpenHouseSignInForm({
     }))
   }
 
+  const isStepValid = () => {
+    switch (currentStep) {
+      case 1:
+        return formData.fullName.trim() !== ''
+      case 2:
+        return formData.email.trim() !== '' && formData.phone.trim() !== ''
+      case 3:
+        return formData.timeframe !== '' && formData.hasAgent !== ''
+      case 4:
+        return true // Step 4 has optional fields
+      default:
+        return false
+    }
+  }
+
   const handleNextStep = () => {
+    if (!isStepValid()) {
+      return // Don't advance if validation fails
+    }
     if (currentStep < 4) {
       setCurrentStep(currentStep + 1)
     }
@@ -145,10 +163,23 @@ export default function OpenHouseSignInForm({
           </div>
           <h1 className="text-xl font-bold text-gray-900 mb-1">Open House Sign-in</h1>
         </div>
-        
-        <div className="bg-white rounded-xl p-4 border border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 mb-2 text-center">{property.address}</h2>
-          <div className="flex justify-center items-center flex-wrap gap-3 text-sm">
+
+        <div className="bg-white rounded-xl overflow-hidden border border-gray-200">
+          {/* Property Image */}
+          {(property.imageSrc || property.imageUrl) && (
+            <div className="w-full h-32 bg-gray-100">
+              <img
+                src={property.imageSrc || property.imageUrl}
+                alt={property.address}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+
+          {/* Property Details */}
+          <div className="p-4">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2 text-center">{property.address}</h2>
+            <div className="flex justify-center items-center flex-wrap gap-3 text-sm">
             <span className="bg-[#8b7355] text-white font-semibold px-3 py-1 rounded-full">
               {formatPrice(property.price)}
             </span>
@@ -177,6 +208,7 @@ export default function OpenHouseSignInForm({
               </span>
             )}*/}
           </div>
+        </div>
         </div>
       </div>
 
@@ -330,8 +362,8 @@ export default function OpenHouseSignInForm({
           <button
             type={currentStep === 4 ? "submit" : "button"}
             onClick={currentStep === 4 ? undefined : handleNextStep}
-            className={`${currentStep > 1 ? 'flex-1' : 'w-full'} bg-[#8b7355] hover:bg-[#7a6549] text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300`}
-            disabled={isLoading}
+            className={`${currentStep > 1 ? 'flex-1' : 'w-full'} bg-[#8b7355] hover:bg-[#7a6549] text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed`}
+            disabled={isLoading || !isStepValid()}
           >
             {isLoading ? (
               <span className="flex items-center justify-center">

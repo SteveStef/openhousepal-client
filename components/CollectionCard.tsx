@@ -156,14 +156,10 @@ export default function CollectionCard({
 
       {/* Key Metrics */}
       <div className="px-4 py-3 bg-gray-50/50">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <div className="text-center">
             <div className="text-lg font-semibold text-gray-900">{collection.stats.totalProperties}</div>
             <div className="text-xs text-gray-500">Properties</div>
-          </div>
-          <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900">{collection.stats.likedProperties}</div>
-            <div className="text-xs text-gray-500">Liked</div>
           </div>
           <div className="text-center">
             <div className="text-sm font-semibold text-blue-600 leading-tight">

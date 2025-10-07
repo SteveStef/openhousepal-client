@@ -156,7 +156,7 @@ export default function OpenHouseVisitorsPage() {
                 <p className="text-gray-600 mb-4 max-w-sm mx-auto">When visitors sign in at your open house, they'll appear here.</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {visitors.map((visitor, index) => (
                   <div key={visitor.id} className="bg-gradient-to-r from-white to-gray-50/50 rounded-xl border border-gray-200/60 hover:border-gray-300/80 transition-all duration-300 hover:shadow-md p-5">
                     <div className="flex items-start justify-between">

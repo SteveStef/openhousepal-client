@@ -221,6 +221,7 @@ export default function PropertyDetailsModal({
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isLightboxOpen, setIsLightboxOpen] = useState(false)
+  console.log(property);
 
   // Enhanced photo handling for Zillow API data
   const getPropertyImages = useCallback(() => {
@@ -312,8 +313,6 @@ export default function PropertyDetailsModal({
         year: 'numeric',
         month: 'short',
         day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
       })
     } catch (error) {
       console.error('Error formatting date:', error)
@@ -454,16 +453,16 @@ export default function PropertyDetailsModal({
             <div className="flex items-center space-x-4">
               {(property.details as any)?.homeStatus && (
                 <span className={`px-3 py-1 text-sm font-medium rounded-full ${
-                  (property.details as any).homeStatus === 'forSale' 
+                  (property.details as any).homeStatus === 'FOR_SALE' 
                     ? 'bg-green-100 text-green-800' 
-                    : (property.details as any).homeStatus === 'forRent'
+                    : (property.details as any).homeStatus === 'FOR_RENT'
                     ? 'bg-blue-100 text-blue-800'
                     : 'bg-gray-100 text-gray-800'
                 }`}>
                   {(property.details as any).homeStatus === 'forSale' ? 'For Sale' :
                    (property.details as any).homeStatus === 'forRent' ? 'For Rent' :
                    (property.details as any).homeStatus === 'recentlySold' ? 'Recently Sold' :
-                   (property.details as any).homeStatus}
+                   (property.details as any)?.homeStatus?.replace("_", " ")}
                 </span>
               )}
               <button
@@ -697,7 +696,7 @@ export default function PropertyDetailsModal({
                         <div className="space-y-3">
                           <div className="grid grid-cols-3 gap-2">
                             <button
-                              onClick={() => onLike?.(Number(property.id!), !property.liked)}
+                              onClick={() => onLike?.(property.id!, !property.liked)}
                               className={`flex flex-col items-center p-2 rounded-xl transition-all ${
                                 property.liked
                                   ? 'bg-green-100 text-green-600'
@@ -708,7 +707,7 @@ export default function PropertyDetailsModal({
                               <span className="text-xs mt-0.5 font-medium">Like</span>
                             </button>
                             <button
-                              onClick={() => onFavorite?.(Number(property.id!), !property.favorited)}
+                              onClick={() => onFavorite?.(property.id!, !property.favorited)}
                               className={`flex flex-col items-center p-2 rounded-xl transition-all ${
                                 property.favorited
                                   ? 'bg-amber-100 text-amber-600'
@@ -719,7 +718,7 @@ export default function PropertyDetailsModal({
                               <span className="text-xs mt-0.5 font-medium">Save</span>
                             </button>
                             <button
-                              onClick={() => onDislike?.(Number(property.id!), !property.disliked)}
+                              onClick={() => onDislike?.(property.id!, !property.disliked)}
                               className={`flex flex-col items-center p-2 rounded-xl transition-all ${
                                 property.disliked
                                   ? 'bg-red-100 text-red-600'
@@ -760,28 +759,28 @@ export default function PropertyDetailsModal({
                             <span className="text-gray-900 font-semibold">{(property.details as any).resoFacts.municipality}</span>
                           </div>
                         )}
-                        {(property.details as any)?.resoFacts?.parcelNumber && (
+                        {((property.details as any)?.homeType || property.propertyType) && (
                           <div className="flex justify-between py-2 border-b border-gray-100">
-                            <span className="text-gray-600 font-medium">Parcel Number:</span>
-                            <span className="text-gray-900 font-mono text-sm">{(property.details as any).resoFacts.parcelNumber}</span>
+                            <span className="text-gray-600 font-medium">Home Type:</span>
+                            <span className="text-gray-900 font-semibold">{(property.details as any)?.homeType?.replace(/_/g, ' ') || property.propertyType?.replace(/_/g, ' ')}</span>
                           </div>
                         )}
-                        {(property.details as any)?.resoFacts?.zoning && (
+                        {((property.details as any)?.yearBuilt || property.yearBuilt) && (
                           <div className="flex justify-between py-2 border-b border-gray-100">
-                            <span className="text-gray-600 font-medium">Zoning:</span>
-                            <span className="text-gray-900 font-semibold">{(property.details as any).resoFacts.zoning}</span>
+                            <span className="text-gray-600 font-medium">Year Built:</span>
+                            <span className="text-gray-900 font-semibold">{(property.details as any)?.yearBuilt || property.yearBuilt}</span>
                           </div>
                         )}
-                        {(property.details as any)?.resoFacts?.ownership && (
+                        {(property.details as any)?.resoFacts?.pricePerSquareFoot && (
                           <div className="flex justify-between py-2 border-b border-gray-100">
-                            <span className="text-gray-600 font-medium">Ownership Type:</span>
-                            <span className="text-gray-900 font-semibold">{(property.details as any).resoFacts.ownership}</span>
+                            <span className="text-gray-600 font-medium">Price/Square Feet:</span>
+                            <span className="text-gray-900 font-semibold">${(property.details as any).resoFacts.pricePerSquareFoot}</span>
                           </div>
                         )}
-                        {(property.details as any)?.propertyTaxRate && (
+                        {((property.details as any)?.livingArea || property.squareFeet) && (
                           <div className="flex justify-between py-2 border-b border-gray-100">
-                            <span className="text-gray-600 font-medium">Tax Rate:</span>
-                            <span className="text-gray-900 font-semibold">{(property.details as any).propertyTaxRate}%</span>
+                            <span className="text-gray-600 font-medium">Square Footage:</span>
+                            <span className="text-gray-900 font-semibold">{((property.details as any)?.livingArea || property.squareFeet)?.toLocaleString()} sq ft</span>
                           </div>
                         )}
                         
@@ -828,7 +827,7 @@ export default function PropertyDetailsModal({
                             <div key={comment.id} className="bg-white rounded-2xl p-4 border border-indigo-100">
                               <div className="flex items-center justify-between mb-2">
                                 <span className="font-bold text-gray-900 text-sm">{comment.author}</span>
-                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{formatDate(comment.createdAt)}</span>
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{formatDate(comment.created_at)}</span>
                               </div>
                               <p className="text-gray-700 leading-relaxed text-sm">{comment.content}</p>
                             </div>

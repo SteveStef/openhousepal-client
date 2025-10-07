@@ -1099,9 +1099,6 @@ export default function ShowcasesPage() {
               </div>
               
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
-                  {filteredProperties.length} of {selectedCollection.stats.totalProperties} properties
-                </span>
                 <button
                   onClick={handleViewTours}
                   className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border border-[#8b7355] text-[#8b7355] hover:bg-[#8b7355] hover:text-white transition-all duration-200 shadow-sm hover:shadow-md"

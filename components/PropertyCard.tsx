@@ -1,7 +1,7 @@
 'use client'
 
 import { Property } from '@/types'
-import { ThumbsUp, ThumbsDown, Bookmark, MessageCircle } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, Bookmark, MessageCircle, Calendar } from 'lucide-react'
 
 interface PropertyCardProps {
   property: Property
@@ -42,19 +42,14 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
           </div>
         )}
         
-        {/* Price Badge */}
-        <div className="absolute top-4 left-4">
-          <span className="bg-[#8b7355] text-white font-semibold px-3 py-1 rounded-full text-sm backdrop-blur-sm border border-[#7a6549]">
-            {formatPrice(property.price)}
-          </span>
-        </div>
-
-        {/* Status Badge */}
-        <div className="absolute top-4 right-4">
-          <span className="bg-green-900/80 text-green-300 font-semibold px-3 py-1 rounded-full text-xs backdrop-blur-sm border border-green-700/40">
-            Available
-          </span>
-        </div>
+        {/* Home Type Badge */}
+        {property.propertyType && (
+          <div className="absolute top-4 right-4">
+            <span className="bg-[#8b7355] text-white font-semibold px-3 py-1 rounded-full text-sm backdrop-blur-sm border border-[#7a6549]">
+              {property.propertyType?.toLowerCase().substring(0,property.propertyType?.length).replace("_"," ")}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Property Details */}
@@ -93,12 +88,11 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
           )}
         </div>
 
-        {/* Property Type and Quick Actions */}
-        {property.propertyType && (
-          <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
-            <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full border border-gray-200">
-              {property.propertyType[0]}{property.propertyType?.toLowerCase().substring(1,property.propertyType?.length)}
-            </span>
+        {/* Price and Quick Actions */}
+        <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
+          <span className="text-base font-bold text-[#8b7355]">
+            Price: {formatPrice(property.price)}
+          </span>
             
             <div className="flex items-center space-x-2">
               {/* Like button with visitor count */}
@@ -164,10 +158,10 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
               </div>
               {/* Favorite button with visitor count */}
               <div className="relative">
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onFavorite?.(Number(property.id!), !property.favorited);
+                    onFavorite?.(property.id!, !property.favorited);
                   }}
                   className={`flex items-center transition-colors p-1 rounded-md hover:bg-gray-100 ${
                     property.favorited 
@@ -197,14 +191,13 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
                 </div>
               )}
             </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Action Buttons - Moved to Bottom */}
       <div className="px-5 pb-5 mt-auto">
         <div className="flex space-x-2">
-          <button 
+          <button
             onClick={(e) => {
               e.stopPropagation();
               onPropertyClick?.(property);
@@ -213,15 +206,33 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
           >
             View Details
           </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onScheduleTour?.(property);
-            }}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-800 font-medium py-2 px-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-all duration-300 text-xs"
-          >
-            Schedule Tour
-          </button>
+          {onScheduleTour ? (
+            property.hasTourScheduled ? (
+              <div className="flex items-center space-x-1 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-xs">
+                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                <span className="text-green-700 font-medium">Tour Scheduled</span>
+              </div>
+            ) : (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onScheduleTour?.(property);
+                }}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-800 font-medium py-2 px-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-all duration-300 text-xs"
+              >
+                Schedule Tour
+              </button>
+            )
+          ) : (
+            <div className="flex items-center space-x-1 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs">
+              <Calendar size={14} className="text-blue-600" />
+              <span className="text-blue-700 font-medium">
+                {property.tourCount || 0} {property.tourCount === 1 ? 'tour' : 'tours'}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>

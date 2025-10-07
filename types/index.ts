@@ -41,6 +41,8 @@ export interface Property {
   favorited?: boolean;
   viewed?: boolean;
   comments?: Comment[];
+  tourCount?: number;
+  hasTourScheduled?: boolean;
   details?: JSON;
   visitorInteractions?: PropertyInteraction[];
   listingUpdated?: string;
