@@ -96,21 +96,21 @@ export default function OpenHouseVisitorsPage() {
               Back to Open Houses
             </button>
 
-            <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg p-6">
-              <div className="flex items-center justify-between">
+            <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg p-4 md:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:justify-between">
                 <div className="flex items-center">
-                  <div className="w-12 h-12 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-2xl flex items-center justify-center mr-4 shadow-lg">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-2xl flex items-center justify-center mr-3 sm:mr-4 shadow-lg flex-shrink-0">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Open House Visitors</h1>
-                    <p className="text-gray-600 mt-1">View all visitors who signed in at this open house</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Open House Visitors</h1>
+                    <p className="text-sm sm:text-base text-gray-600 mt-1">View all visitors who signed in at this open house</p>
                   </div>
                 </div>
                 {!isLoading && !error && (
-                  <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/50 rounded-xl px-4 py-2">
+                  <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/50 rounded-xl px-4 py-2 self-start sm:self-auto">
                     <span className="text-emerald-700 font-semibold text-sm">
                       {visitors.length} Visitor{visitors.length !== 1 ? 's' : ''}
                     </span>
