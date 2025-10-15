@@ -1,11 +1,15 @@
+'use client'
+
 import './globals.css'
 import { Inter } from 'next/font/google'
+import { PayPalScriptProvider } from "@paypal/react-paypal-js"
 
 const inter = Inter({ subsets: ['latin'] })
 
-export const metadata = {
-  title: 'Open House Pal - Open House Sign-in',
-  description: 'Digital sign-in experience for open house visitors',
+const paypalOptions = {
+  clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '',
+  vault: true,
+  intent: "subscription"
 }
 
 export default function RootLayout({
@@ -16,9 +20,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} bg-[#faf9f7] min-h-screen`}>
-        <main className="min-h-screen">
-          {children}
-        </main>
+        <PayPalScriptProvider options={paypalOptions}>
+          <main className="min-h-screen">
+            {children}
+          </main>
+        </PayPalScriptProvider>
       </body>
     </html>
   )

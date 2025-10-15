@@ -27,12 +27,12 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
       className="bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-gray-300 transition-all duration-300 hover:-translate-y-1 hover:bg-gray-50 group cursor-pointer backdrop-blur-sm flex flex-col h-full shadow-sm hover:shadow-lg"
     >
       {/* Property Image */}
-      <div className="relative h-48 bg-gray-100">
+      <div className="relative bg-gray-100">
         {property.imageUrl ? (
           <img
             src={property.imageUrl}
             alt={property.address}
-            className="w-full h-full object-cover transition-transform duration-300"
+            className="w-full aspect-[16/9] object-cover transition-transform duration-300"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">

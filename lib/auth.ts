@@ -6,6 +6,25 @@ export interface ApiResponse<T = any> {
   status: number;
 }
 
+export interface User {
+  id: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  state?: string;
+  brokerage?: string;
+  created_at: string;
+  updated_at?: string;
+  // PayPal subscription fields
+  subscription_id?: string;
+  subscription_status?: string;  // TRIAL, ACTIVE, SUSPENDED, CANCELLED, EXPIRED
+  plan_id?: string;
+  plan_tier?: string;  // BASIC or PREMIUM
+  trial_ends_at?: string;
+  subscription_started_at?: string;
+  last_billing_date?: string;
+}
+
 // Base API URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -169,7 +188,7 @@ export async function checkAuth(): Promise<boolean> {
  * Get current user information
  * This version doesn't automatically remove the token on failure
  */
-export async function getCurrentUser(): Promise<any> {
+export async function getCurrentUser(): Promise<User | null> {
   try {
     const token = getToken();
     if (!token) {

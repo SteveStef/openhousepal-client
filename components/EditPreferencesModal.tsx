@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import { Collection, CollectionPreferences } from '@/types'
 import { collectionPreferencesApi } from '@/lib/api'
 import { X } from 'lucide-react'
-import MultiCityInput from './MultiCityInput'
-import MultiTownshipInput from './MultiTownshipInput'
+import MultiCityPlacesInput from './MultiCityPlacesInput'
+import MultiTownshipPlacesInput from './MultiTownshipPlacesInput'
+import GooglePlacesAutocomplete from './GooglePlacesAutocomplete'
 
 interface EditPreferencesModalProps {
   collection: Collection | null
@@ -30,10 +31,10 @@ export default function EditPreferencesModal({
     max_price: null,
     lat: null,
     long: null,
-    address: null,
+    address: '',
     cities: [],
     townships: [],
-    diameter: 2.0,
+    diameter: null,
     special_features: '',
     is_town_house: false,
     is_lot_land: false,
@@ -117,12 +118,12 @@ export default function EditPreferencesModal({
               max_price: prefs.max_price || null,
               lat: prefs.lat || null,
               long: prefs.long || null,
-              address: prefs.address || null,
+              address: prefs.address || '',
               city: prefs.city || null,
               cities: cities,
               township: prefs.township || null,
               townships: townships,
-              diameter: prefs.diameter || 2.0,
+              diameter: prefs.diameter || null,
               special_features: prefs.special_features || '',
               is_town_house: prefs.is_town_house || false,
               is_lot_land: prefs.is_lot_land || false,
@@ -164,12 +165,12 @@ export default function EditPreferencesModal({
                 max_price: prefs.max_price || null,
                 lat: prefs.lat || null,
                 long: prefs.long || null,
-                address: prefs.address || null,
+                address: prefs.address || '',
                 city: prefs.city || null,
                 cities: cities,
                 township: prefs.township || null,
                 townships: townships,
-                diameter: prefs.diameter || 2.0,
+                diameter: prefs.diameter || null,
                 special_features: prefs.special_features || '',
                 is_town_house: prefs.is_town_house || false,
                 is_lot_land: prefs.is_lot_land || false,
@@ -192,12 +193,12 @@ export default function EditPreferencesModal({
                 max_price: null,
                 lat: null,
                 long: null,
-                address: null,
+                address: '',
                 city: null,
                 cities: [],
                 township: null,
                 townships: [],
-                diameter: 2.0,
+                diameter: null,
                 special_features: '',
                 is_town_house: false,
                 is_lot_land: false,
@@ -223,12 +224,12 @@ export default function EditPreferencesModal({
             max_price: null,
             lat: null,
             long: null,
-            address: null,
+            address: '',
             city: null,
             cities: [],
             township: null,
             townships: [],
-            diameter: 2.0,
+            diameter: null,
             special_features: '',
             is_town_house: false,
             is_lot_land: false,
@@ -268,7 +269,7 @@ export default function EditPreferencesModal({
       if (newValue.length > 0 && formData.address) {
         updatedFormData = {
           ...updatedFormData,
-          address: null
+          address: ''
         }
       }
     }
@@ -477,14 +478,13 @@ export default function EditPreferencesModal({
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Address
                   </label>
-                  <input
-                    type="text"
+                  <GooglePlacesAutocomplete
                     value={formData.address || ''}
-                    onChange={(e) => handleInputChange('address', e.target.value || null)}
+                    onChange={(address) => handleInputChange('address', address)}
                     disabled={isUsingAreaSearch()}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355] ${
-                      isUsingAreaSearch() 
-                        ? 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed' 
+                    className={`${
+                      isUsingAreaSearch()
+                        ? 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'
                         : 'border-gray-300'
                     }`}
                     placeholder={isUsingAreaSearch() ? 'Disabled - using city/township search' : '123 Main Street, City, State'}
@@ -500,12 +500,12 @@ export default function EditPreferencesModal({
                     min="0.1"
                     max="50"
                     step="0.1"
-                    value={formData.diameter}
-                    onChange={(e) => handleInputChange('diameter', e.target.value ? parseFloat(e.target.value) : 2.0)}
+                    value={formData.diameter || ''}
+                    onChange={(e) => handleInputChange('diameter', e.target.value ? parseFloat(e.target.value) : null)}
                     disabled={isUsingAreaSearch()}
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355] ${
-                      isUsingAreaSearch() 
-                        ? 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed' 
+                      isUsingAreaSearch()
+                        ? 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'
                         : 'border-gray-300'
                     }`}
                     placeholder="2.0"
@@ -531,7 +531,7 @@ export default function EditPreferencesModal({
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Cities
                   </label>
-                  <MultiCityInput
+                  <MultiCityPlacesInput
                     cities={formData.cities || []}
                     onChange={(cities) => handleInputChange('cities', cities)}
                     placeholder={isUsingAddressSearch() ? 'Disabled - using address search' : 'Type city names and press Enter...'}
@@ -545,7 +545,7 @@ export default function EditPreferencesModal({
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Townships
                   </label>
-                  <MultiTownshipInput
+                  <MultiTownshipPlacesInput
                     townships={formData.townships || []}
                     onChange={(townships) => handleInputChange('townships', townships)}
                     placeholder={isUsingAddressSearch() ? 'Disabled - using address search' : 'Type township names and press Enter...'}

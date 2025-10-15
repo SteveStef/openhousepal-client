@@ -3,6 +3,35 @@
 import Link from 'next/link'
 import { register as registerUser } from '../../../lib/auth'
 import { useState } from 'react'
+import PayPalSubscriptionButton from '../../../components/PayPalSubscriptionButton'
+
+// Plan definitions
+const PLANS = {
+  BASIC: {
+    id: process.env.NEXT_PUBLIC_BASIC_PLAN_ID || '',
+    name: 'Basic Plan',
+    price: '$49.99',
+    priceValue: 49.99,
+    tier: 'BASIC',
+    features: [
+      'Generated PDFs for properties',
+      'Signup forms for open houses',
+      'Catalog of all visitors'
+    ]
+  },
+  PREMIUM: {
+    id: process.env.NEXT_PUBLIC_PREMIUM_PLAN_ID || '',
+    name: 'Premium Plan',
+    price: '$99.99',
+    priceValue: 99.99,
+    tier: 'PREMIUM',
+    features: [
+      'Everything in Basic',
+      'Showcases feature',
+      'Personalized property collections for visitors'
+    ]
+  }
+}
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -22,6 +51,8 @@ export default function RegisterPage() {
     message: string
   }>({ type: null, message: '' })
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({})
+  const [registrationStep, setRegistrationStep] = useState<'pricing' | 'form' | 'payment'>('form')
+  const [selectedPlan, setSelectedPlan] = useState<typeof PLANS.BASIC | typeof PLANS.PREMIUM | null>(null)
 
   // Clear notifications after 5 seconds
   const showNotification = (type: 'success' | 'error' | 'info', message: string) => {
@@ -67,7 +98,7 @@ export default function RegisterPage() {
     setErrors({})
     setFieldErrors({})
     setNotification({ type: null, message: '' })
-    
+
     // Validate form
     const validationErrors = validateForm()
     if (Object.keys(validationErrors).length > 0) {
@@ -75,39 +106,56 @@ export default function RegisterPage() {
       showNotification('error', 'Please correct the errors below')
       return
     }
-    
+
+    // Validate with backend before proceeding to pricing
+    const url = `${process.env.NEXT_PUBLIC_API_URL}/auth/validate-signup-form`
     setIsLoading(true)
-    showNotification('info', 'Creating your account...')
-    
+
     try {
-      // Use auth utility for registration
-      const result = await registerUser({
+      // Transform formData from camelCase to snake_case for backend
+      const validationData = {
         email: formData.email,
         password: formData.password,
         first_name: formData.firstName,
         last_name: formData.lastName,
         state: formData.state,
-        brokerage: formData.brokerage,
+        brokerage: formData.brokerage
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(validationData)
       })
 
-      if (result.status === 201) {
-        // Success - token is automatically stored by the auth utility
-        showNotification('success', 'Account created successfully! Redirecting...')
-        window.location.href = '/open-houses'
-      } else {
-        // Handle specific API errors
-        if (result.status === 400 && result.error === 'Email already registered') {
-          setFieldErrors({ email: 'This email is already registered' })
-          showNotification('error', 'An account with this email already exists')
-        } else {
-          showNotification('error', result.error || 'Registration failed. Please try again.')
-        }
+      const data = await response.json()
+
+      if (response.status === 400) {
+        // Email already registered
+        setFieldErrors({ email: data.detail || 'Email already registered' })
+        showNotification('error', data.detail || 'Email already registered')
+        setIsLoading(false)
+        return
       }
-    } catch (error) {
-      console.error('Registration error:', error)
-      showNotification('error', 'Unable to connect to server. Please try again.')
-    } finally {
+
+      if (!response.ok) {
+        // Other errors
+        showNotification('error', 'Validation failed. Please try again.')
+        setIsLoading(false)
+        return
+      }
+
+      // Validation successful - move to pricing step
       setIsLoading(false)
+      setRegistrationStep('pricing')
+      showNotification('success', 'Now choose your plan to continue.')
+    } catch (err) {
+      console.error('Validation error:', err)
+      showNotification('error', 'Connection error. Please check your internet and try again.')
+      setIsLoading(false)
+      return
     }
   }
 
@@ -178,7 +226,108 @@ export default function RegisterPage() {
           </div>
         </div>
       )}
-      <div className="max-w-lg w-full space-y-8">
+
+      {registrationStep === 'pricing' ? (
+        // Step 1: Pricing Selection
+        <div className="max-w-5xl w-full space-y-8">
+          <div className="text-center">
+            <Link href="/" className="inline-flex items-center space-x-3 mb-8">
+              <div className="w-10 h-10 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold">OH</span>
+              </div>
+              <span className="text-2xl font-bold text-gray-900">Open House Pal</span>
+            </Link>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Choose Your Plan</h2>
+            <p className="text-gray-600">Start with a 14-day free trial - no charge today</p>
+            <button
+              onClick={() => setRegistrationStep('form')}
+              className="text-sm text-[#8b7355] hover:text-[#7a6549] mt-2"
+            >
+              ← Back to account details
+            </button>
+          </div>
+
+          {/* Pricing Cards */}
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Basic Plan */}
+            <div className="bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-[#8b7355] transition-all duration-300 shadow-lg">
+              <div className="text-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">{PLANS.BASIC.name}</h3>
+                <div className="flex items-baseline justify-center">
+                  <span className="text-5xl font-bold text-[#8b7355]">{PLANS.BASIC.price}</span>
+                  <span className="text-gray-600 ml-2">/month</span>
+                </div>
+                <p className="text-sm text-gray-500 mt-2">after 14-day free trial</p>
+              </div>
+
+              <ul className="space-y-4 mb-8">
+                {PLANS.BASIC.features.map((feature, idx) => (
+                  <li key={idx} className="flex items-start">
+                    <svg className="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-gray-700">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                onClick={() => {
+                  setSelectedPlan(PLANS.BASIC)
+                  setRegistrationStep('payment')
+                }}
+                className="w-full px-6 py-3 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all duration-300 hover:scale-105"
+              >
+                Select Basic Plan
+              </button>
+            </div>
+
+            {/* Premium Plan */}
+            <div className="bg-gradient-to-br from-[#8b7355] to-[#7a6549] rounded-2xl p-8 border-2 border-[#8b7355] shadow-xl transform hover:scale-105 transition-all duration-300 relative">
+              <div className="absolute top-4 right-4 bg-yellow-400 text-gray-900 text-xs font-bold px-3 py-1 rounded-full">
+                POPULAR
+              </div>
+              <div className="text-center mb-6">
+                <h3 className="text-2xl font-bold text-white mb-2">{PLANS.PREMIUM.name}</h3>
+                <div className="flex items-baseline justify-center">
+                  <span className="text-5xl font-bold text-white">{PLANS.PREMIUM.price}</span>
+                  <span className="text-white/80 ml-2">/month</span>
+                </div>
+                <p className="text-sm text-white/70 mt-2">after 14-day free trial</p>
+              </div>
+
+              <ul className="space-y-4 mb-8">
+                {PLANS.PREMIUM.features.map((feature, idx) => (
+                  <li key={idx} className="flex items-start">
+                    <svg className="w-5 h-5 text-yellow-400 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-white font-medium">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                onClick={() => {
+                  setSelectedPlan(PLANS.PREMIUM)
+                  setRegistrationStep('payment')
+                }}
+                className="w-full px-6 py-3 bg-white text-[#8b7355] rounded-xl font-semibold hover:bg-gray-50 transition-all duration-300 hover:scale-105 shadow-lg"
+              >
+                Select Premium Plan
+              </button>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <p className="text-xs text-gray-500">
+              All plans include a 14-day free trial • No credit card charged today • Cancel anytime
+            </p>
+          </div>
+        </div>
+      ) : registrationStep === 'form' ? (
+        // Step 2: Registration Form
+        <div className="max-w-lg w-full space-y-8">
         {/* Header */}
         <div className="text-center">
           <Link href="/" className="inline-flex items-center space-x-3 mb-8">
@@ -187,8 +336,8 @@ export default function RegisterPage() {
             </div>
             <span className="text-2xl font-bold text-gray-900">Open House Pal</span>
           </Link>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Start your free trial</h2>
-          <p className="text-gray-600">Create your agent account and begin transforming your open houses</p>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">Create Your Account</h2>
+          <p className="text-gray-600">Start your 14-day free trial today</p>
         </div>
 
         {/* Registration Form */}
@@ -402,6 +551,88 @@ export default function RegisterPage() {
           </p>
         </div>
       </div>
+      ) : (
+        // Step 3: Payment Step
+        <div className="max-w-lg w-full space-y-8">
+          <div className="text-center">
+            <Link href="/" className="inline-flex items-center space-x-3 mb-8">
+              <div className="w-10 h-10 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold">OH</span>
+              </div>
+              <span className="text-2xl font-bold text-gray-900">Open House Pal</span>
+            </Link>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Complete Payment Setup</h2>
+            <p className="text-gray-600">You selected: <span className="font-semibold text-[#8b7355]">{selectedPlan?.name} - {selectedPlan?.price}/month</span></p>
+            <div className="flex gap-4 justify-center mt-2">
+              <button
+                onClick={() => setRegistrationStep('pricing')}
+                className="text-sm text-[#8b7355] hover:text-[#7a6549]"
+              >
+                ← Back to plans
+              </button>
+              <span className="text-gray-400">|</span>
+              <button
+                onClick={() => setRegistrationStep('form')}
+                className="text-sm text-[#8b7355] hover:text-[#7a6549]"
+              >
+                ← Back to signup
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-[#f5f4f2]/90 rounded-2xl p-8 border border-gray-200/60 backdrop-blur-sm shadow-xl">
+            <div className="mb-6 bg-white rounded-xl p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold mb-4 text-gray-900">{selectedPlan?.name} Features</h3>
+              <ul className="space-y-3 text-gray-700 mb-4">
+                {selectedPlan?.features.map((feature, idx) => (
+                  <li key={idx} className="flex items-center">
+                    <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-600">14-day free trial</span>
+                  <span className="font-semibold text-green-600">$0.00</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">After trial</span>
+                  <span className="font-semibold text-gray-900">{selectedPlan?.price}/month</span>
+                </div>
+              </div>
+            </div>
+
+            <PayPalSubscriptionButton
+              planId={selectedPlan?.id || ''}
+              registrationData={{
+                email: formData.email,
+                password: formData.password,
+                first_name: formData.firstName,
+                last_name: formData.lastName,
+                state: formData.state,
+                brokerage: formData.brokerage
+              }}
+              onSuccess={() => {
+                showNotification('success', 'Account created successfully! Redirecting...')
+                setTimeout(() => window.location.href = '/open-houses', 2000)
+              }}
+              onError={(error) => {
+                showNotification('error', error)
+              }}
+            />
+
+            <p className="text-xs text-gray-500 text-center mt-6">
+              You will not be charged until your 14-day trial ends
+            </p>
+            <p className="text-xs text-gray-500 text-center mt-2">
+              Secured with PayPal's buyer protection • Cancel anytime
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

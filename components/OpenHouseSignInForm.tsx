@@ -164,10 +164,10 @@ export default function OpenHouseSignInForm({
           <h1 className="text-xl font-bold text-gray-900 mb-1">Open House Sign-in</h1>
         </div>
 
-        <div className="bg-white rounded-xl overflow-hidden border border-gray-200">
+        <div className="bg-white rounded-xl overflow-hidden border border-gray-200 flex">
           {/* Property Image */}
           {(property.imageSrc || property.imageUrl) && (
-            <div className="w-full h-32 bg-gray-100">
+            <div className="w-40 h-32 flex-shrink-0 bg-gray-100">
               <img
                 src={property.imageSrc || property.imageUrl}
                 alt={property.address}
@@ -177,38 +177,38 @@ export default function OpenHouseSignInForm({
           )}
 
           {/* Property Details */}
-          <div className="p-4">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2 text-center">{property.address}</h2>
-            <div className="flex justify-center items-center flex-wrap gap-3 text-sm">
-            <span className="bg-[#8b7355] text-white font-semibold px-3 py-1 rounded-full">
-              {formatPrice(property.price)}
-            </span>
-            {property.beds && (
-              <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full flex items-center text-xs">
-                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
-                </svg>
-                {property.beds} beds
-              </span>
-            )}
-            {property.baths && (
-              <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full flex items-center text-xs">
-                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path>
-                </svg>
-                {property.baths} baths
-              </span>
-            )}
-            {/*{property.squareFeet && Number(property.squareFeet) > 0 && (
-              <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full flex items-center text-xs">
-                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
-                </svg>
-                {property.squareFeet.toLocaleString()} sqft
-              </span>
-            )}*/}
+          <div className="flex-1 p-4 flex flex-col justify-center">
+            <h2 className="text-base font-semibold text-gray-900 mb-2 leading-tight">
+              {property.address}
+            </h2>
+
+            <div className="space-y-2">
+              <div>
+                <span className="inline-block bg-[#8b7355] text-white font-semibold px-3 py-1 rounded-full text-sm">
+                  {formatPrice(property.price)}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3 text-xs">
+                {property.beds && (
+                  <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full flex items-center">
+                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+                    </svg>
+                    {property.beds} beds
+                  </span>
+                )}
+                {property.baths && (
+                  <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full flex items-center">
+                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path>
+                    </svg>
+                    {property.baths} baths
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
         </div>
       </div>
 

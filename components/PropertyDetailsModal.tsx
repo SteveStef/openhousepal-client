@@ -849,7 +849,7 @@ export default function PropertyDetailsModal({
                           <div className="bg-purple-100 p-2 rounded-lg mr-2">
                             <Send className="text-purple-600" size={14} />
                           </div>
-                          Add Comment
+                          Send Comment to Agent
                         </h4>
                         <form onSubmit={handleSubmitComment} className="space-y-3">
                           <textarea

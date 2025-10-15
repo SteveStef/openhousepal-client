@@ -12,6 +12,7 @@ import ShareCollectionModal from '@/components/ShareCollectionModal'
 import EditPreferencesModal from '@/components/EditPreferencesModal'
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal'
 import ViewToursModal, { PropertyTour } from '@/components/ViewToursModal'
+import SubscriptionGuard from '@/components/SubscriptionGuard'
 import { Share2, Calendar } from 'lucide-react'
 import { apiRequest, checkAuth, updateCollectionPreferences } from '@/lib/auth'
 import { collectionsApi } from '@/lib/api'
@@ -1269,8 +1270,9 @@ export default function ShowcasesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col">
-      <Header />
+    <SubscriptionGuard requiredPlan="PREMIUM">
+      <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col">
+        <Header />
       <div className="flex-1 p-6">
         <div className="max-w-7xl mx-auto">
         {/* Combined Header and Filters */}
@@ -1451,6 +1453,7 @@ export default function ShowcasesPage() {
       />
 
     </div>
+    </SubscriptionGuard>
   )
 }
 

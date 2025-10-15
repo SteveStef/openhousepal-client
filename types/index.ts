@@ -134,7 +134,7 @@ export interface CollectionPreferences {
   cities?: string[]; // New field for multiple cities
   township?: string | null; // Keep for backward compatibility
   townships?: string[]; // New field for multiple townships
-  diameter?: number;
+  diameter?: number | null;
   special_features?: string;
   is_town_house?: boolean | null;
   is_lot_land?: boolean | null;
