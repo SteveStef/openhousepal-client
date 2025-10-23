@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { checkAuth, logout, getCurrentUser, User } from '@/lib/auth'
+import { checkAuth, logout, getCurrentUser, hasValidSubscription, User } from '@/lib/auth'
 
 interface HeaderProps {
   mode?: 'landing' | 'app' | 'shared'
@@ -69,13 +69,17 @@ export default function Header({ mode = 'app' }: HeaderProps) {
               <>
                 {!isCheckingAuth && isAuthenticated && (
                   <>
-                    <Link href="/open-houses" className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center" title="Open Houses">
+                    <Link
+                      href={hasValidSubscription(user) ? "/open-houses" : "/upgrade-required"}
+                      className={`${hasValidSubscription(user) ? 'text-gray-700' : 'text-gray-400'} hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center`}
+                      title={hasValidSubscription(user) ? "Open Houses" : "Open Houses (Subscription Required)"}
+                    >
                       <svg className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1" />
                       </svg>
                       <span className="hidden sm:inline">Open Houses</span>
                     </Link>
-                    {hasPremiumAccess ? (
+                    {hasPremiumAccess && hasValidSubscription(user) ? (
                       <Link href="/showcases" className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center" title="Showcases">
                         <svg className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -151,13 +155,17 @@ export default function Header({ mode = 'app' }: HeaderProps) {
             ) : (
               // App mode navigation (authenticated users)
               <>
-                <Link href="/open-houses" className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center" title="Open Houses">
+                <Link
+                  href={hasValidSubscription(user) ? "/open-houses" : "/upgrade-required"}
+                  className={`${hasValidSubscription(user) ? 'text-gray-700' : 'text-gray-400'} hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center`}
+                  title={hasValidSubscription(user) ? "Open Houses" : "Open Houses (Subscription Required)"}
+                >
                   <svg className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1" />
                   </svg>
                   <span className="hidden sm:inline">Open Houses</span>
                 </Link>
-                {hasPremiumAccess ? (
+                {hasPremiumAccess && hasValidSubscription(user) ? (
                   <Link href="/showcases" className="text-gray-700 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center" title="Showcases">
                     <svg className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />

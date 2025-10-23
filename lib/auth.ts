@@ -21,6 +21,7 @@ export interface User {
   plan_id?: string;
   plan_tier?: string;  // BASIC or PREMIUM
   trial_ends_at?: string;
+  next_billing_date?: string;  // Grace period end for cancelled subscriptions
   subscription_started_at?: string;
   last_billing_date?: string;
 }
@@ -283,6 +284,39 @@ export async function register(userData: {
   }
   
   return response;
+}
+
+/**
+ * Check if user has valid subscription access (including grace periods)
+ * This is the single source of truth for subscription validation
+ */
+export function hasValidSubscription(user: User | null): boolean {
+  if (!user?.subscription_status) return false
+
+  // TRIAL or ACTIVE subscriptions are always valid
+  if (['TRIAL', 'ACTIVE'].includes(user.subscription_status)) {
+    return true
+  }
+
+  // CANCELLED subscriptions are valid if still in grace period
+  if (user.subscription_status === 'CANCELLED') {
+    const now = new Date()
+
+    // Check trial end date (for cancelled trial subscriptions)
+    if (user.trial_ends_at) {
+      const trialEnd = new Date(user.trial_ends_at)
+      if (now < trialEnd) return true
+    }
+
+    // Check next billing date (for cancelled paid subscriptions)
+    if (user.next_billing_date) {
+      const billingEnd = new Date(user.next_billing_date)
+      if (now < billingEnd) return true
+    }
+  }
+
+  // EXPIRED, SUSPENDED, or no grace period left
+  return false
 }
 
 /**

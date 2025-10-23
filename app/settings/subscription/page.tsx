@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import ConfirmationModal from '@/components/ConfirmationModal'
+import ResubscribeModal from '@/components/ResubscribeModal'
 import { getCurrentUser, User, apiRequest } from '@/lib/auth'
 import { CreditCard, Sparkles, AlertCircle, Calendar, CheckCircle2 } from 'lucide-react'
 
@@ -19,9 +20,61 @@ export default function SubscriptionManagementPage() {
   const [downgradeModalOpen, setDowngradeModalOpen] = useState(false)
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const [reactivateModalOpen, setReactivateModalOpen] = useState(false)
+  const [resubscribeModalOpen, setResubscribeModalOpen] = useState(false)
+
+  // Toast notification state
+  const [notification, setNotification] = useState<{
+    type: 'success' | 'error' | 'info' | null
+    message: string
+  }>({ type: null, message: '' })
+
+  // Show notification with auto-dismiss
+  const showNotification = (type: 'success' | 'error' | 'info', message: string) => {
+    setNotification({ type, message })
+    setTimeout(() => {
+      setNotification({ type: null, message: '' })
+    }, 5000)
+  }
 
   useEffect(() => {
     loadUserData()
+  }, [])
+
+  // Handle subscription completion after PayPal redirect
+  useEffect(() => {
+    const completeSubscription = async () => {
+      const params = new URLSearchParams(window.location.search)
+      const subscriptionId = params.get('subscription_id')
+
+      // If we have a subscription_id, complete the subscription
+      if (subscriptionId) {
+        console.log('📝 Completing new subscription:', subscriptionId)
+
+        try {
+          const response = await apiRequest('/subscriptions/complete-new', {
+            method: 'POST',
+            body: JSON.stringify({ subscription_id: subscriptionId })
+          })
+
+          if (response.status === 200) {
+            showNotification('success', response.data?.message || 'Subscription activated successfully!')
+
+            // Reload user data to show new subscription
+            await loadUserData()
+
+            // Clean up URL (remove query params)
+            window.history.replaceState({}, '', window.location.pathname)
+          } else {
+            showNotification('error', response.error || 'Failed to complete subscription. Please contact support.')
+          }
+        } catch (error) {
+          console.error('Error completing subscription:', error)
+          showNotification('error', 'Failed to complete subscription. Please contact support.')
+        }
+      }
+    }
+
+    completeSubscription()
   }, [])
 
   const loadUserData = async () => {
@@ -48,18 +101,29 @@ export default function SubscriptionManagementPage() {
       const response = await apiRequest('/subscriptions/upgrade', { method: 'POST' })
 
       if (response.status !== 200) {
-        alert(`Failed to start upgrade: ${response.error || 'Please try again.'}`)
+        showNotification('error', response.error || 'Failed to start upgrade. Please try again.')
         setActionLoading(false)
         setUpgradeModalOpen(false)
         return
       }
 
-      // Redirect user to PayPal approval URL
-      window.location.href = response.data?.approval_url
+      // Check if change was immediate or requires approval
+      if (response.data?.immediate) {
+        // Plan changed immediately - refresh to show new plan
+        showNotification('success', response.data?.message || 'Plan upgraded successfully!')
+        setTimeout(() => window.location.reload(), 1500)
+      } else if (response.data?.approval_url) {
+        // Redirect user to PayPal approval URL
+        window.location.href = response.data.approval_url
+      } else {
+        showNotification('error', 'Unexpected response from server. Please try again.')
+        setActionLoading(false)
+        setUpgradeModalOpen(false)
+      }
 
     } catch (error) {
       console.error('Upgrade error:', error)
-      alert('Failed to process upgrade. Please try again.')
+      showNotification('error', 'Failed to process upgrade. Please try again.')
       setActionLoading(false)
       setUpgradeModalOpen(false)
     }
@@ -72,18 +136,29 @@ export default function SubscriptionManagementPage() {
       const response = await apiRequest('/subscriptions/downgrade', { method: 'POST' })
 
       if (response.status !== 200) {
-        alert(`Failed to start downgrade: ${response.error || 'Please try again.'}`)
+        showNotification('error', response.error || 'Failed to start downgrade. Please try again.')
         setActionLoading(false)
         setDowngradeModalOpen(false)
         return
       }
 
-      // Redirect user to PayPal approval URL
-      window.location.href = response.data?.approval_url
+      // Check if change was immediate or requires approval
+      if (response.data?.immediate) {
+        // Plan changed immediately - refresh to show new plan
+        showNotification('success', response.data?.message || 'Plan downgraded successfully!')
+        setTimeout(() => window.location.reload(), 1500)
+      } else if (response.data?.approval_url) {
+        // Redirect user to PayPal approval URL
+        window.location.href = response.data.approval_url
+      } else {
+        showNotification('error', 'Unexpected response from server. Please try again.')
+        setActionLoading(false)
+        setDowngradeModalOpen(false)
+      }
 
     } catch (error) {
       console.error('Downgrade error:', error)
-      alert('Failed to process downgrade. Please try again.')
+      showNotification('error', 'Failed to process downgrade. Please try again.')
       setActionLoading(false)
       setDowngradeModalOpen(false)
     }
@@ -96,7 +171,7 @@ export default function SubscriptionManagementPage() {
       const response = await apiRequest('/subscriptions/cancel', { method: 'POST' })
 
       if (response.status !== 200) {
-        alert(`Failed to cancel subscription: ${response.error || 'Please try again.'}`)
+        showNotification('error', response.error || 'Failed to cancel subscription. Please try again.')
         setActionLoading(false)
         setCancelModalOpen(false)
         return
@@ -107,13 +182,13 @@ export default function SubscriptionManagementPage() {
         setUser({ ...user, subscription_status: 'CANCELLED' })
       }
 
-      alert(response.data?.message || 'Subscription cancelled. You will keep access until your billing period ends.')
+      showNotification('success', response.data?.message || 'Subscription cancelled. You will keep access until your billing period ends.')
       setActionLoading(false)
       setCancelModalOpen(false)
 
     } catch (error) {
       console.error('Cancel error:', error)
-      alert('Failed to cancel subscription. Please try again.')
+      showNotification('error', 'Failed to cancel subscription. Please try again.')
       setActionLoading(false)
       setCancelModalOpen(false)
     }
@@ -126,7 +201,7 @@ export default function SubscriptionManagementPage() {
       const response = await apiRequest('/subscriptions/reactivate', { method: 'POST' })
 
       if (response.status !== 200) {
-        alert(`Failed to reactivate subscription: ${response.error || 'Please try again.'}`)
+        showNotification('error', response.error || 'Failed to reactivate subscription. Please try again.')
         setActionLoading(false)
         setReactivateModalOpen(false)
         return
@@ -137,15 +212,51 @@ export default function SubscriptionManagementPage() {
         setUser({ ...user, subscription_status: 'ACTIVE' })
       }
 
-      alert(response.data?.message || 'Subscription reactivated successfully!')
+      showNotification('success', response.data?.message || 'Subscription reactivated successfully!')
       setActionLoading(false)
       setReactivateModalOpen(false)
 
     } catch (error) {
       console.error('Reactivate error:', error)
-      alert('Failed to reactivate subscription. Please try again.')
+      showNotification('error', 'Failed to reactivate subscription. Please try again.')
       setActionLoading(false)
       setReactivateModalOpen(false)
+    }
+  }
+
+  const handleResubscribe = async (planTier: 'BASIC' | 'PREMIUM') => {
+    setActionLoading(true)
+
+    try {
+      const response = await apiRequest('/subscriptions/create-new', {
+        method: 'POST',
+        body: JSON.stringify({ plan_tier: planTier })
+      })
+
+      if (response.status !== 200) {
+        showNotification('error', response.error || 'Failed to create new subscription. Please try again.')
+        setActionLoading(false)
+        setResubscribeModalOpen(false)
+        return
+      }
+
+      // Redirect to PayPal approval URL
+      if (response.data?.approval_url) {
+        showNotification('info', 'Redirecting to PayPal to complete your subscription...')
+        setTimeout(() => {
+          window.location.href = response.data.approval_url
+        }, 1000)
+      } else {
+        showNotification('error', 'Failed to get PayPal approval URL. Please try again.')
+        setActionLoading(false)
+        setResubscribeModalOpen(false)
+      }
+
+    } catch (error) {
+      console.error('Resubscribe error:', error)
+      showNotification('error', 'Failed to create new subscription. Please try again.')
+      setActionLoading(false)
+      setResubscribeModalOpen(false)
     }
   }
 
@@ -221,6 +332,48 @@ export default function SubscriptionManagementPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2]">
+      {/* Toast Notification */}
+      {notification.type && (
+        <div className={`fixed bottom-4 right-4 z-50 max-w-md p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
+          notification.type === 'success' ? 'bg-green-500 text-white' :
+          notification.type === 'error' ? 'bg-red-500 text-white' :
+          notification.type === 'info' ? 'bg-blue-500 text-white' : ''
+        }`}>
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              {notification.type === 'success' && (
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              )}
+              {notification.type === 'error' && (
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              )}
+              {notification.type === 'info' && (
+                <svg className="w-5 h-5 animate-spin" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                </svg>
+              )}
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium">{notification.message}</p>
+            </div>
+            <div className="ml-auto pl-3">
+              <button
+                onClick={() => setNotification({ type: null, message: '' })}
+                className="inline-flex text-white hover:text-gray-200 focus:outline-none focus:text-gray-200"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Header mode="app" />
 
       <main className="flex-1 px-6 py-12">
@@ -395,10 +548,10 @@ export default function SubscriptionManagementPage() {
                 </>
               )}
 
-              {isCancelled && (
+              {isSuspended && (
                 <>
                   <p className="text-gray-600 mb-6">
-                    Your subscription is cancelled but you still have access until your billing period ends. You can reactivate anytime.
+                    Your payment method failed. Update your payment method on PayPal, then reactivate your subscription to restore access.
                   </p>
                   <button
                     onClick={() => setReactivateModalOpen(true)}
@@ -409,18 +562,18 @@ export default function SubscriptionManagementPage() {
                 </>
               )}
 
-              {(isExpired || isSuspended) && (
+              {(isCancelled || isExpired) && (
                 <>
                   <p className="text-gray-600 mb-6">
-                    {isSuspended
-                      ? 'Update your payment method on PayPal to restore your subscription.'
-                      : 'Your subscription has expired. You can create a new subscription to regain access.'}
+                    {isCancelled
+                      ? 'Your subscription has been cancelled. Create a new subscription to regain access.'
+                      : 'Your subscription has expired. Create a new subscription to regain access.'}
                   </p>
                   <button
-                    onClick={() => router.push('/register')}
+                    onClick={() => setResubscribeModalOpen(true)}
                     className="px-6 py-3 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all"
                   >
-                    Create New Subscription
+                    Resubscribe
                   </button>
                 </>
               )}
@@ -447,8 +600,12 @@ export default function SubscriptionManagementPage() {
         onClose={() => setUpgradeModalOpen(false)}
         onConfirm={handleUpgrade}
         title="Upgrade to Premium?"
-        message="You'll be redirected to PayPal to approve the plan change. The upgrade will take effect at the start of your next billing cycle."
-        confirmText="Continue to PayPal"
+        message={
+          isTrial
+            ? "Your plan will be upgraded immediately during your trial. The new price will apply when your trial ends."
+            : "You may need to approve this change on PayPal. The upgrade will take effect at the start of your next billing cycle."
+        }
+        confirmText={isTrial ? "Upgrade Plan" : "Continue"}
         isLoading={actionLoading}
       />
 
@@ -457,8 +614,12 @@ export default function SubscriptionManagementPage() {
         onClose={() => setDowngradeModalOpen(false)}
         onConfirm={handleDowngrade}
         title="Downgrade to Basic?"
-        message="You'll lose access to Property Showcases and automated matching. The downgrade will take effect at the start of your next billing cycle."
-        confirmText="Continue to PayPal"
+        message={
+          isTrial
+            ? "You'll lose access to Property Showcases and automated matching. Your plan will be downgraded immediately during your trial."
+            : "You'll lose access to Property Showcases and automated matching. You may need to approve this change on PayPal. The downgrade will take effect at the start of your next billing cycle."
+        }
+        confirmText={isTrial ? "Downgrade Plan" : "Continue"}
         confirmButtonClass="bg-gray-600 hover:bg-gray-700"
         isLoading={actionLoading}
       />
@@ -481,6 +642,14 @@ export default function SubscriptionManagementPage() {
         title="Reactivate Subscription?"
         message="Your subscription will be reactivated and you'll continue to be billed at the end of your current period."
         confirmText="Reactivate"
+        isLoading={actionLoading}
+      />
+
+      {/* Resubscribe Modal */}
+      <ResubscribeModal
+        isOpen={resubscribeModalOpen}
+        onClose={() => setResubscribeModalOpen(false)}
+        onSelectPlan={handleResubscribe}
         isLoading={actionLoading}
       />
     </div>

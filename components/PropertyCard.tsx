@@ -41,7 +41,16 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
             </svg>
           </div>
         )}
-        
+
+        {/* NEW Badge - Top Left */}
+        {property.is_new && (
+          <div className="absolute top-4 left-4" title={property.added_at ? `Added ${new Date(property.added_at).toLocaleDateString()}` : 'Recently added'}>
+            <span className="bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold px-3 py-1 rounded-full text-xs shadow-lg border-2 border-white">
+              NEW
+            </span>
+          </div>
+        )}
+
         {/* Home Type Badge */}
         {property.propertyType && (
           <div className="absolute top-4 right-4">

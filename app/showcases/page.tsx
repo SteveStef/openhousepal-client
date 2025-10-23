@@ -798,7 +798,8 @@ export default function ShowcasesPage() {
   const handleSavePreferences = async (collectionId: string, preferences: any) => {
     try {
       console.log(`[PREFERENCES] Updating preferences for collection ${collectionId}:`, preferences)
-      
+      preferences.diameter = Math.round(preferences.diameter * 1.8 * 10) / 10     
+
       const response = await updateCollectionPreferences(collectionId, preferences)
 
       if (response.status === 200) {
@@ -981,7 +982,7 @@ export default function ShowcasesPage() {
           cities: collectionData.cities || [],
           townships: collectionData.townships || [],
           address: collectionData.address,
-          diameter: parseFloat(collectionData.diameter) || 10.0,
+          diameter: parseFloat((parseFloat(collectionData.diameter) * 1.8).toFixed(1)),
           
           // Property types
           is_town_house: collectionData.isTownHouse || false,
@@ -1973,7 +1974,7 @@ function CreateCollectionModal({
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Search Diameter (miles) {formData.address ? '*' : ''}
+                        Search Radius (miles) {formData.address ? '*' : ''}
                       </label>
                       <input
                         type="number"

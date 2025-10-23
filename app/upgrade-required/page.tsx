@@ -1,18 +1,39 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { CheckCircle2, Sparkles } from 'lucide-react'
+import { getCurrentUser, User } from '@/lib/auth'
 
 export default function UpgradeRequiredPage() {
   const router = useRouter()
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const userData = await getCurrentUser()
+        setUser(userData)
+      } catch (error) {
+        console.error('Error fetching user:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchUser()
+  }, [])
 
   const handleUpgrade = () => {
-    // TODO: Implement PayPal plan upgrade flow
-    // For now, redirect to register page with upgrade message
-    router.push('/register?upgrade=true')
+    // Redirect to subscription settings where user can upgrade their plan
+    router.push('/settings/subscription')
   }
+
+  // Check if user had a subscription but it's now inactive
+  const hasInactiveSubscription = user?.subscription_status &&
+    ['CANCELLED', 'EXPIRED', 'SUSPENDED'].includes(user.subscription_status)
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2]">
@@ -112,6 +133,21 @@ export default function UpgradeRequiredPage() {
               </button>
             </div>
           </div>
+
+          {/* Reactivate Basic Plan Button - Only show if user had a subscription that's now inactive */}
+          {!isLoading && hasInactiveSubscription && (
+            <div className="text-center mb-8">
+              <p className="text-gray-600 mb-4">
+                Or reactivate your Basic plan to continue using Open Houses
+              </p>
+              <button
+                onClick={handleUpgrade}
+                className="inline-flex items-center px-6 py-3 bg-white border-2 border-[#8b7355] text-[#8b7355] font-semibold rounded-xl hover:bg-[#8b7355] hover:text-white transition-all duration-300 shadow-md hover:shadow-lg"
+              >
+                Reactivate Basic Plan
+              </button>
+            </div>
+          )}
 
           {/* What are Showcases? */}
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">

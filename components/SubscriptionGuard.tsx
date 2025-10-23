@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getCurrentUser, User } from '@/lib/auth'
+import { getCurrentUser, hasValidSubscription, User } from '@/lib/auth'
 
 interface SubscriptionGuardProps {
   children: React.ReactNode
@@ -28,11 +28,10 @@ export default function SubscriptionGuard({ children, requiredPlan }: Subscripti
         return
       }
 
-      // Check subscription status is active or trial
-      const validStatuses = ['TRIAL', 'ACTIVE']
-      if (!user.subscription_status || !validStatuses.includes(user.subscription_status)) {
-        // Subscription expired, cancelled, or suspended
-        router.push('/subscription-expired')
+      // Check if user has valid subscription (including grace periods)
+      if (!hasValidSubscription(user)) {
+        // Subscription expired, cancelled without grace period, or suspended
+        router.push('/upgrade-required')
         return
       }
 

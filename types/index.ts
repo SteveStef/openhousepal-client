@@ -58,6 +58,8 @@ export interface Property {
   lotSizeAcres?: number;
   lotSizeSquareFeet?: number;
   county?: string;
+  added_at?: string; // ISO timestamp when property was added to collection
+  is_new?: boolean;   // Backend-computed flag for recently added properties
 }
 
 // New Open House Event interface matching backend schema

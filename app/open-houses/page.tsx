@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
-import { apiRequest, getCurrentUser, checkAuth } from '@/lib/auth'
+import { apiRequest, getCurrentUser, checkAuth, hasValidSubscription } from '@/lib/auth'
 
 interface PropertyImage {
   url: string;
@@ -135,13 +135,19 @@ export default function OpenHousesPage() {
       setIsAuthenticating(true)
       // Check if user is authenticated
       const isAuthenticated = await checkAuth()
-      
+
       if (!isAuthenticated) {
         console.log('❌ Authentication failed')
         // Try to get user data anyway - maybe the token is valid but /auth/me endpoint has issues
         const userData = await getCurrentUser()
         if (userData) {
-          console.log('✅ Got user data despite auth check failure - proceeding')
+          console.log('✅ Got user data despite auth check failure - checking subscription')
+          // Check subscription status
+          if (!hasValidSubscription(userData)) {
+            console.log('❌ Subscription invalid - redirecting to upgrade')
+            router.push('/upgrade-required')
+            return
+          }
           setCurrentUser(userData)
           await loadOpenHouseHistory()
         } else {
@@ -171,6 +177,14 @@ export default function OpenHousesPage() {
         router.push('/login')
         return
       }
+
+      // Check subscription status
+      if (!hasValidSubscription(user)) {
+        console.log('❌ Subscription invalid - redirecting to upgrade')
+        router.push('/upgrade-required')
+        return
+      }
+
       setCurrentUser(user)
       await loadOpenHouseHistory()
     } catch (error) {
