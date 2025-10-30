@@ -287,6 +287,26 @@ export async function register(userData: {
 }
 
 /**
+ * Request password reset email
+ */
+export async function requestPasswordReset(email: string): Promise<ApiResponse> {
+  return await apiRequest('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+/**
+ * Reset password with token
+ */
+export async function resetPassword(token: string, newPassword: string): Promise<ApiResponse> {
+  return await apiRequest('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+}
+
+/**
  * Check if user has valid subscription access (including grace periods)
  * This is the single source of truth for subscription validation
  */

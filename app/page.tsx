@@ -4,6 +4,40 @@ import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
 
+function FAQItem({ faq, index, isVisible }: { faq: { question: string; answer: string }; index: number; isVisible: boolean }) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <div
+      className={`bg-white rounded-xl border border-gray-200 shadow-sm transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+      style={{ transitionDelay: `${index * 100}ms` }}
+    >
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-6 py-5 text-left flex items-center justify-between hover:bg-gray-50 transition-colors duration-200 rounded-xl"
+      >
+        <h5 className="text-base font-semibold text-gray-900 pr-4">{faq.question}</h5>
+        <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
+          {isOpen ? (
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+            </svg>
+          )}
+        </div>
+      </button>
+      {isOpen && (
+        <div className="px-6 pb-5 pt-0">
+          <p className="text-gray-600 leading-relaxed text-sm">{faq.answer}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function HomePage() {
   const [isVisible, setIsVisible] = useState(false)
 
@@ -110,9 +144,6 @@ export default function HomePage() {
                     className="group px-8 py-4 bg-[#f5f4f2]/80 text-gray-900 rounded-xl font-semibold border border-gray-300 hover:bg-[#f5f4f2] hover:border-gray-400 transition-all duration-300 hover:scale-105 backdrop-blur-sm shadow-sm"
                   >
                     <span className="flex items-center justify-center">
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-3-9h.01M12 3C8.686 3 6 5.686 6 9c0 1.829.8 3.482 2.077 4.625.239.214.439.531.439.875 0 .621-.504 1.125-1.125 1.125S6.266 15.121 6.266 14.5c0-.621.504-1.125 1.125-1.125.621 0 1.125.504 1.125 1.125" />
-                      </svg>
                       Watch Demo
                     </span>
                   </Link>
@@ -150,63 +181,103 @@ export default function HomePage() {
               {/* Right Visual */}
               <div className="relative lg:pl-8">
                 <div className="relative">
-                  {/* Main Device Mockup */}
-                  <div className="relative bg-white/80 rounded-3xl p-8 border border-gray-200/60 backdrop-blur-sm shadow-xl">
-                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200">
-                      <div className="flex items-center justify-between mb-6">
-                        <div className="w-3 h-3 bg-[#8b7355] rounded-full"></div>
-                        <div className="flex space-x-2">
-                          <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                        </div>
-                      </div>
-                      
-                      <div className="text-center mb-6">
-                        <div className="w-20 h-20 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-2xl mx-auto mb-4 flex items-center justify-center animate-pulse">
-                          <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
-                          </svg>
-                        </div>
-                        <h3 className="text-gray-900 font-bold mb-2">QR Code Generated</h3>
-                        <p className="text-gray-600 text-sm">123 Main St, West Chester PA</p>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <div className="bg-gray-100 rounded-lg p-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-600 text-sm">Visitors Today</span>
-                            <span className="text-gray-900 font-bold">12</span>
+                  {/* Mobile Phone Mockup */}
+                  <div className="relative max-w-xs mx-auto">
+                    {/* Phone Frame */}
+                    <div className="relative bg-gray-900 rounded-[3rem] p-3 shadow-2xl">
+                      {/* Phone Notch */}
+                      <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-40 h-7 bg-gray-900 rounded-b-3xl z-10"></div>
+
+                      {/* Phone Screen */}
+                      <div className="relative bg-white rounded-[2.5rem] overflow-hidden" style={{ aspectRatio: '9/19.5' }}>
+                        {/* Status Bar */}
+                        <div className="flex justify-between items-center px-8 pt-2 pb-1 text-xs">
+                          <span className="font-semibold">9:41</span>
+                          <div className="flex space-x-1 items-center">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                            </svg>
                           </div>
                         </div>
-                        <div className="bg-gray-100 rounded-lg p-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-600 text-sm">Showcases Created</span>
-                            <span className="text-[#8b7355] font-bold">8</span>
+
+                        {/* App Content */}
+                        <div className="px-6 py-4 bg-gradient-to-br from-[#faf9f7] to-white min-h-full">
+                          {/* Header */}
+                          <div className="text-center mb-6">
+                            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-2xl mb-3">
+                              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                              </svg>
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900 mb-1">Welcome to Open House</h3>
+                            <p className="text-xs text-gray-600">123 Main St, West Chester PA</p>
                           </div>
-                        </div>
-                        <div className="bg-gray-100 rounded-lg p-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-600 text-sm">Tour Requests</span>
-                            <span className="text-[#8b7355] font-bold">3</span>
+
+                          {/* Sign-in Form */}
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Full Name</label>
+                              <div className="bg-white rounded-lg px-3 py-2 border border-gray-200 text-sm text-gray-400">
+                                John Smith
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+                              <div className="bg-white rounded-lg px-3 py-2 border border-gray-200 text-sm text-gray-400">
+                                john@example.com
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Phone Number</label>
+                              <div className="bg-white rounded-lg px-3 py-2 border border-gray-200 text-sm text-gray-400">
+                                (555) 123-4567
+                              </div>
+                            </div>
+
+                            <div className="pt-2">
+                              <label className="block text-xs font-medium text-gray-900 mb-2">What are you looking for?</label>
+                              <div className="grid grid-cols-3 gap-2 mb-2">
+                                <div className="bg-[#8b7355] text-white rounded-lg px-2 py-1.5 text-xs text-center font-medium">
+                                  3 Beds
+                                </div>
+                                <div className="bg-[#8b7355] text-white rounded-lg px-2 py-1.5 text-xs text-center font-medium">
+                                  2 Baths
+                                </div>
+                                <div className="bg-white rounded-lg px-2 py-1.5 text-xs text-center border border-gray-200 text-gray-400">
+                                  2 Cars
+                                </div>
+                              </div>
+                              <div className="bg-white rounded-lg px-3 py-2 border border-gray-200 text-sm text-gray-400 mb-3">
+                                $300k - $400k
+                              </div>
+                            </div>
+
+                            <button className="w-full bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-lg py-3 font-semibold text-sm shadow-lg">
+                              Get My Property Matches
+                            </button>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                  
-                  {/* Floating Elements */}
-                  <div className="absolute -top-4 -right-4 w-16 h-16 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-2xl flex items-center justify-center animate-bounce shadow-lg shadow-[#8b7355]/25">
-                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                    </svg>
+
+                  {/* Floating Success Badge */}
+                  <div className="absolute -top-4 -right-4 bg-white rounded-2xl p-3 shadow-xl border border-gray-200 animate-bounce">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-8 h-8 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-lg flex items-center justify-center">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <div className="text-xs">
+                        <div className="text-gray-900 font-bold">Showcase</div>
+                        <div className="text-gray-600">Created!</div>
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="absolute -bottom-6 -left-6 w-12 h-12 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-xl flex items-center justify-center animate-pulse shadow-lg shadow-[#8b7355]/25">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  </div>
+
                 </div>
               </div>
             </div>
@@ -221,23 +292,20 @@ export default function HomePage() {
             <div className={`text-center mb-16 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
               <h3 className="text-5xl font-bold text-gray-900 mb-6 font-light">How Open House Pal Works</h3>
               <p className="text-xl text-gray-600 font-light max-w-3xl mx-auto">
-                Our intelligent platform transforms traditional open houses into automated lead generation systems
+                From QR code creation to tour bookings - a complete lead generation workflow in four simple steps
               </p>
             </div>
-            
-            <div className="grid md:grid-cols-3 gap-8 relative">
-              {/* Connection Lines */}
-              <div className="hidden md:block absolute top-1/2 left-1/3 w-1/3 h-0.5 bg-gradient-to-r from-[#8b7355]/50 to-[#7a6549]/50 transform -translate-y-1/2 animate-pulse" />
-              <div className="hidden md:block absolute top-1/2 right-1/3 w-1/3 h-0.5 bg-gradient-to-r from-[#8b7355]/50 to-[#7a6549]/50 transform -translate-y-1/2 animate-pulse" style={{ animationDelay: '1s' }} />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
               
               {[
                 {
                   step: 1,
-                  title: "Generate QR Codes",
-                  description: "Create property-specific QR codes that automatically populate with MLS listing details, pricing, and property features. Print and place at open houses for instant visitor engagement.",
+                  title: "Create Your Open House",
+                  description: "Enter the property address and our system instantly fetches data from Zillow. Select your favorite photo for marketing materials, generate a custom QR code, and download professional PDF flyers to display at the open house.",
                   icon: (
                     <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V6a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1z"></path>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                     </svg>
                   ),
                   color: "from-[#8b7355] to-[#7a6549]",
@@ -245,8 +313,20 @@ export default function HomePage() {
                 },
                 {
                   step: 2,
-                  title: "Auto-Build Showcases",
-                  description: "Advanced AI algorithms analyze visitor preferences and automatically create personalized property showcases using intelligent filtering based on price range, location proximity, and feature matching.",
+                  title: "Visitors Sign In",
+                  description: "Open house visitors scan your QR code and complete a simple 4-step form. They provide their name, contact info, purchase timeframe, agent status, and whether they're interested in seeing similar properties.",
+                  icon: (
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                  ),
+                  color: "from-[#8b7355] to-[#7a6549]",
+                  delay: "delay-300"
+                },
+                {
+                  step: 3,
+                  title: "Showcase Auto-Generated",
+                  description: "When visitors opt in, the system instantly creates a personalized property collection based on the home they visited. Matching properties from Zillow are automatically populated using price, beds, baths, and location filters.",
                   icon: (
                     <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
@@ -256,16 +336,16 @@ export default function HomePage() {
                   delay: "delay-400"
                 },
                 {
-                  step: 3,
-                  title: "Engage & Convert",
-                  description: "Monitor real-time visitor engagement through your dashboard. Track property likes, tour requests, and visitor interactions. Receive instant notifications for immediate follow-up opportunities.",
+                  step: 4,
+                  title: "Engage & Book Tours",
+                  description: "Visitors view their personalized showcase, like or dislike properties, leave comments, and request tours with preferred dates and times. You monitor all interactions through your dashboard and follow up instantly on hot leads.",
                   icon: (
                     <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                     </svg>
                   ),
                   color: "from-[#8b7355] to-[#7a6549]",
-                  delay: "delay-600"
+                  delay: "delay-500"
                 }
               ].map((item, index) => (
                 <div key={index} className={`group transform transition-all duration-1000 ${item.delay} ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
@@ -295,180 +375,188 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Key Features */}
+          {/* Subscription Tiers */}
           <div className="py-20">
             <div className={`text-center mb-16 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-              <h3 className="text-5xl font-bold text-gray-900 mb-6 font-light">Everything You Need to Convert Leads</h3>
+              <h3 className="text-5xl font-bold text-gray-900 mb-6 font-light">Choose Your Plan</h3>
               <p className="text-xl text-gray-600 font-light max-w-3xl mx-auto">
-                Comprehensive suite of tools designed specifically for modern real estate professionals
+                Simple pricing that grows with your business
               </p>
             </div>
-            
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[
-                { 
-                  title: 'QR Code Generation', 
-                  desc: 'Property-specific codes with auto-populated forms and instant MLS data integration',
-                  icon: '📱',
-                  color: 'hover:shadow-[#8b7355]/20'
-                },
-                { 
-                  title: 'Smart Matching', 
-                  desc: 'AI-powered preference detection and intelligent property filtering algorithms',
-                  icon: '🤖',
-                  color: 'hover:shadow-[#8b7355]/20'
-                },
-                { 
-                  title: 'Customer Portal', 
-                  desc: 'Interactive showcases where visitors engage with properties and request tours',
-                  icon: '🏠',
-                  color: 'hover:shadow-[#8b7355]/20'
-                },
-                { 
-                  title: 'Agent Dashboard', 
-                  desc: 'Complete lead management and real-time analytics platform with insights',
-                  icon: '📊',
-                  color: 'hover:shadow-[#8b7355]/20'
-                },
-                { 
-                  title: 'Cloud Storage', 
-                  desc: 'Secure cloud backup and synchronization of all your property data',
-                  icon: '🔄',
-                  color: 'hover:shadow-[#8b7355]/20'
-                },
-                { 
-                  title: 'Usage Analytics', 
-                  desc: 'Track engagement, views, conversion metrics and ROI performance',
-                  icon: '📈',
-                  color: 'hover:shadow-[#8b7355]/20'
-                },
-                { 
-                  title: 'Mobile Optimized', 
-                  desc: 'Perfect responsive experience on all devices and screen sizes',
-                  icon: '📲',
-                  color: 'hover:shadow-[#8b7355]/20'
-                },
-                { 
-                  title: 'Automated Follow-up', 
-                  desc: 'Email notifications, lead nurturing and automated marketing campaigns',
-                  icon: '✉️',
-                  color: 'hover:shadow-[#8b7355]/20'
-                }
-              ].map((feature, index) => (
-                <div 
-                  key={index} 
-                  className={`group bg-white/90 rounded-2xl p-6 border border-gray-200/60 backdrop-blur-lg hover:bg-white hover:border-gray-300 transition-all duration-500 hover:scale-105 hover:shadow-xl ${feature.color} transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} shadow-lg`}
-                  style={{ transitionDelay: `${index * 100 + 1200}ms` }}
-                >
-                  <div className="text-3xl mb-4 group-hover:scale-110 transition-transform duration-300">
-                    {feature.icon}
-                  </div>
-                  <h5 className="text-xl font-bold text-gray-900 mb-3 font-light group-hover:text-[#8b7355] transition-colors duration-300">
-                    {feature.title}
-                  </h5>
-                  <p className="text-gray-600 text-sm font-light leading-relaxed group-hover:text-gray-700 transition-colors duration-300">
-                    {feature.desc}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Testimonials */}
-          <div className="py-20">
-            <div className={`text-center mb-16 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-              <h3 className="text-5xl font-bold text-gray-900 mb-6 font-light">Trusted by Top Agents</h3>
-              <p className="text-xl text-gray-600 font-light max-w-3xl mx-auto">
-                Real estate professionals are already transforming their open houses with Open House Pal
-              </p>
-            </div>
-            
-            <div className="grid md:grid-cols-3 gap-8">
-              {[
-                {
-                  name: "Sarah Mitchell",
-                  title: "Top Producer, Coldwell Banker",
-                  quote: "Open House Pal has revolutionized my open houses. I'm generating 3x more qualified leads and my follow-up process is completely automated.",
-                  image: "SM"
-                },
-                {
-                  name: "Michael Rodriguez",
-                  title: "Team Leader, RE/MAX",
-                  quote: "The AI-powered matching is incredible. Visitors are engaging with properties they actually want to see, not just random listings.",
-                  image: "MR"
-                },
-                {
-                  name: "Jennifer Chen",
-                  title: "Luxury Specialist, Sotheby's",
-                  quote: "My clients love the personalized showcases. It shows I understand their preferences and saves everyone time.",
-                  image: "JC"
-                }
-              ].map((testimonial, index) => (
-                <div 
-                  key={index} 
-                  className={`group bg-white/90 rounded-2xl p-8 border border-gray-200/60 backdrop-blur-lg hover:bg-white hover:border-gray-300 transition-all duration-500 hover:scale-105 hover:shadow-xl hover:shadow-[#8b7355]/10 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} shadow-lg`}
-                  style={{ transitionDelay: `${index * 200 + 1400}ms` }}
-                >
-                  <div className="flex items-center mb-6">
-                    <div className="w-12 h-12 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-full flex items-center justify-center text-white font-bold mr-4">
-                      {testimonial.image}
+            <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+              {/* Basic Plan */}
+              <div className={`bg-white/90 rounded-3xl p-8 border border-gray-200/60 backdrop-blur-lg hover:bg-white hover:border-gray-300 transition-all duration-500 hover:scale-105 hover:shadow-2xl shadow-lg transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'}`}>
+                <div className="text-center mb-6">
+                  <h4 className="text-3xl font-bold text-gray-900 mb-2 font-light">Basic</h4>
+                  <div className="mb-4">
+                    <div className="flex items-baseline justify-center mb-2">
+                      <span className="text-5xl font-bold text-gray-900">$49</span>
+                      <span className="text-gray-600 ml-2">/month</span>
                     </div>
-                    <div>
-                      <div className="font-bold text-gray-900">{testimonial.name}</div>
-                      <div className="text-gray-600 text-sm">{testimonial.title}</div>
-                    </div>
+                    <div className="text-sm text-[#8b7355] font-semibold">Free First Month Trial</div>
                   </div>
-                  <p className="text-gray-700 font-light leading-relaxed italic group-hover:text-gray-800 transition-colors duration-300">
-                    "{testimonial.quote}"
-                  </p>
-                  <div className="flex text-yellow-400 mt-4">
-                    {[...Array(5)].map((_, i) => (
-                      <svg key={i} className="w-5 h-5 fill-current" viewBox="0 0 20 20">
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  <p className="text-gray-600 text-sm">Perfect for individual agents just starting out</p>
+                </div>
+
+                <div className="space-y-4 mb-8">
+                  {[
+                    'Unlimited open house QR codes',
+                    'Visitor sign-in forms',
+                    'Lead capture & contact info',
+                    'Email notifications',
+                    'Open house management',
+                    'Dashboard analytics'
+                  ].map((feature, index) => (
+                    <div key={index} className="flex items-start">
+                      <svg className="w-5 h-5 text-[#8b7355] mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                       </svg>
-                    ))}
+                      <span className="text-gray-700">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <Link
+                  href="/register"
+                  className="block w-full text-center px-6 py-4 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-[#8b7355]/25"
+                >
+                  Start Free Trial
+                </Link>
+              </div>
+
+              {/* Premium Plan */}
+              <div className={`bg-white/90 rounded-3xl p-8 border-2 border-[#8b7355] backdrop-blur-lg hover:bg-white transition-all duration-500 hover:scale-105 hover:shadow-2xl shadow-xl transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative`}>
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                  <div className="bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white px-4 py-1 rounded-full text-sm font-semibold">
+                    Most Popular
                   </div>
                 </div>
+
+                <div className="text-center mb-6">
+                  <h4 className="text-3xl font-bold text-gray-900 mb-2 font-light">Premium</h4>
+                  <div className="mb-4">
+                    <div className="flex items-baseline justify-center mb-2">
+                      <span className="text-5xl font-bold text-gray-900">$99</span>
+                      <span className="text-gray-600 ml-2">/month</span>
+                    </div>
+                    <div className="text-sm text-[#8b7355] font-semibold">Free First Month Trial</div>
+                  </div>
+                  <p className="text-gray-600 text-sm">Perfect for teams and high-volume agents</p>
+                </div>
+
+                <div className="space-y-4 mb-8">
+                  <div className="flex items-start">
+                    <svg className="w-5 h-5 text-[#8b7355] mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-gray-700 font-semibold">Everything in Basic, plus:</span>
+                  </div>
+                  {[
+                    'Personalized property showcases',
+                    'Auto-populated property matches',
+                    'Visitor interaction tracking',
+                    'Tour request management',
+                    'Up to 10 active collections',
+                    'Advanced analytics & insights'
+                  ].map((feature, index) => (
+                    <div key={index} className="flex items-start">
+                      <svg className="w-5 h-5 text-[#8b7355] mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="text-gray-700">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <Link
+                  href="/register"
+                  className="block w-full text-center px-6 py-4 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-[#8b7355]/25"
+                >
+                  Start Free Trial
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* FAQ Section */}
+          <div className="py-20">
+            <div className={`text-center mb-16 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+              <h3 className="text-5xl font-bold text-gray-900 mb-6 font-light">Frequently Asked Questions</h3>
+              <p className="text-xl text-gray-600 font-light max-w-3xl mx-auto">
+                Everything you need to know about Open House Pal
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6 max-w-6xl mx-auto items-start">
+              {[
+                {
+                  question: "How does the QR code work?",
+                  answer: "Simply enter your property address, and we'll generate a unique QR code. Print it and display it at your open house. When visitors scan it with their phone, they're directed to the sign-in page."
+                },
+                {
+                  question: "What's the difference between Basic and Premium?",
+                  answer: "Basic ($49/month) includes lead capture with unlimited QR codes and visitor forms. Premium ($99/month) adds personalized property showcases, tour booking, and interaction tracking."
+                },
+                {
+                  question: "Where does the property data come from?",
+                  answer: "We pull property data directly from Zillow's API, including photos, pricing, beds, baths, square footage, and detailed descriptions for accurate, up-to-date information."
+                },
+                {
+                  question: "Can I cancel anytime?",
+                  answer: "Yes! There are no contracts or commitments. Cancel your subscription anytime from your account settings. Your data and existing QR codes continue to work."
+                }
+              ].map((faq, index) => (
+                <FAQItem key={index} faq={faq} index={index} isVisible={isVisible} />
               ))}
             </div>
           </div>
 
-          {/* Pricing Section */}
+          {/* Premium Spotlight Section */}
           <div className="py-16">
             <div className={`text-center mb-12 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-              <h3 className="text-4xl font-bold text-gray-900 mb-4 font-light">Simple, Transparent Pricing</h3>
+              <h3 className="text-4xl font-bold text-gray-900 mb-4 font-light">Unlock Premium Features</h3>
               <p className="text-lg text-gray-600 font-light">
-                Start with a free month trial, then continue for just $50/month
+                Take your lead generation to the next level with Premium
               </p>
             </div>
-            
+
             <div className="grid lg:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
-              {/* Left Side - Benefits & Features */}
+              {/* Left Side - Premium Features */}
               <div className={`transform transition-all duration-1000 delay-200 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'}`}>
-                <h4 className="text-2xl font-bold text-gray-900 mb-6 font-light">Everything you need to convert leads</h4>
+                <h4 className="text-2xl font-bold text-gray-900 mb-6 font-light">Premium includes everything in Basic, plus:</h4>
                 <p className="text-gray-600 mb-8 font-light leading-relaxed">
-                  Get unlimited access to all Open House Pal features and transform every open house into a lead generation machine.
+                  Transform visitor interest into qualified leads with personalized property showcases and advanced engagement tools.
                 </p>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+
+                <div className="space-y-4">
                   {[
-                    {
-                      icon: (
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V6a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1z" />
-                        </svg>
-                      ),
-                      title: "Unlimited QR Codes",
-                      description: "Generate as many property-specific QR codes as you need"
-                    },
                     {
                       icon: (
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                         </svg>
                       ),
-                      title: "Smart Showcases",
-                      description: "AI-powered property matching and automated showcases"
+                      title: "Personalized Property Showcases",
+                      description: "Automatically create custom property collections for each interested visitor"
+                    },
+                    {
+                      icon: (
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                      ),
+                      title: "Visitor Interaction Tracking",
+                      description: "See which properties visitors like, dislike, or favorite in real-time"
+                    },
+                    {
+                      icon: (
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      ),
+                      title: "Tour Request Management",
+                      description: "Receive and manage tour bookings directly from interested visitors"
                     },
                     {
                       icon: (
@@ -476,17 +564,8 @@ export default function HomePage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                         </svg>
                       ),
-                      title: "Real-time Analytics",
-                      description: "Track visitor engagement and conversion metrics"
-                    },
-                    {
-                      icon: (
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                      ),
-                      title: "Data Analytics",
-                      description: "Advanced insights and reporting on visitor engagement"
+                      title: "Advanced Analytics",
+                      description: "Detailed insights on engagement, views, and conversion metrics"
                     }
                   ].map((feature, index) => (
                     <div key={index} className="flex space-x-4">
@@ -501,36 +580,39 @@ export default function HomePage() {
                   ))}
                 </div>
               </div>
-              
-              {/* Right Side - Pricing Card */}
+
+              {/* Right Side - Premium Pricing Card */}
               <div className={`transform transition-all duration-1000 delay-400 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'}`}>
-                <div className="relative group bg-white/90 rounded-2xl p-8 border border-gray-200/60 backdrop-blur-lg hover:bg-white hover:border-gray-300 transition-all duration-500 ring-2 ring-[#8b7355]/50 shadow-xl">
+                <div className="relative group bg-white/90 rounded-2xl p-8 border-2 border-[#8b7355] backdrop-blur-lg hover:bg-white transition-all duration-500 shadow-xl">
                   <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <div className="bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white px-3 py-1 rounded-full text-sm font-medium">
-                      Free First Month
+                    <div className="bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white px-4 py-1 rounded-full text-sm font-semibold">
+                      Most Popular
                     </div>
                   </div>
-                  
+
                   <div className="text-center mb-6">
-                    <h4 className="text-2xl font-bold text-gray-900 mb-4 font-light">Open House Pal</h4>
+                    <h4 className="text-2xl font-bold text-gray-900 mb-4 font-light">Premium Plan</h4>
                     <div className="mb-4">
                       <div className="flex items-baseline justify-center mb-2">
-                        <span className="text-5xl font-bold text-gray-900">$0</span>
-                        <span className="text-gray-600 ml-2">first month</span>
+                        <span className="text-5xl font-bold text-gray-900">$99</span>
+                        <span className="text-gray-600 ml-2">/month</span>
                       </div>
-                      <div className="text-gray-600">
-                        Then <span className="text-gray-900 font-semibold">$50/month</span>
+                      <div className="text-sm text-[#8b7355] font-semibold mb-2">
+                        Free First Month Trial
+                      </div>
+                      <div className="text-gray-600 text-sm">
+                        Or start with <Link href="/register" className="text-[#8b7355] hover:underline font-semibold">Basic at $49/month</Link>
                       </div>
                     </div>
                   </div>
-                  
+
                   <Link
                     href="/register"
                     className="block w-full text-center px-6 py-4 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-[#8b7355]/25 text-lg mb-4"
                   >
-                    Start Free Month Trial
+                    Start Premium Trial
                   </Link>
-                  
+
                   <div className="space-y-3 text-center">
                     <p className="text-xs text-gray-500">
                       Cancel anytime. No contracts. No commitments.
