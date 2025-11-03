@@ -499,8 +499,8 @@ export default function HomePage() {
                   answer: "Basic ($49/month) includes lead capture with unlimited QR codes and visitor forms. Premium ($99/month) adds personalized property showcases, tour booking, and interaction tracking."
                 },
                 {
-                  question: "Where does the property data come from?",
-                  answer: "We pull property data directly from Zillow's API, including photos, pricing, beds, baths, square footage, and detailed descriptions for accurate, up-to-date information."
+                  question: "Does this work on all phones?",
+                  answer: "Yes! Our platform is mobile-first and works on any smartphone. Visitors can scan QR codes with their camera app on iPhone or Android - no special app needed."
                 },
                 {
                   question: "Can I cancel anytime?",

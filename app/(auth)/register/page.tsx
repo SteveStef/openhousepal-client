@@ -19,8 +19,8 @@ const PLANS = {
   BASIC: {
     id: process.env.NEXT_PUBLIC_BASIC_PLAN_ID || '',
     name: 'Basic Plan',
-    price: '$49.99',
-    priceValue: 49.99,
+    price: '$49.95',
+    priceValue: 49.95,
     tier: 'BASIC',
     features: [
       'Generated PDFs for properties',
@@ -31,8 +31,8 @@ const PLANS = {
   PREMIUM: {
     id: process.env.NEXT_PUBLIC_PREMIUM_PLAN_ID || '',
     name: 'Premium Plan',
-    price: '$99.99',
-    priceValue: 99.99,
+    price: '$99.95',
+    priceValue: 99.95,
     tier: 'PREMIUM',
     features: [
       'Everything in Basic',

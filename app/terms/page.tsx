@@ -21,7 +21,13 @@ export default function TermsPage() {
       <div className="max-w-4xl mx-auto px-6 py-12">
         <div className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-gray-200">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Terms of Service</h1>
-          <p className="text-gray-600 mb-8">Last Updated: October 21, 2025</p>
+          <p className="text-gray-600 mb-8">Last Updated: November 2, 2025</p>
+
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8">
+            <p className="text-sm text-yellow-800">
+              <strong>Important:</strong> Please read these Terms of Service carefully before using our Service. By using Open House Pal, you agree to be bound by these Terms. If you do not agree, do not use the Service.
+            </p>
+          </div>
 
           <div className="prose prose-gray max-w-none space-y-6 text-gray-700">
             <section>
@@ -152,37 +158,163 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4">12. Modifications to Service</h2>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">12. Indemnification</h2>
+              <p>
+                You agree to indemnify, defend, and hold harmless Open House Pal, its officers, directors, employees, agents, and affiliates from and against any and all claims, liabilities, damages, losses, costs, expenses, or fees (including reasonable attorneys' fees) arising from:
+              </p>
+              <ul className="list-disc pl-6 space-y-2 mt-2">
+                <li>Your use or misuse of the Service</li>
+                <li>Your violation of these Terms of Service</li>
+                <li>Your violation of any rights of another person or entity</li>
+                <li>Your collection, storage, or use of visitor data through the Service</li>
+                <li>Any content you submit, post, or transmit through the Service</li>
+                <li>Your violation of any applicable laws, regulations, or third-party rights</li>
+              </ul>
+              <p className="mt-4">
+                This indemnification obligation will survive the termination of your account and your use of the Service.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">13. DMCA Copyright Policy</h2>
+              <p>
+                We respect the intellectual property rights of others. If you believe that content available through the Service infringes your copyright, please notify us with the following information:
+              </p>
+              <ul className="list-disc pl-6 space-y-2 mt-2">
+                <li>A physical or electronic signature of the copyright owner or authorized representative</li>
+                <li>Identification of the copyrighted work claimed to have been infringed</li>
+                <li>Identification of the material that is claimed to be infringing and its location on the Service</li>
+                <li>Your contact information (address, telephone number, email address)</li>
+                <li>A statement that you have a good faith belief that the disputed use is not authorized</li>
+                <li>A statement under penalty of perjury that the information is accurate</li>
+              </ul>
+              <p className="mt-4">
+                Send DMCA notices to the support email located at the bottom of this page
+              </p>
+              <p className="mt-4">
+                We may terminate the accounts of repeat infringers in appropriate circumstances.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">14. Data Security and Breach Limitation</h2>
+              <p>
+                While we implement reasonable security measures to protect your data and visitor information, no system is completely secure. You acknowledge and agree that:
+              </p>
+              <ul className="list-disc pl-6 space-y-2 mt-2">
+                <li>You use the Service at your own risk regarding data security</li>
+                <li>We are not liable for unauthorized access to or alteration, theft, or destruction of data</li>
+                <li>You are responsible for maintaining backup copies of your critical data</li>
+                <li>In the event of a data breach, our liability is limited as set forth in Section 11</li>
+              </ul>
+              <p className="mt-4">
+                We will make reasonable efforts to notify you of any security breach affecting your data as required by applicable law.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">15. Force Majeure</h2>
+              <p>
+                Open House Pal shall not be liable for any failure or delay in performance due to causes beyond our reasonable control, including but not limited to:
+              </p>
+              <ul className="list-disc pl-6 space-y-2 mt-2">
+                <li>Acts of God, natural disasters, or severe weather</li>
+                <li>War, terrorism, riots, or civil unrest</li>
+                <li>Government actions, laws, or regulations</li>
+                <li>Internet service provider failures or delays</li>
+                <li>Cyber attacks, hacking, or denial of service attacks</li>
+                <li>Third-party service provider outages (including but not limited to cloud hosting, payment processors, or API providers)</li>
+                <li>Pandemics or public health emergencies</li>
+              </ul>
+              <p className="mt-4">
+                During such events, our obligations under these Terms will be suspended for the duration of the force majeure event.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">16. Modifications to Service</h2>
               <p>
                 We reserve the right to modify, suspend, or discontinue any aspect of the Service at any time without notice. We may also impose limits on certain features or restrict access to parts or all of the Service without notice or liability.
               </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4">13. Changes to Terms</h2>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">17. Changes to Terms</h2>
               <p>
                 We reserve the right to modify these Terms at any time. We will notify users of any material changes by posting the new Terms on this page and updating the "Last Updated" date. Your continued use of the Service after such modifications constitutes your acceptance of the updated Terms.
               </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4">14. Governing Law</h2>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">18. Dispute Resolution and Arbitration Agreement</h2>
+              <p className="font-semibold mb-2">
+                PLEASE READ THIS SECTION CAREFULLY. IT AFFECTS YOUR LEGAL RIGHTS, INCLUDING YOUR RIGHT TO FILE A LAWSUIT IN COURT.
+              </p>
               <p>
-                These Terms shall be governed by and construed in accordance with the laws of the United States, without regard to its conflict of law provisions. Any disputes arising from these Terms or your use of the Service shall be resolved through binding arbitration.
+                <strong>18.1 Informal Resolution.</strong> Before filing a claim, you agree to try to resolve the dispute informally by contacting us at our support email. We will attempt to resolve the dispute informally within 60 days.
+              </p>
+              <p className="mt-4">
+                <strong>18.2 Binding Arbitration.</strong> If we cannot resolve the dispute informally, you agree that any dispute, claim, or controversy arising out of or relating to these Terms or the Service will be settled by binding arbitration administered by the American Arbitration Association (AAA) under its Commercial Arbitration Rules. The arbitration will be conducted in Delaware, and judgment on the arbitration award may be entered in any court having jurisdiction.
+              </p>
+              <p className="mt-4">
+                <strong>18.3 Class Action Waiver.</strong> YOU AND OPEN HOUSE PAL AGREE THAT EACH MAY BRING CLAIMS AGAINST THE OTHER ONLY IN YOUR OR ITS INDIVIDUAL CAPACITY AND NOT AS A PLAINTIFF OR CLASS MEMBER IN ANY PURPORTED CLASS OR REPRESENTATIVE PROCEEDING. Unless both you and Open House Pal agree otherwise, the arbitrator may not consolidate more than one person's claims and may not otherwise preside over any form of a representative or class proceeding.
+              </p>
+              <p className="mt-4">
+                <strong>18.4 Exceptions.</strong> Notwithstanding the foregoing, either party may bring a claim in small claims court if it qualifies. Additionally, either party may seek injunctive or other equitable relief in court to prevent the actual or threatened infringement, misappropriation, or violation of intellectual property rights.
+              </p>
+              <p className="mt-4">
+                <strong>18.5 Opt-Out.</strong> You may opt out of this arbitration agreement within 30 days of first accepting these Terms by sending written notice to the support email with a subject line "Arbitration Opt-Out" and including your name, address, and account email.
               </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4">15. Contact Information</h2>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">19. Governing Law and Venue</h2>
+              <p>
+                These Terms shall be governed by and construed in accordance with the laws of the State of Delaware, United States, without regard to its conflict of law provisions. To the extent arbitration does not apply, you agree that any legal action or proceeding shall be brought exclusively in the state or federal courts located in Delaware, and you hereby consent to the personal jurisdiction and venue of such courts.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">20. Attorney's Fees</h2>
+              <p>
+                In any action or proceeding to enforce rights under these Terms, the prevailing party will be entitled to recover its reasonable costs and attorneys' fees.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">21. Severability</h2>
+              <p>
+                If any provision of these Terms is found to be unlawful, void, or unenforceable, that provision shall be deemed severable from these Terms and shall not affect the validity and enforceability of any remaining provisions. The failure of Open House Pal to enforce any right or provision of these Terms will not be deemed a waiver of such right or provision.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">22. Entire Agreement</h2>
+              <p>
+                These Terms, together with our Privacy Policy and any other legal notices published by us on the Service, constitute the entire agreement between you and Open House Pal concerning the Service and supersede all prior or contemporaneous understandings and agreements, whether written or oral, regarding the Service.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">23. Assignment</h2>
+              <p>
+                You may not assign or transfer these Terms or your rights hereunder, in whole or in part, without our prior written consent. We may assign these Terms at any time without notice to you. Any attempted assignment in violation of this section shall be void.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">24. Contact Information</h2>
               <p>
                 If you have any questions about these Terms of Service, please contact us at:
               </p>
               <p className="mt-2">
-                Email: support@openhousepal.com
+                Email: stephenstef456@gmail.com
+              </p>
+              <p className="mt-2">
+                For DMCA copyright notices, use the same email with subject line "DMCA Notice"
               </p>
             </section>
           </div>
-
           <div className="mt-12 pt-8 border-t border-gray-200">
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
