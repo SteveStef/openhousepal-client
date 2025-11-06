@@ -340,14 +340,21 @@ export default function CustomerShowcasePage() {
       const response = await apiRequest(`/collections/${showcase.id}/properties/${String(propertyId)}/comments`, {
         method: 'POST',
         body: JSON.stringify({
-          comment: comment,
+          content: comment,
           visitor_name: `${showcase.customer.firstName} ${showcase.customer.lastName}`
         })
       })
 
       if (response.status === 200) {
         const responseData = response.data
-        const serverComment = responseData.comment || responseData
+        const backendComment = responseData.comment || responseData
+
+        // Transform backend response to frontend format (snake_case to camelCase)
+        const serverComment = {
+          ...backendComment,
+          createdAt: backendComment.created_at || backendComment.createdAt,
+          author: backendComment.author || backendComment.visitor_name || 'Anonymous'
+        }
 
         // Replace optimistic comment with server response if different
         if (serverComment && serverComment.id !== newComment.id) {
@@ -402,10 +409,17 @@ export default function CustomerShowcasePage() {
 
       if (response.status === 200) {
         const data = response.data
+        // Transform backend comments to frontend format (snake_case to camelCase)
+        const transformedComments = (data || []).map((comment: any) => ({
+          ...comment,
+          createdAt: comment.created_at || comment.createdAt,
+          author: comment.author || comment.visitor_name || 'Anonymous'
+        }))
+
         // Update selected property with fresh comments
         setSelectedProperty(prev => prev ? {
           ...prev,
-          comments: data || []
+          comments: transformedComments
         } : prev)
       } else {
         setCommentsError('Failed to load comments')
@@ -450,8 +464,9 @@ export default function CustomerShowcasePage() {
     setIsModalOpen(true)
 
     // Always fetch fresh comments
-    if (property.id) {
-      fetchPropertyComments(Number(property.id))
+    const propertyIdAsNumber = Number(property.id)
+    if (property.id && !isNaN(propertyIdAsNumber)) {
+      fetchPropertyComments(propertyIdAsNumber)
     }
   }
 

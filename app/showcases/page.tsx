@@ -437,7 +437,10 @@ export default function ShowcasesPage() {
       })
 
       if (response.status === 200) {
-        const serverComment = response.data.comment
+        const serverComment = {
+          ...response.data.comment,
+          createdAt: response.data.comment.created_at || response.data.comment.createdAt
+        }
 
         // Replace optimistic comment with server response
         setSelectedProperty(prev => prev && prev.id === propertyId ? {
