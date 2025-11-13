@@ -1,6 +1,7 @@
 'use client'
 
-import { X, CheckCircle2, Sparkles } from 'lucide-react'
+import { useState } from 'react'
+import { X, CheckCircle2, Sparkles, AlertCircle } from 'lucide-react'
 
 interface ResubscribeModalProps {
   isOpen: boolean
@@ -15,6 +16,13 @@ export default function ResubscribeModal({
   onSelectPlan,
   isLoading = false
 }: ResubscribeModalProps) {
+  const [loadingPlan, setLoadingPlan] = useState<'BASIC' | 'PREMIUM' | null>(null)
+
+  const handleSelectPlan = (planTier: 'BASIC' | 'PREMIUM') => {
+    setLoadingPlan(planTier)
+    onSelectPlan(planTier)
+  }
+
   if (!isOpen) return null
 
   return (
@@ -30,20 +38,28 @@ export default function ResubscribeModal({
         {/* Close button */}
         <button
           onClick={onClose}
-          disabled={isLoading}
+          disabled={loadingPlan !== null}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50 z-10"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Title */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <h3 className="text-2xl font-bold text-gray-900 mb-2">
             Choose Your Plan
           </h3>
-          <p className="text-gray-600">
+          <p className="text-gray-600 mb-4">
             Select a plan to resubscribe and regain access to Open House Pal
           </p>
+
+          {/* Warning - No Trial */}
+          <div className="inline-flex items-center px-4 py-3 bg-orange-50 border-2 border-orange-300 rounded-xl">
+            <AlertCircle className="w-5 h-5 text-orange-600 mr-2 flex-shrink-0" />
+            <p className="text-sm font-bold text-orange-900">
+              No free trial - Your card will be charged immediately
+            </p>
+          </div>
         </div>
 
         {/* Plan Options */}
@@ -55,6 +71,9 @@ export default function ResubscribeModal({
               <div className="text-3xl font-bold text-gray-900">
                 $49.99<span className="text-lg font-normal text-gray-600">/month</span>
               </div>
+              <p className="text-sm font-semibold text-orange-600 mt-2">
+                Billed today: $49.99
+              </p>
             </div>
 
             <ul className="space-y-3 mb-6">
@@ -73,16 +92,16 @@ export default function ResubscribeModal({
             </ul>
 
             <button
-              onClick={() => onSelectPlan('BASIC')}
-              disabled={isLoading}
+              onClick={() => handleSelectPlan('BASIC')}
+              disabled={loadingPlan !== null}
               className="w-full px-4 py-3 border-2 border-[#8b7355] text-[#8b7355] rounded-xl font-semibold hover:bg-[#8b7355] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? (
+              {loadingPlan === 'BASIC' ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#8b7355]"></div>
                 </div>
               ) : (
-                'Select Basic'
+                'Subscribe Now - $49.99'
               )}
             </button>
           </div>
@@ -101,6 +120,9 @@ export default function ResubscribeModal({
               <div className="text-3xl font-bold text-white">
                 $99.99<span className="text-lg font-normal text-white/80">/month</span>
               </div>
+              <p className="text-sm font-semibold text-yellow-300 mt-2">
+                Billed today: $99.99
+              </p>
               <p className="text-sm text-white/80 mt-1">Everything in Basic, plus:</p>
             </div>
 
@@ -128,18 +150,18 @@ export default function ResubscribeModal({
             </ul>
 
             <button
-              onClick={() => onSelectPlan('PREMIUM')}
-              disabled={isLoading}
+              onClick={() => handleSelectPlan('PREMIUM')}
+              disabled={loadingPlan !== null}
               className="w-full px-4 py-3 bg-white text-[#8b7355] rounded-xl font-semibold hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
-              {isLoading ? (
+              {loadingPlan === 'PREMIUM' ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#8b7355]"></div>
                 </div>
               ) : (
                 <span className="flex items-center justify-center">
                   <Sparkles className="w-5 h-5 mr-2" />
-                  Select Premium
+                  Subscribe Now - $99.99
                 </span>
               )}
             </button>
@@ -150,7 +172,7 @@ export default function ResubscribeModal({
         <div className="mt-6 text-center">
           <button
             onClick={onClose}
-            disabled={isLoading}
+            disabled={loadingPlan !== null}
             className="text-gray-600 hover:text-gray-900 font-medium transition-colors disabled:opacity-50"
           >
             Cancel

@@ -5,6 +5,8 @@ import { register as registerUser } from '../../../lib/auth'
 import { useState } from 'react'
 import PayPalSubscriptionButton from '../../../components/PayPalSubscriptionButton'
 import { PayPalScriptProvider } from "@paypal/react-paypal-js"
+import EmailVerificationInput from '../../../components/EmailVerificationInput'
+import { sendVerificationCode } from '../../../lib/api'
 
 // PayPal configuration
 const paypalOptions = {
@@ -60,7 +62,7 @@ export default function RegisterPage() {
     message: string
   }>({ type: null, message: '' })
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({})
-  const [registrationStep, setRegistrationStep] = useState<'pricing' | 'form' | 'payment'>('form')
+  const [registrationStep, setRegistrationStep] = useState<'form' | 'verify' | 'pricing' | 'payment'>('form')
   const [selectedPlan, setSelectedPlan] = useState<typeof PLANS.BASIC | typeof PLANS.PREMIUM | null>(null)
 
   // Clear notifications after 5 seconds
@@ -116,53 +118,33 @@ export default function RegisterPage() {
       return
     }
 
-    // Validate with backend before proceeding to pricing
-    const url = `${process.env.NEXT_PUBLIC_API_URL}/auth/validate-signup-form`
+    // Send verification code
     setIsLoading(true)
 
     try {
-      // Transform formData from camelCase to snake_case for backend
-      const validationData = {
+      await sendVerificationCode({
         email: formData.email,
-        password: formData.password,
-        first_name: formData.firstName,
-        last_name: formData.lastName,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         state: formData.state,
-        brokerage: formData.brokerage
-      }
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(validationData)
+        brokerage: formData.brokerage,
+        password: formData.password
       })
 
-      const data = await response.json()
-
-      if (response.status === 400) {
-        // Email already registered
-        setFieldErrors({ email: data.detail || 'Email already registered' })
-        showNotification('error', data.detail || 'Email already registered')
-        setIsLoading(false)
-        return
-      }
-
-      if (!response.ok) {
-        // Other errors
-        showNotification('error', 'Validation failed. Please try again.')
-        setIsLoading(false)
-        return
-      }
-
-      // Validation successful - move to pricing step
+      // Code sent successfully - move to verification step
       setIsLoading(false)
-      setRegistrationStep('pricing')
-      showNotification('success', 'Now choose your plan to continue.')
-    } catch (err) {
-      console.error('Validation error:', err)
-      showNotification('error', 'Connection error. Please check your internet and try again.')
+      setRegistrationStep('verify')
+      showNotification('success', 'Verification code sent to your email!')
+    } catch (err: any) {
+      console.error('Verification code error:', err)
+      const errorMessage = err.message || 'Failed to send verification code. Please try again.'
+
+      // Check if it's an email already registered error
+      if (errorMessage.includes('already registered')) {
+        setFieldErrors({ email: errorMessage })
+      }
+
+      showNotification('error', errorMessage)
       setIsLoading(false)
       return
     }
@@ -236,8 +218,21 @@ export default function RegisterPage() {
         </div>
       )}
 
-      {registrationStep === 'pricing' ? (
-        // Step 1: Pricing Selection
+      {registrationStep === 'verify' ? (
+        // Step 2: Email Verification
+        <EmailVerificationInput
+          email={formData.email}
+          onVerified={() => {
+            setRegistrationStep('pricing')
+            showNotification('success', 'Email verified! Now choose your plan.')
+          }}
+          onBack={() => {
+            setRegistrationStep('form')
+            setNotification({ type: null, message: '' })
+          }}
+        />
+      ) : registrationStep === 'pricing' ? (
+        // Step 3: Pricing Selection
         <div className="max-w-5xl w-full space-y-8">
           <div className="text-center">
             <Link href="/" className="inline-flex items-center space-x-3 mb-8">
@@ -247,12 +242,12 @@ export default function RegisterPage() {
               <span className="text-2xl font-bold text-gray-900">Open House Pal</span>
             </Link>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Choose Your Plan</h2>
-            <p className="text-gray-600">Start with a 14-day free trial - no charge today</p>
+            <p className="text-gray-600">Start with a 30-day free trial - no charge today</p>
             <button
-              onClick={() => setRegistrationStep('form')}
+              onClick={() => setRegistrationStep('verify')}
               className="text-sm text-[#8b7355] hover:text-[#7a6549] mt-2"
             >
-              ← Back to account details
+              ← Back to verification
             </button>
           </div>
 
@@ -266,7 +261,7 @@ export default function RegisterPage() {
                   <span className="text-5xl font-bold text-[#8b7355]">{PLANS.BASIC.price}</span>
                   <span className="text-gray-600 ml-2">/month</span>
                 </div>
-                <p className="text-sm text-gray-500 mt-2">after 14-day free trial</p>
+                <p className="text-sm text-gray-500 mt-2">after 30-day free trial</p>
               </div>
 
               <ul className="space-y-4 mb-8">
@@ -302,7 +297,7 @@ export default function RegisterPage() {
                   <span className="text-5xl font-bold text-white">{PLANS.PREMIUM.price}</span>
                   <span className="text-white/80 ml-2">/month</span>
                 </div>
-                <p className="text-sm text-white/70 mt-2">after 14-day free trial</p>
+                <p className="text-sm text-white/70 mt-2">after 30-day free trial</p>
               </div>
 
               <ul className="space-y-4 mb-8">
@@ -330,12 +325,12 @@ export default function RegisterPage() {
 
           <div className="text-center">
             <p className="text-xs text-gray-500">
-              All plans include a 14-day free trial • No credit card charged today • Cancel anytime
+              All plans include a 30-day free trial • No credit card charged today • Cancel anytime
             </p>
           </div>
         </div>
       ) : registrationStep === 'form' ? (
-        // Step 2: Registration Form
+        // Step 1: Registration Form
         <div className="max-w-lg w-full space-y-8">
         {/* Header */}
         <div className="text-center">
@@ -346,7 +341,7 @@ export default function RegisterPage() {
             <span className="text-2xl font-bold text-gray-900">Open House Pal</span>
           </Link>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Create Your Account</h2>
-          <p className="text-gray-600">Start your 14-day free trial today</p>
+          <p className="text-gray-600">Start your 30-day free trial today</p>
         </div>
 
         {/* Registration Form */}
@@ -561,7 +556,7 @@ export default function RegisterPage() {
         </div>
       </div>
       ) : (
-        // Step 3: Payment Step - Wrapped with PayPal provider
+        // Step 4: Payment Step - Wrapped with PayPal provider
         <PayPalScriptProvider options={paypalOptions}>
           <div className="max-w-lg w-full space-y-8">
             <div className="text-center">
@@ -605,7 +600,7 @@ export default function RegisterPage() {
                 </ul>
                 <div className="border-t border-gray-200 pt-4 mt-4">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-600">14-day free trial</span>
+                    <span className="text-gray-600">30-day free trial</span>
                     <span className="font-semibold text-green-600">$0.00</span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -635,7 +630,7 @@ export default function RegisterPage() {
               />
 
               <p className="text-xs text-gray-500 text-center mt-6">
-                You will not be charged until your 14-day trial ends
+                You will not be charged until your 30-day trial ends
               </p>
               <p className="text-xs text-gray-500 text-center mt-2">
                 Secured with PayPal's buyer protection • Cancel anytime

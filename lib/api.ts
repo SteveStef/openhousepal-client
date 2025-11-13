@@ -218,4 +218,70 @@ export const openHouseApi = {
   getVisitors: (openHouseId: string) => api.getOpenHouseVisitors(openHouseId),
 }
 
+// Verification API functions
+export async function sendVerificationCode(formData: {
+  email: string
+  firstName: string
+  lastName: string
+  state: string
+  brokerage: string
+  password: string
+}) {
+  const response = await fetch(`${API_BASE_URL}/auth/send-verification-code`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email: formData.email,
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      state: formData.state,
+      brokerage: formData.brokerage,
+      password: formData.password,
+    }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || 'Failed to send verification code')
+  }
+
+  return response.json()
+}
+
+export async function verifyCode(email: string, code: string) {
+  const response = await fetch(`${API_BASE_URL}/auth/verify-code`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, code }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || 'Invalid verification code')
+  }
+
+  return response.json()
+}
+
+export async function resendVerificationCode(email: string) {
+  const response = await fetch(`${API_BASE_URL}/auth/resend-verification-code`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || 'Failed to resend verification code')
+  }
+
+  return response.json()
+}
+
 export default api

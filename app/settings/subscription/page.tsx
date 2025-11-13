@@ -297,6 +297,32 @@ export default function SubscriptionManagementPage() {
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   }
 
+  // Calculate days remaining until grace period ends
+  const getDaysRemaining = () => {
+    if (user?.subscription_status !== 'CANCELLED') return null
+
+    const now = new Date()
+    let endDate: Date | null = null
+
+    // Check trial grace period first
+    if (user?.trial_ends_at) {
+      endDate = new Date(user.trial_ends_at)
+    }
+    // Then check paid grace period
+    else if (user?.next_billing_date) {
+      endDate = new Date(user.next_billing_date)
+    }
+
+    if (!endDate) return null
+
+    const diffTime = endDate.getTime() - now.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+    return diffDays > 0 ? diffDays : 0
+  }
+
+  const daysRemaining = getDaysRemaining()
+
   // Determine plan name
   const getPlanName = () => {
     if (user?.plan_tier === 'PREMIUM') return 'Premium Plan'
@@ -405,11 +431,27 @@ export default function SubscriptionManagementPage() {
           {isCancelled && (
             <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start">
               <AlertCircle className="w-5 h-5 text-yellow-600 mr-3 mt-0.5 flex-shrink-0" />
-              <div>
+              <div className="flex-1">
                 <h3 className="font-semibold text-yellow-900 mb-1">Subscription Cancelled</h3>
-                <p className="text-sm text-yellow-700">
+                <p className="text-sm text-yellow-700 mb-2">
                   Your subscription has been cancelled. You will keep access until your current billing period ends.
                 </p>
+                {daysRemaining !== null && daysRemaining > 0 && (
+                  <div className="mt-2 inline-flex items-center px-3 py-1.5 bg-yellow-100 border border-yellow-300 rounded-lg">
+                    <Calendar className="w-4 h-4 text-yellow-700 mr-2" />
+                    <span className="text-sm font-semibold text-yellow-900">
+                      {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} remaining
+                    </span>
+                  </div>
+                )}
+                {daysRemaining === 0 && (
+                  <div className="mt-2 inline-flex items-center px-3 py-1.5 bg-red-100 border border-red-300 rounded-lg">
+                    <AlertCircle className="w-4 h-4 text-red-700 mr-2" />
+                    <span className="text-sm font-semibold text-red-900">
+                      Access expires today
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -450,6 +492,26 @@ export default function SubscriptionManagementPage() {
                     <div>
                       <p className="text-sm text-gray-500">Last Billing</p>
                       <p className="text-sm font-medium text-gray-900">{formatDate(user.last_billing_date)}</p>
+                    </div>
+                  )}
+
+                  {(isTrial || isActive) && (user?.next_billing_date || user?.trial_ends_at) && (
+                    <div>
+                      <p className="text-sm text-gray-500">
+                        {isTrial ? 'First Billing' : 'Next Billing'}
+                      </p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {formatDate(isTrial ? user.trial_ends_at : user.next_billing_date)}
+                      </p>
+                    </div>
+                  )}
+
+                  {isCancelled && (user?.next_billing_date || user?.trial_ends_at) && (
+                    <div>
+                      <p className="text-sm text-gray-500">Access Ends</p>
+                      <p className="text-sm font-medium text-yellow-700">
+                        {formatDate(user.next_billing_date || user.trial_ends_at)}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -629,7 +691,7 @@ export default function SubscriptionManagementPage() {
         onClose={() => setCancelModalOpen(false)}
         onConfirm={handleCancel}
         title="Cancel Subscription?"
-        message="You'll keep access until the end of your current billing period. You can reactivate anytime before it expires."
+        message="You'll keep access until the end of your current billing period. After cancellation, you'll need to create a new subscription to regain access."
         confirmText="Yes, Cancel"
         confirmButtonClass="bg-red-600 hover:bg-red-700"
         isLoading={actionLoading}

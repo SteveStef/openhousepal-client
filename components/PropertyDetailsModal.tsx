@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Property } from '@/types'
 import { X, MessageCircle, Send, ThumbsUp, ThumbsDown, Bookmark, ChevronLeft, ChevronRight, Maximize2, Home, User } from 'lucide-react'
 
@@ -221,6 +221,7 @@ export default function PropertyDetailsModal({
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isLightboxOpen, setIsLightboxOpen] = useState(false)
+  const commentsContainerRef = useRef<HTMLDivElement>(null)
   console.log(property);
 
   // Enhanced photo handling for Zillow API data
@@ -236,7 +237,14 @@ export default function PropertyDetailsModal({
   }, [property])
   
   const images = getPropertyImages()
-  
+
+  // Scroll to bottom of comments
+  const scrollToBottom = useCallback(() => {
+    if (commentsContainerRef.current) {
+      commentsContainerRef.current.scrollTop = commentsContainerRef.current.scrollHeight
+    }
+  }, [])
+
   const nextImage = useCallback(() => {
     if (images.length > 0) {
       setCurrentImageIndex((prev) => (prev + 1) % images.length)
@@ -361,6 +369,8 @@ export default function PropertyDetailsModal({
         onAddComment?.(property.id, newComment.trim())
       }
       setNewComment('')
+      // Scroll to bottom after adding comment
+      setTimeout(() => scrollToBottom(), 100)
     } finally {
       setIsSubmittingComment(false)
     }
@@ -805,7 +815,7 @@ export default function PropertyDetailsModal({
                       </div>
 
                       {/* Comments List */}
-                      <div className="space-y-4 mb-6 max-h-64 overflow-y-auto">
+                      <div ref={commentsContainerRef} className="space-y-4 mb-6 max-h-72 overflow-y-auto">
                         {isLoadingComments ? (
                           <div className="text-center py-8 bg-white rounded-2xl border border-indigo-100">
                             <div className="inline-flex items-center space-x-2 text-indigo-600">
@@ -824,12 +834,12 @@ export default function PropertyDetailsModal({
                           </div>
                         ) : property.comments && property.comments.length > 0 ? (
                           property.comments.map((comment, index) => (
-                            <div key={comment.id} className="bg-white rounded-2xl p-4 border border-indigo-100">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="font-bold text-gray-900 text-sm">{comment.author}</span>
-                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{formatDate(comment.createdAt)}</span>
+                            <div key={comment.id} className="bg-white rounded-xl p-3 border border-indigo-100">
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="font-bold text-gray-900 text-xs">{comment.author}</span>
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{formatDate(comment.createdAt)}</span>
                               </div>
-                              <p className="text-gray-700 leading-relaxed text-sm">{comment.content}</p>
+                              <p className="text-gray-700 leading-snug text-xs">{comment.content}</p>
                             </div>
                           ))
                         ) : (
@@ -845,28 +855,28 @@ export default function PropertyDetailsModal({
 
                       {/* Add Comment Form */}
                       <div className="border-t-2 border-indigo-100 pt-4">
-                        <h4 className="text-md font-bold text-gray-900 mb-3 flex items-center">
-                          <div className="bg-purple-100 p-2 rounded-lg mr-2">
-                            <Send className="text-purple-600" size={14} />
+                        <h4 className="text-sm font-bold text-gray-900 mb-2 flex items-center">
+                          <div className="bg-purple-100 p-1.5 rounded-lg mr-2">
+                            <Send className="text-purple-600" size={12} />
                           </div>
                           Send Comment to Agent
                         </h4>
-                        <form onSubmit={handleSubmitComment} className="space-y-3">
+                        <form onSubmit={handleSubmitComment} className="space-y-2">
                           <textarea
                             value={newComment}
                             onChange={(e) => setNewComment(e.target.value)}
                             placeholder="Share your thoughts about this property..."
-                            className="w-full px-4 py-3 bg-white border-2 border-indigo-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors resize-none text-sm"
-                            rows={3}
+                            className="w-full px-3 py-2 bg-white border-2 border-indigo-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors resize-none text-sm"
+                            rows={2}
                             disabled={isSubmittingComment}
                           />
                           <div className="flex justify-end">
                             <button
                               type="submit"
                               disabled={!newComment.trim() || isSubmittingComment}
-                              className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-300 disabled:text-gray-500 text-white font-medium py-2 px-4 rounded-xl transition-colors duration-150 flex items-center space-x-2 text-sm"
+                              className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-300 disabled:text-gray-500 text-white font-medium py-1.5 px-3 rounded-xl transition-colors duration-150 flex items-center space-x-1.5 text-xs"
                             >
-                              <Send size={14} />
+                              <Send size={12} />
                               <span>{isSubmittingComment ? 'Adding...' : 'Add Comment'}</span>
                             </button>
                           </div>
