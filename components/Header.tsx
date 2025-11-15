@@ -1,36 +1,17 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
-import { checkAuth, logout, getCurrentUser, hasValidSubscription, User } from '@/lib/auth'
+import { useState } from 'react'
+import { logout, hasValidSubscription } from '@/lib/auth'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface HeaderProps {
   mode?: 'landing' | 'app' | 'shared'
 }
 
 export default function Header({ mode = 'app' }: HeaderProps) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
-  const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true)
+  const { user, isAuthenticated, isLoading: isCheckingAuth } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false)
-  const [user, setUser] = useState<User | null>(null)
-
-  useEffect(() => {
-    const verifyAuth = async () => {
-      if (mode === 'landing' || mode === 'app') {
-        const isAuth = await checkAuth()
-        setIsAuthenticated(isAuth)
-
-        // Fetch user data to check plan tier
-        if (isAuth) {
-          const userData = await getCurrentUser()
-          setUser(userData)
-        }
-      }
-      setIsCheckingAuth(false)
-    }
-
-    verifyAuth()
-  }, [mode])
 
   const hasPremiumAccess = user?.plan_tier === 'PREMIUM'
 

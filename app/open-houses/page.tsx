@@ -6,7 +6,8 @@ import { v4 as uuidv4 } from 'uuid'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
-import { apiRequest, getCurrentUser, checkAuth, hasValidSubscription } from '@/lib/auth'
+import { apiRequest, hasValidSubscription } from '@/lib/auth'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface PropertyImage {
   url: string;
@@ -31,6 +32,7 @@ interface OpenHouse {
 
 export default function OpenHousesPage() {
   const router = useRouter()
+  const { user: currentUser, isAuthenticated, isLoading: isAuthenticating } = useAuth()
   const [address, setAddress] = useState('')
   const [qrCode, setQrCode] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
@@ -46,8 +48,6 @@ export default function OpenHousesPage() {
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [openHouses, setOpenHouses] = useState<OpenHouse[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
-  const [currentUser, setCurrentUser] = useState<any>(null)
-  const [isAuthenticating, setIsAuthenticating] = useState(true)
   const [notification, setNotification] = useState<{
     show: boolean
     type: 'success' | 'error'
@@ -127,71 +127,26 @@ export default function OpenHousesPage() {
 
   // Check authentication and load data
   useEffect(() => {
-    checkAuthAndLoadData()
-  }, [])
-
-  const checkAuthAndLoadData = async () => {
-    try {
-      setIsAuthenticating(true)
-      // Check if user is authenticated
-      const isAuthenticated = await checkAuth()
-
+    if (!isAuthenticating) {
       if (!isAuthenticated) {
-        console.log('❌ Authentication failed')
-        // Try to get user data anyway - maybe the token is valid but /auth/me endpoint has issues
-        const userData = await getCurrentUser()
-        if (userData) {
-          console.log('✅ Got user data despite auth check failure - checking subscription')
-          // Check subscription status
-          if (!hasValidSubscription(userData)) {
-            console.log('❌ Subscription invalid - redirecting to upgrade')
-            router.push('/upgrade-required')
-            return
-          }
-          setCurrentUser(userData)
-          await loadOpenHouseHistory()
-        } else {
-          console.log('❌ No user data available - redirecting to login')
-          // Redirect to login page with current path as redirect parameter
-          router.push(`/login?redirect=${encodeURIComponent('/open-houses')}`)
+        console.log('❌ Not authenticated - redirecting to login')
+        router.push(`/login?redirect=${encodeURIComponent('/open-houses')}`)
+        return
+      }
+
+      if (currentUser) {
+        // Check subscription status
+        if (!hasValidSubscription(currentUser)) {
+          console.log('❌ Subscription invalid - redirecting to upgrade')
+          router.push('/upgrade-required')
           return
         }
-      } else {
-        console.log('✅ Authentication successful - loading user data')
-        // Load user data and open house history
-        await loadUserAndHistory()
+
+        // Load open house history
+        loadOpenHouseHistory()
       }
-    } catch (error) {
-      console.error('Authentication check failed:', error)
-      router.push('/login')
-    } finally {
-      setIsAuthenticating(false)
     }
-  }
-
-  // Load current user and open house history
-  const loadUserAndHistory = async () => {
-    try {
-      const user = await getCurrentUser()
-      if (!user) {
-        router.push('/login')
-        return
-      }
-
-      // Check subscription status
-      if (!hasValidSubscription(user)) {
-        console.log('❌ Subscription invalid - redirecting to upgrade')
-        router.push('/upgrade-required')
-        return
-      }
-
-      setCurrentUser(user)
-      await loadOpenHouseHistory()
-    } catch (error) {
-      console.error('Error loading user data:', error)
-      router.push('/login')
-    }
-  }
+  }, [isAuthenticating, isAuthenticated, currentUser, router])
 
 
   const loadOpenHouseHistory = async () => {

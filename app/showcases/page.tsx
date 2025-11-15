@@ -14,11 +14,12 @@ import DeleteConfirmationModal from '@/components/DeleteConfirmationModal'
 import ViewToursModal, { PropertyTour } from '@/components/ViewToursModal'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import { Share2, Calendar } from 'lucide-react'
-import { apiRequest, checkAuth, updateCollectionPreferences } from '@/lib/auth'
+import { apiRequest, updateCollectionPreferences } from '@/lib/auth'
 import { collectionsApi } from '@/lib/api'
 import MultiCityPlacesInput from '@/components/MultiCityPlacesInput'
 import MultiTownshipPlacesInput from '@/components/MultiTownshipPlacesInput'
 import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
+import { useAuth } from '@/contexts/AuthContext'
 
 // Helper function to format prices properly
 const formatPrice = (price: number): string => {
@@ -33,14 +34,14 @@ const formatPrice = (price: number): string => {
 
 export default function ShowcasesPage() {
   const router = useRouter()
+  const { isAuthenticated, isLoading: isAuthenticating } = useAuth()
   const [collections, setCollections] = useState<Collection[]>([])
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isAuthenticating, setIsAuthenticating] = useState(true)
   const [matchedProperties, setMatchedProperties] = useState<Property[] | null>(null);
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PAUSED' | 'COMPLETED'>('ALL')
-  
+
   // Property filtering states
   const [activeTab, setActiveTab] = useState<'all' | 'liked' | 'disliked' | 'favorited'>('all')
   const [sortBy, setSortBy] = useState<'price' | 'beds' | 'squareFeet'>('price')
@@ -53,15 +54,15 @@ export default function ShowcasesPage() {
   const [detailsError, setDetailsError] = useState<string | null>(null)
   const [isLoadingComments, setIsLoadingComments] = useState(false)
   const [commentsError, setCommentsError] = useState<string | null>(null)
-  
+
   // Share modal states
   const [selectedCollectionForShare, setSelectedCollectionForShare] = useState<Collection | null>(null)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
-  
+
   // Edit preferences modal states
   const [selectedCollectionForEdit, setSelectedCollectionForEdit] = useState<Collection | null>(null)
   const [isEditPreferencesModalOpen, setIsEditPreferencesModalOpen] = useState(false)
-  
+
   // Create collection modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
@@ -77,24 +78,12 @@ export default function ShowcasesPage() {
   const [isToursModalOpen, setIsToursModalOpen] = useState(false)
   const [isLoadingTours, setIsLoadingTours] = useState(false)
 
-  // Check authentication first
+  // Check authentication and redirect if needed
   useEffect(() => {
-    const checkAuthentication = async () => {
-      try {
-        const isAuthenticated = await checkAuth()
-        if (!isAuthenticated) {
-          router.push(`/login?redirect=${encodeURIComponent('/collections')}`)
-          return
-        }
-        setIsAuthenticating(false)
-      } catch (error) {
-        console.error('Authentication check failed:', error)
-        router.push('/login')
-      }
+    if (!isAuthenticating && !isAuthenticated) {
+      router.push(`/login?redirect=${encodeURIComponent('/showcases')}`)
     }
-    
-    checkAuthentication()
-  }, [router])
+  }, [isAuthenticating, isAuthenticated, router])
 
   // Load property interactions when a collection is selected
 
