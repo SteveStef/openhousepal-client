@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { register as registerUser } from '../../../lib/auth'
 import { useState } from 'react'
 import PayPalSubscriptionButton from '../../../components/PayPalSubscriptionButton'
@@ -235,12 +236,6 @@ export default function RegisterPage() {
         // Step 3: Pricing Selection
         <div className="max-w-5xl w-full space-y-8">
           <div className="text-center">
-            <Link href="/" className="inline-flex items-center space-x-3 mb-8">
-              <div className="w-10 h-10 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold">OH</span>
-              </div>
-              <span className="text-2xl font-bold text-gray-900">Open House Pal</span>
-            </Link>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Choose Your Plan</h2>
             <p className="text-gray-600">Start with a 30-day free trial - no charge today</p>
             <button
@@ -334,12 +329,6 @@ export default function RegisterPage() {
         <div className="max-w-lg w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <Link href="/" className="inline-flex items-center space-x-3 mb-8">
-            <div className="w-10 h-10 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold">OH</span>
-            </div>
-            <span className="text-2xl font-bold text-gray-900">Open House Pal</span>
-          </Link>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Create Your Account</h2>
           <p className="text-gray-600">Start your 30-day free trial today</p>
         </div>
@@ -560,12 +549,6 @@ export default function RegisterPage() {
         <PayPalScriptProvider options={paypalOptions}>
           <div className="max-w-lg w-full space-y-8">
             <div className="text-center">
-              <Link href="/" className="inline-flex items-center space-x-3 mb-8">
-                <div className="w-10 h-10 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-xl flex items-center justify-center shadow-lg">
-                  <span className="text-white font-bold">OH</span>
-                </div>
-                <span className="text-2xl font-bold text-gray-900">Open House Pal</span>
-              </Link>
               <h2 className="text-3xl font-bold text-gray-900 mb-2">Complete Payment Setup</h2>
               <p className="text-gray-600">You selected: <span className="font-semibold text-[#8b7355]">{selectedPlan?.name} - {selectedPlan?.price}/month</span></p>
               <div className="flex gap-4 justify-center mt-2">

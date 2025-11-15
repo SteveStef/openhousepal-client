@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState } from 'react'
 import { logout, hasValidSubscription } from '@/lib/auth'
 import { useAuth } from '@/contexts/AuthContext'
@@ -30,14 +31,17 @@ export default function Header({ mode = 'app' }: HeaderProps) {
     <header className="bg-white/95 backdrop-blur-xl border-b border-gray-200/80 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center justify-between">
-          {/* House Logo */}
-          <Link href="/" className="flex items-center space-x-2 sm:space-x-3 hover:opacity-80 transition-all duration-200">
-            <svg className="w-7 h-7 sm:w-8 sm:h-8 text-[#8b7355]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" strokeLinecap="round" strokeLinejoin="round"/>
-              <polyline points="9,22 9,12 15,12 15,22" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+          {/* Logo */}
+          <Link href="/" className="flex items-center space-x-1.5 sm:space-x-2 hover:opacity-80 transition-all duration-200">
+            <Image
+              src="/logo.png"
+              alt="OpenHousePal Logo"
+              width={100}
+              height={56}
+              className="h-12 sm:h-14 w-auto"
+            />
             <div>
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900">Open House Pal</h1>
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900">OpenHousePal</h1>
               <p className="text-xs text-gray-500 font-medium hidden sm:block">Real Estate Lead Engine</p>
             </div>
           </Link>

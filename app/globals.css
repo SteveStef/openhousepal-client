@@ -87,6 +87,79 @@
   }
 }
 
+/* Gentle floating + drifting animations for background dots */
+@keyframes float-drift {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(15px, -10px);
+  }
+  50% {
+    transform: translate(25px, -20px);
+  }
+  75% {
+    transform: translate(15px, -10px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes float-drift-alt {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(-15px, -12px);
+  }
+  50% {
+    transform: translate(-25px, -18px);
+  }
+  75% {
+    transform: translate(-15px, -12px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes float-drift-diagonal {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(12px, -15px);
+  }
+  50% {
+    transform: translate(20px, -25px);
+  }
+  75% {
+    transform: translate(12px, -15px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes float-drift-reverse {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(-12px, -15px);
+  }
+  50% {
+    transform: translate(-20px, -25px);
+  }
+  75% {
+    transform: translate(-12px, -15px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
 @keyframes fadeIn {
   0% {
     opacity: 0;
