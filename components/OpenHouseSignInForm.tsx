@@ -317,9 +317,8 @@ export default function OpenHouseSignInForm({
                   required
                 >
                   <option value="">Select...</option>
-                  <option value="YES">Yes, I have an agent</option>
-                  <option value="NO">No, I don't have an agent</option>
-                  <option value="LOOKING">I'm looking for an agent</option>
+                  <option value="YES">Yes</option>
+                  <option value="NO">No</option>
                 </select>
               </div>
             </div>

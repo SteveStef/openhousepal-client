@@ -1,8 +1,9 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Property } from '@/types'
-import { X, MessageCircle, Send, ThumbsUp, ThumbsDown, Bookmark, ChevronLeft, ChevronRight, Maximize2, Home, User } from 'lucide-react'
+import { X, MessageCircle, Send, ThumbsUp, ThumbsDown, Star, ChevronLeft, ChevronRight, Maximize2, Home, User } from 'lucide-react'
 
 interface PropertyDetailsModalProps {
   property: Property | null
@@ -224,10 +225,10 @@ export default function PropertyDetailsModal({
   const commentsContainerRef = useRef<HTMLDivElement>(null)
   console.log(property);
 
-  // Enhanced photo handling for Zillow API data
+  // Enhanced photo handling for property data
   const getPropertyImages = useCallback(() => {
     if ((property?.details as any)?.originalPhotos && (property?.details as any)?.originalPhotos?.length > 0) {
-      // Use high-quality photos from Zillow API
+      // Use high-quality photos from property data
       return (property?.details as any).originalPhotos
         .map((photo: any) => photo.mixedSources?.jpeg?.[0]?.url || photo.mixedSources?.webp?.[0]?.url)
         .filter(Boolean) as string[]
@@ -405,12 +406,17 @@ export default function PropertyDetailsModal({
         </button>
         
         <div className="relative w-full h-full flex items-center justify-center p-8">
-          <img
-            src={images[currentImageIndex]}
-            alt={`${property.address} - Image ${currentImageIndex + 1}`}
-            className="max-w-full max-h-full object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
+          <div className="relative w-full h-full" onClick={(e) => e.stopPropagation()}>
+            <Image
+              src={images[currentImageIndex]}
+              alt={`${property.address} - Image ${currentImageIndex + 1}`}
+              fill
+              sizes="100vw"
+              className="object-contain"
+              quality={90}
+              priority
+            />
+          </div>
           
           {images.length > 1 && (
             <>
@@ -526,11 +532,15 @@ export default function PropertyDetailsModal({
                       <div className="relative h-[500px] bg-gray-100 rounded-2xl overflow-hidden group shadow-lg">
                         {images.length > 0 ? (
                           <>
-                            <img
+                            <Image
                               src={images[currentImageIndex]}
                               alt={`${property.address} - Image ${currentImageIndex + 1}`}
-                              className="w-full h-full object-cover cursor-pointer"
+                              fill
+                              sizes="(max-width: 768px) 100vw, 80vw"
+                              className="object-cover cursor-pointer"
                               onClick={() => setIsLightboxOpen(true)}
+                              quality={85}
+                              priority
                             />
                             
                             {/* Expand Button */}
@@ -588,16 +598,20 @@ export default function PropertyDetailsModal({
                               <button
                                 key={index}
                                 onClick={() => setCurrentImageIndex(index)}
-                                className={`flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-3 transition-colors duration-150 ${
-                                  index === currentImageIndex 
-                                    ? 'border-blue-500 ring-2 ring-blue-200 shadow-md' 
+                                className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-3 transition-colors duration-150 ${
+                                  index === currentImageIndex
+                                    ? 'border-blue-500 ring-2 ring-blue-200 shadow-md'
                                     : 'border-gray-200 hover:border-gray-400'
                                 }`}
                               >
-                                <img
+                                <Image
                                   src={imageUrl}
                                   alt={`Thumbnail ${index + 1}`}
-                                  className="w-full h-full object-cover"
+                                  fill
+                                  sizes="80px"
+                                  className="object-cover"
+                                  quality={50}
+                                  loading="lazy"
                                 />
                               </button>
                             ))}
@@ -724,7 +738,7 @@ export default function PropertyDetailsModal({
                                   : 'bg-gray-50 text-gray-400 hover:bg-amber-50 hover:text-amber-500'
                               }`}
                             >
-                              <Bookmark size={18} fill={property.favorited ? "currentColor" : "none"} />
+                              <Star size={18} fill={property.favorited ? "currentColor" : "none"} />
                               <span className="text-xs mt-0.5 font-medium">Save</span>
                             </button>
                             <button

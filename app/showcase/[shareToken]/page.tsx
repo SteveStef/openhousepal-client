@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation'
 import { Collection, Property, Comment } from '@/types'
 import { getToken } from '@/lib/auth'
 import PropertyGrid from '@/components/PropertyGrid'
-import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import ScheduleTourModal, { TourRequest } from '@/components/ScheduleTourModal'
@@ -198,7 +197,27 @@ export default function CustomerShowcasePage() {
     console.log(showcase);
     console.log(propertyId);
     if (!showcase) return
-    
+
+    // Optimistic UI update - update immediately for instant feedback
+    const optimisticProperties = matchedProperties.map(property =>
+      property.id === String(propertyId) ? {
+        ...property,
+        liked: liked,
+        disliked: liked ? false : property.disliked  // Clear dislike if liking
+      } : property
+    )
+
+    setMatchedProperties(optimisticProperties)
+
+    // Update selected property if it's the one being modified
+    if (selectedProperty && selectedProperty.id === String(propertyId)) {
+      setSelectedProperty(prevProperty => ({
+        ...prevProperty!,
+        liked: liked,
+        disliked: liked ? false : prevProperty!.disliked
+      }))
+    }
+
     try {
       const response = await apiRequest(`/collections/${showcase.id}/properties/${String(propertyId)}/interact`, {
         method: 'POST',
@@ -209,18 +228,17 @@ export default function CustomerShowcasePage() {
       })
 
       if (response.status === 200) {
-        // Update local state with server response
+        // Sync with server response
         const updatedProperties = matchedProperties.map(property =>
-          property.id === String(propertyId) ? { 
-            ...property, 
+          property.id === String(propertyId) ? {
+            ...property,
             liked: response.data.interaction.liked,
             disliked: response.data.interaction.disliked
           } : property
         )
-        
+
         setMatchedProperties(updatedProperties)
 
-        // Update selected property if it's the one being modified
         if (selectedProperty && selectedProperty.id === String(propertyId)) {
           setSelectedProperty(prevProperty => ({
             ...prevProperty!,
@@ -228,15 +246,62 @@ export default function CustomerShowcasePage() {
             disliked: response.data.interaction.disliked
           }))
         }
+
+        // Show success toast
+        showToast(
+          liked ? 'Property added to your likes!' : 'Property removed from your likes',
+          'success'
+        )
       }
     } catch (error) {
       console.error('Error updating property like status:', error)
+
+      // Rollback optimistic update on error
+      const revertedProperties = matchedProperties.map(property =>
+        property.id === String(propertyId) ? {
+          ...property,
+          liked: !liked,
+          disliked: property.disliked
+        } : property
+      )
+
+      setMatchedProperties(revertedProperties)
+
+      if (selectedProperty && selectedProperty.id === String(propertyId)) {
+        setSelectedProperty(prevProperty => ({
+          ...prevProperty!,
+          liked: !liked,
+          disliked: prevProperty!.disliked
+        }))
+      }
+
+      showToast('Failed to update like status. Please try again.', 'error')
     }
   }
 
   const handlePropertyDislike = async (propertyId: string | number, disliked: boolean) => {
     if (!showcase) return
-    
+
+    // Optimistic UI update - update immediately for instant feedback
+    const optimisticProperties = matchedProperties.map(property =>
+      property.id === String(propertyId) ? {
+        ...property,
+        liked: disliked ? false : property.liked,  // Clear like if disliking
+        disliked: disliked
+      } : property
+    )
+
+    setMatchedProperties(optimisticProperties)
+
+    // Update selected property if it's the one being modified
+    if (selectedProperty && selectedProperty.id === String(propertyId)) {
+      setSelectedProperty(prevProperty => ({
+        ...prevProperty!,
+        liked: disliked ? false : prevProperty!.liked,
+        disliked: disliked
+      }))
+    }
+
     try {
       const response = await apiRequest(`/collections/${showcase.id}/properties/${String(propertyId)}/interact`, {
         method: 'POST',
@@ -247,18 +312,17 @@ export default function CustomerShowcasePage() {
       })
 
       if (response.status === 200) {
-        // Update local state with server response
+        // Sync with server response
         const updatedProperties = matchedProperties.map(property =>
-          property.id === String(propertyId) ? { 
-            ...property, 
+          property.id === String(propertyId) ? {
+            ...property,
             liked: response.data.interaction.liked,
             disliked: response.data.interaction.disliked
           } : property
         )
-        
+
         setMatchedProperties(updatedProperties)
 
-        // Update selected property if it's the one being modified
         if (selectedProperty && selectedProperty.id === String(propertyId)) {
           setSelectedProperty(prevProperty => ({
             ...prevProperty!,
@@ -266,15 +330,60 @@ export default function CustomerShowcasePage() {
             disliked: response.data.interaction.disliked
           }))
         }
+
+        // Show success toast
+        showToast(
+          disliked ? 'Property marked as not interested' : 'Property unmarked as not interested',
+          'success'
+        )
       }
     } catch (error) {
       console.error('Error updating property dislike status:', error)
+
+      // Rollback optimistic update on error
+      const revertedProperties = matchedProperties.map(property =>
+        property.id === String(propertyId) ? {
+          ...property,
+          liked: property.liked,
+          disliked: !disliked
+        } : property
+      )
+
+      setMatchedProperties(revertedProperties)
+
+      if (selectedProperty && selectedProperty.id === String(propertyId)) {
+        setSelectedProperty(prevProperty => ({
+          ...prevProperty!,
+          liked: prevProperty!.liked,
+          disliked: !disliked
+        }))
+      }
+
+      showToast('Failed to update status. Please try again.', 'error')
     }
   }
 
   const handlePropertyFavorite = async (propertyId: string | number, favorited: boolean) => {
     if (!showcase) return
-    
+
+    // Optimistic UI update - update immediately for instant feedback
+    const optimisticProperties = matchedProperties.map(property =>
+      property.id === String(propertyId) ? {
+        ...property,
+        favorited: favorited
+      } : property
+    )
+
+    setMatchedProperties(optimisticProperties)
+
+    // Update selected property if it's the one being modified
+    if (selectedProperty && selectedProperty.id === String(propertyId)) {
+      setSelectedProperty(prevProperty => ({
+        ...prevProperty!,
+        favorited: favorited
+      }))
+    }
+
     try {
       const response = await apiRequest(`/collections/${showcase.id}/properties/${String(propertyId)}/interact`, {
         method: 'POST',
@@ -285,26 +394,50 @@ export default function CustomerShowcasePage() {
       })
 
       if (response.status === 200) {
-        // Update local state with server response
+        // Sync with server response
         const updatedProperties = matchedProperties.map(property =>
-          property.id === String(propertyId) ? { 
-            ...property, 
+          property.id === String(propertyId) ? {
+            ...property,
             favorited: response.data.interaction.favorited
           } : property
         )
-        
+
         setMatchedProperties(updatedProperties)
 
-        // Update selected property if it's the one being modified
         if (selectedProperty && selectedProperty.id === String(propertyId)) {
           setSelectedProperty(prevProperty => ({
             ...prevProperty!,
             favorited: response.data.interaction.favorited
           }))
         }
+
+        // Show success toast
+        showToast(
+          favorited ? 'Property added to favorites!' : 'Property removed from favorites',
+          'success'
+        )
       }
     } catch (error) {
       console.error('Error updating property favorite status:', error)
+
+      // Rollback optimistic update on error
+      const revertedProperties = matchedProperties.map(property =>
+        property.id === String(propertyId) ? {
+          ...property,
+          favorited: !favorited
+        } : property
+      )
+
+      setMatchedProperties(revertedProperties)
+
+      if (selectedProperty && selectedProperty.id === String(propertyId)) {
+        setSelectedProperty(prevProperty => ({
+          ...prevProperty!,
+          favorited: !favorited
+        }))
+      }
+
+      showToast('Failed to update favorite status. Please try again.', 'error')
     }
   }
 
@@ -433,37 +566,39 @@ export default function CustomerShowcasePage() {
   }
 
   const handlePropertyClick = async (property: Property) => {
+    // Open modal immediately with basic property data
+    setSelectedProperty(property)
+    setIsModalOpen(true)
+
+    // Show loading state for enhanced details
+    setIsLoadingDetails(true)
+    setDetailsError(null)
+
     try {
-      // Fetch/cache detailed property information
+      // Fetch/cache detailed property information in background
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/properties/${property.id}/cache`)
-      
+
       if (response.ok) {
         const cacheResponse = await response.json()
-        
+
         if (cacheResponse.success && cacheResponse.details) {
-          // Create enhanced property with detailed information
+          // Update property with enhanced details
           const enhancedProperty = {
             ...property,
             details: cacheResponse.details
           }
           setSelectedProperty(enhancedProperty)
-        } else {
-          // Fallback to basic property if cache fails
-          setSelectedProperty(property)
         }
-      } else {
-        // Fallback to basic property if API call fails
-        setSelectedProperty(property)
       }
     } catch (error) {
       console.error('Error fetching property details:', error)
-      // Fallback to basic property
-      setSelectedProperty(property)
+      setDetailsError('Failed to load additional property details')
+    } finally {
+      // Hide loading state when done
+      setIsLoadingDetails(false)
     }
 
-    setIsModalOpen(true)
-
-    // Always fetch fresh comments
+    // Fetch comments in parallel
     const propertyIdAsNumber = Number(property.id)
     if (property.id && !isNaN(propertyIdAsNumber)) {
       fetchPropertyComments(propertyIdAsNumber)
@@ -543,7 +678,6 @@ export default function CustomerShowcasePage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col">
-        <Header mode={isAuthenticated ? 'app' : 'shared'} />
         <div className="flex-1 flex items-center justify-center py-20">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355] mx-auto mb-4"></div>
@@ -558,7 +692,6 @@ export default function CustomerShowcasePage() {
   if (error || !showcase) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col">
-        <Header mode={isAuthenticated ? 'app' : 'shared'} />
         <div className="flex-1 flex items-center justify-center py-20">
           <div className="text-center">
             <div className="w-16 h-16 bg-gradient-to-br from-red-500/20 to-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
@@ -577,7 +710,6 @@ export default function CustomerShowcasePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col">
-      <Header />
       <div className="flex-1 p-6">
         <div className="max-w-7xl mx-auto">
           {/* Customer Header */}
@@ -705,6 +837,8 @@ export default function CustomerShowcasePage() {
             onDislike={handlePropertyDislike}
             onFavorite={handlePropertyFavorite}
             onAddComment={handleAddComment}
+            isLoadingDetails={isLoadingDetails}
+            detailsError={detailsError}
             isLoadingComments={isLoadingComments}
             commentsError={commentsError}
           />

@@ -13,6 +13,7 @@ import EditPreferencesModal from '@/components/EditPreferencesModal'
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal'
 import ViewToursModal, { PropertyTour } from '@/components/ViewToursModal'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
+import Toast from '@/components/Toast'
 import { Share2, Calendar } from 'lucide-react'
 import { apiRequest, updateCollectionPreferences } from '@/lib/auth'
 import { collectionsApi } from '@/lib/api'
@@ -77,6 +78,26 @@ export default function ShowcasesPage() {
   const [collectionTours, setCollectionTours] = useState<PropertyTour[]>([])
   const [isToursModalOpen, setIsToursModalOpen] = useState(false)
   const [isLoadingTours, setIsLoadingTours] = useState(false)
+
+  // Toast notification state
+  const [toast, setToast] = useState<{
+    message: string
+    type: 'success' | 'error'
+    isVisible: boolean
+  }>({
+    message: '',
+    type: 'success',
+    isVisible: false
+  })
+
+  // Toast helper functions
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type, isVisible: true })
+  }
+
+  const closeToast = () => {
+    setToast(prev => ({ ...prev, isVisible: false }))
+  }
 
   // Check authentication and redirect if needed
   useEffect(() => {
@@ -314,7 +335,27 @@ export default function ShowcasesPage() {
   // Handle property interactions
   const handlePropertyLike = async (propertyId: string | number, liked: boolean) => {
     if (!selectedCollection || !matchedProperties) return
-    
+
+    // Optimistic UI update - update immediately for instant feedback
+    const optimisticProperties = matchedProperties.map(property =>
+      property.id === propertyId ? {
+        ...property,
+        liked: liked,
+        disliked: liked ? false : property.disliked  // Clear dislike if liking
+      } : property
+    )
+
+    setMatchedProperties(optimisticProperties)
+
+    // Update selected property if it's the one being modified
+    if (selectedProperty && selectedProperty.id === propertyId) {
+      setSelectedProperty(prevProperty => ({
+        ...prevProperty!,
+        liked: liked,
+        disliked: liked ? false : prevProperty!.disliked
+      }))
+    }
+
     try {
       const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${String(propertyId)}/interact`, {
         method: 'POST',
@@ -325,25 +366,80 @@ export default function ShowcasesPage() {
       })
 
       if (response.status === 200) {
-        // Update local state with server response
+        // Sync with server response
         const updatedProperties = matchedProperties.map(property =>
-          property.id === propertyId ? { 
-            ...property, 
+          property.id === propertyId ? {
+            ...property,
             liked: response.data.interaction.liked,
             disliked: response.data.interaction.disliked
           } : property
         )
-        
+
         setMatchedProperties(updatedProperties)
+
+        if (selectedProperty && selectedProperty.id === propertyId) {
+          setSelectedProperty(prevProperty => ({
+            ...prevProperty!,
+            liked: response.data.interaction.liked,
+            disliked: response.data.interaction.disliked
+          }))
+        }
+
+        // Show success toast
+        showToast(
+          liked ? 'Property added to your likes!' : 'Property removed from your likes',
+          'success'
+        )
       }
     } catch (error) {
       console.error('Error updating property like:', error)
+
+      // Rollback optimistic update on error
+      const revertedProperties = matchedProperties.map(property =>
+        property.id === propertyId ? {
+          ...property,
+          liked: !liked,
+          disliked: property.disliked
+        } : property
+      )
+
+      setMatchedProperties(revertedProperties)
+
+      if (selectedProperty && selectedProperty.id === propertyId) {
+        setSelectedProperty(prevProperty => ({
+          ...prevProperty!,
+          liked: !liked,
+          disliked: prevProperty!.disliked
+        }))
+      }
+
+      showToast('Failed to update like status. Please try again.', 'error')
     }
   }
 
   const handlePropertyDislike = async (propertyId: string | number, disliked: boolean) => {
     if (!selectedCollection || !matchedProperties) return
-    
+
+    // Optimistic UI update - update immediately for instant feedback
+    const optimisticProperties = matchedProperties.map(property =>
+      property.id === propertyId ? {
+        ...property,
+        liked: disliked ? false : property.liked,  // Clear like if disliking
+        disliked: disliked
+      } : property
+    )
+
+    setMatchedProperties(optimisticProperties)
+
+    // Update selected property if it's the one being modified
+    if (selectedProperty && selectedProperty.id === propertyId) {
+      setSelectedProperty(prevProperty => ({
+        ...prevProperty!,
+        liked: disliked ? false : prevProperty!.liked,
+        disliked: disliked
+      }))
+    }
+
     try {
       const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${String(propertyId)}/interact`, {
         method: 'POST',
@@ -354,26 +450,78 @@ export default function ShowcasesPage() {
       })
 
       if (response.status === 200) {
-        // Update local state with server response
+        // Sync with server response
         const updatedProperties = matchedProperties.map(property =>
-          property.id === propertyId ? { 
-            ...property, 
+          property.id === propertyId ? {
+            ...property,
             liked: response.data.interaction.liked,
             disliked: response.data.interaction.disliked
           } : property
         )
-        
+
         setMatchedProperties(updatedProperties)
 
+        if (selectedProperty && selectedProperty.id === propertyId) {
+          setSelectedProperty(prevProperty => ({
+            ...prevProperty!,
+            liked: response.data.interaction.liked,
+            disliked: response.data.interaction.disliked
+          }))
+        }
+
+        // Show success toast
+        showToast(
+          disliked ? 'Property marked as not interested' : 'Property unmarked as not interested',
+          'success'
+        )
       }
     } catch (error) {
       console.error('Error updating property dislike:', error)
+
+      // Rollback optimistic update on error
+      const revertedProperties = matchedProperties.map(property =>
+        property.id === propertyId ? {
+          ...property,
+          liked: property.liked,
+          disliked: !disliked
+        } : property
+      )
+
+      setMatchedProperties(revertedProperties)
+
+      if (selectedProperty && selectedProperty.id === propertyId) {
+        setSelectedProperty(prevProperty => ({
+          ...prevProperty!,
+          liked: prevProperty!.liked,
+          disliked: !disliked
+        }))
+      }
+
+      showToast('Failed to update status. Please try again.', 'error')
     }
   }
 
   const handlePropertyFavorite = async (propertyId: string | number, favorited: boolean) => {
     if (!selectedCollection || !matchedProperties) return
-    
+
+    // Optimistic UI update - update immediately for instant feedback
+    const optimisticProperties = matchedProperties.map(property =>
+      property.id === propertyId ? {
+        ...property,
+        favorited: favorited
+      } : property
+    )
+
+    setMatchedProperties(optimisticProperties)
+
+    // Update selected property if it's the one being modified
+    if (selectedProperty && selectedProperty.id === propertyId) {
+      setSelectedProperty(prevProperty => ({
+        ...prevProperty!,
+        favorited: favorited
+      }))
+    }
+
     try {
       const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${String(propertyId)}/interact`, {
         method: 'POST',
@@ -384,17 +532,50 @@ export default function ShowcasesPage() {
       })
 
       if (response.status === 200) {
-        // Update local state with server response
+        // Sync with server response
         const updatedProperties = matchedProperties.map(property =>
-          property.id === propertyId ? { 
-            ...property, 
+          property.id === propertyId ? {
+            ...property,
             favorited: response.data.interaction.favorited
           } : property
         )
+
         setMatchedProperties(updatedProperties)
+
+        if (selectedProperty && selectedProperty.id === propertyId) {
+          setSelectedProperty(prevProperty => ({
+            ...prevProperty!,
+            favorited: response.data.interaction.favorited
+          }))
+        }
+
+        // Show success toast
+        showToast(
+          favorited ? 'Property added to favorites!' : 'Property removed from favorites',
+          'success'
+        )
       }
     } catch (error) {
       console.error('Error updating property favorite:', error)
+
+      // Rollback optimistic update on error
+      const revertedProperties = matchedProperties.map(property =>
+        property.id === propertyId ? {
+          ...property,
+          favorited: !favorited
+        } : property
+      )
+
+      setMatchedProperties(revertedProperties)
+
+      if (selectedProperty && selectedProperty.id === propertyId) {
+        setSelectedProperty(prevProperty => ({
+          ...prevProperty!,
+          favorited: !favorited
+        }))
+      }
+
+      showToast('Failed to update favorite status. Please try again.', 'error')
     }
   }
 
@@ -2153,6 +2334,14 @@ function CreateCollectionModal({
           </div>
         </form>
       </div>
+
+      {/* Toast Notification */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isVisible={toast.isVisible}
+        onClose={closeToast}
+      />
     </div>
   )
 }

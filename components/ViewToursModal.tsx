@@ -17,7 +17,7 @@ export interface PropertyTour {
   preferred_date_3?: string
   preferred_time_3?: string
   message?: string
-  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED'
+  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED'
   created_at: string
   updated_at: string
   property?: {
@@ -47,6 +47,24 @@ export default function ViewToursModal({
 
   if (!isOpen) return null
 
+  // Format date from YYYY-MM-DD to MM/DD/YYYY
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const year = date.getFullYear()
+    return `${month}/${day}/${year}`
+  }
+
+  // Convert military time (HH:MM) to AM/PM format
+  const formatTime = (timeString: string) => {
+    const [hours, minutes] = timeString.split(':')
+    const hour = parseInt(hours, 10)
+    const ampm = hour >= 12 ? 'PM' : 'AM'
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
+    return `${displayHour}:${minutes} ${ampm}`
+  }
+
   const handleStatusUpdate = async (tourId: string, newStatus: string) => {
     setUpdatingTourId(tourId)
     try {
@@ -68,8 +86,6 @@ export default function ViewToursModal({
         return 'bg-yellow-100 text-yellow-800 border-yellow-200'
       case 'CONFIRMED':
         return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'COMPLETED':
-        return 'bg-green-100 text-green-800 border-green-200'
       case 'CANCELLED':
         return 'bg-red-100 text-red-800 border-red-200'
       default:
@@ -199,14 +215,14 @@ export default function ViewToursModal({
                         <div className="flex items-start">
                           <span className="font-semibold text-gray-900 mr-2">1.</span>
                           <span className="text-gray-700">
-                            {tour.preferred_date} at {tour.preferred_time}
+                            {formatDate(tour.preferred_date)} at {formatTime(tour.preferred_time)}
                           </span>
                         </div>
                         {tour.preferred_date_2 && tour.preferred_time_2 && (
                           <div className="flex items-start">
                             <span className="font-semibold text-gray-900 mr-2">2.</span>
                             <span className="text-gray-700">
-                              {tour.preferred_date_2} at {tour.preferred_time_2}
+                              {formatDate(tour.preferred_date_2)} at {formatTime(tour.preferred_time_2)}
                             </span>
                           </div>
                         )}
@@ -214,7 +230,7 @@ export default function ViewToursModal({
                           <div className="flex items-start">
                             <span className="font-semibold text-gray-900 mr-2">3.</span>
                             <span className="text-gray-700">
-                              {tour.preferred_date_3} at {tour.preferred_time_3}
+                              {formatDate(tour.preferred_date_3)} at {formatTime(tour.preferred_time_3)}
                             </span>
                           </div>
                         )}
@@ -249,7 +265,6 @@ export default function ViewToursModal({
                       >
                         <option value="PENDING">Pending</option>
                         <option value="CONFIRMED">Confirmed</option>
-                        <option value="COMPLETED">Completed</option>
                         <option value="CANCELLED">Cancelled</option>
                       </select>
                     </div>

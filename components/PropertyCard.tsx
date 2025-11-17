@@ -1,7 +1,8 @@
 'use client'
 
+import Image from 'next/image'
 import { Property } from '@/types'
-import { ThumbsUp, ThumbsDown, Bookmark, MessageCircle, Calendar } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, Star, MessageCircle, Calendar } from 'lucide-react'
 
 interface PropertyCardProps {
   property: Property
@@ -13,6 +14,7 @@ interface PropertyCardProps {
 }
 
 export default function PropertyCard({ property, onLike, onDislike, onFavorite, onPropertyClick, onScheduleTour }: PropertyCardProps) {
+  console.log(property)
   const formatPrice = (price?: number) => {
     return price ? price.toLocaleString('en-US', {
       style: 'currency',
@@ -22,17 +24,21 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
   }
 
   return (
-    <div 
+    <div
       onClick={() => onPropertyClick?.(property)}
-      className="bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-gray-300 transition-all duration-300 hover:-translate-y-1 hover:bg-gray-50 group cursor-pointer backdrop-blur-sm flex flex-col h-full shadow-sm hover:shadow-lg"
+      className="bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-gray-300 transition-transform duration-200 hover:-translate-y-1 group cursor-pointer backdrop-blur-sm flex flex-col h-full shadow-sm hover:shadow-lg will-change-transform"
     >
       {/* Property Image */}
-      <div className="relative bg-gray-100">
+      <div className="relative bg-gray-100 aspect-[16/9]">
         {property.imageUrl ? (
-          <img
+          <Image
             src={property.imageUrl}
             alt={property.address}
-            className="w-full aspect-[16/9] object-cover transition-transform duration-300"
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover"
+            loading="lazy"
+            quality={75}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
@@ -173,14 +179,14 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
                     onFavorite?.(property.id!, !property.favorited);
                   }}
                   className={`flex items-center transition-colors p-1 rounded-md hover:bg-gray-100 ${
-                    property.favorited 
-                      ? 'text-amber-400 hover:text-amber-300' 
+                    property.favorited
+                      ? 'text-amber-400 hover:text-amber-300'
                       : 'text-gray-400 hover:text-amber-500'
                   }`}
                   title={`${property.favorited ? 'Remove from favorites' : 'Add to favorites'}`}
                 >
-                  <Bookmark 
-                    size={16} 
+                  <Star
+                    size={16}
                     fill={property.favorited ? "currentColor" : "none"}
                   />
                 </button>

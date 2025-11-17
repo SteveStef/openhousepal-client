@@ -135,8 +135,7 @@ export default function HomePage() {
                 </h2>
                 
                 <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-                  Help agents capture visitor information at open houses and organize property recommendations. 
-                  Keep track of leads and follow up with interested buyers efficiently.
+                  Capture every visitor, instantly generate personalized property showcases, and follow up automatically—turning guests into signed clients.
                 </p>
                 
                 <div className="flex flex-col sm:flex-row gap-4 mb-12">
@@ -205,9 +204,9 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-6">
           <div className="py-20">
             <div className={`text-center mb-16 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-              <h3 className="text-5xl font-bold text-gray-900 mb-6 font-light">How Open House Pal Works</h3>
+              <h3 className="text-5xl font-bold text-gray-900 mb-6 font-light">How OpenHousePal Works</h3>
               <p className="text-xl text-gray-600 font-light max-w-3xl mx-auto">
-                From QR code creation to tour bookings - a complete lead generation workflow in four simple steps
+                The most effective open house sign-in, auto-follow-up, and lead-magnet system the industry has ever seen—powered in four simple steps.
               </p>
             </div>
 
@@ -217,7 +216,7 @@ export default function HomePage() {
                 {
                   step: 1,
                   title: "Create Your Open House",
-                  description: "Enter the property address and our system instantly fetches data from Zillow. Select your favorite photo for marketing materials, generate a custom QR code, and download professional PDF flyers to display at the open house.",
+                  description: "Enter the property address and OpenHousePal instantly pulls in key property details. Select your favorite photo for marketing materials, generate a custom QR code, and download professional PDF flyers to display at the open house—all in under 10 seconds.",
                   icon: (
                     <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -240,8 +239,8 @@ export default function HomePage() {
                 },
                 {
                   step: 3,
-                  title: "Showcase Auto-Generated",
-                  description: "When visitors opt in, the system instantly creates a personalized property collection based on the home they visited. Matching properties from Zillow are automatically populated using price, beds, baths, and location filters.",
+                  title: "Showcase AI-Generated",
+                  description: "When visitors opt in, OpenHousePal instantly creates a personalized property collection based on the home they visited. Matching properties are automatically added using price range, beds, baths, and location filters. An invite to their showcase is automatically sent to the guest one hour after the open house.",
                   icon: (
                     <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
@@ -253,7 +252,7 @@ export default function HomePage() {
                 {
                   step: 4,
                   title: "Engage & Book Tours",
-                  description: "Visitors view their personalized showcase, like or dislike properties, leave comments, and request tours with preferred dates and times. You monitor all interactions through your dashboard and follow up instantly on hot leads.",
+                  description: "Visitors can view their personalized showcase created specifically from that open house and will receive emails with similar properties—marketed by you as their agent. Inside each showcase, guests can leave comments, request showings, comment under specific properties, or remove properties from their collection. You can see and monitor all interactions through your dashboard and follow up instantly via real-time notifications.",
                   icon: (
                     <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
@@ -399,7 +398,7 @@ export default function HomePage() {
             <div className={`text-center mb-16 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
               <h3 className="text-5xl font-bold text-gray-900 mb-6 font-light">Frequently Asked Questions</h3>
               <p className="text-xl text-gray-600 font-light max-w-3xl mx-auto">
-                Everything you need to know about Open House Pal
+                Everything you need to know about OpenHousePal
               </p>
             </div>
 
@@ -549,7 +548,7 @@ export default function HomePage() {
       {/* Footer */}
       <div className="p-6 border-t border-gray-200/60">
         <div className="max-w-7xl mx-auto text-center text-gray-600 text-sm">
-          <p>Open House Pal - Built for real estate agents</p>
+          <p>OpenHousePal - Built for real estate agents</p>
         </div>
       </div>
     </div>
