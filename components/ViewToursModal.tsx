@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { X, Calendar, Phone, Mail, User, MapPin } from 'lucide-react'
 
 export interface PropertyTour {
@@ -143,9 +144,11 @@ export default function ViewToursModal({
                   {tour.property && (
                     <div className="flex items-start space-x-4 mb-4 pb-4 border-b border-gray-200">
                       {tour.property.imageUrl && (
-                        <img
+                        <Image
                           src={tour.property.imageUrl}
                           alt={tour.property.street_address || 'Property'}
+                          width={80}
+                          height={80}
                           className="w-20 h-20 object-cover rounded-lg"
                         />
                       )}

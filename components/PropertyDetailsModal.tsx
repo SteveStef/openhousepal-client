@@ -223,7 +223,6 @@ export default function PropertyDetailsModal({
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isLightboxOpen, setIsLightboxOpen] = useState(false)
   const commentsContainerRef = useRef<HTMLDivElement>(null)
-  console.log(property);
 
   // Enhanced photo handling for property data
   const getPropertyImages = useCallback(() => {

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -216,9 +217,11 @@ export default function DashboardPage() {
               <div className="space-y-4">
                 <div className="flex justify-center">
                   <div className="bg-white p-3 rounded-lg shadow-lg">
-                    <img
+                    <Image
                       src={qrCode}
                       alt="Property QR Code"
+                      width={192}
+                      height={192}
                       className="w-48 h-48"
                     />
                   </div>

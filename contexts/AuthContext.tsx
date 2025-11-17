@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
 import { User, getCurrentUser } from '@/lib/auth'
 
 interface AuthContextType {
@@ -15,6 +15,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const hasFetchedRef = useRef(false)
 
   const fetchUser = async () => {
     try {
@@ -29,7 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    fetchUser()
+    // Only fetch user data once when the app first loads
+    // Prevents refetching on every navigation
+    if (!hasFetchedRef.current) {
+      hasFetchedRef.current = true
+      fetchUser()
+    }
   }, [])
 
   const refreshUser = async () => {

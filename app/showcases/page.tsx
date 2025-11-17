@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Collection, Property } from '@/types'
 import PropertyGrid from '@/components/PropertyGrid'
@@ -226,16 +226,18 @@ export default function ShowcasesPage() {
 
   }, [selectedCollection]);
 
-  const filteredCollections = collections.filter(collection => {
-    const matchesSearch =
-      collection.customer.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      collection.customer.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      collection.customer.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCollections = useMemo(() => {
+    return collections.filter(collection => {
+      const matchesSearch =
+        collection.customer.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        collection.customer.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        collection.customer.email.toLowerCase().includes(searchTerm.toLowerCase())
 
-    const matchesStatus = statusFilter === 'ALL' || collection.status === statusFilter
+      const matchesStatus = statusFilter === 'ALL' || collection.status === statusFilter
 
-    return matchesSearch && matchesStatus
-  })
+      return matchesSearch && matchesStatus
+    })
+  }, [collections, searchTerm, statusFilter])
 
   // Calculate active showcases count and limit status
   const activeShowcasesCount = collections.filter(collection => collection.status === 'ACTIVE').length
@@ -261,10 +263,10 @@ export default function ShowcasesPage() {
   }
 
   // Filter and sort properties based on tabs and sorting
-  const getFilteredProperties = () => {
+  const filteredProperties = useMemo(() => {
     if (!selectedCollection) return []
     if (!matchedProperties) return []
-    
+
     let filtered = matchedProperties;
 
     // Apply tab filter
@@ -288,7 +290,7 @@ export default function ShowcasesPage() {
     // Apply sorting
     filtered = [...filtered].sort((a, b) => {
       let aValue, bValue
-      
+
       switch (sortBy) {
         case 'price':
           aValue = a.price || 0
@@ -314,11 +316,9 @@ export default function ShowcasesPage() {
     })
 
     return filtered
-  }
+  }, [matchedProperties, selectedCollection, activeTab, sortBy, sortOrder])
 
-  const filteredProperties = getFilteredProperties()
-
-  const getTabCounts = () => {
+  const tabCounts = useMemo(() => {
     if (!selectedCollection || !matchedProperties) return { all: 0, liked: 0, disliked: 0, favorited: 0 }
 
     const properties = matchedProperties
@@ -328,9 +328,7 @@ export default function ShowcasesPage() {
       disliked: properties.filter(p => p.disliked).length,
       favorited: properties.filter(p => p.favorited).length
     }
-  }
-
-  const tabCounts = getTabCounts()
+  }, [selectedCollection, matchedProperties])
 
   // Handle property interactions
   const handlePropertyLike = async (propertyId: string | number, liked: boolean) => {
@@ -970,21 +968,15 @@ export default function ShowcasesPage() {
 
   const handleSavePreferences = async (collectionId: string, preferences: any) => {
     try {
-      console.log(`[PREFERENCES] Updating preferences for collection ${collectionId}:`, preferences)
-      preferences.diameter = Math.round(preferences.diameter * 1.8 * 10) / 10     
+      preferences.diameter = Math.round(preferences.diameter * 1.8 * 10) / 10
 
       const response = await updateCollectionPreferences(collectionId, preferences)
 
       if (response.status === 200) {
-        console.log('[PREFERENCES] Successfully updated preferences:', response.data)
-
         // Refresh properties with updated preferences
-        console.log('[PROPERTIES] Refreshing properties for collection with updated preferences...')
         try {
           const refreshResponse = await collectionsApi.refreshProperties(collectionId)
-          if (refreshResponse.success && refreshResponse.data) {
-            console.log(`[PROPERTIES] Successfully refreshed properties: ${refreshResponse.data.properties_replaced} properties replaced`)
-          } else {
+          if (!refreshResponse.success) {
             console.warn('[PROPERTIES] Failed to refresh properties:', refreshResponse.error)
           }
         } catch (error) {
@@ -999,9 +991,7 @@ export default function ShowcasesPage() {
         // Refresh collections to show updated preferences and properties
         const collectionsResponse = await apiRequest('/collections/')
         if (collectionsResponse.status === 200 && collectionsResponse.data) {
-          console.log('[PREFERENCES] Refreshing collections data after preference update')
           const transformedCollections: Collection[] = collectionsResponse.data.map((backendCollection: any) => {
-            console.log(`[PREFERENCES] Processing updated collection: ${backendCollection.name} - ID: ${backendCollection.id}`)
             return {
               id: backendCollection.id,
               customer: (backendCollection.visitor_name || backendCollection.visitor_email) ? {
@@ -1266,7 +1256,7 @@ export default function ShowcasesPage() {
           </button>
 
           {/* Combined Property Recommendations and Status Section */}
-          <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg p-5 mb-6">
+          <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 p-5 mb-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 mb-1 font-light">Property Recommendations</h1>
@@ -1450,7 +1440,7 @@ export default function ShowcasesPage() {
       <div className="flex-1 p-6">
         <div className="max-w-7xl mx-auto">
         {/* Combined Header and Filters */}
-        <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg p-6 mb-8">
+        <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 p-6 mb-8">
           {/* Header Section */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6">
             <div className="flex-1 mb-4 lg:mb-0">
@@ -2335,13 +2325,15 @@ function CreateCollectionModal({
         </form>
       </div>
 
-      {/* Toast Notification */}
+      {/* Toast Notification 
       <Toast
         message={toast.message}
         type={toast.type}
         isVisible={toast.isVisible}
         onClose={closeToast}
       />
+
+      */}
     </div>
   )
 }

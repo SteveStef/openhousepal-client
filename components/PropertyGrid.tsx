@@ -16,7 +16,7 @@ interface PropertyGridProps {
 export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onFavorite, onPropertyClick, onScheduleTour }: PropertyGridProps) {
   if (properties.length === 0) {
     return (
-      <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg p-8">
+      <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 p-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-6 font-light">{title}</h2>
         <div className="text-center py-12">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
@@ -32,7 +32,7 @@ export default function PropertyGrid({ properties, title = "Properties", onLike,
   }
 
   return (
-    <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg p-8">
+    <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 font-light">{title}</h2>

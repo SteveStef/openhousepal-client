@@ -50,7 +50,6 @@ export default function ForgotPasswordPage() {
 
     try {
       const result = await requestPasswordReset(email)
-      console.log(result);
 
       if (result.status === 200) {
         // Success

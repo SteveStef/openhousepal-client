@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo, memo } from 'react'
 import Image from 'next/image'
 import { Property } from '@/types'
 import { ThumbsUp, ThumbsDown, Star, MessageCircle, Calendar } from 'lucide-react'
@@ -13,8 +14,19 @@ interface PropertyCardProps {
   onScheduleTour?: (property: Property) => void
 }
 
-export default function PropertyCard({ property, onLike, onDislike, onFavorite, onPropertyClick, onScheduleTour }: PropertyCardProps) {
-  console.log(property)
+const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, onFavorite, onPropertyClick, onScheduleTour }: PropertyCardProps) {
+  // Memoize visitor interaction counts to avoid redundant filtering on every render
+  const interactionCounts = useMemo(() => {
+    if (!property.visitorInteractions) {
+      return { liked: 0, disliked: 0, favorited: 0 }
+    }
+    return {
+      liked: property.visitorInteractions.filter(vi => vi.liked).length,
+      disliked: property.visitorInteractions.filter(vi => vi.disliked).length,
+      favorited: property.visitorInteractions.filter(vi => vi.favorited).length
+    }
+  }, [property.visitorInteractions])
+
   const formatPrice = (price?: number) => {
     return price ? price.toLocaleString('en-US', {
       style: 'currency',
@@ -26,7 +38,7 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
   return (
     <div
       onClick={() => onPropertyClick?.(property)}
-      className="bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-gray-300 transition-transform duration-200 hover:-translate-y-1 group cursor-pointer backdrop-blur-sm flex flex-col h-full shadow-sm hover:shadow-lg will-change-transform"
+      className="bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-gray-300 transition-transform duration-200 hover:-translate-y-1 group cursor-pointer flex flex-col h-full shadow-sm hover:shadow-lg will-change-transform"
     >
       {/* Property Image */}
       <div className="relative bg-gray-100 aspect-[16/9]">
@@ -60,7 +72,7 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
         {/* Home Type Badge */}
         {property.propertyType && (
           <div className="absolute top-4 right-4">
-            <span className="bg-[#8b7355] text-white font-semibold px-3 py-1 rounded-full text-sm backdrop-blur-sm border border-[#7a6549]">
+            <span className="bg-[#8b7355] text-white font-semibold px-3 py-1 rounded-full text-sm border border-[#7a6549]">
               {property.propertyType?.toLowerCase().substring(0,property.propertyType?.length).replace("_"," ")}
             </span>
           </div>
@@ -131,12 +143,12 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
                     fill={property.liked ? "currentColor" : "none"}
                   />
                 </button>
-                {property.visitorInteractions && property.visitorInteractions.filter(vi => vi.liked).length > 0 && (
-                  <span 
+                {interactionCounts.liked > 0 && (
+                  <span
                     className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium"
-                    title={`${property.visitorInteractions.filter(vi => vi.liked).length} visitor(s) liked this property`}
+                    title={`${interactionCounts.liked} visitor(s) liked this property`}
                   >
-                    {property.visitorInteractions.filter(vi => vi.liked).length}
+                    {interactionCounts.liked}
                   </span>
                 )}
               </div>
@@ -162,12 +174,12 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
                     fill={property.disliked ? "currentColor" : "none"}
                   />
                 </button>
-                {property.visitorInteractions && property.visitorInteractions.filter(vi => vi.disliked).length > 0 && (
-                  <span 
+                {interactionCounts.disliked > 0 && (
+                  <span
                     className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium"
-                    title={`${property.visitorInteractions.filter(vi => vi.disliked).length} visitor(s) disliked this property`}
+                    title={`${interactionCounts.disliked} visitor(s) disliked this property`}
                   >
-                    {property.visitorInteractions.filter(vi => vi.disliked).length}
+                    {interactionCounts.disliked}
                   </span>
                 )}
               </div>
@@ -190,12 +202,12 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
                     fill={property.favorited ? "currentColor" : "none"}
                   />
                 </button>
-                {property.visitorInteractions && property.visitorInteractions.filter(vi => vi.favorited).length > 0 && (
-                  <span 
+                {interactionCounts.favorited > 0 && (
+                  <span
                     className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium"
-                    title={`${property.visitorInteractions.filter(vi => vi.favorited).length} visitor(s) favorited this property`}
+                    title={`${interactionCounts.favorited} visitor(s) favorited this property`}
                   >
-                    {property.visitorInteractions.filter(vi => vi.favorited).length}
+                    {interactionCounts.favorited}
                   </span>
                 )}
               </div>
@@ -252,4 +264,6 @@ export default function PropertyCard({ property, onLike, onDislike, onFavorite, 
       </div>
     </div>
   )
-}
+})
+
+export default PropertyCard

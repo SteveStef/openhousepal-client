@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { X, Calendar, Send } from 'lucide-react'
 import { Property } from '@/types'
 
@@ -129,9 +130,11 @@ export default function ScheduleTourModal({
           <div className="bg-gradient-to-r from-gray-50 to-gray-100/50 rounded-xl p-4 mb-6 border border-gray-200">
             <div className="flex items-start space-x-4">
               {property.imageUrl && (
-                <img
+                <Image
                   src={property.imageUrl}
                   alt={property.address}
+                  width={80}
+                  height={80}
                   className="w-20 h-20 object-cover rounded-lg"
                 />
               )}

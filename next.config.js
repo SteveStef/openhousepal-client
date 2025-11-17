@@ -19,6 +19,10 @@ const nextConfig = {
         hostname: '**.hdpcdn.com',
       },
       {
+        protocol: 'https',
+        hostname: 'maps.googleapis.com',
+      },
+      {
         protocol: 'http',
         hostname: 'localhost',
       },
@@ -28,7 +32,7 @@ const nextConfig = {
   output: 'standalone',
 }
 
-// module.exports = nextConfig
+module.exports = nextConfig
 
 // /** @type {import('next').NextConfig} */
 // const nextConfig = {
@@ -39,4 +43,4 @@ const nextConfig = {
 //   },
 // };
 //
-export default nextConfig;
+//export default nextConfig;

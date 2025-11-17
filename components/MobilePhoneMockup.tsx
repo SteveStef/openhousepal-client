@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 
 export default function MobilePhoneMockup() {
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -51,9 +52,11 @@ export default function MobilePhoneMockup() {
                 <div className="flex gap-2">
                   {/* Property Image */}
                   <div className="w-20 h-20 flex-shrink-0 relative overflow-hidden">
-                    <img
+                    <Image
                       src="/home.jpg"
                       alt="Property"
+                      width={80}
+                      height={80}
                       className="w-full h-full object-cover"
                     />
                   </div>

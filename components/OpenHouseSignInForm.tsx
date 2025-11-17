@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { Property, SignInFormData } from '@/types'
 
 interface OpenHouseSignInFormProps {
@@ -167,11 +168,12 @@ export default function OpenHouseSignInForm({
         <div className="bg-white rounded-xl overflow-hidden border border-gray-200 flex">
           {/* Property Image */}
           {(property.imageSrc || property.imageUrl) && (
-            <div className="w-40 h-32 flex-shrink-0 bg-gray-100">
-              <img
+            <div className="w-40 h-32 flex-shrink-0 bg-gray-100 relative">
+              <Image
                 src={property.imageSrc || property.imageUrl}
                 alt={property.address}
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
               />
             </div>
           )}

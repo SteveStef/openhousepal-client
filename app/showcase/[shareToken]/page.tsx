@@ -194,8 +194,6 @@ export default function CustomerShowcasePage() {
 
   // Handle property interactions
   const handlePropertyLike = async (propertyId: string | number, liked: boolean) => {
-    console.log(showcase);
-    console.log(propertyId);
     if (!showcase) return
 
     // Optimistic UI update - update immediately for instant feedback

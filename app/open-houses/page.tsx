@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { v4 as uuidv4 } from 'uuid'
+import Image from 'next/image'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
@@ -60,40 +61,37 @@ export default function OpenHousesPage() {
   const [openHouseToDelete, setOpenHouseToDelete] = useState<OpenHouse | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Notification helper function
-  const showNotification = (type: 'success' | 'error', message: string) => {
+  // Notification helper function with cleanup
+  const showNotification = useCallback((type: 'success' | 'error', message: string) => {
     setNotification({ show: true, type, message })
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       setNotification(prev => ({ ...prev, show: false }))
-    }, 5000) // Hide after 5 seconds
-  }
+    }, 5000)
+    // Cleanup will happen automatically on next call or unmount
+    return () => clearTimeout(timeout)
+  }, [])
 
-  const handleViewVisitors = (openHouse: any) => {
-    console.log(openHouse);
+  const handleViewVisitors = useCallback((openHouse: any) => {
     const url = `/open-houses/visitors/${openHouse.id}`;
     router.push(url);
-  }
+  }, [router])
 
   // PDF viewing handler
-  const handleViewPDF = async (openHouse: OpenHouse) => {
+  const handleViewPDF = useCallback(async (openHouse: OpenHouse) => {
     try {
-      console.log('Opening PDF viewer for:', openHouse)
-      console.log('Setting selected open house:', openHouse)
       setSelectedOpenHouseForPDF(openHouse)
-      console.log('Setting showPDFViewer to true')
       setShowPDFViewer(true)
-      console.log('State should be updated now')
     } catch (error) {
       console.error('Error opening PDF viewer:', error)
       showNotification('error', 'Failed to load PDF')
     }
-  }
+  }, [showNotification])
 
   // Delete handlers
-  const handleDeleteClick = (openHouse: OpenHouse) => {
+  const handleDeleteClick = useCallback((openHouse: OpenHouse) => {
     setOpenHouseToDelete(openHouse)
     setShowDeleteDialog(true)
-  }
+  }, [])
 
   const handleDeleteConfirm = async () => {
     if (!openHouseToDelete) return
@@ -129,7 +127,6 @@ export default function OpenHousesPage() {
   useEffect(() => {
     if (!isAuthenticating) {
       if (!isAuthenticated) {
-        console.log('❌ Not authenticated - redirecting to login')
         router.push(`/login?redirect=${encodeURIComponent('/open-houses')}`)
         return
       }
@@ -137,7 +134,6 @@ export default function OpenHousesPage() {
       if (currentUser) {
         // Check subscription status
         if (!hasValidSubscription(currentUser)) {
-          console.log('❌ Subscription invalid - redirecting to upgrade')
           router.push('/upgrade-required')
           return
         }
@@ -149,7 +145,7 @@ export default function OpenHousesPage() {
   }, [isAuthenticating, isAuthenticated, currentUser, router])
 
 
-  const loadOpenHouseHistory = async () => {
+  const loadOpenHouseHistory = useCallback(async () => {
     try {
       setIsLoadingHistory(true)
       const response = await apiRequest('/api/open-houses')
@@ -161,7 +157,7 @@ export default function OpenHousesPage() {
     } finally {
       setIsLoadingHistory(false)
     }
-  }
+  }, [])
 
   const generateQRCode = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -517,9 +513,11 @@ export default function OpenHousesPage() {
                                   {/* Property Image */}
                                   <div className="relative flex-shrink-0">
                                     <div className="w-14 h-14 bg-gray-100 rounded-lg border border-gray-200/60 overflow-hidden">
-                                      <img
+                                      <Image
                                         src={openHouse.cover_image_url}
                                         alt={`Property at ${openHouse.address}`}
+                                        width={56}
+                                        height={56}
                                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                                       />
                                     </div>
@@ -760,7 +758,6 @@ export default function OpenHousesPage() {
         <OpenHousePDFViewer
           openHouse={selectedOpenHouseForPDF}
           onClose={() => {
-            console.log('Closing PDF viewer')
             setShowPDFViewer(false)
             setSelectedOpenHouseForPDF(null)
           }}
@@ -817,7 +814,7 @@ export default function OpenHousesPage() {
 }
 
 // Image Selection Component
-function ImageSelectionView({ propertyData, address, onImageSelect, onBack }: any) {
+const ImageSelectionView = memo(function ImageSelectionView({ propertyData, address, onImageSelect, onBack }: any) {
   const availableImages = propertyData?.originalPhotos || []
   
   return (
@@ -847,10 +844,12 @@ function ImageSelectionView({ propertyData, address, onImageSelect, onBack }: an
               className="relative aspect-square bg-gray-100 rounded-xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#8b7355] transition-all duration-200 group"
               onClick={() => onImageSelect({ url: imageUrl, width: 400, height: 300 })}
             >
-              <img
+              <Image
                 src={imageUrl}
                 alt={`Property view ${index + 1}`}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                fill
+                sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                className="object-cover group-hover:scale-105 transition-transform duration-200"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
                 <div className="bg-white/90 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -883,10 +882,10 @@ function ImageSelectionView({ propertyData, address, onImageSelect, onBack }: an
 
     </div>
   )
-}
+})
 
 // Save Dialog Component
-function SaveOpenHouseDialog({ address, selectedImage, qrCode, onSave, onCancel, onPreview, onDownload, isGeneratingPreview, isGeneratingPDF }: any) {
+const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selectedImage, qrCode, onSave, onCancel, onPreview, onDownload, isGeneratingPreview, isGeneratingPDF }: any) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
@@ -897,9 +896,9 @@ function SaveOpenHouseDialog({ address, selectedImage, qrCode, onSave, onCancel,
         
         <div className="p-6">
           <div className="flex items-center space-x-4 mb-6">
-            <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
+            <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden relative">
               {selectedImage && (
-                <img src={selectedImage.url} alt="Selected cover" className="w-full h-full object-cover" />
+                <Image src={selectedImage.url} alt="Selected cover" fill className="object-cover" />
               )}
             </div>
             <div className="flex-1">
@@ -943,10 +942,10 @@ function SaveOpenHouseDialog({ address, selectedImage, qrCode, onSave, onCancel,
       </div>
     </div>
   )
-}
+})
 
 // PDF Preview Modal Component
-function PDFPreviewModal({ pdfPreview, onClose, onDownload, isGeneratingPDF }: any) {
+const PDFPreviewModal = memo(function PDFPreviewModal({ pdfPreview, onClose, onDownload, isGeneratingPDF }: any) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
@@ -988,10 +987,10 @@ function PDFPreviewModal({ pdfPreview, onClose, onDownload, isGeneratingPDF }: a
       </div>
     </div>
   )
-}
+})
 
 // Delete Confirmation Dialog Component
-function DeleteConfirmationDialog({
+const DeleteConfirmationDialog = memo(function DeleteConfirmationDialog({
   openHouse,
   onConfirm,
   onCancel,
@@ -1073,24 +1072,18 @@ function DeleteConfirmationDialog({
       </div>
     </div>
   )
-}
+})
 
 // Open House PDF Viewer Component
-function OpenHousePDFViewer({ openHouse, onClose }: { openHouse: OpenHouse, onClose: () => void }) {
+const OpenHousePDFViewer = memo(function OpenHousePDFViewer({ openHouse, onClose }: { openHouse: OpenHouse, onClose: () => void }) {
   const [pdfUrl, setPdfUrl] = useState<string>('')
   const [isGenerating, setIsGenerating] = useState(false)
-  
-  console.log('OpenHousePDFViewer component rendered with:', openHouse)
 
   // Generate PDF on mount
   useEffect(() => {
     const generatePDF = async () => {
       setIsGenerating(true)
       try {
-        console.log('Generating PDF for open house:', openHouse)
-        console.log('QR Code URL:', openHouse.qr_code_url)
-        console.log('Cover Image URL:', openHouse.cover_image_url)
-        
         // Generate PDF preview using the existing generatePDFPreview function
         const { generatePDFPreview } = await import('@/lib/pdfGenerator')
         const pdfDataUrl = await generatePDFPreview({
@@ -1104,7 +1097,6 @@ function OpenHousePDFViewer({ openHouse, onClose }: { openHouse: OpenHouse, onCl
             price: openHouse.price
           }
         })
-        console.log('Generated PDF data URL')
         setPdfUrl(pdfDataUrl)
       } catch (error) {
         console.error('Error generating PDF:', error)
@@ -1195,4 +1187,4 @@ function OpenHousePDFViewer({ openHouse, onClose }: { openHouse: OpenHouse, onCl
       </div>
     </div>
   )
-}
+})
