@@ -152,6 +152,7 @@ export default function OpenHouseSignInForm({
     )
   }
 
+  const the_image_src = property.imageUrl ?? property.imageUrl;
   return (
     <div className="max-w-lg w-full bg-white rounded-3xl shadow-xl border border-gray-200">
       {/* Property Info Header */}
@@ -169,12 +170,15 @@ export default function OpenHouseSignInForm({
           {/* Property Image */}
           {(property.imageSrc || property.imageUrl) && (
             <div className="w-40 h-32 flex-shrink-0 bg-gray-100 relative">
+              {
+                the_image_src && 
               <Image
-                src={property.imageSrc || property.imageUrl}
+                src={the_image_src}
                 alt={property.address}
                 fill
                 className="object-cover"
               />
+              }
             </div>
           )}
 
