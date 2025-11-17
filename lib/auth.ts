@@ -343,7 +343,7 @@ export function hasValidSubscription(user: User | null): boolean {
  * Update collection preferences
  */
 export async function updateCollectionPreferences(
-  collectionId: string, 
+  collectionId: string,
   preferences: {
     address?: string | null;
     cities?: string[] | null;
@@ -358,7 +358,7 @@ export async function updateCollectionPreferences(
     long?: number | null;
     diameter?: number;
     special_features?: string;
-    is_town_house?: boolean; 
+    is_town_house?: boolean;
     is_lot_land?: boolean;
     is_condo?: boolean;
     is_multi_family?: boolean;
@@ -367,6 +367,40 @@ export async function updateCollectionPreferences(
   }
 ): Promise<ApiResponse> {
   return await apiRequest(`/collection-preferences/collection/${collectionId}`, {
+    method: 'PUT',
+    body: JSON.stringify(preferences),
+  });
+}
+
+/**
+ * Atomically update collection preferences and refresh properties
+ * Only commits if Zillow API succeeds. If Zillow fails, no changes are made.
+ */
+export async function updatePreferencesAndRefresh(
+  collectionId: string,
+  preferences: {
+    address?: string | null;
+    cities?: string[] | null;
+    townships?: string[] | null;
+    min_beds?: number | null;
+    max_beds?: number | null;
+    min_baths?: number | null;
+    max_baths?: number | null;
+    min_price?: number | null;
+    max_price?: number | null;
+    lat?: number | null;
+    long?: number | null;
+    diameter?: number;
+    special_features?: string;
+    is_town_house?: boolean;
+    is_lot_land?: boolean;
+    is_condo?: boolean;
+    is_multi_family?: boolean;
+    is_single_family?: boolean;
+    is_apartment?: boolean;
+  }
+): Promise<ApiResponse> {
+  return await apiRequest(`/collections/${collectionId}/update-preferences-and-refresh`, {
     method: 'PUT',
     body: JSON.stringify(preferences),
   });

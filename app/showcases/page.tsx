@@ -15,7 +15,7 @@ import ViewToursModal, { PropertyTour } from '@/components/ViewToursModal'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import Toast from '@/components/Toast'
 import { Share2, Calendar } from 'lucide-react'
-import { apiRequest, updateCollectionPreferences } from '@/lib/auth'
+import { apiRequest, updateCollectionPreferences, updatePreferencesAndRefresh } from '@/lib/auth'
 import { collectionsApi } from '@/lib/api'
 import MultiCityPlacesInput from '@/components/MultiCityPlacesInput'
 import MultiTownshipPlacesInput from '@/components/MultiTownshipPlacesInput'
@@ -970,19 +970,16 @@ export default function ShowcasesPage() {
     try {
       preferences.diameter = Math.round(preferences.diameter * 1.8 * 10) / 10
 
-      const response = await updateCollectionPreferences(collectionId, preferences)
+      // Use atomic update that saves preferences and refreshes properties together
+      // Only commits if Zillow API succeeds, preventing empty collections on errors
+      const response = await updatePreferencesAndRefresh(collectionId, preferences)
 
       if (response.status === 200) {
-        // Refresh properties with updated preferences
-        try {
-          const refreshResponse = await collectionsApi.refreshProperties(collectionId)
-          if (!refreshResponse.success) {
-            console.warn('[PROPERTIES] Failed to refresh properties:', refreshResponse.error)
-          }
-        } catch (error) {
-          console.error('[PROPERTIES] Error refreshing properties:', error)
-          // Don't fail the whole operation if property refresh fails
-        }
+        console.log('[PREFERENCES] Successfully updated preferences and refreshed properties')
+
+        // Show success toast
+        const propertiesCount = response.data?.properties_count || 0
+        showToast(`Preferences updated and ${propertiesCount} properties refreshed successfully!`, 'success')
 
         // Close the modal
         setIsEditPreferencesModalOpen(false)
@@ -1069,12 +1066,15 @@ export default function ShowcasesPage() {
             }
           }
         }
-        
+
       } else {
-        console.error('[PREFERENCES] Failed to update preferences:', response.status, response.data || response.error)
+        const errorMessage = response.data?.error || response.error || 'Unknown error'
+        console.error('[PREFERENCES] Failed to update preferences and refresh properties:', response.status, errorMessage)
+        showToast(`Failed to save changes: ${errorMessage}. Your preferences and properties have not been changed.`, 'error')
       }
     } catch (error) {
-      console.error('[PREFERENCES] Error updating preferences:', error)
+      console.error('[PREFERENCES] Error updating preferences and refreshing properties:', error)
+      showToast('An error occurred while saving. Your preferences and properties have not been changed.', 'error')
     }
   }
 
@@ -1614,6 +1614,14 @@ export default function ShowcasesPage() {
         activeShowcasesCount={activeShowcasesCount}
         maxActiveShowcases={maxActiveShowcases}
         isNearLimit={isNearLimit}
+      />
+
+      {/* Toast Notification */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isVisible={toast.isVisible}
+        onClose={closeToast}
       />
 
     </div>
@@ -2324,16 +2332,6 @@ function CreateCollectionModal({
           </div>
         </form>
       </div>
-
-      {/* Toast Notification 
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        isVisible={toast.isVisible}
-        onClose={closeToast}
-      />
-
-      */}
     </div>
   )
 }

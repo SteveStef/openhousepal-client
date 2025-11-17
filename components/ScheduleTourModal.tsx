@@ -24,6 +24,35 @@ export interface TourRequest {
   message?: string
 }
 
+// Generate time options from 6:00 AM to 8:00 PM in 30-minute increments
+const generateTimeOptions = () => {
+  const options = []
+  const startHour = 6  // 6 AM
+  const endHour = 20   // 8 PM
+
+  for (let hour = startHour; hour <= endHour; hour++) {
+    for (let minute = 0; minute < 60; minute += 30) {
+      // Stop after 8:00 PM (don't include 8:30 PM)
+      if (hour === endHour && minute > 0) break
+
+      const hourStr = hour.toString().padStart(2, '0')
+      const minuteStr = minute.toString().padStart(2, '0')
+      const value = `${hourStr}:${minuteStr}`
+
+      // Format for display (12-hour format with AM/PM)
+      const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour
+      const period = hour >= 12 ? 'PM' : 'AM'
+      const label = `${displayHour}:${minuteStr} ${period}`
+
+      options.push({ value, label })
+    }
+  }
+
+  return options
+}
+
+const TIME_OPTIONS = generateTimeOptions()
+
 export default function ScheduleTourModal({
   property,
   isOpen,
@@ -188,15 +217,21 @@ export default function ScheduleTourModal({
                     <label htmlFor="preferredTime" className="block text-sm font-medium text-gray-700 mb-2">
                       Time *
                     </label>
-                    <input
+                    <select
                       id="preferredTime"
-                      type="time"
                       value={preferredTime}
                       onChange={(e) => setPreferredTime(e.target.value)}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355] transition-colors"
                       disabled={isSubmitting}
                       required
-                    />
+                    >
+                      <option value="">Select time...</option>
+                      {TIME_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>
@@ -223,14 +258,20 @@ export default function ScheduleTourModal({
                     <label htmlFor="preferredTime2" className="block text-sm font-medium text-gray-700 mb-2">
                       Time
                     </label>
-                    <input
+                    <select
                       id="preferredTime2"
-                      type="time"
                       value={preferredTime2}
                       onChange={(e) => setPreferredTime2(e.target.value)}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355] transition-colors"
                       disabled={isSubmitting}
-                    />
+                    >
+                      <option value="">Select time...</option>
+                      {TIME_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>
@@ -257,14 +298,20 @@ export default function ScheduleTourModal({
                     <label htmlFor="preferredTime3" className="block text-sm font-medium text-gray-700 mb-2">
                       Time
                     </label>
-                    <input
+                    <select
                       id="preferredTime3"
-                      type="time"
                       value={preferredTime3}
                       onChange={(e) => setPreferredTime3(e.target.value)}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355] transition-colors"
                       disabled={isSubmitting}
-                    />
+                    >
+                      <option value="">Select time...</option>
+                      {TIME_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>

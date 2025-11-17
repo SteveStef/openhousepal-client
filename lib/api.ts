@@ -137,9 +137,16 @@ class ApiClient {
     })
   }
 
-  async refreshCollectionProperties(collectionId: string): Promise<ApiResponse<{success: boolean, message: string, properties_replaced: number}>> {
-    return this.request(`/collections/${collectionId}/refresh-properties`, {
-      method: 'POST',
+  async updatePreferencesAndRefresh(collectionId: string, preferences: Partial<CollectionPreferences>): Promise<ApiResponse<{
+    success: boolean,
+    message: string,
+    preferences_updated: boolean,
+    properties_refreshed: boolean,
+    properties_count: number
+  }>> {
+    return this.request(`/collections/${collectionId}/update-preferences-and-refresh`, {
+      method: 'PUT',
+      body: JSON.stringify(preferences),
     })
   }
 
@@ -202,10 +209,11 @@ export const collectionPreferencesApi = {
   get: (collectionId: string) => api.getCollectionPreferences(collectionId),
   update: (collectionId: string, preferences: Partial<CollectionPreferences>) =>
     api.updateCollectionPreferences(collectionId, preferences),
+  updateAndRefresh: (collectionId: string, preferences: Partial<CollectionPreferences>) =>
+    api.updatePreferencesAndRefresh(collectionId, preferences),
 }
 
 export const collectionsApi = {
-  refreshProperties: (collectionId: string) => api.refreshCollectionProperties(collectionId),
   delete: (collectionId: string) => api.deleteCollection(collectionId),
 }
 
