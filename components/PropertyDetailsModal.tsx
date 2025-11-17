@@ -123,52 +123,36 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
         )}
       </div>
 
-      {/* Report Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-gray-50 border-b-2 border-gray-200">
-              <th className="px-8 py-4 text-left text-sm font-semibold text-gray-900 uppercase tracking-wider w-1/2">
-                Property
-              </th>
-              <th className="px-8 py-4 text-left text-sm font-semibold text-gray-900 uppercase tracking-wider w-1/2">
-                Details
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredData.map((row, index) => (
-              <tr
-                key={index}
-                className={`
-                  ${row.isHeader 
-                    ? 'bg-gray-800 border-t-2 border-gray-300' 
-                    : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                  }
-                  border-b border-gray-200 ${!row.isHeader ? 'hover:bg-gray-100 transition-colors duration-150' : ''}
-                `}
-              >
-                {row.isHeader ? (
-                  <td 
-                    colSpan={2} 
-                    className="px-8 py-4 font-bold text-white text-sm uppercase tracking-wide text-center"
-                  >
-                    {row.property}
-                  </td>
-                ) : (
-                  <>
-                    <td className="px-8 py-4 font-medium text-gray-900">
-                      {row.property}
-                    </td>
-                    <td className="px-8 py-4 text-gray-700">
-                      {row.value}
-                    </td>
-                  </>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Report Content - Mobile Responsive Grid */}
+      <div className="space-y-2 p-4 sm:p-6">
+        {filteredData.map((row, index) => (
+          row.isHeader ? (
+            // Section Header
+            <div
+              key={index}
+              className="bg-gray-800 px-4 sm:px-6 py-3 rounded-lg mt-4 first:mt-0"
+            >
+              <h3 className="font-bold text-white text-sm uppercase tracking-wide text-center">
+                {row.property}
+              </h3>
+            </div>
+          ) : (
+            // Data Item Card
+            <div
+              key={index}
+              className="bg-white hover:bg-gray-50 border border-gray-200 rounded-lg p-4 transition-colors duration-150"
+            >
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                <span className="font-medium text-gray-900 text-sm sm:text-base">
+                  {row.property}
+                </span>
+                <span className="text-gray-700 text-sm sm:text-base break-words">
+                  {row.value}
+                </span>
+              </div>
+            </div>
+          )
+        ))}
       </div>
 
       {/* Report Footer */}
