@@ -48,18 +48,6 @@ export default function OpenHouseVisitorsPage() {
     })
   }
 
-  const getTimeframeLabel = (timeframe) => {
-    const labels = {
-      'IMMEDIATELY': 'Immediately',
-      '1_3_MONTHS': '1-3 Months',
-      '3_6_MONTHS': '3-6 Months',
-      '6_12_MONTHS': '6-12 Months',
-      'OVER_YEAR': 'Over a Year',
-      'NOT_SURE': 'Not Sure'
-    }
-    return labels[timeframe] || timeframe
-  }
-
   const getAgentStatusLabel = (status) => {
     const labels = {
       'YES': 'Has Agent',
@@ -203,13 +191,6 @@ export default function OpenHouseVisitorsPage() {
 
                             {/* Tags and Status */}
                             <div className="flex flex-wrap gap-2">
-                              <div className="inline-flex items-center px-3 py-1 bg-gradient-to-r from-purple-50 to-purple-100/50 text-purple-700 rounded-lg text-xs font-medium border border-purple-200/50">
-                                <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                {getTimeframeLabel(visitor.timeframe)}
-                              </div>
-
                               <div className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium border ${getAgentStatusColor(visitor.has_agent)}`}>
                                 <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />

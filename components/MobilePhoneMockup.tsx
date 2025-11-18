@@ -139,24 +139,18 @@ export default function MobilePhoneMockup() {
               {/* Sign-in Form - Slide 3: Your Visit */}
               {currentSlide === 2 && (
                 <div className="space-y-3 mb-4 animate-fadeIn">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">What&apos;s your timeline?</label>
-                    <div className="bg-white rounded-lg px-3 py-2 border border-gray-200 text-sm text-gray-500 flex items-center justify-between">
-                      <span className="text-gray-400">Select timeframe...</span>
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
+                  <div className="bg-gray-50 rounded-lg p-3 text-center mb-2">
+                    <p className="text-gray-900 text-sm">Do you have an agent?</p>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Do you have a real estate agent?</label>
-                    <div className="bg-white rounded-lg px-3 py-2 border border-gray-200 text-sm text-gray-500 flex items-center justify-between">
-                      <span className="text-gray-400">Select...</span>
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
+                  <div className="space-y-2">
+                    <button className="w-full py-3 px-4 rounded-lg font-semibold text-sm bg-[#8b7355] text-white shadow-md">
+                      No
+                    </button>
+
+                    <button className="w-full py-3 px-4 rounded-lg font-semibold text-sm bg-white border-2 border-gray-300 text-gray-700">
+                      Yes
+                    </button>
                   </div>
                 </div>
               )}

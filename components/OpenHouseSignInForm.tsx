@@ -21,7 +21,6 @@ export default function OpenHouseSignInForm({
     email: '',
     phone: '',
     preferredContact: 'EMAIL',
-    timeframe: '',
     priceRange: '',
     interestedInSimilar: false,
     additionalComments: '',
@@ -47,7 +46,7 @@ export default function OpenHouseSignInForm({
       case 2:
         return formData.email.trim() !== '' && formData.phone.trim() !== ''
       case 3:
-        return formData.timeframe !== '' && formData.hasAgent !== ''
+        return formData.hasAgent !== ''
       case 4:
         return true // Step 4 has optional fields
       default:
@@ -72,18 +71,25 @@ export default function OpenHouseSignInForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (currentStep < 4) {
       // If not on the final step, just move to next step
       handleNextStep()
       return
     }
-    
+
     if (currentStep === 4) {
+      // If user already has an agent, skip collection offer and submit directly
+      if (formData.hasAgent === 'YES') {
+        const finalData = { ...formData, interestedInSimilar: false }
+        await onSubmit(finalData)
+        return
+      }
+
       setShowCollectionOffer(true)
       return
     }
-    
+
     await onSubmit(formData)
   }
 
@@ -152,7 +158,8 @@ export default function OpenHouseSignInForm({
     )
   }
 
-  const the_image_src = property.imageUrl ?? property.imageUrl;
+  const the_image_src = property.imageSrc || "";
+
   return (
     <div className="max-w-lg w-full bg-white rounded-3xl shadow-xl border border-gray-200">
       {/* Property Info Header */}
@@ -168,17 +175,14 @@ export default function OpenHouseSignInForm({
 
         <div className="bg-white rounded-xl overflow-hidden border border-gray-200 flex">
           {/* Property Image */}
-          {(property.imageSrc || property.imageUrl) && (
+          {the_image_src && (
             <div className="w-40 h-32 flex-shrink-0 bg-gray-100 relative">
-              {
-                the_image_src && 
               <Image
                 src={the_image_src}
                 alt={property.address}
                 fill
                 className="object-cover"
               />
-              }
             </div>
           )}
 
@@ -291,41 +295,38 @@ export default function OpenHouseSignInForm({
             </div>
           )}
 
-          {/* Step 3: Visit Questions */}
+          {/* Step 3: Agent Question */}
           {currentStep === 3 && (
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">What's your timeline?</label>
-                <select
-                  name="timeframe"
-                  value={formData.timeframe}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
-                  required
-                >
-                  <option value="">Select timeframe...</option>
-                  <option value="IMMEDIATELY">Immediately</option>
-                  <option value="1_3_MONTHS">1-3 months</option>
-                  <option value="3_6_MONTHS">3-6 months</option>
-                  <option value="6_12_MONTHS">6-12 months</option>
-                  <option value="OVER_YEAR">Over a year</option>
-                  <option value="NOT_SURE">Not sure</option>
-                </select>
+              <div className="bg-gray-50 rounded-xl p-4 text-center mb-2">
+                <h4 className="text-base font-bold text-gray-900 mb-1">Agent Status</h4>
+                <p className="text-gray-700 text-sm font-medium">Do you have an active buyer's agreement with a real estate agent?</p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Do you have a real estate agent?</label>
-                <select
-                  name="hasAgent"
-                  value={formData.hasAgent}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
-                  required
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, hasAgent: 'NO' }))}
+                  className={`w-full py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${
+                    formData.hasAgent === 'NO'
+                      ? 'bg-[#8b7355] text-white shadow-lg'
+                      : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-[#8b7355]'
+                  }`}
                 >
-                  <option value="">Select...</option>
-                  <option value="YES">Yes</option>
-                  <option value="NO">No</option>
-                </select>
+                  No
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, hasAgent: 'YES' }))}
+                  className={`w-full py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${
+                    formData.hasAgent === 'YES'
+                      ? 'bg-[#8b7355] text-white shadow-lg'
+                      : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-[#8b7355]'
+                  }`}
+                >
+                  Yes
+                </button>
               </div>
             </div>
           )}

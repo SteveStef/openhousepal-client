@@ -29,6 +29,8 @@ export default function EditPreferencesModal({
     max_baths: null,
     min_price: null,
     max_price: null,
+    min_year_built: null,
+    max_year_built: null,
     lat: null,
     long: null,
     address: '',
@@ -116,6 +118,8 @@ export default function EditPreferencesModal({
               max_baths: prefs.max_baths || null,
               min_price: prefs.min_price || null,
               max_price: prefs.max_price || null,
+              min_year_built: prefs.min_year_built || null,
+              max_year_built: prefs.max_year_built || null,
               lat: prefs.lat || null,
               long: prefs.long || null,
               address: prefs.address || '',
@@ -131,7 +135,6 @@ export default function EditPreferencesModal({
               is_multi_family: prefs.is_multi_family || false,
               is_single_family: prefs.is_single_family || false,
               is_apartment: prefs.is_apartment || false,
-              timeframe: prefs.timeframe || null,
               visiting_reason: prefs.visiting_reason || null,
               has_agent: prefs.has_agent || null
             })
@@ -163,6 +166,8 @@ export default function EditPreferencesModal({
                 max_baths: prefs.max_baths || null,
                 min_price: prefs.min_price || null,
                 max_price: prefs.max_price || null,
+                min_year_built: prefs.min_year_built || null,
+                max_year_built: prefs.max_year_built || null,
                 lat: prefs.lat || null,
                 long: prefs.long || null,
                 address: prefs.address || '',
@@ -178,7 +183,6 @@ export default function EditPreferencesModal({
                 is_multi_family: prefs.is_multi_family || false,
                 is_single_family: prefs.is_single_family || false,
                 is_apartment: prefs.is_apartment || false,
-                timeframe: prefs.timeframe || null,
                 visiting_reason: prefs.visiting_reason || null,
                 has_agent: prefs.has_agent || null
               })
@@ -191,6 +195,8 @@ export default function EditPreferencesModal({
                 max_baths: null,
                 min_price: null,
                 max_price: null,
+                min_year_built: null,
+                max_year_built: null,
                 lat: null,
                 long: null,
                 address: '',
@@ -206,7 +212,6 @@ export default function EditPreferencesModal({
                 is_multi_family: false,
                 is_single_family: false,
                 is_apartment: false,
-                timeframe: null,
                 visiting_reason: null,
                 has_agent: null
               })
@@ -222,6 +227,8 @@ export default function EditPreferencesModal({
             max_baths: null,
             min_price: null,
             max_price: null,
+            min_year_built: null,
+            max_year_built: null,
             lat: null,
             long: null,
             address: '',
@@ -237,7 +244,6 @@ export default function EditPreferencesModal({
             is_multi_family: false,
             is_single_family: false,
             is_apartment: false,
-            timeframe: null,
             visiting_reason: null,
             has_agent: null
           })
@@ -438,7 +444,7 @@ export default function EditPreferencesModal({
                   placeholder="Any"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Maximum Price ($)
@@ -449,6 +455,38 @@ export default function EditPreferencesModal({
                   step="any"
                   value={formData.max_price || ''}
                   onChange={(e) => handleInputChange('max_price', e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                  placeholder="Any"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Minimum Year Built
+                </label>
+                <input
+                  type="number"
+                  min="1800"
+                  max="2100"
+                  value={formData.min_year_built || ''}
+                  onChange={(e) => handleInputChange('min_year_built', e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                  placeholder="Any"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Maximum Year Built
+                </label>
+                <input
+                  type="number"
+                  min="1800"
+                  max="2100"
+                  value={formData.max_year_built || ''}
+                  onChange={(e) => handleInputChange('max_year_built', e.target.value ? parseInt(e.target.value) : null)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
                   placeholder="Any"
                 />
@@ -670,26 +708,7 @@ export default function EditPreferencesModal({
           <div className="space-y-4">
             <h4 className="text-lg font-medium text-gray-900">Visitor Information</h4>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Timeframe
-                </label>
-                <select
-                  value={formData.timeframe || ''}
-                  onChange={(e) => handleInputChange('timeframe', e.target.value || null)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
-                >
-                  <option value="">Not specified</option>
-                  <option value="IMMEDIATELY">Immediately</option>
-                  <option value="1_3_MONTHS">1-3 months</option>
-                  <option value="3_6_MONTHS">3-6 months</option>
-                  <option value="6_12_MONTHS">6-12 months</option>
-                  <option value="OVER_YEAR">Over a year</option>
-                  <option value="NOT_SURE">Not sure</option>
-                </select>
-              </div>
-              
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Visiting Reason

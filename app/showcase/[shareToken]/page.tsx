@@ -568,6 +568,37 @@ export default function CustomerShowcasePage() {
     setSelectedProperty(property)
     setIsModalOpen(true)
 
+    // Track property view
+    if (showcase?.id && property.id) {
+      try {
+        const response = await apiRequest(`/collections/${showcase.id}/properties/${String(property.id)}/view`, {
+          method: 'POST'
+        })
+
+        // Update local state after successful tracking
+        if (response.status === 200) {
+          // Update matchedProperties array
+          setMatchedProperties(prev => prev.map(p =>
+            p.id === property.id ? {
+              ...p,
+              viewed: true,
+              viewCount: (p.viewCount || 0) + 1
+            } : p
+          ))
+
+          // Update selectedProperty as well (since modal is already open)
+          setSelectedProperty(prev => prev ? {
+            ...prev,
+            viewed: true,
+            viewCount: (prev.viewCount || 0) + 1
+          } : prev)
+        }
+      } catch (error) {
+        console.error('Error tracking property view:', error)
+        // Don't block the UI if view tracking fails
+      }
+    }
+
     // Show loading state for enhanced details
     setIsLoadingDetails(true)
     setDetailsError(null)
@@ -714,8 +745,8 @@ export default function CustomerShowcasePage() {
           <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg p-5 mb-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-1 font-light">Property Recommendations</h1>
-                <p className="text-gray-600 text-sm font-light">Curated properties for {showcase.customer.firstName} {showcase.customer.lastName}</p>
+                <h1 className="text-2xl font-bold text-gray-900 mb-1 font-light">{showcase.customer.firstName} {showcase.customer.lastName}'s Showcase</h1>
+                <p className="text-gray-600 text-sm font-light">Curated property recommendations</p>
               </div>
               
               <div className="flex items-center space-x-4">
@@ -824,6 +855,7 @@ export default function CustomerShowcasePage() {
             onFavorite={handlePropertyFavorite}
             onPropertyClick={handlePropertyClick}
             onScheduleTour={handleScheduleTourClick}
+            showNewForUnviewed={true}
           />
 
           {/* Property Details Modal */}

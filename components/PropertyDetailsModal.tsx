@@ -123,36 +123,104 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
         )}
       </div>
 
-      {/* Report Content - Mobile Responsive Grid */}
-      <div className="space-y-2 p-4 sm:p-6">
-        {filteredData.map((row, index) => (
-          row.isHeader ? (
-            // Section Header
-            <div
-              key={index}
-              className="bg-gray-800 px-4 sm:px-6 py-3 rounded-lg mt-4 first:mt-0"
-            >
-              <h3 className="font-bold text-white text-sm uppercase tracking-wide text-center">
-                {row.property}
-              </h3>
-            </div>
-          ) : (
-            // Data Item Card
-            <div
-              key={index}
-              className="bg-white hover:bg-gray-50 border border-gray-200 rounded-lg p-4 transition-colors duration-150"
-            >
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                <span className="font-medium text-gray-900 text-sm sm:text-base">
-                  {row.property}
-                </span>
-                <span className="text-gray-700 text-sm sm:text-base break-words">
-                  {row.value}
-                </span>
+      {/* Report Content - Grouped Sections */}
+      <div className="p-4 sm:p-6 space-y-6">
+        {(() => {
+          // Group data by sections
+          const sections: Array<{ header: string; items: Array<{ property: string; value: any }> }> = [];
+          let currentSection: { header: string; items: Array<{ property: string; value: any }> } | null = null;
+
+          filteredData.forEach((row) => {
+            if (row.isHeader) {
+              if (currentSection) {
+                sections.push(currentSection);
+              }
+              currentSection = { header: row.property, items: [] };
+            } else if (currentSection) {
+              currentSection.items.push({ property: row.property, value: row.value });
+            }
+          });
+
+          if (currentSection) {
+            sections.push(currentSection);
+          }
+
+          return sections.map((section, sectionIndex) => {
+            // Separate items into full-width and regular items based on comma count
+            const fullWidthItems = section.items.filter(item => {
+              const value = String(item.value);
+              const commaCount = (value.match(/,/g) || []).length;
+              return commaCount >= 3; // 3+ commas = 4+ items in list
+            });
+            const regularItems = section.items.filter(item => {
+              const value = String(item.value);
+              const commaCount = (value.match(/,/g) || []).length;
+              return commaCount < 3;
+            });
+
+            return (
+              <div
+                key={sectionIndex}
+                className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm"
+              >
+                {/* Subtle Section Header */}
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4 pb-2 border-b border-gray-100">
+                  {section.header}
+                </h3>
+
+                {/* Full-Width Items */}
+                {fullWidthItems.length > 0 && (
+                  <div className="space-y-3 mb-4">
+                    {fullWidthItems.map((item, itemIndex) => (
+                      <div key={itemIndex} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div className="text-sm font-medium text-gray-600 mb-2">
+                          {item.property}:
+                        </div>
+                        <div className="text-sm text-gray-900 leading-relaxed">
+                          {item.value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Regular Items - Single Item or Grid */}
+                {regularItems.length > 0 && (
+                  regularItems.length === 1 ? (
+                    // Single item - display full width
+                    <div className="flex justify-between items-start gap-4 py-1">
+                      <span className="text-sm font-medium text-gray-600 flex-shrink-0">
+                        {regularItems[0].property}:
+                      </span>
+                      <span className="text-sm text-gray-900 text-right break-words flex-1">
+                        {regularItems[0].value}
+                      </span>
+                    </div>
+                  ) : (
+                    // Multiple items - display in 2-column grid
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3">
+                      {regularItems.map((item, itemIndex) => (
+                        <div
+                          key={itemIndex}
+                          className={`flex justify-between items-start gap-4 ${
+                            itemIndex % 2 === 0 ? 'md:pr-4' : 'md:pl-4 md:border-l md:border-gray-200'
+                          }`}
+                        >
+                          <span className="text-sm font-medium text-gray-600 flex-shrink-0">
+                            {item.property}:
+                          </span>
+                          <span className="text-sm text-gray-900 text-right break-words">
+                            {item.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                )}
               </div>
-            </div>
-          )
-        ))}
+            );
+          });
+        })()}
       </div>
 
       {/* Report Footer */}

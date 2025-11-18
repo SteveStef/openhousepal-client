@@ -3,8 +3,10 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState } from 'react'
+import { Home } from 'lucide-react'
 import { logout, hasValidSubscription } from '@/lib/auth'
 import { useAuth } from '@/contexts/AuthContext'
+import NotificationBell from './NotificationBell'
 
 interface HeaderProps {
   mode?: 'landing' | 'app' | 'shared'
@@ -28,7 +30,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
   }
 
   return (
-    <header className="bg-white/95 backdrop-blur-xl border-b border-gray-200/80 shadow-sm">
+    <header className="relative z-40 bg-white/95 border-b border-gray-200/80 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
@@ -60,9 +62,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                       className={`${hasValidSubscription(user) ? 'text-gray-700' : 'text-gray-400'} hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center`}
                       title={hasValidSubscription(user) ? "Open Houses" : "Open Houses (Subscription Required)"}
                     >
-                      <svg className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1" />
-                      </svg>
+                      <Home className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
                       <span className="hidden sm:inline">Open Houses</span>
                     </Link>
                     {hasPremiumAccess && hasValidSubscription(user) ? (
@@ -146,9 +146,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                   className={`${hasValidSubscription(user) ? 'text-gray-700' : 'text-gray-400'} hover:text-[#8b7355] font-medium text-sm transition-colors duration-200 flex items-center`}
                   title={hasValidSubscription(user) ? "Open Houses" : "Open Houses (Subscription Required)"}
                 >
-                  <svg className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1" />
-                  </svg>
+                  <Home className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
                   <span className="hidden sm:inline">Open Houses</span>
                 </Link>
                 {hasPremiumAccess && hasValidSubscription(user) ? (
@@ -175,6 +173,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                       </svg>
                       <span className="hidden sm:inline">Settings</span>
                     </Link>
+                    <NotificationBell />
                     <button
                       onClick={handleLogout}
                       disabled={isLoggingOut}

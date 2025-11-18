@@ -197,7 +197,7 @@ export default function ScheduleTourModal({
               {/* First Choice */}
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <h5 className="text-sm font-semibold text-gray-900 mb-3">First Choice *</h5>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="preferredDate" className="block text-sm font-medium text-gray-700 mb-2">
                       Date *
@@ -239,7 +239,7 @@ export default function ScheduleTourModal({
               {/* Second Choice */}
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <h5 className="text-sm font-semibold text-gray-900 mb-3">Second Choice (Optional)</h5>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="preferredDate2" className="block text-sm font-medium text-gray-700 mb-2">
                       Date
@@ -279,7 +279,7 @@ export default function ScheduleTourModal({
               {/* Third Choice */}
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <h5 className="text-sm font-semibold text-gray-900 mb-3">Third Choice (Optional)</h5>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="preferredDate3" className="block text-sm font-medium text-gray-700 mb-2">
                       Date
@@ -340,7 +340,7 @@ export default function ScheduleTourModal({
             )}
 
             {/* Action Buttons */}
-            <div className="flex space-x-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <button
                 type="button"
                 onClick={onClose}
@@ -352,10 +352,10 @@ export default function ScheduleTourModal({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-lg font-medium hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all duration-300 disabled:opacity-50 flex items-center justify-center space-x-2"
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-lg font-medium hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 <Send size={18} />
-                <span>{isSubmitting ? 'Sending...' : 'Send Request'}</span>
+                <span className="whitespace-nowrap">{isSubmitting ? 'Sending...' : 'Send Request'}</span>
               </button>
             </div>
           </form>

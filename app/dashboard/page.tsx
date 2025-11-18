@@ -82,7 +82,8 @@ export default function DashboardPage() {
             squareFeet: propertyData.livingArea || 0,
             yearBuilt: propertyData.yearBuilt,
             homeType: propertyData.homeType,
-            lotSize: propertyData.lotSize
+            lotSize: propertyData.lotSize,
+            garage: propertyData.garageSpaces ? `${propertyData.garageSpaces} Car` : undefined
           },
           filename: `property-qr-${address.replace(/\s+/g, '-').toLowerCase()}.pdf`
         })
@@ -106,7 +107,7 @@ export default function DashboardPage() {
                                 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&h=300&fit=crop'
         
         const { generatePDFPreview } = await import('@/lib/pdfGenerator')
-        const previewUrl = await generatePDFPreview({
+        const previewUrl = await generatePDFPreview ({
           qrCodeUrl: qrCode,
           address: address,
           propertyImageUrl: propertyImageUrl,
@@ -117,7 +118,8 @@ export default function DashboardPage() {
             squareFeet: propertyData.livingArea || 0,
             yearBuilt: propertyData.yearBuilt,
             homeType: propertyData.homeType,
-            lotSize: propertyData.lotSize
+            lotSize: propertyData.lotSize,
+            garage: propertyData.garageSpaces ? `${propertyData.garageSpaces} Car` : undefined
           }
         })
         setPdfPreview(previewUrl)

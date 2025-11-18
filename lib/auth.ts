@@ -354,6 +354,8 @@ export async function updateCollectionPreferences(
     max_baths?: number | null;
     min_price?: number | null;
     max_price?: number | null;
+    min_year_built?: number | null;
+    max_year_built?: number | null;
     lat?: number | null;
     long?: number | null;
     diameter?: number;
@@ -388,6 +390,8 @@ export async function updatePreferencesAndRefresh(
     max_baths?: number | null;
     min_price?: number | null;
     max_price?: number | null;
+    min_year_built?: number | null;
+    max_year_built?: number | null;
     lat?: number | null;
     long?: number | null;
     diameter?: number;

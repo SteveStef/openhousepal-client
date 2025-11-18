@@ -1,4 +1,4 @@
-import { Property, SignInFormData, ApiResponse, CollectionPreferences } from '@/types'
+import { Property, SignInFormData, ApiResponse, CollectionPreferences, NotificationResponse, Notification } from '@/types'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
@@ -97,7 +97,6 @@ class ApiClient {
     email: string
     phone: string
     visiting_reason: string
-    timeframe: string
     has_agent: string
     property_id: string
     agent_id?: string
@@ -168,6 +167,28 @@ class ApiClient {
       body: JSON.stringify({ propertyId, customerId }),
     })
   }
+
+  // Notification endpoints
+  async getNotifications(unreadOnly: boolean = false): Promise<ApiResponse<NotificationResponse[]>> {
+    const queryParam = unreadOnly ? '?unread_only=true' : ''
+    return this.request(`/api/v1/notifications${queryParam}`)
+  }
+
+  async getUnreadNotificationCount(): Promise<ApiResponse<{ unread_count: number }>> {
+    return this.request('/api/v1/notifications/unread-count')
+  }
+
+  async markNotificationAsRead(notificationId: string): Promise<ApiResponse<NotificationResponse>> {
+    return this.request(`/api/v1/notifications/${notificationId}/mark-as-read`, {
+      method: 'PATCH',
+    })
+  }
+
+  async markAllNotificationsAsRead(): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request('/api/v1/notifications/mark-all-as-read', {
+      method: 'POST',
+    })
+  }
 }
 
 // Create and export the API client instance
@@ -192,7 +213,6 @@ export const propertyVisitApi = {
     email: string
     phone: string
     visiting_reason: string
-    timeframe: string
     has_agent: string
     property_id: string
     agent_id?: string
@@ -224,6 +244,41 @@ export const analyticsApi = {
 
 export const openHouseApi = {
   getVisitors: (openHouseId: string) => api.getOpenHouseVisitors(openHouseId),
+}
+
+// Notification transformation helper
+export function transformNotification(backend: NotificationResponse): Notification {
+  return {
+    id: backend.id,
+    type: backend.type,
+    title: backend.title,
+    message: backend.message,
+    visitorName: backend.visitor_name || 'Unknown',
+    propertyAddress: backend.property_address || 'Unknown',
+    collectionId: backend.collection_id || '',
+    collectionName: backend.collection_name || undefined,
+    propertyId: backend.property_id || undefined,
+    isRead: backend.is_read,
+    readAt: backend.read_at || undefined,
+    timestamp: backend.created_at,
+  }
+}
+
+export const notificationApi = {
+  getAll: async (unreadOnly: boolean = false) => {
+    const response = await api.getNotifications(unreadOnly)
+    if (response.success && response.data) {
+      return {
+        ...response,
+        data: response.data.map(transformNotification)
+      }
+    }
+    
+    return null;
+  },
+  getUnreadCount: () => api.getUnreadNotificationCount(),
+  markAsRead: (notificationId: string) => api.markNotificationAsRead(notificationId),
+  markAllAsRead: () => api.markAllNotificationsAsRead(),
 }
 
 // Verification API functions

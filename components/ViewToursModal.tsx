@@ -101,7 +101,7 @@ export default function ViewToursModal({
     >
       <div className="bg-white rounded-2xl shadow-2xl border border-gray-200/60 max-w-4xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200/60 bg-gradient-to-r from-[#8b7355] to-[#7a6549]">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200/60 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-t-2xl">
           <div className="flex items-center space-x-3">
             <div className="bg-white/20 p-2 rounded-lg">
               <Calendar className="text-white" size={24} />

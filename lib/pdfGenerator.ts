@@ -8,6 +8,7 @@ interface PropertyDetails {
   yearBuilt?: number
   homeType?: string
   lotSize?: number
+  garage?: string
 }
 
 interface PDFGenerationOptions {

@@ -3,7 +3,7 @@
 import { useMemo, memo } from 'react'
 import Image from 'next/image'
 import { Property } from '@/types'
-import { ThumbsUp, ThumbsDown, Star, MessageCircle, Calendar } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, Star, MessageCircle, Calendar, Eye } from 'lucide-react'
 
 interface PropertyCardProps {
   property: Property
@@ -12,9 +12,11 @@ interface PropertyCardProps {
   onFavorite?: (propertyId: string | number, favorited: boolean) => void
   onPropertyClick?: (property: Property) => void
   onScheduleTour?: (property: Property) => void
+  showDetailedViewCount?: boolean // If true, shows "X views", if false shows just "Viewed"
+  showNewForUnviewed?: boolean // If true, shows NEW badge when viewCount === 0, if false uses property.is_new
 }
 
-const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, onFavorite, onPropertyClick, onScheduleTour }: PropertyCardProps) {
+const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, onFavorite, onPropertyClick, onScheduleTour, showDetailedViewCount = false, showNewForUnviewed = false }: PropertyCardProps) {
   // Memoize visitor interaction counts to avoid redundant filtering on every render
   const interactionCounts = useMemo(() => {
     if (!property.visitorInteractions) {
@@ -60,22 +62,32 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
           </div>
         )}
 
-        {/* NEW Badge - Top Left */}
-        {property.is_new && (
-          <div className="absolute top-4 left-4" title={property.added_at ? `Added ${new Date(property.added_at).toLocaleDateString()}` : 'Recently added'}>
+        {/* NEW Badge - Top Right (only for visitor view when unviewed) */}
+        {showNewForUnviewed && (!property.viewCount || property.viewCount === 0) && (
+          <div className="absolute top-4 right-4" title="Not yet viewed">
             <span className="bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold px-3 py-1 rounded-full text-xs shadow-lg border-2 border-white">
               NEW
             </span>
           </div>
         )}
 
-        {/* Home Type Badge */}
-        {property.propertyType && (
+        {/* View Count Badge */}
+        {showDetailedViewCount ? (
           <div className="absolute top-4 right-4">
-            <span className="bg-[#8b7355] text-white font-semibold px-3 py-1 rounded-full text-sm border border-[#7a6549]">
-              {property.propertyType?.toLowerCase().substring(0,property.propertyType?.length).replace("_"," ")}
+            <span className="bg-white/90 text-gray-700 font-medium px-3 py-1 rounded-full text-sm border border-gray-200 flex items-center gap-1.5 shadow-sm">
+              <Eye size={16} />
+              <span>{property.viewCount || 0}</span>
             </span>
           </div>
+        ) : (
+          property.viewCount && property.viewCount > 0 && (
+            <div className="absolute top-4 right-4">
+              <span className="bg-white/90 text-gray-700 font-medium px-3 py-1 rounded-full text-sm border border-gray-200 flex items-center gap-1.5 shadow-sm">
+                <Eye size={16} />
+                <span>Viewed</span>
+              </span>
+            </div>
+          )
         )}
       </div>
 

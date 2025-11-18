@@ -169,8 +169,7 @@ export default function CustomerCollectionView({
         </p>
         <div className="bg-zinc-900/40 rounded-xl p-4 border border-zinc-800/60 backdrop-blur-sm inline-block">
           <p className="text-zinc-400 text-sm">
-            <span className="text-white font-medium">Budget:</span> {formatPriceRange((collection.preferences as any).priceRange)} • 
-            <span className="text-white font-medium ml-2">Timeframe:</span> {(collection.preferences as any).timeframe.replace(/_/g, '-').toLowerCase()}
+            <span className="text-white font-medium">Budget:</span> {formatPriceRange((collection.preferences as any).priceRange)}
           </p>
         </div>
       </div>

@@ -164,13 +164,11 @@ export default function ShowcasesPage() {
                 backendCollection.preferences?.max_price ?
                 `Under $${formatPrice(backendCollection.preferences.max_price)}` :
                 'Not specified',
-              timeframe: backendCollection.preferences?.timeframe || 'Not specified',
               visitingReason: backendCollection.preferences?.visiting_reason || 'Not specified',
               hasAgent: backendCollection.preferences?.has_agent || 'Not specified',
               additionalComments: backendCollection.preferences?.special_features || ''
             } : {
               priceRange: 'Not specified',
-              timeframe: 'Not specified',
               visitingReason: 'Not specified',
               hasAgent: 'Not specified',
               additionalComments: ''
@@ -244,10 +242,6 @@ export default function ShowcasesPage() {
   const maxActiveShowcases = 10
   const isAtLimit = activeShowcasesCount >= maxActiveShowcases
   const isNearLimit = activeShowcasesCount >= 8
-
-  const formatTimeframe = (timeframe: string) => {
-    return timeframe.replace(/_/g, '-').toLowerCase()
-  }
 
   const formatPriceRange = (priceRange: string) => {
     const ranges: { [key: string]: string } = {
@@ -1131,7 +1125,6 @@ export default function ShowcasesPage() {
           visitor_email: collectionData.email,
           visitor_phone: collectionData.phone,
           visiting_reason: collectionData.visitingReason,
-          timeframe: collectionData.timeframe,
           has_agent: collectionData.hasAgent,
           additional_comments: collectionData.additionalComments || '',
           
@@ -1142,6 +1135,8 @@ export default function ShowcasesPage() {
           max_baths: collectionData.maxBaths ? parseFloat(collectionData.maxBaths) : null,
           min_price: collectionData.minPrice ? parseInt(collectionData.minPrice) : null,
           max_price: collectionData.maxPrice ? parseInt(collectionData.maxPrice) : null,
+          min_year_built: collectionData.minYearBuilt ? parseInt(collectionData.minYearBuilt) : null,
+          max_year_built: collectionData.maxYearBuilt ? parseInt(collectionData.maxYearBuilt) : null,
           cities: collectionData.cities || [],
           townships: collectionData.townships || [],
           address: collectionData.address,
@@ -1207,13 +1202,11 @@ export default function ShowcasesPage() {
                 backendCollection.preferences?.max_price ?
                 `Under $${formatPrice(backendCollection.preferences.max_price)}` :
                 'Not specified',
-              timeframe: backendCollection.preferences?.timeframe || 'Not specified',
               visitingReason: backendCollection.preferences?.visiting_reason || 'Not specified',
               hasAgent: backendCollection.preferences?.has_agent || 'Not specified',
               additionalComments: backendCollection.preferences?.special_features || ''
             } : {
               priceRange: 'Not specified',
-              timeframe: 'Not specified',
               visitingReason: 'Not specified',
               hasAgent: 'Not specified',
               additionalComments: ''
@@ -1257,24 +1250,25 @@ export default function ShowcasesPage() {
 
           {/* Combined Property Recommendations and Status Section */}
           <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 p-5 mb-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-1 font-light">Property Recommendations</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 font-light">Property Recommendations</h1>
                 <p className="text-gray-600 text-sm font-light">Curated properties based on client preferences</p>
               </div>
-              
-              <div className="flex items-center space-x-4">
+
+              <div className="flex items-center gap-2 sm:gap-4">
                 <button
                   onClick={handleViewTours}
-                  className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border border-[#8b7355] text-[#8b7355] hover:bg-[#8b7355] hover:text-white transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="inline-flex items-center px-3 sm:px-4 py-2 rounded-lg text-sm font-medium border border-[#8b7355] text-[#8b7355] hover:bg-[#8b7355] hover:text-white transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap"
                   title="View tour requests for this collection"
                 >
                   <Calendar size={16} className="mr-2" />
-                  View Tours
+                  <span className="hidden sm:inline">View Tours</span>
+                  <span className="sm:hidden">Tours</span>
                 </button>
                 <button
                   onClick={() => handleStatusToggle(selectedCollection.id)}
-                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 hover:shadow-sm ${
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 hover:shadow-sm whitespace-nowrap ${
                     selectedCollection.status === 'ACTIVE'
                       ? 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200'
                       : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
@@ -1383,6 +1377,7 @@ export default function ShowcasesPage() {
             onDislike={handlePropertyDislike}
             onFavorite={handlePropertyFavorite}
             onPropertyClick={handlePropertyClick}
+            showDetailedViewCount={true}
           />
 
           {/* Property Details Modal */}
@@ -1569,7 +1564,6 @@ export default function ShowcasesPage() {
                 onEditPreferences={handleEditPreferences}
                 onDelete={handleDeleteCollection}
                 onStatusToggle={(collection: Collection) => handleStatusToggle(collection.id)}
-                formatTimeframe={formatTimeframe}
                 formatPriceRange={formatPriceRange}
               />
             ))}
@@ -1648,18 +1642,17 @@ function CreateCollectionModal({
   const [formData, setFormData] = useState({
     // Collection Info
     showcaseName: '',
-    
+
     // Customer Info
     fullName: '',
     email: '',
     phone: '',
-    
+
     // Customer Preferences
     visitingReason: 'BUYING_SOON',
-    timeframe: '3_6_MONTHS',
     hasAgent: 'NO',
     additionalComments: '',
-    
+
     // Search Preferences
     minBeds: '',
     maxBeds: '',
@@ -1667,6 +1660,8 @@ function CreateCollectionModal({
     maxBaths: '',
     minPrice: '',
     maxPrice: '',
+    minYearBuilt: '',
+    maxYearBuilt: '',
     address: '',
     cities: [] as string[],
     townships: [] as string[],
@@ -1806,7 +1801,6 @@ function CreateCollectionModal({
         email: '',
         phone: '',
         visitingReason: 'BUYING_SOON',
-        timeframe: '3_6_MONTHS',
         hasAgent: 'NO',
         additionalComments: '',
         minBeds: '',
@@ -1815,6 +1809,8 @@ function CreateCollectionModal({
         maxBaths: '',
         minPrice: '',
         maxPrice: '',
+        minYearBuilt: '',
+        maxYearBuilt: '',
         address: '',
         cities: [],
         townships: [],
@@ -1971,24 +1967,6 @@ function CreateCollectionModal({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  When to buy? *
-                </label>
-                <select
-                  value={formData.timeframe}
-                  onChange={(e) => handleInputChange('timeframe', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
-                  required
-                >
-                  <option value="IMMEDIATELY">Immediately</option>
-                  <option value="1_3_MONTHS">1-3 months</option>
-                  <option value="3_6_MONTHS">3-6 months</option>
-                  <option value="6_12_MONTHS">6-12 months</option>
-                  <option value="OVER_YEAR">Over a year</option>
-                  <option value="NOT_SURE">Not sure</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Do they have a real estate agent? *
                 </label>
                 <select
@@ -2105,6 +2083,38 @@ function CreateCollectionModal({
                     onChange={(e) => handleInputChange('maxPrice', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
                     placeholder="No limit"
+                  />
+                </div>
+              </div>
+
+              {/* Year Built Range */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Min Year Built
+                  </label>
+                  <input
+                    type="number"
+                    min="1800"
+                    max="2100"
+                    value={formData.minYearBuilt}
+                    onChange={(e) => handleInputChange('minYearBuilt', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    placeholder="Any"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Max Year Built
+                  </label>
+                  <input
+                    type="number"
+                    min="1800"
+                    max="2100"
+                    value={formData.maxYearBuilt}
+                    onChange={(e) => handleInputChange('maxYearBuilt', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    placeholder="Any"
                   />
                 </div>
               </div>

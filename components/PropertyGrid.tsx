@@ -11,9 +11,11 @@ interface PropertyGridProps {
   onFavorite?: (propertyId: string | number, favorited: boolean) => void
   onPropertyClick?: (property: Property) => void
   onScheduleTour?: (property: Property) => void
+  showDetailedViewCount?: boolean
+  showNewForUnviewed?: boolean
 }
 
-export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onFavorite, onPropertyClick, onScheduleTour }: PropertyGridProps) {
+export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onFavorite, onPropertyClick, onScheduleTour, showDetailedViewCount = false, showNewForUnviewed = false }: PropertyGridProps) {
   if (properties.length === 0) {
     return (
       <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 p-8">
@@ -32,14 +34,14 @@ export default function PropertyGrid({ properties, title = "Properties", onLike,
   }
 
   return (
-    <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 p-4 sm:p-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 font-light">{title}</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 font-light">{title}</h2>
           <p className="text-gray-600 text-sm font-light mt-1">Click on any property to view details or schedule tours</p>
         </div>
         <div className="flex items-center space-x-3">
-          <span className="text-sm text-gray-600 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
+          <span className="text-sm text-gray-600 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm whitespace-nowrap">
             {properties.length} {properties.length === 1 ? 'property' : 'properties'}
           </span>
         </div>
@@ -55,6 +57,8 @@ export default function PropertyGrid({ properties, title = "Properties", onLike,
             onFavorite={onFavorite}
             onPropertyClick={onPropertyClick}
             onScheduleTour={onScheduleTour}
+            showDetailedViewCount={showDetailedViewCount}
+            showNewForUnviewed={showNewForUnviewed}
           />
         ))}
       </div>

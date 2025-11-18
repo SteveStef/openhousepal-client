@@ -10,7 +10,6 @@ interface CollectionCardProps {
   onEditPreferences?: (collection: Collection) => void
   onDelete?: (collection: Collection) => void
   onStatusToggle?: (collection: Collection) => void
-  formatTimeframe: (timeframe: string) => string
   formatPriceRange: (priceRange: string) => string
 }
 
@@ -21,7 +20,6 @@ export default function CollectionCard({
   onEditPreferences,
   onDelete,
   onStatusToggle,
-  formatTimeframe,
   formatPriceRange
 }: CollectionCardProps) {
   const getStatusColor = (status: string) => {
@@ -173,21 +171,13 @@ export default function CollectionCard({
       {/* Search Preferences */}
       <div className="p-4 flex-1">
         <div className="space-y-3">
-          {/* Intent and Timeline */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
-              <span className="text-sm text-gray-700">
-                {(collection.preferences as any)?.visiting_reason 
-                  ? (collection.preferences as any).visiting_reason.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())
-                  : 'Browsing'
-                }
-              </span>
-            </div>
-            <span className="text-sm text-gray-500">
-              {(collection.preferences as any)?.timeframe 
-                ? formatTimeframe((collection.preferences as any).timeframe)
-                : 'Not specified'
+          {/* Intent */}
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+            <span className="text-sm text-gray-700">
+              {(collection.preferences as any)?.visiting_reason
+                ? (collection.preferences as any).visiting_reason.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())
+                : 'Browsing'
               }
             </span>
           </div>

@@ -4,6 +4,7 @@ import { useState, useEffect, memo, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { v4 as uuidv4 } from 'uuid'
 import Image from 'next/image'
+import { Home } from 'lucide-react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
@@ -276,7 +277,8 @@ export default function OpenHousesPage() {
             squareFeet: propertyData.livingArea || 0,
             yearBuilt: propertyData.yearBuilt,
             homeType: propertyData.homeType,
-            lotSize: propertyData.lotSize
+            lotSize: propertyData.lotSize,
+            garage: propertyData.garageSpaces ? `${propertyData.garageSpaces} Car` : undefined
           },
           filename: `open-house-${address.replace(/\s+/g, '-').toLowerCase()}.pdf`
         })
@@ -295,8 +297,8 @@ export default function OpenHousesPage() {
       setError('')
       
       try {
-        const { generatePDFPreview } = await import('@/lib/pdfGenerator')
-        const previewUrl = await generatePDFPreview({
+        const { generatePDFPreview  } = await import('@/lib/pdfGenerator')
+        const previewUrl = await generatePDFPreview ({
           qrCodeUrl: qrCode,
           address: propertyData.abbreviatedAddress || address,
           propertyImageUrl: selectedImage.url,
@@ -350,9 +352,7 @@ export default function OpenHousesPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex items-center">
                     <div className="w-12 h-12 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-2xl flex items-center justify-center mr-4 shadow-lg">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1" />
-                      </svg>
+                      <Home className="w-6 h-6 text-white" />
                     </div>
                     <div>
                       <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Property Portfolio</h1>
@@ -364,7 +364,7 @@ export default function OpenHousesPage() {
                       {openHouses.length > 0 && (
                         <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/50 rounded-xl px-4 py-2">
                           <span className="text-emerald-700 font-semibold text-sm">
-                            {openHouses.length} Active Listing{openHouses.length !== 1 ? 's' : ''}
+                            {openHouses.length} Open House{openHouses.length !== 1 ? 's' : ''} Created
                           </span>
                         </div>
                       )}
@@ -1085,8 +1085,8 @@ const OpenHousePDFViewer = memo(function OpenHousePDFViewer({ openHouse, onClose
       setIsGenerating(true)
       try {
         // Generate PDF preview using the existing generatePDFPreview function
-        const { generatePDFPreview } = await import('@/lib/pdfGenerator')
-        const pdfDataUrl = await generatePDFPreview({
+        const { generatePDFPreview  } = await import('@/lib/pdfGenerator')
+        const pdfDataUrl = await generatePDFPreview  ({
           qrCodeUrl: openHouse.qr_code_url,
           address: openHouse.address,
           propertyImageUrl: openHouse.cover_image_url,
@@ -1094,7 +1094,11 @@ const OpenHousePDFViewer = memo(function OpenHousePDFViewer({ openHouse, onClose
             beds: openHouse.bedrooms,
             baths: openHouse.bathrooms,
             squareFeet: openHouse.living_area,
-            price: openHouse.price
+            price: openHouse.price,
+            // yearBuilt: openHouse.year_built,
+            // homeType: openHouse.home_type,
+            // lotSize: openHouse.lot_size,
+            // garage: openHouse.garage_spaces ? `${openHouse.garage_spaces} Car` : undefined
           }
         })
         setPdfUrl(pdfDataUrl)
@@ -1112,7 +1116,7 @@ const OpenHousePDFViewer = memo(function OpenHousePDFViewer({ openHouse, onClose
     try {
       // Generate and download PDF using the download function
       const { generateQRCodePDF } = await import('@/lib/pdfGenerator')
-      await generateQRCodePDF({
+      await generateQRCodePDF ({
         qrCodeUrl: openHouse.qr_code_url,
         address: openHouse.address,
         propertyImageUrl: openHouse.cover_image_url,
@@ -1120,7 +1124,11 @@ const OpenHousePDFViewer = memo(function OpenHousePDFViewer({ openHouse, onClose
           beds: openHouse.bedrooms,
           baths: openHouse.bathrooms,
           squareFeet: openHouse.living_area,
-          price: openHouse.price
+          price: openHouse.price,
+          // yearBuilt: openHouse.year_built,
+          // homeType: openHouse.home_type,
+          // lotSize: openHouse.lot_size,
+          // garage: openHouse.garage_spaces ? `${openHouse.garage_spaces} Car` : undefined
         },
         filename: `${openHouse.address.replace(/[^a-zA-Z0-9]/g, '_')}_OpenHouse.pdf`
       })

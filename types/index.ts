@@ -40,6 +40,8 @@ export interface Property {
   disliked?: boolean;
   favorited?: boolean;
   viewed?: boolean;
+  viewCount?: number;
+  lastViewedAt?: string;
   comments?: Comment[];
   tourCount?: number;
   hasTourScheduled?: boolean;
@@ -99,7 +101,6 @@ export interface Customer {
   preferredContact: 'EMAIL' | 'PHONE' | 'TEXT';
   interestedInSimilar?: boolean;
   visitingReason?: string;
-  timeframe?: string;
   priceRange?: string;
   additionalComments?: string;
 }
@@ -110,7 +111,6 @@ export interface SignInFormData {
   email: string;
   phone: string;
   preferredContact: 'EMAIL' | 'PHONE' | 'TEXT';
-  timeframe: string;
   priceRange: string;
   interestedInSimilar: boolean;
   additionalComments: string;
@@ -129,6 +129,8 @@ export interface CollectionPreferences {
   max_baths?: number | null;
   min_price?: number | null;
   max_price?: number | null;
+  min_year_built?: number | null;
+  max_year_built?: number | null;
   lat?: number | null;
   long?: number | null;
   address?: string | null;
@@ -144,7 +146,6 @@ export interface CollectionPreferences {
   is_multi_family?: boolean | null;
   is_single_family?: boolean | null;
   is_apartment?: boolean | null;
-  timeframe?: string | null;
   visiting_reason?: string | null;
   has_agent?: string | null;
   created_at?: string;
@@ -161,7 +162,6 @@ export interface Collection {
   status: 'ACTIVE' | 'INACTIVE';
   preferences?: CollectionPreferences | {
     priceRange: string;
-    timeframe: string;
     visitingReason?: string;
     hasAgent?: string;
     additionalComments?: string;
@@ -190,4 +190,39 @@ export interface ApiResponse<T> {
   data?: T;
   message?: string;
   error?: string;
+}
+
+// Backend notification response (snake_case from API)
+export interface NotificationResponse {
+  id: string;
+  agent_id: string;
+  type: 'OPEN_HOUSE_SIGN_IN' | 'TOUR_REQUEST' | 'PROPERTY_INTERACTION';
+  reference_type: string;
+  reference_id: string;
+  title: string;
+  message: string;
+  collection_id?: string | null;
+  collection_name?: string | null;
+  property_id?: string | null;
+  property_address?: string | null;
+  visitor_name?: string | null;
+  is_read: boolean;
+  read_at?: string | null;
+  created_at: string;
+}
+
+// Frontend notification interface (camelCase for use in components)
+export interface Notification {
+  id: string;
+  type: 'OPEN_HOUSE_SIGN_IN' | 'TOUR_REQUEST' | 'PROPERTY_INTERACTION';
+  title: string;
+  message: string;
+  visitorName: string;
+  propertyAddress: string;
+  collectionId: string;
+  collectionName?: string;
+  propertyId?: string;
+  isRead: boolean;
+  readAt?: string;
+  timestamp: string; // Maps to created_at
 }
