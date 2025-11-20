@@ -48,68 +48,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        {/* Static Floating Orbs */}
-        <div className="absolute w-96 h-96 bg-gradient-to-r from-[#8b7355]/20 to-[#8b7355]/10 rounded-full blur-3xl animate-pulse" style={{ top: '10%', left: '10%' }} />
-        <div className="absolute w-72 h-72 bg-gradient-to-r from-[#8b7355]/15 to-[#8b7355]/25 rounded-full blur-3xl animate-pulse" style={{ top: '60%', right: '10%', animationDelay: '2s' }} />
-        <div className="absolute w-80 h-80 bg-gradient-to-r from-[#8b7355]/10 to-[#8b7355]/20 rounded-full blur-3xl animate-pulse" style={{ top: '40%', left: '50%', animationDelay: '4s' }} />
-        
-        {/* Floating Particles - Client-side only to avoid hydration mismatch */}
-        {isVisible && (
-          <div className="absolute inset-0">
-            {[...Array(15)].map((_, i) => {
-              const animations = ['float-drift', 'float-drift-alt', 'float-drift-diagonal', 'float-drift-reverse'];
-              const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
-              return (
-                <div
-                  key={i}
-                  className="absolute w-1 h-1 bg-[#8b7355]/60 rounded-full"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                    animation: `${randomAnimation} ${10 + Math.random() * 10}s ease-in-out infinite`,
-                    animationDelay: `${Math.random() * 10}s`,
-                  }}
-                />
-              );
-            })}
-            {[...Array(8)].map((_, i) => {
-              const animations = ['float-drift', 'float-drift-alt', 'float-drift-diagonal', 'float-drift-reverse'];
-              const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
-              return (
-                <div
-                  key={`large-${i}`}
-                  className="absolute w-3 h-3 bg-[#8b7355]/50 rounded-full"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                    animation: `${randomAnimation} ${12 + Math.random() * 8}s ease-in-out infinite`,
-                    animationDelay: `${Math.random() * 15}s`,
-                  }}
-                />
-              );
-            })}
-            {[...Array(5)].map((_, i) => {
-              const animations = ['float-drift', 'float-drift-alt', 'float-drift-diagonal', 'float-drift-reverse'];
-              const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
-              return (
-                <div
-                  key={`accent-${i}`}
-                  className="absolute w-2 h-2 bg-[#8b7355]/55 rounded-full"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                    animation: `${randomAnimation} ${10 + Math.random() * 10}s ease-in-out infinite`,
-                    animationDelay: `${Math.random() * 20}s`,
-                  }}
-                />
-              );
-            })}
-          </div>
-        )}
-      </div>
-
       {/* Navigation */}
       <div className={`relative z-10 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0'}`}>
         <Header mode="landing" />

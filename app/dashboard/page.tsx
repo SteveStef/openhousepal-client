@@ -83,6 +83,7 @@ export default function DashboardPage() {
             beds: propertyData.bedrooms || 0,
             baths: propertyData.bathrooms || 0,
             squareFeet: propertyData.livingArea || 0,
+            city: propertyData.city,
             yearBuilt: propertyData.yearBuilt,
             homeType: propertyData.homeType,
             lotSize: propertyData.lotSize,
@@ -104,7 +105,7 @@ export default function DashboardPage() {
     if (qrCode && address && propertyData) {
       setIsGeneratingPreview(true)
       setError('')
-      
+
       try {
         // Get property image URL from the fetched data or fallback to placeholder
         const propertyImageUrl = propertyData.originalPhotos?.[0]?.mixedSources?.jpeg?.[0]?.url ||
@@ -121,6 +122,7 @@ export default function DashboardPage() {
             beds: propertyData.bedrooms || 0,
             baths: propertyData.bathrooms || 0,
             squareFeet: propertyData.livingArea || 0,
+            city: propertyData.city,
             yearBuilt: propertyData.yearBuilt,
             homeType: propertyData.homeType,
             lotSize: propertyData.lotSize,

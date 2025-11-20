@@ -30,6 +30,7 @@ interface OpenHouse {
   bathrooms?: number;
   living_area?: number;
   price?: number;
+  city?: string;
 }
 
 export default function OpenHousesPage() {
@@ -182,7 +183,16 @@ export default function OpenHousesPage() {
       
       if (response.status === 200 && response.data) {
         setPropertyData(response.data)
-        setShowImageSelection(true)
+
+        // Check if property has images
+        const hasImages = response.data.originalPhotos && response.data.originalPhotos.length > 0
+
+        if (hasImages) {
+          setShowImageSelection(true)
+        } else {
+          // Show error - cannot create open house without images
+          setError('Cannot create an open house for this property. No images are available.')
+        }
       } else {
         setError(`Failed to fetch property data: ${response.error || 'Unknown error'}`)
       }
@@ -276,6 +286,7 @@ export default function OpenHousesPage() {
             beds: propertyData.bedrooms || 0,
             baths: propertyData.bathrooms || 0,
             squareFeet: propertyData.livingArea || 0,
+            city: propertyData.city,
             yearBuilt: propertyData.yearBuilt,
             homeType: propertyData.homeType,
             lotSize: propertyData.lotSize,
@@ -297,7 +308,7 @@ export default function OpenHousesPage() {
     if (qrCode && address && propertyData && selectedImage) {
       setIsGeneratingPreview(true)
       setError('')
-      
+
       try {
         const { generateVerticalBrandedPDFPreview } = await import('@/lib/pdfGenerator')
         const isPremium = currentUser?.plan_tier === "PREMIUM"
@@ -310,6 +321,7 @@ export default function OpenHousesPage() {
             beds: propertyData.bedrooms || 0,
             baths: propertyData.bathrooms || 0,
             squareFeet: propertyData.livingArea || 0,
+            city: propertyData.city,
             yearBuilt: propertyData.yearBuilt,
             homeType: propertyData.homeType,
             lotSize: propertyData.lotSize
@@ -867,22 +879,7 @@ const ImageSelectionView = memo(function ImageSelectionView({ propertyData, addr
         })}
       </div>
       
-      {availableImages.length === 0 && (
-        <div className="text-center py-12">
-          <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <p className="text-gray-600">No images available for this property</p>
-          <button
-            onClick={() => onImageSelect({ url: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&h=300&fit=crop', width: 400, height: 300 })}
-            className="mt-4 px-4 py-2 bg-[#8b7355] text-white rounded-lg hover:bg-[#7a6549] transition-colors"
-          >
-            Use Default Image
-          </button>
-        </div>
-      )}
+      {/* Note: This section is no longer shown since we auto-skip when no images are available */}
 
     </div>
   )
@@ -1101,6 +1098,7 @@ const OpenHousePDFViewer = memo(function OpenHousePDFViewer({ openHouse, onClose
             baths: openHouse.bathrooms,
             squareFeet: openHouse.living_area,
             price: openHouse.price,
+            city: openHouse.city,
             // yearBuilt: openHouse.year_built,
             // homeType: openHouse.home_type,
             // lotSize: openHouse.lot_size,
@@ -1133,6 +1131,7 @@ const OpenHousePDFViewer = memo(function OpenHousePDFViewer({ openHouse, onClose
           baths: openHouse.bathrooms,
           squareFeet: openHouse.living_area,
           price: openHouse.price,
+          city: openHouse.city,
           // yearBuilt: openHouse.year_built,
           // homeType: openHouse.home_type,
           // lotSize: openHouse.lot_size,

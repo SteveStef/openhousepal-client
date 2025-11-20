@@ -257,37 +257,40 @@ export default function EditPreferencesModal({
   }, [isOpen, collection])
 
   const handleInputChange = (field: keyof CollectionPreferences, value: string | number | boolean | null | string[]) => {
-    let updatedFormData = { ...formData, [field]: value }
-    
-    // Handle location field conflicts
-    if (field === 'address') {
-      // If address is being filled and we have area filters, clear them
-      if (value && (formData.cities?.length || formData.townships?.length)) {
-        updatedFormData = {
-          ...updatedFormData,
-          cities: [],
-          townships: []
+    // Use functional state update to avoid stale closure issues
+    setFormData(prevFormData => {
+      let updatedFormData = { ...prevFormData, [field]: value }
+
+      // Handle location field conflicts
+      if (field === 'address') {
+        // If address is being filled and we have area filters, clear them
+        if (value && (prevFormData.cities?.length || prevFormData.townships?.length)) {
+          updatedFormData = {
+            ...updatedFormData,
+            cities: [],
+            townships: []
+          }
+        }
+      } else if (field === 'cities' || field === 'townships') {
+        // If area filters are being used and we have an address, clear it
+        const newValue = value as string[]
+        if (newValue.length > 0 && prevFormData.address) {
+          updatedFormData = {
+            ...updatedFormData,
+            address: ''
+          }
         }
       }
-    } else if (field === 'cities' || field === 'townships') {
-      // If area filters are being used and we have an address, clear it
-      const newValue = value as string[]
-      if (newValue.length > 0 && formData.address) {
-        updatedFormData = {
-          ...updatedFormData,
-          address: ''
-        }
-      }
-    }
-    
-    setFormData(updatedFormData)
-    
+
+      return updatedFormData
+    })
+
     // Clear validation errors when relevant fields change
     if ((field === 'address' || field === 'diameter' || field === 'cities' || field === 'townships') && validationErrors.location) {
       setValidationErrors(prev => ({ ...prev, location: '' }))
     }
-    
-    if ((field === 'is_single_family' || field === 'is_condo' || field === 'is_town_house' || 
+
+    if ((field === 'is_single_family' || field === 'is_condo' || field === 'is_town_house' ||
          field === 'is_apartment' || field === 'is_multi_family' || field === 'is_lot_land') && validationErrors.propertyTypes) {
       setValidationErrors(prev => ({ ...prev, propertyTypes: '' }))
     }
@@ -329,6 +332,7 @@ export default function EditPreferencesModal({
       setIsSubmitting(false)
     }
   }
+  console.log(formData.townships)
 
   if (!isOpen || !collection) return null
 
@@ -571,7 +575,19 @@ export default function EditPreferencesModal({
                   </label>
                   <MultiCityPlacesInput
                     cities={formData.cities || []}
-                    onChange={(cities) => handleInputChange('cities', cities)}
+                    onChange={(cities) => {
+                      setFormData(prev => {
+                        // Clear address if cities are being added
+                        if (cities.length > 0 && prev.address) {
+                          return { ...prev, cities, address: '' }
+                        }
+                        return { ...prev, cities }
+                      })
+                      // Clear validation errors
+                      if (validationErrors.location) {
+                        setValidationErrors(prev => ({ ...prev, location: '' }))
+                      }
+                    }}
                     placeholder={isUsingAddressSearch() ? 'Disabled - using address search' : 'Type city names and press Enter...'}
                     maxCities={10}
                     className="mb-4"
@@ -585,7 +601,19 @@ export default function EditPreferencesModal({
                   </label>
                   <MultiTownshipPlacesInput
                     townships={formData.townships || []}
-                    onChange={(townships) => handleInputChange('townships', townships)}
+                    onChange={(townships) => {
+                      setFormData(prev => {
+                        // Clear address if townships are being added
+                        if (townships.length > 0 && prev.address) {
+                          return { ...prev, townships, address: '' }
+                        }
+                        return { ...prev, townships }
+                      })
+                      // Clear validation errors
+                      if (validationErrors.location) {
+                        setValidationErrors(prev => ({ ...prev, location: '' }))
+                      }
+                    }}
                     placeholder={isUsingAddressSearch() ? 'Disabled - using address search' : 'Type township names and press Enter...'}
                     maxTownships={10}
                     className="mb-4"

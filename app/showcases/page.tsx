@@ -1715,51 +1715,54 @@ function CreateCollectionModal({
   }
 
   const handleInputChange = (field: string, value: string | number | boolean | string[]) => {
-    let updatedFormData = { ...formData, [field]: value }
-    
-    // Handle location field conflicts
-    if (field === 'address') {
-      // If address is being filled and we have area filters, clear them
-      if (value && (formData.cities?.length || formData.townships?.length)) {
-        updatedFormData = {
-          ...updatedFormData,
-          cities: [],
-          townships: []
-        }
-      }
-    } else if (field === 'cities' || field === 'townships') {
-      // Check combined cities/townships limit (max 10 total)
-      const newValue = value as string[]
-      const newCities = field === 'cities' ? newValue : formData.cities || []
-      const newTownships = field === 'townships' ? newValue : formData.townships || []
+    // Use functional state update to avoid stale closure issues
+    setFormData(prevFormData => {
+      let updatedFormData = { ...prevFormData, [field]: value }
 
-      // Prevent adding if it would exceed combined limit of 10
-      if (newCities.length + newTownships.length > 10) {
-        const otherFieldCount = field === 'cities' ? newTownships.length : newCities.length
-        setValidationErrors(prev => ({
-          ...prev,
-          location: `Maximum 10 total cities and townships combined. You currently have ${otherFieldCount} ${field === 'cities' ? 'townships' : 'cities'}.`
-        }))
-        return // Don't update the form data
-      }
-      
-      // If area filters are being used and we have an address, clear it
-      if (newValue.length > 0 && formData.address) {
-        updatedFormData = {
-          ...updatedFormData,
-          address: ''
+      // Handle location field conflicts
+      if (field === 'address') {
+        // If address is being filled and we have area filters, clear them
+        if (value && (prevFormData.cities?.length || prevFormData.townships?.length)) {
+          updatedFormData = {
+            ...updatedFormData,
+            cities: [],
+            townships: []
+          }
+        }
+      } else if (field === 'cities' || field === 'townships') {
+        // Check combined cities/townships limit (max 10 total)
+        const newValue = value as string[]
+        const newCities = field === 'cities' ? newValue : prevFormData.cities || []
+        const newTownships = field === 'townships' ? newValue : prevFormData.townships || []
+
+        // Prevent adding if it would exceed combined limit of 10
+        if (newCities.length + newTownships.length > 10) {
+          const otherFieldCount = field === 'cities' ? newTownships.length : newCities.length
+          setValidationErrors(prev => ({
+            ...prev,
+            location: `Maximum 10 total cities and townships combined. You currently have ${otherFieldCount} ${field === 'cities' ? 'townships' : 'cities'}.`
+          }))
+          return prevFormData // Don't update the form data
+        }
+
+        // If area filters are being used and we have an address, clear it
+        if (newValue.length > 0 && prevFormData.address) {
+          updatedFormData = {
+            ...updatedFormData,
+            address: ''
+          }
         }
       }
-    }
-    
-    setFormData(updatedFormData)
-    
+
+      return updatedFormData
+    })
+
     // Clear validation errors when relevant fields change
     if ((field === 'address' || field === 'diameter' || field === 'cities' || field === 'townships') && validationErrors.location) {
       setValidationErrors(prev => ({ ...prev, location: '' }))
     }
-    
-    if ((field === 'isSingleFamily' || field === 'isCondo' || field === 'isTownHouse' || 
+
+    if ((field === 'isSingleFamily' || field === 'isCondo' || field === 'isTownHouse' ||
          field === 'isApartment' || field === 'isMultiFamily' || field === 'isLotLand') && validationErrors.propertyTypes) {
       setValidationErrors(prev => ({ ...prev, propertyTypes: '' }))
     }
@@ -2206,7 +2209,28 @@ function CreateCollectionModal({
                       </label>
                       <MultiCityPlacesInput
                         cities={formData.cities}
-                        onChange={(cities) => handleInputChange('cities', cities)}
+                        onChange={(cities) => {
+                          setFormData(prev => {
+                            const newTownships = prev.townships || []
+                            // Check combined limit (max 10 total)
+                            if (cities.length + newTownships.length > 10) {
+                              setValidationErrors(prevErrors => ({
+                                ...prevErrors,
+                                location: `Maximum 10 total cities and townships combined. You currently have ${newTownships.length} townships.`
+                              }))
+                              return prev // Don't update
+                            }
+                            // Clear address if cities are being added
+                            if (cities.length > 0 && prev.address) {
+                              return { ...prev, cities, address: '' }
+                            }
+                            return { ...prev, cities }
+                          })
+                          // Clear validation errors
+                          if (validationErrors.location) {
+                            setValidationErrors(prev => ({ ...prev, location: '' }))
+                          }
+                        }}
                         placeholder={isUsingAddressSearch() ? 'Disabled - using address search' : 'Type city names and press Enter...'}
                         maxCities={Math.max(1, 10 - (formData.townships?.length || 0))}
                         className="mb-4"
@@ -2220,7 +2244,28 @@ function CreateCollectionModal({
                       </label>
                       <MultiTownshipPlacesInput
                         townships={formData.townships}
-                        onChange={(townships) => handleInputChange('townships', townships)}
+                        onChange={(townships) => {
+                          setFormData(prev => {
+                            const newCities = prev.cities || []
+                            // Check combined limit (max 10 total)
+                            if (townships.length + newCities.length > 10) {
+                              setValidationErrors(prevErrors => ({
+                                ...prevErrors,
+                                location: `Maximum 10 total cities and townships combined. You currently have ${newCities.length} cities.`
+                              }))
+                              return prev // Don't update
+                            }
+                            // Clear address if townships are being added
+                            if (townships.length > 0 && prev.address) {
+                              return { ...prev, townships, address: '' }
+                            }
+                            return { ...prev, townships }
+                          })
+                          // Clear validation errors
+                          if (validationErrors.location) {
+                            setValidationErrors(prev => ({ ...prev, location: '' }))
+                          }
+                        }}
                         placeholder={isUsingAddressSearch() ? 'Disabled - using address search' : 'Type township names and press Enter...'}
                         maxTownships={Math.max(1, 10 - (formData.cities?.length || 0))}
                         className="mb-4"

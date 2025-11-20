@@ -5,6 +5,7 @@ interface PropertyDetails {
   baths?: number
   squareFeet?: number
   price?: number
+  city?: string
   yearBuilt?: number
   homeType?: string
   lotSize?: number
@@ -214,8 +215,11 @@ async function createVerticalBrandedPDF({ qrCodeUrl, address, propertyImageUrl, 
 
         // Add address text below image in large black text
         if (address) {
+          // Concatenate city to address if available
+          const displayAddress = propertyDetails?.city ? `${address}, ${propertyDetails.city}` : address
+
           // Position address between image and stats boxes
-          const addressY = 520 // Below image (imgY=550), above stats (Y=385)
+          const addressY = 516 // Below image (imgY=550), above stats (Y=385)
 
           // Embed font
           const boldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold)
@@ -227,22 +231,22 @@ async function createVerticalBrandedPDF({ qrCodeUrl, address, propertyImageUrl, 
           // Dynamic font scaling for long addresses
           const defaultFontSize = 28 // Larger font for address
           const minFontSize = 18
-          const initialAddressWidth = boldFont.widthOfTextAtSize(address, defaultFontSize)
+          const initialAddressWidth = boldFont.widthOfTextAtSize(displayAddress, defaultFontSize)
 
           let fontSize = defaultFontSize
           if (initialAddressWidth > availableWidth) {
             fontSize = Math.max((availableWidth / initialAddressWidth) * defaultFontSize, minFontSize)
           }
 
-          const addressWidth = boldFont.widthOfTextAtSize(address, fontSize)
+          const addressWidth = boldFont.widthOfTextAtSize(displayAddress, fontSize)
           const addressX = (pageWidth - addressWidth) / 2 // Center on page
 
-          firstPage.drawText(address, {
+          firstPage.drawText(displayAddress, {
             x: addressX,
             y: addressY,
             size: fontSize,
             font: boldFont,
-            color: rgb(0, 0, 0), // Black text
+            color: rgb(0.4, 0.3, 0.2), // Match stats brown color
           })
         }
       } catch (error) {
@@ -286,7 +290,7 @@ async function createVerticalBrandedPDF({ qrCodeUrl, address, propertyImageUrl, 
         const sqftText = propertyDetails.squareFeet.toLocaleString()
         firstPage.drawText(sqftText, {
           x: 155,
-          y: 380,
+          y: 383,
           size: fontSize,
           font: font,
           color: rgb(0.4, 0.3, 0.2),
@@ -307,7 +311,7 @@ async function createVerticalBrandedPDF({ qrCodeUrl, address, propertyImageUrl, 
 
         firstPage.drawText(priceText, {
           x: 155 + 170,
-          y: 380,
+          y: 383,
           size: fontSize,
           font: font,
           color: rgb(0.4, 0.3, 0.2),

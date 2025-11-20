@@ -114,7 +114,7 @@ export default function MultiTownshipPlacesInput({
         google.maps.event.clearInstanceListeners(autocompleteRef.current)
       }
     }
-  }, [disabled])
+  }, [disabled, townships])
 
   const addTownship = (townshipName: string) => {
     const trimmedTownship = townshipName.trim()
