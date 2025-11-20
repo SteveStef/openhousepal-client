@@ -43,7 +43,6 @@ export default function CollectionCard({
       minute: '2-digit'
     })
   }
-  console.log(collection);
 
   const getActivityStatus = () => {
     if (!collection.stats.lastActivity) return 'No activity'
