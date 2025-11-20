@@ -6,8 +6,10 @@ import { useState } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { apiRequest } from '@/lib/auth'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function DashboardPage() {
+  const { user: currentUser } = useAuth()
   const [address, setAddress] = useState('')
   const [qrCode, setQrCode] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
@@ -67,11 +69,12 @@ export default function DashboardPage() {
       
       try {
         // Get property image URL from the fetched data or fallback to placeholder
-        const propertyImageUrl = propertyData.originalPhotos?.[0]?.mixedSources?.jpeg?.[0]?.url || 
+        const propertyImageUrl = propertyData.originalPhotos?.[0]?.mixedSources?.jpeg?.[0]?.url ||
                                 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&h=300&fit=crop'
-        
-        const { generateQRCodePDF } = await import('@/lib/pdfGenerator')
-        await generateQRCodePDF({
+
+        const { generateVerticalBrandedQRCodePDF } = await import('@/lib/pdfGenerator')
+        const isPremium = currentUser?.plan_tier === "PREMIUM"
+        await generateVerticalBrandedQRCodePDF({
           qrCodeUrl: qrCode,
           address: address,
           propertyImageUrl: propertyImageUrl,
@@ -85,7 +88,8 @@ export default function DashboardPage() {
             lotSize: propertyData.lotSize,
             garage: propertyData.garageSpaces ? `${propertyData.garageSpaces} Car` : undefined
           },
-          filename: `property-qr-${address.replace(/\s+/g, '-').toLowerCase()}.pdf`
+          filename: `property-qr-${address.replace(/\s+/g, '-').toLowerCase()}.pdf`,
+          isPremium
         })
       } catch (error) {
         console.error('Error generating PDF:', error)
@@ -103,11 +107,12 @@ export default function DashboardPage() {
       
       try {
         // Get property image URL from the fetched data or fallback to placeholder
-        const propertyImageUrl = propertyData.originalPhotos?.[0]?.mixedSources?.jpeg?.[0]?.url || 
+        const propertyImageUrl = propertyData.originalPhotos?.[0]?.mixedSources?.jpeg?.[0]?.url ||
                                 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&h=300&fit=crop'
-        
-        const { generatePDFPreview } = await import('@/lib/pdfGenerator')
-        const previewUrl = await generatePDFPreview ({
+
+        const { generateVerticalBrandedPDFPreview } = await import('@/lib/pdfGenerator')
+        const isPremium = currentUser?.plan_tier === "PREMIUM"
+        const previewUrl = await generateVerticalBrandedPDFPreview({
           qrCodeUrl: qrCode,
           address: address,
           propertyImageUrl: propertyImageUrl,
@@ -120,7 +125,8 @@ export default function DashboardPage() {
             homeType: propertyData.homeType,
             lotSize: propertyData.lotSize,
             garage: propertyData.garageSpaces ? `${propertyData.garageSpaces} Car` : undefined
-          }
+          },
+          isPremium
         })
         setPdfPreview(previewUrl)
         setShowPreview(true)
