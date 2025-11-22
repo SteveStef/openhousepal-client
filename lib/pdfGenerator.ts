@@ -324,9 +324,9 @@ async function createVerticalBrandedPDF({ qrCodeUrl, address, propertyImageUrl, 
     const qrCodeImage = await pdfDoc.embedPng(qrCodeImageBytes)
 
     // QR code positioning (bottom section - in the QR placeholder area)
-    const qrSize = isPremium ? 150 : 182;
+    const qrSize = 150;
     const qrX = (pageWidth - qrSize) / 2 // Center horizontally
-    const qrY = 87 // Bottom section position
+    const qrY = isPremium ? 86 : 102; // Bottom section position
 
     // Draw QR code on the template
     firstPage.drawImage(qrCodeImage, {

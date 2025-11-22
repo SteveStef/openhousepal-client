@@ -342,7 +342,7 @@ export default function OpenHousesPage() {
   // Show loading screen during authentication check
   if (isAuthenticating) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col">
+      <div className="min-h-screen bg-[#faf9f7] flex flex-col">
         <Header />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
@@ -356,13 +356,13 @@ export default function OpenHousesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col">
+    <div className="min-h-screen bg-[#faf9f7] flex flex-col">
       <Header />
       <div className="flex-1 p-4 sm:p-6">
         <div className="max-w-7xl mx-auto">
 
           {!showImageSelection ? (
-            <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg">
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-200/60">
               {/* Page Header */}
               <div className="border-b border-gray-200/50 p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -517,105 +517,14 @@ export default function OpenHousesPage() {
                     ) : (
                       <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2">
                         {openHouses.map((openHouse, index) => (
-                          <div
+                          <OpenHouseListItem
                             key={openHouse.id}
-                            onClick={() => handleViewVisitors(openHouse)}
-                            className="bg-white rounded-lg border border-gray-200/60 shadow-sm hover:shadow-lg hover:border-[#8b7355]/50 transition-all duration-200 overflow-hidden group cursor-pointer"
-                          >
-                            <div className="p-3">
-                              <div className="flex flex-wrap items-start gap-3">
-                                {/* Property Image and Title Row */}
-                                <div className="flex items-start gap-3 w-full sm:flex-1">
-                                  {/* Property Image */}
-                                  <div className="relative flex-shrink-0">
-                                    <div className="w-14 h-14 bg-gray-100 rounded-lg border border-gray-200/60 overflow-hidden">
-                                      <Image
-                                        src={openHouse.cover_image_url}
-                                        alt={`Property at ${openHouse.address}`}
-                                        width={56}
-                                        height={56}
-                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                                      />
-                                    </div>
-                                    <div className="absolute -top-1 -left-1 w-5 h-5 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-full flex items-center justify-center shadow-sm">
-                                      <span className="text-white text-[10px] font-bold">{index + 1}</span>
-                                    </div>
-                                  </div>
-
-                                  {/* Property Info */}
-                                  <div className="flex-1 min-w-0">
-                                    <h3 className="text-sm font-bold text-gray-900 group-hover:text-[#8b7355] transition-colors truncate mb-1">
-                                      {openHouse.address}
-                                    </h3>
-                                    <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-gray-600">
-                                      {openHouse.price && (
-                                        <span className="font-semibold text-[#8b7355]">${openHouse.price?.toLocaleString()}</span>
-                                      )}
-                                      {openHouse.bedrooms && (
-                                        <span>{openHouse.bedrooms} bd</span>
-                                      )}
-                                      {openHouse.bathrooms && (
-                                        <span>{openHouse.bathrooms} ba</span>
-                                      )}
-                                      <span className="text-gray-400">•</span>
-                                      <span className="text-gray-500">
-                                        {new Date(openHouse.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Action Buttons */}
-                                <div className="flex items-center gap-1.5 w-full sm:w-auto sm:flex-shrink-0">
-                                  <div className="inline-flex items-center px-2.5 py-1.5 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-lg font-medium text-xs shadow-sm group-hover:shadow-md transition-all">
-                                    <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                    </svg>
-                                    Visitors
-                                  </div>
-
-                                  <a
-                                    href={openHouse.form_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="p-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all"
-                                    title="Open Form"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                    </svg>
-                                  </a>
-
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handleViewPDF(openHouse)
-                                    }}
-                                    className="p-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all"
-                                    title="View PDF"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                    </svg>
-                                  </button>
-
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handleDeleteClick(openHouse)
-                                    }}
-                                    className="p-1.5 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all"
-                                    title="Remove"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+                            openHouse={openHouse}
+                            index={index}
+                            onViewVisitors={handleViewVisitors}
+                            onViewPDF={handleViewPDF}
+                            onDelete={handleDeleteClick}
+                          />
                         ))}
                         
                         {/* Listing Count Footer */}
@@ -634,7 +543,7 @@ export default function OpenHousesPage() {
 
               {/* Coming Soon - Find Open Houses Section */}
               <div className="mt-6 sm:mt-8">
-                <div className="bg-gradient-to-br from-[#8b7355]/5 via-[#7a6549]/3 to-amber-50/40 rounded-2xl border-2 border-dashed border-[#8b7355]/30 backdrop-blur-sm">
+                <div className="bg-amber-50/30 rounded-2xl border-2 border-dashed border-[#8b7355]/30">
                   <div className="p-6 sm:p-8 text-center relative overflow-hidden">
                     {/* Background Pattern */}
                     <div className="absolute inset-0 opacity-5 text-[#8b7355]">
@@ -834,7 +743,7 @@ const ImageSelectionView = memo(function ImageSelectionView({ propertyData, addr
   const availableImages = propertyData?.originalPhotos || []
   
   return (
-    <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg p-6">
+    <div className="bg-white rounded-2xl shadow-xl border border-gray-200/60 p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-semibold text-gray-900">Select Cover Image</h2>
@@ -857,7 +766,7 @@ const ImageSelectionView = memo(function ImageSelectionView({ propertyData, addr
           return (
             <div
               key={index}
-              className="relative aspect-square bg-gray-100 rounded-xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#8b7355] transition-all duration-200 group"
+              className="relative aspect-square bg-gray-100 rounded-xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#8b7355] transition-shadow duration-200 group"
               onClick={() => onImageSelect({ url: imageUrl, width: 400, height: 300 })}
             >
               <Image
@@ -865,7 +774,7 @@ const ImageSelectionView = memo(function ImageSelectionView({ propertyData, addr
                 alt={`Property view ${index + 1}`}
                 fill
                 sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className="object-cover group-hover:scale-105 transition-transform duration-200"
+                className="object-cover"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
                 <div className="bg-white/90 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -1199,6 +1108,124 @@ const OpenHousePDFViewer = memo(function OpenHousePDFViewer({ openHouse, onClose
               Download PDF
             </button>
           )}
+        </div>
+      </div>
+    </div>
+  )
+})
+
+// Memoized Open House List Item Component - prevents re-renders when parent state changes
+interface OpenHouseListItemProps {
+  openHouse: OpenHouse;
+  index: number;
+  onViewVisitors: (openHouse: OpenHouse) => void;
+  onViewPDF: (openHouse: OpenHouse) => void;
+  onDelete: (openHouse: OpenHouse) => void;
+}
+
+const OpenHouseListItem = memo(function OpenHouseListItem({
+  openHouse,
+  index,
+  onViewVisitors,
+  onViewPDF,
+  onDelete
+}: OpenHouseListItemProps) {
+  return (
+    <div
+      onClick={() => onViewVisitors(openHouse)}
+      className="bg-white rounded-lg border border-gray-200/60 shadow-sm hover:shadow-lg hover:border-[#8b7355]/50 transition-shadow duration-200 overflow-hidden group cursor-pointer"
+    >
+      <div className="p-3">
+        <div className="flex flex-wrap items-start gap-3">
+          {/* Property Image and Title Row */}
+          <div className="flex items-start gap-3 w-full sm:flex-1">
+            {/* Property Image */}
+            <div className="relative flex-shrink-0">
+              <div className="w-14 h-14 bg-gray-100 rounded-lg border border-gray-200/60 overflow-hidden">
+                <Image
+                  src={openHouse.cover_image_url}
+                  alt={`Property at ${openHouse.address}`}
+                  width={56}
+                  height={56}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="absolute -top-1 -left-1 w-5 h-5 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-full flex items-center justify-center shadow-sm">
+                <span className="text-white text-[10px] font-bold">{index + 1}</span>
+              </div>
+            </div>
+
+            {/* Property Info */}
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-bold text-gray-900 group-hover:text-[#8b7355] transition-colors truncate mb-1">
+                {openHouse.address}
+              </h3>
+              <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-gray-600">
+                {openHouse.price && (
+                  <span className="font-semibold text-[#8b7355]">${openHouse.price?.toLocaleString()}</span>
+                )}
+                {openHouse.bedrooms && (
+                  <span>{openHouse.bedrooms} bd</span>
+                )}
+                {openHouse.bathrooms && (
+                  <span>{openHouse.bathrooms} ba</span>
+                )}
+                <span className="text-gray-400">•</span>
+                <span className="text-gray-500">
+                  {new Date(openHouse.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-1.5 w-full sm:w-auto sm:flex-shrink-0">
+            <div className="inline-flex items-center px-2.5 py-1.5 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-lg font-medium text-xs shadow-sm group-hover:shadow-md transition-shadow duration-200">
+              <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Visitors
+            </div>
+
+            <a
+              href={openHouse.form_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="p-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors duration-150"
+              title="Open Form"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onViewPDF(openHouse)
+              }}
+              className="p-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors duration-150"
+              title="View PDF"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete(openHouse)
+              }}
+              className="p-1.5 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors duration-150"
+              title="Remove"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>

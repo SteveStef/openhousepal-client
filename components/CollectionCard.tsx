@@ -1,7 +1,7 @@
 'use client'
 
 import { Collection } from '@/types'
-import { Share2, Edit3, Trash2 } from 'lucide-react'
+import { Share2, Edit3, Trash2, AlertTriangle } from 'lucide-react'
 
 interface CollectionCardProps {
   collection: Collection
@@ -166,6 +166,30 @@ export default function CollectionCard({
           </div>
         </div>
       </div>
+
+      {/* Warning for too many properties */}
+      {collection.stats.totalProperties >= 41 && (
+        <div className="px-4 py-2 bg-amber-50 border-t border-amber-200">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800">
+              Collections cannot have more than 41 properties.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Warning for no properties */}
+      {collection.stats.totalProperties === 0 && (
+        <div className="px-4 py-2 bg-amber-50 border-t border-amber-200">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800">
+              No properties found. Please edit preferences or try again.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Search Preferences */}
       <div className="p-4 flex-1">

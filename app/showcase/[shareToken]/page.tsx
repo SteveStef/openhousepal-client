@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation'
 import { Collection, Property, Comment } from '@/types'
 import { getToken } from '@/lib/auth'
 import PropertyGrid from '@/components/PropertyGrid'
-import Footer from '@/components/Footer'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import ScheduleTourModal, { TourRequest } from '@/components/ScheduleTourModal'
 import Toast from '@/components/Toast'
@@ -713,7 +712,6 @@ export default function CustomerShowcasePage() {
             <p className="text-gray-600">Loading showcase...</p>
           </div>
         </div>
-        <Footer />
       </div>
     )
   }
@@ -732,7 +730,6 @@ export default function CustomerShowcasePage() {
             <p className="text-gray-600 font-light">Please check the link and try again</p>
           </div>
         </div>
-        <Footer />
       </div>
     )
   }
@@ -883,7 +880,6 @@ export default function CustomerShowcasePage() {
 
         </div>
       </div>
-      <Footer />
 
       {/* Toast Notification */}
       <Toast

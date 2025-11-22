@@ -281,7 +281,13 @@ export default function PropertyDetailsModal({
     if ((property?.details as any)?.originalPhotos && (property?.details as any)?.originalPhotos?.length > 0) {
       // Use high-quality photos from property data
       return (property?.details as any).originalPhotos
-        .map((photo: any) => photo.mixedSources?.jpeg?.[0]?.url || photo.mixedSources?.webp?.[0]?.url)
+        .map((photo: any) => {
+          const jpegSources = photo.mixedSources?.jpeg;
+          const webpSources = photo.mixedSources?.webp;
+          // Select highest resolution (last in array) instead of lowest (first)
+          return jpegSources?.[jpegSources.length - 1]?.url ||
+                 webpSources?.[webpSources.length - 1]?.url;
+        })
         .filter(Boolean) as string[]
     }
     // Fallback to basic images
@@ -289,6 +295,22 @@ export default function PropertyDetailsModal({
   }, [property])
   
   const images = getPropertyImages()
+
+  // Preload adjacent images for smoother navigation
+  useEffect(() => {
+    if (images.length <= 1) return;
+
+    const nextIndex = (currentImageIndex + 1) % images.length;
+    const prevIndex = (currentImageIndex - 1 + images.length) % images.length;
+
+    // Preload next image
+    const nextImg = new window.Image();
+    nextImg.src = images[nextIndex];
+
+    // Preload previous image
+    const prevImg = new window.Image();
+    prevImg.src = images[prevIndex];
+  }, [currentImageIndex, images]);
 
   // Scroll to bottom of comments
   const scrollToBottom = useCallback(() => {
