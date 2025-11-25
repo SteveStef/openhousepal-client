@@ -173,7 +173,7 @@ export default function CollectionCard({
           <div className="flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-amber-800">
-              Collections cannot have more than 41 properties.
+              There are too many properties in showcase
             </p>
           </div>
         </div>

@@ -258,6 +258,7 @@ export function transformNotification(backend: NotificationResponse): Notificati
     collectionId: backend.collection_id || '',
     collectionName: backend.collection_name || undefined,
     propertyId: backend.property_id || undefined,
+    link: backend.link || undefined,
     isRead: backend.is_read,
     readAt: backend.read_at || undefined,
     timestamp: backend.created_at,

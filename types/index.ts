@@ -206,6 +206,7 @@ export interface NotificationResponse {
   property_id?: string | null;
   property_address?: string | null;
   visitor_name?: string | null;
+  link?: string | null;
   is_read: boolean;
   read_at?: string | null;
   created_at: string;
@@ -222,6 +223,7 @@ export interface Notification {
   collectionId: string;
   collectionName?: string;
   propertyId?: string;
+  link?: string;
   isRead: boolean;
   readAt?: string;
   timestamp: string; // Maps to created_at

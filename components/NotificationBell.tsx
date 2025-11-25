@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Bell } from 'lucide-react'
 import NotificationDropdown from './NotificationDropdown'
 import { Notification } from '@/types'
@@ -8,6 +9,7 @@ import { notificationApi } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function NotificationBell() {
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -141,10 +143,13 @@ export default function NotificationBell() {
   }
 
   const handleNotificationClick = (notification: Notification) => {
-    // TODO: Navigate to relevant page based on notification type
-    console.log('Notification clicked:', notification)
-    // For tour requests, could navigate to /showcases with tours modal open
-    // For property interactions, could navigate to specific collection/property
+    // Navigate to the link if available
+    if (notification.link) {
+      router.push(notification.link)
+    }
+
+    // Close the dropdown
+    setIsOpen(false)
   }
 
   const toggleDropdown = () => {
