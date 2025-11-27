@@ -229,39 +229,65 @@ export default function HomePage() {
 
           {/* Subscription Tiers */}
           <div className="py-20">
-            <div className={`text-center mb-16 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-              <h3 className="text-5xl font-bold text-gray-900 mb-6 font-light">Choose Your Plan</h3>
-              <p className="text-xl text-gray-600 font-light max-w-3xl mx-auto">
-                Simple pricing that grows with your business
-              </p>
+            <div className={`text-center mb-8 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+              <h3 className="text-4xl font-bold text-gray-900 mb-6 font-light">Choose the Plan That Fits Your Ambition</h3>
+
+              {/* Trial Banner */}
+              <div className="bg-[#f5f4f2]/60 border border-gray-200 rounded-xl p-3 max-w-3xl mx-auto mb-12 backdrop-blur-sm">
+                <p className="text-gray-700 mb-2 font-medium text-center">
+                  Start with a <span className="font-bold text-[#8b7355]">30-day free trial</span>
+                </p>
+                <div className="flex flex-wrap justify-center gap-4 text-xs text-gray-600">
+                  <div className="flex items-center">
+                    <svg className="w-3.5 h-3.5 text-[#8b7355] mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    No commitment
+                  </div>
+                  <div className="flex items-center">
+                    <svg className="w-3.5 h-3.5 text-[#8b7355] mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Cancel anytime
+                  </div>
+                  <div className="flex items-center">
+                    <svg className="w-3.5 h-3.5 text-[#8b7355] mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Switch plans anytime
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto items-stretch">
               {/* Basic Plan */}
-              <div className={`bg-white/90 rounded-3xl p-8 border border-gray-200/60 backdrop-blur-lg hover:bg-white hover:border-gray-300 transition-all duration-500 hover:scale-105 hover:shadow-2xl shadow-lg transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'}`}>
-                <div className="text-center mb-6">
-                  <h4 className="text-3xl font-bold text-gray-900 mb-2 font-light">Basic</h4>
-                  <div className="mb-4">
-                    <div className="flex items-baseline justify-center mb-2">
-                      <span className="text-5xl font-bold text-gray-900">$49</span>
-                      <span className="text-gray-600 ml-2">/month</span>
-                    </div>
-                    <div className="text-sm text-[#8b7355] font-semibold">Free First Month Trial</div>
+              <div className={`bg-white rounded-3xl p-8 border-2 border-gray-200 shadow-lg transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative flex flex-col`}>
+                {/* LIMITED Badge */}
+                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                  <div className="bg-gray-400 text-white px-5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide">
+                    Limited
                   </div>
-                  <p className="text-gray-600 text-sm">Perfect for individual agents just starting out</p>
                 </div>
 
-                <div className="space-y-4 mb-8">
+                <div className="text-center mb-8 mt-4">
+                  <h4 className="text-2xl font-bold text-gray-900 mb-4">Basic Plan</h4>
+                  <div className="flex items-baseline justify-center mb-2">
+                    <span className="text-5xl font-bold text-gray-900">$49.95</span>
+                    <span className="text-gray-600 ml-2 text-lg">/month</span>
+                  </div>
+                  <p className="text-sm text-gray-500">after 30-day free trial</p>
+                </div>
+
+                {/* Included Features */}
+                <div className="space-y-3 mb-6">
                   {[
-                    'Unlimited open house QR codes',
-                    'Visitor sign-in forms',
-                    'Lead capture & contact info',
-                    'Email notifications',
-                    'Open house management',
-                    'Dashboard analytics'
+                    'Generated PDFs for Open Houses',
+                    'Custom open house sign-in forms',
+                    'Catalog of all visitors'
                   ].map((feature, index) => (
                     <div key={index} className="flex items-start">
-                      <svg className="w-5 h-5 text-[#8b7355] mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-green-600 mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                       </svg>
                       <span className="text-gray-700">{feature}</span>
@@ -269,66 +295,145 @@ export default function HomePage() {
                   ))}
                 </div>
 
-                <Link
-                  href="/register"
-                  className="block w-full text-center px-6 py-4 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-[#8b7355]/25"
-                >
-                  Start Free Trial
-                </Link>
+                {/* Divider */}
+                <div className="border-t border-dashed border-gray-300 my-6"></div>
+
+                {/* Missing Features */}
+                <div className="mb-8">
+                  <div className="flex items-start mb-3">
+                    <svg className="w-5 h-5 text-red-600 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span className="text-red-600 font-bold text-sm">Missing Critical Features:</span>
+                  </div>
+                  <div className="space-y-2 ml-7">
+                    {[
+                      'Showcases feature',
+                      'Automated follow-up emails',
+                      'Real-time property alerts',
+                      'Advanced analytics & insights',
+                      'Personalized property Showcases'
+                    ].map((feature, index) => (
+                      <div key={index} className="flex items-start">
+                        <svg className="w-4 h-4 text-red-400 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        <span className="text-gray-400 line-through text-sm">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-auto">
+                  <Link
+                    href="/register"
+                    className="block w-full text-center px-6 py-4 bg-gray-400 text-white rounded-xl font-semibold transition-all duration-300 hover:bg-gray-500 mb-3"
+                  >
+                    Select Basic Plan
+                  </Link>
+
+                  <div className="flex items-center justify-center text-amber-600 text-xs">
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Limited functionality
+                  </div>
+                </div>
               </div>
 
               {/* Premium Plan */}
-              <div className={`bg-white/90 rounded-3xl p-8 border-2 border-[#8b7355] backdrop-blur-lg hover:bg-white transition-all duration-500 hover:scale-105 hover:shadow-2xl shadow-xl transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative`}>
+              <div className={`bg-gradient-to-br from-[#8b7355] via-[#7a6549] to-[#6b5a43] rounded-3xl p-8 shadow-2xl transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative border-4 border-[#9d8567] flex flex-col`}>
+                {/* MOST POPULAR Badge */}
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <div className="bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white px-4 py-1 rounded-full text-sm font-semibold">
-                    Most Popular
-                  </div>
-                </div>
-
-                <div className="text-center mb-6">
-                  <h4 className="text-3xl font-bold text-gray-900 mb-2 font-light">Premium</h4>
-                  <div className="mb-4">
-                    <div className="flex items-baseline justify-center mb-2">
-                      <span className="text-5xl font-bold text-gray-900">$99</span>
-                      <span className="text-gray-600 ml-2">/month</span>
-                    </div>
-                    <div className="text-sm text-[#8b7355] font-semibold">Free First Month Trial</div>
-                  </div>
-                  <p className="text-gray-600 text-sm">Perfect for teams and high-volume agents</p>
-                </div>
-
-                <div className="space-y-4 mb-8">
-                  <div className="flex items-start">
-                    <svg className="w-5 h-5 text-[#8b7355] mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  <div className="bg-[#ffd700] text-[#3d3226] px-6 py-2 rounded-full text-sm font-bold uppercase tracking-wide shadow-lg flex items-center">
+                    <svg className="w-4 h-4 mr-1 fill-current" viewBox="0 0 24 24">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                     </svg>
-                    <span className="text-gray-700 font-semibold">Everything in Basic, plus:</span>
+                    MOST POPULAR
+                    <svg className="w-4 h-4 ml-1 fill-current" viewBox="0 0 24 24">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
                   </div>
+                </div>
+
+                <div className="text-center mb-6 mt-6">
+                  <div className="flex items-center justify-center mb-2">
+                    <h4 className="text-2xl font-bold text-white mr-2">Premium Plan</h4>
+                    <svg className="w-6 h-6 text-[#ffd700] fill-current" viewBox="0 0 24 24">
+                      <path d="M13 2.05v2.02c3.95.49 7 3.85 7 7.93 0 4.08-3.05 7.44-7 7.93v2.02c5.05-.5 9-4.76 9-9.95 0-5.19-3.95-9.45-9-9.95zM11 2.05c-5.05.5-9 4.76-9 9.95 0 5.19 3.95 9.45 9 9.95v-2.02c-3.95-.49-7-3.85-7-7.93 0-4.08 3.05-7.44 7-7.93V2.05zm1 5.3c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5z" />
+                    </svg>
+                  </div>
+                  <div className="flex items-baseline justify-center mb-2">
+                    <span className="text-5xl font-bold text-white">$99.95</span>
+                    <span className="text-[#f5f4f2] ml-2 text-lg">/month</span>
+                  </div>
+                  <p className="text-sm text-[#f5f4f2] mb-3">after 30-day free trial</p>
+
+                </div>
+
+                {/* Everything in Basic */}
+                <div className="bg-[#6b5a43]/60 rounded-xl p-4 mb-4 border border-[#9d8567]">
+                  <div className="flex items-start text-white">
+                    <svg className="w-5 h-5 text-[#ffd700] mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <span className="font-bold block">Everything in Basic</span>
+                      <span className="text-sm text-[#f5f4f2]">- All core features included</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Premium Features */}
+                <div className="space-y-3 mb-6">
+                  <div className="bg-[#6b5a43]/60 rounded-xl p-4 border border-[#8b7355]">
+                    <div className="flex items-start text-white">
+                      <svg className="w-5 h-5 text-[#ffd700] mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <div>
+                        <span className="font-bold block">Showcases Feature</span>
+                        <span className="text-sm text-[#f5f4f2]">- Create personalized property showcases</span>
+                      </div>
+                    </div>
+                  </div>
+
                   {[
-                    'Personalized property showcases',
-                    'Auto-populated property matches',
-                    'Visitor interaction tracking',
-                    'Tour request management',
-                    'Up to 10 active collections',
-                    'Advanced analytics & insights'
+                    'Automated follow-up emails',
+                    'Real-time property alerts',
+                    'Advanced analytics & insights',
+                    'Personalized property Showcases',
                   ].map((feature, index) => (
                     <div key={index} className="flex items-start">
-                      <svg className="w-5 h-5 text-[#8b7355] mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      <svg className="w-5 h-5 text-[#ffd700] mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
-                      <span className="text-gray-700">{feature}</span>
+                      <span className="text-white">{feature}</span>
                     </div>
                   ))}
                 </div>
 
-                <Link
-                  href="/register"
-                  className="block w-full text-center px-6 py-4 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-[#8b7355]/25"
-                >
-                  Start Free Trial
-                </Link>
+                <div className="mt-auto">
+                  <Link
+                    href="/register"
+                    className="block w-full text-center px-6 py-4 bg-gradient-to-r from-[#ffd700] to-[#ffed4e] text-[#3d3226] rounded-xl font-bold text-lg transition-all duration-300 hover:scale-105 hover:shadow-2xl mb-3 shadow-lg"
+                  >
+                    Select Premium Plan
+                  </Link>
+
+                  <div className="flex items-center justify-center text-[#f5f4f2] text-xs">
+                    <svg className="w-4 h-4 mr-2 fill-current" viewBox="0 0 24 24">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                    Most agents choose Premium
+                    <svg className="w-4 h-4 ml-2 fill-current" viewBox="0 0 24 24">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
+
           </div>
 
           {/* FAQ Section */}
