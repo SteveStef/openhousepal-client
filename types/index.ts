@@ -14,7 +14,6 @@ export interface PropertyInteraction {
   visitor_email?: string;
   liked: boolean;
   disliked: boolean;
-  favorited: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -38,7 +37,6 @@ export interface Property {
   images?: string[];
   liked?: boolean;
   disliked?: boolean;
-  favorited?: boolean;
   viewed?: boolean;
   viewCount?: number;
   lastViewedAt?: string;

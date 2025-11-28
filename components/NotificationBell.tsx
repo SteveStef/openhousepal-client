@@ -44,17 +44,6 @@ export default function NotificationBell() {
     }
   }, [isAuthenticating, isAuthenticated])
 
-  // Poll for new notifications every 60 seconds
-  useEffect(() => {
-    if (!isAuthenticated) return
-
-    const interval = setInterval(() => {
-      fetchNotifications()
-    }, 60000) // 60 seconds
-
-    return () => clearInterval(interval)
-  }, [isAuthenticated])
-
   // Fetch notifications when window gains focus
   useEffect(() => {
     if (!isAuthenticated) return

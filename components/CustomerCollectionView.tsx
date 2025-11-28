@@ -11,7 +11,6 @@ interface CustomerCollectionViewProps {
   collection: Collection
   onLike?: (propertyId: string | number, liked: boolean) => void
   onDislike?: (propertyId: string | number, disliked: boolean) => void
-  onFavorite?: (propertyId: string | number, favorited: boolean) => void
   onAddComment?: (propertyId: string | number, comment: string) => void
 }
 
@@ -19,7 +18,6 @@ export default function CustomerCollectionView({
   collection,
   onLike,
   onDislike,
-  onFavorite,
   onAddComment
 }: CustomerCollectionViewProps) {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
@@ -28,7 +26,7 @@ export default function CustomerCollectionView({
   const [detailsError, setDetailsError] = useState<string | null>(null)
   const [isLoadingComments, setIsLoadingComments] = useState(false)
   const [commentsError, setCommentsError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'all' | 'liked' | 'disliked' | 'favorited'>('all')
+  const [activeTab, setActiveTab] = useState<'all' | 'liked' | 'disliked'>('all')
 
   const fetchPropertyComments = async (propertyId: string) => {
     setIsLoadingComments(true)
@@ -119,9 +117,6 @@ export default function CustomerCollectionView({
       case 'disliked':
         filtered = filtered.filter(property => property.disliked)
         break
-      case 'favorited':
-        filtered = filtered.filter(property => property.favorited)
-        break
       case 'all':
       default:
         break
@@ -137,8 +132,7 @@ export default function CustomerCollectionView({
     return {
       all: properties.length,
       liked: properties.filter(p => p.liked).length,
-      disliked: properties.filter(p => p.disliked).length,
-      favorited: properties.filter(p => p.favorited).length
+      disliked: properties.filter(p => p.disliked).length
     }
   }
 
@@ -223,7 +217,6 @@ export default function CustomerCollectionView({
           {[
             { key: 'all', label: 'All Properties', count: tabCounts.all },
             { key: 'liked', label: 'Liked', count: tabCounts.liked },
-            { key: 'favorited', label: 'Saved', count: tabCounts.favorited },
             { key: 'disliked', label: 'Not Interested', count: tabCounts.disliked }
           ].map((tab) => (
             <button
@@ -259,7 +252,7 @@ export default function CustomerCollectionView({
             <p className="text-zinc-400">
               {activeTab === 'all' 
                 ? 'No properties available in this collection'
-                : `You haven't ${activeTab === 'liked' ? 'liked' : activeTab === 'favorited' ? 'saved' : 'marked as not interested in'} any properties yet`
+                : `You haven't ${activeTab === 'liked' ? 'liked' : 'marked as not interested in'} any properties yet`
               }
             </p>
           </div>
@@ -271,7 +264,6 @@ export default function CustomerCollectionView({
                 property={property}
                 onLike={onLike}
                 onDislike={onDislike}
-                onFavorite={onFavorite}
                 onPropertyClick={handlePropertyClick}
               />
             ))}
@@ -310,7 +302,6 @@ export default function CustomerCollectionView({
         onClose={handleCloseModal}
         onLike={onLike}
         onDislike={onDislike}
-        onFavorite={onFavorite}
         onAddComment={onAddComment}
         isLoadingDetails={isLoadingDetails}
         detailsError={detailsError}

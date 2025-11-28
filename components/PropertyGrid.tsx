@@ -8,14 +8,13 @@ interface PropertyGridProps {
   title?: string
   onLike?: (propertyId: string | number, liked: boolean) => void
   onDislike?: (propertyId: string | number, disliked: boolean) => void
-  onFavorite?: (propertyId: string | number, favorited: boolean) => void
   onPropertyClick?: (property: Property) => void
   onScheduleTour?: (property: Property) => void
   showDetailedViewCount?: boolean
   showNewForUnviewed?: boolean
 }
 
-export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onFavorite, onPropertyClick, onScheduleTour, showDetailedViewCount = false, showNewForUnviewed = false }: PropertyGridProps) {
+export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, showDetailedViewCount = false, showNewForUnviewed = false }: PropertyGridProps) {
   if (properties.length === 0) {
     return (
       <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 p-8">
@@ -54,7 +53,6 @@ export default function PropertyGrid({ properties, title = "Properties", onLike,
             property={property}
             onLike={onLike}
             onDislike={onDislike}
-            onFavorite={onFavorite}
             onPropertyClick={onPropertyClick}
             onScheduleTour={onScheduleTour}
             showDetailedViewCount={showDetailedViewCount}

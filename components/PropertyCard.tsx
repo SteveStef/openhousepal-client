@@ -3,29 +3,27 @@
 import { useMemo, memo } from 'react'
 import Image from 'next/image'
 import { Property } from '@/types'
-import { ThumbsUp, ThumbsDown, Star, MessageCircle, Calendar, Eye } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye } from 'lucide-react'
 
 interface PropertyCardProps {
   property: Property
   onLike?: (propertyId: string | number, liked: boolean) => void
   onDislike?: (propertyId: string | number, disliked: boolean) => void
-  onFavorite?: (propertyId: string | number, favorited: boolean) => void
   onPropertyClick?: (property: Property) => void
   onScheduleTour?: (property: Property) => void
   showDetailedViewCount?: boolean // If true, shows "X views", if false shows just "Viewed"
   showNewForUnviewed?: boolean // If true, shows NEW badge when viewCount === 0, if false uses property.is_new
 }
 
-const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, onFavorite, onPropertyClick, onScheduleTour, showDetailedViewCount = false, showNewForUnviewed = false }: PropertyCardProps) {
+const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, onPropertyClick, onScheduleTour, showDetailedViewCount = false, showNewForUnviewed = false }: PropertyCardProps) {
   // Memoize visitor interaction counts to avoid redundant filtering on every render
   const interactionCounts = useMemo(() => {
     if (!property.visitorInteractions) {
-      return { liked: 0, disliked: 0, favorited: 0 }
+      return { liked: 0, disliked: 0 }
     }
     return {
       liked: property.visitorInteractions.filter(vi => vi.liked).length,
-      disliked: property.visitorInteractions.filter(vi => vi.disliked).length,
-      favorited: property.visitorInteractions.filter(vi => vi.favorited).length
+      disliked: property.visitorInteractions.filter(vi => vi.disliked).length
     }
   }, [property.visitorInteractions])
 
@@ -192,34 +190,6 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
                     title={`${interactionCounts.disliked} visitor(s) disliked this property`}
                   >
                     {interactionCounts.disliked}
-                  </span>
-                )}
-              </div>
-              {/* Favorite button with visitor count */}
-              <div className="relative">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onFavorite?.(property.id!, !property.favorited);
-                  }}
-                  className={`flex items-center transition-colors p-1 rounded-md hover:bg-gray-100 ${
-                    property.favorited
-                      ? 'text-amber-400 hover:text-amber-300'
-                      : 'text-gray-400 hover:text-amber-500'
-                  }`}
-                  title={`${property.favorited ? 'Remove from favorites' : 'Add to favorites'}`}
-                >
-                  <Star
-                    size={16}
-                    fill={property.favorited ? "currentColor" : "none"}
-                  />
-                </button>
-                {interactionCounts.favorited > 0 && (
-                  <span
-                    className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium"
-                    title={`${interactionCounts.favorited} visitor(s) favorited this property`}
-                  >
-                    {interactionCounts.favorited}
                   </span>
                 )}
               </div>

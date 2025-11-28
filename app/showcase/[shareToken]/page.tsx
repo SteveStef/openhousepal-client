@@ -18,7 +18,7 @@ export default function CustomerShowcasePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   
   // Property filtering states
-  const [activeTab, setActiveTab] = useState<'all' | 'liked' | 'disliked' | 'favorited'>('all')
+  const [activeTab, setActiveTab] = useState<'all' | 'liked' | 'disliked'>('all')
   const [sortBy, setSortBy] = useState<'price' | 'beds' | 'squareFeet'>('price')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
@@ -134,9 +134,6 @@ export default function CustomerShowcasePage() {
       case 'disliked':
         filtered = filtered.filter(property => property.disliked)
         break
-      case 'favorited':
-        filtered = filtered.filter(property => property.favorited)
-        break
       case 'all':
       default:
         // Show all properties except disliked ones
@@ -178,14 +175,13 @@ export default function CustomerShowcasePage() {
   const filteredProperties = getFilteredProperties()
 
   const getTabCounts = () => {
-    if (!showcase || !matchedProperties) return { all: 0, liked: 0, disliked: 0, favorited: 0 }
+    if (!showcase || !matchedProperties) return { all: 0, liked: 0, disliked: 0 }
 
     const properties = matchedProperties
     return {
       all: properties.filter(p => !p.disliked).length,
       liked: properties.filter(p => p.liked).length,
-      disliked: properties.filter(p => p.disliked).length,
-      favorited: properties.filter(p => p.favorited).length
+      disliked: properties.filter(p => p.disliked).length
     }
   }
 
@@ -357,84 +353,6 @@ export default function CustomerShowcasePage() {
       }
 
       showToast('Failed to update status. Please try again.', 'error')
-    }
-  }
-
-  const handlePropertyFavorite = async (propertyId: string | number, favorited: boolean) => {
-    if (!showcase) return
-
-    // Optimistic UI update - update immediately for instant feedback
-    const optimisticProperties = matchedProperties.map(property =>
-      property.id === String(propertyId) ? {
-        ...property,
-        favorited: favorited
-      } : property
-    )
-
-    setMatchedProperties(optimisticProperties)
-
-    // Update selected property if it's the one being modified
-    if (selectedProperty && selectedProperty.id === String(propertyId)) {
-      setSelectedProperty(prevProperty => ({
-        ...prevProperty!,
-        favorited: favorited
-      }))
-    }
-
-    try {
-      const response = await apiRequest(`/collections/${showcase.id}/properties/${String(propertyId)}/interact`, {
-        method: 'POST',
-        body: JSON.stringify({
-          interaction_type: 'favorite',
-          value: favorited
-        })
-      })
-
-      if (response.status === 200) {
-        // Sync with server response
-        const updatedProperties = matchedProperties.map(property =>
-          property.id === String(propertyId) ? {
-            ...property,
-            favorited: response.data.interaction.favorited
-          } : property
-        )
-
-        setMatchedProperties(updatedProperties)
-
-        if (selectedProperty && selectedProperty.id === String(propertyId)) {
-          setSelectedProperty(prevProperty => ({
-            ...prevProperty!,
-            favorited: response.data.interaction.favorited
-          }))
-        }
-
-        // Show success toast
-        showToast(
-          favorited ? 'Property added to favorites!' : 'Property removed from favorites',
-          'success'
-        )
-      }
-    } catch (error) {
-      console.error('Error updating property favorite status:', error)
-
-      // Rollback optimistic update on error
-      const revertedProperties = matchedProperties.map(property =>
-        property.id === String(propertyId) ? {
-          ...property,
-          favorited: !favorited
-        } : property
-      )
-
-      setMatchedProperties(revertedProperties)
-
-      if (selectedProperty && selectedProperty.id === String(propertyId)) {
-        setSelectedProperty(prevProperty => ({
-          ...prevProperty!,
-          favorited: !favorited
-        }))
-      }
-
-      showToast('Failed to update favorite status. Please try again.', 'error')
     }
   }
 
@@ -762,8 +680,7 @@ export default function CustomerShowcasePage() {
               {[
                 { key: 'all', label: 'All Properties', count: tabCounts.all },
                 { key: 'liked', label: 'Liked', count: tabCounts.liked },
-                { key: 'disliked', label: 'Disliked', count: tabCounts.disliked },
-                { key: 'favorited', label: 'Favorited', count: tabCounts.favorited }
+                { key: 'disliked', label: 'Disliked', count: tabCounts.disliked }
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -835,10 +752,9 @@ export default function CustomerShowcasePage() {
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="bg-white px-4 text-gray-600 font-medium">
-                {activeTab === 'all' ? 'All Properties' : 
+                {activeTab === 'all' ? 'All Properties' :
                  activeTab === 'liked' ? 'Liked Properties' :
-                 activeTab === 'disliked' ? 'Disliked Properties' :
-                 'Favorited Properties'}
+                 'Disliked Properties'}
               </span>
             </div>
           </div>
@@ -849,7 +765,6 @@ export default function CustomerShowcasePage() {
             title="Matched Properties"
             onLike={handlePropertyLike}
             onDislike={handlePropertyDislike}
-            onFavorite={handlePropertyFavorite}
             onPropertyClick={handlePropertyClick}
             onScheduleTour={handleScheduleTourClick}
             showNewForUnviewed={true}
@@ -862,7 +777,6 @@ export default function CustomerShowcasePage() {
             onClose={handleCloseModal}
             onLike={handlePropertyLike}
             onDislike={handlePropertyDislike}
-            onFavorite={handlePropertyFavorite}
             onAddComment={handleAddComment}
             isLoadingDetails={isLoadingDetails}
             detailsError={detailsError}

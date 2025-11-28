@@ -87,6 +87,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                       </svg>
                       <span className="hidden sm:inline">Settings</span>
                     </Link>
+                    <NotificationBell />
                     <button
                       onClick={handleLogout}
                       disabled={isLoggingOut}

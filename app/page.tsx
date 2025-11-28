@@ -49,7 +49,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col overflow-hidden">
       {/* Navigation */}
-      <div className={`relative z-10 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0'}`}>
+      <div className={`relative z-50 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0'}`}>
         <Header mode="landing" />
       </div>
 

@@ -45,7 +45,7 @@ export default function ShowcasesPage() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PAUSED' | 'COMPLETED'>('ALL')
 
   // Property filtering states
-  const [activeTab, setActiveTab] = useState<'all' | 'liked' | 'disliked' | 'favorited'>('all')
+  const [activeTab, setActiveTab] = useState<'all' | 'liked' | 'disliked'>('all')
   const [sortBy, setSortBy] = useState<'price' | 'beds' | 'squareFeet'>('price')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
@@ -301,9 +301,6 @@ export default function ShowcasesPage() {
       case 'disliked':
         filtered = filtered.filter(property => property.disliked)
         break
-      case 'favorited':
-        filtered = filtered.filter(property => property.favorited)
-        break
       case 'all':
       default:
         // Show all properties except disliked ones
@@ -343,14 +340,13 @@ export default function ShowcasesPage() {
   }, [matchedProperties, selectedCollection, activeTab, sortBy, sortOrder])
 
   const tabCounts = useMemo(() => {
-    if (!selectedCollection || !matchedProperties) return { all: 0, liked: 0, disliked: 0, favorited: 0 }
+    if (!selectedCollection || !matchedProperties) return { all: 0, liked: 0, disliked: 0 }
 
     const properties = matchedProperties
     return {
       all: properties.filter(p => !p.disliked).length,
       liked: properties.filter(p => p.liked).length,
-      disliked: properties.filter(p => p.disliked).length,
-      favorited: properties.filter(p => p.favorited).length
+      disliked: properties.filter(p => p.disliked).length
     }
   }, [selectedCollection, matchedProperties])
 
@@ -520,84 +516,6 @@ export default function ShowcasesPage() {
       }
 
       showToast('Failed to update status. Please try again.', 'error')
-    }
-  }
-
-  const handlePropertyFavorite = async (propertyId: string | number, favorited: boolean) => {
-    if (!selectedCollection || !matchedProperties) return
-
-    // Optimistic UI update - update immediately for instant feedback
-    const optimisticProperties = matchedProperties.map(property =>
-      property.id === propertyId ? {
-        ...property,
-        favorited: favorited
-      } : property
-    )
-
-    setMatchedProperties(optimisticProperties)
-
-    // Update selected property if it's the one being modified
-    if (selectedProperty && selectedProperty.id === propertyId) {
-      setSelectedProperty(prevProperty => ({
-        ...prevProperty!,
-        favorited: favorited
-      }))
-    }
-
-    try {
-      const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${String(propertyId)}/interact`, {
-        method: 'POST',
-        body: JSON.stringify({
-          interaction_type: 'favorite',
-          value: favorited
-        })
-      })
-
-      if (response.status === 200) {
-        // Sync with server response
-        const updatedProperties = matchedProperties.map(property =>
-          property.id === propertyId ? {
-            ...property,
-            favorited: response.data.interaction.favorited
-          } : property
-        )
-
-        setMatchedProperties(updatedProperties)
-
-        if (selectedProperty && selectedProperty.id === propertyId) {
-          setSelectedProperty(prevProperty => ({
-            ...prevProperty!,
-            favorited: response.data.interaction.favorited
-          }))
-        }
-
-        // Show success toast
-        showToast(
-          favorited ? 'Property added to favorites!' : 'Property removed from favorites',
-          'success'
-        )
-      }
-    } catch (error) {
-      console.error('Error updating property favorite:', error)
-
-      // Rollback optimistic update on error
-      const revertedProperties = matchedProperties.map(property =>
-        property.id === propertyId ? {
-          ...property,
-          favorited: !favorited
-        } : property
-      )
-
-      setMatchedProperties(revertedProperties)
-
-      if (selectedProperty && selectedProperty.id === propertyId) {
-        setSelectedProperty(prevProperty => ({
-          ...prevProperty!,
-          favorited: !favorited
-        }))
-      }
-
-      showToast('Failed to update favorite status. Please try again.', 'error')
     }
   }
 
@@ -1332,8 +1250,7 @@ export default function ShowcasesPage() {
               {[
                 { key: 'all', label: 'All Properties', count: tabCounts.all },
                 { key: 'liked', label: 'Liked', count: tabCounts.liked },
-                { key: 'disliked', label: 'Disliked', count: tabCounts.disliked },
-                { key: 'favorited', label: 'Favorited', count: tabCounts.favorited }
+                { key: 'disliked', label: 'Disliked', count: tabCounts.disliked }
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -1419,7 +1336,6 @@ export default function ShowcasesPage() {
             title="Matched Properties"
             onLike={handlePropertyLike}
             onDislike={handlePropertyDislike}
-            onFavorite={handlePropertyFavorite}
             onPropertyClick={handlePropertyClick}
             showDetailedViewCount={true}
           />
@@ -1431,7 +1347,6 @@ export default function ShowcasesPage() {
             onClose={handleCloseModal}
             onLike={handlePropertyLike}
             onDislike={handlePropertyDislike}
-            onFavorite={handlePropertyFavorite}
             onAddComment={handleAddComment}
             isLoadingDetails={isLoadingDetails}
             detailsError={detailsError}

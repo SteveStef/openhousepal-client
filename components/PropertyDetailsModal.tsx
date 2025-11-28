@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Property } from '@/types'
-import { X, MessageCircle, Send, ThumbsUp, ThumbsDown, Star, ChevronLeft, ChevronRight, Maximize2, Home, User } from 'lucide-react'
+import { X, MessageCircle, Send, ThumbsUp, ThumbsDown, ChevronLeft, ChevronRight, Maximize2, Home, User } from 'lucide-react'
 
 interface PropertyDetailsModalProps {
   property: Property | null
@@ -11,7 +11,6 @@ interface PropertyDetailsModalProps {
   onClose: () => void
   onLike?: (propertyId: string | number, liked: boolean) => void
   onDislike?: (propertyId: string | number, disliked: boolean) => void
-  onFavorite?: (propertyId: string | number, favorited: boolean) => void
   onAddComment?: (propertyId: string | number, comment: string) => void
   isLoadingDetails?: boolean
   detailsError?: string | null
@@ -262,7 +261,6 @@ export default function PropertyDetailsModal({
   onClose,
   onLike,
   onDislike,
-  onFavorite,
   onAddComment,
   isLoadingDetails = false,
   detailsError = null,
@@ -791,7 +789,7 @@ export default function PropertyDetailsModal({
                         
                         {/* Action Buttons */}
                         <div className="space-y-3">
-                          <div className="grid grid-cols-3 gap-2">
+                          <div className="grid grid-cols-2 gap-2">
                             <button
                               onClick={() => onLike?.(property.id!, !property.liked)}
                               className={`flex flex-col items-center p-2 rounded-xl transition-all ${
@@ -802,17 +800,6 @@ export default function PropertyDetailsModal({
                             >
                               <ThumbsUp size={18} fill={property.liked ? "currentColor" : "none"} />
                               <span className="text-xs mt-0.5 font-medium">Like</span>
-                            </button>
-                            <button
-                              onClick={() => onFavorite?.(property.id!, !property.favorited)}
-                              className={`flex flex-col items-center p-2 rounded-xl transition-all ${
-                                property.favorited
-                                  ? 'bg-amber-100 text-amber-600'
-                                  : 'bg-gray-50 text-gray-400 hover:bg-amber-50 hover:text-amber-500'
-                              }`}
-                            >
-                              <Star size={18} fill={property.favorited ? "currentColor" : "none"} />
-                              <span className="text-xs mt-0.5 font-medium">Save</span>
                             </button>
                             <button
                               onClick={() => onDislike?.(property.id!, !property.disliked)}
