@@ -7,6 +7,7 @@ import "../types"
 interface GooglePlacesAutocompleteProps {
   value: string
   onChange: (address: string) => void
+  onCoordinatesChange?: (lat: number, lng: number) => void
   placeholder?: string
   className?: string
   disabled?: boolean
@@ -18,6 +19,7 @@ interface GooglePlacesAutocompleteProps {
 export default function GooglePlacesAutocomplete({
   value,
   onChange,
+  onCoordinatesChange,
   placeholder = "123 Main Street, City, State, ZIP",
   className = "",
   disabled = false,
@@ -38,23 +40,20 @@ export default function GooglePlacesAutocomplete({
 
     const components: string[] = []
 
-    // Define the order we want the components to appear
     const componentOrder = [
       'street_number',
       'route',
-      'subpremise', // apartment, suite, etc.
-      'locality', // city
-      'administrative_area_level_1', // state
+      'subpremise',
+      'locality',
+      'administrative_area_level_1',
       'postal_code'
     ]
 
-    // Extract components in the desired order
     for (const type of componentOrder) {
       const component = place.address_components.find(comp =>
         comp.types.includes(type)
       )
       if (component) {
-        // Use short_name for state and long_name for others
         const value = type === 'administrative_area_level_1'
           ? component.short_name
           : component.long_name
@@ -62,27 +61,21 @@ export default function GooglePlacesAutocomplete({
       }
     }
 
-    // Join components with appropriate separators
     if (components.length === 0) {
-      // Fallback to formatted_address but remove country
       return place.formatted_address?.replace(/, USA$/, '') || ''
     }
 
-    // Format: "123 Main St, Springfield, IL 62701"
     const addressParts: string[] = []
 
-    // Street address (number + route + subpremise)
     const streetParts = components.slice(0, 3).filter(Boolean)
     if (streetParts.length > 0) {
       addressParts.push(streetParts.join(' '))
     }
 
-    // City
     if (components[3]) {
       addressParts.push(components[3])
     }
 
-    // State and ZIP together
     const stateZipParts = components.slice(4).filter(Boolean)
     if (stateZipParts.length > 0) {
       addressParts.push(stateZipParts.join(' '))
@@ -109,25 +102,32 @@ export default function GooglePlacesAutocomplete({
         setIsLoaded(true)
 
         if (inputRef.current) {
-          // Initialize the autocomplete with legacy API
           autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
             types: ['address'],
             fields: ['formatted_address', 'address_components', 'geometry'],
             componentRestrictions: { country: 'us' }
           })
 
-          // Listen for place selection
           autocompleteRef.current.addListener('place_changed', () => {
             const place = autocompleteRef.current?.getPlace()
-            if (place && (place.formatted_address || place.address_components)) {
-              // Format address without country
-              const formattedAddress = formatAddressWithoutCountry(place)
-              // Update the React state
-              onChange(formattedAddress)
-              // Also directly update the input field to ensure visual sync
-              if (inputRef.current) {
-                inputRef.current.value = formattedAddress
-              }
+            if (!place) return
+
+            // Format the address
+            const formattedAddress = formatAddressWithoutCountry(place)
+
+            // Send formatted address to parent
+            onChange(formattedAddress)
+
+            // Update input visually
+            if (inputRef.current) {
+              inputRef.current.value = formattedAddress
+            }
+
+            // ✅ NEW: Send coordinates to parent
+            if (onCoordinatesChange && place.geometry?.location) {
+              const lat = place.geometry.location.lat()
+              const lng = place.geometry.location.lng()
+              onCoordinatesChange(lat, lng)
             }
           })
         }
@@ -139,15 +139,13 @@ export default function GooglePlacesAutocomplete({
 
     initializeAutocomplete()
 
-    // Cleanup
     return () => {
       if (autocompleteRef.current) {
         google.maps.event.clearInstanceListeners(autocompleteRef.current)
       }
     }
-  }, [onChange])
+  }, [onChange, onCoordinatesChange])
 
-  // Handle manual input changes (typing)
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value)
   }

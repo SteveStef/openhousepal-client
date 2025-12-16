@@ -27,6 +27,31 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
     }
   }, [property.visitorInteractions])
 
+  // Helper function to determine if property is available (clickable)
+  const isPropertyAvailable = useMemo(() => {
+    const status = property.status || (property.details as any)?.homeStatus;
+    if (!status) return true; // Assume available if no status
+
+    const normalizedStatus = status.toLowerCase().replace(/[_\s]/g, '');
+    return normalizedStatus === 'forsale' || normalizedStatus === 'forrent';
+  }, [property.status, property.details])
+
+  // Helper function to format status display
+  const formatStatus = (status: string) => {
+    const statusMap: Record<string, string> = {
+      'recentlysold': 'Recently Sold',
+      'sold': 'Sold',
+      'pending': 'Pending',
+      'off_market': 'Off Market',
+      'offmarket': 'Off Market',
+      'forrent': 'For Rent',
+      'for_rent': 'For Rent'
+    };
+
+    const normalized = status.toLowerCase().replace(/[_\s]/g, '');
+    return statusMap[normalized] || status.replace(/_/g, ' ');
+  }
+
   const formatPrice = (price?: number) => {
     return price ? price.toLocaleString('en-US', {
       style: 'currency',
@@ -35,10 +60,17 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
     }) : 'Price Available Upon Request'
   }
 
+  const available = isPropertyAvailable
+  const status = property.status || (property.details as any)?.homeStatus
+
   return (
     <div
-      onClick={() => onPropertyClick?.(property)}
-      className="bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-gray-300 transition-transform duration-200 hover:-translate-y-1 group cursor-pointer flex flex-col h-full shadow-sm hover:shadow-lg will-change-transform"
+      onClick={available ? () => onPropertyClick?.(property) : undefined}
+      className={`bg-white rounded-xl overflow-hidden border border-gray-200 transition-transform duration-200 flex flex-col h-full shadow-sm will-change-transform ${
+        available
+          ? 'hover:border-gray-300 hover:-translate-y-1 group cursor-pointer hover:shadow-lg'
+          : 'opacity-75 cursor-not-allowed'
+      }`}
     >
       {/* Property Image */}
       <div className="relative bg-gray-100 aspect-[16/9]">
@@ -60,17 +92,20 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
           </div>
         )}
 
-        {/* NEW Badge - Top Right (only for visitor view when unviewed) */}
-        {showNewForUnviewed && (!property.viewCount || property.viewCount === 0) && (
+        {/* Badge Priority: Status > NEW > View Count */}
+        {!available && status ? (
+          <div className="absolute top-4 right-4">
+            <span className="bg-gray-900/90 text-white font-bold px-3 py-1 rounded-full text-xs shadow-lg border-2 border-white">
+              {formatStatus(status)}
+            </span>
+          </div>
+        ) : showNewForUnviewed && (!property.viewCount || property.viewCount === 0) ? (
           <div className="absolute top-4 right-4" title="Not yet viewed">
             <span className="bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold px-3 py-1 rounded-full text-xs shadow-lg border-2 border-white">
               NEW
             </span>
           </div>
-        )}
-
-        {/* View Count Badge */}
-        {showDetailedViewCount ? (
+        ) : showDetailedViewCount ? (
           <div className="absolute top-4 right-4">
             <span className="bg-white/90 text-gray-700 font-medium px-3 py-1 rounded-full text-sm border border-gray-200 flex items-center gap-1.5 shadow-sm">
               <Eye size={16} />
@@ -134,22 +169,25 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
             <div className="flex items-center space-x-2">
               {/* Like button with visitor count */}
               <div className="relative">
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (property.id !== undefined) {
+                    if (property.id !== undefined && available) {
                       onLike?.(property.id, !property.liked);
                     }
                   }}
-                  className={`flex items-center transition-colors p-1 rounded-md hover:bg-gray-100 ${
-                    property.liked 
-                      ? 'text-green-400 hover:text-green-300' 
+                  disabled={!available}
+                  className={`flex items-center transition-colors p-1 rounded-md ${
+                    available ? 'hover:bg-gray-100' : 'opacity-50 cursor-not-allowed'
+                  } ${
+                    property.liked
+                      ? 'text-green-400 hover:text-green-300'
                       : 'text-gray-400 hover:text-green-500'
                   }`}
-                  title={`${property.liked ? 'Unlike' : 'Like'} this property`}
+                  title={available ? `${property.liked ? 'Unlike' : 'Like'} this property` : 'Property no longer available'}
                 >
-                  <ThumbsUp 
-                    size={16} 
+                  <ThumbsUp
+                    size={16}
                     fill={property.liked ? "currentColor" : "none"}
                   />
                 </button>
@@ -165,22 +203,25 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
               
               {/* Dislike button with visitor count */}
               <div className="relative">
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (property.id !== undefined) {
+                    if (property.id !== undefined && available) {
                       onDislike?.(property.id, !property.disliked);
                     }
                   }}
-                  className={`flex items-center transition-colors p-1 rounded-md hover:bg-gray-100 ${
-                    property.disliked 
-                      ? 'text-red-400 hover:text-red-300' 
+                  disabled={!available}
+                  className={`flex items-center transition-colors p-1 rounded-md ${
+                    available ? 'hover:bg-gray-100' : 'opacity-50 cursor-not-allowed'
+                  } ${
+                    property.disliked
+                      ? 'text-red-400 hover:text-red-300'
                       : 'text-gray-400 hover:text-red-500'
                   }`}
-                  title={`${property.disliked ? 'Remove dislike' : 'Dislike'} this property`}
+                  title={available ? `${property.disliked ? 'Remove dislike' : 'Dislike'} this property` : 'Property no longer available'}
                 >
-                  <ThumbsDown 
-                    size={16} 
+                  <ThumbsDown
+                    size={16}
                     fill={property.disliked ? "currentColor" : "none"}
                   />
                 </button>
@@ -209,11 +250,16 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onPropertyClick?.(property);
+              if (available) onPropertyClick?.(property);
             }}
-            className="flex-1 bg-[#8b7355] hover:bg-[#7a6549] text-white font-medium py-2 px-3 rounded-lg transition-all duration-300 border border-[#8b7355] text-xs"
+            disabled={!available}
+            className={`flex-1 font-medium py-2 px-3 rounded-lg transition-all duration-300 text-xs ${
+              available
+                ? 'bg-[#8b7355] hover:bg-[#7a6549] text-white border border-[#8b7355]'
+                : 'bg-gray-300 text-gray-500 border border-gray-300 cursor-not-allowed'
+            }`}
           >
-            View Details
+            {available ? 'View Details' : 'No Longer Available'}
           </button>
           {onScheduleTour ? (
             property.hasTourScheduled ? (
@@ -227,9 +273,14 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onScheduleTour?.(property);
+                  if (available) onScheduleTour?.(property);
                 }}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-800 font-medium py-2 px-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-all duration-300 text-xs"
+                disabled={!available}
+                className={`font-medium py-2 px-3 rounded-lg border transition-all duration-300 text-xs ${
+                  available
+                    ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-800 border-gray-200 hover:border-gray-300'
+                    : 'bg-gray-200 text-gray-400 border-gray-200 cursor-not-allowed opacity-50'
+                }`}
               >
                 Schedule Tour
               </button>

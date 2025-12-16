@@ -923,12 +923,20 @@ export default function ShowcasesPage() {
     try {
       preferences.diameter = Math.round(preferences.diameter * 1.8 * 10) / 10
 
+      const hasAddress = preferences.address && preferences.address.trim()
+      if(hasAddress) {
+        preferences.cities = [];
+        preferences.townships = [];
+      } else {
+        preferences.lat = null;
+        preferences.long = null;
+      }
+
       // Use atomic update that saves preferences and refreshes properties together
       // Only commits if Zillow API succeeds, preventing empty collections on errors
       const response = await updatePreferencesAndRefresh(collectionId, preferences)
 
       if (response.status === 200) {
-        console.log('[PREFERENCES] Successfully updated preferences and refreshed properties')
 
         // Show success toast
         const propertiesCount = response.data?.properties_count || 0
@@ -1022,11 +1030,15 @@ export default function ShowcasesPage() {
 
       } else {
         const errorMessage = response.data?.error || response.error || 'Unknown error'
-        console.error('[PREFERENCES] Failed to update preferences and refresh properties:', response.status, errorMessage)
-        showToast(`Failed to save changes: ${errorMessage}. Your preferences and properties have not been changed.`, 'error')
+
+        // Show specific error message for "No properties match" case
+        if (errorMessage.includes('No properties match')) {
+          showToast('No properties match these preferences. Please adjust your criteria and try again.', 'error')
+        } else {
+          showToast(`Failed to save changes: ${errorMessage}. Your preferences and properties have not been changed.`, 'error')
+        }
       }
     } catch (error) {
-      console.error('[PREFERENCES] Error updating preferences and refreshing properties:', error)
       showToast('An error occurred while saving. Your preferences and properties have not been changed.', 'error')
     }
   }
@@ -1692,17 +1704,17 @@ function CreateCollectionModal({
           }
         }
       } else if (field === 'cities' || field === 'townships') {
-        // Check combined cities/townships limit (max 10 total)
+        // Check combined cities/townships limit (max 5 total)
         const newValue = value as string[]
         const newCities = field === 'cities' ? newValue : prevFormData.cities || []
         const newTownships = field === 'townships' ? newValue : prevFormData.townships || []
 
-        // Prevent adding if it would exceed combined limit of 10
-        if (newCities.length + newTownships.length > 10) {
+        // Prevent adding if it would exceed combined limit of 5
+        if (newCities.length + newTownships.length > 5) {
           const otherFieldCount = field === 'cities' ? newTownships.length : newCities.length
           setValidationErrors(prev => ({
             ...prev,
-            location: `Maximum 10 total cities and townships combined. You currently have ${otherFieldCount} ${field === 'cities' ? 'townships' : 'cities'}.`
+            location: `Maximum 5 total cities and townships combined. You currently have ${otherFieldCount} ${field === 'cities' ? 'townships' : 'cities'}.`
           }))
           return prevFormData // Don't update the form data
         }
@@ -2155,11 +2167,11 @@ function CreateCollectionModal({
                     </h5>
                     {((formData.cities?.length || 0) + (formData.townships?.length || 0)) > 0 && (
                       <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        ((formData.cities?.length || 0) + (formData.townships?.length || 0)) >= 10
+                        ((formData.cities?.length || 0) + (formData.townships?.length || 0)) >= 5
                           ? 'bg-red-100 text-red-800 border border-red-200'
                           : 'bg-blue-100 text-blue-800 border border-blue-200'
                       }`}>
-                        {(formData.cities?.length || 0) + (formData.townships?.length || 0)}/10 locations
+                        {(formData.cities?.length || 0) + (formData.townships?.length || 0)}/5 locations
                       </span>
                     )}
                   </div>
@@ -2171,14 +2183,15 @@ function CreateCollectionModal({
                       </label>
                       <MultiCityPlacesInput
                         cities={formData.cities}
+                        maxCities={5 - (formData.townships?.length || 0)}
                         onChange={(cities) => {
                           setFormData(prev => {
                             const newTownships = prev.townships || []
-                            // Check combined limit (max 10 total)
-                            if (cities.length + newTownships.length > 10) {
+                            // Check combined limit (max 5 total)
+                            if (cities.length + newTownships.length > 5) {
                               setValidationErrors(prevErrors => ({
                                 ...prevErrors,
-                                location: `Maximum 10 total cities and townships combined. You currently have ${newTownships.length} townships.`
+                                location: `Maximum 5 total cities and townships combined. You currently have ${newTownships.length} townships.`
                               }))
                               return prev // Don't update
                             }
@@ -2194,7 +2207,6 @@ function CreateCollectionModal({
                           }
                         }}
                         placeholder={isUsingAddressSearch() ? 'Disabled - using address search' : 'Type city names and press Enter...'}
-                        maxCities={Math.max(1, 10 - (formData.townships?.length || 0))}
                         className="mb-4"
                         disabled={isUsingAddressSearch()}
                       />
@@ -2206,14 +2218,15 @@ function CreateCollectionModal({
                       </label>
                       <MultiTownshipPlacesInput
                         townships={formData.townships}
+                        maxTownships={5 - (formData.cities?.length || 0)}
                         onChange={(townships) => {
                           setFormData(prev => {
                             const newCities = prev.cities || []
-                            // Check combined limit (max 10 total)
-                            if (townships.length + newCities.length > 10) {
+                            // Check combined limit (max 5 total)
+                            if (townships.length + newCities.length > 5) {
                               setValidationErrors(prevErrors => ({
                                 ...prevErrors,
-                                location: `Maximum 10 total cities and townships combined. You currently have ${newCities.length} cities.`
+                                location: `Maximum 5 total cities and townships combined. You currently have ${newCities.length} cities.`
                               }))
                               return prev // Don't update
                             }
@@ -2229,7 +2242,6 @@ function CreateCollectionModal({
                           }
                         }}
                         placeholder={isUsingAddressSearch() ? 'Disabled - using address search' : 'Type township names and press Enter...'}
-                        maxTownships={Math.max(1, 10 - (formData.cities?.length || 0))}
                         className="mb-4"
                         disabled={isUsingAddressSearch()}
                       />

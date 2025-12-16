@@ -524,6 +524,10 @@ export default function EditPreferencesModal({
                     value={formData.address || ''}
                     onChange={(address) => handleInputChange('address', address)}
                     disabled={isUsingAreaSearch()}
+                        onCoordinatesChange={(lat, lng) => {
+                          handleInputChange('lat', lat)
+                          handleInputChange('long', lng)
+                        }}
                     className={`${
                       isUsingAreaSearch()
                         ? 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'
@@ -575,6 +579,7 @@ export default function EditPreferencesModal({
                   </label>
                   <MultiCityPlacesInput
                     cities={formData.cities || []}
+                    maxCities={5 - ((formData.townships || []).length)}
                     onChange={(cities) => {
                       setFormData(prev => {
                         // Clear address if cities are being added
@@ -589,7 +594,6 @@ export default function EditPreferencesModal({
                       }
                     }}
                     placeholder={isUsingAddressSearch() ? 'Disabled - using address search' : 'Type city names and press Enter...'}
-                    maxCities={10}
                     className="mb-4"
                     disabled={isUsingAddressSearch()}
                   />
@@ -601,6 +605,7 @@ export default function EditPreferencesModal({
                   </label>
                   <MultiTownshipPlacesInput
                     townships={formData.townships || []}
+                    maxTownships={5 - ((formData.cities || []).length)}
                     onChange={(townships) => {
                       setFormData(prev => {
                         // Clear address if townships are being added
@@ -615,7 +620,6 @@ export default function EditPreferencesModal({
                       }
                     }}
                     placeholder={isUsingAddressSearch() ? 'Disabled - using address search' : 'Type township names and press Enter...'}
-                    maxTownships={10}
                     className="mb-4"
                     disabled={isUsingAddressSearch()}
                   />
