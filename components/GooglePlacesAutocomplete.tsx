@@ -16,6 +16,58 @@ interface GooglePlacesAutocompleteProps {
   name?: string
 }
 
+// Helper function moved outside component to avoid recreation and dependency issues
+const formatAddressWithoutCountry = (place: google.maps.places.PlaceResult): string => {
+  if (!place.address_components) {
+    return place.formatted_address || ''
+  }
+
+  const components: string[] = []
+
+  const componentOrder = [
+    'street_number',
+    'route',
+    'subpremise',
+    'locality',
+    'administrative_area_level_1',
+    'postal_code'
+  ]
+
+  for (const type of componentOrder) {
+    const component = place.address_components.find(comp =>
+      comp.types.includes(type)
+    )
+    if (component) {
+      const value = type === 'administrative_area_level_1'
+        ? component.short_name
+        : component.long_name
+      components.push(value)
+    }
+  }
+
+  if (components.length === 0) {
+    return place.formatted_address?.replace(/, USA$/, '') || ''
+  }
+
+  const addressParts: string[] = []
+
+  const streetParts = components.slice(0, 3).filter(Boolean)
+  if (streetParts.length > 0) {
+    addressParts.push(streetParts.join(' '))
+  }
+
+  if (components[3]) {
+    addressParts.push(components[3])
+  }
+
+  const stateZipParts = components.slice(4).filter(Boolean)
+  if (stateZipParts.length > 0) {
+    addressParts.push(stateZipParts.join(' '))
+  }
+
+  return addressParts.join(', ')
+}
+
 export default function GooglePlacesAutocomplete({
   value,
   onChange,
@@ -32,57 +84,15 @@ export default function GooglePlacesAutocomplete({
   const [isLoaded, setIsLoaded] = useState(false)
   const [error, setError] = useState<string>('')
 
-  // Format address without country
-  const formatAddressWithoutCountry = (place: google.maps.places.PlaceResult): string => {
-    if (!place.address_components) {
-      return place.formatted_address || ''
-    }
+  // Refs to hold the latest callback functions
+  const onChangeRef = useRef(onChange)
+  const onCoordinatesChangeRef = useRef(onCoordinatesChange)
 
-    const components: string[] = []
-
-    const componentOrder = [
-      'street_number',
-      'route',
-      'subpremise',
-      'locality',
-      'administrative_area_level_1',
-      'postal_code'
-    ]
-
-    for (const type of componentOrder) {
-      const component = place.address_components.find(comp =>
-        comp.types.includes(type)
-      )
-      if (component) {
-        const value = type === 'administrative_area_level_1'
-          ? component.short_name
-          : component.long_name
-        components.push(value)
-      }
-    }
-
-    if (components.length === 0) {
-      return place.formatted_address?.replace(/, USA$/, '') || ''
-    }
-
-    const addressParts: string[] = []
-
-    const streetParts = components.slice(0, 3).filter(Boolean)
-    if (streetParts.length > 0) {
-      addressParts.push(streetParts.join(' '))
-    }
-
-    if (components[3]) {
-      addressParts.push(components[3])
-    }
-
-    const stateZipParts = components.slice(4).filter(Boolean)
-    if (stateZipParts.length > 0) {
-      addressParts.push(stateZipParts.join(' '))
-    }
-
-    return addressParts.join(', ')
-  }
+  // Update refs when props change
+  useEffect(() => {
+    onChangeRef.current = onChange
+    onCoordinatesChangeRef.current = onCoordinatesChange
+  }, [onChange, onCoordinatesChange])
 
   useEffect(() => {
     const initializeAutocomplete = async () => {
@@ -115,19 +125,19 @@ export default function GooglePlacesAutocomplete({
             // Format the address
             const formattedAddress = formatAddressWithoutCountry(place)
 
-            // Send formatted address to parent
-            onChange(formattedAddress)
+            // Send formatted address to parent using ref
+            onChangeRef.current(formattedAddress)
 
             // Update input visually
             if (inputRef.current) {
               inputRef.current.value = formattedAddress
             }
 
-            // ✅ NEW: Send coordinates to parent
-            if (onCoordinatesChange && place.geometry?.location) {
+            // Send coordinates to parent using ref
+            if (onCoordinatesChangeRef.current && place.geometry?.location) {
               const lat = place.geometry.location.lat()
               const lng = place.geometry.location.lng()
-              onCoordinatesChange(lat, lng)
+              onCoordinatesChangeRef.current(lat, lng)
             }
           })
         }
@@ -144,7 +154,7 @@ export default function GooglePlacesAutocomplete({
         google.maps.event.clearInstanceListeners(autocompleteRef.current)
       }
     }
-  }, [onChange, onCoordinatesChange])
+  }, []) // Empty dependency array ensures this only runs once
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value)
