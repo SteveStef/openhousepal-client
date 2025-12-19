@@ -1,34 +1,27 @@
 # Stage 1: Dependencies
-FROM node:18-alpine AS deps
+FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package*.json ./
-
-# Install ALL deps (including dev) once
 RUN npm ci --ignore-scripts && npm cache clean --force
 
 # Stage 2: Builder
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Reuse node_modules from deps
 COPY --from=deps /app/node_modules ./node_modules
-
-# Copy source
 COPY . .
 
-# Clean previous build artifacts
 RUN rm -rf .next tsconfig.tsbuildinfo
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# Build Next.js app
 RUN npm run build
 
-# Stage 3: Runner (unchanged, just modernize ENV syntax)
-FROM node:18-alpine AS runner
+# Stage 3: Runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
