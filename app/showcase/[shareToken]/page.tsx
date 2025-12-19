@@ -193,7 +193,7 @@ export default function CustomerShowcasePage() {
 
     // Optimistic UI update - update immediately for instant feedback
     const optimisticProperties = matchedProperties.map(property =>
-      property.id === String(propertyId) ? {
+      String(property.id) === String(propertyId) ? {
         ...property,
         liked: liked,
         disliked: liked ? false : property.disliked  // Clear dislike if liking
@@ -203,7 +203,7 @@ export default function CustomerShowcasePage() {
     setMatchedProperties(optimisticProperties)
 
     // Update selected property if it's the one being modified
-    if (selectedProperty && selectedProperty.id === String(propertyId)) {
+    if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
       setSelectedProperty(prevProperty => ({
         ...prevProperty!,
         liked: liked,
@@ -223,7 +223,7 @@ export default function CustomerShowcasePage() {
       if (response.status === 200) {
         // Sync with server response
         const updatedProperties = matchedProperties.map(property =>
-          property.id === String(propertyId) ? {
+          String(property.id) === String(propertyId) ? {
             ...property,
             liked: response.data.interaction.liked,
             disliked: response.data.interaction.disliked
@@ -232,7 +232,7 @@ export default function CustomerShowcasePage() {
 
         setMatchedProperties(updatedProperties)
 
-        if (selectedProperty && selectedProperty.id === String(propertyId)) {
+        if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
           setSelectedProperty(prevProperty => ({
             ...prevProperty!,
             liked: response.data.interaction.liked,
@@ -251,7 +251,7 @@ export default function CustomerShowcasePage() {
 
       // Rollback optimistic update on error
       const revertedProperties = matchedProperties.map(property =>
-        property.id === String(propertyId) ? {
+        String(property.id) === String(propertyId) ? {
           ...property,
           liked: !liked,
           disliked: property.disliked
@@ -260,7 +260,7 @@ export default function CustomerShowcasePage() {
 
       setMatchedProperties(revertedProperties)
 
-      if (selectedProperty && selectedProperty.id === String(propertyId)) {
+      if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
         setSelectedProperty(prevProperty => ({
           ...prevProperty!,
           liked: !liked,
@@ -277,7 +277,7 @@ export default function CustomerShowcasePage() {
 
     // Optimistic UI update - update immediately for instant feedback
     const optimisticProperties = matchedProperties.map(property =>
-      property.id === String(propertyId) ? {
+      String(property.id) === String(propertyId) ? {
         ...property,
         liked: disliked ? false : property.liked,  // Clear like if disliking
         disliked: disliked
@@ -287,7 +287,7 @@ export default function CustomerShowcasePage() {
     setMatchedProperties(optimisticProperties)
 
     // Update selected property if it's the one being modified
-    if (selectedProperty && selectedProperty.id === String(propertyId)) {
+    if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
       setSelectedProperty(prevProperty => ({
         ...prevProperty!,
         liked: disliked ? false : prevProperty!.liked,
@@ -307,7 +307,7 @@ export default function CustomerShowcasePage() {
       if (response.status === 200) {
         // Sync with server response
         const updatedProperties = matchedProperties.map(property =>
-          property.id === String(propertyId) ? {
+          String(property.id) === String(propertyId) ? {
             ...property,
             liked: response.data.interaction.liked,
             disliked: response.data.interaction.disliked
@@ -316,7 +316,7 @@ export default function CustomerShowcasePage() {
 
         setMatchedProperties(updatedProperties)
 
-        if (selectedProperty && selectedProperty.id === String(propertyId)) {
+        if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
           setSelectedProperty(prevProperty => ({
             ...prevProperty!,
             liked: response.data.interaction.liked,
@@ -335,7 +335,7 @@ export default function CustomerShowcasePage() {
 
       // Rollback optimistic update on error
       const revertedProperties = matchedProperties.map(property =>
-        property.id === String(propertyId) ? {
+        String(property.id) === String(propertyId) ? {
           ...property,
           liked: property.liked,
           disliked: !disliked
@@ -344,7 +344,7 @@ export default function CustomerShowcasePage() {
 
       setMatchedProperties(revertedProperties)
 
-      if (selectedProperty && selectedProperty.id === String(propertyId)) {
+      if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
         setSelectedProperty(prevProperty => ({
           ...prevProperty!,
           liked: prevProperty!.liked,
@@ -368,7 +368,7 @@ export default function CustomerShowcasePage() {
 
     // Update local state immediately for better UX
     const updatedProperties = matchedProperties.map(property =>
-      property.id === String(propertyId) 
+      String(property.id) === String(propertyId) 
         ? { ...property, comments: [...(property.comments || []), newComment] }
         : property
     )
@@ -376,7 +376,7 @@ export default function CustomerShowcasePage() {
     setMatchedProperties(updatedProperties)
 
     // Update the selected property in modal if it's the same property
-    if (selectedProperty && selectedProperty.id === String(propertyId)) {
+    if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
       setSelectedProperty({
         ...selectedProperty,
         comments: [...(selectedProperty.comments || []), newComment]
@@ -410,12 +410,12 @@ export default function CustomerShowcasePage() {
             comments.map(c => c.id === newComment.id ? serverComment : c)
 
           setMatchedProperties(prev => prev.map(property =>
-            property.id === String(propertyId)
+            String(property.id) === String(propertyId)
               ? { ...property, comments: replaceOptimisticComment(property.comments || []) }
               : property
           ))
 
-          if (selectedProperty && selectedProperty.id === String(propertyId)) {
+          if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
             setSelectedProperty(prev => prev ? {
               ...prev,
               comments: replaceOptimisticComment(prev.comments || [])
@@ -432,12 +432,12 @@ export default function CustomerShowcasePage() {
         comments.filter(c => c.id !== newComment.id)
 
       setMatchedProperties(prev => prev.map(property =>
-        property.id === String(propertyId)
+        String(property.id) === String(propertyId)
           ? { ...property, comments: removeOptimisticComment(property.comments || []) }
           : property
       ))
 
-      if (selectedProperty && selectedProperty.id === String(propertyId)) {
+      if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
         setSelectedProperty(prev => prev ? {
           ...prev,
           comments: removeOptimisticComment(prev.comments || [])
@@ -496,7 +496,7 @@ export default function CustomerShowcasePage() {
         if (response.status === 200) {
           // Update matchedProperties array
           setMatchedProperties(prev => prev.map(p =>
-            p.id === property.id ? {
+            String(p.id) === String(property.id) ? {
               ...p,
               viewed: true,
               viewCount: (p.viewCount || 0) + 1
@@ -596,7 +596,7 @@ export default function CustomerShowcasePage() {
 
         // Update local state to mark property as having tour scheduled
         const updatedProperties = matchedProperties.map(property =>
-          property.id === tourRequest.propertyId ? {
+          String(property.id) === String(tourRequest.propertyId) ? {
             ...property,
             hasTourScheduled: true
           } : property
