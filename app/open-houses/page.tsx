@@ -275,9 +275,8 @@ export default function OpenHousesPage() {
       setError('')
       
       try {
-        const { generateVerticalBrandedQRCodePDF } = await import('@/lib/pdfGenerator')
-        const isPremium = currentUser?.plan_tier === "PREMIUM"
-        await generateVerticalBrandedQRCodePDF({
+        const { generateTemplateQRCodePDF } = await import('@/lib/pdfGenerator')
+        await generateTemplateQRCodePDF({
           qrCodeUrl: qrCode,
           address: address,
           propertyImageUrl: selectedImage.url,
@@ -292,8 +291,7 @@ export default function OpenHousesPage() {
             lotSize: propertyData.lotSize,
             garage: propertyData.garageSpaces ? `${propertyData.garageSpaces} Car` : undefined
           },
-          filename: `open-house-${address.replace(/\s+/g, '-').toLowerCase()}.pdf`,
-          isPremium
+          filename: `open-house-${address.replace(/\s+/g, '-').toLowerCase()}.pdf`
         })
       } catch (error) {
         console.error('Error generating PDF:', error)
@@ -310,9 +308,8 @@ export default function OpenHousesPage() {
       setError('')
 
       try {
-        const { generateVerticalBrandedPDFPreview } = await import('@/lib/pdfGenerator')
-        const isPremium = currentUser?.plan_tier === "PREMIUM"
-        const previewUrl = await generateVerticalBrandedPDFPreview({
+        const { generateTemplatePDFPreview } = await import('@/lib/pdfGenerator')
+        const previewUrl = await generateTemplatePDFPreview({
           qrCodeUrl: qrCode,
           address: propertyData.abbreviatedAddress || address,
           propertyImageUrl: selectedImage.url,
@@ -325,8 +322,7 @@ export default function OpenHousesPage() {
             yearBuilt: propertyData.yearBuilt,
             homeType: propertyData.homeType,
             lotSize: propertyData.lotSize
-          },
-          isPremium
+          }
         })
         setPdfPreview(previewUrl)
         setShowPreview(true)
@@ -995,10 +991,9 @@ const OpenHousePDFViewer = memo(function OpenHousePDFViewer({ openHouse, onClose
     const generatePDF = async () => {
       setIsGenerating(true)
       try {
-        // Generate PDF preview using the vertical branded template
-        const { generateVerticalBrandedPDFPreview } = await import('@/lib/pdfGenerator')
-        const isPremium = currentUser?.plan_tier === "PREMIUM"
-        const pdfDataUrl = await generateVerticalBrandedPDFPreview({
+        // Generate PDF preview using the template
+        const { generateTemplatePDFPreview } = await import('@/lib/pdfGenerator')
+        const pdfDataUrl = await generateTemplatePDFPreview({
           qrCodeUrl: openHouse.qr_code_url,
           address: openHouse.address,
           propertyImageUrl: openHouse.cover_image_url,
@@ -1012,8 +1007,7 @@ const OpenHousePDFViewer = memo(function OpenHousePDFViewer({ openHouse, onClose
             // homeType: openHouse.home_type,
             // lotSize: openHouse.lot_size,
             // garage: openHouse.garage_spaces ? `${openHouse.garage_spaces} Car` : undefined
-          },
-          isPremium
+          }
         })
         setPdfUrl(pdfDataUrl)
       } catch (error) {
@@ -1028,10 +1022,9 @@ const OpenHousePDFViewer = memo(function OpenHousePDFViewer({ openHouse, onClose
 
   const downloadPDF = async () => {
     try {
-      // Generate and download PDF using the vertical branded download function
-      const { generateVerticalBrandedQRCodePDF } = await import('@/lib/pdfGenerator')
-      const isPremium = currentUser?.plan_tier === "PREMIUM"
-      await generateVerticalBrandedQRCodePDF({
+      // Generate and download PDF using the template function
+      const { generateTemplateQRCodePDF } = await import('@/lib/pdfGenerator')
+      await generateTemplateQRCodePDF({
         qrCodeUrl: openHouse.qr_code_url,
         address: openHouse.address,
         propertyImageUrl: openHouse.cover_image_url,
@@ -1046,8 +1039,7 @@ const OpenHousePDFViewer = memo(function OpenHousePDFViewer({ openHouse, onClose
           // lotSize: openHouse.lot_size,
           // garage: openHouse.garage_spaces ? `${openHouse.garage_spaces} Car` : undefined
         },
-        filename: `${openHouse.address.replace(/[^a-zA-Z0-9]/g, '_')}_OpenHouse.pdf`,
-        isPremium
+        filename: `${openHouse.address.replace(/[^a-zA-Z0-9]/g, '_')}_OpenHouse.pdf`
       })
     } catch (error) {
       console.error('Error downloading PDF:', error)

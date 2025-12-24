@@ -398,3 +398,224 @@ export async function generateVerticalBrandedPDFPreview({ qrCodeUrl, address, pr
     throw new Error('Failed to generate vertical branded PDF preview. Please try again.')
   }
 }
+
+// Template PDF Functions
+
+async function createTemplatePDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails }: PDFPreviewOptions): Promise<Uint8Array> {
+  try {
+    const templateResponse = await fetch('/template.pdf')
+    if (!templateResponse.ok) {
+      throw new Error('Failed to load template.pdf')
+    }
+    const templateBytes = await templateResponse.arrayBuffer()
+
+    // Load the PDF document
+    const pdfDoc = await PDFDocument.load(templateBytes)
+    const firstPage = pdfDoc.getPages()[0]
+
+    // Get page dimensions
+    let { width: pageWidth, height: pageHeight } = firstPage.getSize()
+
+    // Define target dimensions: 8.5 x 11 inches in points
+    const targetWidth = 8.5 * 72
+    const targetHeight = 11 * 72
+
+    // Check if template dimensions match target 8.5 x 11 inches
+    const widthDiff = Math.abs(pageWidth - targetWidth)
+    const heightDiff = Math.abs(pageHeight - targetHeight)
+    const tolerance = 1
+
+    if (widthDiff > tolerance || heightDiff > tolerance) {
+      console.warn('Template size mismatch - resizing to ensure 8.5 x 11 inch output...')
+      firstPage.setSize(targetWidth, targetHeight)
+      const newSize = firstPage.getSize()
+      pageWidth = newSize.width
+      pageHeight = newSize.height
+    }
+
+    // Load and embed property image if provided
+    if (propertyImageUrl) {
+      try {
+        const imgWidth = pageWidth
+        const imgHeight = 330
+        const imgX = 0
+        const imgY = 480
+        
+        // Use standard image loading for full width (no rounded corners)
+        const propertyImageBytes = await loadImageAsBytes(propertyImageUrl)
+        const propertyImage = await pdfDoc.embedPng(propertyImageBytes)
+
+        firstPage.drawImage(propertyImage, {
+          x: imgX,
+          y: imgY,
+          width: imgWidth,
+          height: imgHeight,
+        })
+
+        if (address) {
+          let displayAddress = propertyDetails?.city ? `${address}, ${propertyDetails.city}` : address
+          let addressY = 340 // Preserve your coordinate
+          
+          const serifFont = await pdfDoc.embedFont(StandardFonts.TimesRoman)
+          const fontSize = 22
+          const maxWidth = 260
+          const lineX = 40 // Fixed X for left alignment
+          
+          // Word wrapping logic
+          const words = displayAddress.split(' ')
+          const lines: string[] = []
+          let currentLine = words[0]
+
+          for (let i = 1; i < words.length; i++) {
+            const word = words[i]
+            const width = serifFont.widthOfTextAtSize(`${currentLine} ${word}`, fontSize)
+            if (width < maxWidth) {
+              currentLine += ` ${word}`
+            } else {
+              lines.push(currentLine)
+              currentLine = word
+            }
+          }
+          lines.push(currentLine)
+
+          // Draw each line
+          for (const line of lines) {
+            firstPage.drawText(line, {
+              x: lineX,
+              y: addressY,
+              size: fontSize,
+              font: serifFont,
+              color: rgb(0, 0, 0),
+            })
+            
+            addressY -= 26
+          }
+        }
+      } catch (error) {
+        console.warn('Could not load property image:', error)
+      }
+    }
+
+    // Add property stats
+    if (propertyDetails) {
+      const serifFont = await pdfDoc.embedFont(StandardFonts.TimesRoman)
+      const fontSize = 22
+      const row1Y = 218 // Moved down
+      const row2Y = 100 // Moved down
+
+      if (propertyDetails.beds !== undefined && propertyDetails.beds !== null) {
+        firstPage.drawText(propertyDetails.beds.toString(), {
+          x: 38,
+          y: row1Y,
+          size: fontSize,
+          font: serifFont,
+          color: rgb(0, 0, 0),
+        })
+      }
+
+      if (propertyDetails.baths !== undefined && propertyDetails.baths !== null) {
+        firstPage.drawText(propertyDetails.baths.toString(), {
+          x: 38 + 106,
+          y: row1Y,
+          size: fontSize,
+          font: serifFont,
+          color: rgb(0, 0, 0),
+        })
+      }
+
+      if (propertyDetails.squareFeet !== undefined && propertyDetails.squareFeet !== null) {
+        firstPage.drawText(propertyDetails.squareFeet.toLocaleString(), {
+          x: 38 + 106 + 90,
+          y: row1Y,
+          size: fontSize,
+          font: serifFont,
+          color: rgb(0, 0, 0),
+        })
+      }
+
+      if (propertyDetails.price !== undefined && propertyDetails.price !== null) {
+        const priceText = `$${propertyDetails.price.toLocaleString()}`
+
+        firstPage.drawText(priceText, {
+          x: 30,
+          y: row2Y,
+          size: fontSize,
+          font: serifFont,
+          color: rgb(0, 0, 0),
+        })
+      }
+    }
+
+    // Load and embed QR code image
+    const qrCodeImageBytes = await loadImageAsBytes(qrCodeUrl)
+    const qrCodeImage = await pdfDoc.embedPng(qrCodeImageBytes)
+
+    const qrSize = 155
+    const qrX = (pageWidth - qrSize) - 64
+    const qrY = 182 // Default to lower position
+
+    firstPage.drawImage(qrCodeImage, {
+      x: qrX,
+      y: qrY,
+      width: qrSize,
+      height: qrSize,
+    })
+
+    return await pdfDoc.save()
+
+  } catch (error) {
+    console.error('Error creating PDF from template:', error)
+    throw new Error('Failed to create PDF from template. Please try again.')
+  }
+}
+
+export async function generateTemplateQRCodePDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails, filename }: PDFGenerationOptions): Promise<void> {
+  if (typeof window === 'undefined') {
+    throw new Error('PDF generation is only available in the browser environment')
+  }
+
+  try {
+    const pdfBytes = await createTemplatePDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails })
+
+    const pdfFilename = filename || `property-qr-${address.replace(/\s+/g, '-').toLowerCase()}.pdf`
+
+    const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+
+    const link = document.createElement('a')
+    link.href = url
+    link.download = pdfFilename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    URL.revokeObjectURL(url)
+
+  } catch (error) {
+    console.error('Error generating PDF:', error)
+    throw new Error('Failed to generate PDF. Please try again.')
+  }
+}
+
+export async function generateTemplatePDFPreview({ qrCodeUrl, address, propertyImageUrl, propertyDetails }: PDFPreviewOptions): Promise<string> {
+  if (typeof window === 'undefined') {
+    throw new Error('PDF preview generation is only available in the browser environment')
+  }
+
+  try {
+    const pdfBytes = await createTemplatePDF({ qrCodeUrl, address, propertyImageUrl, propertyDetails })
+
+    const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' })
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = () => reject(new Error('Failed to create PDF preview'))
+      reader.readAsDataURL(blob)
+    })
+
+  } catch (error) {
+    console.error('Error generating PDF preview:', error)
+    throw new Error('Failed to generate PDF preview. Please try again.')
+  }
+}
+

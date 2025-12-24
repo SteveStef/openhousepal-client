@@ -72,9 +72,8 @@ export default function DashboardPage() {
         const propertyImageUrl = propertyData.originalPhotos?.[0]?.mixedSources?.jpeg?.[0]?.url ||
                                 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&h=300&fit=crop'
 
-        const { generateVerticalBrandedQRCodePDF } = await import('@/lib/pdfGenerator')
-        const isPremium = currentUser?.plan_tier === "PREMIUM"
-        await generateVerticalBrandedQRCodePDF({
+        const { generateTemplateQRCodePDF } = await import('@/lib/pdfGenerator')
+        await generateTemplateQRCodePDF({
           qrCodeUrl: qrCode,
           address: address,
           propertyImageUrl: propertyImageUrl,
@@ -89,8 +88,7 @@ export default function DashboardPage() {
             lotSize: propertyData.lotSize,
             garage: propertyData.garageSpaces ? `${propertyData.garageSpaces} Car` : undefined
           },
-          filename: `property-qr-${address.replace(/\s+/g, '-').toLowerCase()}.pdf`,
-          isPremium
+          filename: `property-qr-${address.replace(/\s+/g, '-').toLowerCase()}.pdf`
         })
       } catch (error) {
         console.error('Error generating PDF:', error)
@@ -111,9 +109,8 @@ export default function DashboardPage() {
         const propertyImageUrl = propertyData.originalPhotos?.[0]?.mixedSources?.jpeg?.[0]?.url ||
                                 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&h=300&fit=crop'
 
-        const { generateVerticalBrandedPDFPreview } = await import('@/lib/pdfGenerator')
-        const isPremium = currentUser?.plan_tier === "PREMIUM"
-        const previewUrl = await generateVerticalBrandedPDFPreview({
+        const { generateTemplatePDFPreview } = await import('@/lib/pdfGenerator')
+        const previewUrl = await generateTemplatePDFPreview({
           qrCodeUrl: qrCode,
           address: address,
           propertyImageUrl: propertyImageUrl,
@@ -127,8 +124,7 @@ export default function DashboardPage() {
             homeType: propertyData.homeType,
             lotSize: propertyData.lotSize,
             garage: propertyData.garageSpaces ? `${propertyData.garageSpaces} Car` : undefined
-          },
-          isPremium
+          }
         })
         setPdfPreview(previewUrl)
         setShowPreview(true)
