@@ -86,6 +86,19 @@ export default function EditPreferencesModal({
            (formData.townships && formData.townships.length > 0)
   }
 
+  // Helper to format number with commas
+  const formatNumberWithCommas = (value: string | number | null) => {
+    if (value === null || value === undefined || value === '') return ''
+    const stringValue = value.toString().replace(/,/g, '')
+    if (isNaN(Number(stringValue))) return stringValue
+    return stringValue.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  }
+
+  // Helper to remove commas for state/processing
+  const stripCommas = (value: string) => {
+    return value.replace(/,/g, '')
+  }
+
   // Fetch and populate form when modal opens
   useEffect(() => {
     if (isOpen && collection) {
@@ -439,11 +452,14 @@ export default function EditPreferencesModal({
                   Minimum Price ($)
                 </label>
                 <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={formData.min_price || ''}
-                  onChange={(e) => handleInputChange('min_price', e.target.value ? parseInt(e.target.value) : null)}
+                  type="text"
+                  value={formatNumberWithCommas(formData.min_price)}
+                  onChange={(e) => {
+                    const rawValue = stripCommas(e.target.value)
+                    if (rawValue === '' || /^\d+$/.test(rawValue)) {
+                      handleInputChange('min_price', rawValue ? parseInt(rawValue) : null)
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
                   placeholder="Any"
                 />
@@ -454,11 +470,14 @@ export default function EditPreferencesModal({
                   Maximum Price ($)
                 </label>
                 <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={formData.max_price || ''}
-                  onChange={(e) => handleInputChange('max_price', e.target.value ? parseInt(e.target.value) : null)}
+                  type="text"
+                  value={formatNumberWithCommas(formData.max_price)}
+                  onChange={(e) => {
+                    const rawValue = stripCommas(e.target.value)
+                    if (rawValue === '' || /^\d+$/.test(rawValue)) {
+                      handleInputChange('max_price', rawValue ? parseInt(rawValue) : null)
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
                   placeholder="Any"
                 />

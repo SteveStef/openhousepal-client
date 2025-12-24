@@ -1688,6 +1688,19 @@ function CreateCollectionModal({
            (formData.townships && formData.townships.length > 0)
   }
 
+  // Helper to format number with commas
+  const formatNumberWithCommas = (value: string | number) => {
+    if (!value && value !== 0) return ''
+    const stringValue = value.toString().replace(/,/g, '')
+    if (isNaN(Number(stringValue))) return stringValue
+    return stringValue.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  }
+
+  // Helper to remove commas for state/processing
+  const stripCommas = (value: string) => {
+    return value.replace(/,/g, '')
+  }
+
   const handleInputChange = (field: string, value: string | number | boolean | string[]) => {
     // Use functional state update to avoid stale closure issues
     setFormData(prevFormData => {
@@ -2041,10 +2054,14 @@ function CreateCollectionModal({
                     Min Price ($)
                   </label>
                   <input
-                    type="number"
-                    min="0"
-                    value={formData.minPrice}
-                    onChange={(e) => handleInputChange('minPrice', e.target.value)}
+                    type="text"
+                    value={formatNumberWithCommas(formData.minPrice)}
+                    onChange={(e) => {
+                      const rawValue = stripCommas(e.target.value)
+                      if (rawValue === '' || /^\d+$/.test(rawValue)) {
+                        handleInputChange('minPrice', rawValue)
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
                     placeholder="0"
                   />
@@ -2054,10 +2071,14 @@ function CreateCollectionModal({
                     Max Price ($)
                   </label>
                   <input
-                    type="number"
-                    min="0"
-                    value={formData.maxPrice}
-                    onChange={(e) => handleInputChange('maxPrice', e.target.value)}
+                    type="text"
+                    value={formatNumberWithCommas(formData.maxPrice)}
+                    onChange={(e) => {
+                      const rawValue = stripCommas(e.target.value)
+                      if (rawValue === '' || /^\d+$/.test(rawValue)) {
+                        handleInputChange('maxPrice', rawValue)
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
                     placeholder="No limit"
                   />
