@@ -87,7 +87,7 @@ export default function EditPreferencesModal({
   }
 
   // Helper to format number with commas
-  const formatNumberWithCommas = (value: string | number | null) => {
+  const formatNumberWithCommas = (value: string | number | null | undefined) => {
     if (value === null || value === undefined || value === '') return ''
     const stringValue = value.toString().replace(/,/g, '')
     if (isNaN(Number(stringValue))) return stringValue

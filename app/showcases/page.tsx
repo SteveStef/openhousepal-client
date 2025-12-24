@@ -1689,7 +1689,7 @@ function CreateCollectionModal({
   }
 
   // Helper to format number with commas
-  const formatNumberWithCommas = (value: string | number) => {
+  const formatNumberWithCommas = (value: string | number | undefined) => {
     if (!value && value !== 0) return ''
     const stringValue = value.toString().replace(/,/g, '')
     if (isNaN(Number(stringValue))) return stringValue
