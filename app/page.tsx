@@ -47,7 +47,15 @@ export default function HomePage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-[#f2f1ee] via-[#fafaf9] to-white flex flex-col overflow-hidden relative">
+      {/* Decorative Background Accents */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-[5%] -left-[5%] w-[50%] h-[50%] rounded-full bg-[#8b7355]/10 blur-[120px]" />
+        <div className="absolute top-[25%] -right-[10%] w-[40%] h-[40%] rounded-full bg-[#8b7355]/7 blur-[100px]" />
+        <div className="absolute bottom-[5%] left-[15%] w-[45%] h-[45%] rounded-full bg-[#8b7355]/10 blur-[120px]" />
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.05] mix-blend-overlay"></div>
+      </div>
+
       {/* Navigation */}
       <div className={`relative z-50 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0'}`}>
         <Header mode="landing" />
