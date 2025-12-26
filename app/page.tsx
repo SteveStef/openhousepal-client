@@ -140,6 +140,12 @@ export default function HomePage() {
       {/* Video Showcase */}
       <div className="relative z-10 py-10 lg:py-20">
         <div className="max-w-6xl mx-auto px-6">
+          <div className={`text-center mb-12 transform transition-all duration-1000 delay-400 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+            <h3 className="text-4xl font-bold text-gray-900 mb-6 font-light">Experience the Future of Open Houses</h3>
+            <p className="text-xl text-gray-600 font-light max-w-3xl mx-auto">
+              See how OpenHousePal seamlessly connects physical visits with digital follow-ups.
+            </p>
+          </div>
           <div className={`relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white transform transition-all duration-1000 delay-500 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
             <div className="absolute inset-0 bg-black/5 z-10 pointer-events-none"></div>
             <video 
