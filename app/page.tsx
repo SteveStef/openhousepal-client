@@ -137,6 +137,26 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* Video Showcase */}
+      <div className="relative z-10 py-10 lg:py-20">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className={`relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white transform transition-all duration-1000 delay-500 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+            <div className="absolute inset-0 bg-black/5 z-10 pointer-events-none"></div>
+            <video 
+              className="w-full h-auto object-cover"
+              autoPlay 
+              loop 
+              muted 
+              playsInline
+              controls
+            >
+              <source src="/Comp_1_R2.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        </div>
+      </div>
+
       {/* How It Works */}
       <div className="relative z-10">
         <div className="max-w-6xl mx-auto px-6">
