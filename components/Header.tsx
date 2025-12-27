@@ -48,6 +48,29 @@ export default function Header({ mode = 'app' }: HeaderProps) {
             </div>
           </Link>
           
+          {/* Landing Page Navigation */}
+          {mode === 'landing' && (
+            <nav className="hidden md:flex items-center space-x-8 absolute left-1/2 transform -translate-x-1/2">
+              <button 
+                onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-gray-600 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200"
+              >
+                How it Works
+              </button>
+              <button 
+                onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-gray-600 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200"
+              >
+                Pricing
+              </button>
+              <button 
+                onClick={() => document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-gray-600 hover:text-[#8b7355] font-medium text-sm transition-colors duration-200"
+              >
+                FAQ
+              </button>
+            </nav>
+          )}
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-2 sm:space-x-4">

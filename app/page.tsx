@@ -172,7 +172,7 @@ export default function HomePage() {
       </div>
 
       {/* How It Works */}
-      <div className="relative z-10">
+      <div id="how-it-works" className="relative z-10">
         <div className="max-w-6xl mx-auto px-6">
           <div className="py-20">
             <div className={`text-center mb-16 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
@@ -262,7 +262,7 @@ export default function HomePage() {
           </div>
 
           {/* Subscription Tiers */}
-          <div className="py-20">
+          <div id="pricing" className="py-20">
             <div className={`text-center mb-8 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
               <h3 className="text-4xl font-bold text-gray-900 mb-6 font-light">Choose the Plan That Fits Your Ambition</h3>
 
@@ -471,7 +471,7 @@ export default function HomePage() {
           </div>
 
           {/* FAQ Section */}
-          <div className="py-20">
+          <div id="faq" className="py-20">
             <div className={`text-center mb-16 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
               <h3 className="text-5xl font-bold text-gray-900 mb-6 font-light">Frequently Asked Questions</h3>
               <p className="text-xl text-gray-600 font-light max-w-3xl mx-auto">
