@@ -49,7 +49,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
           </Link>
           
           {/* Landing Page Navigation */}
-          {mode === 'landing' && (
+          {mode === 'landing' && !isAuthenticated && (
             <nav className="hidden md:flex items-center space-x-8 absolute left-1/2 transform -translate-x-1/2">
               <button 
                 onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
