@@ -2125,13 +2125,27 @@ function CreateCollectionModal({
                 
                 {/* Address-Based Search */}
                 <div className={`p-4 rounded-lg border-2 ${isUsingAddressSearch() ? 'border-[#8b7355] bg-[#8b7355]/5' : 'border-gray-200 bg-gray-50/50'}`}>
-                  <h5 className="text-md font-medium text-gray-800 mb-3 flex items-center">
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    Address-Based Search
-                  </h5>
+                  <div className="flex items-center justify-between mb-3">
+                    <h5 className="text-md font-medium text-gray-800 flex items-center">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Address-Based Search
+                    </h5>
+                    {formData.address && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleInputChange('address', '')
+                          handleInputChange('diameter', '0')
+                        }}
+                        className="text-xs text-[#8b7355] hover:text-[#7a6549] font-medium transition-colors"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -2186,15 +2200,29 @@ function CreateCollectionModal({
                       </svg>
                       City/Township Search
                     </h5>
-                    {((formData.cities?.length || 0) + (formData.townships?.length || 0)) > 0 && (
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        ((formData.cities?.length || 0) + (formData.townships?.length || 0)) >= 5
-                          ? 'bg-red-100 text-red-800 border border-red-200'
-                          : 'bg-blue-100 text-blue-800 border border-blue-200'
-                      }`}>
-                        {(formData.cities?.length || 0) + (formData.townships?.length || 0)}/5 locations
-                      </span>
-                    )}
+                    <div className="flex items-center space-x-3">
+                      {((formData.cities?.length || 0) + (formData.townships?.length || 0)) > 0 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleInputChange('cities', [])
+                              handleInputChange('townships', [])
+                            }}
+                            className="text-xs text-[#8b7355] hover:text-[#7a6549] font-medium transition-colors"
+                          >
+                            Clear
+                          </button>
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            ((formData.cities?.length || 0) + (formData.townships?.length || 0)) >= 5
+                              ? 'bg-red-100 text-red-800 border border-red-200'
+                              : 'bg-blue-100 text-blue-800 border border-blue-200'
+                          }`}>
+                            {(formData.cities?.length || 0) + (formData.townships?.length || 0)}/5 locations
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="space-y-4">
