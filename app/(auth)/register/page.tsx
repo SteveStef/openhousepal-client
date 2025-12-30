@@ -65,6 +65,46 @@ export default function RegisterPage() {
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({})
   const [registrationStep, setRegistrationStep] = useState<'form' | 'verify' | 'pricing' | 'payment'>('form')
   const [selectedPlan, setSelectedPlan] = useState<typeof PLANS.BASIC | typeof PLANS.PREMIUM | null>(null)
+  const [bundleCode, setBundleCode] = useState('')
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false)
+  const [appliedBundleCode, setAppliedBundleCode] = useState<string | null>(null)
+
+  const handleVerifyBundleCode = async () => {
+    if (!bundleCode.trim()) return
+    
+    setIsVerifyingCode(true)
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const response = await fetch(`${apiUrl}/auth/verify-bundle-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: bundleCode.trim() })
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        setAppliedBundleCode(bundleCode.trim())
+        // Switch to the special plan automatically
+        const bundlePlan = {
+          id: data.plan_id,
+          name: 'Special Bundle Plan',
+          price: '$99.95',
+          priceValue: 99.95,
+          tier: 'PREMIUM',
+          features: PLANS.PREMIUM.features
+        }
+        setSelectedPlan(bundlePlan)
+        setRegistrationStep('payment')
+        showNotification('success', 'Bundle code applied! 1-year free trial unlocked.')
+      } else {
+        showNotification('error', data.detail || 'Invalid bundle code')
+      }
+    } catch (err) {
+      showNotification('error', 'Failed to verify code. Please try again.')
+    } finally {
+      setIsVerifyingCode(false)
+    }
+  }
 
   // Clear notifications after 5 seconds
   const showNotification = (type: 'success' | 'error' | 'info', message: string) => {
@@ -273,6 +313,7 @@ export default function RegisterPage() {
               <button
                 onClick={() => {
                   setSelectedPlan(PLANS.BASIC)
+                  setAppliedBundleCode(null)
                   setRegistrationStep('payment')
                 }}
                 className="w-full px-6 py-3 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all duration-300 hover:scale-105"
@@ -309,12 +350,36 @@ export default function RegisterPage() {
               <button
                 onClick={() => {
                   setSelectedPlan(PLANS.PREMIUM)
+                  setAppliedBundleCode(null)
                   setRegistrationStep('payment')
                 }}
                 className="w-full px-6 py-3 bg-white text-[#8b7355] rounded-xl font-semibold hover:bg-gray-50 transition-all duration-300 hover:scale-105 shadow-lg"
               >
                 Select Premium Plan
               </button>
+            </div>
+          </div>
+
+          {/* Promo Code Section */}
+          <div className="max-w-md mx-auto pt-8">
+            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3 text-center">Have a bundle code?</h4>
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={bundleCode}
+                  onChange={(e) => setBundleCode(e.target.value.toUpperCase())}
+                  placeholder="ENTER CODE"
+                  className="flex-1 px-4 py-2 bg-gray-50 border border-gray-300 rounded-xl text-center font-mono focus:outline-none focus:ring-2 focus:ring-[#8b7355] uppercase"
+                />
+                <button
+                  onClick={handleVerifyBundleCode}
+                  disabled={isVerifyingCode || !bundleCode.trim()}
+                  className="px-6 py-2 bg-gray-900 text-white rounded-xl font-semibold hover:bg-gray-800 transition-all disabled:opacity-50"
+                >
+                  {isVerifyingCode ? '...' : 'Apply'}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -550,7 +615,7 @@ export default function RegisterPage() {
           <div className="max-w-lg w-full space-y-8">
             <div className="text-center">
               <h2 className="text-3xl font-bold text-gray-900 mb-2">Complete Payment Setup</h2>
-              <p className="text-gray-600">You selected: <span className="font-semibold text-[#8b7355]">{selectedPlan?.name} - {selectedPlan?.price}/month</span></p>
+              <p className="text-gray-600">You selected: <span className="font-semibold text-[#8b7355]">{selectedPlan?.name} - {appliedBundleCode ? '$99.95' : selectedPlan?.price}/month after trial</span></p>
               <div className="flex gap-4 justify-center mt-2">
                 <button
                   onClick={() => setRegistrationStep('pricing')}
@@ -583,18 +648,19 @@ export default function RegisterPage() {
                 </ul>
                 <div className="border-t border-gray-200 pt-4 mt-4">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-600">30-day free trial</span>
+                    <span className="text-gray-600">{appliedBundleCode ? '1-year free trial' : '30-day free trial'}</span>
                     <span className="font-semibold text-green-600">$0.00</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">After trial</span>
-                    <span className="font-semibold text-gray-900">{selectedPlan?.price}/month</span>
+                    <span className="font-semibold text-gray-900">{appliedBundleCode ? '$99.95' : selectedPlan?.price}/month</span>
                   </div>
                 </div>
               </div>
 
               <PayPalSubscriptionButton
                 planId={selectedPlan?.id || ''}
+                bundleCode={appliedBundleCode || undefined}
                 registrationData={{
                   email: formData.email,
                   password: formData.password,
@@ -613,7 +679,7 @@ export default function RegisterPage() {
               />
 
               <p className="text-xs text-gray-500 text-center mt-6">
-                You will not be charged until your 30-day trial ends
+                You will not be charged until your {appliedBundleCode ? '1-year' : '30-day'} trial ends
               </p>
               <p className="text-xs text-gray-500 text-center mt-2">
                 Secured with PayPal's buyer protection • Cancel anytime

@@ -332,8 +332,8 @@ export default function SubscriptionManagementPage() {
 
   // Determine plan price
   const getPlanPrice = () => {
-    if (user?.plan_tier === 'PREMIUM') return '$99.99'
-    if (user?.plan_tier === 'BASIC') return '$49.99'
+    if (user?.plan_tier === 'PREMIUM') return '$99.95'
+    if (user?.plan_tier === 'BASIC') return '$49.95'
     return 'N/A'
   }
 

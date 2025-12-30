@@ -69,10 +69,10 @@ export default function ResubscribeModal({
             <div className="text-center mb-6">
               <h4 className="text-xl font-bold text-gray-900 mb-2">Basic Plan</h4>
               <div className="text-3xl font-bold text-gray-900">
-                $49.99<span className="text-lg font-normal text-gray-600">/month</span>
+                $49.95<span className="text-lg font-normal text-gray-600">/month</span>
               </div>
               <p className="text-sm font-semibold text-orange-600 mt-2">
-                Billed today: $49.99
+                Billed today: $49.95
               </p>
             </div>
 
@@ -101,7 +101,7 @@ export default function ResubscribeModal({
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#8b7355]"></div>
                 </div>
               ) : (
-                'Subscribe Now - $49.99'
+                'Subscribe Now - $49.95'
               )}
             </button>
           </div>
@@ -118,10 +118,10 @@ export default function ResubscribeModal({
             <div className="text-center mb-6">
               <h4 className="text-xl font-bold text-white mb-2">Premium Plan</h4>
               <div className="text-3xl font-bold text-white">
-                $99.99<span className="text-lg font-normal text-white/80">/month</span>
+                $99.95<span className="text-lg font-normal text-white/80">/month</span>
               </div>
               <p className="text-sm font-semibold text-yellow-300 mt-2">
-                Billed today: $99.99
+                Billed today: $99.95
               </p>
               <p className="text-sm text-white/80 mt-1">Everything in Basic, plus:</p>
             </div>
@@ -161,7 +161,7 @@ export default function ResubscribeModal({
               ) : (
                 <span className="flex items-center justify-center">
                   <Sparkles className="w-5 h-5 mr-2" />
-                  Subscribe Now - $99.99
+                  Subscribe Now - $99.95
                 </span>
               )}
             </button>
