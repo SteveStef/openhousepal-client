@@ -4,19 +4,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**.zillowstatic.com',
-      },
-      {
-        protocol: 'https',
-        hostname: '**.zillow.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'photos.zillowstatic.com',
-      },
-      {
-        protocol: 'https',
-        hostname: '**.hdpcdn.com',
+        hostname: 'img.freepik.com',
       },
       {
         protocol: 'https',
