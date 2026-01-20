@@ -76,7 +76,11 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex items-center justify-center px-6">
+    <div className="min-h-screen bg-[#faf9f7] relative flex items-center justify-center px-6 py-12 overflow-hidden">
+      {/* Refined Background Gradient Orbs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#8b7355]/5 rounded-full blur-[120px] pointer-events-none mix-blend-multiply"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#8b7355]/10 rounded-full blur-[100px] pointer-events-none mix-blend-multiply"></div>
+
       {/* Notification Toast */}
       {notification.type && (
         <div className={`fixed bottom-4 right-4 z-50 max-w-md p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
@@ -119,85 +123,95 @@ export default function ForgotPasswordPage() {
         </div>
       )}
 
-      <div className="max-w-md w-full space-y-8">
+      <div className="max-w-[480px] w-full relative z-10">
         {/* Header */}
-        <div className="text-center">
-          <Link href="/" className="inline-flex items-center space-x-3 mb-8">
-            <div className="w-10 h-10 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold">OH</span>
-            </div>
-            <span className="text-2xl font-bold text-gray-900">Open House Pal</span>
+        <div className="mb-10 text-center">
+          <Link href="/login" className="inline-flex items-center justify-center w-12 h-12 bg-white rounded-xl shadow-md mb-6 hover:scale-105 transition-transform">
+            <svg className="w-6 h-6 text-[#8b7355]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
           </Link>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Reset your password</h2>
-          <p className="text-gray-600">
+          <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-3">Forgot password?</h2>
+          <p className="text-gray-500 text-base max-w-sm mx-auto">
             {emailSent
-              ? 'Check your email for a reset link'
-              : 'Enter your email address and we\'ll send you a link to reset your password'
+              ? 'Check your email for instructions to reset your password.'
+              : "No worries, we'll send you reset instructions."
             }
           </p>
         </div>
 
-        {/* Forgot Password Form */}
-        <div className="bg-[#f5f4f2]/90 rounded-2xl p-8 border border-gray-200/60 backdrop-blur-sm shadow-xl">
+        {/* Card */}
+        <div className="bg-white rounded-3xl p-8 md:p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 ring-1 ring-gray-50">
           {emailSent ? (
             // Success State
-            <div className="space-y-6">
+            <div className="space-y-8 animate-fadeIn">
               <div className="flex justify-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                  <svg className="w-8 h-8 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center ring-8 ring-green-50/50">
+                  <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
                   </svg>
                 </div>
               </div>
-              <div className="text-center space-y-2">
-                <p className="text-gray-700">
-                  If an account exists for <span className="font-semibold text-[#8b7355]">{email}</span>, you will receive a password reset link shortly.
-                </p>
-                <p className="text-sm text-gray-500">
-                  The link will expire in 1 hour for security reasons.
+              
+              <div className="text-center space-y-4">
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                  <p className="text-gray-900 font-medium">{email}</p>
+                </div>
+                <p className="text-sm text-gray-500 leading-relaxed">
+                  If an account exists, we've sent an email with instructions to reset your password.
                 </p>
               </div>
-              <div className="space-y-3">
+
+              <div className="space-y-3 pt-2">
+                <button
+                  onClick={() => window.open('https://gmail.com', '_blank')}
+                  className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-lg shadow-[#8b7355]/20 text-sm font-bold text-white bg-gradient-to-r from-[#8b7355] to-[#6b5840] hover:from-[#7a6549] hover:to-[#5a4835] hover:shadow-[#8b7355]/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#8b7355] transform transition-all duration-200 hover:-translate-y-0.5"
+                >
+                  Open Email App
+                </button>
+                
                 <button
                   onClick={() => {
                     setEmailSent(false)
                     setEmail('')
                   }}
-                  className="w-full px-6 py-3 bg-white border-2 border-[#8b7355] text-[#8b7355] rounded-xl font-semibold hover:bg-[#8b7355] hover:text-white transition-all duration-300"
+                  className="w-full py-4 px-4 bg-white text-gray-500 rounded-xl font-bold hover:text-gray-900 hover:bg-gray-50 transition-all text-sm"
                 >
-                  Send another link
+                  Try another email
                 </button>
-                <Link
-                  href="/login"
-                  className="block w-full text-center px-6 py-3 text-[#8b7355] hover:text-[#7a6549] font-medium transition-colors"
-                >
-                  Back to login
-                </Link>
               </div>
             </div>
           ) : (
             // Form State
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
                   Email address
                 </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 bg-white border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    fieldError ? 'border-red-500 ring-2 ring-red-200 focus:ring-red-300' : 'border-gray-300 focus:ring-[#8b7355] focus:border-[#8b7355]'
-                  }`}
-                  placeholder="Enter your email"
-                />
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <svg className="w-5 h-5 text-gray-400 group-focus-within:text-[#8b7355] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                    </svg>
+                  </div>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={handleChange}
+                    className={`block w-full pl-11 pr-4 py-3.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium ${
+                      fieldError 
+                        ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
+                        : 'border-gray-200 hover:bg-gray-50/80'
+                    }`}
+                    placeholder="Enter your email"
+                  />
+                </div>
                 {fieldError && (
-                  <p className="text-red-500 text-xs mt-1 flex items-center">
-                    <svg className="w-3 h-3 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <p className="mt-2 text-xs text-red-500 font-medium flex items-center animate-fadeIn pl-1">
+                    <svg className="w-3 h-3 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
                     {fieldError}
@@ -208,21 +222,24 @@ export default function ForgotPasswordPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full px-6 py-3 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-lg shadow-[#8b7355]/20 text-sm font-bold text-white bg-gradient-to-r from-[#8b7355] to-[#6b5840] hover:from-[#7a6549] hover:to-[#5a4835] hover:shadow-[#8b7355]/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#8b7355] transform transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {isLoading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Sending reset link...
+                  <div className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-2.5 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Sending link...
                   </div>
                 ) : (
                   'Send reset link'
                 )}
               </button>
 
-              <div className="text-center">
-                <Link href="/login" className="text-sm text-[#8b7355] hover:text-[#7a6549] transition-colors">
-                  Back to login
+              <div className="text-center pt-2">
+                <Link href="/login" className="text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors">
+                  ← Back to login
                 </Link>
               </div>
             </form>
@@ -230,11 +247,11 @@ export default function ForgotPasswordPage() {
         </div>
 
         {/* Security Notice */}
-        <div className="text-center space-y-2">
-          <p className="text-xs text-gray-500">
-            For security reasons, we don't reveal whether an email is registered
-          </p>
-          <p className="text-xs text-gray-500">
+        <div className="mt-8 text-center">
+          <p className="text-xs font-medium text-gray-400 flex items-center justify-center gap-1.5 opacity-80">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
             Protected by industry-standard encryption
           </p>
         </div>
