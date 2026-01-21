@@ -163,7 +163,7 @@ export default function HomePage() {
       </div>
 
       {/* How It Works - Redesigned Vertical Timeline */}
-      <div id="how-it-works" className="relative z-10 py-24 bg-white/50 backdrop-blur-sm overflow-hidden">
+      <div id="how-it-works" className="relative z-10 py-24 bg-white/50 overflow-hidden">
         <div className="max-w-6xl mx-auto px-6">
           <div className={`text-center mb-24 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
             <span className="text-[#8b7355] font-bold tracking-wider uppercase text-sm mb-4 block">Simple Workflow</span>
