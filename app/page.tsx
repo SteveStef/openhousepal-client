@@ -43,12 +43,20 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#faf9f7] flex flex-col overflow-hidden relative">
-      {/* Refined Background Gradient Orbs */}
+      {/* Sophisticated Background Architecture */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[800px] h-[800px] bg-[#8b7355]/5 rounded-full blur-[120px] mix-blend-multiply" />
-        <div className="absolute top-[20%] right-[-10%] w-[600px] h-[600px] bg-[#8b7355]/8 rounded-full blur-[100px] mix-blend-multiply" />
-        <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] bg-[#8b7355]/5 rounded-full blur-[120px] mix-blend-multiply" />
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] mix-blend-overlay"></div>
+        {/* Deep Layer Gradients */}
+        <div className="absolute top-[-15%] left-[-10%] w-[1000px] h-[1000px] bg-[#8b7355]/10 rounded-full blur-[140px] mix-blend-multiply animate-pulse" style={{ animationDuration: '8s' }} />
+        <div className="absolute top-[10%] right-[-5%] w-[800px] h-[800px] bg-[#6b5a43]/5 rounded-full blur-[120px] mix-blend-multiply animate-pulse" style={{ animationDuration: '12s' }} />
+        <div className="absolute bottom-[-15%] left-[15%] w-[900px] h-[900px] bg-[#ffd700]/5 rounded-full blur-[160px] mix-blend-multiply" />
+        
+        {/* Refined Texture & Grid */}
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/pinstripe-light.png')] opacity-[0.05] mix-blend-overlay"></div>
+        <div className="absolute inset-0" style={{ 
+          backgroundImage: 'radial-gradient(circle at 2px 2px, #8b7355 1px, transparent 0)', 
+          backgroundSize: '48px 48px',
+          opacity: '0.04'
+        }}></div>
       </div>
 
       {/* Navigation */}
@@ -57,21 +65,27 @@ export default function HomePage() {
       </div>
 
       {/* Hero Section */}
-      <div className="flex-1 relative z-10">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className={`py-20 lg:py-32 transform transition-all duration-1000 delay-300 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+      <div className="flex-1 relative z-10 flex items-center">
+        <div className="max-w-7xl mx-auto px-6 w-full">
+          <div className={`py-12 lg:py-24 transform transition-all duration-1000 delay-300 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
             <div className="grid lg:grid-cols-2 gap-16 items-center">
               {/* Left Content */}
-              <div className="text-left">
-                <div className="inline-flex items-center px-4 py-2 bg-white/50 backdrop-blur-md rounded-full border border-gray-200/60 mb-8 shadow-[0_2px_10px_rgba(0,0,0,0.03)]">
+              <div className="text-left relative">
+                {/* Accent glow behind text */}
+                <div className="absolute -top-24 -left-24 w-64 h-64 bg-[#8b7355]/10 rounded-full blur-3xl -z-10"></div>
+                
+                <div className="inline-flex items-center px-4 py-2 bg-white/60 backdrop-blur-md rounded-full border border-gray-200/80 mb-8 shadow-[0_4px_20px_rgba(0,0,0,0.04)] ring-1 ring-black/5">
                   <div className="w-2 h-2 bg-[#8b7355] rounded-full animate-pulse mr-3"></div>
-                  <span className="text-sm font-medium text-gray-600 tracking-wide uppercase text-xs">Trusted by Top Agents</span>
+                  <span className="text-sm font-semibold text-gray-700 tracking-wide uppercase text-xs">Trusted by Top Agents</span>
                 </div>
                 
-                <h2 className="text-6xl lg:text-7xl font-extrabold text-gray-900 mb-8 leading-tight tracking-tight">
+                <h2 className="text-6xl lg:text-8xl font-black text-gray-900 mb-8 leading-[0.95] tracking-tight">
                   Turn Open Houses Into{' '}
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#8b7355] to-[#6b5a43]">
-                    Closings
+                  <span className="relative inline-block">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-br from-[#8b7355] via-[#a68b6a] to-[#6b5a43] drop-shadow-sm">
+                      Closings
+                    </span>
+                    <div className="absolute -bottom-2 left-0 w-full h-1.5 bg-gradient-to-r from-[#8b7355] to-transparent rounded-full opacity-30"></div>
                   </span>
                 </h2>
                 
@@ -82,8 +96,11 @@ export default function HomePage() {
                 <div className="flex flex-col sm:flex-row gap-5 mb-14">
                   <Link
                     href="/register"
-                    className="group relative px-8 py-4 bg-gradient-to-r from-[#8b7355] to-[#6b5a43] text-white rounded-xl font-bold text-lg overflow-hidden shadow-lg shadow-[#8b7355]/20 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[#8b7355]/30"
+                    className="group relative px-8 py-4 bg-gradient-to-r from-[#8b7355] to-[#6b5a43] text-white rounded-xl font-bold text-lg overflow-hidden shadow-[0_10px_30px_-5px_rgba(139,115,85,0.4)] transform transition-all duration-300 hover:scale-105 hover:shadow-[0_20px_40px_-5px_rgba(139,115,85,0.5)] active:scale-95"
                   >
+                    {/* Shine Effect */}
+                    <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shine pointer-events-none"></div>
+                    
                     <span className="relative z-10 flex items-center justify-center">
                       Start Free Trial
                       <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -93,7 +110,7 @@ export default function HomePage() {
                   </Link>
                   <Link
                     href="#how-it-works"
-                    className="group px-8 py-4 bg-white text-gray-900 rounded-xl font-bold text-lg border border-gray-200 hover:border-[#8b7355]/30 hover:bg-gray-50 transition-all duration-300 hover:scale-105 shadow-sm"
+                    className="group px-8 py-4 bg-white/60 backdrop-blur-md text-gray-900 rounded-xl font-bold text-lg border border-gray-200/80 hover:border-[#8b7355]/40 hover:bg-white transition-all duration-300 hover:scale-105 shadow-[0_4px_15px_rgba(0,0,0,0.03)]"
                   >
                     <span className="flex items-center justify-center">
                       How It Works
@@ -102,19 +119,19 @@ export default function HomePage() {
                 </div>
                 
                 {/* Key Benefits */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-8 border-t border-gray-200/60">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-8 border-t border-gray-200/80">
                   {[
                     { icon: "M13 10V3L4 14h7v7l9-11h-7z", label: "Instant Setup" },
                     { icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", label: "AI Powered" },
                     { icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z", label: "Analytics" }
                   ].map((benefit, i) => (
-                    <div key={i} className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-[#8b7355]/10 rounded-lg flex items-center justify-center">
+                    <div key={i} className="flex items-center space-x-3 group/benefit">
+                      <div className="w-10 h-10 bg-[#8b7355]/10 rounded-lg flex items-center justify-center group-hover/benefit:bg-[#8b7355]/20 transition-colors">
                         <svg className="w-5 h-5 text-[#8b7355]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={benefit.icon} />
                         </svg>
                       </div>
-                      <span className="text-gray-900 font-semibold text-sm">{benefit.label}</span>
+                      <span className="text-gray-900 font-bold text-sm">{benefit.label}</span>
                     </div>
                   ))}
                 </div>
@@ -122,11 +139,15 @@ export default function HomePage() {
               
               {/* Right Visual */}
               <div className="relative lg:pl-12">
-                <div className="relative z-10 transform hover:scale-[1.02] transition-transform duration-500">
+                <div className="relative z-10 transform hover:scale-[1.02] hover:-rotate-1 transition-all duration-700">
                   <MobilePhoneMockup />
                 </div>
-                {/* Visual Backdrop */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-gradient-to-tr from-[#8b7355]/20 to-transparent rounded-full blur-3xl -z-10"></div>
+                
+                {/* Advanced Multi-tonal Glow */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] -z-10">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-[#8b7355]/30 via-transparent to-[#ffd700]/10 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '4s' }}></div>
+                  <div className="absolute inset-0 bg-gradient-to-bl from-[#6b5a43]/20 via-transparent to-transparent rounded-full blur-[80px] animate-pulse" style={{ animationDuration: '6s' }}></div>
+                </div>
               </div>
             </div>
           </div>
