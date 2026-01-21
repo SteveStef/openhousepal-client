@@ -37,10 +37,18 @@ export default function CustomerCollectionView({
 
       if (response.ok) {
         const data = await response.json()
+        
+        // Transform backend comments to frontend format
+        const transformedComments = (data || []).map((comment: any) => ({
+          ...comment,
+          createdAt: comment.created_at || comment.createdAt,
+          author: comment.author || comment.visitor_name || 'Anonymous'
+        }))
+
         // Update selected property with fresh comments
         setSelectedProperty(prev => prev ? {
           ...prev,
-          comments: data || []
+          comments: transformedComments
         } : prev)
       } else {
         setCommentsError('Failed to load comments')

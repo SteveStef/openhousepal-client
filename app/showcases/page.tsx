@@ -36,7 +36,7 @@ const formatPrice = (price: number): string => {
 export default function ShowcasesPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { isAuthenticated, isLoading: isAuthenticating } = useAuth()
+  const { user, isAuthenticated, isLoading: isAuthenticating } = useAuth()
   const [collections, setCollections] = useState<Collection[]>([])
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -537,12 +537,21 @@ export default function ShowcasesPage() {
     } : prev)
 
     try {
+      // Determine the commenter's name and email
+      // If we have an authenticated user (admin/agent), use their details
+      // Otherwise fallback to the collection customer details (though this page is auth-protected)
+      const visitorName = user?.first_name 
+        ? `${user.first_name} ${user.last_name || ''}`.trim()
+        : `${selectedCollection.customer.firstName} ${selectedCollection.customer.lastName}`;
+        
+      const visitorEmail = user?.email || selectedCollection.customer.email;
+
       const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${String(propertyId)}/comments`, {
         method: 'POST',
         body: JSON.stringify({
           content: comment,
-          visitor_name: `${selectedCollection.customer.firstName} ${selectedCollection.customer.lastName}`,
-          visitor_email: selectedCollection.customer.email
+          visitor_name: visitorName,
+          visitor_email: visitorEmail
         })
       })
 
@@ -652,10 +661,17 @@ export default function ShowcasesPage() {
       const response = await apiRequest(`/collections/${selectedCollection.id}/properties/${propertyId}/comments`)
 
       if (response.status === 200 && response.data) {
+        // Transform backend comments to frontend format (snake_case to camelCase)
+        const transformedComments = (response.data || []).map((comment: any) => ({
+          ...comment,
+          createdAt: comment.created_at || comment.createdAt,
+          author: comment.author || comment.visitor_name || 'Anonymous'
+        }))
+
         // Update selected property with fresh comments
         setSelectedProperty(prev => prev ? {
           ...prev,
-          comments: response.data
+          comments: transformedComments
         } : prev)
       } else {
         setCommentsError('Failed to load comments')

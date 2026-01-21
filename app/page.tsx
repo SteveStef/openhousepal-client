@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
 import MobilePhoneMockup from '@/components/MobilePhoneMockup'
@@ -185,25 +186,29 @@ export default function HomePage() {
                   step: 1,
                   title: "Create Open House",
                   description: "Enter the property address and we instantly pull details, photos, and specs. Generate a unique QR code and professional PDF flyers in seconds—ready for print.",
-                  icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                  icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+                  image: "/CreateOpenHouse.png"
                 },
                 {
                   step: 2,
                   title: "Visitors Sign In",
                   description: "Guests scan your QR code to sign in on their own phones. Our frictionless 4-step form captures high-quality data: name, contact info, agent status, and buying timeframe.",
-                  icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+                  image: "/SignIn.png"
                 },
                 {
                   step: 3,
                   title: "AI Follow-Up",
                   description: "While you greet guests, OpenHousePal works in the background. We instantly generate a personalized property showcase website for each visitor and email it to them automatically.",
-                  icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                  icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10",
+                  image: "/showcase.png"
                 },
                 {
                   step: 4,
                   title: "Convert Leads",
                   description: "Track real-time engagement in your dashboard. See which properties they view, receive tour requests directly, and follow up with hot leads who are actively browsing.",
-                  icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+                  image: "/feedback.png"
                 }
               ].map((item, index) => (
                 <div key={index} className={`relative flex flex-col md:flex-row items-center justify-between group ${index % 2 === 0 ? '' : 'md:flex-row-reverse'}`}>
@@ -215,15 +220,32 @@ export default function HomePage() {
 
                   {/* Visual Side */}
                   <div className="w-full md:w-[45%] pl-20 md:pl-0 mb-8 md:mb-0 flex justify-center">
-                    <div className={`relative w-full max-w-sm aspect-[4/3] bg-gradient-to-br from-[#8b7355] to-[#6b5a43] rounded-3xl shadow-2xl flex items-center justify-center transform transition-all duration-500 hover:scale-105 hover:rotate-1 group-hover:shadow-[#8b7355]/30 ${index % 2 === 0 ? 'md:mr-auto' : 'md:ml-auto'}`}>
-                      {/* Decorative Circles */}
-                      <div className="absolute top-4 right-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
-                      <div className="absolute bottom-4 left-4 w-32 h-32 bg-black/10 rounded-full blur-2xl"></div>
+                    <div className={`relative w-full ${item.image ? 'max-w-lg' : 'max-w-sm'} aspect-[4/3] ${item.image ? '' : 'bg-gradient-to-br from-[#8b7355] to-[#6b5a43] rounded-3xl shadow-2xl'} flex items-center justify-center transform transition-all duration-500 hover:scale-105 hover:rotate-1 ${item.image ? '' : 'group-hover:shadow-[#8b7355]/30'} ${index % 2 === 0 ? 'md:mr-auto' : 'md:ml-auto'}`}>
+                      {/* Decorative Circles - only show if no image */}
+                      {!item.image && (
+                        <>
+                          <div className="absolute top-4 right-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+                          <div className="absolute bottom-4 left-4 w-32 h-32 bg-black/10 rounded-full blur-2xl"></div>
+                        </>
+                      )}
                       
-                      {/* Big Icon */}
-                      <svg className="w-24 h-24 text-white/90 drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d={item.icon} />
-                      </svg>
+                      {/* Big Icon or Image */}
+                      {item.image ? (
+                        <div className="relative w-full h-full">
+                          <Image 
+                            src={item.image} 
+                            alt={item.title} 
+                            fill
+                            className="object-contain drop-shadow-xl"
+                            quality={100}
+                            unoptimized
+                          />
+                        </div>
+                      ) : (
+                        <svg className="w-24 h-24 text-white/90 drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d={item.icon} />
+                        </svg>
+                      )}
 
                       {/* Floating Badge */}
                       <div className="absolute -bottom-6 inline-flex items-center px-6 py-3 bg-white rounded-xl shadow-xl">
