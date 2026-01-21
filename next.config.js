@@ -23,6 +23,10 @@ const nextConfig = {
         hostname: 'maps.googleapis.com',
       },
       {
+        protocol: 'https',
+        hostname: 'img.freepik.com',
+      },
+      {
         protocol: 'http',
         hostname: 'localhost',
       },
