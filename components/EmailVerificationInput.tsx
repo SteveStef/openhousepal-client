@@ -125,23 +125,23 @@ export default function EmailVerificationInput({
 
   return (
     <div className="w-full max-w-md mx-auto">
-      <div className="bg-white rounded-3xl p-10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 ring-1 ring-gray-50">
+      <div className="bg-white rounded-3xl p-6 md:p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 ring-1 ring-gray-50">
         {/* Header */}
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-3">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight mb-2">
             Verify Email
           </h2>
           <p className="text-gray-500 text-sm">
             We sent a 6-digit code to
           </p>
-          <p className="text-[#8b7355] font-bold mt-1">
+          <p className="text-[#8b7355] font-bold mt-1 text-sm">
             {email}
           </p>
         </div>
 
         {/* Code Input */}
-        <div className="mb-8">
-          <div className="flex justify-center gap-3 mb-6">
+        <div className="mb-6">
+          <div className="flex justify-center gap-2 mb-4">
             {code.map((digit, index) => (
               <input
                 key={index}
@@ -155,7 +155,7 @@ export default function EmailVerificationInput({
                 onPaste={handlePaste}
                 disabled={isVerifying || isVerified}
                 className={`
-                  w-12 h-16 text-center text-2xl font-bold rounded-xl border
+                  w-10 h-14 text-center text-xl font-bold rounded-xl border
                   transition-all duration-200
                   ${isVerified
                     ? 'border-green-500 bg-green-50 text-green-600'
@@ -172,7 +172,7 @@ export default function EmailVerificationInput({
 
           {/* Error State */}
           {error && !isVerifying && !isVerified && (
-            <div className="text-center mb-6 animate-fadeIn">
+            <div className="text-center mb-4 animate-fadeIn">
               <p className="text-xs text-red-500 font-bold flex items-center justify-center">
                 <svg className="w-3 h-3 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -185,16 +185,16 @@ export default function EmailVerificationInput({
           {/* Loading State */}
           {isVerifying && (
             <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-[#8b7355]"></div>
-              <p className="text-xs font-bold text-gray-500 mt-3">Verifying code...</p>
+              <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-[#8b7355]"></div>
+              <p className="text-xs font-bold text-gray-500 mt-2">Verifying code...</p>
             </div>
           )}
 
           {/* Success State */}
           {isVerified && (
             <div className="text-center animate-bounce">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 mb-2">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-100 mb-2">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
@@ -205,8 +205,8 @@ export default function EmailVerificationInput({
 
         {/* Resend Code */}
         {!isVerified && (
-          <div className="text-center mb-6 pt-6 border-t border-gray-50">
-            <p className="text-xs text-gray-400 font-medium mb-3">
+          <div className="text-center mb-4 pt-4 border-t border-gray-50">
+            <p className="text-xs text-gray-400 font-medium mb-2">
               Didn't receive the code?
             </p>
             {resendCountdown > 0 ? (
@@ -216,7 +216,7 @@ export default function EmailVerificationInput({
             ) : (
               <button
                 onClick={handleResend}
-                className="text-sm text-[#8b7355] hover:text-[#6b5840] font-bold transition-colors hover:underline underline-offset-4"
+                className="text-xs text-[#8b7355] hover:text-[#6b5840] font-bold transition-colors hover:underline underline-offset-4"
               >
                 Resend Code
               </button>

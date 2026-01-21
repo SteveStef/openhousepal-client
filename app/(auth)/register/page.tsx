@@ -257,20 +257,24 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    <div className="h-screen flex flex-col lg:flex-row overflow-hidden">
       {/* Left Section - Form (55%) */}
-      <div className="w-full lg:w-[55%] bg-[#faf9f7] relative flex items-center justify-center px-6 py-12 overflow-hidden">
-        {/* Refined Background Gradient Orbs */}
-        <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#8b7355]/5 rounded-full blur-[120px] pointer-events-none mix-blend-multiply"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#8b7355]/10 rounded-full blur-[100px] pointer-events-none mix-blend-multiply"></div>
+      <div className="w-full lg:w-[55%] bg-[#faf9f7] relative h-full flex flex-col">
+        {/* Refined Background Gradient Orbs - Clipped */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#8b7355]/5 rounded-full blur-[120px] mix-blend-multiply"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#8b7355]/10 rounded-full blur-[100px] mix-blend-multiply"></div>
+        </div>
 
-        {/* Notification Toast */}
-        {notification.type && (
-          <div className={`fixed bottom-4 right-4 z-50 max-w-md p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
-            notification.type === 'success' ? 'bg-green-500 text-white' :
-            notification.type === 'error' ? 'bg-red-500 text-white' :
-            notification.type === 'info' ? 'bg-blue-500 text-white' : ''
-          }`}>
+        {/* Scrollable Content Container */}
+        <div className="relative z-10 w-full h-full overflow-y-auto overflow-x-hidden flex items-center justify-center px-6 py-6">
+          {/* Notification Toast */}
+          {notification.type && (
+            <div className={`fixed bottom-4 right-4 z-50 max-w-md p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
+              notification.type === 'success' ? 'bg-green-500 text-white' :
+              notification.type === 'error' ? 'bg-red-500 text-white' :
+              notification.type === 'info' ? 'bg-blue-500 text-white' : ''
+            }`}>
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 {notification.type === 'success' && (
@@ -306,7 +310,6 @@ export default function RegisterPage() {
           </div>
         )}
 
-        <div className="w-full relative z-10 flex flex-col items-center">
       {registrationStep === 'verify' ? (
         // Step 2: Email Verification
         <EmailVerificationInput
@@ -323,7 +326,7 @@ export default function RegisterPage() {
       ) : registrationStep === 'pricing' ? (
         // Step 3: Pricing Selection
         <div className="max-w-5xl w-full">
-          <div className="text-center mb-12">
+          <div className="text-center mb-6">
             <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-3">Choose Your Plan</h2>
             <p className="text-gray-500 text-base">Start with a 30-day free trial — cancel anytime.</p>
             <button
@@ -335,21 +338,21 @@ export default function RegisterPage() {
           </div>
 
           {/* Pricing Cards */}
-          <div className="grid md:grid-cols-2 gap-8 mb-12">
+          <div className="grid md:grid-cols-2 gap-6 mb-6">
             {/* Basic Plan */}
-            <div className="bg-white rounded-3xl p-8 md:p-10 border border-gray-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] ring-1 ring-gray-50 flex flex-col hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-shadow">
-              <div className="text-center mb-8">
+            <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] ring-1 ring-gray-50 flex flex-col hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-shadow">
+              <div className="text-center mb-6">
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">{PLANS.BASIC.name}</h3>
                 <div className="flex items-baseline justify-center">
-                  <span className="text-6xl font-extrabold text-gray-900">{PLANS.BASIC.price}</span>
+                  <span className="text-5xl font-extrabold text-gray-900">{PLANS.BASIC.price}</span>
                   <span className="text-gray-500 ml-2 font-medium">/mo</span>
                 </div>
-                <p className="text-sm text-gray-400 mt-3">after 30-day free trial</p>
+                <p className="text-sm text-gray-400 mt-2">after 30-day free trial</p>
               </div>
 
-              <ul className="space-y-4 mb-10 flex-grow">
+              <ul className="space-y-3 mb-8 flex-grow">
                 {PLANS.BASIC.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start text-gray-600 font-medium">
+                  <li key={idx} className="flex items-start text-gray-600 font-medium text-sm">
                     <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
                       <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -366,30 +369,30 @@ export default function RegisterPage() {
                   setAppliedBundleCode(null)
                   setRegistrationStep('payment')
                 }}
-                className="w-full py-4 px-4 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-gray-900/10"
+                className="w-full py-3 px-4 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-gray-900/10"
               >
                 Select Basic Plan
               </button>
             </div>
 
             {/* Premium Plan */}
-            <div className="bg-gradient-to-br from-[#1a1614] via-[#3a2f25] to-[#6b5840] rounded-3xl p-8 md:p-10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] flex flex-col transform hover:scale-[1.02] transition-all relative overflow-hidden">
+            <div className="bg-gradient-to-br from-[#1a1614] via-[#3a2f25] to-[#6b5840] rounded-3xl p-6 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] flex flex-col transform hover:scale-[1.02] transition-all relative overflow-hidden">
               <div className="absolute top-6 right-6 bg-[#ffd700] text-[#1a1614] text-xs font-bold px-4 py-1.5 rounded-full shadow-sm">
                 POPULAR
               </div>
               
-              <div className="text-center mb-8 relative z-10">
+              <div className="text-center mb-6 relative z-10">
                 <h3 className="text-2xl font-bold text-white mb-4">{PLANS.PREMIUM.name}</h3>
                 <div className="flex items-baseline justify-center">
-                  <span className="text-6xl font-extrabold text-white">{PLANS.PREMIUM.price}</span>
+                  <span className="text-5xl font-extrabold text-white">{PLANS.PREMIUM.price}</span>
                   <span className="text-gray-300 ml-2 font-medium">/mo</span>
                 </div>
-                <p className="text-sm text-gray-400 mt-3">after 30-day free trial</p>
+                <p className="text-sm text-gray-400 mt-2">after 30-day free trial</p>
               </div>
 
-              <ul className="space-y-4 mb-10 flex-grow relative z-10">
+              <ul className="space-y-3 mb-8 flex-grow relative z-10">
                 {PLANS.PREMIUM.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start text-gray-200 font-medium">
+                  <li key={idx} className="flex items-start text-gray-200 font-medium text-sm">
                     <div className="w-5 h-5 bg-white/10 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
                       <svg className="w-3 h-3 text-[#ffd700]" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -406,7 +409,7 @@ export default function RegisterPage() {
                   setAppliedBundleCode(null)
                   setRegistrationStep('payment')
                 }}
-                className="w-full py-4 px-4 bg-white text-gray-900 rounded-xl font-bold hover:bg-gray-100 transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-white/10 relative z-10"
+                className="w-full py-3 px-4 bg-white text-gray-900 rounded-xl font-bold hover:bg-gray-100 transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-white/10 relative z-10"
               >
                 Select Premium Plan
               </button>
@@ -415,20 +418,20 @@ export default function RegisterPage() {
 
           {/* Promo Code Section */}
           <div className="max-w-md mx-auto">
-            <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] ring-1 ring-gray-50 text-center">
-              <h4 className="text-sm font-bold text-gray-900 mb-4 tracking-wide uppercase">Have a bundle code?</h4>
-              <div className="flex flex-col sm:flex-row gap-3">
+            <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] ring-1 ring-gray-50 text-center">
+              <h4 className="text-xs font-bold text-gray-900 mb-3 tracking-wide uppercase">Have a bundle code?</h4>
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   value={bundleCode}
                   onChange={(e) => setBundleCode(e.target.value.toUpperCase())}
                   placeholder="ENTER CODE"
-                  className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-center font-mono font-bold focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all uppercase"
+                  className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-center font-mono font-bold focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all uppercase text-sm"
                 />
                 <button
                   onClick={handleVerifyBundleCode}
                   disabled={isVerifyingCode || !bundleCode.trim()}
-                  className="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition-all disabled:opacity-50"
+                  className="px-6 py-2 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition-all disabled:opacity-50 text-sm"
                 >
                   {isVerifyingCode ? '...' : 'Apply'}
                 </button>
@@ -436,7 +439,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <div className="text-center mt-12">
+          <div className="text-center mt-6">
             <p className="text-xs font-medium text-gray-400">
               All plans include a 30-day free trial • No credit card charged today • Cancel anytime
             </p>
@@ -446,18 +449,18 @@ export default function RegisterPage() {
         // Step 1: Registration Form
         <div className="max-w-[640px] w-full">
           {/* Header */}
-          <div className="mb-8 text-center">
-            <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-3">Create Account</h2>
-            <p className="text-gray-500 text-base">Start your 30-day free trial today.</p>
+          <div className="mb-4 text-center">
+            <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">Create Account</h2>
+            <p className="text-gray-500 text-sm">Start your 30-day free trial today.</p>
           </div>
 
           {/* Registration Form */}
-          <div className="bg-white rounded-3xl p-8 md:p-10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 ring-1 ring-gray-50">
-            <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="bg-white rounded-3xl p-6 md:p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 ring-1 ring-gray-50">
+            <form onSubmit={handleSubmit} className="space-y-3">
               {/* Name Fields */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="firstName" className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
+                  <label htmlFor="firstName" className="block text-xs font-semibold text-gray-700 mb-1 ml-1">
                     First name
                   </label>
                   <input
@@ -467,18 +470,18 @@ export default function RegisterPage() {
                     required
                     value={formData.firstName}
                     onChange={handleChange}
-                    className={`block w-full px-4 py-3.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium ${
+                    className={`block w-full px-3 py-2.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium text-sm ${
                       fieldErrors.firstName 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
                         : 'border-gray-200 hover:bg-gray-50/80'
                     }`}
                     placeholder="John"
                   />
-                  {fieldErrors.firstName && <p className="mt-2 text-xs text-red-500 font-medium pl-1">{fieldErrors.firstName}</p>}
+                  {fieldErrors.firstName && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.firstName}</p>}
                 </div>
                 
                 <div>
-                  <label htmlFor="lastName" className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
+                  <label htmlFor="lastName" className="block text-xs font-semibold text-gray-700 mb-1 ml-1">
                     Last name
                   </label>
                   <input
@@ -488,25 +491,25 @@ export default function RegisterPage() {
                     required
                     value={formData.lastName}
                     onChange={handleChange}
-                    className={`block w-full px-4 py-3.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium ${
+                    className={`block w-full px-3 py-2.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium text-sm ${
                       fieldErrors.lastName 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
                         : 'border-gray-200 hover:bg-gray-50/80'
                     }`}
                     placeholder="Smith"
                   />
-                  {fieldErrors.lastName && <p className="mt-2 text-xs text-red-500 font-medium pl-1">{fieldErrors.lastName}</p>}
+                  {fieldErrors.lastName && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.lastName}</p>}
                 </div>
               </div>
 
               {/* Email */}
               <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
+                <label htmlFor="email" className="block text-xs font-semibold text-gray-700 mb-1 ml-1">
                   Email address
                 </label>
                 <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <svg className="w-5 h-5 text-gray-400 group-focus-within:text-[#8b7355] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="w-4 h-4 text-gray-400 group-focus-within:text-[#8b7355] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                     </svg>
                   </div>
@@ -517,7 +520,7 @@ export default function RegisterPage() {
                     required
                     value={formData.email}
                     onChange={handleChange}
-                    className={`block w-full pl-11 pr-4 py-3.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium ${
+                    className={`block w-full pl-9 pr-4 py-2.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium text-sm ${
                       fieldErrors.email 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
                         : 'border-gray-200 hover:bg-gray-50/80'
@@ -525,13 +528,13 @@ export default function RegisterPage() {
                     placeholder="john.smith@example.com"
                   />
                 </div>
-                {fieldErrors.email && <p className="mt-2 text-xs text-red-500 font-medium pl-1">{fieldErrors.email}</p>}
+                {fieldErrors.email && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.email}</p>}
               </div>
 
               {/* State and Brokerage Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="state" className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
+                  <label htmlFor="state" className="block text-xs font-semibold text-gray-700 mb-1 ml-1">
                     State
                   </label>
                   <input
@@ -541,18 +544,18 @@ export default function RegisterPage() {
                     required
                     value={formData.state}
                     onChange={handleChange}
-                    className={`block w-full px-4 py-3.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium ${
+                    className={`block w-full px-3 py-2.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium text-sm ${
                       fieldErrors.state 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
                         : 'border-gray-200 hover:bg-gray-50/80'
                     }`}
                     placeholder="CA"
                   />
-                  {fieldErrors.state && <p className="mt-2 text-xs text-red-500 font-medium pl-1">{fieldErrors.state}</p>}
+                  {fieldErrors.state && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.state}</p>}
                 </div>
                 
                 <div>
-                  <label htmlFor="brokerage" className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
+                  <label htmlFor="brokerage" className="block text-xs font-semibold text-gray-700 mb-1 ml-1">
                     Brokerage
                   </label>
                   <input
@@ -562,27 +565,27 @@ export default function RegisterPage() {
                     required
                     value={formData.brokerage}
                     onChange={handleChange}
-                    className={`block w-full px-4 py-3.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium ${
+                    className={`block w-full px-3 py-2.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium text-sm ${
                       fieldErrors.brokerage 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
                         : 'border-gray-200 hover:bg-gray-50/80'
                     }`}
                     placeholder="Re/Max..."
                   />
-                  {fieldErrors.brokerage && <p className="mt-2 text-xs text-red-500 font-medium pl-1">{fieldErrors.brokerage}</p>}
+                  {fieldErrors.brokerage && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.brokerage}</p>}
                 </div>
               </div>
 
 
               {/* Password Fields */}
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-3">
                 <div>
-                  <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
+                  <label htmlFor="password" className="block text-xs font-semibold text-gray-700 mb-1 ml-1">
                     Password
                   </label>
                   <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-400 group-focus-within:text-[#8b7355] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="w-4 h-4 text-gray-400 group-focus-within:text-[#8b7355] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
                     </div>
@@ -593,7 +596,7 @@ export default function RegisterPage() {
                       required
                       value={formData.password}
                       onChange={handleChange}
-                      className={`block w-full pl-11 pr-12 py-3.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium ${
+                      className={`block w-full pl-9 pr-10 py-2.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium text-sm ${
                         fieldErrors.password 
                           ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
                           : 'border-gray-200 hover:bg-gray-50/80'
@@ -603,30 +606,30 @@ export default function RegisterPage() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
                     >
                       {showPassword ? (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                         </svg>
                       ) : (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                         </svg>
                       )}
                     </button>
                   </div>
-                  {fieldErrors.password && <p className="mt-2 text-xs text-red-500 font-medium pl-1">{fieldErrors.password}</p>}
+                  {fieldErrors.password && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.password}</p>}
                 </div>
                 
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
+                  <label htmlFor="confirmPassword" className="block text-xs font-semibold text-gray-700 mb-1 ml-1">
                     Confirm password
                   </label>
                   <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-400 group-focus-within:text-[#8b7355] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="w-4 h-4 text-gray-400 group-focus-within:text-[#8b7355] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
                     </div>
@@ -637,7 +640,7 @@ export default function RegisterPage() {
                       required
                       value={formData.confirmPassword}
                       onChange={handleChange}
-                      className={`block w-full pl-11 pr-4 py-3.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium ${
+                      className={`block w-full pl-9 pr-4 py-2.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium text-sm ${
                         fieldErrors.confirmPassword 
                           ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
                           : 'border-gray-200 hover:bg-gray-50/80'
@@ -645,7 +648,7 @@ export default function RegisterPage() {
                       placeholder="Confirm password"
                     />
                   </div>
-                  {fieldErrors.confirmPassword && <p className="mt-2 text-xs text-red-500 font-medium pl-1">{fieldErrors.confirmPassword}</p>}
+                  {fieldErrors.confirmPassword && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.confirmPassword}</p>}
                 </div>
               </div>
 
@@ -672,13 +675,23 @@ export default function RegisterPage() {
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <span className="text-sm text-gray-600 leading-relaxed group-hover:text-gray-900 transition-colors">
+                  <span className="text-xs text-gray-600 leading-relaxed group-hover:text-gray-900 transition-colors">
                     I agree to the{' '}
-                    <Link href="/terms" className="text-[#8b7355] font-semibold hover:text-[#6b5840] transition-colors hover:underline underline-offset-4">
+                    <Link 
+                      href="/terms" 
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#8b7355] font-semibold hover:text-[#6b5840] transition-colors hover:underline underline-offset-4"
+                    >
                       Terms
                     </Link>{' '}
                     and{' '}
-                    <Link href="/privacy" className="text-[#8b7355] font-semibold hover:text-[#6b5840] transition-colors hover:underline underline-offset-4">
+                    <Link 
+                      href="/privacy" 
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#8b7355] font-semibold hover:text-[#6b5840] transition-colors hover:underline underline-offset-4"
+                    >
                       Privacy Policy
                     </Link>
                   </span>
@@ -689,7 +702,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-lg shadow-[#8b7355]/20 text-sm font-bold text-white bg-gradient-to-r from-[#8b7355] to-[#6b5840] hover:from-[#7a6549] hover:to-[#5a4835] hover:shadow-[#8b7355]/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#8b7355] transform transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+                className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg shadow-[#8b7355]/20 text-sm font-bold text-white bg-gradient-to-r from-[#8b7355] to-[#6b5840] hover:from-[#7a6549] hover:to-[#5a4835] hover:shadow-[#8b7355]/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#8b7355] transform transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {isLoading ? (
                   <div className="flex items-center">
@@ -705,7 +718,7 @@ export default function RegisterPage() {
               </button>
             </form>
 
-            <div className="mt-8 pt-6 border-t border-gray-100">
+            <div className="mt-4 pt-4 border-t border-gray-100">
               <div className="text-center">
                 <span className="text-sm text-gray-500">Already have an account?</span>
                 <Link href="/login" className="ml-2 font-bold text-[#8b7355] hover:text-[#6b5840] transition-colors hover:underline underline-offset-4">
@@ -715,7 +728,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <div className="mt-8 text-center">
+          <div className="mt-4 text-center">
             <p className="text-xs font-medium text-gray-400 flex items-center justify-center gap-1.5 opacity-80">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -727,46 +740,46 @@ export default function RegisterPage() {
       ) : (
         // Step 4: Payment Step - Wrapped with PayPal provider
         <PayPalScriptProvider options={paypalOptions}>
-          <div className="max-w-[640px] w-full space-y-8">
+          <div className="max-w-[640px] w-full space-y-4">
             <div className="text-center">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Complete Payment Setup</h2>
-              <p className="text-gray-600">You selected: <span className="font-semibold text-[#8b7355]">{selectedPlan?.name} - {appliedBundleCode ? '$99.95' : selectedPlan?.price}/month after trial</span></p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Complete Payment Setup</h2>
+              <p className="text-gray-600 text-sm">You selected: <span className="font-semibold text-[#8b7355]">{selectedPlan?.name} - {appliedBundleCode ? '$99.95' : selectedPlan?.price}/month after trial</span></p>
               <div className="flex gap-4 justify-center mt-2">
                 <button
                   onClick={() => setRegistrationStep('pricing')}
-                  className="text-sm text-[#8b7355] hover:text-[#7a6549]"
+                  className="text-xs text-[#8b7355] hover:text-[#7a6549]"
                 >
                   ← Back to plans
                 </button>
-                <span className="text-gray-400">|</span>
+                <span className="text-gray-400 text-xs">|</span>
                 <button
                   onClick={() => setRegistrationStep('form')}
-                  className="text-sm text-[#8b7355] hover:text-[#7a6549]"
+                  className="text-xs text-[#8b7355] hover:text-[#7a6549]"
                 >
                   ← Back to signup
                 </button>
               </div>
             </div>
 
-            <div className="bg-[#f5f4f2]/90 rounded-2xl p-8 border border-gray-200/60 backdrop-blur-sm shadow-xl">
-              <div className="mb-6 bg-white rounded-xl p-6 border border-gray-200">
-                <h3 className="text-lg font-semibold mb-4 text-gray-900">{selectedPlan?.name} Features</h3>
-                <ul className="space-y-3 text-gray-700 mb-4">
+            <div className="bg-[#f5f4f2]/90 rounded-2xl p-6 border border-gray-200/60 backdrop-blur-sm shadow-xl">
+              <div className="mb-4 bg-white rounded-xl p-4 border border-gray-200">
+                <h3 className="text-base font-semibold mb-3 text-gray-900">{selectedPlan?.name} Features</h3>
+                <ul className="space-y-2 text-gray-700 mb-3 text-sm">
                   {selectedPlan?.features.map((feature, idx) => (
                     <li key={idx} className="flex items-center">
-                      <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <div className="flex justify-between items-center mb-2">
+                <div className="border-t border-gray-200 pt-3 mt-3">
+                  <div className="flex justify-between items-center mb-1 text-sm">
                     <span className="text-gray-600">{appliedBundleCode ? '1-year free trial' : '30-day free trial'}</span>
                     <span className="font-semibold text-green-600">$0.00</span>
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-600">After trial</span>
                     <span className="font-semibold text-gray-900">{appliedBundleCode ? '$99.95' : selectedPlan?.price}/month</span>
                   </div>
@@ -793,10 +806,10 @@ export default function RegisterPage() {
                 }}
               />
 
-              <p className="text-xs text-gray-500 text-center mt-6">
+              <p className="text-xs text-gray-500 text-center mt-4">
                 You will not be charged until your {appliedBundleCode ? '1-year' : '30-day'} trial ends
               </p>
-              <p className="text-xs text-gray-500 text-center mt-2">
+              <p className="text-xs text-gray-500 text-center mt-1">
                 Secured with PayPal's buyer protection • Cancel anytime
               </p>
             </div>

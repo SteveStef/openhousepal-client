@@ -451,7 +451,13 @@ export default function HomePage() {
             {/* Brand Column */}
             <div className="md:col-span-1">
               <div className="flex items-center space-x-2 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-br from-[#8b7355] to-[#6b5a43] rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg">OH</div>
+                <Image
+                  src="/logo.png"
+                  alt="OpenHousePal Logo"
+                  width={48}
+                  height={27}
+                  className="h-10 w-auto"
+                />
                 <span className="text-xl font-bold tracking-tight">OpenHousePal</span>
               </div>
               <p className="text-gray-400 text-sm leading-relaxed max-w-xs">
