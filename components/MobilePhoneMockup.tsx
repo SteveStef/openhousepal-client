@@ -2,17 +2,35 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import TypingAnimation from './TypingAnimation'
 
 export default function MobilePhoneMockup() {
   const [currentSlide, setCurrentSlide] = useState(0)
+  const [step1Complete, setStep1Complete] = useState(false)
 
-  // Auto-rotate slideshow every 4 seconds
+  // Reset step 1 state when slide changes
   useEffect(() => {
-    const interval = setInterval(() => {
+    if (currentSlide !== 1) {
+      setStep1Complete(false)
+    }
+  }, [currentSlide])
+
+  // Handle slide transitions
+  const handleNextSlide = () => {
+    setTimeout(() => {
       setCurrentSlide((prev) => (prev + 1) % 3)
-    }, 4000)
-    return () => clearInterval(interval)
-  }, [])
+    }, 1500)
+  }
+
+  // Effect for Slide 2 (Selection) to auto-advance
+  useEffect(() => {
+    if (currentSlide === 2) {
+      const timer = setTimeout(() => {
+        setCurrentSlide(0)
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [currentSlide])
 
   return (
     <div className="relative">
@@ -37,14 +55,18 @@ export default function MobilePhoneMockup() {
 
             {/* App Content */}
             <div className="px-6 pt-12 pb-4 bg-gradient-to-br from-[#faf9f7] to-white min-h-full">
-              {/* Header - House Icon and Title */}
+              {/* Header - Logo and Title */}
               <div className="text-center mb-4">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-xl mb-2">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                  </svg>
+                <div className="inline-flex items-center justify-center mb-2">
+                  <Image
+                    src="/logo.png"
+                    alt="Logo"
+                    width={40}
+                    height={22}
+                    className="h-8 w-auto"
+                  />
                 </div>
-                <h3 className="text-base font-bold text-gray-900">Open House Sign-in</h3>
+                <h3 className="text-base font-bold text-gray-900">OpenHousePal</h3>
               </div>
 
               {/* Property Card */}
@@ -110,8 +132,13 @@ export default function MobilePhoneMockup() {
                 <div className="space-y-3 mb-4 animate-fadeIn">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Full Name*</label>
-                    <div className="bg-white rounded-lg px-3 py-2 border border-gray-200 text-sm text-gray-400">
-                      John Smith
+                    <div className="bg-white rounded-lg px-3 py-2 border border-gray-200 text-sm text-gray-700 h-[38px] flex items-center shadow-sm">
+                      <TypingAnimation 
+                        text="John Smith" 
+                        onComplete={handleNextSlide}
+                        startDelay={500}
+                        speed={80}
+                      />
                     </div>
                   </div>
                 </div>
@@ -122,15 +149,27 @@ export default function MobilePhoneMockup() {
                 <div className="space-y-3 mb-4 animate-fadeIn">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Email*</label>
-                    <div className="bg-white rounded-lg px-3 py-2 border border-gray-200 text-sm text-gray-400">
-                      your.email@example.com
+                    <div className="bg-white rounded-lg px-3 py-2 border border-gray-200 text-sm text-gray-700 h-[38px] flex items-center shadow-sm">
+                      <TypingAnimation 
+                        text="john@example.com" 
+                        onComplete={() => setStep1Complete(true)}
+                        startDelay={500}
+                        speed={50}
+                      />
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Phone*</label>
-                    <div className="bg-white rounded-lg px-3 py-2 border border-gray-200 text-sm text-gray-400">
-                      (555) 123-4567
+                    <div className="bg-white rounded-lg px-3 py-2 border border-gray-200 text-sm text-gray-700 h-[38px] flex items-center shadow-sm">
+                      {step1Complete && (
+                        <TypingAnimation 
+                          text="(555) 123-4567" 
+                          onComplete={handleNextSlide}
+                          startDelay={200}
+                          speed={60}
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
@@ -144,11 +183,11 @@ export default function MobilePhoneMockup() {
                   </div>
 
                   <div className="space-y-2">
-                    <button className="w-full py-3 px-4 rounded-lg font-semibold text-sm bg-[#8b7355] text-white shadow-md">
+                    <button className="w-full py-3 px-4 rounded-lg font-semibold text-sm bg-[#8b7355] text-white shadow-md transform active:scale-95 transition-all animate-pulse">
                       No
                     </button>
 
-                    <button className="w-full py-3 px-4 rounded-lg font-semibold text-sm bg-white border-2 border-gray-300 text-gray-700">
+                    <button className="w-full py-3 px-4 rounded-lg font-semibold text-sm bg-white border-2 border-gray-300 text-gray-700 opacity-50">
                       Yes
                     </button>
                   </div>
@@ -156,8 +195,8 @@ export default function MobilePhoneMockup() {
               )}
 
               {/* Navigation Buttons */}
-              <div className="grid grid-cols-2 gap-3">
-                <button className="flex items-center justify-center px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-50">
+              <div className="grid grid-cols-2 gap-3 opacity-50">
+                <button className="flex items-center justify-center px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium text-sm">
                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                   </svg>

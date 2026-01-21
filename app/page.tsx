@@ -45,10 +45,10 @@ export default function HomePage() {
     <div className="min-h-screen bg-[#faf9f7] flex flex-col overflow-hidden relative">
       {/* Sophisticated Background Architecture */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Deep Layer Gradients */}
-        <div className="absolute top-[-15%] left-[-10%] w-[1000px] h-[1000px] bg-[#8b7355]/10 rounded-full blur-[140px] mix-blend-multiply animate-pulse" style={{ animationDuration: '8s' }} />
-        <div className="absolute top-[10%] right-[-5%] w-[800px] h-[800px] bg-[#6b5a43]/5 rounded-full blur-[120px] mix-blend-multiply animate-pulse" style={{ animationDuration: '12s' }} />
-        <div className="absolute bottom-[-15%] left-[15%] w-[900px] h-[900px] bg-[#ffd700]/5 rounded-full blur-[160px] mix-blend-multiply" />
+        {/* Subtle Deep Layer Gradients */}
+        <div className="absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] bg-[#8b7355]/5 rounded-full blur-[120px] mix-blend-multiply animate-pulse" style={{ animationDuration: '8s' }} />
+        <div className="absolute top-[20%] right-[-10%] w-[800px] h-[800px] bg-[#8b7355]/8 rounded-full blur-[100px] mix-blend-multiply animate-pulse" style={{ animationDuration: '12s' }} />
+        <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] bg-[#8b7355]/5 rounded-full blur-[120px] mix-blend-multiply" />
         
         {/* Refined Texture & Grid */}
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/pinstripe-light.png')] opacity-[0.05] mix-blend-overlay"></div>
@@ -139,14 +139,13 @@ export default function HomePage() {
               
               {/* Right Visual */}
               <div className="relative lg:pl-12">
-                <div className="relative z-10 transform hover:scale-[1.02] hover:-rotate-1 transition-all duration-700">
+                <div className="relative z-10 transition-all duration-700">
                   <MobilePhoneMockup />
                 </div>
                 
-                {/* Advanced Multi-tonal Glow */}
+                {/* Visual Glow Backdrop */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] -z-10">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-[#8b7355]/30 via-transparent to-[#ffd700]/10 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '4s' }}></div>
-                  <div className="absolute inset-0 bg-gradient-to-bl from-[#6b5a43]/20 via-transparent to-transparent rounded-full blur-[80px] animate-pulse" style={{ animationDuration: '6s' }}></div>
+                  <div className="absolute inset-0 bg-gradient-to-tr from-[#8b7355]/20 via-transparent to-[#ffd700]/5 rounded-full blur-[100px]"></div>
                 </div>
               </div>
             </div>
