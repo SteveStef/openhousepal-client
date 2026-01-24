@@ -357,39 +357,39 @@ export default function SubscriptionManagementPage() {
   const isActive = user?.subscription_status === 'ACTIVE'
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2]">
+    <div className="min-h-screen flex flex-col bg-[#FAFAF7]">
       {/* Toast Notification */}
       {notification.type && (
-        <div className={`fixed bottom-4 right-4 z-50 max-w-md p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
-          notification.type === 'success' ? 'bg-green-500 text-white' :
-          notification.type === 'error' ? 'bg-red-500 text-white' :
-          notification.type === 'info' ? 'bg-blue-500 text-white' : ''
+        <div className={`fixed bottom-6 right-6 z-50 max-w-md p-4 rounded-xl shadow-2xl transform transition-all duration-300 border-l-4 ${
+          notification.type === 'success' ? 'bg-white border-green-500 text-gray-900 shadow-green-100' :
+          notification.type === 'error' ? 'bg-white border-red-500 text-gray-900 shadow-red-100' :
+          notification.type === 'info' ? 'bg-white border-blue-500 text-gray-900 shadow-blue-100' : ''
         }`}>
           <div className="flex items-center">
             <div className="flex-shrink-0">
               {notification.type === 'success' && (
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
               )}
               {notification.type === 'error' && (
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
               )}
               {notification.type === 'info' && (
-                <svg className="w-5 h-5 animate-spin" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-5 h-5 text-blue-500 animate-spin" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
                 </svg>
               )}
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium">{notification.message}</p>
+              <p className="text-sm font-bold text-gray-900 tracking-tight">{notification.message}</p>
             </div>
             <div className="ml-auto pl-3">
               <button
                 onClick={() => setNotification({ type: null, message: '' })}
-                className="inline-flex text-white hover:text-gray-200 focus:outline-none focus:text-gray-200"
+                className="inline-flex text-gray-400 hover:text-gray-900"
               >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -402,26 +402,28 @@ export default function SubscriptionManagementPage() {
 
       <Header mode="app" />
 
-      <main className="flex-1 px-6 py-12">
+      <main className="flex-1 px-6 py-12 sm:py-20">
         <div className="max-w-4xl mx-auto">
           {/* Page Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Manage Subscription</h1>
-            <p className="text-gray-600">View and manage your Open House Pal subscription</p>
+          <div className="mb-12">
+            <h1 className="text-3xl sm:text-4xl font-black text-[#0B0B0B] tracking-tight mb-2">Subscription</h1>
+            <p className="text-[#6B7280] font-light text-lg">Manage your OpenHousePal plan and billing</p>
           </div>
 
           {/* Alert for suspended/expired subscriptions */}
           {(isSuspended || isExpired) && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start">
-              <AlertCircle className="w-5 h-5 text-red-600 mr-3 mt-0.5 flex-shrink-0" />
+            <div className="mb-8 bg-white border border-red-100 rounded-2xl p-6 flex items-start shadow-sm">
+              <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+              </div>
               <div>
-                <h3 className="font-semibold text-red-900 mb-1">
+                <h3 className="font-bold text-red-900 mb-1 uppercase tracking-wide text-xs">
                   {isSuspended ? 'Payment Failed' : 'Subscription Expired'}
                 </h3>
-                <p className="text-sm text-red-700">
+                <p className="text-sm text-red-700/80 leading-relaxed font-medium">
                   {isSuspended
-                    ? 'Your payment method failed. Please update your payment method on PayPal to restore access.'
-                    : 'Your subscription has expired. Please reactivate or create a new subscription to continue using Open House Pal.'}
+                    ? 'Your last payment could not be processed. Please update your payment method on PayPal to restore full access.'
+                    : 'Your current subscription term has ended. Please reactivate your plan to continue using our premium tools.'}
                 </p>
               </div>
             </div>
@@ -429,25 +431,27 @@ export default function SubscriptionManagementPage() {
 
           {/* Alert for cancelled subscription */}
           {isCancelled && (
-            <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start">
-              <AlertCircle className="w-5 h-5 text-yellow-600 mr-3 mt-0.5 flex-shrink-0" />
+            <div className="mb-8 bg-white border border-amber-100 rounded-2xl p-6 flex items-start shadow-sm">
+              <div className="w-10 h-10 bg-amber-50 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-500" />
+              </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-yellow-900 mb-1">Subscription Cancelled</h3>
-                <p className="text-sm text-yellow-700 mb-2">
-                  Your subscription has been cancelled. You will keep access until your current billing period ends.
+                <h3 className="font-bold text-amber-900 mb-1 uppercase tracking-wide text-xs">Subscription Ending Soon</h3>
+                <p className="text-sm text-amber-800/80 leading-relaxed font-medium mb-4">
+                  Your subscription has been cancelled. You will maintain access to all features until your current period expires.
                 </p>
                 {daysRemaining !== null && daysRemaining > 0 && (
-                  <div className="mt-2 inline-flex items-center px-3 py-1.5 bg-yellow-100 border border-yellow-300 rounded-lg">
-                    <Calendar className="w-4 h-4 text-yellow-700 mr-2" />
-                    <span className="text-sm font-semibold text-yellow-900">
-                      {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} remaining
+                  <div className="inline-flex items-center px-4 py-1.5 bg-amber-50 border border-amber-200 rounded-full">
+                    <Calendar className="w-3.5 h-3.5 text-amber-700 mr-2" />
+                    <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                      {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} left
                     </span>
                   </div>
                 )}
                 {daysRemaining === 0 && (
-                  <div className="mt-2 inline-flex items-center px-3 py-1.5 bg-red-100 border border-red-300 rounded-lg">
-                    <AlertCircle className="w-4 h-4 text-red-700 mr-2" />
-                    <span className="text-sm font-semibold text-red-900">
+                  <div className="inline-flex items-center px-4 py-1.5 bg-red-50 border border-red-200 rounded-full">
+                    <AlertCircle className="w-3.5 h-3.5 text-red-700 mr-2" />
+                    <span className="text-xs font-bold text-red-900 uppercase tracking-wider">
                       Access expires today
                     </span>
                   </div>
@@ -456,60 +460,61 @@ export default function SubscriptionManagementPage() {
             </div>
           )}
 
-          <div className="grid gap-6">
+          <div className="grid gap-8">
             {/* 1. Current Subscription Card */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">Current Subscription</h2>
+            <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-8 border border-gray-100">
+              <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-50">
+                <h2 className="text-xl font-black text-[#0B0B0B] tracking-tight">Current Plan</h2>
                 {user?.subscription_status && <StatusBadge status={user.subscription_status} />}
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Plan</p>
-                  <p className="text-lg font-semibold text-gray-900">{getPlanName()}</p>
-                  <p className="text-2xl font-bold text-[#8b7355] mt-1">
-                    {getPlanPrice()}<span className="text-base font-normal text-gray-600">/month</span>
-                  </p>
+              <div className="grid md:grid-cols-2 gap-10">
+                <div className="bg-[#FAFAF7] rounded-2xl p-6 border border-gray-100">
+                  <p className="text-[10px] font-black text-[#6B7280] uppercase tracking-widest mb-2">Selected Tier</p>
+                  <p className="text-2xl font-black text-[#0B0B0B] tracking-tight">{getPlanName()}</p>
+                  <div className="flex items-baseline mt-4 bg-white px-4 py-2 rounded-xl border border-gray-100 w-fit">
+                    <span className="text-2xl font-black text-[#C9A24D] tracking-tighter">{getPlanPrice()}</span>
+                    <span className="ml-1.5 text-xs font-bold text-[#6B7280] uppercase tracking-wider">/month</span>
+                  </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-4 py-2">
                   {isTrial && user?.trial_ends_at && (
-                    <div>
-                      <p className="text-sm text-gray-500">Trial Ends</p>
-                      <p className="text-sm font-medium text-gray-900">{formatDate(user.trial_ends_at)}</p>
+                    <div className="flex justify-between items-center">
+                      <p className="text-xs font-bold text-[#6B7280] uppercase tracking-widest">Trial Ends</p>
+                      <p className="text-sm font-black text-[#0B0B0B]">{formatDate(user.trial_ends_at)}</p>
                     </div>
                   )}
 
                   {user?.subscription_started_at && (
-                    <div>
-                      <p className="text-sm text-gray-500">Started</p>
-                      <p className="text-sm font-medium text-gray-900">{formatDate(user.subscription_started_at)}</p>
+                    <div className="flex justify-between items-center">
+                      <p className="text-xs font-bold text-[#6B7280] uppercase tracking-widest">Active Since</p>
+                      <p className="text-sm font-black text-[#0B0B0B]">{formatDate(user.subscription_started_at)}</p>
                     </div>
                   )}
 
                   {user?.last_billing_date && (
-                    <div>
-                      <p className="text-sm text-gray-500">Last Billing</p>
-                      <p className="text-sm font-medium text-gray-900">{formatDate(user.last_billing_date)}</p>
+                    <div className="flex justify-between items-center">
+                      <p className="text-xs font-bold text-[#6B7280] uppercase tracking-widest">Last Billing</p>
+                      <p className="text-sm font-black text-[#0B0B0B]">{formatDate(user.last_billing_date)}</p>
                     </div>
                   )}
 
                   {(isTrial || isActive) && (user?.next_billing_date || user?.trial_ends_at) && (
-                    <div>
-                      <p className="text-sm text-gray-500">
-                        {isTrial ? 'First Billing' : 'Next Billing'}
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-50">
+                      <p className="text-xs font-bold text-[#6B7280] uppercase tracking-widest">
+                        {isTrial ? 'First Payment' : 'Renewal Date'}
                       </p>
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-black text-[#C9A24D]">
                         {formatDate(isTrial ? user.trial_ends_at : user.next_billing_date)}
                       </p>
                     </div>
                   )}
 
                   {isCancelled && (user?.next_billing_date || user?.trial_ends_at) && (
-                    <div>
-                      <p className="text-sm text-gray-500">Access Ends</p>
-                      <p className="text-sm font-medium text-yellow-700">
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-50">
+                      <p className="text-xs font-bold text-[#6B7280] uppercase tracking-widest">Access Ends</p>
+                      <p className="text-sm font-black text-amber-600">
                         {formatDate(user.next_billing_date || user.trial_ends_at)}
                       </p>
                     </div>
@@ -518,58 +523,49 @@ export default function SubscriptionManagementPage() {
               </div>
 
               {/* Feature list */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <p className="text-sm font-semibold text-gray-700 mb-3">Your Plan Includes:</p>
-                <ul className="space-y-2">
-                  <li className="flex items-start text-sm text-gray-700">
-                    <CheckCircle2 className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                    Unlimited Open House QR codes
-                  </li>
-                  <li className="flex items-start text-sm text-gray-700">
-                    <CheckCircle2 className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                    Visitor sign-in forms
-                  </li>
-                  <li className="flex items-start text-sm text-gray-700">
-                    <CheckCircle2 className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                    Lead capture and management
-                  </li>
-                  {isPremium && (
-                    <>
-                      <li className="flex items-start text-sm text-gray-700">
-                        <CheckCircle2 className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                        Property Showcases
-                      </li>
-                      <li className="flex items-start text-sm text-gray-700">
-                        <CheckCircle2 className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                        Automated property matching
-                      </li>
-                    </>
-                  )}
-                </ul>
+              <div className="mt-8 pt-8 border-t border-gray-100">
+                <p className="text-xs font-black text-[#6B7280] uppercase tracking-widest mb-4">Included in your plan</p>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {[
+                    'Unlimited Open House QR codes',
+                    'Dynamic visitor sign-in forms',
+                    'Advanced lead management',
+                    ...(isPremium ? ['Personalized Property Showcases', 'Automated property matching'] : [])
+                  ].map((feature, i) => (
+                    <div key={i} className="flex items-center text-sm text-gray-700 font-medium">
+                      <div className="w-5 h-5 rounded-full bg-green-50 text-green-600 flex items-center justify-center mr-3 flex-shrink-0">
+                        <CheckCircle2 size={12} />
+                      </div>
+                      {feature}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
             {/* 2. Change Plan Card */}
             {(isActive || isTrial) && (
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
-                <div className="flex items-center mb-4">
-                  <Sparkles className="w-5 h-5 text-[#8b7355] mr-2" />
-                  <h2 className="text-xl font-bold text-gray-900">Change Plan</h2>
+              <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-8 border border-gray-100">
+                <div className="flex items-center mb-6">
+                  <div className="w-10 h-10 bg-[#FAFAF7] rounded-xl flex items-center justify-center mr-4 border border-gray-100">
+                    <Sparkles className="w-5 h-5 text-[#C9A24D]" />
+                  </div>
+                  <h2 className="text-xl font-black text-[#0B0B0B] tracking-tight">Plan Options</h2>
                 </div>
 
-                <p className="text-gray-600 mb-6">
+                <p className="text-[#6B7280] mb-8 leading-relaxed">
                   {isBasic
-                    ? 'Upgrade to Premium to unlock Property Showcases and automated property matching.'
-                    : 'You are currently on the Premium plan with access to all features.'}
+                    ? 'Elevate your business with Property Showcases and automated buyer matching.'
+                    : 'You are on our most powerful plan. Enjoy full access to all conversion tools.'}
                 </p>
 
                 <div className="grid md:grid-cols-2 gap-4">
                   {isBasic && (
                     <button
                       onClick={() => setUpgradeModalOpen(true)}
-                      className="flex items-center justify-center px-6 py-3 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all"
+                      className="flex items-center justify-center px-6 py-4 bg-[#111827] text-white rounded-xl font-bold shadow-lg hover:bg-[#C9A24D] hover:scale-[1.02] transition-all duration-300 group"
                     >
-                      <Sparkles className="w-5 h-5 mr-2" />
+                      <Sparkles className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
                       Upgrade to Premium
                     </button>
                   )}
@@ -577,82 +573,136 @@ export default function SubscriptionManagementPage() {
                   {isPremium && (
                     <button
                       onClick={() => setDowngradeModalOpen(true)}
-                      className="flex items-center justify-center px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                      className="flex items-center justify-center px-6 py-4 border-2 border-gray-200 text-[#6B7280] hover:text-[#111827] hover:border-[#111827] rounded-xl font-bold transition-all duration-300"
                     >
-                      Downgrade to Basic
+                      Switch to Basic
                     </button>
                   )}
                 </div>
 
-                {(isBasic || isPremium) && (
-                  <p className="text-xs text-gray-500 mt-4">
-                    * Plan changes take effect at the start of your next billing cycle.
-                  </p>
-                )}
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-6">
+                  * All changes take effect at the start of your next billing cycle.
+                </p>
               </div>
             )}
 
             {/* 3. Manage Subscription Card */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Manage Subscription</h2>
+            <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-8 border border-gray-100">
+              <h2 className="text-xl font-black text-[#0B0B0B] tracking-tight mb-6">Security & Billing</h2>
 
               {(isActive || isTrial) && !isCancelled && (
-                <>
-                  <p className="text-gray-600 mb-6">
-                    If you cancel your subscription, you'll keep access until the end of your current billing period.
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                  <p className="text-[#6B7280] text-sm leading-relaxed max-w-md">
+                    Looking to pause? If you cancel, your data stays safe and you'll keep access until the end of your billing term.
                   </p>
                   <button
                     onClick={() => setCancelModalOpen(true)}
-                    className="px-6 py-3 border-2 border-red-300 text-red-600 rounded-xl font-semibold hover:bg-red-50 transition-colors"
+                    className="px-6 py-3 border-2 border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 rounded-xl font-bold text-sm transition-all duration-300"
                   >
-                    Cancel Subscription
+                    Cancel Plan
                   </button>
-                </>
+                </div>
               )}
 
               {isSuspended && (
-                <>
-                  <p className="text-gray-600 mb-6">
-                    Your payment method failed. Update your payment method on PayPal, then reactivate your subscription to restore access.
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                  <p className="text-[#6B7280] text-sm leading-relaxed max-w-md">
+                    Reactivate your subscription to immediately restore access to your showcases and visitor data.
                   </p>
                   <button
                     onClick={() => setReactivateModalOpen(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all"
+                    className="px-8 py-4 bg-[#111827] text-white rounded-xl font-bold shadow-lg hover:bg-[#C9A24D] transition-all duration-300"
                   >
-                    Reactivate Subscription
+                    Reactivate Now
                   </button>
-                </>
+                </div>
               )}
 
               {(isCancelled || isExpired) && (
-                <>
-                  <p className="text-gray-600 mb-6">
-                    {isCancelled
-                      ? 'Your subscription has been cancelled. Create a new subscription to regain access.'
-                      : 'Your subscription has expired. Create a new subscription to regain access.'}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                  <p className="text-[#6B7280] text-sm leading-relaxed max-w-md">
+                    Regain full access to the platform by starting a new subscription today.
                   </p>
                   <button
                     onClick={() => setResubscribeModalOpen(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all"
+                    className="px-8 py-4 bg-[#111827] text-white rounded-xl font-bold shadow-lg hover:bg-[#C9A24D] transition-all duration-300"
                   >
                     Resubscribe
                   </button>
-                </>
+                </div>
               )}
             </div>
           </div>
 
           {/* Back button */}
-          <div className="mt-8 text-center">
+          <div className="mt-12 text-center">
             <button
               onClick={() => router.push('/')}
-              className="text-gray-600 hover:text-[#8b7355] font-medium transition-colors"
+              className="group inline-flex items-center text-[#6B7280] hover:text-[#111827] font-bold text-xs uppercase tracking-widest transition-all duration-300"
             >
-              ← Back to Dashboard
+              <span className="mr-2 group-hover:-translate-x-1 transition-transform">←</span>
+              Back to Dashboard
             </button>
           </div>
         </div>
       </main>
+
+      <Footer />
+
+      {/* Confirmation Modals - These use a consistent theme via components */}
+      <ConfirmationModal
+        isOpen={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        onConfirm={handleUpgrade}
+        title="Upgrade to Premium?"
+        message={
+          isTrial
+            ? "Your plan will be upgraded immediately during your trial. The new price will apply when your trial ends."
+            : "The upgrade will take effect at the start of your next billing cycle. You'll be redirected to PayPal to authorize the change."
+        }
+        confirmText={isTrial ? "Upgrade Now" : "Confirm Upgrade"}
+        isLoading={actionLoading}
+      />
+
+      <ConfirmationModal
+        isOpen={downgradeModalOpen}
+        onClose={() => setDowngradeModalOpen(false)}
+        onConfirm={handleDowngrade}
+        title="Downgrade to Basic?"
+        message="You will lose access to automated Showcases and matching tools at the end of your current term."
+        confirmText="Confirm Downgrade"
+        confirmButtonClass="bg-[#111827] hover:bg-gray-800"
+        isLoading={actionLoading}
+      />
+
+      <ConfirmationModal
+        isOpen={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        onConfirm={handleCancel}
+        title="Cancel Subscription?"
+        message="Your data will remain secure, but premium features will be disabled once your current access period ends."
+        confirmText="Yes, Cancel Plan"
+        confirmButtonClass="bg-red-500 hover:bg-red-600"
+        isLoading={actionLoading}
+      />
+
+      <ConfirmationModal
+        isOpen={reactivateModalOpen}
+        onClose={() => setReactivateModalOpen(false)}
+        onConfirm={handleReactivate}
+        title="Reactivate Plan?"
+        message="Great to have you back! Your billing will resume at the end of your current term."
+        confirmText="Reactivate Now"
+        isLoading={actionLoading}
+      />
+
+      {/* Resubscribe Modal */}
+      <ResubscribeModal
+        isOpen={resubscribeModalOpen}
+        onClose={() => setResubscribeModalOpen(false)}
+        onSelectPlan={handleResubscribe}
+        isLoading={actionLoading}
+      />
 
       <Footer />
 
@@ -665,9 +715,9 @@ export default function SubscriptionManagementPage() {
         message={
           isTrial
             ? "Your plan will be upgraded immediately during your trial. The new price will apply when your trial ends."
-            : "You may need to approve this change on PayPal. The upgrade will take effect at the start of your next billing cycle."
+            : "The upgrade will take effect at the start of your next billing cycle. You'll be redirected to PayPal to authorize the change."
         }
-        confirmText={isTrial ? "Upgrade Plan" : "Continue"}
+        confirmText={isTrial ? "Upgrade Now" : "Confirm Upgrade"}
         isLoading={actionLoading}
       />
 
@@ -676,13 +726,9 @@ export default function SubscriptionManagementPage() {
         onClose={() => setDowngradeModalOpen(false)}
         onConfirm={handleDowngrade}
         title="Downgrade to Basic?"
-        message={
-          isTrial
-            ? "You'll lose access to Property Showcases and automated matching. Your plan will be downgraded immediately during your trial."
-            : "You'll lose access to Property Showcases and automated matching. You may need to approve this change on PayPal. The downgrade will take effect at the start of your next billing cycle."
-        }
-        confirmText={isTrial ? "Downgrade Plan" : "Continue"}
-        confirmButtonClass="bg-gray-600 hover:bg-gray-700"
+        message="You will lose access to automated Showcases and matching tools at the end of your current term."
+        confirmText="Confirm Downgrade"
+        confirmButtonClass="bg-[#111827] hover:bg-gray-800"
         isLoading={actionLoading}
       />
 
@@ -691,9 +737,9 @@ export default function SubscriptionManagementPage() {
         onClose={() => setCancelModalOpen(false)}
         onConfirm={handleCancel}
         title="Cancel Subscription?"
-        message="You'll keep access until the end of your current billing period. After cancellation, you'll need to create a new subscription to regain access."
-        confirmText="Yes, Cancel"
-        confirmButtonClass="bg-red-600 hover:bg-red-700"
+        message="Your data will remain secure, but premium features will be disabled once your current access period ends."
+        confirmText="Yes, Cancel Plan"
+        confirmButtonClass="bg-red-500 hover:bg-red-600"
         isLoading={actionLoading}
       />
 
@@ -701,17 +747,9 @@ export default function SubscriptionManagementPage() {
         isOpen={reactivateModalOpen}
         onClose={() => setReactivateModalOpen(false)}
         onConfirm={handleReactivate}
-        title="Reactivate Subscription?"
-        message="Your subscription will be reactivated and you'll continue to be billed at the end of your current period."
-        confirmText="Reactivate"
-        isLoading={actionLoading}
-      />
-
-      {/* Resubscribe Modal */}
-      <ResubscribeModal
-        isOpen={resubscribeModalOpen}
-        onClose={() => setResubscribeModalOpen(false)}
-        onSelectPlan={handleResubscribe}
+        title="Reactivate Plan?"
+        message="Great to have you back! Your billing will resume at the end of your current term."
+        confirmText="Reactivate Now"
         isLoading={actionLoading}
       />
     </div>

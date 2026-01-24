@@ -66,21 +66,21 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
   return (
     <div
       onClick={available ? () => onPropertyClick?.(property) : undefined}
-      className={`bg-white rounded-xl overflow-hidden border border-gray-200 transition-transform duration-200 flex flex-col h-full shadow-sm will-change-transform ${
+      className={`bg-white rounded-2xl overflow-hidden border border-gray-200 transition-all duration-300 flex flex-col h-full shadow-[0_2px_8px_rgba(0,0,0,0.04)] will-change-transform group ${
         available
-          ? 'hover:border-gray-300 hover:-translate-y-1 group cursor-pointer hover:shadow-lg'
+          ? 'hover:border-gray-300 hover:shadow-[0_8px_20px_-4px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 cursor-pointer'
           : 'opacity-75 cursor-not-allowed'
       }`}
     >
       {/* Property Image */}
-      <div className="relative bg-gray-100 aspect-[16/9]">
+      <div className="relative bg-gray-100 aspect-[16/9] overflow-hidden">
         {property.imageUrl ? (
           <Image
             src={property.imageUrl}
             alt={property.address}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover"
+            className="object-cover transition-transform duration-500"
             loading="lazy"
             quality={75}
           />
@@ -125,45 +125,45 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
       </div>
 
       {/* Property Details */}
-      <div className="p-5">
-        <p className="text-gray-500 text-xs mb-1 font-light uppercase tracking-wide">
+      <div className="p-6 pb-0">
+        <p className="text-gray-500 text-[10px] mb-1 font-bold uppercase tracking-widest">
           {property.city}, {property.state} {property.zipCode}
         </p>
         
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 font-light group-hover:text-gray-800 transition-colors">
+        <h3 className="text-lg font-black text-[#0B0B0B] mb-4 tracking-tight leading-snug group-hover:text-[#C9A24D] transition-colors">
           {property.address}
         </h3>
 
         {/* Property Stats */}
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center space-x-4 text-sm mb-6">
             <div className="flex items-center text-gray-600">
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
             </svg>
-            <span>{property.beds} beds</span>
+            <span className="font-medium text-[#111827]">{property.beds}</span><span className="ml-1 text-xs">beds</span>
           </div>
           
             <div className="flex items-center text-gray-600">
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path>
               </svg>
-              <span>{property.baths} baths</span>
+              <span className="font-medium text-[#111827]">{property.baths}</span><span className="ml-1 text-xs">baths</span>
             </div>
           
           {property.squareFeet && (
             <div className="flex items-center text-gray-600">
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
               </svg>
-              <span>{property.squareFeet.toLocaleString()} sqft</span>
+              <span className="font-medium text-[#111827]">{property.squareFeet.toLocaleString()}</span><span className="ml-1 text-xs">sqft</span>
             </div>
           )}
         </div>
 
         {/* Price and Quick Actions */}
-        <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
-          <span className="text-base font-bold text-[#8b7355]">
-            Price: {formatPrice(property.price)}
+        <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+          <span className="text-lg font-black text-[#C9A24D] tracking-tight">
+            {formatPrice(property.price)}
           </span>
             
             <div className="flex items-center space-x-2">
@@ -245,29 +245,29 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
       </div>
 
       {/* Action Buttons - Moved to Bottom */}
-      <div className="px-5 pb-5 mt-auto">
-        <div className="flex space-x-2">
+      <div className="p-6 pt-4 mt-auto">
+        <div className="flex space-x-3">
           <button
             onClick={(e) => {
               e.stopPropagation();
               if (available) onPropertyClick?.(property);
             }}
             disabled={!available}
-            className={`flex-1 font-medium py-2 px-3 rounded-lg transition-all duration-300 text-xs ${
+            className={`flex-1 font-bold py-2.5 px-4 rounded-xl transition-all duration-300 text-xs uppercase tracking-wide ${
               available
-                ? 'bg-[#8b7355] hover:bg-[#7a6549] text-white border border-[#8b7355]'
-                : 'bg-gray-300 text-gray-500 border border-gray-300 cursor-not-allowed'
+                ? 'bg-[#111827] hover:bg-[#C9A24D] text-white shadow-md hover:shadow-lg hover:scale-[1.02]'
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
             }`}
           >
-            {available ? 'View Details' : 'No Longer Available'}
+            {available ? 'View Details' : 'Unavailable'}
           </button>
           {onScheduleTour ? (
             property.hasTourScheduled ? (
-              <div className="flex items-center space-x-1 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-xs">
+              <div className="flex items-center space-x-1 px-3 py-2 bg-green-50 border border-green-100 rounded-xl text-xs shadow-sm">
                 <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                 </svg>
-                <span className="text-green-700 font-medium">Tour Scheduled</span>
+                <span className="text-green-700 font-bold">Scheduled</span>
               </div>
             ) : (
               <button
@@ -276,20 +276,20 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
                   if (available) onScheduleTour?.(property);
                 }}
                 disabled={!available}
-                className={`font-medium py-2 px-3 rounded-lg border transition-all duration-300 text-xs ${
+                className={`font-bold py-2.5 px-4 rounded-xl border transition-all duration-300 text-xs uppercase tracking-wide ${
                   available
-                    ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-800 border-gray-200 hover:border-gray-300'
-                    : 'bg-gray-200 text-gray-400 border-gray-200 cursor-not-allowed opacity-50'
+                    ? 'bg-white hover:bg-gray-50 text-[#111827] border-gray-200 hover:border-gray-300 shadow-sm'
+                    : 'bg-gray-50 text-gray-400 border-gray-100 cursor-not-allowed'
                 }`}
               >
-                Schedule Tour
+                Tour
               </button>
             )
           ) : (
-            <div className="flex items-center space-x-1 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs">
-              <Calendar size={14} className="text-blue-600" />
-              <span className="text-blue-700 font-medium">
-                {property.tourCount || 0} {property.tourCount === 1 ? 'tour' : 'tours'}
+            <div className="flex items-center space-x-1 px-3 py-2 bg-[#111827]/5 border border-[#111827]/10 rounded-xl text-xs">
+              <Calendar size={14} className="text-[#111827]" />
+              <span className="text-[#111827] font-bold">
+                {property.tourCount || 0}
               </span>
             </div>
           )}

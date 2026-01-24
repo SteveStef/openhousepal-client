@@ -27,9 +27,7 @@ export default function CollectionCard({
       case 'ACTIVE':
         return 'bg-green-100 text-green-800 border-green-200'
       case 'PAUSED':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'COMPLETED':
-        return 'bg-gray-100 text-gray-700 border-gray-200'
+        return 'bg-amber-100 text-amber-800 border-amber-200'
       default:
         return 'bg-gray-100 text-gray-700 border-gray-200'
     }
@@ -39,8 +37,7 @@ export default function CollectionCard({
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      year: 'numeric'
     })
   }
 
@@ -57,147 +54,131 @@ export default function CollectionCard({
     return formatDate(collection.stats.lastActivity)
   }
 
-  return (
-    <div
-      onClick={onClick}
-      className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 cursor-pointer group overflow-hidden flex flex-col h-full"
-    >
-      {/* Header Section */}
-      <div className="p-4 pb-3 border-b border-gray-100">
-        <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-3 mb-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                {collection.customer.firstName.charAt(0)}{collection.customer.lastName.charAt(0)}
+      return (
+        <div
+          onClick={onClick}
+          className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200 hover:shadow-[0_8px_20px_-4px_rgba(0,0,0,0.08)] hover:border-[#C9A24D]/30 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group flex flex-col h-full overflow-hidden"
+        >
+          {/* Header Section */}
+          <div className="p-6 pb-4">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center space-x-4 min-w-0">
+                {/* Avatar */}
+                <div className="relative flex-shrink-0">
+                  <div className="w-12 h-12 bg-[#111827] rounded-2xl flex items-center justify-center shadow-sm transition-transform duration-300">
+                    <span className="text-white text-lg font-black">
+                      {collection.customer.firstName.charAt(0)}{collection.customer.lastName.charAt(0)}
+                    </span>
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#C9A24D] rounded-full border-2 border-white shadow-sm"></div>
+                </div>
+                
+                <div className="min-w-0">
+                  <h3 className="font-black text-[#0B0B0B] text-lg tracking-tight group-hover:text-[#C9A24D] transition-colors truncate">
+                    {collection.customer.firstName} {collection.customer.lastName}
+                  </h3>
+                  <p className="text-sm text-[#6B7280] font-medium truncate">{collection.customer.email}</p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-900 text-base truncate">
-                  {collection.customer.firstName} {collection.customer.lastName}
-                </h3>
-                <p className="text-sm text-gray-500">{collection.customer.email}</p>
-                {collection.customer.phone && collection.customer.phone !== '(000) 000-0000' && (
-                  <p className="text-xs text-gray-400">{collection.customer.phone}</p>
+    
+              <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                {onEditPreferences && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onEditPreferences(collection)
+                    }}
+                    className="p-2 text-gray-400 hover:text-[#C9A24D] hover:bg-[#FAFAF7] rounded-xl transition-all"
+                    title="Edit preferences"
+                  >
+                    <Edit3 size={16} />
+                  </button>
+                )}
+                {onShare && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onShare(collection)
+                    }}
+                    className="p-2 text-gray-400 hover:text-[#111827] hover:bg-[#FAFAF7] rounded-xl transition-all"
+                    title="Share collection"
+                  >
+                    <Share2 size={16} />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDelete(collection)
+                    }}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                    title="Delete collection"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 )}
               </div>
             </div>
-          </div>
-          
-          {/* Actions and Status */}
-          <div className="flex items-center space-x-2 ml-4">
-            {/* Action Buttons */}
-            <div className="flex items-center space-x-1 opacity-100 transition-opacity">
-              {onEditPreferences && (
+    
+            {/* Status and Activity Row */}
+            <div className="flex items-center justify-between">
+              {onStatusToggle ? (
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    onEditPreferences(collection)
+                    onStatusToggle(collection)
                   }}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                  title="Edit preferences"
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all duration-200 border ${getStatusColor(collection.status)} hover:shadow-sm`}
                 >
-                  <Edit3 size={14} />
+                  <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${collection.status === 'ACTIVE' ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                  {collection.status}
                 </button>
+              ) : (
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${getStatusColor(collection.status)}`}>
+                  {collection.status}
+                </span>
               )}
-              {onShare && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onShare(collection)
-                  }}
-                  className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
-                  title="Share collection"
-                >
-                  <Share2 size={14} />
-                </button>
-              )}
-              {onDelete && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDelete(collection)
-                  }}
-                  className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                  title="Delete collection"
-                >
-                  <Trash2 size={14} />
-                </button>
-              )}
+              <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-widest">{getActivityStatus()}</span>
             </div>
-            
-            {/* Status Tab - Clickable */}
-            {onStatusToggle ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onStatusToggle(collection)
-                }}
-                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 hover:shadow-sm ${getStatusColor(collection.status)} ${
-                  collection.status === 'ACTIVE'
-                    ? 'hover:bg-green-200 hover:border-green-300'
-                    : 'hover:bg-gray-200 hover:border-gray-300'
-                } cursor-pointer`}
-                title={`Click to ${collection.status === 'ACTIVE' ? 'deactivate' : 'activate'} showcase`}
-              >
-                <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${collection.status === 'ACTIVE' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                {collection.status}
-              </button>
-            ) : (
-              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(collection.status)}`}>
-                <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${collection.status === 'ACTIVE' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                {collection.status}
-              </span>
-            )}
           </div>
-        </div>
-      </div>
-
-      {/* Key Metrics */}
-      <div className="px-4 py-3 bg-gray-50/50">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900">{collection.stats.totalProperties}</div>
-            <div className="text-xs text-gray-500">Properties</div>
-          </div>
-          <div className="text-center">
-            <div className="text-sm font-semibold text-blue-600 leading-tight">
-              {(collection.preferences && 'priceRange' in collection.preferences) ? formatPriceRange(collection.preferences.priceRange) : 'N/A'}
+    
+          {/* Metrics Section */}
+          <div className="px-6 py-4 bg-[#FAFAF7] border-y border-gray-100 group-hover:bg-white transition-colors duration-300">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-[#6B7280] uppercase tracking-widest mb-1">Properties</span>
+                <div className="flex items-baseline">
+                  <span className="text-xl font-black text-[#0B0B0B] leading-none transition-transform origin-left">{collection.stats.totalProperties}</span>
+                  <span className="ml-1.5 text-xs font-bold text-[#6B7280]">Total</span>
+                </div>
+              </div>
+              <div className="flex flex-col border-l border-gray-200 pl-4">
+                <span className="text-[10px] font-black text-[#6B7280] uppercase tracking-widest mb-1">Budget Range</span>
+                <div className="text-sm font-black text-[#C9A24D] leading-tight bg-[#C9A24D]/5 px-2 py-1 rounded border border-[#C9A24D]/10 inline-block w-fit transition-colors group-hover:bg-[#C9A24D]/10">
+                  {(collection.preferences && 'priceRange' in collection.preferences) ? formatPriceRange(collection.preferences.priceRange) : 'N/A'}
+                </div>
+              </div>
             </div>
-            <div className="text-xs text-gray-500">Budget</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Warning for too many properties */}
-      {collection.stats.totalProperties >= 41 && (
-        <div className="px-4 py-2 bg-amber-50 border-t border-amber-200">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-800">
-              There are too many properties in showcase
+          </div>      {/* Warnings */}
+      {(collection.stats.totalProperties >= 41 || collection.stats.totalProperties === 0) && (
+        <div className={`px-6 py-2 border-b ${collection.stats.totalProperties === 0 ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100'}`}>
+          <div className="flex items-center gap-2">
+            <AlertTriangle className={`w-3.5 h-3.5 ${collection.stats.totalProperties === 0 ? 'text-red-500' : 'text-amber-500'}`} />
+            <p className={`text-[10px] font-bold uppercase tracking-wide ${collection.stats.totalProperties === 0 ? 'text-red-700' : 'text-amber-700'}`}>
+              {collection.stats.totalProperties === 0 ? 'No properties found' : 'Large collection limit'}
             </p>
           </div>
         </div>
       )}
 
-      {/* Warning for no properties */}
-      {collection.stats.totalProperties === 0 && (
-        <div className="px-4 py-2 bg-amber-50 border-t border-amber-200">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-800">
-              No properties found. Please edit preferences or try again.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Search Preferences */}
-      <div className="p-4 flex-1">
-        <div className="space-y-3">
+      {/* Preferences Preview */}
+      <div className="p-6 flex-1 bg-white">
+        <div className="space-y-4">
           {/* Intent */}
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
-            <span className="text-sm text-gray-700">
+          <div className="flex items-center space-x-3 bg-[#FAFAF7] rounded-xl p-3 border border-gray-100">
+            <div className="w-2 h-2 bg-[#C9A24D] rounded-full shadow-[0_0_8px_rgba(201,162,77,0.4)]"></div>
+            <span className="text-xs font-bold text-[#0B0B0B]">
               {(collection.preferences as any)?.visiting_reason
                 ? (collection.preferences as any).visiting_reason.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())
                 : 'Browsing'
@@ -205,44 +186,25 @@ export default function CollectionCard({
             </span>
           </div>
 
-          {/* Property Requirements */}
-          <div className="flex items-center justify-between text-sm">
-            <div className="text-gray-600">
-              {(collection.preferences as any)?.min_beds && (
-                <span>
-                  {(collection.preferences as any).min_beds}
-                  {(collection.preferences as any).max_beds && (collection.preferences as any).max_beds !== (collection.preferences as any).min_beds 
-                    ? `-${(collection.preferences as any).max_beds}` : '+'} bed{(collection.preferences as any).min_beds !== 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-            <div className="text-gray-500">
-              {(collection.preferences as any)?.has_agent 
-                ? ((collection.preferences as any).has_agent === 'YES' ? 'Has Agent' : (collection.preferences as any).has_agent === 'NO' ? 'No Agent' : 'Seeking Agent')
-                : 'Agent status unknown'
-              }
-            </div>
-          </div>
-
-          {/* Property Types */}
+          {/* Property Types Tags */}
           {collection.preferences && (
-            <div className="flex flex-wrap gap-1">
-              {(collection.preferences as any).is_single_family && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Single Family</span>}
-              {(collection.preferences as any).is_town_house && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Townhouse</span>}
-              {(collection.preferences as any).is_condo && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Condo</span>}
-              {(collection.preferences as any).is_apartment && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Apartment</span>}
-              {(collection.preferences as any).is_multi_family && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Multi-Family</span>}
-              {(collection.preferences as any).is_lot_land && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Lot/Land</span>}
+            <div className="flex flex-wrap gap-1.5">
+              {(collection.preferences as any).is_single_family && <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white border border-gray-200 text-[#6B7280] shadow-sm">Single Family</span>}
+              {(collection.preferences as any).is_town_house && <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white border border-gray-200 text-[#6B7280] shadow-sm">Townhouse</span>}
+              {(collection.preferences as any).is_condo && <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white border border-gray-200 text-[#6B7280] shadow-sm">Condo</span>}
+              {(collection.preferences as any).is_apartment && <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white border border-gray-200 text-[#6B7280] shadow-sm">Apartment</span>}
+              {(collection.preferences as any).is_multi_family && <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white border border-gray-200 text-[#6B7280] shadow-sm">Multi-Family</span>}
+              {(collection.preferences as any).is_lot_land && <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white border border-gray-200 text-[#6B7280] shadow-sm">Lot/Land</span>}
             </div>
           )}
         </div>
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>{getActivityStatus()}</span>
-          <span>Created {formatDate(collection.createdAt)}</span>
+      <div className="px-6 py-3 bg-white border-t border-gray-50 mt-auto">
+        <div className="flex items-center justify-between text-[10px] font-bold text-[#6B7280] uppercase tracking-widest">
+          <span>{collection.customer.firstName}'s Showcase</span>
+          <span>{formatDate(collection.createdAt)}</span>
         </div>
       </div>
     </div>

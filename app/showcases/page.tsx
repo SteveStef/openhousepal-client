@@ -1220,53 +1220,54 @@ export default function ShowcasesPage() {
 
   if (selectedCollection) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col">
+      <div className="min-h-screen bg-[#FAFAF7] flex flex-col">
         <Header />
-        <div className="flex-1 p-6">
+        <div className="flex-1 p-6 pb-20 sm:p-8 sm:pb-32">
           <div className="max-w-7xl mx-auto">
           {/* Back Button */}
           <button
             onClick={() => {
               router.push('/showcases', { scroll: false })
-              // Let the useEffect (lines 210-221) handle clearing selectedCollection
             }}
-            className="mb-6 flex items-center text-gray-600 hover:text-gray-900 transition-colors duration-200"
+            className="group mb-8 flex items-center text-gray-500 hover:text-gray-900 transition-colors duration-200 font-medium"
           >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
-            </svg>
+            <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center mr-3 group-hover:border-gray-300 group-hover:shadow-sm transition-all">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
+              </svg>
+            </div>
             Back to Showcases
           </button>
 
           {/* Combined Property Recommendations and Status Section */}
-          <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 p-5 mb-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4">
+          <div className="bg-white/50 backdrop-blur-sm rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 p-6 sm:p-8 mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-8">
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 font-light">Property Recommendations</h1>
-                <p className="text-gray-600 text-sm font-light">Curated properties based on client preferences</p>
+                <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mb-2">Property Recommendations</h1>
+                <p className="text-gray-500 font-light">Curated properties based on client preferences</p>
               </div>
 
-              <div className="flex items-center gap-2 sm:gap-4">
+              <div className="flex items-center gap-3 sm:gap-4">
                 <button
                   onClick={handleViewTours}
-                  className="inline-flex items-center px-3 sm:px-4 py-2 rounded-lg text-sm font-medium border border-[#8b7355] text-[#8b7355] hover:bg-[#8b7355] hover:text-white transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap"
+                  className="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-br from-[#1a1614] via-[#3a2f25] to-[#8b7355] shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 whitespace-nowrap group"
                   title="View tour requests for this collection"
                 >
-                  <Calendar size={16} className="mr-2" />
+                  <Calendar size={16} className="mr-2 group-hover:scale-110 transition-transform" />
                   <span className="hidden sm:inline">View Tours</span>
                   <span className="sm:hidden">Tours</span>
                 </button>
                 <button
                   onClick={() => handleStatusToggle(selectedCollection.id)}
-                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 hover:shadow-sm whitespace-nowrap ${
+                  className={`inline-flex items-center px-4 py-2.5 rounded-xl text-xs font-bold border transition-all duration-300 hover:shadow-md whitespace-nowrap uppercase tracking-wide ${
                     selectedCollection.status === 'ACTIVE'
-                      ? 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200'
-                      : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+                      ? 'bg-green-50 text-green-700 border-green-100 hover:bg-green-100'
+                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                   }`}
                   title={`Click to ${selectedCollection.status === 'ACTIVE' ? 'deactivate' : 'activate'} this collection`}
                 >
-                  <div className={`w-2 h-2 rounded-full mr-1.5 ${
-                    selectedCollection.status === 'ACTIVE' ? 'bg-green-400' : 'bg-gray-400'
+                  <div className={`w-2 h-2 rounded-full mr-2 ${
+                    selectedCollection.status === 'ACTIVE' ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
                   }`} />
                   {selectedCollection.status}
                 </button>
@@ -1274,7 +1275,7 @@ export default function ShowcasesPage() {
             </div>
             
             {/* Property Status Tabs */}
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="flex flex-wrap gap-2 mb-6">
               {[
                 { key: 'all', label: 'All Properties', count: tabCounts.all },
                 { key: 'liked', label: 'Liked', count: tabCounts.liked },
@@ -1283,17 +1284,17 @@ export default function ShowcasesPage() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key as any)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex items-center space-x-2 ${
+                  className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center space-x-2 border ${
                     activeTab === tab.key
-                      ? 'bg-[#8b7355] text-white border border-[#8b7355]'
-                      : 'bg-white text-gray-700 hover:bg-[#f5f4f2] border border-gray-200 hover:border-gray-300'
+                      ? 'bg-[#1a1614] text-white border-[#1a1614] shadow-md'
+                      : 'bg-white text-gray-600 hover:bg-gray-50 border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <span>{tab.label}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs ${
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] ${
                     activeTab === tab.key
-                      ? 'bg-white text-[#8b7355]'
-                      : 'bg-gray-100 text-gray-600'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-gray-100 text-gray-500'
                   }`}>
                     {tab.count}
                   </span>
@@ -1302,30 +1303,44 @@ export default function ShowcasesPage() {
             </div>
 
             {/* Sorting Controls */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Sort by</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as 'price' | 'beds' | 'squareFeet')}
-                  className="w-full px-3 py-2 bg-white/60 border border-gray-200/50 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#8b7355]/60 focus:border-[#8b7355]/60 transition-all duration-300"
-                >
-                  <option value="price">Price</option>
-                  <option value="beds">Bedrooms</option>
-                  <option value="squareFeet">Square Feet</option>
-                </select>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t border-gray-100">
+              <div className="group">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Sort by</label>
+                <div className="relative">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as 'price' | 'beds' | 'squareFeet')}
+                    className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#8b7355]/20 focus:border-[#8b7355] transition-all duration-300 appearance-none cursor-pointer hover:bg-gray-50"
+                  >
+                    <option value="price">Price</option>
+                    <option value="beds">Bedrooms</option>
+                    <option value="squareFeet">Square Feet</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
               </div>
               
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Sort Order</label>
-                <select
-                  value={sortOrder}
-                  onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-                  className="w-full px-3 py-2 bg-white/60 border border-gray-200/50 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#8b7355]/60 focus:border-[#8b7355]/60 transition-all duration-300"
-                >
-                  <option value="asc">Low to High</option>
-                  <option value="desc">High to Low</option>
-                </select>
+              <div className="group">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Sort Order</label>
+                <div className="relative">
+                  <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                    className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#8b7355]/20 focus:border-[#8b7355] transition-all duration-300 appearance-none cursor-pointer hover:bg-gray-50"
+                  >
+                    <option value="asc">Low to High</option>
+                    <option value="desc">High to Low</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
               </div>
               
               <div className="flex items-end">
@@ -1335,26 +1350,11 @@ export default function ShowcasesPage() {
                     setSortOrder('asc')
                     setActiveTab('all')
                   }}
-                  className="w-full px-3 py-2 bg-gray-100/40 text-gray-700 hover:bg-zinc-600/60 border border-gray-300/40 hover:border-zinc-500/60 rounded-lg text-sm transition-all duration-300"
+                  className="w-full px-4 py-2.5 bg-white text-gray-500 hover:text-gray-900 border border-gray-200 hover:border-gray-300 rounded-xl text-sm font-medium transition-all duration-300 hover:shadow-sm"
                 >
                   Reset Filters
                 </button>
               </div>
-            </div>
-          </div>
-
-          {/* Professional Separator */}
-          <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="bg-white px-4 text-gray-600 font-medium">
-                {activeTab === 'all' ? 'All Properties' : 
-                 activeTab === 'liked' ? 'Liked Properties' :
-                 activeTab === 'disliked' ? 'Disliked Properties' :
-                 'Favorited Properties'}
-              </span>
             </div>
           </div>
 
@@ -1402,7 +1402,7 @@ export default function ShowcasesPage() {
   // Show loading screen during authentication check
   if (isAuthenticating) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col">
+      <div className="min-h-screen bg-[#f8f8f6] flex flex-col">
         <Header />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
@@ -1417,105 +1417,109 @@ export default function ShowcasesPage() {
 
   return (
     <SubscriptionGuard requiredPlan="PREMIUM">
-      <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col">
+      <div className="min-h-screen bg-[#FAFAF7] flex flex-col">
         <Header />
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-6 pb-20 sm:pb-32">
         <div className="max-w-7xl mx-auto">
         {/* Combined Header and Filters */}
-        <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 p-6 mb-8">
+        <div className="bg-white/50 backdrop-blur-sm rounded-2xl border border-gray-100 p-6 sm:p-8 mb-8">
           {/* Header Section */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8">
             <div className="flex-1 mb-4 lg:mb-0">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2 font-light">Showcases</h1>
-              <p className="text-gray-600 font-light">Manage customer property showcases and preferences</p>
+              <h1 className="text-3xl sm:text-4xl font-black text-[#0B0B0B] tracking-tight mb-2">Showcases</h1>
+              <p className="text-[#6B7280] font-light text-lg">Manage customer property showcases and preferences</p>
             </div>
             <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-6">
               <button
                 onClick={() => setIsCreateModalOpen(true)}
                 disabled={isAtLimit}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 flex items-center space-x-2 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 ${
+                className={`px-6 py-3 rounded-xl text-sm font-black transition-all duration-300 flex items-center space-x-2 shadow-xl hover:shadow-[0_0_20px_rgba(201,162,77,0.3)] hover:scale-[1.03] transform border-2 ${
                   isAtLimit
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none hover:translate-y-0'
-                    : 'bg-gradient-to-r from-[#8b7355] to-[#6b5a43] text-white hover:shadow-[#8b7355]/40'
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none border-transparent'
+                    : 'bg-[#111827] text-white border-[#C9A24D]/20 hover:border-[#C9A24D] hover:bg-[#1a2333]'
                 }`}
                 title={isAtLimit ? 'Maximum 10 active showcases reached' : 'Create a new showcase'}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                <svg className={`w-4 h-4 ${isAtLimit ? 'text-gray-500' : 'text-[#C9A24D]'} transition-colors duration-300`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
-                <span>{isAtLimit ? 'Limit Reached' : 'Create Showcase'}</span>
+                <span className="tracking-wide">Create Showcase</span>
               </button>
 
               {/* Active Showcases Counter */}
-              <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border ${
+              <div className={`flex items-center space-x-2 px-4 py-2 rounded-full border ${
                 isAtLimit
-                  ? 'bg-red-50 border-red-200'
+                  ? 'bg-red-50 border-red-100 text-red-700'
                   : isNearLimit
-                  ? 'bg-amber-50 border-amber-200'
-                  : 'bg-green-50 border-green-200'
+                  ? 'bg-amber-50 border-amber-100 text-amber-700'
+                  : 'bg-white border-gray-200 text-[#111827] shadow-sm'
               }`}>
-                <div className={`w-3 h-3 rounded-full ${
+                <div className={`w-2.5 h-2.5 rounded-full ${
                   isAtLimit
-                    ? 'bg-red-400'
+                    ? 'bg-red-500 animate-pulse'
                     : isNearLimit
-                    ? 'bg-amber-400'
-                    : 'bg-green-400'
+                    ? 'bg-amber-500'
+                    : 'bg-green-500'
                 }`}></div>
-                <span className={`text-sm font-medium ${
-                  isAtLimit
-                    ? 'text-red-800'
-                    : isNearLimit
-                    ? 'text-amber-800'
-                    : 'text-green-800'
-                }`}>
-                  {activeShowcasesCount}/{maxActiveShowcases} Active Showcases
+                <span className="text-sm font-bold">
+                  {activeShowcasesCount}/{maxActiveShowcases} <span className="font-normal text-[#6B7280] ml-1">Active</span>
                 </span>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-                  <Share2 className="w-4 h-4 text-white" />
+              <div className="flex items-center space-x-3 text-[#6B7280] hover:text-[#111827] transition-colors cursor-pointer group">
+                <div className="w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm group-hover:border-[#C9A24D] group-hover:text-[#C9A24D] transition-all">
+                  <Share2 className="w-4 h-4" />
                 </div>
-                <span className="text-sm text-gray-600 font-medium">Share showcases with buyers</span>
+                <span className="text-sm font-medium hidden sm:inline">Share</span>
               </div>
             </div>
           </div>
           
           {/* Filters Section */}
-          <div className="border-t border-gray-200/60 pt-4">
+          <div className="border-t border-gray-100 pt-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Filter Showcases</h3>
+              <h3 className="text-sm font-bold text-[#0B0B0B] uppercase tracking-wider">Filter Showcases</h3>
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-500">
-                  {filteredCollections.length} showcases found • {activeShowcasesCount}/{maxActiveShowcases} active
+                <span className="text-xs font-medium text-[#6B7280]">
+                  {filteredCollections.length} results
                 </span>
                 {isAtLimit && (
-                  <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full border border-red-200 font-medium">
+                  <span className="text-[10px] px-2 py-0.5 bg-red-50 text-red-600 rounded-full border border-red-100 font-bold uppercase tracking-wide">
                     Limit Reached
                   </span>
                 )}
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
+            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#6B7280] group-focus-within:text-[#C9A24D] transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
               <input
                 type="text"
-                placeholder="Search customers..."
+                placeholder="Search customers by name or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 bg-white/60 border border-gray-200/50 rounded-lg text-gray-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#8b7355]/60 focus:border-[#8b7355]/60 transition-all duration-300 text-sm"
+                className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/20 focus:border-[#C9A24D] transition-all duration-300 text-sm shadow-sm"
               />
             </div>
-            <div className="sm:w-48">
+            <div className="sm:w-56 relative">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="w-full px-3 py-2 bg-white/60 border border-gray-200/50 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#8b7355]/60 focus:border-[#8b7355]/60 transition-all duration-300 text-sm"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-[#0B0B0B] focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/20 focus:border-[#C9A24D] transition-all duration-300 text-sm shadow-sm appearance-none font-medium cursor-pointer"
               >
                 <option value="ALL">All Status</option>
                 <option value="ACTIVE">Active</option>
                 <option value="INACTIVE">Inactive</option>
               </select>
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[#6B7280]">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
           </div>
           </div>
@@ -1531,14 +1535,14 @@ export default function ShowcasesPage() {
             </div>
           </div>
         ) : filteredCollections.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-16 h-16 bg-gradient-to-br from-[#8b7355]/20 to-[#8b7355]/10 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <svg className="w-8 h-8 text-[#8b7355]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+          <div className="text-center py-24 bg-white/50 backdrop-blur-sm rounded-2xl border border-gray-100 shadow-sm">
+            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-gray-100">
+              <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2 font-light">No showcases found</h3>
-            <p className="text-gray-600 font-light">Try adjusting your search or filters</p>
+            <h3 className="text-xl font-bold text-gray-900 mb-2 tracking-tight">No showcases found</h3>
+            <p className="text-gray-500 max-w-sm mx-auto">We couldn't find any showcases matching your filters. Try adjusting your search criteria.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1841,21 +1845,23 @@ function CreateCollectionModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-100">
+        <div className="p-8 border-b border-gray-100 bg-white sticky top-0 z-10">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold text-gray-900">Create New Showcase</h3>
+            <div>
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight">Create New Showcase</h3>
+              <p className="text-gray-500 text-sm mt-1">Create a personalized property collection for your client.</p>
+            </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 p-2 rounded-full transition-all duration-200"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
-          <p className="text-gray-600 text-sm mt-1">Create a showcase based on customer preferences and search criteria</p>
 
           {/* Limit Warning */}
           {isNearLimit && (
@@ -1882,10 +1888,10 @@ function CreateCollectionModal({
         </div>
         
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Collection Information */}
+          {/* Basic Information */}
           <div className="space-y-4">
-            <h4 className="text-lg font-medium text-gray-900">Showcase Information</h4>
-            <div className="grid grid-cols-1 gap-4">
+            <h4 className="text-lg font-medium text-gray-900">Basic Information</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Showcase Name *
@@ -1899,13 +1905,6 @@ function CreateCollectionModal({
                   placeholder="e.g., West Chester Family Showcase"
                 />
               </div>
-            </div>
-          </div>
-
-          {/* Customer Information */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-medium text-gray-900">Customer Information</h4>
-            <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Full Name *
@@ -1919,32 +1918,33 @@ function CreateCollectionModal({
                   placeholder="Customer's full name"
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
-                    placeholder="customer@email.com"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
-                    placeholder="(555) 123-4567"
-                  />
-                </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                  placeholder="customer@email.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                  placeholder="(555) 123-4567"
+                />
               </div>
             </div>
           </div>
@@ -1952,7 +1952,7 @@ function CreateCollectionModal({
           {/* Preferences */}
           <div className="space-y-4">
             <h4 className="text-lg font-medium text-gray-900">Customer Preferences</h4>
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Why are they visiting? *
@@ -1986,18 +1986,24 @@ function CreateCollectionModal({
                   <option value="LOOKING">They're looking for an agent</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Special features they're looking for
-                </label>
-                <textarea
-                  value={formData.additionalComments}
-                  onChange={(e) => handleInputChange('additionalComments', e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
-                  placeholder="pool, garage, modern kitchen..."
-                />
-              </div>
+            </div>
+            <div>
+              <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                Special features they're looking for
+                <span 
+                  className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-100 text-gray-500 text-[10px] font-bold cursor-help border border-gray-200"
+                  title="Separating keywords with commas will prioritize properties containing these terms in their descriptions (e.g., pool, garage, waterfront)."
+                >
+                  i
+                </span>
+              </label>
+              <textarea
+                value={formData.additionalComments}
+                onChange={(e) => handleInputChange('additionalComments', e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                placeholder="pool, garage, modern kitchen..."
+              />
             </div>
           </div>
 
