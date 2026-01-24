@@ -79,7 +79,7 @@ export default function HomePage() {
                   <span className="text-sm font-semibold text-gray-700 tracking-wide uppercase text-xs">Trusted by Top Agents</span>
                 </div>
                 
-                <h2 className="text-6xl lg:text-8xl font-black text-gray-900 mb-8 leading-[0.95] tracking-tight">
+                <h2 className="text-[3.5rem] lg:text-[5.5rem] font-black text-gray-900 mb-8 leading-[0.95] tracking-tight">
                   Turn Open Houses Into{' '}
                   <span className="relative inline-block">
                     <span className="text-transparent bg-clip-text bg-gradient-to-br from-[#8b7355] via-[#a68b6a] to-[#6b5a43] drop-shadow-sm">

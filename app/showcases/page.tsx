@@ -1433,14 +1433,14 @@ export default function ShowcasesPage() {
               <button
                 onClick={() => setIsCreateModalOpen(true)}
                 disabled={isAtLimit}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center space-x-1.5 ${
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 flex items-center space-x-2 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 ${
                   isAtLimit
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white hover:shadow-md hover:shadow-[#8b7355]/25'
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none hover:translate-y-0'
+                    : 'bg-gradient-to-r from-[#8b7355] to-[#6b5a43] text-white hover:shadow-[#8b7355]/40'
                 }`}
                 title={isAtLimit ? 'Maximum 10 active showcases reached' : 'Create a new showcase'}
               >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
                 <span>{isAtLimit ? 'Limit Reached' : 'Create Showcase'}</span>
