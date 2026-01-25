@@ -259,11 +259,11 @@ export default function RegisterPage() {
   return (
     <div className="h-screen flex flex-col lg:flex-row overflow-hidden">
       {/* Left Section - Form (55%) */}
-      <div className="w-full lg:w-[55%] bg-[#faf9f7] relative h-full flex flex-col">
+      <div className="w-full lg:w-[55%] bg-[#FAFAF7] relative h-full flex flex-col">
         {/* Refined Background Gradient Orbs - Clipped */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#8b7355]/5 rounded-full blur-[120px] mix-blend-multiply"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#8b7355]/10 rounded-full blur-[100px] mix-blend-multiply"></div>
+          <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#C9A24D]/5 rounded-full blur-[120px] mix-blend-multiply"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#111827]/5 rounded-full blur-[100px] mix-blend-multiply"></div>
         </div>
 
         {/* Scrollable Content Container */}
@@ -327,11 +327,11 @@ export default function RegisterPage() {
         // Step 3: Pricing Selection
         <div className="max-w-5xl w-full">
           <div className="text-center mb-6">
-            <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-3">Choose Your Plan</h2>
-            <p className="text-gray-500 text-base">Start with a 30-day free trial — cancel anytime.</p>
+            <h2 className="text-4xl font-black text-[#0B0B0B] tracking-tight mb-3">Choose Your Plan</h2>
+            <p className="text-[#6B7280] text-base font-medium">Start with a 30-day free trial — cancel anytime.</p>
             <button
               onClick={() => setRegistrationStep('verify')}
-              className="text-sm font-semibold text-[#8b7355] hover:text-[#7a6549] mt-4 transition-colors"
+              className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] mt-4 transition-colors uppercase tracking-widest"
             >
               ← Back to verification
             </button>
@@ -340,20 +340,20 @@ export default function RegisterPage() {
           {/* Pricing Cards */}
           <div className="grid md:grid-cols-2 gap-6 mb-6">
             {/* Basic Plan */}
-            <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] ring-1 ring-gray-50 flex flex-col hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-shadow">
+            <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] flex flex-col hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-shadow">
               <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">{PLANS.BASIC.name}</h3>
+                <h3 className="text-2xl font-bold text-[#0B0B0B] mb-4">{PLANS.BASIC.name}</h3>
                 <div className="flex items-baseline justify-center">
-                  <span className="text-5xl font-extrabold text-gray-900">{PLANS.BASIC.price}</span>
-                  <span className="text-gray-500 ml-2 font-medium">/mo</span>
+                  <span className="text-5xl font-black text-[#0B0B0B] tracking-tight">{PLANS.BASIC.price}</span>
+                  <span className="text-[#6B7280] ml-2 font-bold">/mo</span>
                 </div>
-                <p className="text-sm text-gray-400 mt-2">after 30-day free trial</p>
+                <p className="text-xs font-bold text-[#6B7280] mt-2 uppercase tracking-wide">after 30-day free trial</p>
               </div>
 
               <ul className="space-y-3 mb-8 flex-grow">
                 {PLANS.BASIC.features.map((feature, idx) => (
                   <li key={idx} className="flex items-start text-gray-600 font-medium text-sm">
-                    <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                    <div className="w-5 h-5 bg-green-50 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
                       <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
@@ -369,32 +369,32 @@ export default function RegisterPage() {
                   setAppliedBundleCode(null)
                   setRegistrationStep('payment')
                 }}
-                className="w-full py-3 px-4 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-gray-900/10"
+                className="w-full py-4 px-4 bg-[#111827] text-white rounded-xl font-bold hover:bg-[#C9A24D] transition-all duration-200 hover:-translate-y-0.5 shadow-lg"
               >
                 Select Basic Plan
               </button>
             </div>
 
             {/* Premium Plan */}
-            <div className="bg-gradient-to-br from-[#1a1614] via-[#3a2f25] to-[#6b5840] rounded-3xl p-6 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] flex flex-col transform hover:scale-[1.02] transition-all relative overflow-hidden">
-              <div className="absolute top-6 right-6 bg-[#ffd700] text-[#1a1614] text-xs font-bold px-4 py-1.5 rounded-full shadow-sm">
+            <div className="bg-gradient-to-br from-[#111827] via-[#3a2f25] to-[#6b5840] rounded-3xl p-6 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] flex flex-col transform hover:scale-[1.02] transition-all relative overflow-hidden">
+              <div className="absolute top-6 right-6 bg-[#C9A24D] text-[#111827] text-[10px] font-black px-3 py-1 rounded-full shadow-sm uppercase tracking-wider">
                 POPULAR
               </div>
               
               <div className="text-center mb-6 relative z-10">
                 <h3 className="text-2xl font-bold text-white mb-4">{PLANS.PREMIUM.name}</h3>
                 <div className="flex items-baseline justify-center">
-                  <span className="text-5xl font-extrabold text-white">{PLANS.PREMIUM.price}</span>
-                  <span className="text-gray-300 ml-2 font-medium">/mo</span>
+                  <span className="text-5xl font-black text-white tracking-tight">{PLANS.PREMIUM.price}</span>
+                  <span className="text-[#C9A24D] ml-2 font-bold">/mo</span>
                 </div>
-                <p className="text-sm text-gray-400 mt-2">after 30-day free trial</p>
+                <p className="text-xs font-bold text-gray-400 mt-2 uppercase tracking-wide">after 30-day free trial</p>
               </div>
 
               <ul className="space-y-3 mb-8 flex-grow relative z-10">
                 {PLANS.PREMIUM.features.map((feature, idx) => (
                   <li key={idx} className="flex items-start text-gray-200 font-medium text-sm">
                     <div className="w-5 h-5 bg-white/10 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                      <svg className="w-3 h-3 text-[#ffd700]" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-3 h-3 text-[#C9A24D]" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     </div>
@@ -409,7 +409,7 @@ export default function RegisterPage() {
                   setAppliedBundleCode(null)
                   setRegistrationStep('payment')
                 }}
-                className="w-full py-3 px-4 bg-white text-gray-900 rounded-xl font-bold hover:bg-gray-100 transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-white/10 relative z-10"
+                className="w-full py-4 px-4 bg-white text-[#111827] rounded-xl font-bold hover:bg-[#C9A24D] transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-white/10 relative z-10"
               >
                 Select Premium Plan
               </button>
@@ -418,20 +418,20 @@ export default function RegisterPage() {
 
           {/* Promo Code Section */}
           <div className="max-w-md mx-auto">
-            <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] ring-1 ring-gray-50 text-center">
-              <h4 className="text-xs font-bold text-gray-900 mb-3 tracking-wide uppercase">Have a bundle code?</h4>
+            <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] text-center">
+              <h4 className="text-xs font-bold text-[#6B7280] mb-3 tracking-widest uppercase">Have a bundle code?</h4>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   value={bundleCode}
                   onChange={(e) => setBundleCode(e.target.value.toUpperCase())}
                   placeholder="ENTER CODE"
-                  className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-center font-mono font-bold focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all uppercase text-sm"
+                  className="flex-1 px-3 py-2 bg-[#FAFAF7] border border-gray-200 rounded-xl text-center font-mono font-bold focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all uppercase text-sm placeholder-gray-400 text-[#111827]"
                 />
                 <button
                   onClick={handleVerifyBundleCode}
                   disabled={isVerifyingCode || !bundleCode.trim()}
-                  className="px-6 py-2 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition-all disabled:opacity-50 text-sm"
+                  className="px-6 py-2 bg-[#111827] text-white rounded-xl font-bold hover:bg-[#C9A24D] transition-all disabled:opacity-50 text-sm uppercase tracking-wide"
                 >
                   {isVerifyingCode ? '...' : 'Apply'}
                 </button>
@@ -440,7 +440,7 @@ export default function RegisterPage() {
           </div>
 
           <div className="text-center mt-6">
-            <p className="text-xs font-medium text-gray-400">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
               All plans include a 30-day free trial • No credit card charged today • Cancel anytime
             </p>
           </div>
@@ -450,17 +450,17 @@ export default function RegisterPage() {
         <div className="max-w-[640px] w-full">
           {/* Header */}
           <div className="mb-4 text-center">
-            <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">Create Account</h2>
-            <p className="text-gray-500 text-sm">Start your 30-day free trial today.</p>
+            <h2 className="text-3xl font-black text-[#0B0B0B] tracking-tight mb-2">Create Account</h2>
+            <p className="text-[#6B7280] text-sm font-medium">Start your 30-day free trial today.</p>
           </div>
 
           {/* Registration Form */}
-          <div className="bg-white rounded-3xl p-6 md:p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 ring-1 ring-gray-50">
+          <div className="bg-white rounded-3xl p-6 md:p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100">
             <form onSubmit={handleSubmit} className="space-y-3">
               {/* Name Fields */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="firstName" className="block text-xs font-semibold text-gray-700 mb-1 ml-1">
+                  <label htmlFor="firstName" className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1 ml-1">
                     First name
                   </label>
                   <input
@@ -470,10 +470,10 @@ export default function RegisterPage() {
                     required
                     value={formData.firstName}
                     onChange={handleChange}
-                    className={`block w-full px-3 py-2.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium text-sm ${
+                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
                       fieldErrors.firstName 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                        : 'border-gray-200 hover:bg-gray-50/80'
+                        : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
                     }`}
                     placeholder="John"
                   />
@@ -481,7 +481,7 @@ export default function RegisterPage() {
                 </div>
                 
                 <div>
-                  <label htmlFor="lastName" className="block text-xs font-semibold text-gray-700 mb-1 ml-1">
+                  <label htmlFor="lastName" className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1 ml-1">
                     Last name
                   </label>
                   <input
@@ -491,10 +491,10 @@ export default function RegisterPage() {
                     required
                     value={formData.lastName}
                     onChange={handleChange}
-                    className={`block w-full px-3 py-2.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium text-sm ${
+                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
                       fieldErrors.lastName 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                        : 'border-gray-200 hover:bg-gray-50/80'
+                        : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
                     }`}
                     placeholder="Smith"
                   />
@@ -504,12 +504,12 @@ export default function RegisterPage() {
 
               {/* Email */}
               <div>
-                <label htmlFor="email" className="block text-xs font-semibold text-gray-700 mb-1 ml-1">
+                <label htmlFor="email" className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1 ml-1">
                   Email address
                 </label>
                 <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400 group-focus-within:text-[#8b7355] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                     </svg>
                   </div>
@@ -520,10 +520,10 @@ export default function RegisterPage() {
                     required
                     value={formData.email}
                     onChange={handleChange}
-                    className={`block w-full pl-9 pr-4 py-2.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium text-sm ${
+                    className={`block w-full pl-9 pr-4 py-2.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
                       fieldErrors.email 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                        : 'border-gray-200 hover:bg-gray-50/80'
+                        : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
                     }`}
                     placeholder="john.smith@example.com"
                   />
@@ -534,7 +534,7 @@ export default function RegisterPage() {
               {/* State and Brokerage Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="state" className="block text-xs font-semibold text-gray-700 mb-1 ml-1">
+                  <label htmlFor="state" className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1 ml-1">
                     State
                   </label>
                   <input
@@ -544,10 +544,10 @@ export default function RegisterPage() {
                     required
                     value={formData.state}
                     onChange={handleChange}
-                    className={`block w-full px-3 py-2.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium text-sm ${
+                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
                       fieldErrors.state 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                        : 'border-gray-200 hover:bg-gray-50/80'
+                        : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
                     }`}
                     placeholder="CA"
                   />
@@ -555,7 +555,7 @@ export default function RegisterPage() {
                 </div>
                 
                 <div>
-                  <label htmlFor="brokerage" className="block text-xs font-semibold text-gray-700 mb-1 ml-1">
+                  <label htmlFor="brokerage" className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1 ml-1">
                     Brokerage
                   </label>
                   <input
@@ -565,10 +565,10 @@ export default function RegisterPage() {
                     required
                     value={formData.brokerage}
                     onChange={handleChange}
-                    className={`block w-full px-3 py-2.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium text-sm ${
+                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
                       fieldErrors.brokerage 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                        : 'border-gray-200 hover:bg-gray-50/80'
+                        : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
                     }`}
                     placeholder="Re/Max..."
                   />
@@ -580,12 +580,12 @@ export default function RegisterPage() {
               {/* Password Fields */}
               <div className="grid grid-cols-1 gap-3">
                 <div>
-                  <label htmlFor="password" className="block text-xs font-semibold text-gray-700 mb-1 ml-1">
+                  <label htmlFor="password" className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1 ml-1">
                     Password
                   </label>
                   <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="w-4 h-4 text-gray-400 group-focus-within:text-[#8b7355] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
                     </div>
@@ -596,17 +596,17 @@ export default function RegisterPage() {
                       required
                       value={formData.password}
                       onChange={handleChange}
-                      className={`block w-full pl-9 pr-10 py-2.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium text-sm ${
+                      className={`block w-full pl-9 pr-10 py-2.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
                         fieldErrors.password 
                           ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                          : 'border-gray-200 hover:bg-gray-50/80'
+                          : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
                       }`}
                       placeholder="Strong password"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-[#111827] focus:outline-none transition-colors"
                     >
                       {showPassword ? (
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -624,12 +624,12 @@ export default function RegisterPage() {
                 </div>
                 
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-xs font-semibold text-gray-700 mb-1 ml-1">
+                  <label htmlFor="confirmPassword" className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1 ml-1">
                     Confirm password
                   </label>
                   <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="w-4 h-4 text-gray-400 group-focus-within:text-[#8b7355] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
                     </div>
@@ -640,10 +640,10 @@ export default function RegisterPage() {
                       required
                       value={formData.confirmPassword}
                       onChange={handleChange}
-                      className={`block w-full pl-9 pr-4 py-2.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium text-sm ${
+                      className={`block w-full pl-9 pr-4 py-2.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
                         fieldErrors.confirmPassword 
                           ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                          : 'border-gray-200 hover:bg-gray-50/80'
+                          : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
                       }`}
                       placeholder="Confirm password"
                     />
@@ -670,18 +670,18 @@ export default function RegisterPage() {
                       onChange={handleChange}
                       className="sr-only peer"
                     />
-                    <div className="w-5 h-5 border-2 border-gray-300 rounded peer-checked:bg-[#8b7355] peer-checked:border-[#8b7355] transition-all duration-200"></div>
+                    <div className="w-5 h-5 border-2 border-gray-300 rounded peer-checked:bg-[#111827] peer-checked:border-[#111827] transition-all duration-200"></div>
                     <svg className="absolute top-1 left-1 w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <span className="text-xs text-gray-600 leading-relaxed group-hover:text-gray-900 transition-colors">
+                  <span className="text-xs text-[#6B7280] leading-relaxed group-hover:text-[#111827] transition-colors font-medium">
                     I agree to the{' '}
                     <Link 
                       href="/terms" 
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[#8b7355] font-semibold hover:text-[#6b5840] transition-colors hover:underline underline-offset-4"
+                      className="text-[#C9A24D] font-bold hover:text-[#111827] transition-colors hover:underline underline-offset-4"
                     >
                       Terms
                     </Link>{' '}
@@ -690,7 +690,7 @@ export default function RegisterPage() {
                       href="/privacy" 
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[#8b7355] font-semibold hover:text-[#6b5840] transition-colors hover:underline underline-offset-4"
+                      className="text-[#C9A24D] font-bold hover:text-[#111827] transition-colors hover:underline underline-offset-4"
                     >
                       Privacy Policy
                     </Link>
@@ -702,7 +702,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg shadow-[#8b7355]/20 text-sm font-bold text-white bg-gradient-to-r from-[#8b7355] to-[#6b5840] hover:from-[#7a6549] hover:to-[#5a4835] hover:shadow-[#8b7355]/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#8b7355] transform transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+                className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-xl text-sm font-black uppercase tracking-widest text-white bg-[#111827] hover:bg-[#C9A24D] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111827] transform transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {isLoading ? (
                   <div className="flex items-center">
@@ -718,10 +718,10 @@ export default function RegisterPage() {
               </button>
             </form>
 
-            <div className="mt-4 pt-4 border-t border-gray-100">
+            <div className="mt-4 pt-4 border-t border-gray-50">
               <div className="text-center">
-                <span className="text-sm text-gray-500">Already have an account?</span>
-                <Link href="/login" className="ml-2 font-bold text-[#8b7355] hover:text-[#6b5840] transition-colors hover:underline underline-offset-4">
+                <span className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Already have an account?</span>
+                <Link href="/login" className="ml-2 text-xs font-black text-[#111827] hover:text-[#C9A24D] transition-colors uppercase tracking-widest hover:underline underline-offset-4">
                   Sign in
                 </Link>
               </div>
@@ -729,9 +729,9 @@ export default function RegisterPage() {
           </div>
 
           <div className="mt-4 text-center">
-            <p className="text-xs font-medium text-gray-400 flex items-center justify-center gap-1.5 opacity-80">
+            <p className="text-[10px] font-black text-[#6B7280] uppercase tracking-widest flex items-center justify-center gap-1.5 opacity-60">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
               Protected by industry-standard encryption
             </p>
@@ -742,29 +742,29 @@ export default function RegisterPage() {
         <PayPalScriptProvider options={paypalOptions}>
           <div className="max-w-[640px] w-full space-y-4">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Complete Payment Setup</h2>
-              <p className="text-gray-600 text-sm">You selected: <span className="font-semibold text-[#8b7355]">{selectedPlan?.name} - {appliedBundleCode ? '$99.95' : selectedPlan?.price}/month after trial</span></p>
-              <div className="flex gap-4 justify-center mt-2">
+              <h2 className="text-2xl font-black text-[#0B0B0B] mb-2 tracking-tight">Complete Payment Setup</h2>
+              <p className="text-[#6B7280] text-sm font-medium">You selected: <span className="font-bold text-[#C9A24D]">{selectedPlan?.name} - {appliedBundleCode ? '$99.95' : selectedPlan?.price}/month after trial</span></p>
+              <div className="flex gap-4 justify-center mt-4">
                 <button
                   onClick={() => setRegistrationStep('pricing')}
-                  className="text-xs text-[#8b7355] hover:text-[#7a6549]"
+                  className="text-[10px] font-bold text-[#C9A24D] hover:text-[#111827] uppercase tracking-wider"
                 >
                   ← Back to plans
                 </button>
-                <span className="text-gray-400 text-xs">|</span>
+                <span className="text-gray-300 text-xs">|</span>
                 <button
                   onClick={() => setRegistrationStep('form')}
-                  className="text-xs text-[#8b7355] hover:text-[#7a6549]"
+                  className="text-[10px] font-bold text-[#C9A24D] hover:text-[#111827] uppercase tracking-wider"
                 >
                   ← Back to signup
                 </button>
               </div>
             </div>
 
-            <div className="bg-[#f5f4f2]/90 rounded-2xl p-6 border border-gray-200/60 backdrop-blur-sm shadow-xl">
-              <div className="mb-4 bg-white rounded-xl p-4 border border-gray-200">
-                <h3 className="text-base font-semibold mb-3 text-gray-900">{selectedPlan?.name} Features</h3>
-                <ul className="space-y-2 text-gray-700 mb-3 text-sm">
+            <div className="bg-[#FAFAF7] rounded-2xl p-6 border border-gray-200/60 backdrop-blur-sm shadow-xl">
+              <div className="mb-4 bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                <h3 className="text-base font-black mb-3 text-[#0B0B0B]">{selectedPlan?.name} Features</h3>
+                <ul className="space-y-2 text-[#6B7280] mb-3 text-sm font-medium">
                   {selectedPlan?.features.map((feature, idx) => (
                     <li key={idx} className="flex items-center">
                       <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -774,14 +774,14 @@ export default function RegisterPage() {
                     </li>
                   ))}
                 </ul>
-                <div className="border-t border-gray-200 pt-3 mt-3">
-                  <div className="flex justify-between items-center mb-1 text-sm">
-                    <span className="text-gray-600">{appliedBundleCode ? '1-year free trial' : '30-day free trial'}</span>
-                    <span className="font-semibold text-green-600">$0.00</span>
+                <div className="border-t border-gray-100 pt-3 mt-3">
+                  <div className="flex justify-between items-center mb-1 text-sm font-medium">
+                    <span className="text-[#6B7280]">{appliedBundleCode ? '1-year free trial' : '30-day free trial'}</span>
+                    <span className="font-bold text-green-600">$0.00</span>
                   </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">After trial</span>
-                    <span className="font-semibold text-gray-900">{appliedBundleCode ? '$99.95' : selectedPlan?.price}/month</span>
+                  <div className="flex justify-between items-center text-sm font-medium">
+                    <span className="text-[#6B7280]">After trial</span>
+                    <span className="font-black text-[#0B0B0B]">{appliedBundleCode ? '$99.95' : selectedPlan?.price}/month</span>
                   </div>
                 </div>
               </div>
@@ -806,10 +806,10 @@ export default function RegisterPage() {
                 }}
               />
 
-              <p className="text-xs text-gray-500 text-center mt-4">
+              <p className="text-[10px] font-bold text-gray-400 text-center mt-4 uppercase tracking-wider">
                 You will not be charged until your {appliedBundleCode ? '1-year' : '30-day'} trial ends
               </p>
-              <p className="text-xs text-gray-500 text-center mt-1">
+              <p className="text-[10px] font-bold text-gray-400 text-center mt-1 uppercase tracking-wider">
                 Secured with PayPal's buyer protection • Cancel anytime
               </p>
             </div>

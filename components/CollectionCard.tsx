@@ -81,44 +81,44 @@ export default function CollectionCard({
                 </div>
               </div>
     
-              <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                {onEditPreferences && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onEditPreferences(collection)
-                    }}
-                    className="p-2 text-gray-400 hover:text-[#C9A24D] hover:bg-[#FAFAF7] rounded-xl transition-all"
-                    title="Edit preferences"
-                  >
-                    <Edit3 size={16} />
-                  </button>
-                )}
-                {onShare && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onShare(collection)
-                    }}
-                    className="p-2 text-gray-400 hover:text-[#111827] hover:bg-[#FAFAF7] rounded-xl transition-all"
-                    title="Share collection"
-                  >
-                    <Share2 size={16} />
-                  </button>
-                )}
-                {onDelete && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onDelete(collection)
-                    }}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                    title="Delete collection"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
-              </div>
+          <div className="flex items-center space-x-1">
+            {onEditPreferences && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEditPreferences(collection)
+                }}
+                className="p-2 text-gray-400 hover:text-[#C9A24D] hover:bg-[#FAFAF7] rounded-xl transition-all"
+                title="Edit preferences"
+              >
+                <Edit3 size={16} />
+              </button>
+            )}
+            {onShare && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onShare(collection)
+                }}
+                className="p-2 text-gray-400 hover:text-[#111827] hover:bg-[#FAFAF7] rounded-xl transition-all"
+                title="Share collection"
+              >
+                <Share2 size={16} />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete(collection)
+                }}
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                title="Delete collection"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+          </div>
             </div>
     
             {/* Status and Activity Row */}

@@ -76,10 +76,10 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f7] relative flex items-center justify-center px-6 py-12 overflow-hidden">
+    <div className="min-h-screen bg-[#FAFAF7] relative flex items-center justify-center px-6 py-12 overflow-hidden">
       {/* Refined Background Gradient Orbs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#8b7355]/5 rounded-full blur-[120px] pointer-events-none mix-blend-multiply"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#8b7355]/10 rounded-full blur-[100px] pointer-events-none mix-blend-multiply"></div>
+      <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#C9A24D]/5 rounded-full blur-[120px] pointer-events-none mix-blend-multiply"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#111827]/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply"></div>
 
       {/* Notification Toast */}
       {notification.type && (
@@ -126,13 +126,13 @@ export default function ForgotPasswordPage() {
       <div className="max-w-[480px] w-full relative z-10">
         {/* Header */}
         <div className="mb-10 text-center">
-          <Link href="/login" className="inline-flex items-center justify-center w-12 h-12 bg-white rounded-xl shadow-md mb-6 hover:scale-105 transition-transform">
-            <svg className="w-6 h-6 text-[#8b7355]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <Link href="/login" className="inline-flex items-center justify-center w-12 h-12 bg-white rounded-xl shadow-md mb-6 hover:scale-105 transition-transform group">
+            <svg className="w-6 h-6 text-[#6B7280] group-hover:text-[#111827] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </Link>
-          <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-3">Forgot password?</h2>
-          <p className="text-gray-500 text-base max-w-sm mx-auto">
+          <h2 className="text-4xl font-black text-[#0B0B0B] tracking-tight mb-3">Forgot password?</h2>
+          <p className="text-[#6B7280] text-base font-medium max-w-sm mx-auto">
             {emailSent
               ? 'Check your email for instructions to reset your password.'
               : "No worries, we'll send you reset instructions."
@@ -141,7 +141,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-3xl p-8 md:p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 ring-1 ring-gray-50">
+        <div className="bg-white rounded-3xl p-8 md:p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100">
           {emailSent ? (
             // Success State
             <div className="space-y-8 animate-fadeIn">
@@ -154,10 +154,10 @@ export default function ForgotPasswordPage() {
               </div>
               
               <div className="text-center space-y-4">
-                <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                  <p className="text-gray-900 font-medium">{email}</p>
+                <div className="bg-[#FAFAF7] rounded-xl p-4 border border-gray-100">
+                  <p className="text-[#111827] font-bold">{email}</p>
                 </div>
-                <p className="text-sm text-gray-500 leading-relaxed">
+                <p className="text-sm text-[#6B7280] leading-relaxed font-medium">
                   If an account exists, we've sent an email with instructions to reset your password.
                 </p>
               </div>
@@ -165,7 +165,7 @@ export default function ForgotPasswordPage() {
               <div className="space-y-3 pt-2">
                 <button
                   onClick={() => window.open('https://gmail.com', '_blank')}
-                  className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-lg shadow-[#8b7355]/20 text-sm font-bold text-white bg-gradient-to-r from-[#8b7355] to-[#6b5840] hover:from-[#7a6549] hover:to-[#5a4835] hover:shadow-[#8b7355]/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#8b7355] transform transition-all duration-200 hover:-translate-y-0.5"
+                  className="w-full flex justify-center py-4 px-4 rounded-xl shadow-lg text-sm font-black uppercase tracking-widest text-white bg-[#111827] hover:bg-[#C9A24D] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111827] transform transition-all duration-300 hover:scale-[1.02]"
                 >
                   Open Email App
                 </button>
@@ -175,7 +175,7 @@ export default function ForgotPasswordPage() {
                     setEmailSent(false)
                     setEmail('')
                   }}
-                  className="w-full py-4 px-4 bg-white text-gray-500 rounded-xl font-bold hover:text-gray-900 hover:bg-gray-50 transition-all text-sm"
+                  className="w-full py-4 px-4 bg-white text-[#6B7280] rounded-xl font-bold hover:text-[#111827] hover:bg-gray-50 transition-all text-sm uppercase tracking-wide border border-gray-200"
                 >
                   Try another email
                 </button>
@@ -185,12 +185,12 @@ export default function ForgotPasswordPage() {
             // Form State
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
+                <label htmlFor="email" className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                   Email address
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <svg className="w-5 h-5 text-gray-400 group-focus-within:text-[#8b7355] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-gray-400 group-focus-within:text-[#C9A24D] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                     </svg>
                   </div>
@@ -201,10 +201,10 @@ export default function ForgotPasswordPage() {
                     required
                     value={email}
                     onChange={handleChange}
-                    className={`block w-full pl-11 pr-4 py-3.5 bg-gray-50 border focus:bg-white rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#8b7355]/10 focus:border-[#8b7355] transition-all duration-200 font-medium ${
+                    className={`block w-full pl-11 pr-4 py-3.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium ${
                       fieldError 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                        : 'border-gray-200 hover:bg-gray-50/80'
+                        : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
                     }`}
                     placeholder="Enter your email"
                   />
@@ -222,7 +222,7 @@ export default function ForgotPasswordPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-lg shadow-[#8b7355]/20 text-sm font-bold text-white bg-gradient-to-r from-[#8b7355] to-[#6b5840] hover:from-[#7a6549] hover:to-[#5a4835] hover:shadow-[#8b7355]/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#8b7355] transform transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+                className="w-full flex justify-center py-4 px-4 rounded-xl shadow-lg text-sm font-black uppercase tracking-widest text-white bg-[#111827] hover:bg-[#C9A24D] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111827] transform transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <div className="flex items-center">
@@ -238,7 +238,7 @@ export default function ForgotPasswordPage() {
               </button>
 
               <div className="text-center pt-2">
-                <Link href="/login" className="text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors">
+                <Link href="/login" className="text-xs font-bold text-[#6B7280] hover:text-[#111827] transition-colors uppercase tracking-wider">
                   ← Back to login
                 </Link>
               </div>
@@ -248,9 +248,9 @@ export default function ForgotPasswordPage() {
 
         {/* Security Notice */}
         <div className="mt-8 text-center">
-          <p className="text-xs font-medium text-gray-400 flex items-center justify-center gap-1.5 opacity-80">
+          <p className="text-[10px] font-black text-[#6B7280] uppercase tracking-widest flex items-center justify-center gap-1.5 opacity-60">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
             Protected by industry-standard encryption
           </p>

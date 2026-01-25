@@ -654,18 +654,18 @@ export default function CustomerShowcasePage() {
 
   return (
     <div className="min-h-screen bg-[#FAFAF7] flex flex-col">
-      <div className="flex-1 p-6 sm:p-8">
+      <div className="flex-1 p-4 sm:p-6">
         <div className="max-w-7xl mx-auto">
           {/* Customer Header */}
-          <div className="bg-white/50 backdrop-blur-sm rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 p-6 sm:p-8 mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div className="bg-white/50 backdrop-blur-sm rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 p-4 sm:p-6 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <div>
-                <h1 className="text-3xl sm:text-4xl font-black text-[#0B0B0B] mb-2 tracking-tight">{showcase.customer.firstName} {showcase.customer.lastName}'s Showcase</h1>
-                <p className="text-[#6B7280] text-lg font-light">Curated property recommendations</p>
+                <h1 className="text-xl sm:text-2xl font-black text-[#0B0B0B] mb-1 tracking-tight">{showcase.customer.firstName} {showcase.customer.lastName}'s Showcase</h1>
+                <p className="text-[#6B7280] text-sm font-light">Curated property recommendations</p>
               </div>
               
               <div className="flex items-center space-x-4">
-                <span className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold border uppercase tracking-wider ${
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider ${
                   showcase.status === 'ACTIVE' 
                     ? 'bg-green-50 text-green-700 border-green-100'
                     : 'bg-gray-50 text-[#6B7280] border-gray-200'
@@ -677,7 +677,7 @@ export default function CustomerShowcasePage() {
             </div>
             
             {/* Property Status Tabs */}
-            <div className="flex flex-wrap gap-3 mb-8">
+            <div className="flex flex-wrap gap-2 mb-4">
               {[
                 { key: 'all', label: 'All Properties', count: tabCounts.all },
                 { key: 'liked', label: 'Liked', count: tabCounts.liked },
@@ -686,7 +686,7 @@ export default function CustomerShowcasePage() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key as any)}
-                  className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center space-x-2 border ${
+                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center space-x-2 border ${
                     activeTab === tab.key
                       ? 'bg-[#111827] text-white border-[#111827] shadow-md'
                       : 'bg-white text-[#6B7280] hover:bg-gray-50 border-gray-200 hover:border-gray-300'
@@ -705,7 +705,7 @@ export default function CustomerShowcasePage() {
             </div>
 
             {/* Sorting Controls */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t border-gray-100">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-100">
               <div className="group">
                 <label className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1.5">Sort by</label>
                 <div className="relative">

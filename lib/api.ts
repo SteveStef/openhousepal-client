@@ -160,6 +160,20 @@ class ApiClient {
     return this.request(`/api/open-houses/${openHouseId}/visitors`)
   }
 
+  async updateVisitorNote(visitorId: string, notes: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request(`/api/visitors/${visitorId}/note`, {
+      method: 'PUT',
+      body: JSON.stringify({ notes }),
+    })
+  }
+
+  async updateOpenHouseNote(openHouseId: string, notes: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request(`/api/open-houses/${openHouseId}/note`, {
+      method: 'PUT',
+      body: JSON.stringify({ notes }),
+    })
+  }
+
   // Analytics endpoints
   async trackPropertyView(propertyId: number, customerId?: number): Promise<ApiResponse<void>> {
     return this.request('/analytics/property-view', {
@@ -244,6 +258,8 @@ export const analyticsApi = {
 
 export const openHouseApi = {
   getVisitors: (openHouseId: string) => api.getOpenHouseVisitors(openHouseId),
+  updateVisitorNote: (visitorId: string, notes: string) => api.updateVisitorNote(visitorId, notes),
+  updateOpenHouseNote: (openHouseId: string, notes: string) => api.updateOpenHouseNote(openHouseId, notes),
 }
 
 // Notification transformation helper

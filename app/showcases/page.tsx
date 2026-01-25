@@ -1222,14 +1222,14 @@ export default function ShowcasesPage() {
     return (
       <div className="min-h-screen bg-[#FAFAF7] flex flex-col">
         <Header />
-        <div className="flex-1 p-6 pb-20 sm:p-8 sm:pb-32">
+        <div className="flex-1 p-4 pb-20 sm:p-6 sm:pb-32">
           <div className="max-w-7xl mx-auto">
           {/* Back Button */}
           <button
             onClick={() => {
               router.push('/showcases', { scroll: false })
             }}
-            className="group mb-8 flex items-center text-gray-500 hover:text-gray-900 transition-colors duration-200 font-medium"
+            className="group mb-6 flex items-center text-gray-500 hover:text-gray-900 transition-colors duration-200 font-medium"
           >
             <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center mr-3 group-hover:border-gray-300 group-hover:shadow-sm transition-all">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1240,17 +1240,17 @@ export default function ShowcasesPage() {
           </button>
 
           {/* Combined Property Recommendations and Status Section */}
-          <div className="bg-white/50 backdrop-blur-sm rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 p-6 sm:p-8 mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-8">
+          <div className="bg-white/50 backdrop-blur-sm rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 p-4 sm:p-6 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mb-2">Property Recommendations</h1>
-                <p className="text-gray-500 font-light">Curated properties based on client preferences</p>
+                <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight mb-1">Property Recommendations</h1>
+                <p className="text-sm text-gray-500 font-light">Curated properties based on client preferences</p>
               </div>
 
               <div className="flex items-center gap-3 sm:gap-4">
                 <button
                   onClick={handleViewTours}
-                  className="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-br from-[#1a1614] via-[#3a2f25] to-[#8b7355] shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 whitespace-nowrap group"
+                  className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold text-white bg-gradient-to-br from-[#1a1614] via-[#3a2f25] to-[#8b7355] shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 whitespace-nowrap group"
                   title="View tour requests for this collection"
                 >
                   <Calendar size={16} className="mr-2 group-hover:scale-110 transition-transform" />
@@ -1259,7 +1259,7 @@ export default function ShowcasesPage() {
                 </button>
                 <button
                   onClick={() => handleStatusToggle(selectedCollection.id)}
-                  className={`inline-flex items-center px-4 py-2.5 rounded-xl text-xs font-bold border transition-all duration-300 hover:shadow-md whitespace-nowrap uppercase tracking-wide ${
+                  className={`inline-flex items-center px-3 py-2 rounded-xl text-xs font-bold border transition-all duration-300 hover:shadow-md whitespace-nowrap uppercase tracking-wide ${
                     selectedCollection.status === 'ACTIVE'
                       ? 'bg-green-50 text-green-700 border-green-100 hover:bg-green-100'
                       : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
@@ -1275,7 +1275,7 @@ export default function ShowcasesPage() {
             </div>
             
             {/* Property Status Tabs */}
-            <div className="flex flex-wrap gap-2 mb-6">
+            <div className="flex flex-wrap gap-2 mb-4">
               {[
                 { key: 'all', label: 'All Properties', count: tabCounts.all },
                 { key: 'liked', label: 'Liked', count: tabCounts.liked },
@@ -1284,7 +1284,7 @@ export default function ShowcasesPage() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key as any)}
-                  className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all duration-300 flex items-center space-x-2 border ${
+                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center space-x-2 border ${
                     activeTab === tab.key
                       ? 'bg-[#1a1614] text-white border-[#1a1614] shadow-md'
                       : 'bg-white text-gray-600 hover:bg-gray-50 border-gray-200 hover:border-gray-300'
@@ -1303,7 +1303,7 @@ export default function ShowcasesPage() {
             </div>
 
             {/* Sorting Controls */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t border-gray-100">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-100">
               <div className="group">
                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Sort by</label>
                 <div className="relative">
@@ -1422,65 +1422,58 @@ export default function ShowcasesPage() {
       <div className="flex-1 p-6 pb-20 sm:pb-32">
         <div className="max-w-7xl mx-auto">
         {/* Combined Header and Filters */}
-        <div className="bg-white/50 backdrop-blur-sm rounded-2xl border border-gray-100 p-6 sm:p-8 mb-8">
+        <div className="bg-white/50 backdrop-blur-sm rounded-2xl border border-gray-100 p-4 sm:p-6 mb-8">
           {/* Header Section */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-4">
             <div className="flex-1 mb-4 lg:mb-0">
-              <h1 className="text-3xl sm:text-4xl font-black text-[#0B0B0B] tracking-tight mb-2">Showcases</h1>
-              <p className="text-[#6B7280] font-light text-lg">Manage customer property showcases and preferences</p>
+              <h1 className="text-2xl sm:text-3xl font-black text-[#0B0B0B] tracking-tight">Showcases</h1>
+              <p className="text-[#6B7280] font-medium text-sm">Manage customer property showcases and preferences</p>
             </div>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
               <button
                 onClick={() => setIsCreateModalOpen(true)}
                 disabled={isAtLimit}
-                className={`px-6 py-3 rounded-xl text-sm font-black transition-all duration-300 flex items-center space-x-2 shadow-xl hover:shadow-[0_0_20px_rgba(201,162,77,0.3)] hover:scale-[1.03] transform border-2 ${
+                className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-[0_0_20px_rgba(201,162,77,0.2)] hover:scale-[1.02] transform border-2 ${
                   isAtLimit
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none border-transparent'
                     : 'bg-[#111827] text-white border-[#C9A24D]/20 hover:border-[#C9A24D] hover:bg-[#1a2333]'
                 }`}
                 title={isAtLimit ? 'Maximum 10 active showcases reached' : 'Create a new showcase'}
               >
-                <svg className={`w-4 h-4 ${isAtLimit ? 'text-gray-500' : 'text-[#C9A24D]'} transition-colors duration-300`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`w-3.5 h-3.5 ${isAtLimit ? 'text-gray-500' : 'text-[#C9A24D]'} transition-colors duration-300`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
-                <span className="tracking-wide">Create Showcase</span>
+                <span className="tracking-widest uppercase">Create Showcase</span>
               </button>
 
               {/* Active Showcases Counter */}
-              <div className={`flex items-center space-x-2 px-4 py-2 rounded-full border ${
+              <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border ${
                 isAtLimit
                   ? 'bg-red-50 border-red-100 text-red-700'
                   : isNearLimit
                   ? 'bg-amber-50 border-amber-100 text-amber-700'
                   : 'bg-white border-gray-200 text-[#111827] shadow-sm'
               }`}>
-                <div className={`w-2.5 h-2.5 rounded-full ${
+                <div className={`w-2 h-2 rounded-full ${
                   isAtLimit
                     ? 'bg-red-500 animate-pulse'
                     : isNearLimit
                     ? 'bg-amber-500'
                     : 'bg-green-500'
                 }`}></div>
-                <span className="text-sm font-bold">
-                  {activeShowcasesCount}/{maxActiveShowcases} <span className="font-normal text-[#6B7280] ml-1">Active</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">
+                  {activeShowcasesCount}/{maxActiveShowcases} <span className="font-bold text-[#6B7280] ml-0.5">Active</span>
                 </span>
-              </div>
-
-              <div className="flex items-center space-x-3 text-[#6B7280] hover:text-[#111827] transition-colors cursor-pointer group">
-                <div className="w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm group-hover:border-[#C9A24D] group-hover:text-[#C9A24D] transition-all">
-                  <Share2 className="w-4 h-4" />
-                </div>
-                <span className="text-sm font-medium hidden sm:inline">Share</span>
               </div>
             </div>
           </div>
           
           {/* Filters Section */}
-          <div className="border-t border-gray-100 pt-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-[#0B0B0B] uppercase tracking-wider">Filter Showcases</h3>
+          <div className="border-t border-gray-100 pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[10px] font-black text-[#0B0B0B] uppercase tracking-[0.2em]">Filter Showcases</h3>
               <div className="flex items-center space-x-4">
-                <span className="text-xs font-medium text-[#6B7280]">
+                <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">
                   {filteredCollections.length} results
                 </span>
                 {isAtLimit && (
@@ -1490,33 +1483,33 @@ export default function ShowcasesPage() {
                 )}
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1 relative group">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#6B7280] group-focus-within:text-[#C9A24D] transition-colors">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
               <input
                 type="text"
-                placeholder="Search customers by name or email..."
+                placeholder="Search customers..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/20 focus:border-[#C9A24D] transition-all duration-300 text-sm shadow-sm"
+                className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/5 focus:border-[#C9A24D] transition-all duration-300 text-sm shadow-sm"
               />
             </div>
-            <div className="sm:w-56 relative">
+            <div className="sm:w-48 relative">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-[#0B0B0B] focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/20 focus:border-[#C9A24D] transition-all duration-300 text-sm shadow-sm appearance-none font-medium cursor-pointer"
+                className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-[#0B0B0B] focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/5 focus:border-[#C9A24D] transition-all duration-300 text-sm shadow-sm appearance-none font-bold cursor-pointer"
               >
                 <option value="ALL">All Status</option>
                 <option value="ACTIVE">Active</option>
                 <option value="INACTIVE">Inactive</option>
               </select>
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[#6B7280]">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
@@ -1845,19 +1838,19 @@ function CreateCollectionModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-100">
-        <div className="p-8 border-b border-gray-100 bg-white sticky top-0 z-10">
+    <div className="fixed inset-0 bg-[#111827]/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+      <div className="bg-white rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-gray-100 max-w-4xl w-full max-h-[90vh] overflow-y-auto transform transition-all">
+        <div className="p-8 border-b border-gray-100 sticky top-0 bg-white/95 backdrop-blur-md z-10">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-2xl font-black text-gray-900 tracking-tight">Create New Showcase</h3>
-              <p className="text-gray-500 text-sm mt-1">Create a personalized property collection for your client.</p>
+              <h3 className="text-2xl font-black text-[#0B0B0B] tracking-tight">Create New Showcase</h3>
+              <p className="text-sm font-medium text-[#6B7280] mt-1">Create a personalized property collection for your client.</p>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 p-2 rounded-full transition-all duration-200"
+              className="group p-2 rounded-full hover:bg-gray-100 transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 text-gray-400 group-hover:text-[#111827] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -1865,17 +1858,17 @@ function CreateCollectionModal({
 
           {/* Limit Warning */}
           {isNearLimit && (
-            <div className={`mt-3 p-3 rounded-lg flex items-center ${
+            <div className={`mt-6 p-4 rounded-xl flex items-center ${
               activeShowcasesCount >= maxActiveShowcases
-                ? 'bg-red-50 border border-red-200'
-                : 'bg-amber-50 border border-amber-200'
+                ? 'bg-red-50 border border-red-100'
+                : 'bg-amber-50 border border-amber-100'
             }`}>
-              <svg className={`w-5 h-5 mr-2 flex-shrink-0 ${
+              <svg className={`w-5 h-5 mr-3 flex-shrink-0 ${
                 activeShowcasesCount >= maxActiveShowcases ? 'text-red-500' : 'text-amber-500'
               }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p className={`text-sm ${
+              <p className={`text-sm font-bold ${
                 activeShowcasesCount >= maxActiveShowcases ? 'text-red-700' : 'text-amber-700'
               }`}>
                 {activeShowcasesCount >= maxActiveShowcases
@@ -1887,13 +1880,17 @@ function CreateCollectionModal({
           )}
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-8 space-y-10">
           {/* Basic Information */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-medium text-gray-900">Basic Information</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-6">
+            <div className="flex items-center space-x-3 pb-2 border-b border-gray-100">
+              <div className="w-1 h-6 bg-[#C9A24D] rounded-full"></div>
+              <h4 className="text-lg font-black text-[#0B0B0B] tracking-tight uppercase">Basic Information</h4>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                   Showcase Name *
                 </label>
                 <input
@@ -1901,12 +1898,12 @@ function CreateCollectionModal({
                   required
                   value={formData.showcaseName}
                   onChange={(e) => handleInputChange('showcaseName', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
                   placeholder="e.g., West Chester Family Showcase"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                   Full Name *
                 </label>
                 <input
@@ -1914,15 +1911,15 @@ function CreateCollectionModal({
                   required
                   value={formData.fullName}
                   onChange={(e) => handleInputChange('fullName', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
                   placeholder="Customer's full name"
                 />
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                   Email *
                 </label>
                 <input
@@ -1930,19 +1927,19 @@ function CreateCollectionModal({
                   required
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
                   placeholder="customer@email.com"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                   Phone
                 </label>
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => handleInputChange('phone', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
                   placeholder="(555) 123-4567"
                 />
               </div>
@@ -1950,45 +1947,63 @@ function CreateCollectionModal({
           </div>
 
           {/* Preferences */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-medium text-gray-900">Customer Preferences</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-6">
+            <div className="flex items-center space-x-3 pb-2 border-b border-gray-100">
+              <div className="w-1 h-6 bg-[#C9A24D] rounded-full"></div>
+              <h4 className="text-lg font-black text-[#0B0B0B] tracking-tight uppercase">Customer Preferences</h4>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                   Why are they visiting? *
                 </label>
-                <select
-                  value={formData.visitingReason}
-                  onChange={(e) => handleInputChange('visitingReason', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
-                  required
-                >
-                  <option value="BUYING_SOON">Looking to buy soon</option>
-                  <option value="BROWSING">Just browsing</option>
-                  <option value="NEIGHBORHOOD">Interested in area</option>
-                  <option value="INVESTMENT">Investment opportunity</option>
-                  <option value="CURIOUS">Curious about property</option>
-                  <option value="OTHER">Other</option>
-                </select>
+                <div className="relative">
+                  <select
+                    value={formData.visitingReason}
+                    onChange={(e) => handleInputChange('visitingReason', e.target.value)}
+                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30 appearance-none cursor-pointer"
+                    required
+                  >
+                    <option value="BUYING_SOON">Looking to buy soon</option>
+                    <option value="BROWSING">Just browsing</option>
+                    <option value="NEIGHBORHOOD">Interested in area</option>
+                    <option value="INVESTMENT">Investment opportunity</option>
+                    <option value="CURIOUS">Curious about property</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-gray-400">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                   Do they have a real estate agent? *
                 </label>
-                <select
-                  value={formData.hasAgent}
-                  onChange={(e) => handleInputChange('hasAgent', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
-                  required
-                >
-                  <option value="YES">Yes, they have an agent</option>
-                  <option value="NO">No, they don't have an agent</option>
-                  <option value="LOOKING">They're looking for an agent</option>
-                </select>
+                <div className="relative">
+                  <select
+                    value={formData.hasAgent}
+                    onChange={(e) => handleInputChange('hasAgent', e.target.value)}
+                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30 appearance-none cursor-pointer"
+                    required
+                  >
+                    <option value="YES">Yes, they have an agent</option>
+                    <option value="NO">No, they don't have an agent</option>
+                    <option value="LOOKING">They're looking for an agent</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-gray-400">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
             <div>
-              <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+              <label className="flex items-center text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                 Special features they're looking for
                 <span 
                   className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-100 text-gray-500 text-[10px] font-bold cursor-help border border-gray-200"
@@ -2001,20 +2016,24 @@ function CreateCollectionModal({
                 value={formData.additionalComments}
                 onChange={(e) => handleInputChange('additionalComments', e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
                 placeholder="pool, garage, modern kitchen..."
               />
             </div>
           </div>
 
           {/* Property Search Preferences */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-medium text-gray-900">Property Search Criteria</h4>
-            <div className="grid grid-cols-1 gap-4">
+          <div className="space-y-6">
+            <div className="flex items-center space-x-3 pb-2 border-b border-gray-100">
+              <div className="w-1 h-6 bg-[#C9A24D] rounded-full"></div>
+              <h4 className="text-lg font-black text-[#0B0B0B] tracking-tight uppercase">Property Search Criteria</h4>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-6">
               {/* Beds and Baths */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                     Min Beds
                   </label>
                   <input
@@ -2022,12 +2041,12 @@ function CreateCollectionModal({
                     min="0"
                     value={formData.minBeds}
                     onChange={(e) => handleInputChange('minBeds', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
                     placeholder="0"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                     Max Beds
                   </label>
                   <input
@@ -2035,12 +2054,12 @@ function CreateCollectionModal({
                     min="0"
                     value={formData.maxBeds}
                     onChange={(e) => handleInputChange('maxBeds', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
                     placeholder="Any"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                     Min Baths
                   </label>
                   <input
@@ -2049,12 +2068,12 @@ function CreateCollectionModal({
                     step="0.5"
                     value={formData.minBaths}
                     onChange={(e) => handleInputChange('minBaths', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
                     placeholder="0"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                     Max Baths
                   </label>
                   <input
@@ -2063,16 +2082,16 @@ function CreateCollectionModal({
                     step="0.5"
                     value={formData.maxBaths}
                     onChange={(e) => handleInputChange('maxBaths', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
                     placeholder="Any"
                   />
                 </div>
               </div>
 
               {/* Price Range */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                     Min Price ($)
                   </label>
                   <input
@@ -2084,12 +2103,12 @@ function CreateCollectionModal({
                         handleInputChange('minPrice', rawValue)
                       }
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
                     placeholder="0"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                     Max Price ($)
                   </label>
                   <input
@@ -2101,16 +2120,16 @@ function CreateCollectionModal({
                         handleInputChange('maxPrice', rawValue)
                       }
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
                     placeholder="No limit"
                   />
                 </div>
               </div>
 
               {/* Year Built Range */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                     Min Year Built
                   </label>
                   <input
@@ -2119,12 +2138,12 @@ function CreateCollectionModal({
                     max="2100"
                     value={formData.minYearBuilt}
                     onChange={(e) => handleInputChange('minYearBuilt', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
                     placeholder="Any"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                     Max Year Built
                   </label>
                   <input
@@ -2133,26 +2152,33 @@ function CreateCollectionModal({
                     max="2100"
                     value={formData.maxYearBuilt}
                     onChange={(e) => handleInputChange('maxYearBuilt', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355]"
+                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
                     placeholder="Any"
                   />
                 </div>
               </div>
 
               {/* Location */}
-              <div className="space-y-4">
-                <p className="text-sm text-gray-600 mb-4">
-                  Choose either address-based search OR city/township filtering (not both)
+              <div className="space-y-6">
+                <div className="flex items-center space-x-3 pb-2 border-b border-gray-100">
+                  <div className="w-1 h-6 bg-[#C9A24D] rounded-full"></div>
+                  <h4 className="text-lg font-black text-[#0B0B0B] tracking-tight uppercase">Location Preferences</h4>
+                </div>
+                
+                <p className="text-sm font-medium text-[#6B7280] mb-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <span className="font-bold text-[#111827]">Note:</span> Choose either address-based search OR city/township filtering (not both).
                 </p>
                 
                 {/* Address-Based Search */}
-                <div className={`p-4 rounded-lg border-2 ${isUsingAddressSearch() ? 'border-[#8b7355] bg-[#8b7355]/5' : 'border-gray-200 bg-gray-50/50'}`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <h5 className="text-md font-medium text-gray-800 flex items-center">
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
+                <div className={`p-6 rounded-2xl border transition-all duration-300 ${isUsingAddressSearch() ? 'border-[#C9A24D] bg-[#FAFAF7] shadow-md' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+                  <div className="flex items-center justify-between mb-6">
+                    <h5 className={`text-md font-black uppercase tracking-wide flex items-center ${isUsingAddressSearch() ? 'text-[#111827]' : 'text-gray-500'}`}>
+                      <div className={`p-2 rounded-full mr-3 ${isUsingAddressSearch() ? 'bg-[#C9A24D] text-white' : 'bg-gray-100 text-gray-400'}`}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </div>
                       Address-Based Search
                     </h5>
                     {formData.address && (
@@ -2162,33 +2188,33 @@ function CreateCollectionModal({
                           handleInputChange('address', '')
                           handleInputChange('diameter', '0')
                         }}
-                        className="text-xs text-[#8b7355] hover:text-[#7a6549] font-medium transition-colors"
+                        className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] uppercase tracking-widest transition-colors py-2 px-3 hover:bg-[#C9A24D]/10 rounded-lg"
                       >
                         Clear
                       </button>
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                         Address
                       </label>
                       <GooglePlacesAutocomplete
                         value={formData.address}
                         onChange={(address) => handleInputChange('address', address)}
                         disabled={isUsingAreaSearch()}
-                        className={`${
+                        className={`block w-full px-4 py-3.5 border rounded-xl placeholder-gray-400 focus:outline-none focus:ring-4 transition-all duration-200 font-medium ${
                           isUsingAreaSearch() 
-                            ? 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed' 
-                            : 'border-gray-300'
+                            ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed' 
+                            : 'bg-white border-gray-200 text-[#0B0B0B] focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] hover:border-[#C9A24D]/30'
                         }`}
                         placeholder={isUsingAreaSearch() ? 'Disabled - using city/township search' : '123 Main Street, City, State'}
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                         Search Radius (miles) {formData.address ? '*' : ''}
                       </label>
                       <input
@@ -2199,27 +2225,29 @@ function CreateCollectionModal({
                         value={formData.diameter}
                         onChange={(e) => handleInputChange('diameter', e.target.value)}
                         disabled={isUsingAreaSearch()}
-                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:border-[#8b7355] ${
+                        className={`block w-full px-4 py-3.5 border rounded-xl placeholder-gray-400 focus:outline-none focus:ring-4 transition-all duration-200 font-medium ${
                           isUsingAreaSearch() 
-                            ? 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed' 
-                            : 'border-gray-300'
+                            ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed' 
+                            : 'bg-white border-gray-200 text-[#0B0B0B] focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] hover:border-[#C9A24D]/30'
                         }`}
                         placeholder="10"
                       />
                       {formData.address && (
-                        <p className="text-xs text-gray-600 mt-1">* Required when using address search</p>
+                        <p className="text-xs font-medium text-[#C9A24D] mt-2 ml-1">* Required when using address search</p>
                       )}
                     </div>
                   </div>
                 </div>
 
                 {/* Area-Based Search */}
-                <div className={`p-4 rounded-lg border-2 ${isUsingAreaSearch() ? 'border-[#8b7355] bg-[#8b7355]/5' : 'border-gray-200 bg-gray-50/50'}`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <h5 className="text-md font-medium text-gray-800 flex items-center">
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                      </svg>
+                <div className={`p-6 rounded-2xl border transition-all duration-300 ${isUsingAreaSearch() ? 'border-[#C9A24D] bg-[#FAFAF7] shadow-md' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+                  <div className="flex items-center justify-between mb-6">
+                    <h5 className={`text-md font-black uppercase tracking-wide flex items-center ${isUsingAreaSearch() ? 'text-[#111827]' : 'text-gray-500'}`}>
+                      <div className={`p-2 rounded-full mr-3 ${isUsingAreaSearch() ? 'bg-[#C9A24D] text-white' : 'bg-gray-100 text-gray-400'}`}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                        </svg>
+                      </div>
                       City/Township Search
                     </h5>
                     <div className="flex items-center space-x-3">
@@ -2231,14 +2259,14 @@ function CreateCollectionModal({
                               handleInputChange('cities', [])
                               handleInputChange('townships', [])
                             }}
-                            className="text-xs text-[#8b7355] hover:text-[#7a6549] font-medium transition-colors"
+                            className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] uppercase tracking-widest transition-colors py-2 px-3 hover:bg-[#C9A24D]/10 rounded-lg"
                           >
                             Clear
                           </button>
-                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          <span className={`text-[10px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider ${
                             ((formData.cities?.length || 0) + (formData.townships?.length || 0)) >= 5
                               ? 'bg-red-100 text-red-800 border border-red-200'
-                              : 'bg-blue-100 text-blue-800 border border-blue-200'
+                              : 'bg-[#111827] text-white'
                           }`}>
                             {(formData.cities?.length || 0) + (formData.townships?.length || 0)}/5 locations
                           </span>
@@ -2247,9 +2275,9 @@ function CreateCollectionModal({
                     </div>
                   </div>
                   
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                         Cities
                       </label>
                       <MultiCityPlacesInput
@@ -2284,7 +2312,7 @@ function CreateCollectionModal({
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                         Townships
                       </label>
                       <MultiTownshipPlacesInput
@@ -2322,91 +2350,111 @@ function CreateCollectionModal({
 
                 {/* Location Validation Error */}
                 {validationErrors.location && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
-                    <svg className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <p className="text-sm text-red-700">{validationErrors.location}</p>
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center shadow-sm">
+                    <div className="p-2 bg-red-100 rounded-full mr-3">
+                      <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <p className="text-sm font-medium text-red-700">{validationErrors.location}</p>
                   </div>
                 )}
               </div>
 
               {/* Property Types */}
-              <div className="space-y-4">
-                <h4 className="text-lg font-medium text-gray-900">Home Type Preferences</h4>
-                <p className="text-sm text-gray-600">Select at least one property type *</p>
+              <div className="space-y-6">
+                <div className="flex items-center space-x-3 pb-2 border-b border-gray-100">
+                  <div className="w-1 h-6 bg-[#C9A24D] rounded-full"></div>
+                  <h4 className="text-lg font-black text-[#0B0B0B] tracking-tight uppercase">Home Type Preferences</h4>
+                </div>
                 
-                <div className={`p-4 rounded-lg border-2 ${validationErrors.propertyTypes ? 'border-red-200 bg-red-50/50' : 'border-gray-200 bg-gray-50/50'}`}>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.isSingleFamily || false}
-                        onChange={(e) => handleInputChange('isSingleFamily', e.target.checked)}
-                        className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
-                      />
-                      <span className="text-sm font-medium text-gray-700">Single Family</span>
+                <p className="text-xs font-bold text-[#6B7280] uppercase tracking-widest ml-1">Select at least one property type *</p>
+                
+                <div className={`p-6 rounded-2xl border transition-all duration-300 ${validationErrors.propertyTypes ? 'border-red-200 bg-red-50/50' : 'border-gray-200 bg-[#FAFAF7]'}`}>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                    <label className="flex items-center space-x-3 cursor-pointer group">
+                      <div className="relative flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={formData.isSingleFamily || false}
+                          onChange={(e) => handleInputChange('isSingleFamily', e.target.checked)}
+                          className="w-5 h-5 text-[#111827] border-gray-300 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                        />
+                      </div>
+                      <span className="text-sm font-bold text-[#6B7280] group-hover:text-[#111827] transition-colors">Single Family</span>
                     </label>
 
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.isCondo || false}
-                        onChange={(e) => handleInputChange('isCondo', e.target.checked)}
-                        className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
-                      />
-                      <span className="text-sm font-medium text-gray-700">Condo</span>
+                    <label className="flex items-center space-x-3 cursor-pointer group">
+                      <div className="relative flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={formData.isCondo || false}
+                          onChange={(e) => handleInputChange('isCondo', e.target.checked)}
+                          className="w-5 h-5 text-[#111827] border-gray-300 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                        />
+                      </div>
+                      <span className="text-sm font-bold text-[#6B7280] group-hover:text-[#111827] transition-colors">Condo</span>
                     </label>
 
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.isTownHouse || false}
-                        onChange={(e) => handleInputChange('isTownHouse', e.target.checked)}
-                        className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
-                      />
-                      <span className="text-sm font-medium text-gray-700">Townhouse</span>
+                    <label className="flex items-center space-x-3 cursor-pointer group">
+                      <div className="relative flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={formData.isTownHouse || false}
+                          onChange={(e) => handleInputChange('isTownHouse', e.target.checked)}
+                          className="w-5 h-5 text-[#111827] border-gray-300 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                        />
+                      </div>
+                      <span className="text-sm font-bold text-[#6B7280] group-hover:text-[#111827] transition-colors">Townhouse</span>
                     </label>
 
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.isApartment || false}
-                        onChange={(e) => handleInputChange('isApartment', e.target.checked)}
-                        className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
-                      />
-                      <span className="text-sm font-medium text-gray-700">Apartment</span>
+                    <label className="flex items-center space-x-3 cursor-pointer group">
+                      <div className="relative flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={formData.isApartment || false}
+                          onChange={(e) => handleInputChange('isApartment', e.target.checked)}
+                          className="w-5 h-5 text-[#111827] border-gray-300 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                        />
+                      </div>
+                      <span className="text-sm font-bold text-[#6B7280] group-hover:text-[#111827] transition-colors">Apartment</span>
                     </label>
 
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.isMultiFamily || false}
-                        onChange={(e) => handleInputChange('isMultiFamily', e.target.checked)}
-                        className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
-                      />
-                      <span className="text-sm font-medium text-gray-700">Multi-Family</span>
+                    <label className="flex items-center space-x-3 cursor-pointer group">
+                      <div className="relative flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={formData.isMultiFamily || false}
+                          onChange={(e) => handleInputChange('isMultiFamily', e.target.checked)}
+                          className="w-5 h-5 text-[#111827] border-gray-300 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                        />
+                      </div>
+                      <span className="text-sm font-bold text-[#6B7280] group-hover:text-[#111827] transition-colors">Multi-Family</span>
                     </label>
 
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.isLotLand || false}
-                        onChange={(e) => handleInputChange('isLotLand', e.target.checked)}
-                        className="w-4 h-4 text-[#8b7355] border-gray-300 rounded focus:ring-[#8b7355] focus:ring-2"
-                      />
-                      <span className="text-sm font-medium text-gray-700">Lot/Land</span>
+                    <label className="flex items-center space-x-3 cursor-pointer group">
+                      <div className="relative flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={formData.isLotLand || false}
+                          onChange={(e) => handleInputChange('isLotLand', e.target.checked)}
+                          className="w-5 h-5 text-[#111827] border-gray-300 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                        />
+                      </div>
+                      <span className="text-sm font-bold text-[#6B7280] group-hover:text-[#111827] transition-colors">Lot/Land</span>
                     </label>
                   </div>
                 </div>
 
                 {/* Property Type Validation Error */}
                 {validationErrors.propertyTypes && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
-                    <svg className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <p className="text-sm text-red-700">{validationErrors.propertyTypes}</p>
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center shadow-sm">
+                    <div className="p-2 bg-red-100 rounded-full mr-3">
+                      <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <p className="text-sm font-medium text-red-700">{validationErrors.propertyTypes}</p>
                   </div>
                 )}
               </div>
@@ -2414,20 +2462,28 @@ function CreateCollectionModal({
           </div>
 
           {/* Form Actions */}
-          <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-end space-x-4 pt-8 border-t border-gray-100">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200"
+              className="px-6 py-3.5 bg-white border border-gray-200 hover:bg-gray-50 text-[#6B7280] font-bold rounded-xl transition-all duration-300 uppercase tracking-wide text-xs shadow-sm hover:shadow"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-lg hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-8 py-3.5 bg-[#111827] hover:bg-[#C9A24D] text-white font-black rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed uppercase tracking-widest text-xs"
             >
-              {isSubmitting ? 'Creating...' : 'Create Showcase'}
+              {isSubmitting ? (
+                <span className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Creating...
+                </span>
+              ) : 'Create Showcase'}
             </button>
           </div>
         </form>

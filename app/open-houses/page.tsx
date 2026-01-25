@@ -9,6 +9,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
 import { apiRequest, hasValidSubscription } from '@/lib/auth'
+import { openHouseApi } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface PropertyImage {
@@ -63,6 +64,11 @@ export default function OpenHousesPage() {
   const [openHouseToDelete, setOpenHouseToDelete] = useState<OpenHouse | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  // Open House Note Modal state
+  const [isOpenHouseNoteModalOpen, setIsOpenHouseNoteModalOpen] = useState(false)
+  const [selectedOpenHouseForNote, setSelectedOpenHouseForNote] = useState<OpenHouse | null>(null)
+  const [currentOpenHouseNote, setCurrentOpenHouseNote] = useState('')
+
   // Notification helper function with cleanup
   const showNotification = useCallback((type: 'success' | 'error', message: string) => {
     setNotification({ show: true, type, message })
@@ -88,6 +94,40 @@ export default function OpenHousesPage() {
       showNotification('error', 'Failed to load PDF')
     }
   }, [showNotification])
+
+  // Open House Note handlers
+  const handleOpenOpenHouseNoteModal = useCallback((openHouse: OpenHouse) => {
+    setSelectedOpenHouseForNote(openHouse)
+    // Backend uses 'notes', ensure we use that field
+    setCurrentOpenHouseNote((openHouse as any).notes || '') 
+    setIsOpenHouseNoteModalOpen(true)
+  }, [])
+
+  const handleSaveOpenHouseNote = useCallback(async () => {
+    if (!selectedOpenHouseForNote) return
+
+    try {
+      // API call to persist the note
+      const response = await openHouseApi.updateOpenHouseNote(selectedOpenHouseForNote.id, currentOpenHouseNote)
+
+      if (response.success) {
+        // Update local state on success (Optimistic UI)
+        setOpenHouses(prev => prev.map(oh => 
+          oh.id === selectedOpenHouseForNote.id ? { ...oh, notes: currentOpenHouseNote } : oh
+        ))
+
+        setIsOpenHouseNoteModalOpen(false)
+        setSelectedOpenHouseForNote(null)
+        setCurrentOpenHouseNote('')
+        showNotification('success', 'Note saved successfully')
+      } else {
+        showNotification('error', 'Failed to save note: ' + (response.error || 'Unknown error'))
+      }
+    } catch (err) {
+      console.error('Error saving open house note:', err)
+      showNotification('error', 'An error occurred while saving the note.')
+    }
+  }, [selectedOpenHouseForNote, currentOpenHouseNote, showNotification])
 
   // Delete handlers
   const handleDeleteClick = useCallback((openHouse: OpenHouse) => {
@@ -406,7 +446,7 @@ export default function OpenHousesPage() {
                         
                         <form onSubmit={generateQRCode} className="space-y-6">
                           <div>
-                            <label htmlFor="address" className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wider text-xs">
+                            <label htmlFor="address" className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
                               Property Address
                             </label>
                             <div className="relative group">
@@ -417,19 +457,19 @@ export default function OpenHousesPage() {
                                 value={address}
                                 onChange={setAddress}
                                 placeholder="Search by address, city, or zip..."
-                                className="w-full px-4 py-4 bg-gray-50 border-gray-200 focus:bg-white transition-all duration-300 rounded-xl"
+                                className="block w-full px-4 py-4 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-300 font-medium hover:bg-white hover:border-[#C9A24D]/30"
                               />
                             </div>
-                            {error && <p className="text-red-500 text-sm mt-2 flex items-center animate-pulse">
-                              <svg className="w-4 h-4 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {error && <p className="text-red-500 text-xs font-medium mt-2 flex items-center animate-fadeIn pl-1">
+                              <svg className="w-3.5 h-3.5 mr-1.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               {error}
                             </p>}
                           </div>
 
-                          <div className="py-4">
-                            <h3 className="text-gray-900 font-bold mb-3 text-xs uppercase tracking-wider">
+                          <div className="py-2">
+                            <h3 className="text-[#6B7280] font-bold mb-4 text-[10px] uppercase tracking-widest ml-1">
                               Quick Start
                             </h3>
                             <ul className="space-y-3">
@@ -480,12 +520,12 @@ export default function OpenHousesPage() {
                     <div className="mb-6 flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Your Open Houses</h2>
-                        <span className="flex items-center space-x-1 px-2 py-0.5 rounded-full bg-green-50 border border-green-100">
-                          <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                          </span>
-                          <span className="text-[10px] font-bold text-green-700 uppercase tracking-wide">Live</span>
+                                                <span className="flex items-center space-x-1 px-2 py-0.5 rounded-full bg-green-50 border border-green-100">
+                                                  <span className="relative flex h-2 w-2">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                                  </span>
+                                                  <span className="text-[10px] font-black text-green-700 uppercase tracking-widest">Live</span>
                         </span>
                       </div>
                     </div>
@@ -517,6 +557,7 @@ export default function OpenHousesPage() {
                             onViewVisitors={handleViewVisitors}
                             onViewPDF={handleViewPDF}
                             onDelete={handleDeleteClick}
+                            onAddNote={handleOpenOpenHouseNoteModal}
                           />
                         ))}
                         
@@ -542,7 +583,7 @@ export default function OpenHousesPage() {
                   <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-80 h-80 bg-[#8b7355] rounded-full mix-blend-overlay filter blur-3xl opacity-20 animate-pulse" style={{ animationDelay: '2s' }}></div>
                   
                   <div className="relative p-8 sm:p-12 text-center z-10">
-                    <span className="inline-block px-4 py-1.5 rounded-full bg-[#8b7355]/20 border border-[#8b7355]/30 text-[#8b7355] text-xs font-bold tracking-widest uppercase mb-6">
+                    <span className="inline-block px-4 py-1.5 rounded-full bg-[#8b7355]/20 border border-[#8b7355]/30 text-[#8b7355] text-[10px] font-black tracking-widest uppercase mb-6">
                       Coming Soon
                     </span>
                     
@@ -603,6 +644,61 @@ export default function OpenHousesPage() {
           onDownload={downloadPDF}
           isGeneratingPDF={isGeneratingPDF}
         />
+      )}
+
+      {/* Open House Note Modal */}
+      {isOpenHouseNoteModalOpen && selectedOpenHouseForNote && (
+        <div className="fixed inset-0 bg-[#111827]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300">
+          <div className="bg-white rounded-3xl shadow-xl border border-gray-100 max-w-lg w-full overflow-hidden transform transition-all">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-[#faf9f7]">
+              <div>
+                <h3 className="text-lg font-black text-[#0B0B0B] tracking-tight">Open House Note</h3>
+                <p className="text-xs font-medium text-gray-500 mt-0.5">
+                  For {selectedOpenHouseForNote.address}
+                </p>
+              </div>
+              <button
+                onClick={() => setIsOpenHouseNoteModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-4">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">
+                  Note Content
+                </label>
+                <textarea
+                  value={currentOpenHouseNote}
+                  onChange={(e) => setCurrentOpenHouseNote(e.target.value)}
+                  className="block w-full px-4 py-3 bg-[#faf9f7] border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 resize-none font-medium"
+                  rows={6}
+                  placeholder="Enter notes about this open house (e.g., weather, turnout, specific feedback)..."
+                  autoFocus
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-3 pt-2">
+                <button
+                  onClick={() => setIsOpenHouseNoteModalOpen(false)}
+                  className="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 font-bold rounded-xl transition-all duration-200 text-xs uppercase tracking-wide"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveOpenHouseNote}
+                  className="px-6 py-2.5 bg-[#1a1614] hover:bg-[#8b7355] text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 text-xs uppercase tracking-wide"
+                >
+                  Save Note
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Delete Confirmation Dialog */}
@@ -1054,6 +1150,7 @@ interface OpenHouseListItemProps {
   onViewVisitors: (openHouse: OpenHouse) => void;
   onViewPDF: (openHouse: OpenHouse) => void;
   onDelete: (openHouse: OpenHouse) => void;
+  onAddNote: (openHouse: OpenHouse) => void;
 }
 
 const OpenHouseListItem = memo(function OpenHouseListItem({
@@ -1061,17 +1158,18 @@ const OpenHouseListItem = memo(function OpenHouseListItem({
   index,
   onViewVisitors,
   onViewPDF,
-  onDelete
+  onDelete,
+  onAddNote
 }: OpenHouseListItemProps) {
   return (
     <div
       onClick={() => onViewVisitors(openHouse)}
-      className="bg-white rounded-xl border border-gray-100 p-4 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] hover:border-gray-200 transition-all duration-300 group cursor-pointer relative"
+      className="bg-white rounded-xl border border-gray-100 p-3 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] hover:border-gray-200 transition-all duration-300 group cursor-pointer relative"
     >
-      <div className="flex items-start gap-5">
+      <div className="flex items-start gap-4">
         {/* Property Image */}
         <div className="relative flex-shrink-0">
-          <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden shadow-sm relative group-hover:scale-[1.02] transition-transform duration-300">
+          <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden shadow-sm relative group-hover:scale-[1.02] transition-transform duration-300">
             <Image
               src={openHouse.cover_image_url}
               alt={`Property at ${openHouse.address}`}
@@ -1080,28 +1178,28 @@ const OpenHouseListItem = memo(function OpenHouseListItem({
               className="w-full h-full object-cover"
             />
           </div>
-          <div className="absolute -top-2 -left-2 w-6 h-6 bg-[#1a1614] rounded-full flex items-center justify-center shadow-lg border-2 border-white">
-            <span className="text-white text-[10px] font-bold">{index + 1}</span>
+          <div className="absolute -top-2 -left-2 w-5 h-5 bg-[#1a1614] rounded-full flex items-center justify-center shadow-lg border-2 border-white">
+            <span className="text-white text-[9px] font-bold">{index + 1}</span>
           </div>
         </div>
 
         {/* Property Info */}
-        <div className="flex-1 min-w-0 py-1">
-          <div className="flex justify-between items-start mb-2">
-            <h3 className="text-base font-bold text-gray-900 group-hover:text-[#8b7355] transition-colors truncate pr-4">
+        <div className="flex-1 min-w-0 py-0.5">
+          <div className="flex justify-between items-start mb-1">
+            <h3 className="text-sm font-bold text-gray-900 group-hover:text-[#8b7355] transition-colors truncate pr-4">
               {openHouse.address}
             </h3>
             {/* Status Badge - Optional */}
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700 border border-green-100">
+            <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-green-50 text-green-700 border border-green-100 uppercase tracking-wide">
               Active
             </span>
           </div>
 
-          <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 mb-4">
+          <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-500 mb-2">
             {openHouse.price && (
-              <span className="font-bold text-gray-900 text-lg tracking-tight">${openHouse.price?.toLocaleString()}</span>
+              <span className="font-bold text-gray-900 text-base tracking-tight">${openHouse.price?.toLocaleString()}</span>
             )}
-            <div className="flex items-center space-x-3 text-xs font-medium text-gray-400">
+            <div className="flex items-center space-x-2 text-[10px] font-medium text-gray-400">
               {openHouse.bedrooms && (
                 <span>{openHouse.bedrooms} Beds</span>
               )}
@@ -1116,7 +1214,7 @@ const OpenHouseListItem = memo(function OpenHouseListItem({
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
-            <div className="inline-flex items-center px-4 py-1.5 bg-gradient-to-br from-[#1a1614] via-[#3a2f25] to-[#8b7355] text-white rounded-lg font-bold text-xs shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all duration-300 relative overflow-hidden group/btn">
+            <div className="inline-flex items-center px-3 py-1 bg-gradient-to-br from-[#1a1614] via-[#3a2f25] to-[#8b7355] text-white rounded-lg font-bold text-[10px] shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all duration-300 relative overflow-hidden group/btn">
               <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
               <svg className="w-3.5 h-3.5 mr-1.5 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -1124,14 +1222,27 @@ const OpenHouseListItem = memo(function OpenHouseListItem({
               <span className="relative z-10">View Visitors</span>
             </div>
 
-            <div className="h-4 w-px bg-gray-200 mx-1"></div>
+            <div className="h-3 w-px bg-gray-200 mx-0.5"></div>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onAddNote(openHouse)
+              }}
+              className="p-1 text-gray-400 hover:text-[#8b7355] hover:bg-gray-100 rounded-lg transition-all duration-200"
+              title="Add/View Note"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
 
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 onViewPDF(openHouse)
               }}
-              className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200"
+              className="p-1 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200"
               title="Download PDF"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1144,7 +1255,7 @@ const OpenHouseListItem = memo(function OpenHouseListItem({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200"
+              className="p-1 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200"
               title="Open Sign-in Form"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1157,7 +1268,7 @@ const OpenHouseListItem = memo(function OpenHouseListItem({
                 e.stopPropagation()
                 onDelete(openHouse)
               }}
-              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 ml-auto"
+              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 ml-auto"
               title="Remove Listing"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
