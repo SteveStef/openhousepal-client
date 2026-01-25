@@ -165,7 +165,10 @@ export default function OpenHouseSignInForm({
       {/* Property Info Header */}
       <div className="p-6 bg-[#FAFAF7] border-b border-gray-100">
         <div className="text-center mb-6">
-          <h1 className="text-xl font-black text-[#0B0B0B] tracking-tight uppercase">Guest Sign-in</h1>
+          <h1 className="text-xl font-black text-[#0B0B0B] tracking-tight uppercase relative inline-block">
+            Guest Sign-in
+            <span className="absolute -bottom-2 left-0 right-0 h-1 bg-[#C9A24D] rounded-full opacity-30"></span>
+          </h1>
         </div>
 
         <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 flex shadow-sm">
