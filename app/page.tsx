@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 import MobilePhoneMockup from '@/components/MobilePhoneMockup'
 
 function FAQItem({ faq, index, isVisible }: { faq: { question: string; answer: string }; index: number; isVisible: boolean }) {
@@ -461,58 +462,7 @@ export default function HomePage() {
         </div>
       </div>
       
-      {/* Footer */}
-      <footer className="bg-[#111827] text-white py-20 border-t border-[#C9A24D]/20">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">
-            {/* Brand Column */}
-            <div className="md:col-span-1">
-              <div className="flex items-center space-x-2 mb-6">
-                <Image
-                  src="/logo.png"
-                  alt="OpenHousePal Logo"
-                  width={48}
-                  height={27}
-                  className="h-10 w-auto"
-                />
-                <span className="text-xl font-bold tracking-tight">OpenHousePal</span>
-              </div>
-              <p className="text-gray-400 text-sm leading-relaxed max-w-xs">
-                Empowering real estate agents with next-generation lead capture and automated follow-up tools.
-              </p>
-            </div>
-
-            {/* Product Links */}
-            <div>
-              <h5 className="font-bold text-lg mb-6 text-[#C9A24D]">Platform</h5>
-              <ul className="space-y-4 text-sm text-gray-400">
-                <li><a href="#how-it-works" className="hover:text-white transition-colors">How It Works</a></li>
-                <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
-                <li><a href="#faq" className="hover:text-white transition-colors">FAQ</a></li>
-              </ul>
-            </div>
-
-            {/* Legal Links */}
-            <div>
-              <h5 className="font-bold text-lg mb-6 text-[#C9A24D]">Legal</h5>
-              <ul className="space-y-4 text-sm text-gray-400">
-                <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-                <li><Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-gray-500 text-sm">
-              © {new Date().getFullYear()} OpenHousePal. All rights reserved.
-            </p>
-            <div className="flex items-center space-x-2 text-sm text-gray-500">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span>Platform Active</span>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }
