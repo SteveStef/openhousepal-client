@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { X, CheckCircle2, Sparkles, AlertCircle } from 'lucide-react'
+import { PRICING_PLANS } from '@/lib/pricing'
 
 interface ResubscribeModalProps {
   isOpen: boolean
@@ -26,156 +27,167 @@ export default function ResubscribeModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-[#111827]/40 backdrop-blur-md"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-[#FAFAF7] rounded-[2rem] shadow-2xl max-w-5xl w-full p-8 md:p-12 max-h-[95vh] overflow-y-auto border border-white">
         {/* Close button */}
         <button
           onClick={onClose}
           disabled={loadingPlan !== null}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50 z-10"
+          className="absolute top-6 right-6 text-gray-400 hover:text-[#111827] transition-colors disabled:opacity-50 z-10 p-2 hover:bg-white rounded-full shadow-sm"
         >
-          <X className="w-5 h-5" />
+          <X className="w-6 h-6" />
         </button>
 
         {/* Title */}
-        <div className="text-center mb-6">
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">
+        <div className="text-center mb-12">
+          <h3 className="text-4xl font-black text-[#111827] mb-4 tracking-tight">
             Choose Your Plan
           </h3>
-          <p className="text-gray-600 mb-4">
-            Select a plan to resubscribe and regain access to Open House Pal
+          <p className="text-lg text-[#6B7280] mb-8 font-light max-w-xl mx-auto">
+            Select a plan to resubscribe and regain access to your dashboard and tools.
           </p>
 
           {/* Warning - No Trial */}
-          <div className="inline-flex items-center px-4 py-3 bg-orange-50 border-2 border-orange-300 rounded-xl">
-            <AlertCircle className="w-5 h-5 text-orange-600 mr-2 flex-shrink-0" />
-            <p className="text-sm font-bold text-orange-900">
-              No free trial - Your card will be charged immediately
+          <div className="inline-flex items-center px-6 py-3 bg-white border border-orange-100 rounded-2xl shadow-sm">
+            <AlertCircle className="w-5 h-5 text-orange-500 mr-3 flex-shrink-0" />
+            <p className="text-sm font-bold text-orange-900 uppercase tracking-wider">
+              No free trial — Your account will be activated immediately
             </p>
           </div>
         </div>
 
         {/* Plan Options */}
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-8 items-start">
           {/* Basic Plan */}
-          <div className="bg-white rounded-xl border-2 border-gray-200 p-6 hover:border-[#8b7355] transition-all">
-            <div className="text-center mb-6">
-              <h4 className="text-xl font-bold text-gray-900 mb-2">Basic Plan</h4>
-              <div className="text-3xl font-bold text-gray-900">
-                $49.95<span className="text-lg font-normal text-gray-600">/month</span>
+          <div className="bg-white rounded-[2rem] p-10 border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.05)] relative group hover:shadow-[0_30px_60px_rgba(0,0,0,0.08)] transition-all duration-300">
+            <div className="text-center mb-10">
+              <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">Basic Plan</h4>
+              <div className="flex items-baseline justify-center">
+                <span className="text-4xl font-black text-[#111827] tracking-tight">{PRICING_PLANS.BASIC.priceString}</span>
+                <span className="text-[#6B7280] ml-2 font-medium">/mo</span>
               </div>
-              <p className="text-sm font-semibold text-orange-600 mt-2">
-                Billed today: $49.95
+              <p className="text-xs font-black text-orange-500 uppercase tracking-widest mt-4">
+                Billed today
               </p>
             </div>
 
-            <ul className="space-y-3 mb-6">
-              <li className="flex items-start text-sm">
-                <CheckCircle2 className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                <span className="text-gray-700">Unlimited Open House QR codes</span>
+            <ul className="space-y-4 mb-10">
+              <li className="flex items-start text-gray-700 font-medium">
+                <CheckCircle2 className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
+                <span>Unlimited Open House QR codes</span>
               </li>
-              <li className="flex items-start text-sm">
-                <CheckCircle2 className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                <span className="text-gray-700">Visitor sign-in forms</span>
+              <li className="flex items-start text-gray-700 font-medium">
+                <CheckCircle2 className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
+                <span>Visitor sign-in forms</span>
               </li>
-              <li className="flex items-start text-sm">
-                <CheckCircle2 className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                <span className="text-gray-700">Lead capture and management</span>
+              <li className="flex items-start text-gray-700 font-medium">
+                <CheckCircle2 className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
+                <span>Lead capture and management</span>
               </li>
             </ul>
 
             <button
               onClick={() => handleSelectPlan('BASIC')}
               disabled={loadingPlan !== null}
-              className="w-full px-4 py-3 border-2 border-[#8b7355] text-[#8b7355] rounded-xl font-semibold hover:bg-[#8b7355] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-5 bg-[#FAFAF7] border border-gray-200 text-[#111827] rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loadingPlan === 'BASIC' ? (
                 <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#8b7355]"></div>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#111827]"></div>
                 </div>
               ) : (
-                'Subscribe Now - $49.95'
+                `Select Basic`
               )}
             </button>
           </div>
 
           {/* Premium Plan */}
-          <div className="bg-gradient-to-br from-[#8b7355] to-[#7a6549] rounded-xl p-6 relative transform md:scale-105 shadow-xl">
-            {/* Recommended Badge */}
-            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-              <div className="bg-yellow-400 text-gray-900 px-4 py-1 rounded-full text-xs font-bold">
-                RECOMMENDED
+          <div className="bg-[#111827] rounded-[2rem] p-10 shadow-[0_30px_80px_-20px_rgba(201,162,77,0.3)] border border-gray-800 relative overflow-hidden transform md:-translate-y-4">
+            {/* Gradient Effects */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#111827] via-[#2c241b] to-[#3d3226] z-0"></div>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[#C9A24D]/20 rounded-full blur-[80px] z-0"></div>
+            
+            <div className="relative z-10">
+              <div className="absolute top-0 right-0">
+                 <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#C9A24D] text-[#111827] text-[10px] font-black uppercase tracking-widest">
+                  Recommended
+                 </span>
               </div>
-            </div>
 
-            <div className="text-center mb-6">
-              <h4 className="text-xl font-bold text-white mb-2">Premium Plan</h4>
-              <div className="text-3xl font-bold text-white">
-                $99.95<span className="text-lg font-normal text-white/80">/month</span>
-              </div>
-              <p className="text-sm font-semibold text-yellow-300 mt-2">
-                Billed today: $99.95
-              </p>
-              <p className="text-sm text-white/80 mt-1">Everything in Basic, plus:</p>
-            </div>
-
-            <ul className="space-y-3 mb-6">
-              <li className="flex items-start text-sm">
-                <CheckCircle2 className="w-5 h-5 text-yellow-400 mr-2 mt-0.5 flex-shrink-0" />
-                <span className="text-white font-medium">All Basic Plan features</span>
-              </li>
-              <li className="flex items-start text-sm">
-                <CheckCircle2 className="w-5 h-5 text-yellow-400 mr-2 mt-0.5 flex-shrink-0" />
-                <span className="text-white font-medium">Property Showcases (Unlimited)</span>
-              </li>
-              <li className="flex items-start text-sm">
-                <CheckCircle2 className="w-5 h-5 text-yellow-400 mr-2 mt-0.5 flex-shrink-0" />
-                <span className="text-white font-medium">Automated property matching</span>
-              </li>
-              <li className="flex items-start text-sm">
-                <CheckCircle2 className="w-5 h-5 text-yellow-400 mr-2 mt-0.5 flex-shrink-0" />
-                <span className="text-white font-medium">Advanced filtering and preferences</span>
-              </li>
-              <li className="flex items-start text-sm">
-                <CheckCircle2 className="w-5 h-5 text-yellow-400 mr-2 mt-0.5 flex-shrink-0" />
-                <span className="text-white font-medium">Shareable property collections</span>
-              </li>
-            </ul>
-
-            <button
-              onClick={() => handleSelectPlan('PREMIUM')}
-              disabled={loadingPlan !== null}
-              className="w-full px-4 py-3 bg-white text-[#8b7355] rounded-xl font-semibold hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-            >
-              {loadingPlan === 'PREMIUM' ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#8b7355]"></div>
+              <div className="text-center mb-10">
+                <h4 className="text-sm font-bold text-[#C9A24D] uppercase tracking-widest mb-2">Premium Plan</h4>
+                <div className="flex items-baseline justify-center">
+                  <span className="text-5xl font-black text-white tracking-tight">{PRICING_PLANS.PREMIUM.priceString}</span>
+                  <span className="text-gray-400 ml-2 font-medium">/mo</span>
                 </div>
-              ) : (
-                <span className="flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  Subscribe Now - $99.95
-                </span>
-              )}
-            </button>
+                <p className="text-xs font-black text-yellow-400 uppercase tracking-widest mt-4">
+                  Billed today
+                </p>
+              </div>
+
+              <div className="bg-white/10 rounded-xl p-4 mb-8 border border-white/5 backdrop-blur-sm">
+                <p className="text-sm font-medium text-center text-white/90">
+                  <Sparkles className="w-4 h-4 inline-block text-[#C9A24D] mr-2 -mt-0.5" />
+                  Regain full access immediately
+                </p>
+              </div>
+
+              <ul className="space-y-4 mb-10">
+                <li className="flex items-start text-white font-medium">
+                  <div className="w-5 h-5 bg-[#C9A24D] rounded-full flex items-center justify-center mr-3 flex-shrink-0 text-[#111827]">
+                    <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={3} />
+                  </div>
+                  <span>Unlimited Property Showcases</span>
+                </li>
+                <li className="flex items-start text-white font-medium">
+                  <div className="w-5 h-5 bg-[#C9A24D] rounded-full flex items-center justify-center mr-3 flex-shrink-0 text-[#111827]">
+                    <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={3} />
+                  </div>
+                  <span>Automated Buyer Matching</span>
+                </li>
+                <li className="flex items-start text-white font-medium">
+                  <div className="w-5 h-5 bg-[#C9A24D] rounded-full flex items-center justify-center mr-3 flex-shrink-0 text-[#111827]">
+                    <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={3} />
+                  </div>
+                  <span>Advanced Analytics & Insights</span>
+                </li>
+              </ul>
+
+              <button
+                onClick={() => handleSelectPlan('PREMIUM')}
+                disabled={loadingPlan !== null}
+                className="w-full py-5 bg-gradient-to-r from-[#C9A24D] to-[#b38e3e] text-[#111827] rounded-2xl font-black text-sm uppercase tracking-widest hover:shadow-lg hover:shadow-[#C9A24D]/30 transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingPlan === 'PREMIUM' ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#111827]"></div>
+                  </div>
+                ) : (
+                  <span className="flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 mr-3" />
+                    Select Premium
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Cancel Button */}
-        <div className="mt-6 text-center">
+        <div className="mt-12 text-center">
           <button
             onClick={onClose}
             disabled={loadingPlan !== null}
-            className="text-gray-600 hover:text-gray-900 font-medium transition-colors disabled:opacity-50"
+            className="group inline-flex items-center text-[#6B7280] hover:text-[#111827] font-bold text-xs uppercase tracking-widest transition-all duration-300 px-6 py-3 rounded-full hover:bg-white hover:shadow-sm disabled:opacity-50"
           >
-            Cancel
+            ← Back
           </button>
         </div>
       </div>

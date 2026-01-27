@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { useState, useEffect, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { resetPassword } from '../../../lib/auth'
 
 function ResetPasswordForm() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [token, setToken] = useState<string | null>(null)
   const [formData, setFormData] = useState({
@@ -121,7 +122,7 @@ function ResetPasswordForm() {
         setResetSuccess(true)
         showNotification('success', 'Password reset successful! Redirecting to login...')
         setTimeout(() => {
-          window.location.href = '/login'
+          router.push('/login')
         }, 3000)
       } else {
         // Handle specific API errors

@@ -1,16 +1,21 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import ResubscribeModal from '@/components/ResubscribeModal'
 import { getCurrentUser, User, apiRequest } from '@/lib/auth'
+import { useAuth } from '@/contexts/AuthContext'
 import { CreditCard, Sparkles, AlertCircle, Calendar, CheckCircle2 } from 'lucide-react'
+import { PRICING_PLANS } from '@/lib/pricing'
 
 export default function SubscriptionManagementPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
+  const { refreshUser } = useAuth()
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
@@ -43,8 +48,7 @@ export default function SubscriptionManagementPage() {
   // Handle subscription completion after PayPal redirect
   useEffect(() => {
     const completeSubscription = async () => {
-      const params = new URLSearchParams(window.location.search)
-      const subscriptionId = params.get('subscription_id')
+      const subscriptionId = searchParams.get('subscription_id')
 
       // If we have a subscription_id, complete the subscription
       if (subscriptionId) {
@@ -61,9 +65,10 @@ export default function SubscriptionManagementPage() {
 
             // Reload user data to show new subscription
             await loadUserData()
+            await refreshUser()
 
             // Clean up URL (remove query params)
-            window.history.replaceState({}, '', window.location.pathname)
+            router.replace(pathname)
           } else {
             showNotification('error', response.error || 'Failed to complete subscription. Please contact support.')
           }
@@ -111,7 +116,11 @@ export default function SubscriptionManagementPage() {
       if (response.data?.immediate) {
         // Plan changed immediately - refresh to show new plan
         showNotification('success', response.data?.message || 'Plan upgraded successfully!')
-        setTimeout(() => window.location.reload(), 1500)
+        setActionLoading(false)
+        setUpgradeModalOpen(false)
+        loadUserData()
+        refreshUser()
+        router.refresh()
       } else if (response.data?.approval_url) {
         // Redirect user to PayPal approval URL
         window.location.href = response.data.approval_url
@@ -146,7 +155,11 @@ export default function SubscriptionManagementPage() {
       if (response.data?.immediate) {
         // Plan changed immediately - refresh to show new plan
         showNotification('success', response.data?.message || 'Plan downgraded successfully!')
-        setTimeout(() => window.location.reload(), 1500)
+        setActionLoading(false)
+        setDowngradeModalOpen(false)
+        loadUserData()
+        refreshUser()
+        router.refresh()
       } else if (response.data?.approval_url) {
         // Redirect user to PayPal approval URL
         window.location.href = response.data.approval_url
@@ -180,6 +193,7 @@ export default function SubscriptionManagementPage() {
       // Update local state to reflect cancellation
       if (user) {
         setUser({ ...user, subscription_status: 'CANCELLED' })
+        refreshUser()
       }
 
       showNotification('success', response.data?.message || 'Subscription cancelled. You will keep access until your billing period ends.')
@@ -210,6 +224,7 @@ export default function SubscriptionManagementPage() {
       // Update local state
       if (user) {
         setUser({ ...user, subscription_status: 'ACTIVE' })
+        refreshUser()
       }
 
       showNotification('success', response.data?.message || 'Subscription reactivated successfully!')
@@ -332,8 +347,8 @@ export default function SubscriptionManagementPage() {
 
   // Determine plan price
   const getPlanPrice = () => {
-    if (user?.plan_tier === 'PREMIUM') return '$99.95'
-    if (user?.plan_tier === 'BASIC') return '$49.95'
+    if (user?.plan_tier === 'PREMIUM') return PRICING_PLANS.PREMIUM.priceString
+    if (user?.plan_tier === 'BASIC') return PRICING_PLANS.BASIC.priceString
     return 'N/A'
   }
 
@@ -637,7 +652,7 @@ export default function SubscriptionManagementPage() {
                   </div>
                   <button
                     onClick={() => setReactivateModalOpen(true)}
-                    className="px-8 py-4 bg-[#111827] text-white rounded-xl font-bold text-sm uppercase tracking-widest shadow-lg hover:bg-[#C9A24D] transition-all duration-300"
+                    className="px-8 py-5 bg-[#111827] text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300"
                   >
                     Reactivate Now
                   </button>
@@ -654,7 +669,7 @@ export default function SubscriptionManagementPage() {
                   </div>
                   <button
                     onClick={() => setResubscribeModalOpen(true)}
-                    className="px-8 py-4 bg-[#111827] text-white rounded-xl font-bold text-sm uppercase tracking-widest shadow-lg hover:bg-[#C9A24D] transition-all duration-300"
+                    className="px-8 py-5 bg-[#111827] text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300"
                   >
                     Resubscribe
                   </button>

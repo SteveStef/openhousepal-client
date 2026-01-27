@@ -6,6 +6,7 @@ import OpenHouseSignInForm from '@/components/OpenHouseSignInForm'
 import { Property, SignInFormData } from '@/types'
 
 export default function OpenHouseSignInPage() {
+  const router = useRouter()
   const params = useParams()
   const [property, setProperty] = useState<Property | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -134,7 +135,7 @@ export default function OpenHouseSignInPage() {
           <p className="text-[#6B7280] mb-8 leading-relaxed">{error}</p>
           <div className="space-y-4">
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => router.refresh()}
               className="w-full bg-[#111827] hover:bg-[#C9A24D] text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition-all duration-300 hover:scale-[1.02]"
             >
               Try Again

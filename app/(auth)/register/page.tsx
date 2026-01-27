@@ -8,6 +8,8 @@ import PayPalSubscriptionButton from '../../../components/PayPalSubscriptionButt
 import { PayPalScriptProvider } from "@paypal/react-paypal-js"
 import EmailVerificationInput from '../../../components/EmailVerificationInput'
 import { sendVerificationCode } from '../../../lib/api'
+import { PRICING_PLANS, TRIAL_PERIOD_DAYS } from '@/lib/pricing'
+import { useRouter } from 'next/navigation'
 
 // PayPal configuration
 const paypalOptions = {
@@ -17,35 +19,8 @@ const paypalOptions = {
   currency: "USD",
 }
 
-// Plan definitions
-const PLANS = {
-  BASIC: {
-    id: process.env.NEXT_PUBLIC_BASIC_PLAN_ID || '',
-    name: 'Basic Plan',
-    price: '$49.95',
-    priceValue: 49.95,
-    tier: 'BASIC',
-    features: [
-      'Generated PDFs for properties',
-      'Signup forms for open houses',
-      'Catalog of all visitors'
-    ]
-  },
-  PREMIUM: {
-    id: process.env.NEXT_PUBLIC_PREMIUM_PLAN_ID || '',
-    name: 'Premium Plan',
-    price: '$99.95',
-    priceValue: 99.95,
-    tier: 'PREMIUM',
-    features: [
-      'Everything in Basic',
-      'Showcases feature',
-      'Personalized property collections for visitors'
-    ]
-  }
-}
-
 export default function RegisterPage() {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -129,10 +104,10 @@ export default function RegisterPage() {
         const bundlePlan = {
           id: data.plan_id,
           name: 'Special Bundle Plan',
-          price: '$99.95',
-          priceValue: 99.95,
+          price: PRICING_PLANS.PREMIUM.priceString,
+          priceValue: PRICING_PLANS.PREMIUM.price,
           tier: 'PREMIUM',
-          features: PLANS.PREMIUM.features
+          features: PRICING_PLANS.PREMIUM.features
         }
         setSelectedPlan(bundlePlan)
         setRegistrationStep('payment')
@@ -328,7 +303,7 @@ export default function RegisterPage() {
         <div className="max-w-5xl w-full">
           <div className="text-center mb-6">
             <h2 className="text-4xl font-black text-[#0B0B0B] tracking-tight mb-3">Choose Your Plan</h2>
-            <p className="text-[#6B7280] text-base font-medium">Start with a 30-day free trial — cancel anytime.</p>
+            <p className="text-[#6B7280] text-base font-medium">Start with a {TRIAL_PERIOD_DAYS}-day free trial — cancel anytime.</p>
             <button
               onClick={() => setRegistrationStep('verify')}
               className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] mt-4 transition-colors uppercase tracking-widest"
@@ -342,16 +317,16 @@ export default function RegisterPage() {
             {/* Basic Plan */}
             <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] flex flex-col hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-shadow">
               <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-[#0B0B0B] mb-4">{PLANS.BASIC.name}</h3>
+                <h3 className="text-2xl font-bold text-[#0B0B0B] mb-4">{PRICING_PLANS.BASIC.name}</h3>
                 <div className="flex items-baseline justify-center">
-                  <span className="text-5xl font-black text-[#0B0B0B] tracking-tight">{PLANS.BASIC.price}</span>
+                  <span className="text-5xl font-black text-[#0B0B0B] tracking-tight">{PRICING_PLANS.BASIC.priceString}</span>
                   <span className="text-[#6B7280] ml-2 font-bold">/mo</span>
                 </div>
-                <p className="text-xs font-bold text-[#6B7280] mt-2 uppercase tracking-wide">after 30-day free trial</p>
+                <p className="text-xs font-bold text-[#6B7280] mt-2 uppercase tracking-wide">after {TRIAL_PERIOD_DAYS}-day free trial</p>
               </div>
 
               <ul className="space-y-3 mb-8 flex-grow">
-                {PLANS.BASIC.features.map((feature, idx) => (
+                {PRICING_PLANS.BASIC.features.map((feature, idx) => (
                   <li key={idx} className="flex items-start text-gray-600 font-medium text-sm">
                     <div className="w-5 h-5 bg-green-50 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
                       <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
@@ -365,7 +340,14 @@ export default function RegisterPage() {
 
               <button
                 onClick={() => {
-                  setSelectedPlan(PLANS.BASIC)
+                  setSelectedPlan({
+                    id: PRICING_PLANS.BASIC.paypalPlanId,
+                    name: PRICING_PLANS.BASIC.name,
+                    price: PRICING_PLANS.BASIC.priceString,
+                    priceValue: PRICING_PLANS.BASIC.price,
+                    tier: 'BASIC',
+                    features: [...PRICING_PLANS.BASIC.features]
+                  })
                   setAppliedBundleCode(null)
                   setRegistrationStep('payment')
                 }}
@@ -382,16 +364,16 @@ export default function RegisterPage() {
               </div>
               
               <div className="text-center mb-6 relative z-10">
-                <h3 className="text-2xl font-bold text-white mb-4">{PLANS.PREMIUM.name}</h3>
+                <h3 className="text-2xl font-bold text-white mb-4">{PRICING_PLANS.PREMIUM.name}</h3>
                 <div className="flex items-baseline justify-center">
-                  <span className="text-5xl font-black text-white tracking-tight">{PLANS.PREMIUM.price}</span>
+                  <span className="text-5xl font-black text-white tracking-tight">{PRICING_PLANS.PREMIUM.priceString}</span>
                   <span className="text-[#C9A24D] ml-2 font-bold">/mo</span>
                 </div>
-                <p className="text-xs font-bold text-gray-400 mt-2 uppercase tracking-wide">after 30-day free trial</p>
+                <p className="text-xs font-bold text-gray-400 mt-2 uppercase tracking-wide">after {TRIAL_PERIOD_DAYS}-day free trial</p>
               </div>
 
               <ul className="space-y-3 mb-8 flex-grow relative z-10">
-                {PLANS.PREMIUM.features.map((feature, idx) => (
+                {PRICING_PLANS.PREMIUM.features.map((feature, idx) => (
                   <li key={idx} className="flex items-start text-gray-200 font-medium text-sm">
                     <div className="w-5 h-5 bg-white/10 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
                       <svg className="w-3 h-3 text-[#C9A24D]" fill="currentColor" viewBox="0 0 20 20">
@@ -405,7 +387,14 @@ export default function RegisterPage() {
 
               <button
                 onClick={() => {
-                  setSelectedPlan(PLANS.PREMIUM)
+                  setSelectedPlan({
+                    id: PRICING_PLANS.PREMIUM.paypalPlanId,
+                    name: PRICING_PLANS.PREMIUM.name,
+                    price: PRICING_PLANS.PREMIUM.priceString,
+                    priceValue: PRICING_PLANS.PREMIUM.price,
+                    tier: 'PREMIUM',
+                    features: [...PRICING_PLANS.PREMIUM.features]
+                  })
                   setAppliedBundleCode(null)
                   setRegistrationStep('payment')
                 }}
@@ -441,7 +430,7 @@ export default function RegisterPage() {
 
           <div className="text-center mt-6">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-              All plans include a 30-day free trial • No credit card charged today • Cancel anytime
+              All plans include a {TRIAL_PERIOD_DAYS}-day free trial • No credit card charged today • Cancel anytime
             </p>
           </div>
         </div>
@@ -451,7 +440,7 @@ export default function RegisterPage() {
           {/* Header */}
           <div className="mb-4 text-center">
             <h2 className="text-3xl font-black text-[#0B0B0B] tracking-tight mb-2">Create Account</h2>
-            <p className="text-[#6B7280] text-sm font-medium">Start your 30-day free trial today.</p>
+            <p className="text-[#6B7280] text-sm font-medium">Start your {TRIAL_PERIOD_DAYS}-day free trial today.</p>
           </div>
 
           {/* Registration Form */}
@@ -743,7 +732,7 @@ export default function RegisterPage() {
           <div className="max-w-[640px] w-full space-y-4">
             <div className="text-center">
               <h2 className="text-2xl font-black text-[#0B0B0B] mb-2 tracking-tight">Complete Payment Setup</h2>
-              <p className="text-[#6B7280] text-sm font-medium">You selected: <span className="font-bold text-[#C9A24D]">{selectedPlan?.name} - {appliedBundleCode ? '$99.95' : selectedPlan?.price}/month after trial</span></p>
+              <p className="text-[#6B7280] text-sm font-medium">You selected: <span className="font-bold text-[#C9A24D]">{selectedPlan?.name} - {appliedBundleCode ? PRICING_PLANS.PREMIUM.priceString : selectedPlan?.price}/month after trial</span></p>
               <div className="flex gap-4 justify-center mt-4">
                 <button
                   onClick={() => setRegistrationStep('pricing')}
@@ -776,12 +765,12 @@ export default function RegisterPage() {
                 </ul>
                 <div className="border-t border-gray-100 pt-3 mt-3">
                   <div className="flex justify-between items-center mb-1 text-sm font-medium">
-                    <span className="text-[#6B7280]">{appliedBundleCode ? '1-year free trial' : '30-day free trial'}</span>
+                    <span className="text-[#6B7280]">{appliedBundleCode ? '1-year free trial' : `${TRIAL_PERIOD_DAYS}-day free trial`}</span>
                     <span className="font-bold text-green-600">$0.00</span>
                   </div>
                   <div className="flex justify-between items-center text-sm font-medium">
                     <span className="text-[#6B7280]">After trial</span>
-                    <span className="font-black text-[#0B0B0B]">{appliedBundleCode ? '$99.95' : selectedPlan?.price}/month</span>
+                    <span className="font-black text-[#0B0B0B]">{appliedBundleCode ? PRICING_PLANS.PREMIUM.priceString : selectedPlan?.price}/month</span>
                   </div>
                 </div>
               </div>
@@ -799,7 +788,7 @@ export default function RegisterPage() {
                 }}
                 onSuccess={() => {
                   showNotification('success', 'Account created successfully! Redirecting...')
-                  setTimeout(() => window.location.href = '/open-houses', 2000)
+                  setTimeout(() => router.push('/open-houses'), 2000)
                 }}
                 onError={(error) => {
                   showNotification('error', error)
@@ -807,7 +796,7 @@ export default function RegisterPage() {
               />
 
               <p className="text-[10px] font-bold text-gray-400 text-center mt-4 uppercase tracking-wider">
-                You will not be charged until your {appliedBundleCode ? '1-year' : '30-day'} trial ends
+                You will not be charged until your {appliedBundleCode ? '1-year' : `${TRIAL_PERIOD_DAYS}-day`} trial ends
               </p>
               <p className="text-[10px] font-bold text-gray-400 text-center mt-1 uppercase tracking-wider">
                 Secured with PayPal's buyer protection • Cancel anytime

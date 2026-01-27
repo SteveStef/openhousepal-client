@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import MobilePhoneMockup from '@/components/MobilePhoneMockup'
+import { PRICING_PLANS, TRIAL_PERIOD_DAYS } from '@/lib/pricing'
 
 function FAQItem({ faq, index, isVisible }: { faq: { question: string; answer: string }; index: number; isVisible: boolean }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -303,7 +304,7 @@ export default function HomePage() {
           
           {/* Trial Banner */}
           <div className="inline-flex items-center gap-6 px-6 py-3 bg-white rounded-full border border-gray-200 shadow-sm text-sm text-[#6B7280] mt-4">
-            <span className="flex items-center"><svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>30-day free trial</span>
+            <span className="flex items-center"><svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>{TRIAL_PERIOD_DAYS}-day free trial</span>
             <span className="flex items-center"><svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>Cancel anytime</span>
             <span className="flex items-center"><svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>No commitment</span>
           </div>
@@ -313,12 +314,12 @@ export default function HomePage() {
           {/* Basic Plan */}
           <div className={`bg-white rounded-[2rem] p-10 border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.05)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative transition-all hover:shadow-[0_30px_60px_rgba(0,0,0,0.08)]`}>
             <div className="text-center mb-10">
-              <h4 className="text-xl font-bold text-[#0B0B0B] mb-4 uppercase tracking-wide">Basic Plan</h4>
+              <h4 className="text-xl font-bold text-[#0B0B0B] mb-4 uppercase tracking-wide">{PRICING_PLANS.BASIC.name}</h4>
               <div className="flex items-baseline justify-center mb-2">
-                <span className="text-5xl font-black text-[#0B0B0B] tracking-tight">$49.95</span>
+                <span className="text-5xl font-black text-[#0B0B0B] tracking-tight">{PRICING_PLANS.BASIC.priceString}</span>
                 <span className="text-[#6B7280] ml-2 font-medium">/mo</span>
               </div>
-              <p className="text-sm text-gray-400">after 30-day free trial</p>
+              <p className="text-sm text-gray-400">after {TRIAL_PERIOD_DAYS}-day free trial</p>
             </div>
 
             <ul className="space-y-4 mb-10">
@@ -371,17 +372,17 @@ export default function HomePage() {
             <div className="relative z-10">
               <div className="flex justify-between items-start mb-10">
                 <div>
-                  <h4 className="text-xl font-bold text-white mb-2 uppercase tracking-wide">Premium Plan</h4>
+                  <h4 className="text-xl font-bold text-white mb-2 uppercase tracking-wide">{PRICING_PLANS.PREMIUM.name}</h4>
                   <div className="inline-block bg-[#C9A24D] text-[#111827] text-xs font-bold px-3 py-1 rounded-md">
                     MOST POPULAR
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="flex items-baseline justify-end">
-                    <span className="text-5xl font-black text-white tracking-tight">$99.95</span>
+                    <span className="text-5xl font-black text-white tracking-tight">{PRICING_PLANS.PREMIUM.priceString}</span>
                     <span className="text-gray-400 ml-2 font-medium">/mo</span>
                   </div>
-                  <p className="text-sm text-gray-500 mt-1">after 30-day free trial</p>
+                  <p className="text-sm text-gray-500 mt-1">after {TRIAL_PERIOD_DAYS}-day free trial</p>
                 </div>
               </div>
 
@@ -445,7 +446,7 @@ export default function HomePage() {
               },
               {
                 question: "What's the difference between Basic and Premium?",
-                answer: "Basic ($49/month) includes lead capture with unlimited QR codes and visitor forms. Premium ($99/month) adds personalized property showcases, tour booking, and interaction tracking."
+                answer: `Basic (${PRICING_PLANS.BASIC.priceString}/month) includes lead capture with unlimited QR codes and visitor forms. Premium (${PRICING_PLANS.PREMIUM.priceString}/month) adds personalized property showcases, tour booking, and interaction tracking.`
               },
               {
                 question: "Does this work on all phones?",

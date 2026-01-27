@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { getCurrentUser, hasValidSubscription, User } from '@/lib/auth'
 
 interface SubscriptionGuardProps {
@@ -11,6 +11,7 @@ interface SubscriptionGuardProps {
 
 export default function SubscriptionGuard({ children, requiredPlan }: SubscriptionGuardProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const [hasAccess, setHasAccess] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -24,7 +25,7 @@ export default function SubscriptionGuard({ children, requiredPlan }: Subscripti
 
       // Not authenticated - redirect to login
       if (!user) {
-        router.push('/login?redirect=' + encodeURIComponent(window.location.pathname))
+        router.push('/login?redirect=' + encodeURIComponent(pathname))
         return
       }
 

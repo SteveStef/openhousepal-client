@@ -3,9 +3,14 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { login } from '../../../lib/auth'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function LoginPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { refreshUser } = useAuth()
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -17,8 +22,6 @@ export default function LoginPage() {
   }>({ type: null, message: '' })
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({})
   const [showPassword, setShowPassword] = useState(false)
-
-  const [redirectPath, setRedirectPath] = useState<string | null>(null)
 
   const [currentSlide, setCurrentSlide] = useState(0)
   
@@ -57,16 +60,6 @@ export default function LoginPage() {
       setCurrentSlide((prev) => (prev + 1) % slides.length)
     }, 5000)
     return () => clearInterval(timer)
-  }, [])
-
-  // Handle redirect parameter
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const redirect = urlParams.get('redirect')
-    setRedirectPath(redirect)
-    if (redirect) {
-      showNotification('info', 'Please log in to continue')
-    }
   }, [])
 
   // Clear notifications after 5 seconds
@@ -114,9 +107,14 @@ export default function LoginPage() {
       const result = await login(formData.email, formData.password)
 
       if (result.status === 200) {
-        // Success - cookie is automatically set by backend
+        // Success - update global auth state
+        await refreshUser()
+        
         showNotification('success', 'Login successful! Redirecting...')
-        window.location.href = redirectPath || '/showcases'
+        
+        // Get redirect path from URL params or default to /open-houses
+        const redirectPath = searchParams.get('redirect') || '/open-houses'
+        router.push(redirectPath)
       } else {
         // Handle specific API errors
         if (result.status === 401) {
@@ -273,7 +271,7 @@ export default function LoginPage() {
                   </div>
                   <span className="ml-2.5 text-xs font-bold text-[#6B7280] uppercase tracking-wider group-hover:text-[#111827] transition-colors">Remember me</span>
                 </label>
-                <Link href="/forgot-password" weights="bold" className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] transition-colors uppercase tracking-widest hover:underline underline-offset-4">
+                <Link href="/forgot-password" className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] transition-colors uppercase tracking-widest hover:underline underline-offset-4">
                   Forgot password?
                 </Link>
               </div>
