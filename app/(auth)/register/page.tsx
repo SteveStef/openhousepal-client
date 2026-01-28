@@ -72,15 +72,24 @@ export default function RegisterPage() {
     }
   ]
 
+  interface SelectedPlan {
+    id: string;
+    name: string;
+    price: string;
+    priceValue: number;
+    tier: string;
+    features: string[] | readonly string[];
+  }
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length)
     }, 5000)
     return () => clearInterval(timer)
-  }, [])
+  }, [slides.length])
   
   const [registrationStep, setRegistrationStep] = useState<'form' | 'verify' | 'pricing' | 'payment'>('form')
-  const [selectedPlan, setSelectedPlan] = useState<typeof PLANS.BASIC | typeof PLANS.PREMIUM | null>(null)
+  const [selectedPlan, setSelectedPlan] = useState<SelectedPlan | null>(null)
   const [bundleCode, setBundleCode] = useState('')
   const [isVerifyingCode, setIsVerifyingCode] = useState(false)
   const [appliedBundleCode, setAppliedBundleCode] = useState<string | null>(null)

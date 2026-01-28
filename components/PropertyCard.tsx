@@ -130,9 +130,16 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
           {property.city}, {property.state} {property.zipCode}
         </p>
         
-        <h3 className="text-lg font-black text-[#0B0B0B] mb-4 tracking-tight leading-snug group-hover:text-[#C9A24D] transition-colors">
+        <h3 className="text-lg font-black text-[#0B0B0B] mb-1 tracking-tight leading-snug group-hover:text-[#C9A24D] transition-colors line-clamp-1">
           {property.address}
         </h3>
+
+        {/* Broker Attribution */}
+        {property.listOfficeName && (
+          <p className="text-[10px] text-gray-400 mb-4 line-clamp-1">
+            Courtesy of {property.listOfficeName}
+          </p>
+        )}
 
         {/* Property Stats */}
         <div className="flex items-center space-x-4 text-sm mb-6">

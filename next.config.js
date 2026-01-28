@@ -27,6 +27,14 @@ const nextConfig = {
         hostname: 'img.freepik.com',
       },
       {
+        protocol: 'https',
+        hostname: '**.brightmls.com',
+      },
+      {
+        protocol: 'http',
+        hostname: '**.brightmls.com',
+      },
+      {
         protocol: 'http',
         hostname: 'localhost',
       },

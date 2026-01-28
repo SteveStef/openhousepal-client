@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { CreditCard, Sparkles, AlertCircle, Calendar, CheckCircle2 } from 'lucide-react'
 import { PRICING_PLANS } from '@/lib/pricing'
 
-export default function SubscriptionManagementPage() {
+function SubscriptionContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const pathname = usePathname()
@@ -748,5 +748,20 @@ export default function SubscriptionManagementPage() {
 
       <Footer />
     </div>
+  )
+}
+
+export default function SubscriptionManagementPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAF7]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#111827] mx-auto mb-4"></div>
+          <p className="text-[#6B7280] font-medium animate-pulse">Loading...</p>
+        </div>
+      </div>
+    }>
+      <SubscriptionContent />
+    </Suspense>
   )
 }

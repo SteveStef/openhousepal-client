@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Collection, Property } from '@/types'
 import PropertyGrid from '@/components/PropertyGrid'
@@ -33,7 +33,7 @@ const formatPrice = (price: number): string => {
   }
 }
 
-export default function ShowcasesPage() {
+export function ShowcaseContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, isAuthenticated, isLoading: isAuthenticating } = useAuth()
@@ -2489,5 +2489,24 @@ function CreateCollectionModal({
         </form>
       </div>
     </div>
+  )
+}
+
+export default function ShowcasesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#f8f8f6] flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355] mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading showcases...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    }>
+      <ShowcaseContent />
+    </Suspense>
   )
 }

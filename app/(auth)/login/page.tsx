@@ -6,8 +6,9 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { login } from '../../../lib/auth'
 import { useAuth } from '@/contexts/AuthContext'
+import { Suspense } from 'react'
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { refreshUser } = useAuth()
@@ -388,5 +389,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#FAFAF7]"><div className="animate-spin rounded-full h-8 w-8 border-2 border-[#C9A24D] border-t-transparent"></div></div>}>
+      <LoginContent />
+    </Suspense>
   )
 }
