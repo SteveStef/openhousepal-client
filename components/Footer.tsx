@@ -52,12 +52,11 @@ export default function Footer() {
 
         {/* Bright MLS Compliance Section */}
         <div className="pt-12 border-t border-white/10">
-          <div className="grid grid-cols-1 gap-6 max-w-5xl text-[10px] uppercase tracking-widest leading-loose text-gray-500 font-medium">
+          <div className="grid grid-cols-1 gap-6 text-[10px] uppercase tracking-widest leading-loose text-gray-500 font-medium">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-gray-400 mb-2">
               <span className="bg-white/5 px-2 py-1 rounded border border-white/10">
-                © {new Date().getFullYear()} Bright MLS
+                © {new Date().getFullYear()} Bright MLS • All Rights Reserved
               </span>
-              <span>All Rights Reserved</span>
               <span className="text-[#C9A24D] font-black">Information Deemed Reliable But Not Guaranteed</span>
             </div>
             

@@ -43,6 +43,9 @@ export default function PrivacyPage() {
                 <p>
                   When you use our open house sign-in forms, you may collect information from property visitors. This information is stored in your account and you are the data controller for this information. Typical visitor data includes:
                 </p>
+                <p className="mt-4">
+                  OpenHousePal acts solely as a data processor with respect to visitor information collected through the Service and processes such data only on behalf of and under the instructions of the user.
+                </p>
                 <ul className="list-disc pl-6 space-y-2 mt-2">
                   <li>Visitor names and contact information</li>
                   <li>Visit timestamps and property interests</li>

@@ -128,7 +128,7 @@ export default function UpgradeRequiredPage() {
                   </div>
                 </div>
 
-                <div className="bg-white/10 rounded-xl p-4 mb-8 border border-white/5 backdrop-blur-sm">
+                <div className="bg-white/10 rounded-xl p-4 mb-8 border border-white/5">
                   <p className="text-sm font-medium text-center text-white/90">
                     <Sparkles className="w-4 h-4 inline-block text-[#C9A24D] mr-2 -mt-0.5" />
                     Unlocks all features immediately

@@ -147,7 +147,7 @@ export default function ChatAssistant({ collectionData, customerName }: ChatAssi
 
   return (
     <div className="fixed bottom-6 right-6 z-50">
-      <div className={`bg-zinc-900/95 backdrop-blur-lg border border-zinc-800/60 rounded-2xl shadow-2xl transition-all duration-300 ${
+      <div className={`bg-zinc-900/95 border border-zinc-800/60 rounded-2xl shadow-2xl transition-all duration-300 ${
         isMinimized ? 'w-80 h-16' : 'w-96 h-[600px]'
       }`}>
         {/* Header */}

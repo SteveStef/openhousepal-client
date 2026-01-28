@@ -130,12 +130,12 @@ export default function ScheduleTourModal({
 
   return (
     <div
-      className="fixed inset-0 bg-[#111827]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300"
+      className="fixed inset-0 bg-[#111827]/60 z-50 flex items-center justify-center p-4 transition-all duration-300"
       onClick={handleBackdropClick}
     >
       <div className="bg-white rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-gray-100 max-w-2xl w-full max-h-[90vh] overflow-hidden transform transition-all">
         {/* Header */}
-        <div className="p-8 border-b border-gray-100 bg-white/95 backdrop-blur-md sticky top-0 z-10">
+        <div className="p-8 border-b border-gray-100 bg-white/95 sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="bg-[#FAFAF7] p-3 rounded-2xl border border-gray-100 shadow-sm">

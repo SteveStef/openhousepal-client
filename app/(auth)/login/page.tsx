@@ -347,7 +347,7 @@ function LoginContent() {
                         : 'opacity-0 translate-x-full'
                   }`}
                 >
-                  <div className="bg-white/5 backdrop-blur-md rounded-xl p-5 border border-white/10 shadow-lg">
+                  <div className="bg-white/5 rounded-xl p-5 border border-white/10 shadow-lg">
                     <div className="flex items-center space-x-4 mb-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-[#8b7355] to-[#6b5840] rounded-lg flex items-center justify-center shadow-lg flex-shrink-0">
                         {slide.icon}

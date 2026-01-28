@@ -105,7 +105,7 @@ export default function OpenHouseVisitorsPage() {
     <div className="min-h-screen bg-[#faf9f7] flex flex-col">
       <Header />
 
-      <div className="flex-1 p-6 sm:p-8">
+      <div className="flex-1 p-6 sm:p-8 pb-20 sm:pb-32">
         <div className="max-w-7xl mx-auto">
           {/* Header Section */}
           <div className="mb-8">
@@ -284,7 +284,7 @@ export default function OpenHouseVisitorsPage() {
 
       {/* Note Modal */}
       {isNoteModalOpen && selectedVisitorForNote && (
-        <div className="fixed inset-0 bg-[#111827]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300">
+        <div className="fixed inset-0 bg-[#111827]/60 z-50 flex items-center justify-center p-4 transition-all duration-300">
           <div className="bg-white rounded-3xl shadow-xl border border-gray-100 max-w-lg w-full overflow-hidden transform transition-all">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-[#faf9f7]">
               <div>

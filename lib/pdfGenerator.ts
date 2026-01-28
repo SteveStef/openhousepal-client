@@ -637,6 +637,37 @@ async function createTemplatePDF({ qrCodeUrl, address, propertyImageUrl, propert
       height: qrSize,
     })
 
+    // Add footer text (2 lines)
+    const line1 = `© BRIGHT, All Rights Reserved | Information Deemed Reliable But Not Guaranteed.`
+    const line2 = `Some properties which appear for sale may no longer be available. Data last updated: ${new Date().toLocaleDateString()}`
+    const footerFontSize = 7
+    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
+    
+    const line1Width = helveticaFont.widthOfTextAtSize(line1, footerFontSize)
+    const line2Width = helveticaFont.widthOfTextAtSize(line2, footerFontSize)
+    
+    const line1X = (pageWidth - line1Width) / 2
+    const line2X = (pageWidth - line2Width) / 2
+    
+    const footerYBase = 15
+    const lineSpacing = 10
+
+    firstPage.drawText(line1, {
+      x: line1X,
+      y: footerYBase + lineSpacing,
+      size: footerFontSize,
+      font: helveticaFont,
+      color: rgb(0.5, 0.5, 0.5),
+    })
+
+    firstPage.drawText(line2, {
+      x: line2X,
+      y: footerYBase,
+      size: footerFontSize,
+      font: helveticaFont,
+      color: rgb(0.5, 0.5, 0.5),
+    })
+
     return await pdfDoc.save()
 
   } catch (error) {

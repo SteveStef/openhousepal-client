@@ -158,7 +158,7 @@ export default function DashboardPage() {
 
         <div className="grid lg:grid-cols-2 gap-6">
           {/* QR Code Generator Form */}
-          <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg p-6">
+          <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Property Information</h2>
             
             <form onSubmit={generateQRCode} className="space-y-4">
@@ -207,7 +207,7 @@ export default function DashboardPage() {
           </div>
 
           {/* QR Code Display */}
-          <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg p-6">
+          <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Your QR Code</h2>
             
             {!qrCode ? (
@@ -325,7 +325,7 @@ export default function DashboardPage() {
         {/* Recent QR Codes */}
         <div className="mt-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent QR Codes</h2>
-          <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg p-6">
+          <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 p-6">
             <div className="text-center py-6">
               <div className="w-10 h-10 bg-gray-100/50 rounded-lg flex items-center justify-center mx-auto mb-3">
                 <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

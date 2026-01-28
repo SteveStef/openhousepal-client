@@ -18,7 +18,7 @@ export default function TermsPage() {
 
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8">
               <p className="text-sm text-yellow-800">
-                <strong>Important:</strong> Please read these Terms of Service carefully before using our Service. By using Open House Pal, you agree to be bound by these Terms. If you do not agree, do not use the Service.
+                <strong>Important:</strong> Please read these Terms of Service carefully before using our Service. By using OpenHousePal, you agree to be bound by these Terms. If you do not agree, do not use the Service.
               </p>
             </div>
 
@@ -26,14 +26,14 @@ export default function TermsPage() {
               <section>
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Acceptance of Terms</h2>
                 <p>
-                  By accessing and using Open House Pal ("Service"), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to these Terms of Service, please do not use our Service.
+                  By accessing and using OpenHousePal ("Service"), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to these Terms of Service, please do not use our Service.
                 </p>
               </section>
 
               <section>
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">2. Description of Service</h2>
                 <p>
-                  Open House Pal provides a subscription-based platform for real estate professionals to create QR code-enabled sign-in forms for open houses and generate automated property showcases for potential buyers. The Service includes both Basic and Premium subscription tiers with varying features.
+                  OpenHousePal provides a subscription-based platform for real estate professionals to create QR code-enabled sign-in forms for open houses and generate automated property showcases for potential buyers. The Service includes both Basic and Premium subscription tiers with varying features.
                 </p>
               </section>
 
@@ -57,7 +57,7 @@ export default function TermsPage() {
               <section>
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">4. Subscription and Payment</h2>
                 <p>
-                  Open House Pal offers subscription plans with a 14-day free trial period. By selecting a subscription plan:
+                  OpenHousePal offers subscription plans with a 14-day free trial period. By selecting a subscription plan:
                 </p>
                 <ul className="list-disc pl-6 space-y-2 mt-2">
                   <li>You agree to pay the subscription fee associated with your chosen plan</li>
@@ -100,17 +100,17 @@ export default function TermsPage() {
               <section>
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">7. Intellectual Property</h2>
                 <p>
-                  The Service and its original content, features, and functionality are owned by Open House Pal and are protected by international copyright, trademark, patent, trade secret, and other intellectual property laws. You may not reproduce, distribute, modify, or create derivative works of our Service without explicit written permission.
+                  The Service and its original content, features, and functionality are owned by OpenHousePal and are protected by international copyright, trademark, patent, trade secret, and other intellectual property laws. You may not reproduce, distribute, modify, or create derivative works of our Service without explicit written permission.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. User Content</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. Service Content and Information</h2>
                 <p>
-                  You retain ownership of any content you submit through the Service, including property information, photos, and visitor data. By using the Service, you grant us a limited license to use, store, and display your content solely for the purpose of providing the Service to you.
+                  All property information, images, and data provided through the Service are sourced from third-party providers, including but not limited to Multiple Listing Services (MLS) via IDX programs. You acknowledge that you do not own any of this property content and your use of it is strictly limited to the functionality provided by the Service for professional real estate purposes.
                 </p>
                 <p className="mt-4">
-                  You are responsible for ensuring you have the necessary rights and permissions for any content you upload, including property listings and images.
+                  Users do not upload their own property content to the platform. All rights to the software, platform architecture, data structures, and generated showcases remain exclusively with OpenHousePal and its data providers.
                 </p>
               </section>
 
@@ -131,6 +131,16 @@ export default function TermsPage() {
               </section>
 
               <section>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">9.5 MLS and IDX Data Disclaimer</h2>
+                <p>
+                  OpenHousePal may display real estate listing information obtained from one or more multiple listing services (“MLS”) or Internet Data Exchange (“IDX”) programs through licensed agreements with third-party providers. OpenHousePal is not a real estate broker, does not represent buyers or sellers, and does not guarantee the accuracy, completeness, or timeliness of any MLS or IDX data displayed through the Service.
+                </p>
+                <p className="mt-4">
+                  All listing information is provided by third parties and is subject to change without notice. You acknowledge and agree that you are solely responsible for ensuring that your use of the Service, including the display, distribution, and use of MLS or IDX content, complies with all applicable MLS rules, broker requirements, licensing agreements, and federal, state, and local laws.
+                </p>
+              </section>
+
+              <section>
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">10. Disclaimer of Warranties</h2>
                 <p>
                   THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
@@ -143,17 +153,17 @@ export default function TermsPage() {
               <section>
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">11. Limitation of Liability</h2>
                 <p>
-                  TO THE FULLEST EXTENT PERMITTED BY LAW, OPEN HOUSE PAL SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS OR REVENUES, WHETHER INCURRED DIRECTLY OR INDIRECTLY, OR ANY LOSS OF DATA, USE, GOODWILL, OR OTHER INTANGIBLE LOSSES.
+                  TO THE FULLEST EXTENT PERMITTED BY LAW, OPENHOUSEPAL SHALL NOT BE LIABLE FOR ANY DAMAGES WHATSOEVER, WHETHER DIRECT, INDIRECT, GENERAL, SPECIAL, COMPENSATORY, CONSEQUENTIAL, AND/OR INCIDENTAL, ARISING OUT OF OR RELATING TO THE USE OF THE SERVICE.
                 </p>
                 <p className="mt-4">
-                  Our total liability for any claims arising from or related to the Service shall not exceed the amount you paid us in the twelve (12) months preceding the claim.
+                  NOTWITHSTANDING ANYTHING TO THE CONTRARY CONTAINED HEREIN, OUR LIABILITY TO YOU FOR ANY CAUSE WHATSOEVER, AND REGARDLESS OF THE FORM OF THE ACTION, WILL AT ALL TIMES BE LIMITED TO ZERO DOLLARS ($0). YOU AGREE THAT YOUR SOLE AND EXCLUSIVE REMEDY FOR ANY DISPUTE WITH OPENHOUSEPAL IS TO STOP USING THE SERVICE.
                 </p>
               </section>
 
               <section>
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">12. Indemnification</h2>
                 <p>
-                  You agree to indemnify, defend, and hold harmless Open House Pal, its officers, directors, employees, agents, and affiliates from and against any and all claims, liabilities, damages, losses, costs, expenses, or fees (including reasonable attorneys' fees) arising from:
+                  You agree to indemnify, defend, and hold harmless OpenHousePal, its officers, directors, employees, agents, and affiliates from and against any and all claims, liabilities, damages, losses, costs, expenses, or fees (including reasonable attorneys' fees) arising from:
                 </p>
                 <ul className="list-disc pl-6 space-y-2 mt-2">
                   <li>Your use or misuse of the Service</li>
@@ -208,7 +218,7 @@ export default function TermsPage() {
               <section>
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">15. Force Majeure</h2>
                 <p>
-                  Open House Pal shall not be liable for any failure or delay in performance due to causes beyond our reasonable control, including but not limited to:
+                  OpenHousePal shall not be liable for any failure or delay in performance due to causes beyond our reasonable control, including but not limited to:
                 </p>
                 <ul className="list-disc pl-6 space-y-2 mt-2">
                   <li>Acts of God, natural disasters, or severe weather</li>
@@ -250,7 +260,7 @@ export default function TermsPage() {
                   <strong>18.2 Binding Arbitration.</strong> If we cannot resolve the dispute informally, you agree that any dispute, claim, or controversy arising out of or relating to these Terms or the Service will be settled by binding arbitration administered by the American Arbitration Association (AAA) under its Commercial Arbitration Rules. The arbitration will be conducted in Delaware, and judgment on the arbitration award may be entered in any court having jurisdiction.
                 </p>
                 <p className="mt-4">
-                  <strong>18.3 Class Action Waiver.</strong> YOU AND OPEN HOUSE PAL AGREE THAT EACH MAY BRING CLAIMS AGAINST THE OTHER ONLY IN YOUR OR ITS INDIVIDUAL CAPACITY AND NOT AS A PLAINTIFF OR CLASS MEMBER IN ANY PURPORTED CLASS OR REPRESENTATIVE PROCEEDING. Unless both you and Open House Pal agree otherwise, the arbitrator may not consolidate more than one person's claims and may not otherwise preside over any form of a representative or class proceeding.
+                  <strong>18.3 Class Action Waiver.</strong> YOU AND OPENHOUSEPAL AGREE THAT EACH MAY BRING CLAIMS AGAINST THE OTHER ONLY IN YOUR OR ITS INDIVIDUAL CAPACITY AND NOT AS A PLAINTIFF OR CLASS MEMBER IN ANY PURPORTED CLASS OR REPRESENTATIVE PROCEEDING. Unless both you and OpenHousePal agree otherwise, the arbitrator may not consolidate more than one person's claims and may not otherwise preside over any form of a representative or class proceeding.
                 </p>
                 <p className="mt-4">
                   <strong>18.4 Exceptions.</strong> Notwithstanding the foregoing, either party may bring a claim in small claims court if it qualifies. Additionally, either party may seek injunctive or other equitable relief in court to prevent the actual or threatened infringement, misappropriation, or violation of intellectual property rights.
@@ -277,14 +287,14 @@ export default function TermsPage() {
               <section>
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">21. Severability</h2>
                 <p>
-                  If any provision of these Terms is found to be unlawful, void, or unenforceable, that provision shall be deemed severable from these Terms and shall not affect the validity and enforceability of any remaining provisions. The failure of Open House Pal to enforce any right or provision of these Terms will not be deemed a waiver of such right or provision.
+                  If any provision of these Terms is found to be unlawful, void, or unenforceable, that provision shall be deemed severable from these Terms and shall not affect the validity and enforceability of any remaining provisions. The failure of OpenHousePal to enforce any right or provision of these Terms will not be deemed a waiver of such right or provision.
                 </p>
               </section>
 
               <section>
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">22. Entire Agreement</h2>
                 <p>
-                  These Terms, together with our Privacy Policy and any other legal notices published by us on the Service, constitute the entire agreement between you and Open House Pal concerning the Service and supersede all prior or contemporaneous understandings and agreements, whether written or oral, regarding the Service.
+                  These Terms, together with our Privacy Policy and any other legal notices published by us on the Service, constitute the entire agreement between you and OpenHousePal concerning the Service and supersede all prior or contemporaneous understandings and agreements, whether written or oral, regarding the Service.
                 </p>
               </section>
 
@@ -301,7 +311,7 @@ export default function TermsPage() {
                   If you have any questions about these Terms of Service, please contact us at:
                 </p>
                 <p className="mt-2">
-                  Email: stephenstef456@gmail.com
+                  Email: admin@openhousepal.com
                 </p>
                 <p className="mt-2">
                   For DMCA copyright notices, use the same email with subject line "DMCA Notice"

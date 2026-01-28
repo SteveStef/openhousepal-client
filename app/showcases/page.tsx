@@ -1240,7 +1240,7 @@ export function ShowcaseContent() {
           </button>
 
           {/* Combined Property Recommendations and Status Section */}
-          <div className="bg-white/50 backdrop-blur-sm rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 p-4 sm:p-6 mb-6">
+          <div className="bg-white/50 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 p-4 sm:p-6 mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
               <div>
                 <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight mb-1">Property Recommendations</h1>
@@ -1422,7 +1422,7 @@ export function ShowcaseContent() {
       <div className="flex-1 p-6 pb-20 sm:pb-32">
         <div className="max-w-7xl mx-auto">
         {/* Combined Header and Filters */}
-        <div className="bg-white/50 backdrop-blur-sm rounded-2xl border border-gray-100 p-4 sm:p-6 mb-8">
+        <div className="bg-white/50 rounded-2xl border border-gray-100 p-4 sm:p-6 mb-8">
           {/* Header Section */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-4">
             <div className="flex-1 mb-4 lg:mb-0">
@@ -1528,7 +1528,7 @@ export function ShowcaseContent() {
             </div>
           </div>
         ) : filteredCollections.length === 0 ? (
-          <div className="text-center py-24 bg-white/50 backdrop-blur-sm rounded-2xl border border-gray-100 shadow-sm">
+          <div className="text-center py-24 bg-white/50 rounded-2xl border border-gray-100 shadow-sm">
             <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-gray-100">
               <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
@@ -1838,9 +1838,9 @@ function CreateCollectionModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-[#111827]/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+    <div className="fixed inset-0 bg-[#111827]/60 flex items-center justify-center z-50 p-4 transition-all duration-300">
       <div className="bg-white rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-gray-100 max-w-4xl w-full max-h-[90vh] overflow-y-auto transform transition-all">
-        <div className="p-8 border-b border-gray-100 sticky top-0 bg-white/95 backdrop-blur-md z-10">
+        <div className="p-8 border-b border-gray-100 sticky top-0 bg-white/95 z-10">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-black text-[#0B0B0B] tracking-tight">Create New Showcase</h3>

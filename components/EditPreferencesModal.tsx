@@ -350,9 +350,9 @@ export default function EditPreferencesModal({
   if (!isOpen || !collection) return null
 
   return (
-    <div className="fixed inset-0 bg-[#111827]/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+    <div className="fixed inset-0 bg-[#111827]/60 flex items-center justify-center z-50 p-4 transition-all duration-300">
       <div className="bg-white rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-gray-100 max-w-4xl w-full max-h-[90vh] overflow-y-auto transform transition-all">
-        <div className="p-8 border-b border-gray-100 sticky top-0 bg-white/95 backdrop-blur-md z-10">
+        <div className="p-8 border-b border-gray-100 sticky top-0 bg-white/95 z-10">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-black text-[#0B0B0B] tracking-tight">Edit Collection Preferences</h3>

@@ -169,7 +169,7 @@ export default function CustomerCollectionView({
         <p className="text-xl text-zinc-300">
           Here are your personalized property recommendations
         </p>
-        <div className="bg-zinc-900/40 rounded-xl p-4 border border-zinc-800/60 backdrop-blur-sm inline-block">
+        <div className="bg-zinc-900/40 rounded-xl p-4 border border-zinc-800/60 inline-block">
           <p className="text-zinc-400 text-sm">
             <span className="text-white font-medium">Budget:</span> {formatPriceRange((collection.preferences as any).priceRange)}
           </p>
@@ -177,7 +177,7 @@ export default function CustomerCollectionView({
       </div>
 
       {/* Agent Contact Info */}
-      <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-2xl p-6 border border-blue-800/30 backdrop-blur-sm">
+      <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-2xl p-6 border border-blue-800/30">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-xl font-semibold text-white mb-2">Your Real Estate Agent</h3>
@@ -212,7 +212,7 @@ export default function CustomerCollectionView({
 
 
       {/* Property Tabs */}
-      <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 backdrop-blur-lg p-6">
+      <div className="bg-white/95 rounded-2xl shadow-xl border border-gray-200/60 p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-2xl font-semibold text-white">Your Collection</h3>
           <div className="text-zinc-400 text-sm">
@@ -280,7 +280,7 @@ export default function CustomerCollectionView({
       </div>
 
       {/* Call to Action */}
-      <div className="bg-gradient-to-r from-green-900/30 to-blue-900/30 rounded-2xl p-6 border border-green-800/30 backdrop-blur-sm text-center">
+      <div className="bg-gradient-to-r from-green-900/30 to-blue-900/30 rounded-2xl p-6 border border-green-800/30 text-center">
         <h3 className="text-xl font-semibold text-white mb-3">Ready to Schedule a Viewing?</h3>
         <p className="text-zinc-300 mb-4">
           Contact your agent to schedule tours for the properties you're interested in, or to discuss other options.

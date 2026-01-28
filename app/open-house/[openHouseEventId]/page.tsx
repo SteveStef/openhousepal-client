@@ -5,6 +5,15 @@ import { useParams, useRouter } from 'next/navigation'
 import OpenHouseSignInForm from '@/components/OpenHouseSignInForm'
 import { Property, SignInFormData } from '@/types'
 
+const ComplianceFooter = () => (
+  <div className="mt-12 text-center max-w-3xl mx-auto pb-4 px-4">
+    <p className="text-[10px] text-gray-400 font-medium leading-relaxed uppercase tracking-wider">
+      © BRIGHT, All Rights Reserved | Information Deemed Reliable But Not Guaranteed. Some properties which appear for sale may no longer be available. 
+      <span className="block sm:inline ml-0 sm:ml-1">Data last updated: {new Date().toLocaleDateString()}</span>
+    </p>
+  </div>
+)
+
 export default function OpenHouseSignInPage() {
   const router = useRouter()
   const params = useParams()
@@ -113,72 +122,81 @@ export default function OpenHouseSignInPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FAFAF7]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#111827] mx-auto mb-4"></div>
-          <p className="text-[#6B7280] font-medium">Loading property details...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAF7] p-4">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#111827] mx-auto mb-4"></div>
+            <p className="text-[#6B7280] font-medium">Loading property details...</p>
+          </div>
         </div>
+        <ComplianceFooter />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FAFAF7] px-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 text-center border border-gray-100">
-          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-          </div>
-          <h2 className="text-xl font-black text-[#0B0B0B] mb-2 tracking-tight">Unable to Load Property</h2>
-          <p className="text-[#6B7280] mb-8 leading-relaxed">{error}</p>
-          <div className="space-y-4">
-            <button
-              onClick={() => router.refresh()}
-              className="w-full bg-[#111827] hover:bg-[#C9A24D] text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition-all duration-300 hover:scale-[1.02]"
-            >
-              Try Again
-            </button>
-            <p className="text-gray-400 text-xs">
-              If this problem persists, please contact the property agent directly.
-            </p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAF7] px-4 p-4">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="max-w-md w-full bg-white rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 text-center border border-gray-100">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <h2 className="text-xl font-black text-[#0B0B0B] mb-2 tracking-tight">Unable to Load Property</h2>
+            <p className="text-[#6B7280] mb-8 leading-relaxed">{error}</p>
+            <div className="space-y-4">
+              <button
+                onClick={() => router.refresh()}
+                className="w-full bg-[#111827] hover:bg-[#C9A24D] text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition-all duration-300 hover:scale-[1.02]"
+              >
+                Try Again
+              </button>
+              <p className="text-gray-400 text-xs">
+                If this problem persists, please contact the property agent directly.
+              </p>
+            </div>
           </div>
         </div>
+        <ComplianceFooter />
       </div>
     )
   }
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FAFAF7] px-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 text-center border border-gray-100">
-          <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path>
-            </svg>
-          </div>
-          <h2 className="text-3xl font-black text-[#0B0B0B] mb-3 tracking-tight">Thank You!</h2>
-          <p className="text-[#6B7280] mb-8 leading-relaxed font-medium">
-            Your information has been submitted successfully.
-          </p>
-          
-          {property && (
-            <div className="bg-[#FAFAF7] rounded-xl p-5 mb-8 text-left border border-gray-100">
-              <h3 className="font-bold text-[#0B0B0B] text-sm uppercase tracking-wide mb-2">Property You Visited</h3>
-              <p className="text-[#111827] text-base font-semibold mb-2">{property.address}</p>
-              <div className="flex items-center space-x-4 text-xs font-bold text-[#6B7280] uppercase tracking-widest">
-                <span>{property.beds} beds</span>
-                <span className="text-[#C9A24D]">•</span>
-                <span>{property.baths} baths</span>
-              </div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAF7] px-4 p-4">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="max-w-md w-full bg-white rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 text-center border border-gray-100">
+            <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path>
+              </svg>
             </div>
-          )}
-          
-          <p className="text-gray-400 text-xs">
-            You can close this page now or continue browsing.
-          </p>
+            <h2 className="text-3xl font-black text-[#0B0B0B] mb-3 tracking-tight">Thank You!</h2>
+            <p className="text-[#6B7280] mb-8 leading-relaxed font-medium">
+              Your information has been submitted successfully.
+            </p>
+            
+            {property && (
+              <div className="bg-[#FAFAF7] rounded-xl p-5 mb-8 text-left border border-gray-100">
+                <h3 className="font-bold text-[#0B0B0B] text-sm uppercase tracking-wide mb-2">Property You Visited</h3>
+                <p className="text-[#111827] text-base font-semibold mb-2">{property.address}</p>
+                <div className="flex items-center space-x-4 text-xs font-bold text-[#6B7280] uppercase tracking-widest">
+                  <span>{property.beds} beds</span>
+                  <span className="text-[#C9A24D]">•</span>
+                  <span>{property.baths} baths</span>
+                </div>
+              </div>
+            )}
+            
+            <p className="text-gray-400 text-xs">
+              You can close this page now or continue browsing.
+            </p>
+          </div>
         </div>
+        <ComplianceFooter />
       </div>
     )
   }
@@ -205,14 +223,24 @@ export default function OpenHouseSignInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAF7] flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
-        {/* Form */}
-        <OpenHouseSignInForm
-          property={property}
-          onSubmit={handleFormSubmit}
-          isLoading={isSubmitting}
-        />
+    <div className="min-h-screen bg-[#FAFAF7] flex flex-col items-center justify-center p-4">
+      <div className="flex-1 flex items-center justify-center w-full">
+        <div className="w-full max-w-lg">
+          {/* Form */}
+          <OpenHouseSignInForm
+            property={property}
+            onSubmit={handleFormSubmit}
+            isLoading={isSubmitting}
+          />
+        </div>
+      </div>
+
+      {/* Compliance Footer */}
+      <div className="mt-12 text-center max-w-3xl mx-auto pb-4">
+        <p className="text-[10px] text-gray-400 font-medium leading-relaxed uppercase tracking-wider">
+          © BRIGHT, All Rights Reserved | Information Deemed Reliable But Not Guaranteed. Some properties which appear for sale may no longer be available. 
+          <span className="block sm:inline ml-0 sm:ml-1">Data last updated: {new Date().toLocaleDateString()}</span>
+        </p>
       </div>
     </div>
   )

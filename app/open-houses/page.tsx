@@ -400,7 +400,7 @@ export default function OpenHousesPage() {
           {!showImageSelection ? (
             <div className="bg-white rounded-2xl shadow-xl border border-gray-200/60">
               {/* Page Header */}
-              <div className="border-b border-gray-100 p-8 bg-white/50 backdrop-blur-sm">
+              <div className="border-b border-gray-100 p-8 bg-white/50">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
                     <h1 className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-[#8b7355] to-gray-900 tracking-tight">Property Portfolio</h1>
@@ -598,7 +598,7 @@ export default function OpenHousesPage() {
                         { title: 'Smart Filters', desc: 'Filter by price, type, and date' },
                         { title: 'Market Insights', desc: 'Track local property trends' }
                       ].map((feature, i) => (
-                        <div key={i} className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 hover:bg-white/10 transition-colors duration-300">
+                        <div key={i} className="bg-white/5 rounded-xl p-6 border border-white/10 hover:bg-white/10 transition-colors duration-300">
                           <h3 className="text-white font-bold text-sm mb-2">{feature.title}</h3>
                           <p className="text-gray-400 text-xs">{feature.desc}</p>
                         </div>
@@ -648,7 +648,7 @@ export default function OpenHousesPage() {
 
       {/* Open House Note Modal */}
       {isOpenHouseNoteModalOpen && selectedOpenHouseForNote && (
-        <div className="fixed inset-0 bg-[#111827]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300">
+        <div className="fixed inset-0 bg-[#111827]/60 z-50 flex items-center justify-center p-4 transition-all duration-300">
           <div className="bg-white rounded-3xl shadow-xl border border-gray-100 max-w-lg w-full overflow-hidden transform transition-all">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-[#faf9f7]">
               <div>

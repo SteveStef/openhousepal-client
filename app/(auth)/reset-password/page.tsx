@@ -175,7 +175,7 @@ function ResetPasswordForm() {
               <span className="text-2xl font-bold text-gray-900">Open House Pal</span>
             </Link>
           </div>
-          <div className="bg-[#f5f4f2]/90 rounded-2xl p-8 border border-gray-200/60 backdrop-blur-sm shadow-xl">
+          <div className="bg-[#f5f4f2]/90 rounded-2xl p-8 border border-gray-200/60 shadow-xl">
             <div className="text-center space-y-4">
               <div className="flex justify-center">
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
@@ -261,7 +261,7 @@ function ResetPasswordForm() {
         </div>
 
         {/* Reset Password Form */}
-        <div className="bg-[#f5f4f2]/90 rounded-2xl p-8 border border-gray-200/60 backdrop-blur-sm shadow-xl">
+        <div className="bg-[#f5f4f2]/90 rounded-2xl p-8 border border-gray-200/60 shadow-xl">
           {resetSuccess ? (
             // Success State
             <div className="space-y-6">
@@ -411,7 +411,7 @@ export default function ResetPasswordPage() {
               <span className="text-2xl font-bold text-gray-900">Open House Pal</span>
             </Link>
           </div>
-          <div className="bg-[#f5f4f2]/90 rounded-2xl p-8 border border-gray-200/60 backdrop-blur-sm shadow-xl">
+          <div className="bg-[#f5f4f2]/90 rounded-2xl p-8 border border-gray-200/60 shadow-xl">
             <div className="text-center space-y-4">
               <div className="flex justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355]"></div>

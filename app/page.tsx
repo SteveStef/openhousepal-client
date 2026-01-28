@@ -13,7 +13,7 @@ function FAQItem({ faq, index, isVisible }: { faq: { question: string; answer: s
 
   return (
     <div
-      className={`bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-100 shadow-sm transition-all duration-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'} overflow-hidden`}
+      className={`bg-white/80 rounded-2xl border border-gray-100 shadow-sm transition-all duration-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'} overflow-hidden`}
       style={{ transitionDelay: `${index * 100}ms` }}
     >
       <button
@@ -76,7 +76,7 @@ export default function HomePage() {
                 {/* Accent glow behind text */}
                 <div className="absolute -top-24 -left-24 w-64 h-64 bg-[#C9A24D]/10 rounded-full blur-3xl -z-10"></div>
                 
-                <div className="inline-flex items-center px-4 py-2 bg-white/80 backdrop-blur-md rounded-full border border-gray-200/80 mb-8 shadow-[0_4px_20px_rgba(0,0,0,0.04)] ring-1 ring-black/5">
+                <div className="inline-flex items-center px-4 py-2 bg-white/80 rounded-full border border-gray-200/80 mb-8 shadow-[0_4px_20px_rgba(0,0,0,0.04)] ring-1 ring-black/5">
                   <div className="w-2 h-2 bg-[#C9A24D] rounded-full animate-pulse mr-3"></div>
                   <span className="text-xs font-bold text-[#111827] tracking-widest uppercase">Trusted by Top Agents</span>
                 </div>
@@ -109,7 +109,7 @@ export default function HomePage() {
                   </Link>
                   <Link
                     href="#how-it-works"
-                    className="group px-8 py-4 bg-white/80 backdrop-blur-md text-[#111827] rounded-xl font-bold text-lg border border-gray-200 hover:border-[#C9A24D]/50 hover:bg-white transition-all duration-300 hover:scale-105 shadow-[0_4px_15px_rgba(0,0,0,0.03)]"
+                    className="group px-8 py-4 bg-white/80 text-[#111827] rounded-xl font-bold text-lg border border-gray-200 hover:border-[#C9A24D]/50 hover:bg-white transition-all duration-300 hover:scale-105 shadow-[0_4px_15px_rgba(0,0,0,0.03)]"
                   >
                     <span className="flex items-center justify-center">
                       How It Works
@@ -387,7 +387,7 @@ export default function HomePage() {
               </div>
 
               <div className="space-y-6 mb-12">
-                <div className="bg-white/10 rounded-xl p-5 border border-white/10 backdrop-blur-sm">
+                <div className="bg-white/10 rounded-xl p-5 border border-white/10">
                   <div className="flex items-center text-white font-bold mb-2">
                     <svg className="w-5 h-5 text-[#C9A24D] mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />

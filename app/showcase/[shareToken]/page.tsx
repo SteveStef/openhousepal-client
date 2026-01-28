@@ -8,6 +8,7 @@ import PropertyGrid from '@/components/PropertyGrid'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import ScheduleTourModal, { TourRequest } from '@/components/ScheduleTourModal'
 import Toast from '@/components/Toast'
+import Footer from '@/components/Footer'
 
 export default function CustomerShowcasePage() {
   const params = useParams()
@@ -657,7 +658,7 @@ export default function CustomerShowcasePage() {
       <div className="flex-1 p-4 sm:p-6">
         <div className="max-w-7xl mx-auto">
           {/* Customer Header */}
-          <div className="bg-white/50 backdrop-blur-sm rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 p-4 sm:p-6 mb-6">
+          <div className="bg-white/50 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 p-4 sm:p-6 mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <div>
                 <h1 className="text-xl sm:text-2xl font-black text-[#0B0B0B] mb-1 tracking-tight">{showcase.customer.firstName} {showcase.customer.lastName}'s Showcase</h1>
@@ -817,6 +818,7 @@ export default function CustomerShowcasePage() {
         isVisible={toast.isVisible}
         onClose={closeToast}
       />
+      <Footer />
     </div>
   )
 }

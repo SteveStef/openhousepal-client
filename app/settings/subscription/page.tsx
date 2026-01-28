@@ -436,7 +436,7 @@ function SubscriptionContent() {
 
           {/* Alert for suspended/expired subscriptions */}
           {(isSuspended || isExpired) && (
-            <div className="mb-8 bg-white/90 backdrop-blur border border-red-100 rounded-3xl p-8 flex items-start shadow-xl shadow-red-500/5">
+            <div className="mb-8 bg-white/90 border border-red-100 rounded-3xl p-8 flex items-start shadow-xl shadow-red-500/5">
               <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mr-6 flex-shrink-0 shadow-inner">
                 <AlertCircle className="w-6 h-6 text-red-500" />
               </div>
@@ -455,7 +455,7 @@ function SubscriptionContent() {
 
           {/* Alert for cancelled subscription */}
           {isCancelled && (
-            <div className="mb-8 bg-white/90 backdrop-blur border border-amber-100 rounded-3xl p-8 flex items-start shadow-xl shadow-amber-500/5">
+            <div className="mb-8 bg-white/90 border border-amber-100 rounded-3xl p-8 flex items-start shadow-xl shadow-amber-500/5">
               <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mr-6 flex-shrink-0 shadow-inner">
                 <AlertCircle className="w-6 h-6 text-amber-500" />
               </div>

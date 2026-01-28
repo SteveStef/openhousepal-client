@@ -228,7 +228,7 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
 }
 
 // Description component with truncation
-function DescriptionSection({ description }: { description: string }) {
+function DescriptionSection({ description, details }: { description: string, details?: any }) {
   const [isExpanded, setIsExpanded] = useState(false)
   const maxLength = 532 // Maximum characters to show before truncating
 
@@ -251,6 +251,19 @@ function DescriptionSection({ description }: { description: string }) {
           </button>
         )}
       </div>
+      
+      {/* Listing Agent Info Paragraph */}
+      {(details?.listAgentFullName || details?.listOfficeName) && (
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <p className="text-xs text-gray-500 leading-relaxed">
+            <span className="font-semibold">Listing provided by:</span>{' '}
+            {details.listAgentFullName || 'Agent'} 
+            {details.listOfficeName && ` of ${details.listOfficeName}`}
+            {details.listOfficePhone && ` (${details.listOfficePhone})`}.
+            {details.listAgentEmail && ` Email: ${details.listAgentEmail}.`}
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -870,7 +883,10 @@ export default function PropertyDetailsModal({
                         
                         {/* Description Field - Full Width */}
                         {(property.details as any)?.description && (
-                          <DescriptionSection description={(property.details as any).description} />
+                          <DescriptionSection 
+                            description={(property.details as any).description} 
+                            details={property.details}
+                          />
                         )}
                       </div>
                     </div>
@@ -878,52 +894,6 @@ export default function PropertyDetailsModal({
 
                   {/* Comments Section - 33.33% width */}
                   <div className="w-full lg:w-1/3">
-                    {/* Listing Agent Contact Info */}
-                    {((property.details as any)?.listAgentFullName || (property.details as any)?.listOfficeName) && (
-                      <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                          <div className="bg-blue-100 p-2 rounded-lg mr-3">
-                             <User className="text-blue-600" size={20} />
-                          </div>
-                          Listing Agent
-                        </h3>
-                        <div className="space-y-3 text-sm">
-                           {/* Agent Name */}
-                           {(property.details as any)?.listAgentFullName && (
-                             <div className="flex justify-between items-center py-2 border-b border-gray-50">
-                               <span className="text-gray-600">Agent</span>
-                               <span className="text-gray-900 font-semibold">{(property.details as any).listAgentFullName}</span>
-                             </div>
-                           )}
-                           {/* Office Name */}
-                           {(property.details as any)?.listOfficeName && (
-                             <div className="flex justify-between items-center py-2 border-b border-gray-50">
-                               <span className="text-gray-600">Office</span>
-                               <span className="text-gray-900 font-medium text-right">{(property.details as any).listOfficeName}</span>
-                             </div>
-                           )}
-                           {/* Phone */}
-                           {(property.details as any)?.listOfficePhone && (
-                             <div className="flex justify-between items-center py-2 border-b border-gray-50">
-                               <span className="text-gray-600">Phone</span>
-                               <a href={`tel:${(property.details as any).listOfficePhone}`} className="text-blue-600 hover:text-blue-800 font-medium">
-                                 {(property.details as any).listOfficePhone}
-                               </a>
-                             </div>
-                           )}
-                           {/* Email */}
-                           {(property.details as any)?.listAgentEmail && (
-                             <div className="flex justify-between items-center py-2">
-                               <span className="text-gray-600">Email</span>
-                               <a href={`mailto:${(property.details as any).listAgentEmail}`} className="text-blue-600 hover:underline font-medium truncate ml-4">
-                                 {(property.details as any).listAgentEmail}
-                               </a>
-                             </div>
-                           )}
-                        </div>
-                      </div>
-                    )}
-
                     <div className="bg-gradient-to-br from-white to-indigo-50 rounded-3xl p-7 shadow-lg border border-indigo-100" style={{contain: 'layout style paint', transform: 'translateZ(0)'}}>
                       <div className="flex items-center mb-6">
                         <div className="bg-indigo-500 p-3 rounded-xl mr-4">
@@ -1031,6 +1001,9 @@ export default function PropertyDetailsModal({
                 <p>Information Deemed Reliable But Not Guaranteed.</p>
                 <p className="max-w-3xl mx-auto">
                   The data relating to real estate for sale on this website appears in part through the BRIGHT Internet Data Exchange program, a voluntary cooperative exchange of property listing data between licensed real estate brokerage firms in which participates, and is provided by BRIGHT through a licensing agreement.
+                </p>
+                <p className="pt-2 font-medium">
+                  © {new Date().getFullYear()} Bright MLS • All Rights Reserved
                 </p>
               </div>
 
