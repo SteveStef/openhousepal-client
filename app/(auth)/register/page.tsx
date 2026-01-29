@@ -10,6 +10,7 @@ import EmailVerificationInput from '../../../components/EmailVerificationInput'
 import { sendVerificationCode } from '../../../lib/api'
 import { PRICING_PLANS, TRIAL_PERIOD_DAYS } from '@/lib/pricing'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 
 // PayPal configuration
 const paypalOptions = {
@@ -21,6 +22,7 @@ const paypalOptions = {
 
 export default function RegisterPage() {
   const router = useRouter()
+  const { refreshUser } = useAuth()
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -795,8 +797,9 @@ export default function RegisterPage() {
                   state: formData.state,
                   brokerage: formData.brokerage
                 }}
-                onSuccess={() => {
+                onSuccess={async () => {
                   showNotification('success', 'Account created successfully! Redirecting...')
+                  await refreshUser()
                   setTimeout(() => router.push('/open-houses'), 2000)
                 }}
                 onError={(error) => {

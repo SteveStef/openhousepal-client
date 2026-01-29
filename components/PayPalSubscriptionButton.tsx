@@ -34,8 +34,18 @@ export default function PayPalSubscriptionButton({
   // ... (keeping existing error check)
 
   return (
-    <div className="w-full">
-      {/* ... (keeping existing pending check) */}
+    <div className="w-full min-h-[150px] relative">
+      {isPending && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center space-y-4 bg-[#FAFAF7] rounded-xl">
+          <div className="w-full h-12 bg-gray-200 animate-pulse rounded-lg"></div>
+          <div className="w-full h-12 bg-gray-200 animate-pulse rounded-lg"></div>
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 border-2 border-[#C9A24D] border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-sm font-bold text-[#6B7280] uppercase tracking-widest">Securely loading PayPal...</span>
+          </div>
+        </div>
+      )}
+      
       <PayPalButtons
         style={{
           layout: "vertical",
