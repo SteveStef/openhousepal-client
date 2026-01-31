@@ -165,27 +165,27 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex items-center justify-center px-6">
+      <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] dark:from-[#0B0B0B] dark:via-[#151517] dark:to-[#0B0B0B] flex items-center justify-center px-6 transition-colors duration-300">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
             <Link href="/" className="inline-flex items-center space-x-3 mb-8">
               <div className="w-10 h-10 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold">OH</span>
               </div>
-              <span className="text-2xl font-bold text-gray-900">Open House Pal</span>
+              <span className="text-2xl font-bold text-gray-900 dark:text-white">Open House Pal</span>
             </Link>
           </div>
-          <div className="bg-[#f5f4f2]/90 rounded-2xl p-8 border border-gray-200/60 shadow-xl">
+          <div className="bg-[#f5f4f2]/90 dark:bg-[#151517]/90 rounded-2xl p-8 border border-gray-200/60 dark:border-gray-800 shadow-xl">
             <div className="text-center space-y-4">
               <div className="flex justify-center">
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
                   <svg className="w-8 h-8 text-red-500" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
                 </div>
               </div>
-              <h3 className="text-xl font-bold text-gray-900">Invalid Reset Link</h3>
-              <p className="text-gray-600">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Invalid Reset Link</h3>
+              <p className="text-gray-600 dark:text-gray-400">
                 This password reset link is invalid or has expired.
               </p>
               <div className="pt-4">
@@ -204,7 +204,7 @@ function ResetPasswordForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex items-center justify-center px-6">
+    <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] dark:from-[#0B0B0B] dark:via-[#151517] dark:to-[#0B0B0B] flex items-center justify-center px-6 transition-colors duration-300">
       {/* Notification Toast */}
       {notification.type && (
         <div className={`fixed bottom-4 right-4 z-50 max-w-md p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
@@ -254,27 +254,27 @@ function ResetPasswordForm() {
             <div className="w-10 h-10 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-xl flex items-center justify-center shadow-lg">
               <span className="text-white font-bold">OH</span>
             </div>
-            <span className="text-2xl font-bold text-gray-900">Open House Pal</span>
+            <span className="text-2xl font-bold text-gray-900 dark:text-white">Open House Pal</span>
           </Link>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Create new password</h2>
-          <p className="text-gray-600">Enter a strong password for your account</p>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Create new password</h2>
+          <p className="text-gray-600 dark:text-gray-400">Enter a strong password for your account</p>
         </div>
 
         {/* Reset Password Form */}
-        <div className="bg-[#f5f4f2]/90 rounded-2xl p-8 border border-gray-200/60 shadow-xl">
+        <div className="bg-[#f5f4f2]/90 dark:bg-[#151517]/90 rounded-2xl p-8 border border-gray-200/60 dark:border-gray-800 shadow-xl">
           {resetSuccess ? (
             // Success State
             <div className="space-y-6">
               <div className="flex justify-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
                   <svg className="w-8 h-8 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                 </div>
               </div>
               <div className="text-center space-y-2">
-                <h3 className="text-xl font-bold text-gray-900">Password Reset Successful!</h3>
-                <p className="text-gray-700">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Password Reset Successful!</h3>
+                <p className="text-gray-700 dark:text-gray-300">
                   Your password has been successfully reset. You will be redirected to the login page shortly.
                 </p>
               </div>
@@ -289,7 +289,7 @@ function ResetPasswordForm() {
             // Form State
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   New password
                 </label>
                 <input
@@ -299,8 +299,8 @@ function ResetPasswordForm() {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className={`w-full px-4 py-3 bg-white border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    fieldErrors.password ? 'border-red-500 ring-2 ring-red-200 focus:ring-red-300' : 'border-gray-300 focus:ring-[#8b7355] focus:border-[#8b7355]'
+                  className={`w-full px-4 py-3 bg-white dark:bg-[#0B0B0B] border rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                    fieldErrors.password ? 'border-red-500 ring-2 ring-red-200 focus:ring-red-300' : 'border-gray-300 dark:border-gray-700 focus:ring-[#8b7355] focus:border-[#8b7355]'
                   }`}
                   placeholder="Enter new password"
                 />
@@ -316,7 +316,7 @@ function ResetPasswordForm() {
                 {formData.password && passwordStrength.label && (
                   <div className="mt-2">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-600">Password strength:</span>
+                      <span className="text-xs text-gray-600 dark:text-gray-400">Password strength:</span>
                       <span className={`text-xs font-medium ${
                         passwordStrength.label === 'Weak' ? 'text-red-500' :
                         passwordStrength.label === 'Fair' ? 'text-yellow-500' :
@@ -324,13 +324,13 @@ function ResetPasswordForm() {
                         'text-green-500'
                       }`}>{passwordStrength.label}</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-1.5">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
                       <div
                         className={`h-1.5 rounded-full transition-all duration-300 ${passwordStrength.color}`}
                         style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
                       ></div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
                       Use 8+ characters with a mix of letters, numbers & symbols
                     </p>
                   </div>
@@ -338,7 +338,7 @@ function ResetPasswordForm() {
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Confirm new password
                 </label>
                 <input
@@ -348,8 +348,8 @@ function ResetPasswordForm() {
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className={`w-full px-4 py-3 bg-white border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    fieldErrors.confirmPassword ? 'border-red-500 ring-2 ring-red-200 focus:ring-red-300' : 'border-gray-300 focus:ring-[#8b7355] focus:border-[#8b7355]'
+                  className={`w-full px-4 py-3 bg-white dark:bg-[#0B0B0B] border rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                    fieldErrors.confirmPassword ? 'border-red-500 ring-2 ring-red-200 focus:ring-red-300' : 'border-gray-300 dark:border-gray-700 focus:ring-[#8b7355] focus:border-[#8b7355]'
                   }`}
                   placeholder="Confirm your password"
                 />
@@ -401,22 +401,22 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex items-center justify-center px-6">
+      <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] dark:from-[#0B0B0B] dark:via-[#151517] dark:to-[#0B0B0B] flex items-center justify-center px-6 transition-colors duration-300">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
             <Link href="/" className="inline-flex items-center space-x-3 mb-8">
               <div className="w-10 h-10 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold">OH</span>
               </div>
-              <span className="text-2xl font-bold text-gray-900">Open House Pal</span>
+              <span className="text-2xl font-bold text-gray-900 dark:text-white">Open House Pal</span>
             </Link>
           </div>
-          <div className="bg-[#f5f4f2]/90 rounded-2xl p-8 border border-gray-200/60 shadow-xl">
+          <div className="bg-[#f5f4f2]/90 dark:bg-[#151517]/90 rounded-2xl p-8 border border-gray-200/60 dark:border-gray-800 shadow-xl">
             <div className="text-center space-y-4">
               <div className="flex justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355]"></div>
               </div>
-              <p className="text-gray-600">Loading...</p>
+              <p className="text-gray-600 dark:text-gray-400">Loading...</p>
             </div>
           </div>
         </div>

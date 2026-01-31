@@ -101,29 +101,29 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
   });
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white dark:bg-[#0B0B0B] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
       {/* Report Header */}
-      <div className="bg-gray-900 px-8 py-6 text-white">
+      <div className="bg-gray-900 dark:bg-[#151517] px-8 py-6 text-white border-b border-gray-700 dark:border-gray-800">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold">Property Details Report</h2>
-            <p className="text-gray-300 mt-1">Comprehensive Property Information</p>
+            <p className="text-gray-300 dark:text-gray-400 mt-1">Comprehensive Property Information</p>
           </div>
           <div className="text-right">
-            <div className="text-sm text-gray-300">Generated</div>
+            <div className="text-sm text-gray-300 dark:text-gray-400">Generated</div>
             <div className="font-medium">{new Date().toLocaleDateString()}</div>
           </div>
         </div>
         {propertyAddress && (
-          <div className="mt-4 pt-4 border-t border-gray-700">
-            <div className="text-sm text-gray-300">Property Address</div>
+          <div className="mt-4 pt-4 border-t border-gray-700 dark:border-gray-700">
+            <div className="text-sm text-gray-300 dark:text-gray-400">Property Address</div>
             <div className="font-medium">{propertyAddress}</div>
           </div>
         )}
       </div>
 
       {/* Report Content - Grouped Sections */}
-      <div className="p-4 sm:p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-6 bg-gray-50 dark:bg-[#0B0B0B]">
         {(() => {
           // Group data by sections
           const sections: Array<{ header: string; items: Array<{ property: string; value: any }> }> = [];
@@ -160,10 +160,10 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
             return (
               <div
                 key={sectionIndex}
-                className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm"
+                className="bg-white dark:bg-[#1a1614] rounded-xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm transition-colors"
               >
                 {/* Subtle Section Header */}
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4 pb-2 border-b border-gray-100">
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 pb-2 border-b border-gray-100 dark:border-gray-800">
                   {section.header}
                 </h3>
 
@@ -171,11 +171,11 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
                 {fullWidthItems.length > 0 && (
                   <div className="space-y-3 mb-4">
                     {fullWidthItems.map((item, itemIndex) => (
-                      <div key={itemIndex} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div className="text-sm font-medium text-gray-600 mb-2">
+                      <div key={itemIndex} className="bg-gray-50 dark:bg-[#0B0B0B] rounded-lg p-4 border border-gray-200 dark:border-gray-800">
+                        <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
                           {item.property}:
                         </div>
-                        <div className="text-sm text-gray-900 leading-relaxed">
+                        <div className="text-sm text-gray-900 dark:text-gray-200 leading-relaxed">
                           {item.value}
                         </div>
                       </div>
@@ -188,10 +188,10 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
                   regularItems.length === 1 ? (
                     // Single item - display full width
                     <div className="flex justify-between items-start gap-4 py-1">
-                      <span className="text-sm font-medium text-gray-600 flex-shrink-0">
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400 flex-shrink-0">
                         {regularItems[0].property}:
                       </span>
-                      <span className="text-sm text-gray-900 text-right break-words flex-1">
+                      <span className="text-sm text-gray-900 dark:text-gray-200 text-right break-words flex-1">
                         {regularItems[0].value}
                       </span>
                     </div>
@@ -202,13 +202,13 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
                         <div
                           key={itemIndex}
                           className={`flex justify-between items-start gap-4 ${
-                            itemIndex % 2 === 0 ? 'md:pr-4' : 'md:pl-4 md:border-l md:border-gray-200'
+                            itemIndex % 2 === 0 ? 'md:pr-4' : 'md:pl-4 md:border-l md:border-gray-200 dark:md:border-gray-800'
                           }`}
                         >
-                          <span className="text-sm font-medium text-gray-600 flex-shrink-0">
+                          <span className="text-sm font-medium text-gray-600 dark:text-gray-400 flex-shrink-0">
                             {item.property}:
                           </span>
-                          <span className="text-sm text-gray-900 text-right break-words">
+                          <span className="text-sm text-gray-900 dark:text-gray-200 text-right break-words">
                             {item.value}
                           </span>
                         </div>
@@ -238,14 +238,14 @@ function DescriptionSection({ description, details }: { description: string, det
     : description.slice(0, maxLength) + '...'
 
   return (
-    <div className="md:col-span-2 py-4 border-t border-gray-200 mt-4">
-      <h4 className="text-gray-600 font-medium mb-3">Description:</h4>
+    <div className="md:col-span-2 py-4 border-t border-gray-200 dark:border-gray-800 mt-4">
+      <h4 className="text-gray-600 dark:text-gray-400 font-medium mb-3">Description:</h4>
       <div className="space-y-2">
-        <p className="text-gray-900 leading-relaxed text-sm">{displayText}</p>
+        <p className="text-gray-900 dark:text-gray-300 leading-relaxed text-sm">{displayText}</p>
         {shouldTruncate && (
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors duration-200"
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium transition-colors duration-200"
           >
             {isExpanded ? 'Show Less' : 'Show More'}
           </button>
@@ -254,8 +254,8 @@ function DescriptionSection({ description, details }: { description: string, det
       
       {/* Listing Agent Info Paragraph */}
       {(details?.listAgentFullName || details?.listOfficeName) && (
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          <p className="text-xs text-gray-500 leading-relaxed">
+        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+          <p className="text-xs text-gray-500 dark:text-gray-500 leading-relaxed">
             <span className="font-semibold">Listing provided by:</span>{' '}
             {details.listAgentFullName || 'Agent'} 
             {details.listOfficeName && ` of ${details.listOfficeName}`}
@@ -539,14 +539,14 @@ export default function PropertyDetailsModal({
     <>
       {renderLightbox()}
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" style={{transform: 'translate3d(0,0,0)'}}>
-        <div className="bg-white rounded-2xl shadow-2xl border border-gray-200/60 max-w-7xl w-full max-h-[95vh] overflow-hidden" style={{contain: 'layout style', transform: 'translateZ(0)'}}>
+        <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-2xl border border-gray-200/60 dark:border-gray-800 max-w-7xl w-full max-h-[95vh] overflow-hidden transition-colors" style={{contain: 'layout style', transform: 'translateZ(0)'}}>
           {/* Enhanced Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200/60 bg-gradient-to-r from-gray-50 to-white">
+          <div className="flex items-center justify-between p-6 border-b border-gray-200/60 dark:border-gray-800 bg-gradient-to-r from-gray-50 to-white dark:from-[#0B0B0B] dark:to-[#151517]">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                 {(property.details as any)?.address?.streetAddress || property.address}
               </h2>
-              <p className="text-gray-600 text-sm mt-1">
+              <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
                 {(property.details as any)?.city || property.city}, {(property.details as any)?.address?.state || property.state} {(property.details as any)?.address?.zipcode || property.zipCode}
               </p>
             </div>
@@ -554,10 +554,10 @@ export default function PropertyDetailsModal({
               {(property.details as any)?.homeStatus && (
                 <span className={`px-3 py-1 text-sm font-medium rounded-full ${
                   (property.details as any).homeStatus === 'FOR_SALE' 
-                    ? 'bg-green-100 text-green-800' 
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' 
                     : (property.details as any).homeStatus === 'FOR_RENT'
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-gray-100 text-gray-800'
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300'
                 }`}>
                   {(property.details as any).homeStatus === 'forSale' ? 'For Sale' :
                    (property.details as any).homeStatus === 'forRent' ? 'For Rent' :
@@ -567,7 +567,7 @@ export default function PropertyDetailsModal({
               )}
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100/50 rounded-lg"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800 rounded-lg"
               >
                 <X size={20} />
               </button>
@@ -613,7 +613,7 @@ export default function PropertyDetailsModal({
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     {/* Enhanced Photo Gallery */}
                     <div className="lg:col-span-8">
-                      <div className="relative h-[500px] bg-gray-100 rounded-2xl overflow-hidden group shadow-lg">
+                      <div className="relative h-[500px] bg-gray-100 dark:bg-[#0B0B0B] rounded-2xl overflow-hidden group shadow-lg">
                         {images.length > 0 ? (
                           <>
                             <Image
@@ -684,8 +684,8 @@ export default function PropertyDetailsModal({
                                 onClick={() => setCurrentImageIndex(index)}
                                 className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-3 transition-colors duration-150 ${
                                   index === currentImageIndex
-                                    ? 'border-blue-500 ring-2 ring-blue-200 shadow-md'
-                                    : 'border-gray-200 hover:border-gray-400'
+                                    ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-900 shadow-md'
+                                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500'
                                 }`}
                               >
                                 <Image
@@ -710,92 +710,92 @@ export default function PropertyDetailsModal({
 
                     {/* Price and Action Buttons Section */}
                     <div className="lg:col-span-4">
-                      <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 h-fit">
+                      <div className="bg-white dark:bg-[#0B0B0B] rounded-2xl p-8 shadow-lg border border-gray-100 dark:border-gray-800 h-fit">
                         {/* Price Section */}
                         <div className="text-center mb-8">
-                          <div className="text-4xl font-bold text-gray-900 mb-2">
+                          <div className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
                             {formatPrice((property.details as any)?.price || property.price)}
                           </div>
-                          <div className="text-gray-600 text-sm mb-2">List Price</div>
+                          <div className="text-gray-600 dark:text-gray-400 text-sm mb-2">List Price</div>
                           {(property.details as any)?.resoFacts?.pricePerSquareFoot && (
-                            <div className="text-gray-500 text-xs mb-4">${(property.details as any).resoFacts.pricePerSquareFoot}/sq ft</div>
+                            <div className="text-gray-500 dark:text-gray-500 text-xs mb-4">${(property.details as any).resoFacts.pricePerSquareFoot}/sq ft</div>
                           )}
                         </div>
                         
                         {/* Property Specs */}
                         <div className="grid grid-cols-3 gap-4 mb-8">
                           <div className="text-center">
-                            <div className="text-3xl font-bold text-gray-900 mb-1">
+                            <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
                               {(property.details as any)?.bedrooms || property.beds || '-'}
                             </div>
-                            <div className="text-gray-600 text-sm">Beds</div>
+                            <div className="text-gray-600 dark:text-gray-400 text-sm">Beds</div>
                           </div>
                           <div className="text-center">
-                            <div className="text-3xl font-bold text-gray-900 mb-1">
+                            <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
                               {(property.details as any)?.bathrooms || property.baths || '-'}
                             </div>
-                            <div className="text-gray-600 text-sm">Baths</div>
+                            <div className="text-gray-600 dark:text-gray-400 text-sm">Baths</div>
                           </div>
                           <div className="text-center">
-                            <div className="text-2xl font-bold text-gray-900 mb-1">
+                            <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
                               {(((property.details as any)?.livingArea || property.squareFeet || 0) / 1000).toFixed(1)}k
                             </div>
-                            <div className="text-gray-600 text-sm">Sq Ft</div>
+                            <div className="text-gray-600 dark:text-gray-400 text-sm">Sq Ft</div>
                           </div>
                         </div>
                         
                         {/* Key Details */}
-                        <div className="space-y-3 text-sm border-t pt-6 mb-8">
+                        <div className="space-y-3 text-sm border-t border-gray-100 dark:border-gray-800 pt-6 mb-8">
                           {((property.details as any)?.homeType || property.propertyType) && (
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Home Type:</span>
-                              <span className="text-gray-900 font-medium">
+                              <span className="text-gray-600 dark:text-gray-400">Home Type:</span>
+                              <span className="text-gray-900 dark:text-gray-200 font-medium">
                                 {(property.details as any)?.homeType?.replace(/_/g, ' ') || property.propertyType?.replace(/_/g, ' ')}
                               </span>
                             </div>
                           )}
                           {((property.details as any)?.yearBuilt || property.yearBuilt) && (
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Year Built:</span>
-                              <span className="text-gray-900 font-medium">
+                              <span className="text-gray-600 dark:text-gray-400">Year Built:</span>
+                              <span className="text-gray-900 dark:text-gray-200 font-medium">
                                 {(property.details as any)?.yearBuilt || property.yearBuilt}
                               </span>
                             </div>
                           )}
                           {(property.details as any)?.resoFacts?.pricePerSquareFoot && (
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Price/Sq Ft:</span>
-                              <span className="text-gray-900 font-medium">
+                              <span className="text-gray-600 dark:text-gray-400">Price/Sq Ft:</span>
+                              <span className="text-gray-900 dark:text-gray-200 font-medium">
                                 ${(property.details as any).resoFacts.pricePerSquareFoot}
                               </span>
                             </div>
                           )}
                           {(property.details as any)?.resoFacts?.stories && (
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Stories:</span>
-                              <span className="text-gray-900 font-medium">{(property.details as any).resoFacts.stories}</span>
+                              <span className="text-gray-600 dark:text-gray-400">Stories:</span>
+                              <span className="text-gray-900 dark:text-gray-200 font-medium">{(property.details as any).resoFacts.stories}</span>
                             </div>
                           )}
                           {(property.details as any)?.lotSize && (
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Lot Size:</span>
-                              <span className="text-gray-900 font-medium">
+                              <span className="text-gray-600 dark:text-gray-400">Lot Size:</span>
+                              <span className="text-gray-900 dark:text-gray-200 font-medium">
                                 {((property.details as any).lotSize / 43560).toFixed(2)} acres
                               </span>
                             </div>
                           )}
                           {((property.details as any)?.daysOnZillow || (property.details as any)?.resoFacts?.atAGlanceFacts?.find((fact: any) => fact.factLabel === 'Days on Zillow')?.factValue) && (
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Days on Market:</span>
-                              <span className="text-gray-900 font-medium">
+                              <span className="text-gray-600 dark:text-gray-400">Days on Market:</span>
+                              <span className="text-gray-900 dark:text-gray-200 font-medium">
                                 {(property.details as any)?.daysOnZillow || (property.details as any)?.resoFacts?.atAGlanceFacts?.find((fact: any) => fact.factLabel === 'Days on Zillow')?.factValue}
                               </span>
                             </div>
                           )}
                           {(property.details as any)?.resoFacts?.propertyCondition && (
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Condition:</span>
-                              <span className="text-gray-900 font-medium">{(property.details as any).resoFacts.propertyCondition}</span>
+                              <span className="text-gray-600 dark:text-gray-400">Condition:</span>
+                              <span className="text-gray-900 dark:text-gray-200 font-medium">{(property.details as any).resoFacts.propertyCondition}</span>
                             </div>
                           )}
                         </div>
@@ -807,8 +807,8 @@ export default function PropertyDetailsModal({
                               onClick={() => onLike?.(property.id!, !property.liked)}
                               className={`flex flex-col items-center p-2 rounded-xl transition-all ${
                                 property.liked
-                                  ? 'bg-green-100 text-green-600'
-                                  : 'bg-gray-50 text-gray-400 hover:bg-green-50 hover:text-green-500'
+                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                                  : 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-500 dark:hover:text-green-400'
                               }`}
                             >
                               <ThumbsUp size={18} fill={property.liked ? "currentColor" : "none"} />
@@ -818,8 +818,8 @@ export default function PropertyDetailsModal({
                               onClick={() => onDislike?.(property.id!, !property.disliked)}
                               className={`flex flex-col items-center p-2 rounded-xl transition-all ${
                                 property.disliked
-                                  ? 'bg-red-100 text-red-600'
-                                  : 'bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500'
+                                  ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                  : 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 dark:hover:text-red-400'
                               }`}
                             >
                               <ThumbsDown size={18} fill={property.disliked ? "currentColor" : "none"} />
@@ -836,48 +836,48 @@ export default function PropertyDetailsModal({
                 <div className="flex flex-col lg:flex-row gap-8">
                   {/* Property Overview Section - 66.67% width */}
                   <div className="w-full lg:w-2/3">
-                    <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-                      <h3 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center">
-                        <div className="bg-orange-100 p-2 rounded-lg mr-3">
-                          <Home className="text-orange-600" size={20} />
+                    <div className="bg-white dark:bg-[#0B0B0B] rounded-2xl p-8 shadow-lg border border-gray-100 dark:border-gray-800">
+                      <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                        <div className="bg-orange-100 dark:bg-orange-900/20 p-2 rounded-lg mr-3">
+                          <Home className="text-orange-600 dark:text-orange-400" size={20} />
                         </div>
                         Property Overview
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {(property.details as any)?.resoFacts?.subdivisionName && (
-                          <div className="flex justify-between py-2 border-b border-gray-100">
-                            <span className="text-gray-600 font-medium">Subdivision:</span>
-                            <span className="text-gray-900 font-semibold">{(property.details as any).resoFacts.subdivisionName}</span>
+                          <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">Subdivision:</span>
+                            <span className="text-gray-900 dark:text-white font-semibold">{(property.details as any).resoFacts.subdivisionName}</span>
                           </div>
                         )}
                         {(property.details as any)?.resoFacts?.municipality && (
-                          <div className="flex justify-between py-2 border-b border-gray-100">
-                            <span className="text-gray-600 font-medium">Municipality:</span>
-                            <span className="text-gray-900 font-semibold">{(property.details as any).resoFacts.municipality}</span>
+                          <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">Municipality:</span>
+                            <span className="text-gray-900 dark:text-white font-semibold">{(property.details as any).resoFacts.municipality}</span>
                           </div>
                         )}
                         {((property.details as any)?.homeType || property.propertyType) && (
-                          <div className="flex justify-between py-2 border-b border-gray-100">
-                            <span className="text-gray-600 font-medium">Home Type:</span>
-                            <span className="text-gray-900 font-semibold">{(property.details as any)?.homeType?.replace(/_/g, ' ') || property.propertyType?.replace(/_/g, ' ')}</span>
+                          <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">Home Type:</span>
+                            <span className="text-gray-900 dark:text-white font-semibold">{(property.details as any)?.homeType?.replace(/_/g, ' ') || property.propertyType?.replace(/_/g, ' ')}</span>
                           </div>
                         )}
                         {((property.details as any)?.yearBuilt || property.yearBuilt) && (
-                          <div className="flex justify-between py-2 border-b border-gray-100">
-                            <span className="text-gray-600 font-medium">Year Built:</span>
-                            <span className="text-gray-900 font-semibold">{(property.details as any)?.yearBuilt || property.yearBuilt}</span>
+                          <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">Year Built:</span>
+                            <span className="text-gray-900 dark:text-white font-semibold">{(property.details as any)?.yearBuilt || property.yearBuilt}</span>
                           </div>
                         )}
                         {(property.details as any)?.resoFacts?.pricePerSquareFoot && (
-                          <div className="flex justify-between py-2 border-b border-gray-100">
-                            <span className="text-gray-600 font-medium">Price/Square Feet:</span>
-                            <span className="text-gray-900 font-semibold">${(property.details as any).resoFacts.pricePerSquareFoot}</span>
+                          <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">Price/Square Feet:</span>
+                            <span className="text-gray-900 dark:text-white font-semibold">${(property.details as any).resoFacts.pricePerSquareFoot}</span>
                           </div>
                         )}
                         {((property.details as any)?.livingArea || property.squareFeet) && (
-                          <div className="flex justify-between py-2 border-b border-gray-100">
-                            <span className="text-gray-600 font-medium">Square Footage:</span>
-                            <span className="text-gray-900 font-semibold">{((property.details as any)?.livingArea || property.squareFeet)?.toLocaleString()} sq ft</span>
+                          <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">Square Footage:</span>
+                            <span className="text-gray-900 dark:text-white font-semibold">{((property.details as any)?.livingArea || property.squareFeet)?.toLocaleString()} sq ft</span>
                           </div>
                         )}
                         
@@ -894,12 +894,12 @@ export default function PropertyDetailsModal({
 
                   {/* Comments Section - 33.33% width */}
                   <div className="w-full lg:w-1/3">
-                    <div className="bg-gradient-to-br from-white to-indigo-50 rounded-3xl p-7 shadow-lg border border-indigo-100" style={{contain: 'layout style paint', transform: 'translateZ(0)'}}>
+                    <div className="bg-gradient-to-br from-white to-indigo-50 dark:from-[#151517] dark:to-indigo-950/20 rounded-3xl p-7 shadow-lg border border-indigo-100 dark:border-indigo-900/30 transition-colors" style={{contain: 'layout style paint', transform: 'translateZ(0)'}}>
                       <div className="flex items-center mb-6">
                         <div className="bg-indigo-500 p-3 rounded-xl mr-4">
                           <MessageCircle className="text-white" size={24} />
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900">
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                           Comments ({property.comments?.length || 0})
                         </h3>
                       </div>
@@ -907,9 +907,9 @@ export default function PropertyDetailsModal({
                       {/* Comments List */}
                       <div ref={commentsContainerRef} className="space-y-4 mb-6 max-h-72 overflow-y-auto">
                         {isLoadingComments ? (
-                          <div className="text-center py-8 bg-white rounded-2xl border border-indigo-100">
-                            <div className="inline-flex items-center space-x-2 text-indigo-600">
-                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 border-t-transparent"></div>
+                          <div className="text-center py-8 bg-white dark:bg-[#0B0B0B] rounded-2xl border border-indigo-100 dark:border-indigo-900/30 transition-colors">
+                            <div className="inline-flex items-center space-x-2 text-indigo-600 dark:text-indigo-400">
+                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 dark:border-indigo-400 border-t-transparent"></div>
                               <span className="text-sm font-medium">Loading comments...</span>
                             </div>
                           </div>
@@ -924,30 +924,30 @@ export default function PropertyDetailsModal({
                           </div>
                         ) : property.comments && property.comments.length > 0 ? (
                           property.comments.map((comment, index) => (
-                            <div key={comment.id} className="bg-white rounded-xl p-3 border border-indigo-100">
+                            <div key={comment.id} className="bg-white dark:bg-[#0B0B0B] rounded-xl p-3 border border-indigo-100 dark:border-indigo-900/30">
                               <div className="flex items-center justify-between mb-1.5">
-                                <span className="font-bold text-gray-900 text-xs">{comment.author}</span>
-                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{formatDate(comment.createdAt)}</span>
+                                <span className="font-bold text-gray-900 dark:text-white text-xs">{comment.author}</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">{formatDate(comment.createdAt)}</span>
                               </div>
-                              <p className="text-gray-700 leading-snug text-xs">{comment.content}</p>
+                              <p className="text-gray-700 dark:text-gray-300 leading-snug text-xs">{comment.content}</p>
                             </div>
                           ))
                         ) : (
-                          <div className="text-center py-8 bg-white rounded-2xl border-2 border-dashed border-indigo-200">
-                            <div className="bg-indigo-100 p-3 rounded-full w-12 h-12 mx-auto mb-3 flex items-center justify-center">
-                              <MessageCircle size={20} className="text-indigo-500" />
+                          <div className="text-center py-8 bg-white dark:bg-[#0B0B0B] rounded-2xl border-2 border-dashed border-indigo-200 dark:border-indigo-900/30 transition-colors">
+                            <div className="bg-indigo-100 dark:bg-indigo-900/20 p-3 rounded-full w-12 h-12 mx-auto mb-3 flex items-center justify-center">
+                              <MessageCircle size={20} className="text-indigo-500 dark:text-indigo-400" />
                             </div>
-                            <h4 className="text-md font-bold text-gray-900 mb-2">No comments yet</h4>
-                            <p className="text-gray-500 text-xs">Be the first to share your thoughts!</p>
+                            <h4 className="text-md font-bold text-gray-900 dark:text-white mb-2">No comments yet</h4>
+                            <p className="text-gray-500 dark:text-gray-400 text-xs">Be the first to share your thoughts!</p>
                           </div>
                         )}
                       </div>
 
                       {/* Add Comment Form */}
-                      <div className="border-t-2 border-indigo-100 pt-4">
-                        <h4 className="text-sm font-bold text-gray-900 mb-2 flex items-center">
-                          <div className="bg-purple-100 p-1.5 rounded-lg mr-2">
-                            <Send className="text-purple-600" size={12} />
+                      <div className="border-t-2 border-indigo-100 dark:border-indigo-900/30 pt-4">
+                        <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-2 flex items-center">
+                          <div className="bg-purple-100 dark:bg-purple-900/30 p-1.5 rounded-lg mr-2">
+                            <Send className="text-purple-600 dark:text-purple-400" size={12} />
                           </div>
                           Send Comment to Agent
                         </h4>
@@ -956,7 +956,7 @@ export default function PropertyDetailsModal({
                             value={newComment}
                             onChange={(e) => setNewComment(e.target.value)}
                             placeholder="Share your thoughts about this property..."
-                            className="w-full px-3 py-2 bg-white border-2 border-indigo-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors resize-none text-sm"
+                            className="w-full px-3 py-2 bg-white dark:bg-[#0B0B0B] border-2 border-indigo-200 dark:border-indigo-900/50 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors resize-none text-sm"
                             rows={2}
                             disabled={isSubmittingComment}
                           />
@@ -986,7 +986,7 @@ export default function PropertyDetailsModal({
               )}
               
               {/* Compliance Footer */}
-              <div className="border-t border-gray-200 mt-8 pt-6 text-center text-xs text-gray-500 space-y-2">
+              <div className="border-t border-gray-200 dark:border-gray-800 mt-8 pt-6 text-center text-xs text-gray-500 dark:text-gray-500 space-y-2">
                 <p>Data last updated: {(property.details as any)?.resoFacts?.updated_at 
                   ? new Date((property.details as any).resoFacts.updated_at).toLocaleString('en-US', {
                       month: 'numeric',

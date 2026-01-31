@@ -2,7 +2,6 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import ResubscribeModal from '@/components/ResubscribeModal'
@@ -280,17 +279,17 @@ function SubscriptionContent() {
     const getStatusConfig = () => {
       switch (status) {
         case 'TRIAL':
-          return { color: 'bg-blue-50 text-blue-700 border-blue-100', icon: Sparkles, text: 'Free Trial' }
+          return { color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-100 dark:border-blue-900/30', icon: Sparkles, text: 'Free Trial' }
         case 'ACTIVE':
-          return { color: 'bg-green-50 text-green-700 border-green-100', icon: CheckCircle2, text: 'Active' }
+          return { color: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-900/30', icon: CheckCircle2, text: 'Active' }
         case 'CANCELLED':
-          return { color: 'bg-amber-50 text-amber-700 border-amber-100', icon: AlertCircle, text: 'Cancelled' }
+          return { color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-100 dark:border-amber-900/30', icon: AlertCircle, text: 'Cancelled' }
         case 'SUSPENDED':
-          return { color: 'bg-red-50 text-red-700 border-red-100', icon: AlertCircle, text: 'Payment Failed' }
+          return { color: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-100 dark:border-red-900/30', icon: AlertCircle, text: 'Payment Failed' }
         case 'EXPIRED':
-          return { color: 'bg-gray-100 text-gray-700 border-gray-200', icon: AlertCircle, text: 'Expired' }
+          return { color: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400 border-gray-200 dark:border-gray-700', icon: AlertCircle, text: 'Expired' }
         default:
-          return { color: 'bg-gray-50 text-gray-700 border-gray-100', icon: AlertCircle, text: status }
+          return { color: 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-400 border-gray-100 dark:border-gray-700', icon: AlertCircle, text: status }
       }
     }
 
@@ -354,10 +353,10 @@ function SubscriptionContent() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FAFAF7]">
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAF7] dark:bg-[#0B0B0B] transition-colors duration-300">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#111827] mx-auto mb-4"></div>
-          <p className="text-[#6B7280] font-medium animate-pulse">Loading subscription details...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#111827] dark:border-white mx-auto mb-4"></div>
+          <p className="text-[#6B7280] dark:text-gray-400 font-medium animate-pulse">Loading subscription details...</p>
         </div>
       </div>
     )
@@ -372,20 +371,20 @@ function SubscriptionContent() {
   const isActive = user?.subscription_status === 'ACTIVE'
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAFAF7] relative overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-[#FAFAF7] dark:bg-[#0B0B0B] relative overflow-hidden transition-colors duration-300">
       {/* Sophisticated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] bg-[#C9A24D]/5 rounded-full blur-[120px] mix-blend-multiply" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[800px] h-[800px] bg-[#111827]/5 rounded-full blur-[100px] mix-blend-multiply" />
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/pinstripe-light.png')] opacity-[0.03] mix-blend-overlay"></div>
+        <div className="absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] bg-[#C9A24D]/5 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[800px] h-[800px] bg-[#111827]/5 dark:bg-[#C9A24D]/5 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-screen" />
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/pinstripe-light.png')] opacity-[0.03] dark:opacity-[0.01] mix-blend-overlay"></div>
       </div>
 
       {/* Toast Notification */}
       {notification.type && (
         <div className={`fixed bottom-6 right-6 z-50 max-w-md p-4 rounded-xl shadow-2xl transform transition-all duration-300 border-l-4 ${
-          notification.type === 'success' ? 'bg-white border-green-500 text-gray-900 shadow-green-100' :
-          notification.type === 'error' ? 'bg-white border-red-500 text-gray-900 shadow-red-100' :
-          notification.type === 'info' ? 'bg-white border-blue-500 text-gray-900 shadow-blue-100' : ''
+          notification.type === 'success' ? 'bg-white dark:bg-[#151517] border-l-green-500 text-gray-900 dark:text-white shadow-green-100 dark:shadow-none' :
+          notification.type === 'error' ? 'bg-white dark:bg-[#151517] border-l-red-500 text-gray-900 dark:text-white shadow-red-100 dark:shadow-none' :
+          notification.type === 'info' ? 'bg-white dark:bg-[#151517] border-l-blue-500 text-gray-900 dark:text-white shadow-blue-100 dark:shadow-none' : ''
         }`}>
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -406,12 +405,12 @@ function SubscriptionContent() {
               )}
             </div>
             <div className="ml-3">
-              <p className="text-sm font-bold text-gray-900 tracking-tight">{notification.message}</p>
+              <p className="text-sm font-bold text-gray-900 dark:text-white tracking-tight">{notification.message}</p>
             </div>
             <div className="ml-auto pl-3">
               <button
                 onClick={() => setNotification({ type: null, message: '' })}
-                className="inline-flex text-gray-400 hover:text-gray-900"
+                className="inline-flex text-gray-400 hover:text-gray-900 dark:hover:text-white"
               >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -422,29 +421,29 @@ function SubscriptionContent() {
         </div>
       )}
 
-      <Header mode="app" />
+
 
       <main className="flex-1 px-4 sm:px-6 py-12 sm:py-20 relative z-10">
         <div className="max-w-4xl mx-auto">
           {/* Page Header */}
           <div className="mb-12 text-center sm:text-left">
-            <h1 className="text-4xl sm:text-5xl font-black text-[#0B0B0B] tracking-tight mb-4">Subscription</h1>
-            <p className="text-[#6B7280] font-light text-xl max-w-2xl">
+            <h1 className="text-4xl sm:text-5xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-4">Subscription</h1>
+            <p className="text-[#6B7280] dark:text-gray-400 font-light text-xl max-w-2xl">
               Manage your OpenHousePal plan, billing details, and subscription preferences.
             </p>
           </div>
 
           {/* Alert for suspended/expired subscriptions */}
           {(isSuspended || isExpired) && (
-            <div className="mb-8 bg-white/90 border border-red-100 rounded-3xl p-8 flex items-start shadow-xl shadow-red-500/5">
-              <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mr-6 flex-shrink-0 shadow-inner">
-                <AlertCircle className="w-6 h-6 text-red-500" />
+            <div className="mb-8 bg-white/90 dark:bg-[#151517]/90 border border-red-100 dark:border-red-900/30 rounded-3xl p-8 flex items-start shadow-xl shadow-red-500/5 transition-colors">
+              <div className="w-12 h-12 bg-red-50 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mr-6 flex-shrink-0 shadow-inner">
+                <AlertCircle className="w-6 h-6 text-red-500 dark:text-red-400" />
               </div>
               <div>
-                <h3 className="font-black text-red-900 mb-2 uppercase tracking-widest text-xs">
+                <h3 className="font-black text-red-900 dark:text-red-400 mb-2 uppercase tracking-widest text-xs">
                   {isSuspended ? 'Action Required: Payment Failed' : 'Subscription Expired'}
                 </h3>
-                <p className="text-base text-red-700/80 leading-relaxed font-medium">
+                <p className="text-base text-red-700/80 dark:text-red-300/80 leading-relaxed font-medium">
                   {isSuspended
                     ? 'Your last payment could not be processed. Please update your payment method on PayPal to restore full access.'
                     : 'Your current subscription term has ended. Please reactivate your plan to continue using our premium tools.'}
@@ -455,27 +454,27 @@ function SubscriptionContent() {
 
           {/* Alert for cancelled subscription */}
           {isCancelled && (
-            <div className="mb-8 bg-white/90 border border-amber-100 rounded-3xl p-8 flex items-start shadow-xl shadow-amber-500/5">
-              <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mr-6 flex-shrink-0 shadow-inner">
-                <AlertCircle className="w-6 h-6 text-amber-500" />
+            <div className="mb-8 bg-white/90 dark:bg-[#151517]/90 border border-amber-100 dark:border-amber-900/30 rounded-3xl p-8 flex items-start shadow-xl shadow-amber-500/5 transition-colors">
+              <div className="w-12 h-12 bg-amber-50 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center mr-6 flex-shrink-0 shadow-inner">
+                <AlertCircle className="w-6 h-6 text-amber-500 dark:text-amber-400" />
               </div>
               <div className="flex-1">
-                <h3 className="font-black text-amber-900 mb-2 uppercase tracking-widest text-xs">Subscription Ending Soon</h3>
-                <p className="text-base text-amber-800/80 leading-relaxed font-medium mb-6">
+                <h3 className="font-black text-amber-900 dark:text-amber-400 mb-2 uppercase tracking-widest text-xs">Subscription Ending Soon</h3>
+                <p className="text-base text-amber-800/80 dark:text-amber-300/80 leading-relaxed font-medium mb-6">
                   Your subscription has been cancelled. You will maintain access to all features until your current period expires.
                 </p>
                 {daysRemaining !== null && daysRemaining > 0 && (
-                  <div className="inline-flex items-center px-5 py-2.5 bg-amber-100/50 border border-amber-200 rounded-xl">
-                    <Calendar className="w-4 h-4 text-amber-700 mr-3" />
-                    <span className="text-xs font-bold text-amber-900 uppercase tracking-widest">
+                  <div className="inline-flex items-center px-5 py-2.5 bg-amber-100/50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/30 rounded-xl">
+                    <Calendar className="w-4 h-4 text-amber-700 dark:text-amber-400 mr-3" />
+                    <span className="text-xs font-bold text-amber-900 dark:text-amber-400 uppercase tracking-widest">
                       {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} left
                     </span>
                   </div>
                 )}
                 {daysRemaining === 0 && (
-                  <div className="inline-flex items-center px-5 py-2.5 bg-red-50 border border-red-200 rounded-xl">
-                    <AlertCircle className="w-4 h-4 text-red-700 mr-3" />
-                    <span className="text-xs font-bold text-red-900 uppercase tracking-widest">
+                  <div className="inline-flex items-center px-5 py-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 rounded-xl">
+                    <AlertCircle className="w-4 h-4 text-red-700 dark:text-red-400 mr-3" />
+                    <span className="text-xs font-bold text-red-900 dark:text-red-400 uppercase tracking-widest">
                       Access expires today
                     </span>
                   </div>
@@ -486,13 +485,13 @@ function SubscriptionContent() {
 
           <div className="space-y-8">
             {/* 1. Current Subscription Card */}
-            <div className="bg-white rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 sm:p-10 border border-gray-100 relative overflow-hidden">
+            <div className="bg-white dark:bg-[#151517] rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 sm:p-10 border border-gray-100 dark:border-gray-800 relative overflow-hidden transition-colors">
               {/* Decorative top border */}
               <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#111827] via-[#C9A24D] to-[#111827]"></div>
               
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-10 pb-8 border-b border-gray-100 gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-10 pb-8 border-b border-gray-100 dark:border-gray-800 gap-4">
                 <div>
-                  <h2 className="text-2xl font-black text-[#0B0B0B] tracking-tight mb-1">Current Plan</h2>
+                  <h2 className="text-2xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-1">Current Plan</h2>
                   <p className="text-sm font-medium text-gray-400">Your active subscription tier</p>
                 </div>
                 {user?.subscription_status && <StatusBadge status={user.subscription_status} />}
@@ -500,12 +499,12 @@ function SubscriptionContent() {
 
               <div className="grid md:grid-cols-2 gap-12">
                 <div>
-                  <div className="bg-[#FAFAF7] rounded-3xl p-8 border border-gray-100 relative">
-                    <p className="text-[10px] font-black text-[#6B7280] uppercase tracking-widest mb-3">Selected Tier</p>
-                    <p className="text-3xl font-black text-[#0B0B0B] tracking-tight mb-6">{getPlanName()}</p>
-                    <div className="flex items-baseline bg-white px-6 py-3 rounded-2xl border border-gray-100 w-fit shadow-sm">
+                  <div className="bg-[#FAFAF7] dark:bg-[#0B0B0B] rounded-3xl p-8 border border-gray-100 dark:border-gray-800 relative">
+                    <p className="text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-widest mb-3">Selected Tier</p>
+                    <p className="text-3xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-6">{getPlanName()}</p>
+                    <div className="flex items-baseline bg-white dark:bg-[#151517] px-6 py-3 rounded-2xl border border-gray-100 dark:border-gray-800 w-fit shadow-sm">
                       <span className="text-3xl font-black text-[#C9A24D] tracking-tighter">{getPlanPrice()}</span>
-                      <span className="ml-2 text-xs font-bold text-[#6B7280] uppercase tracking-wider">/month</span>
+                      <span className="ml-2 text-xs font-bold text-[#6B7280] dark:text-gray-500 uppercase tracking-wider">/month</span>
                     </div>
                   </div>
                 </div>
@@ -513,28 +512,28 @@ function SubscriptionContent() {
                 <div className="space-y-6 py-2">
                   {isTrial && user?.trial_ends_at && (
                     <div className="flex justify-between items-center group">
-                      <p className="text-xs font-bold text-[#6B7280] uppercase tracking-widest group-hover:text-[#111827] transition-colors">Trial Ends</p>
-                      <p className="text-base font-black text-[#0B0B0B]">{formatDate(user.trial_ends_at)}</p>
+                      <p className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Trial Ends</p>
+                      <p className="text-base font-black text-[#0B0B0B] dark:text-white">{formatDate(user.trial_ends_at)}</p>
                     </div>
                   )}
 
                   {user?.subscription_started_at && (
                     <div className="flex justify-between items-center group">
-                      <p className="text-xs font-bold text-[#6B7280] uppercase tracking-widest group-hover:text-[#111827] transition-colors">Active Since</p>
-                      <p className="text-base font-black text-[#0B0B0B]">{formatDate(user.subscription_started_at)}</p>
+                      <p className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Active Since</p>
+                      <p className="text-base font-black text-[#0B0B0B] dark:text-white">{formatDate(user.subscription_started_at)}</p>
                     </div>
                   )}
 
                   {user?.last_billing_date && (
                     <div className="flex justify-between items-center group">
-                      <p className="text-xs font-bold text-[#6B7280] uppercase tracking-widest group-hover:text-[#111827] transition-colors">Last Billing</p>
-                      <p className="text-base font-black text-[#0B0B0B]">{formatDate(user.last_billing_date)}</p>
+                      <p className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Last Billing</p>
+                      <p className="text-base font-black text-[#0B0B0B] dark:text-white">{formatDate(user.last_billing_date)}</p>
                     </div>
                   )}
 
                   {(isTrial || isActive) && (user?.next_billing_date || user?.trial_ends_at) && (
-                    <div className="flex justify-between items-center pt-6 border-t border-gray-100 mt-2">
-                      <p className="text-xs font-bold text-[#6B7280] uppercase tracking-widest">
+                    <div className="flex justify-between items-center pt-6 border-t border-gray-100 dark:border-gray-800 mt-2">
+                      <p className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest">
                         {isTrial ? 'First Payment' : 'Next Renewal'}
                       </p>
                       <p className="text-base font-black text-[#C9A24D]">
@@ -544,9 +543,9 @@ function SubscriptionContent() {
                   )}
 
                   {isCancelled && (user?.next_billing_date || user?.trial_ends_at) && (
-                    <div className="flex justify-between items-center pt-6 border-t border-gray-100 mt-2">
-                      <p className="text-xs font-bold text-[#6B7280] uppercase tracking-widest">Access Ends</p>
-                      <p className="text-base font-black text-amber-600">
+                    <div className="flex justify-between items-center pt-6 border-t border-gray-100 dark:border-gray-800 mt-2">
+                      <p className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest">Access Ends</p>
+                      <p className="text-base font-black text-amber-600 dark:text-amber-400">
                         {formatDate(user.next_billing_date || user.trial_ends_at)}
                       </p>
                     </div>
@@ -555,8 +554,8 @@ function SubscriptionContent() {
               </div>
 
               {/* Feature list */}
-              <div className="mt-10 pt-10 border-t border-gray-100">
-                <p className="text-xs font-black text-[#6B7280] uppercase tracking-widest mb-6">Features Included in {getPlanName()}</p>
+              <div className="mt-10 pt-10 border-t border-gray-100 dark:border-gray-800">
+                <p className="text-xs font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-6">Features Included in {getPlanName()}</p>
                 <div className="grid sm:grid-cols-2 gap-4">
                   {[
                     'Unlimited Open House QR codes',
@@ -564,8 +563,8 @@ function SubscriptionContent() {
                     'Advanced lead management dashboard',
                     ...(isPremium ? ['Personalized Property Showcases', 'Automated buyer matching engine', 'Priority support'] : [])
                   ].map((feature, i) => (
-                    <div key={i} className="flex items-center text-sm text-gray-700 font-bold group">
-                      <div className="w-6 h-6 rounded-full bg-green-50 text-green-600 flex items-center justify-center mr-3 flex-shrink-0 group-hover:bg-green-100 transition-colors">
+                    <div key={i} className="flex items-center text-sm text-gray-700 dark:text-gray-300 font-bold group">
+                      <div className="w-6 h-6 rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 flex items-center justify-center mr-3 flex-shrink-0 group-hover:bg-green-100 dark:group-hover:bg-green-900/40 transition-colors">
                         <CheckCircle2 size={14} strokeWidth={3} />
                       </div>
                       {feature}
@@ -577,18 +576,18 @@ function SubscriptionContent() {
 
             {/* 2. Change Plan Card */}
             {(isActive || isTrial) && (
-              <div className="bg-white rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 sm:p-10 border border-gray-100 relative overflow-hidden group hover:shadow-lg transition-shadow duration-300">
+              <div className="bg-white dark:bg-[#151517] rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 sm:p-10 border border-gray-100 dark:border-gray-800 relative overflow-hidden group hover:shadow-lg transition-all duration-300">
                  <div className="flex items-center mb-6">
-                  <div className="w-12 h-12 bg-[#FAFAF7] rounded-2xl flex items-center justify-center mr-5 border border-gray-100 shadow-sm group-hover:scale-105 transition-transform">
+                  <div className="w-12 h-12 bg-[#FAFAF7] dark:bg-[#0B0B0B] rounded-2xl flex items-center justify-center mr-5 border border-gray-100 dark:border-gray-800 shadow-sm group-hover:scale-105 transition-transform">
                     <Sparkles className="w-6 h-6 text-[#C9A24D]" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black text-[#0B0B0B] tracking-tight">Plan Options</h2>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Upgrade or Modify</p>
+                    <h2 className="text-2xl font-black text-[#0B0B0B] dark:text-white tracking-tight">Plan Options</h2>
+                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-1">Upgrade or Modify</p>
                   </div>
                 </div>
 
-                <p className="text-[#6B7280] mb-8 leading-relaxed font-medium text-lg">
+                <p className="text-[#6B7280] dark:text-gray-400 mb-8 leading-relaxed font-medium text-lg">
                   {isBasic
                     ? 'Ready to automate your closings? Upgrade to Premium for instant Property Showcases and intelligent buyer matching.'
                     : 'You are currently on our most powerful plan, enjoying full access to all conversion tools and automated workflows.'}
@@ -598,7 +597,7 @@ function SubscriptionContent() {
                   {isBasic && (
                     <button
                       onClick={() => setUpgradeModalOpen(true)}
-                      className="flex-1 flex items-center justify-center px-8 py-5 bg-[#111827] text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300 group"
+                      className="flex-1 flex items-center justify-center px-8 py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300 group"
                     >
                       <Sparkles className="w-5 h-5 mr-3 group-hover:animate-pulse" />
                       Upgrade to Premium
@@ -608,34 +607,34 @@ function SubscriptionContent() {
                   {isPremium && (
                     <button
                       onClick={() => setDowngradeModalOpen(true)}
-                      className="flex-1 flex items-center justify-center px-8 py-5 bg-white border-2 border-gray-100 text-[#6B7280] hover:text-[#111827] hover:border-[#111827] rounded-2xl font-black text-sm uppercase tracking-widest transition-all duration-300 hover:-translate-y-1"
+                      className="flex-1 flex items-center justify-center px-8 py-5 bg-white dark:bg-[#0B0B0B] border-2 border-gray-100 dark:border-gray-800 text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:border-[#111827] dark:hover:border-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all duration-300 hover:-translate-y-1"
                     >
                       Switch to Basic
                     </button>
                   )}
                 </div>
 
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-6 text-center sm:text-left">
+                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-6 text-center sm:text-left">
                   * All changes take effect at the start of your next billing cycle.
                 </p>
               </div>
             )}
 
             {/* 3. Manage Subscription Card */}
-            <div className="bg-white rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 sm:p-10 border border-gray-100">
-              <h2 className="text-xl font-black text-[#0B0B0B] tracking-tight mb-8 pb-4 border-b border-gray-50">Security & Billing</h2>
+            <div className="bg-white dark:bg-[#151517] rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 sm:p-10 border border-gray-100 dark:border-gray-800 transition-colors">
+              <h2 className="text-xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-8 pb-4 border-b border-gray-50 dark:border-gray-800">Security & Billing</h2>
 
               {(isActive || isTrial) && !isCancelled && (
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
                   <div className="max-w-xl">
-                     <h4 className="font-bold text-[#111827] mb-2">Need to pause?</h4>
-                     <p className="text-[#6B7280] text-sm leading-relaxed">
+                     <h4 className="font-bold text-[#111827] dark:text-white mb-2">Need to pause?</h4>
+                     <p className="text-[#6B7280] dark:text-gray-400 text-sm leading-relaxed">
                         If you cancel, your data stays safe and secure. You'll keep full access to all features until the end of your current billing term.
                      </p>
                   </div>
                   <button
                     onClick={() => setCancelModalOpen(true)}
-                    className="px-6 py-4 border border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 whitespace-nowrap"
+                    className="px-6 py-4 border border-red-100 dark:border-red-900/30 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 dark:hover:border-red-900/50 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 whitespace-nowrap"
                   >
                     Cancel Plan
                   </button>
@@ -645,14 +644,14 @@ function SubscriptionContent() {
               {isSuspended && (
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
                   <div className="max-w-xl">
-                    <h4 className="font-bold text-[#111827] mb-2">Restore Access</h4>
-                    <p className="text-[#6B7280] text-sm leading-relaxed">
+                    <h4 className="font-bold text-[#111827] dark:text-white mb-2">Restore Access</h4>
+                    <p className="text-[#6B7280] dark:text-gray-400 text-sm leading-relaxed">
                       Reactivate your subscription to immediately restore access to your showcases and visitor data.
                     </p>
                   </div>
                   <button
                     onClick={() => setReactivateModalOpen(true)}
-                    className="px-8 py-5 bg-[#111827] text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300"
+                    className="px-8 py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300"
                   >
                     Reactivate Now
                   </button>
@@ -662,14 +661,14 @@ function SubscriptionContent() {
               {(isCancelled || isExpired) && (
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
                    <div className="max-w-xl">
-                    <h4 className="font-bold text-[#111827] mb-2">Come back anytime</h4>
-                    <p className="text-[#6B7280] text-sm leading-relaxed">
+                    <h4 className="font-bold text-[#111827] dark:text-white mb-2">Come back anytime</h4>
+                    <p className="text-[#6B7280] dark:text-gray-400 text-sm leading-relaxed">
                       Regain full access to the platform by starting a new subscription today. Your previous data is waiting for you.
                     </p>
                   </div>
                   <button
                     onClick={() => setResubscribeModalOpen(true)}
-                    className="px-8 py-5 bg-[#111827] text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300"
+                    className="px-8 py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300"
                   >
                     Resubscribe
                   </button>
@@ -682,7 +681,7 @@ function SubscriptionContent() {
           <div className="mt-16 text-center">
             <button
               onClick={() => router.push('/')}
-              className="group inline-flex items-center text-[#6B7280] hover:text-[#111827] font-bold text-xs uppercase tracking-widest transition-all duration-300 px-6 py-3 rounded-full hover:bg-white hover:shadow-sm"
+              className="group inline-flex items-center text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white font-bold text-xs uppercase tracking-widest transition-all duration-300 px-6 py-3 rounded-full hover:bg-white dark:hover:bg-[#151517] hover:shadow-sm"
             >
               <span className="mr-2 group-hover:-translate-x-1 transition-transform">←</span>
               Back to Dashboard

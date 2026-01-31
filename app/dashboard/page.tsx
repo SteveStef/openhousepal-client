@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState } from 'react'
-import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { apiRequest } from '@/lib/auth'
 import { useAuth } from '@/contexts/AuthContext'
@@ -148,7 +147,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] flex flex-col">
-      <Header />
       <div className="flex-1 p-6">
         <div className="max-w-6xl mx-auto">
         <div className="mb-8">

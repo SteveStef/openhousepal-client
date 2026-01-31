@@ -350,21 +350,21 @@ export default function EditPreferencesModal({
   if (!isOpen || !collection) return null
 
   return (
-    <div className="fixed inset-0 bg-[#111827]/60 flex items-center justify-center z-50 p-4 transition-all duration-300">
-      <div className="bg-white rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-gray-100 max-w-4xl w-full max-h-[90vh] overflow-y-auto transform transition-all">
-        <div className="p-8 border-b border-gray-100 sticky top-0 bg-white/95 z-10">
+    <div className="fixed inset-0 bg-[#111827]/60 z-50 flex items-center justify-center p-4 transition-all duration-300">
+      <div className="bg-white dark:bg-[#151517] rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-gray-100 dark:border-gray-800 max-w-4xl w-full max-h-[90vh] overflow-y-auto transform transition-all">
+        <div className="p-8 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white/95 dark:bg-[#151517]/95 z-10">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-2xl font-black text-[#0B0B0B] tracking-tight">Edit Collection Preferences</h3>
-              <p className="text-sm font-medium text-[#6B7280] mt-1">
+              <h3 className="text-2xl font-black text-[#0B0B0B] dark:text-white tracking-tight">Edit Collection Preferences</h3>
+              <p className="text-sm font-medium text-[#6B7280] dark:text-gray-400 mt-1">
                 Customize search criteria for <span className="text-[#C9A24D] font-bold">{collection.customer.firstName} {collection.customer.lastName}</span>
               </p>
             </div>
             <button
               onClick={onClose}
-              className="group p-2 rounded-full hover:bg-gray-100 transition-colors"
+              className="group p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
-              <X size={24} className="text-gray-400 group-hover:text-[#111827] transition-colors" />
+              <X size={24} className="text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white transition-colors" />
             </button>
           </div>
         </div>
@@ -372,20 +372,20 @@ export default function EditPreferencesModal({
         {isLoadingPreferences ? (
           <div className="p-6 flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8b7355]"></div>
-            <span className="ml-3 text-gray-600">Loading preferences...</span>
+            <span className="ml-3 text-gray-600 dark:text-gray-400">Loading preferences...</span>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-8 space-y-10">
             {/* Property Criteria */}
             <div className="space-y-6">
-              <div className="flex items-center space-x-3 pb-2 border-b border-gray-100">
+              <div className="flex items-center space-x-3 pb-2 border-b border-gray-100 dark:border-gray-800">
                 <div className="w-1 h-6 bg-[#C9A24D] rounded-full"></div>
-                <h4 className="text-lg font-black text-[#0B0B0B] tracking-tight uppercase">Property Criteria</h4>
+                <h4 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight uppercase">Property Criteria</h4>
               </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+                <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                   Minimum Bedrooms
                 </label>
                 <input
@@ -394,13 +394,13 @@ export default function EditPreferencesModal({
                   max="20"
                   value={formData.min_beds || ''}
                   onChange={(e) => handleInputChange('min_beds', e.target.value ? parseInt(e.target.value) : null)}
-                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
+                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white dark:hover:bg-[#151515] hover:border-[#C9A24D]/30"
                   placeholder="Any"
                 />
               </div>
               
               <div>
-                <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+                <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                   Maximum Bedrooms
                 </label>
                 <input
@@ -409,7 +409,7 @@ export default function EditPreferencesModal({
                   max="20"
                   value={formData.max_beds || ''}
                   onChange={(e) => handleInputChange('max_beds', e.target.value ? parseInt(e.target.value) : null)}
-                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
+                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white dark:hover:bg-[#151515] hover:border-[#C9A24D]/30"
                   placeholder="Any"
                 />
               </div>
@@ -417,7 +417,7 @@ export default function EditPreferencesModal({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+                <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                   Minimum Bathrooms
                 </label>
                 <input
@@ -427,13 +427,13 @@ export default function EditPreferencesModal({
                   step="0.5"
                   value={formData.min_baths || ''}
                   onChange={(e) => handleInputChange('min_baths', e.target.value ? parseFloat(e.target.value) : null)}
-                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
+                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white dark:hover:bg-[#151515] hover:border-[#C9A24D]/30"
                   placeholder="Any"
                 />
               </div>
               
               <div>
-                <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+                <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                   Maximum Bathrooms
                 </label>
                 <input
@@ -443,7 +443,7 @@ export default function EditPreferencesModal({
                   step="0.5"
                   value={formData.max_baths || ''}
                   onChange={(e) => handleInputChange('max_baths', e.target.value ? parseFloat(e.target.value) : null)}
-                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
+                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white dark:hover:bg-[#151515] hover:border-[#C9A24D]/30"
                   placeholder="Any"
                 />
               </div>
@@ -451,7 +451,7 @@ export default function EditPreferencesModal({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+                <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                   Minimum Price ($)
                 </label>
                 <input
@@ -463,13 +463,13 @@ export default function EditPreferencesModal({
                       handleInputChange('min_price', rawValue ? parseInt(rawValue) : null)
                     }
                   }}
-                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
+                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white dark:hover:bg-[#151515] hover:border-[#C9A24D]/30"
                   placeholder="Any"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+                <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                   Maximum Price ($)
                 </label>
                 <input
@@ -481,7 +481,7 @@ export default function EditPreferencesModal({
                       handleInputChange('max_price', rawValue ? parseInt(rawValue) : null)
                     }
                   }}
-                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
+                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white dark:hover:bg-[#151515] hover:border-[#C9A24D]/30"
                   placeholder="Any"
                 />
               </div>
@@ -489,7 +489,7 @@ export default function EditPreferencesModal({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+                <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                   Minimum Year Built
                 </label>
                 <input
@@ -498,13 +498,13 @@ export default function EditPreferencesModal({
                   max="2100"
                   value={formData.min_year_built || ''}
                   onChange={(e) => handleInputChange('min_year_built', e.target.value ? parseInt(e.target.value) : null)}
-                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
+                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white dark:hover:bg-[#151515] hover:border-[#C9A24D]/30"
                   placeholder="Any"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+                <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                   Maximum Year Built
                 </label>
                 <input
@@ -513,7 +513,7 @@ export default function EditPreferencesModal({
                   max="2100"
                   value={formData.max_year_built || ''}
                   onChange={(e) => handleInputChange('max_year_built', e.target.value ? parseInt(e.target.value) : null)}
-                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
+                  className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white dark:hover:bg-[#151515] hover:border-[#C9A24D]/30"
                   placeholder="Any"
                 />
               </div>
@@ -522,20 +522,20 @@ export default function EditPreferencesModal({
 
           {/* Location Criteria */}
           <div className="space-y-6">
-            <div className="flex items-center space-x-3 pb-2 border-b border-gray-100">
+            <div className="flex items-center space-x-3 pb-2 border-b border-gray-100 dark:border-gray-800">
               <div className="w-1 h-6 bg-[#C9A24D] rounded-full"></div>
-              <h4 className="text-lg font-black text-[#0B0B0B] tracking-tight uppercase">Location Preferences</h4>
+              <h4 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight uppercase">Location Preferences</h4>
             </div>
             
-            <p className="text-sm font-medium text-[#6B7280] mb-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
-              <span className="font-bold text-[#111827]">Note:</span> Choose either address-based search OR city/township filtering (not both).
+            <p className="text-sm font-medium text-[#6B7280] dark:text-gray-400 mb-4 bg-gray-50 dark:bg-[#151517] p-4 rounded-xl border border-gray-100 dark:border-gray-800">
+              <span className="font-bold text-[#111827] dark:text-white">Note:</span> Choose either address-based search OR city/township filtering (not both).
             </p>
             
             {/* Address-Based Search */}
-            <div className={`p-6 rounded-2xl border transition-all duration-300 ${isUsingAddressSearch() ? 'border-[#C9A24D] bg-[#FAFAF7] shadow-md' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+            <div className={`p-6 rounded-2xl border transition-all duration-300 ${isUsingAddressSearch() ? 'border-[#C9A24D] bg-[#FAFAF7] dark:bg-[#0B0B0B] shadow-md' : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151517] hover:border-gray-300 dark:hover:border-gray-700'}`}>
               <div className="flex items-center justify-between mb-6">
-                <h5 className={`text-md font-black uppercase tracking-wide flex items-center ${isUsingAddressSearch() ? 'text-[#111827]' : 'text-gray-500'}`}>
-                  <div className={`p-2 rounded-full mr-3 ${isUsingAddressSearch() ? 'bg-[#C9A24D] text-white' : 'bg-gray-100 text-gray-400'}`}>
+                <h5 className={`text-md font-black uppercase tracking-wide flex items-center ${isUsingAddressSearch() ? 'text-[#111827] dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                  <div className={`p-2 rounded-full mr-3 ${isUsingAddressSearch() ? 'bg-[#C9A24D] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}`}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -552,7 +552,7 @@ export default function EditPreferencesModal({
                       handleInputChange('lat', null)
                       handleInputChange('long', null)
                     }}
-                    className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] uppercase tracking-widest transition-colors py-2 px-3 hover:bg-[#C9A24D]/10 rounded-lg"
+                    className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] dark:hover:text-white uppercase tracking-widest transition-colors py-2 px-3 hover:bg-[#C9A24D]/10 rounded-lg"
                   >
                     Clear
                   </button>
@@ -561,7 +561,7 @@ export default function EditPreferencesModal({
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+                  <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                     Address
                   </label>
                   <GooglePlacesAutocomplete
@@ -574,15 +574,15 @@ export default function EditPreferencesModal({
                         }}
                     className={`block w-full px-4 py-3.5 border rounded-xl placeholder-gray-400 focus:outline-none focus:ring-4 transition-all duration-200 font-medium ${
                       isUsingAreaSearch()
-                        ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
-                        : 'bg-white border-gray-200 text-[#0B0B0B] focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] hover:border-[#C9A24D]/30'
+                        ? 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                        : 'bg-white dark:bg-[#0B0B0B] border-gray-200 dark:border-gray-700 text-[#0B0B0B] dark:text-white focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] hover:border-[#C9A24D]/30'
                     }`}
                     placeholder={isUsingAreaSearch() ? 'Disabled - using city/township search' : '123 Main Street, City, State'}
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+                  <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                     Search Diameter (miles) {formData.address ? '*' : ''}
                   </label>
                   <input
@@ -595,8 +595,8 @@ export default function EditPreferencesModal({
                     disabled={isUsingAreaSearch()}
                     className={`block w-full px-4 py-3.5 border rounded-xl placeholder-gray-400 focus:outline-none focus:ring-4 transition-all duration-200 font-medium ${
                       isUsingAreaSearch()
-                        ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
-                        : 'bg-white border-gray-200 text-[#0B0B0B] focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] hover:border-[#C9A24D]/30'
+                        ? 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                        : 'bg-white dark:bg-[#0B0B0B] border-gray-200 dark:border-gray-700 text-[#0B0B0B] dark:text-white focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] hover:border-[#C9A24D]/30'
                     }`}
                     placeholder="2.0"
                   />
@@ -608,10 +608,10 @@ export default function EditPreferencesModal({
             </div>
 
             {/* Area-Based Search */}
-            <div className={`p-6 rounded-2xl border transition-all duration-300 ${isUsingAreaSearch() ? 'border-[#C9A24D] bg-[#FAFAF7] shadow-md' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+            <div className={`p-6 rounded-2xl border transition-all duration-300 ${isUsingAreaSearch() ? 'border-[#C9A24D] bg-[#FAFAF7] dark:bg-[#0B0B0B] shadow-md' : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151517] hover:border-gray-300 dark:hover:border-gray-700'}`}>
               <div className="flex items-center justify-between mb-6">
-                <h5 className={`text-md font-black uppercase tracking-wide flex items-center ${isUsingAreaSearch() ? 'text-[#111827]' : 'text-gray-500'}`}>
-                  <div className={`p-2 rounded-full mr-3 ${isUsingAreaSearch() ? 'bg-[#C9A24D] text-white' : 'bg-gray-100 text-gray-400'}`}>
+                <h5 className={`text-md font-black uppercase tracking-wide flex items-center ${isUsingAreaSearch() ? 'text-[#111827] dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                  <div className={`p-2 rounded-full mr-3 ${isUsingAreaSearch() ? 'bg-[#C9A24D] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}`}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                     </svg>
@@ -625,7 +625,7 @@ export default function EditPreferencesModal({
                       handleInputChange('cities', [])
                       handleInputChange('townships', [])
                     }}
-                    className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] uppercase tracking-widest transition-colors py-2 px-3 hover:bg-[#C9A24D]/10 rounded-lg"
+                    className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] dark:hover:text-white uppercase tracking-widest transition-colors py-2 px-3 hover:bg-[#C9A24D]/10 rounded-lg"
                   >
                     Clear
                   </button>
@@ -634,7 +634,7 @@ export default function EditPreferencesModal({
               
               <div className="space-y-6">
                 <div>
-                  <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+                  <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                     Cities
                   </label>
                   <MultiCityPlacesInput
@@ -660,7 +660,7 @@ export default function EditPreferencesModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+                  <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                     Townships
                   </label>
                   <MultiTownshipPlacesInput
@@ -689,33 +689,33 @@ export default function EditPreferencesModal({
 
             {/* Location Validation Error */}
             {validationErrors.location && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center shadow-sm">
-                <div className="p-2 bg-red-100 rounded-full mr-3">
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center shadow-sm">
+                <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-full mr-3">
                   <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <p className="text-sm font-medium text-red-700">{validationErrors.location}</p>
+                <p className="text-sm font-medium text-red-700 dark:text-red-400">{validationErrors.location}</p>
               </div>
             )}
           </div>
 
           {/* Special Features */}
           <div className="space-y-6">
-            <div className="flex items-center space-x-3 pb-2 border-b border-gray-100">
+            <div className="flex items-center space-x-3 pb-2 border-b border-gray-100 dark:border-gray-800">
               <div className="w-1 h-6 bg-[#C9A24D] rounded-full"></div>
-              <h4 className="text-lg font-black text-[#0B0B0B] tracking-tight uppercase">Special Features</h4>
+              <h4 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight uppercase">Special Features</h4>
             </div>
             
             <div>
-              <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+              <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                 Special features they're looking for
               </label>
               <textarea
                 value={formData.special_features || ''}
                 onChange={(e) => handleInputChange('special_features', e.target.value)}
                 rows={3}
-                className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30"
+                className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white dark:hover:bg-[#151515] hover:border-[#C9A24D]/30"
                 placeholder="e.g., pool, garage, modern kitchen, hardwood floors..."
               />
             </div>
@@ -723,14 +723,14 @@ export default function EditPreferencesModal({
 
           {/* Home Type Preferences */}
           <div className="space-y-6">
-            <div className="flex items-center space-x-3 pb-2 border-b border-gray-100">
+            <div className="flex items-center space-x-3 pb-2 border-b border-gray-100 dark:border-gray-800">
               <div className="w-1 h-6 bg-[#C9A24D] rounded-full"></div>
-              <h4 className="text-lg font-black text-[#0B0B0B] tracking-tight uppercase">Home Type Preferences</h4>
+              <h4 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight uppercase">Home Type Preferences</h4>
             </div>
             
-            <p className="text-xs font-bold text-[#6B7280] uppercase tracking-widest ml-1">Select at least one property type *</p>
+            <p className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest ml-1">Select at least one property type *</p>
             
-            <div className={`p-6 rounded-2xl border transition-all duration-300 ${validationErrors.propertyTypes ? 'border-red-200 bg-red-50/50' : 'border-gray-200 bg-[#FAFAF7]'}`}>
+            <div className={`p-6 rounded-2xl border transition-all duration-300 ${validationErrors.propertyTypes ? 'border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-700 bg-[#FAFAF7] dark:bg-[#0B0B0B]'}`}>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                 <label className="flex items-center space-x-3 cursor-pointer group">
                   <div className="relative flex items-center">
@@ -738,10 +738,10 @@ export default function EditPreferencesModal({
                       type="checkbox"
                       checked={formData.is_single_family || false}
                       onChange={(e) => handleInputChange('is_single_family', e.target.checked)}
-                      className="w-5 h-5 text-[#111827] border-gray-300 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
                     />
                   </div>
-                  <span className="text-sm font-bold text-[#6B7280] group-hover:text-[#111827] transition-colors">Single Family</span>
+                  <span className="text-sm font-bold text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Single Family</span>
                 </label>
 
                 <label className="flex items-center space-x-3 cursor-pointer group">
@@ -750,10 +750,10 @@ export default function EditPreferencesModal({
                       type="checkbox"
                       checked={formData.is_condo || false}
                       onChange={(e) => handleInputChange('is_condo', e.target.checked)}
-                      className="w-5 h-5 text-[#111827] border-gray-300 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
                     />
                   </div>
-                  <span className="text-sm font-bold text-[#6B7280] group-hover:text-[#111827] transition-colors">Condo</span>
+                  <span className="text-sm font-bold text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Condo</span>
                 </label>
 
                 <label className="flex items-center space-x-3 cursor-pointer group">
@@ -762,10 +762,10 @@ export default function EditPreferencesModal({
                       type="checkbox"
                       checked={formData.is_town_house || false}
                       onChange={(e) => handleInputChange('is_town_house', e.target.checked)}
-                      className="w-5 h-5 text-[#111827] border-gray-300 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
                     />
                   </div>
-                  <span className="text-sm font-bold text-[#6B7280] group-hover:text-[#111827] transition-colors">Townhouse</span>
+                  <span className="text-sm font-bold text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Townhouse</span>
                 </label>
 
                 <label className="flex items-center space-x-3 cursor-pointer group">
@@ -774,10 +774,10 @@ export default function EditPreferencesModal({
                       type="checkbox"
                       checked={formData.is_apartment || false}
                       onChange={(e) => handleInputChange('is_apartment', e.target.checked)}
-                      className="w-5 h-5 text-[#111827] border-gray-300 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
                     />
                   </div>
-                  <span className="text-sm font-bold text-[#6B7280] group-hover:text-[#111827] transition-colors">Apartment</span>
+                  <span className="text-sm font-bold text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Apartment</span>
                 </label>
 
                 <label className="flex items-center space-x-3 cursor-pointer group">
@@ -786,10 +786,10 @@ export default function EditPreferencesModal({
                       type="checkbox"
                       checked={formData.is_multi_family || false}
                       onChange={(e) => handleInputChange('is_multi_family', e.target.checked)}
-                      className="w-5 h-5 text-[#111827] border-gray-300 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
                     />
                   </div>
-                  <span className="text-sm font-bold text-[#6B7280] group-hover:text-[#111827] transition-colors">Multi-Family</span>
+                  <span className="text-sm font-bold text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Multi-Family</span>
                 </label>
 
                 <label className="flex items-center space-x-3 cursor-pointer group">
@@ -798,44 +798,44 @@ export default function EditPreferencesModal({
                       type="checkbox"
                       checked={formData.is_lot_land || false}
                       onChange={(e) => handleInputChange('is_lot_land', e.target.checked)}
-                      className="w-5 h-5 text-[#111827] border-gray-300 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
                     />
                   </div>
-                  <span className="text-sm font-bold text-[#6B7280] group-hover:text-[#111827] transition-colors">Lot/Land</span>
+                  <span className="text-sm font-bold text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Lot/Land</span>
                 </label>
               </div>
             </div>
 
             {/* Property Type Validation Error */}
             {validationErrors.propertyTypes && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center shadow-sm">
-                <div className="p-2 bg-red-100 rounded-full mr-3">
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center shadow-sm">
+                <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-full mr-3">
                   <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <p className="text-sm font-medium text-red-700">{validationErrors.propertyTypes}</p>
+                <p className="text-sm font-medium text-red-700 dark:text-red-400">{validationErrors.propertyTypes}</p>
               </div>
             )}
           </div>
 
           {/* Visitor Information */}
           <div className="space-y-6">
-            <div className="flex items-center space-x-3 pb-2 border-b border-gray-100">
+            <div className="flex items-center space-x-3 pb-2 border-b border-gray-100 dark:border-gray-800">
               <div className="w-1 h-6 bg-[#C9A24D] rounded-full"></div>
-              <h4 className="text-lg font-black text-[#0B0B0B] tracking-tight uppercase">Visitor Information</h4>
+              <h4 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight uppercase">Visitor Information</h4>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+                <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                   Visiting Reason
                 </label>
                 <div className="relative">
                   <select
                     value={formData.visiting_reason || ''}
                     onChange={(e) => handleInputChange('visiting_reason', e.target.value || null)}
-                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30 appearance-none cursor-pointer"
+                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white dark:hover:bg-[#151515] hover:border-[#C9A24D]/30 appearance-none cursor-pointer"
                   >
                     <option value="">Not specified</option>
                     <option value="BUYING_SOON">Buying soon</option>
@@ -854,14 +854,14 @@ export default function EditPreferencesModal({
               </div>
               
               <div>
-                <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+                <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                   Has Agent
                 </label>
                 <div className="relative">
                   <select
                     value={formData.has_agent || ''}
                     onChange={(e) => handleInputChange('has_agent', e.target.value || null)}
-                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white hover:border-[#C9A24D]/30 appearance-none cursor-pointer"
+                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white dark:hover:bg-[#151515] hover:border-[#C9A24D]/30 appearance-none cursor-pointer"
                   >
                     <option value="">Not specified</option>
                     <option value="YES">Yes</option>
@@ -879,22 +879,22 @@ export default function EditPreferencesModal({
           </div>
 
           {/* Form Actions */}
-          <div className="flex items-center justify-end space-x-4 pt-8 border-t border-gray-100">
+          <div className="flex items-center justify-end space-x-4 pt-8 border-t border-gray-100 dark:border-gray-800">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-3.5 bg-white border border-gray-200 hover:bg-gray-50 text-[#6B7280] font-bold rounded-xl transition-all duration-300 uppercase tracking-wide text-xs shadow-sm hover:shadow"
+              className="px-6 py-3.5 bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-[#2c241b] text-[#6B7280] dark:text-gray-400 font-bold rounded-xl transition-all duration-300 uppercase tracking-wide text-xs shadow-sm hover:shadow"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-8 py-3.5 bg-[#111827] hover:bg-[#C9A24D] text-white font-black rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed uppercase tracking-widest text-xs"
+              className="px-8 py-3.5 bg-[#111827] dark:bg-white hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] text-white dark:text-[#111827] font-black rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed uppercase tracking-widest text-xs"
             >
               {isSubmitting ? (
                 <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white dark:text-[#111827]" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>

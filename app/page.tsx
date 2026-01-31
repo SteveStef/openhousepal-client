@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
-import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import MobilePhoneMockup from '@/components/MobilePhoneMockup'
 import { PRICING_PLANS, TRIAL_PERIOD_DAYS } from '@/lib/pricing'
@@ -13,15 +12,15 @@ function FAQItem({ faq, index, isVisible }: { faq: { question: string; answer: s
 
   return (
     <div
-      className={`bg-white/80 rounded-2xl border border-gray-100 shadow-sm transition-all duration-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'} overflow-hidden`}
+      className={`bg-white/80 dark:bg-[#151517]/80 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm transition-all duration-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'} overflow-hidden`}
       style={{ transitionDelay: `${index * 100}ms` }}
     >
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-8 py-6 text-left flex items-center justify-between hover:bg-[#FAFAF7] transition-colors duration-200"
+        className="w-full px-8 py-6 text-left flex items-center justify-between hover:bg-[#FAFAF7] dark:hover:bg-[#0B0B0B] transition-colors duration-200"
       >
-        <h5 className="text-lg font-bold text-[#0B0B0B] pr-8">{faq.question}</h5>
-        <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${isOpen ? 'rotate-180 bg-[#C9A24D]/10 text-[#C9A24D]' : 'bg-gray-100 text-gray-400'}`}>
+        <h5 className="text-lg font-bold text-[#0B0B0B] dark:text-gray-100 pr-8">{faq.question}</h5>
+        <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${isOpen ? 'rotate-180 bg-[#C9A24D]/10 text-[#C9A24D]' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}`}>
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
           </svg>
@@ -30,7 +29,7 @@ function FAQItem({ faq, index, isVisible }: { faq: { question: string; answer: s
       <div 
         className={`px-8 transition-all duration-300 ease-in-out ${isOpen ? 'max-h-48 pb-8 opacity-100' : 'max-h-0 pb-0 opacity-0'}`}
       >
-        <p className="text-[#6B7280] leading-relaxed font-medium">{faq.answer}</p>
+        <p className="text-[#6B7280] dark:text-gray-400 leading-relaxed font-medium">{faq.answer}</p>
       </div>
     </div>
   )
@@ -44,16 +43,16 @@ export default function HomePage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#FAFAF7] flex flex-col overflow-hidden relative">
+    <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col overflow-hidden relative transition-colors duration-300">
       {/* Sophisticated Background Architecture */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Subtle Deep Layer Gradients */}
-        <div className="absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] bg-[#C9A24D]/5 rounded-full blur-[120px] mix-blend-multiply animate-pulse" style={{ animationDuration: '8s' }} />
-        <div className="absolute top-[20%] right-[-10%] w-[800px] h-[800px] bg-[#111827]/5 rounded-full blur-[100px] mix-blend-multiply animate-pulse" style={{ animationDuration: '12s' }} />
-        <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] bg-[#C9A24D]/5 rounded-full blur-[120px] mix-blend-multiply" />
+        <div className="absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] bg-[#C9A24D]/5 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDuration: '8s' }} />
+        <div className="absolute top-[20%] right-[-10%] w-[800px] h-[800px] bg-[#111827]/5 dark:bg-[#C9A24D]/5 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDuration: '12s' }} />
+        <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] bg-[#C9A24D]/5 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen" />
         
         {/* Refined Texture & Grid */}
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/pinstripe-light.png')] opacity-[0.03] mix-blend-overlay"></div>
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/pinstripe-light.png')] opacity-[0.03] dark:opacity-[0.05] mix-blend-overlay dark:mix-blend-soft-light"></div>
         <div className="absolute inset-0" style={{ 
           backgroundImage: 'radial-gradient(circle at 2px 2px, #C9A24D 1px, transparent 0)', 
           backgroundSize: '48px 48px',
@@ -63,7 +62,7 @@ export default function HomePage() {
 
       {/* Navigation */}
       <div className={`relative z-50 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0'}`}>
-        <Header mode="landing" />
+        
       </div>
 
       {/* Hero Section */}
@@ -76,29 +75,29 @@ export default function HomePage() {
                 {/* Accent glow behind text */}
                 <div className="absolute -top-24 -left-24 w-64 h-64 bg-[#C9A24D]/10 rounded-full blur-3xl -z-10"></div>
                 
-                <div className="inline-flex items-center px-4 py-2 bg-white/80 rounded-full border border-gray-200/80 mb-8 shadow-[0_4px_20px_rgba(0,0,0,0.04)] ring-1 ring-black/5">
+                <div className="inline-flex items-center px-4 py-2 bg-white/80 dark:bg-[#151517]/80 rounded-full border border-gray-200/80 dark:border-gray-800 mb-8 shadow-[0_4px_20px_rgba(0,0,0,0.04)] ring-1 ring-black/5 dark:ring-white/10">
                   <div className="w-2 h-2 bg-[#C9A24D] rounded-full animate-pulse mr-3"></div>
-                  <span className="text-xs font-bold text-[#111827] tracking-widest uppercase">Trusted by Top Agents</span>
+                  <span className="text-xs font-bold text-[#111827] dark:text-gray-200 tracking-widest uppercase">Trusted by Top Agents</span>
                 </div>
                 
-                <h2 className="text-[3.5rem] lg:text-[5.5rem] font-black text-[#0B0B0B] mb-8 leading-[0.95] tracking-tight">
+                <h2 className="text-[3.5rem] lg:text-[5.5rem] font-black text-[#0B0B0B] dark:text-white mb-8 leading-[0.95] tracking-tight">
                   Turn Open Houses Into{' '}
                   <span className="relative inline-block">
-                    <span className="text-transparent bg-clip-text bg-gradient-to-br from-[#111827] via-[#3a2f25] to-[#C9A24D] drop-shadow-sm">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-br from-[#111827] via-[#3a2f25] to-[#C9A24D] dark:from-white dark:via-[#e5e7eb] dark:to-[#C9A24D] drop-shadow-sm">
                       Closings
                     </span>
                     <div className="absolute -bottom-2 left-0 w-full h-1.5 bg-gradient-to-r from-[#C9A24D] to-transparent rounded-full opacity-40"></div>
                   </span>
                 </h2>
                 
-                <p className="text-xl text-[#6B7280] mb-10 leading-relaxed font-light max-w-xl">
+                <p className="text-xl text-[#6B7280] dark:text-gray-400 mb-10 leading-relaxed font-light max-w-xl">
                   The all-in-one toolkit to capture visitors, generate instant AI showcases, and automate follow-ups that convert.
                 </p>
                 
                 <div className="flex flex-col sm:flex-row gap-5 mb-14">
                   <Link
                     href="/register"
-                    className="group relative px-8 py-4 bg-[#111827] text-white rounded-xl font-bold text-lg overflow-hidden shadow-[0_10px_30px_-5px_rgba(17,24,39,0.3)] transform transition-all duration-300 hover:scale-105 hover:shadow-[0_20px_40px_-5px_rgba(201,162,77,0.3)] active:scale-95 hover:bg-[#C9A24D]"
+                    className="group relative px-8 py-4 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-bold text-lg overflow-hidden shadow-[0_10px_30px_-5px_rgba(17,24,39,0.3)] transform transition-all duration-300 hover:scale-105 hover:shadow-[0_20px_40px_-5px_rgba(201,162,77,0.3)] active:scale-95 hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D]"
                   >
                     <span className="relative z-10 flex items-center justify-center">
                       Start Free Trial
@@ -109,7 +108,7 @@ export default function HomePage() {
                   </Link>
                   <Link
                     href="#how-it-works"
-                    className="group px-8 py-4 bg-white/80 text-[#111827] rounded-xl font-bold text-lg border border-gray-200 hover:border-[#C9A24D]/50 hover:bg-white transition-all duration-300 hover:scale-105 shadow-[0_4px_15px_rgba(0,0,0,0.03)]"
+                    className="group px-8 py-4 bg-white/80 dark:bg-[#151517]/80 text-[#111827] dark:text-white rounded-xl font-bold text-lg border border-gray-200 dark:border-gray-800 hover:border-[#C9A24D]/50 dark:hover:border-[#C9A24D]/50 hover:bg-white dark:hover:bg-[#151517] transition-all duration-300 hover:scale-105 shadow-[0_4px_15px_rgba(0,0,0,0.03)]"
                   >
                     <span className="flex items-center justify-center">
                       How It Works
@@ -118,7 +117,7 @@ export default function HomePage() {
                 </div>
                 
                 {/* Key Benefits */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-8 border-t border-gray-200">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-8 border-t border-gray-200 dark:border-gray-800">
                   {[
                     { icon: "M13 10V3L4 14h7v7l9-11h-7z", label: "Instant Setup" },
                     { icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", label: "AI Powered" },
@@ -130,7 +129,7 @@ export default function HomePage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={benefit.icon} />
                         </svg>
                       </div>
-                      <span className="text-[#111827] font-bold text-sm">{benefit.label}</span>
+                      <span className="text-[#111827] dark:text-gray-200 font-bold text-sm">{benefit.label}</span>
                     </div>
                   ))}
                 </div>
@@ -156,13 +155,13 @@ export default function HomePage() {
       <div className="relative z-10 py-20 lg:py-32">
         <div className="max-w-6xl mx-auto px-6">
           <div className={`text-center mb-16 transform transition-all duration-1000 delay-400 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-            <h3 className="text-4xl font-extrabold text-[#0B0B0B] mb-6 tracking-tight">Experience the Future</h3>
-            <p className="text-xl text-[#6B7280] font-light max-w-2xl mx-auto">
+            <h3 className="text-4xl font-extrabold text-[#0B0B0B] dark:text-white mb-6 tracking-tight">Experience the Future</h3>
+            <p className="text-xl text-[#6B7280] dark:text-gray-400 font-light max-w-2xl mx-auto">
               See how OpenHousePal seamlessly bridges the gap between physical visits and digital conversion.
             </p>
           </div>
-          <div className={`relative rounded-3xl overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ring-1 ring-[#111827]/10 transform transition-all duration-1000 delay-500 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-            <div className="aspect-video bg-gray-100 relative">
+          <div className={`relative rounded-3xl overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ring-1 ring-[#111827]/10 dark:ring-white/10 transform transition-all duration-1000 delay-500 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+            <div className="aspect-video bg-gray-100 dark:bg-gray-900 relative">
                {/* Overlay gradient for video controls contrast */}
                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
                <video 
@@ -182,12 +181,12 @@ export default function HomePage() {
       </div>
 
       {/* How It Works - Redesigned Vertical Timeline */}
-      <div id="how-it-works" className="relative z-10 py-24 bg-white/50 overflow-hidden">
+      <div id="how-it-works" className="relative z-10 py-24 bg-white/50 dark:bg-[#151517]/50 overflow-hidden transition-colors duration-300">
         <div className="max-w-6xl mx-auto px-6">
           <div className={`text-center mb-24 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
             <span className="text-[#C9A24D] font-bold tracking-widest uppercase text-sm mb-4 block">Simple Workflow</span>
-            <h3 className="text-5xl font-extrabold text-[#0B0B0B] mb-6 tracking-tight">How It Works</h3>
-            <p className="text-xl text-[#6B7280] font-light max-w-2xl mx-auto">
+            <h3 className="text-5xl font-extrabold text-[#0B0B0B] dark:text-white mb-6 tracking-tight">How It Works</h3>
+            <p className="text-xl text-[#6B7280] dark:text-gray-400 font-light max-w-2xl mx-auto">
               From open house visitor to signed client in four automated steps.
             </p>
           </div>
@@ -233,7 +232,7 @@ export default function HomePage() {
                 <div key={index} className={`relative flex flex-col md:flex-row items-center justify-between group ${index % 2 === 0 ? '' : 'md:flex-row-reverse'}`}>
                   
                   {/* Center Marker (Desktop) */}
-                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center justify-center w-12 h-12 rounded-full bg-white border-4 border-[#faf9f7] shadow-lg z-10 group-hover:scale-110 transition-transform duration-300">
+                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center justify-center w-12 h-12 rounded-full bg-white dark:bg-[#151517] border-4 border-[#faf9f7] dark:border-[#0B0B0B] shadow-lg z-10 group-hover:scale-110 transition-transform duration-300">
                     <div className="w-4 h-4 bg-[#C9A24D] rounded-full"></div>
                   </div>
 
@@ -267,7 +266,7 @@ export default function HomePage() {
                       )}
 
                       {/* Floating Badge */}
-                      <div className="absolute -bottom-6 inline-flex items-center px-6 py-3 bg-white rounded-xl shadow-xl">
+                      <div className="absolute -bottom-6 inline-flex items-center px-6 py-3 bg-white dark:bg-[#151517] rounded-xl shadow-xl border border-transparent dark:border-gray-800">
                         <span className="text-4xl font-black text-[#C9A24D] mr-3">{item.step}</span>
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Step</span>
                       </div>
@@ -277,12 +276,12 @@ export default function HomePage() {
                   {/* Text Side */}
                   <div className={`w-full md:w-[45%] pl-20 md:pl-0 ${index % 2 === 0 ? 'md:text-right md:pr-12' : 'md:text-left md:pl-12'}`}>
                     {/* Mobile Step Number (Left Line) */}
-                    <div className="absolute left-8 top-0 -translate-x-1/2 flex md:hidden items-center justify-center w-10 h-10 rounded-full bg-[#C9A24D] text-white font-bold shadow-lg border-4 border-[#faf9f7] z-10">
+                    <div className="absolute left-8 top-0 -translate-x-1/2 flex md:hidden items-center justify-center w-10 h-10 rounded-full bg-[#C9A24D] text-white font-bold shadow-lg border-4 border-[#faf9f7] dark:border-[#0B0B0B] z-10">
                       {item.step}
                     </div>
 
-                    <h4 className="text-3xl font-bold text-[#0B0B0B] mb-4">{item.title}</h4>
-                    <p className="text-lg text-[#6B7280] font-light leading-relaxed">
+                    <h4 className="text-3xl font-bold text-[#0B0B0B] dark:text-white mb-4">{item.title}</h4>
+                    <p className="text-lg text-[#6B7280] dark:text-gray-400 font-light leading-relaxed">
                       {item.description}
                     </p>
                   </div>
@@ -300,10 +299,10 @@ export default function HomePage() {
 
         <div className={`text-center mb-16 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           <span className="text-[#C9A24D] font-bold tracking-wider uppercase text-sm mb-4 block">Simple Pricing</span>
-          <h3 className="text-5xl font-extrabold text-[#0B0B0B] mb-6 tracking-tight">Invest in Your Growth</h3>
+          <h3 className="text-5xl font-extrabold text-[#0B0B0B] dark:text-white mb-6 tracking-tight">Invest in Your Growth</h3>
           
           {/* Trial Banner */}
-          <div className="inline-flex items-center gap-6 px-6 py-3 bg-white rounded-full border border-gray-200 shadow-sm text-sm text-[#6B7280] mt-4">
+          <div className="inline-flex items-center gap-6 px-6 py-3 bg-white dark:bg-[#151517] rounded-full border border-gray-200 dark:border-gray-800 shadow-sm text-sm text-[#6B7280] dark:text-gray-400 mt-4">
             <span className="flex items-center"><svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>{TRIAL_PERIOD_DAYS}-day free trial</span>
             <span className="flex items-center"><svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>Cancel anytime</span>
             <span className="flex items-center"><svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>No commitment</span>
@@ -312,12 +311,12 @@ export default function HomePage() {
 
         <div className="grid md:grid-cols-2 gap-10 max-w-5xl mx-auto px-6 items-start">
           {/* Basic Plan */}
-          <div className={`bg-white rounded-[2rem] p-10 border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.05)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative transition-all hover:shadow-[0_30px_60px_rgba(0,0,0,0.08)]`}>
+          <div className={`bg-white dark:bg-[#151517] rounded-[2rem] p-10 border border-gray-100 dark:border-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.05)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative transition-all hover:shadow-[0_30px_60px_rgba(0,0,0,0.08)]`}>
             <div className="text-center mb-10">
-              <h4 className="text-xl font-bold text-[#0B0B0B] mb-4 uppercase tracking-wide">{PRICING_PLANS.BASIC.name}</h4>
+              <h4 className="text-xl font-bold text-[#0B0B0B] dark:text-white mb-4 uppercase tracking-wide">{PRICING_PLANS.BASIC.name}</h4>
               <div className="flex items-baseline justify-center mb-2">
-                <span className="text-5xl font-black text-[#0B0B0B] tracking-tight">{PRICING_PLANS.BASIC.priceString}</span>
-                <span className="text-[#6B7280] ml-2 font-medium">/mo</span>
+                <span className="text-5xl font-black text-[#0B0B0B] dark:text-white tracking-tight">{PRICING_PLANS.BASIC.priceString}</span>
+                <span className="text-[#6B7280] dark:text-gray-400 ml-2 font-medium">/mo</span>
               </div>
               <p className="text-sm text-gray-400">after {TRIAL_PERIOD_DAYS}-day free trial</p>
             </div>
@@ -328,7 +327,7 @@ export default function HomePage() {
                 'Custom open house sign-in forms',
                 'Catalog of all visitors'
               ].map((feature, index) => (
-                <li key={index} className="flex items-start text-gray-700 font-medium">
+                <li key={index} className="flex items-start text-gray-700 dark:text-gray-300 font-medium">
                   <svg className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                   </svg>
@@ -337,7 +336,7 @@ export default function HomePage() {
               ))}
             </ul>
 
-            <div className="border-t border-gray-100 pt-8 mt-8 mb-8">
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-8 mt-8 mb-8">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4">Missing Key Features</p>
               <ul className="space-y-3">
                 {[
@@ -357,7 +356,7 @@ export default function HomePage() {
 
             <Link
               href="/register"
-              className="block w-full text-center px-6 py-4 bg-gray-100 text-[#111827] rounded-xl font-bold hover:bg-gray-200 transition-colors"
+              className="block w-full text-center px-6 py-4 bg-gray-100 dark:bg-gray-800 text-[#111827] dark:text-white rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
             >
               Select Basic
             </Link>
@@ -432,8 +431,8 @@ export default function HomePage() {
       <div id="faq" className="py-24">
         <div className="max-w-4xl mx-auto px-6">
           <div className={`text-center mb-16 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-            <h3 className="text-4xl font-extrabold text-[#0B0B0B] mb-6 tracking-tight">Questions?</h3>
-            <p className="text-xl text-[#6B7280] font-light">
+            <h3 className="text-4xl font-extrabold text-[#0B0B0B] dark:text-white mb-6 tracking-tight">Questions?</h3>
+            <p className="text-xl text-[#6B7280] dark:text-gray-400 font-light">
               We're here to help you succeed.
             </p>
           </div>

@@ -1,13 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
 export default function TermsPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2]">
-      <Header mode="landing" />
+      
 
       {/* Content */}
       <div className="flex-1">

@@ -157,23 +157,23 @@ function LoginContent() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left Section - Login Form (55%) */}
-      <div className="w-full lg:w-[55%] bg-[#FAFAF7] relative flex items-center justify-center px-6 py-12 overflow-hidden">
+      <div className="w-full lg:w-[55%] bg-[#FAFAF7] dark:bg-[#0B0B0B] relative flex items-center justify-center px-6 py-12 overflow-hidden transition-colors duration-300">
         {/* Refined Background Gradient Orbs */}
-        <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#C9A24D]/5 rounded-full blur-[120px] pointer-events-none mix-blend-multiply"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#111827]/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply"></div>
+        <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#C9A24D]/5 rounded-full blur-[120px] pointer-events-none mix-blend-multiply dark:mix-blend-screen"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#111827]/5 dark:bg-[#C9A24D]/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply dark:mix-blend-screen"></div>
         
         <div className="max-w-[480px] w-full relative z-10">
           {/* Header */}
           <div className="mb-10 text-center">
-            <h2 className="text-4xl font-black text-[#0B0B0B] tracking-tight mb-3">Welcome back</h2>
-            <p className="text-[#6B7280] text-base font-medium">Please enter your details to sign in.</p>
+            <h2 className="text-4xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-3">Welcome back</h2>
+            <p className="text-[#6B7280] dark:text-gray-400 text-base font-medium">Please enter your details to sign in.</p>
           </div>
 
           {/* Login Card */}
-          <div className="bg-white rounded-3xl p-8 md:p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100">
+          <div className="bg-white dark:bg-[#151517] rounded-3xl p-8 md:p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 transition-colors duration-300">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="email" className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+                <label htmlFor="email" className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                   Email address
                 </label>
                 <div className="relative group">
@@ -189,10 +189,10 @@ function LoginContent() {
                     required
                     value={formData.email}
                     onChange={handleChange}
-                    className={`block w-full pl-11 pr-4 py-3.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium ${
+                    className={`block w-full pl-11 pr-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium ${
                       fieldErrors.email 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                        : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30 dark:hover:border-[#C9A24D]/30'
                     }`}
                     placeholder="name@company.com"
                   />
@@ -208,7 +208,7 @@ function LoginContent() {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-xs font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">
+                <label htmlFor="password" className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                   Password
                 </label>
                 <div className="relative group">
@@ -224,17 +224,17 @@ function LoginContent() {
                     required
                     value={formData.password}
                     onChange={handleChange}
-                    className={`block w-full pl-11 pr-12 py-3.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium ${
+                    className={`block w-full pl-11 pr-12 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium ${
                       fieldErrors.password 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                        : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30 dark:hover:border-[#C9A24D]/30'
                     }`}
                     placeholder="••••••••"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-[#111827] focus:outline-none transition-colors"
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-[#111827] dark:hover:text-white focus:outline-none transition-colors"
                   >
                     {showPassword ? (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -265,14 +265,14 @@ function LoginContent() {
                       type="checkbox"
                       className="sr-only peer"
                     />
-                    <div className="w-5 h-5 border-2 border-gray-200 rounded peer-checked:bg-[#111827] peer-checked:border-[#111827] transition-all duration-200"></div>
-                    <svg className="absolute top-1 left-1 w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" fill="currentColor" viewBox="0 0 20 20">
+                    <div className="w-5 h-5 border-2 border-gray-200 dark:border-gray-700 rounded peer-checked:bg-[#111827] dark:peer-checked:bg-[#C9A24D] peer-checked:border-[#111827] dark:peer-checked:border-[#C9A24D] transition-all duration-200"></div>
+                    <svg className="absolute top-1 left-1 w-3 h-3 text-white dark:text-[#111827] opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <span className="ml-2.5 text-xs font-bold text-[#6B7280] uppercase tracking-wider group-hover:text-[#111827] transition-colors">Remember me</span>
+                  <span className="ml-2.5 text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Remember me</span>
                 </label>
-                <Link href="/forgot-password" className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] transition-colors uppercase tracking-widest hover:underline underline-offset-4">
+                <Link href="/forgot-password" className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] dark:hover:text-white transition-colors uppercase tracking-widest hover:underline underline-offset-4">
                   Forgot password?
                 </Link>
               </div>
@@ -280,11 +280,11 @@ function LoginContent() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-4 px-4 rounded-xl shadow-xl text-sm font-black uppercase tracking-widest text-white bg-[#111827] hover:bg-[#C9A24D] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111827] transform transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full flex justify-center py-4 px-4 rounded-xl shadow-xl text-sm font-black uppercase tracking-widest text-white bg-[#111827] dark:bg-white dark:text-[#111827] hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111827] transform transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <div className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-2.5 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-2.5 h-4 w-4 text-white dark:text-[#111827]" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -296,10 +296,10 @@ function LoginContent() {
               </button>
             </form>
 
-            <div className="mt-8 pt-6 border-t border-gray-50">
+            <div className="mt-8 pt-6 border-t border-gray-50 dark:border-gray-800">
               <div className="text-center">
-                <span className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Don't have an account?</span>
-                <Link href="/register" className="ml-2 text-xs font-black text-[#111827] hover:text-[#C9A24D] transition-colors uppercase tracking-widest hover:underline underline-offset-4">
+                <span className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider">Don't have an account?</span>
+                <Link href="/register" className="ml-2 text-xs font-black text-[#111827] dark:text-white hover:text-[#C9A24D] transition-colors uppercase tracking-widest hover:underline underline-offset-4">
                   Start free trial
                 </Link>
               </div>
@@ -307,7 +307,7 @@ function LoginContent() {
           </div>
           
           <div className="mt-8 text-center">
-            <p className="text-[10px] font-black text-[#6B7280] uppercase tracking-widest flex items-center justify-center gap-1.5 opacity-60">
+            <p className="text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-widest flex items-center justify-center gap-1.5 opacity-60">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
@@ -318,9 +318,9 @@ function LoginContent() {
       </div>
 
       {/* Right Section - Explanation (45%) */}
-      <div className="w-full lg:w-[45%] relative bg-[#1a1614] text-white overflow-hidden flex flex-col justify-center">
+      <div className="w-full lg:w-[45%] relative bg-[#151517] text-white overflow-hidden flex flex-col justify-center">
         {/* Rich Background Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#1a1614] via-[#3a2f25] to-[#8b7355] opacity-90"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-[#151517] via-[#3a2f25] to-[#8b7355] opacity-90"></div>
         
         {/* Decorative Patterns */}
         <div className="absolute top-0 right-0 w-full h-full opacity-10" 

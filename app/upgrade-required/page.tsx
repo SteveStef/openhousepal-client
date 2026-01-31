@@ -43,7 +43,7 @@ export default function UpgradeRequiredPage() {
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/pinstripe-light.png')] opacity-[0.03] mix-blend-overlay"></div>
       </div>
 
-      <Header mode="app" />
+
 
       <main className="flex-1 relative z-10 flex flex-col items-center justify-center px-6 py-20">
         <div className="max-w-5xl w-full">

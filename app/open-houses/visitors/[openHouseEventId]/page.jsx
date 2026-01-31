@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { openHouseApi } from '@/lib/api'
 
@@ -102,8 +101,8 @@ export default function OpenHouseVisitorsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f7] flex flex-col">
-      <Header />
+    <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B] flex flex-col transition-colors duration-300">
+      
 
       <div className="flex-1 p-6 sm:p-8 pb-20 sm:pb-32">
         <div className="max-w-7xl mx-auto">
@@ -111,9 +110,9 @@ export default function OpenHouseVisitorsPage() {
           <div className="mb-8">
             <button
               onClick={() => router.push('/open-houses')}
-              className="group inline-flex items-center text-gray-500 hover:text-gray-900 font-medium mb-6 transition-colors duration-200"
+              className="group inline-flex items-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white font-medium mb-6 transition-colors duration-200"
             >
-              <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center mr-3 group-hover:border-gray-300 group-hover:shadow-sm transition-all">
+              <div className="w-8 h-8 rounded-full bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-800 flex items-center justify-center mr-3 group-hover:border-gray-300 dark:group-hover:border-gray-700 group-hover:shadow-sm transition-all">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
@@ -121,23 +120,23 @@ export default function OpenHouseVisitorsPage() {
               Back to Portfolio
             </button>
 
-            <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 p-6 sm:p-8">
+            <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-gray-800 p-6 sm:p-8 transition-colors">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:justify-between">
                 <div className="flex items-center">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#1a1614] rounded-2xl flex items-center justify-center mr-4 sm:mr-6 shadow-lg flex-shrink-0">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#151517] dark:bg-[#C9A24D] rounded-2xl flex items-center justify-center mr-4 sm:mr-6 shadow-lg flex-shrink-0">
                     <svg className="w-6 h-6 sm:w-7 sm:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                   </div>
                   <div>
-                    <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">Visitor Insights</h1>
-                    <p className="text-sm sm:text-base text-gray-500 mt-1 font-light">Track and manage sign-ins from your open house event</p>
+                    <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight">Visitor Insights</h1>
+                    <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1 font-light">Track and manage sign-ins from your open house event</p>
                   </div>
                 </div>
                 {!isLoading && !error && (
-                  <div className="bg-gray-900 text-white border border-gray-800 rounded-full px-5 py-2 self-start sm:self-auto shadow-lg shadow-gray-900/10">
+                  <div className="bg-gray-900 dark:bg-[#0B0B0B] text-white border border-gray-800 dark:border-gray-700 rounded-full px-5 py-2 self-start sm:self-auto shadow-lg shadow-gray-900/10">
                     <span className="font-bold text-sm">
-                      {visitors.length} <span className="font-normal text-gray-300 ml-1">Total Visitors</span>
+                      {visitors.length} <span className="font-normal text-gray-300 dark:text-gray-400 ml-1">Total Visitors</span>
                     </span>
                   </div>
                 )}
@@ -148,87 +147,87 @@ export default function OpenHouseVisitorsPage() {
           {/* Content Section */}
           <div className="bg-transparent">
             {isLoading ? (
-              <div className="flex items-center justify-center py-24 bg-white rounded-2xl border border-gray-100 shadow-sm">
+              <div className="flex items-center justify-center py-24 bg-white dark:bg-[#151517] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
                 <div className="text-center">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 mx-auto mb-4"></div>
-                  <p className="text-gray-500 font-medium">Loading visitor data...</p>
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 dark:border-white mx-auto mb-4"></div>
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">Loading visitor data...</p>
                 </div>
               </div>
             ) : error ? (
-              <div className="text-center py-24 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="text-center py-24 bg-white dark:bg-[#151517] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
                   <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Error Loading Visitors</h3>
-                <p className="text-gray-500 mb-8 max-w-sm mx-auto">{error}</p>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Error Loading Visitors</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-sm mx-auto">{error}</p>
                 <button
                   onClick={loadVisitors}
-                  className="px-8 py-3 bg-gradient-to-br from-[#1a1614] via-[#3a2f25] to-[#8b7355] text-white rounded-xl font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300"
+                  className="px-8 py-3 bg-gradient-to-br from-[#151517] via-[#3a2f25] to-[#8b7355] dark:from-[#C9A24D] dark:to-[#8b7355] text-white rounded-xl font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300"
                 >
                   Try Again
                 </button>
               </div>
             ) : visitors.length === 0 ? (
-              <div className="text-center py-24 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="text-center py-24 bg-white dark:bg-[#151517] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                <div className="w-20 h-20 bg-gray-50 dark:bg-[#0B0B0B] rounded-full flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-10 h-10 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">No Visitors Yet</h3>
-                <p className="text-gray-500 mb-6 max-w-sm mx-auto">When visitors sign in at your open house, they'll appear here.</p>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No Visitors Yet</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">When visitors sign in at your open house, they'll appear here.</p>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-[#151517] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-[#faf9f7]">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+                    <thead className="bg-[#faf9f7] dark:bg-[#0B0B0B]">
                       <tr>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Visitor
                         </th>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Contact Info
                         </th>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Agent Status
                         </th>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Checked In
                         </th>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Notes
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white dark:bg-[#151517] divide-y divide-gray-200 dark:divide-gray-800">
                       {visitors.map((visitor, index) => (
-                        <tr key={visitor.id} className="hover:bg-gray-50 transition-colors">
+                        <tr key={visitor.id} className="hover:bg-gray-50 dark:hover:bg-[#2c241b] transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className="h-10 w-10 bg-[#1a1614] rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
+                              <div className="h-10 w-10 bg-[#151517] dark:bg-[#C9A24D] rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
                                 <span className="text-white text-sm font-bold">
                                   {visitor.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                                 </span>
                               </div>
                               <div className="ml-4">
-                                <div className="text-sm font-bold text-gray-900">{visitor.full_name}</div>
-                                <div className="text-xs text-gray-500">#{index + 1}</div>
+                                <div className="text-sm font-bold text-gray-900 dark:text-white">{visitor.full_name}</div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">#{index + 1}</div>
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex flex-col space-y-1">
-                              <div className="flex items-center text-sm text-gray-600">
-                                <svg className="w-3.5 h-3.5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                                <svg className="w-3.5 h-3.5 mr-2 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                 </svg>
                                 {visitor.email}
                               </div>
-                              <div className="flex items-center text-sm text-gray-600">
-                                <svg className="w-3.5 h-3.5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                                <svg className="w-3.5 h-3.5 mr-2 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                 </svg>
                                 {visitor.phone}
@@ -240,7 +239,7 @@ export default function OpenHouseVisitorsPage() {
                               {getAgentStatusLabel(visitor.has_agent)}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                             {formatDate(visitor.created_at)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -248,8 +247,8 @@ export default function OpenHouseVisitorsPage() {
                               onClick={() => handleOpenNoteModal(visitor)}
                               className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                 visitor.notes 
-                                  ? 'bg-[#1a1614] text-white hover:bg-[#2c2420]' 
-                                  : 'bg-white border border-gray-200 text-gray-500 hover:text-gray-900 hover:border-gray-300'
+                                  ? 'bg-[#151517] dark:bg-[#C9A24D] text-white dark:text-[#111827] hover:bg-[#2c2420] dark:hover:bg-[#b38e3e]' 
+                                  : 'bg-white dark:bg-transparent border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600'
                               }`}
                             >
                               {visitor.notes ? (
@@ -285,17 +284,17 @@ export default function OpenHouseVisitorsPage() {
       {/* Note Modal */}
       {isNoteModalOpen && selectedVisitorForNote && (
         <div className="fixed inset-0 bg-[#111827]/60 z-50 flex items-center justify-center p-4 transition-all duration-300">
-          <div className="bg-white rounded-3xl shadow-xl border border-gray-100 max-w-lg w-full overflow-hidden transform transition-all">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-[#faf9f7]">
+          <div className="bg-white dark:bg-[#151517] rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 max-w-lg w-full overflow-hidden transform transition-all">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-[#faf9f7] dark:bg-[#0B0B0B]">
               <div>
-                <h3 className="text-lg font-black text-[#0B0B0B] tracking-tight">Visitor Note</h3>
-                <p className="text-xs font-medium text-gray-500 mt-0.5">
+                <h3 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight">Visitor Note</h3>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5">
                   For {selectedVisitorForNote.full_name}
                 </p>
               </div>
               <button
                 onClick={() => setIsNoteModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors p-1"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -305,14 +304,14 @@ export default function OpenHouseVisitorsPage() {
             
             <div className="p-6">
               <div className="mb-4">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                   Note Content
                 </label>
                 <textarea
                   value={currentNote}
                   onChange={(e) => setCurrentNote(e.target.value)}
-                  className="block w-full px-4 py-3 bg-[#faf9f7] border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 resize-none font-medium"
-                  rows="6"
+                  className="block w-full px-4 py-3 bg-[#faf9f7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 resize-none font-medium"
+                  rows={6}
                   placeholder="Enter notes about this visitor's preferences, feedback, or follow-up needs..."
                   autoFocus
                 />
@@ -321,13 +320,13 @@ export default function OpenHouseVisitorsPage() {
               <div className="flex justify-end space-x-3 pt-2">
                 <button
                   onClick={() => setIsNoteModalOpen(false)}
-                  className="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 font-bold rounded-xl transition-all duration-200 text-xs uppercase tracking-wide"
+                  className="px-5 py-2.5 bg-white dark:bg-transparent border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 font-bold rounded-xl transition-all duration-200 text-xs uppercase tracking-wide"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveNoteFromModal}
-                  className="px-6 py-2.5 bg-[#1a1614] hover:bg-[#8b7355] text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 text-xs uppercase tracking-wide"
+                  className="px-6 py-2.5 bg-[#151517] dark:bg-white hover:bg-[#8b7355] dark:hover:bg-[#C9A24D] text-white dark:text-[#111827] font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 text-xs uppercase tracking-wide"
                 >
                   Save Note
                 </button>

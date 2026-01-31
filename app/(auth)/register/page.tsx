@@ -245,11 +245,11 @@ export default function RegisterPage() {
   return (
     <div className="h-screen flex flex-col lg:flex-row overflow-hidden">
       {/* Left Section - Form (55%) */}
-      <div className="w-full lg:w-[55%] bg-[#FAFAF7] relative h-full flex flex-col">
+      <div className="w-full lg:w-[55%] bg-[#FAFAF7] dark:bg-[#0B0B0B] relative h-full flex flex-col transition-colors duration-300">
         {/* Refined Background Gradient Orbs - Clipped */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#C9A24D]/5 rounded-full blur-[120px] mix-blend-multiply"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#111827]/5 rounded-full blur-[100px] mix-blend-multiply"></div>
+          <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#C9A24D]/5 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#111827]/5 dark:bg-[#C9A24D]/5 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-screen"></div>
         </div>
 
         {/* Scrollable Content Container */}
@@ -313,11 +313,11 @@ export default function RegisterPage() {
         // Step 3: Pricing Selection
         <div className="max-w-5xl w-full">
           <div className="text-center mb-6">
-            <h2 className="text-4xl font-black text-[#0B0B0B] tracking-tight mb-3">Choose Your Plan</h2>
-            <p className="text-[#6B7280] text-base font-medium">Start with a {TRIAL_PERIOD_DAYS}-day free trial — cancel anytime.</p>
+            <h2 className="text-4xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-3">Choose Your Plan</h2>
+            <p className="text-[#6B7280] dark:text-gray-400 text-base font-medium">Start with a {TRIAL_PERIOD_DAYS}-day free trial — cancel anytime.</p>
             <button
               onClick={() => setRegistrationStep('verify')}
-              className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] mt-4 transition-colors uppercase tracking-widest"
+              className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] dark:hover:text-white mt-4 transition-colors uppercase tracking-widest"
             >
               ← Back to verification
             </button>
@@ -326,21 +326,21 @@ export default function RegisterPage() {
           {/* Pricing Cards */}
           <div className="grid md:grid-cols-2 gap-6 mb-6">
             {/* Basic Plan */}
-            <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] flex flex-col hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-shadow">
+            <div className="bg-white dark:bg-[#151517] rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] flex flex-col hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all">
               <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-[#0B0B0B] mb-4">{PRICING_PLANS.BASIC.name}</h3>
+                <h3 className="text-2xl font-bold text-[#0B0B0B] dark:text-white mb-4">{PRICING_PLANS.BASIC.name}</h3>
                 <div className="flex items-baseline justify-center">
-                  <span className="text-5xl font-black text-[#0B0B0B] tracking-tight">{PRICING_PLANS.BASIC.priceString}</span>
-                  <span className="text-[#6B7280] ml-2 font-bold">/mo</span>
+                  <span className="text-5xl font-black text-[#0B0B0B] dark:text-white tracking-tight">{PRICING_PLANS.BASIC.priceString}</span>
+                  <span className="text-[#6B7280] dark:text-gray-400 ml-2 font-bold">/mo</span>
                 </div>
-                <p className="text-xs font-bold text-[#6B7280] mt-2 uppercase tracking-wide">after {TRIAL_PERIOD_DAYS}-day free trial</p>
+                <p className="text-xs font-bold text-[#6B7280] dark:text-gray-500 mt-2 uppercase tracking-wide">after {TRIAL_PERIOD_DAYS}-day free trial</p>
               </div>
 
               <ul className="space-y-3 mb-8 flex-grow">
                 {PRICING_PLANS.BASIC.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start text-gray-600 font-medium text-sm">
-                    <div className="w-5 h-5 bg-green-50 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                      <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                  <li key={idx} className="flex items-start text-gray-600 dark:text-gray-300 font-medium text-sm">
+                    <div className="w-5 h-5 bg-green-50 dark:bg-green-900/30 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                      <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     </div>
@@ -362,7 +362,7 @@ export default function RegisterPage() {
                   setAppliedBundleCode(null)
                   setRegistrationStep('payment')
                 }}
-                className="w-full py-4 px-4 bg-[#111827] text-white rounded-xl font-bold hover:bg-[#C9A24D] transition-all duration-200 hover:-translate-y-0.5 shadow-lg"
+                className="w-full py-4 px-4 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-bold hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] transition-all duration-200 hover:-translate-y-0.5 shadow-lg"
               >
                 Select Basic Plan
               </button>
@@ -418,20 +418,20 @@ export default function RegisterPage() {
 
           {/* Promo Code Section */}
           <div className="max-w-md mx-auto">
-            <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] text-center">
-              <h4 className="text-xs font-bold text-[#6B7280] mb-3 tracking-widest uppercase">Have a bundle code?</h4>
+            <div className="bg-white dark:bg-[#151517] rounded-3xl p-4 border border-gray-100 dark:border-gray-800 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] text-center transition-colors">
+              <h4 className="text-xs font-bold text-[#6B7280] dark:text-gray-400 mb-3 tracking-widest uppercase">Have a bundle code?</h4>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   value={bundleCode}
                   onChange={(e) => setBundleCode(e.target.value.toUpperCase())}
                   placeholder="ENTER CODE"
-                  className="flex-1 px-3 py-2 bg-[#FAFAF7] border border-gray-200 rounded-xl text-center font-mono font-bold focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all uppercase text-sm placeholder-gray-400 text-[#111827]"
+                  className="flex-1 px-3 py-2 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-center font-mono font-bold focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all uppercase text-sm placeholder-gray-400 dark:placeholder-gray-600 text-[#111827] dark:text-white"
                 />
                 <button
                   onClick={handleVerifyBundleCode}
                   disabled={isVerifyingCode || !bundleCode.trim()}
-                  className="px-6 py-2 bg-[#111827] text-white rounded-xl font-bold hover:bg-[#C9A24D] transition-all disabled:opacity-50 text-sm uppercase tracking-wide"
+                  className="px-6 py-2 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-bold hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] transition-all disabled:opacity-50 text-sm uppercase tracking-wide"
                 >
                   {isVerifyingCode ? '...' : 'Apply'}
                 </button>
@@ -440,7 +440,7 @@ export default function RegisterPage() {
           </div>
 
           <div className="text-center mt-6">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
               All plans include a {TRIAL_PERIOD_DAYS}-day free trial • No credit card charged today • Cancel anytime
             </p>
           </div>
@@ -450,17 +450,17 @@ export default function RegisterPage() {
         <div className="max-w-[640px] w-full">
           {/* Header */}
           <div className="mb-4 text-center">
-            <h2 className="text-3xl font-black text-[#0B0B0B] tracking-tight mb-2">Create Account</h2>
-            <p className="text-[#6B7280] text-sm font-medium">Start your {TRIAL_PERIOD_DAYS}-day free trial today.</p>
+            <h2 className="text-3xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-2">Create Account</h2>
+            <p className="text-[#6B7280] dark:text-gray-400 text-sm font-medium">Start your {TRIAL_PERIOD_DAYS}-day free trial today.</p>
           </div>
 
           {/* Registration Form */}
-          <div className="bg-white rounded-3xl p-6 md:p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100">
+          <div className="bg-white dark:bg-[#151517] rounded-3xl p-6 md:p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 transition-colors">
             <form onSubmit={handleSubmit} className="space-y-3">
               {/* Name Fields */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="firstName" className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1 ml-1">
+                  <label htmlFor="firstName" className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider mb-1 ml-1">
                     First name
                   </label>
                   <input
@@ -470,10 +470,10 @@ export default function RegisterPage() {
                     required
                     value={formData.firstName}
                     onChange={handleChange}
-                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
+                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
                       fieldErrors.firstName 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                        : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30'
                     }`}
                     placeholder="John"
                   />
@@ -481,7 +481,7 @@ export default function RegisterPage() {
                 </div>
                 
                 <div>
-                  <label htmlFor="lastName" className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1 ml-1">
+                  <label htmlFor="lastName" className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider mb-1 ml-1">
                     Last name
                   </label>
                   <input
@@ -491,10 +491,10 @@ export default function RegisterPage() {
                     required
                     value={formData.lastName}
                     onChange={handleChange}
-                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
+                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
                       fieldErrors.lastName 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                        : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30'
                     }`}
                     placeholder="Smith"
                   />
@@ -504,7 +504,7 @@ export default function RegisterPage() {
 
               {/* Email */}
               <div>
-                <label htmlFor="email" className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1 ml-1">
+                <label htmlFor="email" className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider mb-1 ml-1">
                   Email address
                 </label>
                 <div className="relative group">
@@ -520,10 +520,10 @@ export default function RegisterPage() {
                     required
                     value={formData.email}
                     onChange={handleChange}
-                    className={`block w-full pl-9 pr-4 py-2.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
+                    className={`block w-full pl-9 pr-4 py-2.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
                       fieldErrors.email 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                        : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30'
                     }`}
                     placeholder="john.smith@example.com"
                   />
@@ -534,7 +534,7 @@ export default function RegisterPage() {
               {/* State and Brokerage Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="state" className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1 ml-1">
+                  <label htmlFor="state" className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider mb-1 ml-1">
                     State
                   </label>
                   <input
@@ -544,10 +544,10 @@ export default function RegisterPage() {
                     required
                     value={formData.state}
                     onChange={handleChange}
-                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
+                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
                       fieldErrors.state 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                        : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30'
                     }`}
                     placeholder="CA"
                   />
@@ -555,7 +555,7 @@ export default function RegisterPage() {
                 </div>
                 
                 <div>
-                  <label htmlFor="brokerage" className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1 ml-1">
+                  <label htmlFor="brokerage" className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider mb-1 ml-1">
                     Brokerage
                   </label>
                   <input
@@ -565,10 +565,10 @@ export default function RegisterPage() {
                     required
                     value={formData.brokerage}
                     onChange={handleChange}
-                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
+                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
                       fieldErrors.brokerage 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                        : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30'
                     }`}
                     placeholder="Re/Max..."
                   />
@@ -580,7 +580,7 @@ export default function RegisterPage() {
               {/* Password Fields */}
               <div className="grid grid-cols-1 gap-3">
                 <div>
-                  <label htmlFor="password" className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1 ml-1">
+                  <label htmlFor="password" className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider mb-1 ml-1">
                     Password
                   </label>
                   <div className="relative group">
@@ -596,17 +596,17 @@ export default function RegisterPage() {
                       required
                       value={formData.password}
                       onChange={handleChange}
-                      className={`block w-full pl-9 pr-10 py-2.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
+                      className={`block w-full pl-9 pr-10 py-2.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
                         fieldErrors.password 
                           ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                          : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
+                          : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30'
                       }`}
                       placeholder="Strong password"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-[#111827] focus:outline-none transition-colors"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-[#111827] dark:hover:text-white focus:outline-none transition-colors"
                     >
                       {showPassword ? (
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -624,7 +624,7 @@ export default function RegisterPage() {
                 </div>
                 
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1 ml-1">
+                  <label htmlFor="confirmPassword" className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider mb-1 ml-1">
                     Confirm password
                   </label>
                   <div className="relative group">
@@ -640,10 +640,10 @@ export default function RegisterPage() {
                       required
                       value={formData.confirmPassword}
                       onChange={handleChange}
-                      className={`block w-full pl-9 pr-4 py-2.5 bg-[#FAFAF7] border focus:bg-white rounded-xl text-[#0B0B0B] placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
+                      className={`block w-full pl-9 pr-4 py-2.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
                         fieldErrors.confirmPassword 
                           ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                          : 'border-gray-200 hover:bg-white hover:border-[#C9A24D]/30'
+                          : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30'
                       }`}
                       placeholder="Confirm password"
                     />
@@ -670,18 +670,18 @@ export default function RegisterPage() {
                       onChange={handleChange}
                       className="sr-only peer"
                     />
-                    <div className="w-5 h-5 border-2 border-gray-300 rounded peer-checked:bg-[#111827] peer-checked:border-[#111827] transition-all duration-200"></div>
-                    <svg className="absolute top-1 left-1 w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" fill="currentColor" viewBox="0 0 20 20">
+                    <div className="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded peer-checked:bg-[#111827] dark:peer-checked:bg-[#C9A24D] peer-checked:border-[#111827] dark:peer-checked:border-[#C9A24D] transition-all duration-200"></div>
+                    <svg className="absolute top-1 left-1 w-3 h-3 text-white dark:text-[#111827] opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <span className="text-xs text-[#6B7280] leading-relaxed group-hover:text-[#111827] transition-colors font-medium">
+                  <span className="text-xs text-[#6B7280] dark:text-gray-400 leading-relaxed group-hover:text-[#111827] dark:group-hover:text-white transition-colors font-medium">
                     I agree to the{' '}
                     <Link 
                       href="/terms" 
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[#C9A24D] font-bold hover:text-[#111827] transition-colors hover:underline underline-offset-4"
+                      className="text-[#C9A24D] font-bold hover:text-[#111827] dark:hover:text-white transition-colors hover:underline underline-offset-4"
                     >
                       Terms
                     </Link>{' '}
@@ -690,7 +690,7 @@ export default function RegisterPage() {
                       href="/privacy" 
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[#C9A24D] font-bold hover:text-[#111827] transition-colors hover:underline underline-offset-4"
+                      className="text-[#C9A24D] font-bold hover:text-[#111827] dark:hover:text-white transition-colors hover:underline underline-offset-4"
                     >
                       Privacy Policy
                     </Link>
@@ -702,11 +702,11 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-xl text-sm font-black uppercase tracking-widest text-white bg-[#111827] hover:bg-[#C9A24D] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111827] transform transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+                className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-xl text-sm font-black uppercase tracking-widest text-white bg-[#111827] dark:bg-white dark:text-[#111827] hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111827] transform transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {isLoading ? (
                   <div className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-2.5 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-2.5 h-4 w-4 text-white dark:text-[#111827]" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -718,10 +718,10 @@ export default function RegisterPage() {
               </button>
             </form>
 
-            <div className="mt-4 pt-4 border-t border-gray-50">
+            <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-800">
               <div className="text-center">
-                <span className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Already have an account?</span>
-                <Link href="/login" className="ml-2 text-xs font-black text-[#111827] hover:text-[#C9A24D] transition-colors uppercase tracking-widest hover:underline underline-offset-4">
+                <span className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider">Already have an account?</span>
+                <Link href="/login" className="ml-2 text-xs font-black text-[#111827] dark:text-white hover:text-[#C9A24D] transition-colors uppercase tracking-widest hover:underline underline-offset-4">
                   Sign in
                 </Link>
               </div>
@@ -821,9 +821,9 @@ export default function RegisterPage() {
       </div>
 
       {/* Right Section - Explanation (45%) */}
-      <div className="w-full lg:w-[45%] relative bg-[#1a1614] text-white overflow-hidden flex flex-col justify-center">
+      <div className="w-full lg:w-[45%] relative bg-[#151517] text-white overflow-hidden flex flex-col justify-center">
         {/* Rich Background Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#1a1614] via-[#3a2f25] to-[#8b7355] opacity-90"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-[#151517] via-[#3a2f25] to-[#8b7355] opacity-90"></div>
         
         {/* Decorative Patterns */}
         <div className="absolute top-0 right-0 w-full h-full opacity-10" 

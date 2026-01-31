@@ -54,10 +54,10 @@ export default function SubscriptionGuard({ children, requiredPlan }: Subscripti
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2]">
+      <div className="min-h-screen flex items-center justify-center bg-[#faf9f7] dark:bg-[#0B0B0B] transition-colors duration-300">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Verifying access...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355] dark:border-[#C9A24D] mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Verifying access...</p>
         </div>
       </div>
     )

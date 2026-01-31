@@ -9,6 +9,16 @@
   --pearl: #f5f4f2;
 }
 
+.dark {
+  --luxury: #C9A24D;
+  --cream: #0B0B0B;
+  --pearl: #151517;
+}
+
+body {
+  @apply bg-[#faf9f7] dark:bg-[#0B0B0B] text-[#111827] dark:text-[#F3F4F6] transition-colors duration-300;
+}
+
 /* Custom animations and effects for landing page */
 @keyframes gradient-x {
   0%, 100% {
