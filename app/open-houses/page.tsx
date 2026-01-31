@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useEffect, memo, useCallback, useMemo } from 'react'
+import { useState, useEffect, memo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { v4 as uuidv4 } from 'uuid'
 import Image from 'next/image'
-import { Home } from 'lucide-react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
@@ -830,55 +829,67 @@ const ImageSelectionView = memo(function ImageSelectionView({ propertyData, addr
 // Save Dialog Component
 const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selectedImage, qrCode, onSave, onCancel, onPreview, onDownload, isGeneratingPreview, isGeneratingPDF }: any) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Save Open House</h3>
-          <p className="text-gray-600 text-sm mt-1">{address}</p>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-[#FAFAF7] rounded-[2rem] shadow-2xl max-w-2xl w-full overflow-hidden border border-white/50">
+        <div className="p-8 border-b border-gray-200/50 bg-white/50">
+          <h3 className="text-2xl font-black text-[#0B0B0B] tracking-tight">Save Open House</h3>
+          <p className="text-[#6B7280] text-sm mt-2 font-medium">{address}</p>
         </div>
         
-        <div className="p-6">
-          <div className="flex items-center space-x-4 mb-6">
-            <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden relative">
+        <div className="p-8">
+          <div className="flex items-center space-x-5 mb-8">
+            <div className="w-24 h-24 bg-white rounded-2xl overflow-hidden relative shadow-inner border border-gray-100">
               {selectedImage && (
                 <Image src={selectedImage.url} alt="Selected cover" fill className="object-cover" />
               )}
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900">Cover Image Selected</p>
-              <p className="text-xs text-gray-500 mt-1">This image will be featured on your open house materials</p>
+              <p className="text-base font-bold text-[#0B0B0B]">Cover Image Selected</p>
+              <p className="text-sm text-[#6B7280] mt-1 font-light leading-relaxed">This image will be featured on your professional open house materials.</p>
             </div>
           </div>
           
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <h4 className="text-sm font-medium text-gray-900 mb-2">What happens next?</h4>
-            <ul className="text-xs text-gray-600 space-y-1">
-              <li>• QR code and property data will be saved to your account</li>
-              <li>• Visitors can scan QR code to access property details</li>
-              <li>• Lead information will be collected automatically</li>
-              <li>• You can download marketing materials anytime</li>
+          <div className="bg-white/80 rounded-2xl p-6 mb-8 border border-gray-100 shadow-sm">
+            <h4 className="text-sm font-bold text-[#C9A24D] uppercase tracking-wider mb-3">Next Steps</h4>
+            <ul className="text-sm text-[#6B7280] space-y-2 font-medium">
+              <li className="flex items-start">
+                <span className="text-[#C9A24D] mr-2">✓</span>
+                QR code and property data will be secured
+              </li>
+              <li className="flex items-start">
+                <span className="text-[#C9A24D] mr-2">✓</span>
+                Visitors can scan for instant access
+              </li>
+              <li className="flex items-start">
+                <span className="text-[#C9A24D] mr-2">✓</span>
+                Lead capture starts automatically
+              </li>
             </ul>
           </div>
           
-          <div className="flex space-x-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={onCancel}
-              className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200"
+              className="flex-1 px-6 py-3.5 bg-white text-[#111827] rounded-xl font-bold border border-gray-200 hover:bg-gray-50 transition-all duration-200 active:scale-95"
             >
               Cancel
             </button>
             <button
               onClick={onPreview}
               disabled={isGeneratingPreview}
-              className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 hover:border-blue-300 rounded-lg transition-colors duration-200 disabled:opacity-50"
+              className="px-6 py-3.5 bg-white/80 text-[#111827] rounded-xl font-bold border border-[#C9A24D]/30 hover:border-[#C9A24D] transition-all duration-200 disabled:opacity-50 active:scale-95 flex items-center justify-center"
             >
-              {isGeneratingPreview ? '...' : 'Preview'}
+              {isGeneratingPreview ? (
+                <div className="w-5 h-5 border-2 border-[#C9A24D] border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                'Preview'
+              )}
             </button>
             <button
               onClick={onSave}
-              className="flex-1 px-4 py-2 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-lg hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all duration-300"
+              className="flex-[1.5] px-6 py-3.5 bg-[#111827] text-white rounded-xl font-bold hover:bg-[#C9A24D] transform transition-all duration-300 shadow-[0_10px_20px_-5px_rgba(17,24,39,0.2)] active:scale-95"
             >
-              Save Open House
+              Save Listing
             </button>
           </div>
         </div>
@@ -890,41 +901,55 @@ const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selecte
 // PDF Preview Modal Component
 const PDFPreviewModal = memo(function PDFPreviewModal({ pdfPreview, onClose, onDownload, isGeneratingPDF }: any) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h3 className="text-xl font-semibold text-gray-900">PDF Preview</h3>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-[#FAFAF7] rounded-[2rem] shadow-2xl max-w-4xl w-full h-[80vh] max-h-[90vh] flex flex-col overflow-hidden border border-white/50">
+        <div className="flex items-center justify-between p-8 border-b border-gray-200/50 bg-white/50">
+          <h3 className="text-2xl font-black text-[#0B0B0B] tracking-tight">PDF Preview</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#111827] hover:border-[#C9A24D] transition-all duration-200 shadow-sm"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
         
-        <div className="flex-1 p-6 overflow-auto">
-          <iframe
-            src={pdfPreview}
-            className="w-full h-[600px] border border-gray-200 rounded-lg"
-            title="PDF Preview"
-          />
+        <div className="flex-1 overflow-hidden bg-[#FAFAF7]/50 relative">
+          <div className="w-full h-full p-8 flex flex-col">
+            <iframe
+              src={pdfPreview}
+              className="flex-1 w-full rounded-lg shadow-sm border border-gray-100 bg-white"
+              title="PDF Preview"
+            />
+          </div>
         </div>
         
-        <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+        <div className="flex items-center justify-end space-x-4 p-8 border-t border-gray-200/50 bg-white/50">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200"
+            className="px-6 py-3 bg-white text-[#111827] rounded-xl font-bold border border-gray-200 hover:bg-gray-50 transition-all duration-200 active:scale-95 shadow-sm"
           >
             Close
           </button>
           <button
             onClick={onDownload}
             disabled={isGeneratingPDF}
-            className="px-4 py-2 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-lg hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all duration-300 disabled:opacity-50"
+            className="px-8 py-3 bg-[#111827] text-white rounded-xl font-bold hover:bg-[#C9A24D] transition-all duration-300 shadow-[0_10px_20px_-5px_rgba(17,24,39,0.2)] disabled:opacity-50 active:scale-95 flex items-center"
           >
-            {isGeneratingPDF ? 'Downloading...' : 'Download PDF'}
+            {isGeneratingPDF ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                Downloading...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Download PDF
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -945,65 +970,66 @@ const DeleteConfirmationDialog = memo(function DeleteConfirmationDialog({
   isDeleting: boolean
 }) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-        <div className="p-6 border-b border-gray-200">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-[#FAFAF7] rounded-[2rem] shadow-2xl max-w-md w-full overflow-hidden border border-white/50">
+        <div className="p-8 border-b border-gray-200/50 bg-white/50">
           <div className="flex items-center">
-            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-4">
-              <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mr-5 border border-red-100 shadow-sm">
+              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Remove Listing</h3>
-              <p className="text-gray-600 text-sm mt-1">This action is safe and reversible</p>
+              <h3 className="text-2xl font-black text-[#0B0B0B] tracking-tight">Remove Listing</h3>
+              <p className="text-[#6B7280] text-sm mt-1 font-medium tracking-tight">This action is safe and reversible</p>
             </div>
           </div>
         </div>
 
-        <div className="p-6">
-          <div className="mb-4">
-            <p className="text-sm font-medium text-gray-900 mb-2">
+        <div className="p-8">
+          <div className="mb-8">
+            <p className="text-base font-bold text-[#0B0B0B] mb-2 px-4 py-2 bg-white rounded-xl border border-gray-100 shadow-sm inline-block">
               {openHouse.address}
             </p>
-            <p className="text-sm text-gray-600 mb-4">
-              This listing will be removed from your dashboard, but all data will be preserved for your records.
+            <p className="text-sm text-[#6B7280] mt-4 font-light leading-relaxed">
+              This listing will be removed from your active dashboard. All associated data will be preserved securely for your records.
             </p>
           </div>
 
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+          <div className="bg-white/80 border border-green-100 rounded-2xl p-6 mb-8 shadow-sm">
             <div className="flex items-start">
-              <svg className="w-5 h-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <div className="w-6 h-6 bg-green-50 rounded-full flex items-center justify-center mr-3 mt-0.5 border border-green-100">
+                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4" />
+                </svg>
+              </div>
               <div>
-                <h4 className="text-sm font-medium text-green-900 mb-1">Data Protection</h4>
-                <ul className="text-xs text-green-800 space-y-1">
-                  <li>• All visitor information is preserved</li>
+                <h4 className="text-sm font-bold text-green-900 mb-2 uppercase tracking-wider">Data Protection</h4>
+                <ul className="text-sm text-green-800/80 space-y-2 font-medium">
+                  <li>• Visitor information is preserved</li>
                   <li>• Property collections remain intact</li>
                   <li>• QR codes continue to work</li>
-                  <li>• Visitor can still access their collections</li>
                 </ul>
               </div>
             </div>
           </div>
 
-          <div className="flex space-x-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={onCancel}
               disabled={isDeleting}
-              className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 disabled:opacity-50"
+              className="flex-1 px-6 py-3.5 bg-white text-[#111827] rounded-xl font-bold border border-gray-200 hover:bg-gray-50 transition-all duration-200 active:scale-95 disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               onClick={onConfirm}
               disabled={isDeleting}
-              className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:shadow-lg hover:shadow-red-500/25 transition-all duration-300 disabled:opacity-50"
+              className="flex-1 px-6 py-3.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transform transition-all duration-300 shadow-[0_10px_20px_-5px_rgba(220,38,38,0.2)] active:scale-95 disabled:opacity-50"
             >
               {isDeleting ? (
                 <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
                   Removing...
                 </div>
               ) : (
@@ -1084,56 +1110,61 @@ const OpenHousePDFViewer = memo(function OpenHousePDFViewer({ openHouse, onClose
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-[#FAFAF7] rounded-[2rem] shadow-2xl max-w-4xl w-full h-[80vh] max-h-[90vh] flex flex-col overflow-hidden border border-white/50">
+        <div className="flex items-center justify-between p-8 border-b border-gray-200/50 bg-white/50">
           <div>
-            <h3 className="text-xl font-semibold text-gray-900">Open House PDF</h3>
-            <p className="text-gray-600 text-sm mt-1">{openHouse.address}</p>
+            <h3 className="text-2xl font-black text-[#0B0B0B] tracking-tight">Open House PDF</h3>
+            <p className="text-[#6B7280] text-sm mt-1 font-medium">{openHouse.address}</p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#111827] hover:border-[#C9A24D] transition-all duration-200 shadow-sm"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
         
-        <div className="flex-1 p-6 overflow-auto">
+        <div className="flex-1 overflow-hidden bg-[#FAFAF7]/50 relative">
           {isGenerating ? (
-            <div className="flex items-center justify-center h-64">
+            <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355] mx-auto mb-4"></div>
-                <p className="text-gray-600">Generating PDF...</p>
+                <div className="animate-spin rounded-full h-12 w-12 border-2 border-[#C9A24D] border-t-transparent mx-auto mb-4"></div>
+                <p className="text-[#6B7280] font-medium">Generating your professional PDF...</p>
               </div>
             </div>
           ) : pdfUrl ? (
-            <iframe
-              src={pdfUrl}
-              className="w-full h-[500px] border border-gray-200 rounded-lg"
-              title="Open House PDF Preview"
-            />
+            <div className="w-full h-full p-8 flex flex-col">
+              <iframe
+                src={pdfUrl}
+                className="flex-1 w-full rounded-lg shadow-sm border border-gray-100 bg-white"
+                title="Open House PDF Preview"
+              />
+            </div>
           ) : (
-            <div className="flex items-center justify-center h-64">
-              <p className="text-gray-600">Failed to generate PDF</p>
+            <div className="flex items-center justify-center h-full">
+              <p className="text-red-500 font-medium">Failed to generate PDF. Please try again.</p>
             </div>
           )}
         </div>
         
-        <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+        <div className="flex items-center justify-end space-x-4 p-8 border-t border-gray-200/50 bg-white/50">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200"
+            className="px-6 py-3 bg-white text-[#111827] rounded-xl font-bold border border-gray-200 hover:bg-gray-50 transition-all duration-200 active:scale-95 shadow-sm"
           >
             Close
           </button>
           {pdfUrl && (
             <button
               onClick={downloadPDF}
-              className="px-4 py-2 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-lg hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all duration-300"
+              className="px-8 py-3 bg-[#111827] text-white rounded-xl font-bold hover:bg-[#C9A24D] transition-all duration-300 shadow-[0_10px_20px_-5px_rgba(17,24,39,0.2)] active:scale-95 flex items-center"
             >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
               Download PDF
             </button>
           )}

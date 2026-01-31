@@ -1,11 +1,11 @@
-export const TRIAL_PERIOD_DAYS = 30;
+export const TRIAL_PERIOD_DAYS = 14;
 
 export const PRICING_PLANS = {
   BASIC: {
     id: 'basic',
     name: 'Basic',
-    price: 49.95,
-    priceString: '$49.95',
+    price: 34.95,
+    priceString: '$34.95',
     paypalPlanId: process.env.NEXT_PUBLIC_BASIC_PLAN_ID || 'P-DEFAULT_BASIC_ID',
     features: [
       'Generated PDFs for Open Houses',
