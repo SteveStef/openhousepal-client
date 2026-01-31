@@ -25,6 +25,7 @@ function SubscriptionContent() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const [reactivateModalOpen, setReactivateModalOpen] = useState(false)
   const [resubscribeModalOpen, setResubscribeModalOpen] = useState(false)
+  const [startFreshModalOpen, setStartFreshModalOpen] = useState(false)
 
   // Toast notification state
   const [notification, setNotification] = useState<{
@@ -235,6 +236,41 @@ function SubscriptionContent() {
       showNotification('error', 'Failed to reactivate subscription. Please try again.')
       setActionLoading(false)
       setReactivateModalOpen(false)
+    }
+  }
+
+  const handleStartFreshConfirm = async () => {
+    setActionLoading(true)
+    try {
+      // Step 1: Cancel the existing suspended subscription
+      const response = await apiRequest('/subscriptions/cancel', { method: 'POST' })
+      
+      if (response.status !== 200) {
+        showNotification('error', response.error || 'Failed to cancel existing agreement. Please try again.')
+        setActionLoading(false)
+        setStartFreshModalOpen(false)
+        return
+      }
+
+      // Step 2: Update local state to CANCELLED
+      if (user) {
+        const updatedUser = { ...user, subscription_status: 'CANCELLED' }
+        setUser(updatedUser)
+        // refreshUser() // Optional: could wait until full completion
+      }
+
+      // Step 3: Transition to resubscribe modal
+      setStartFreshModalOpen(false)
+      setActionLoading(false)
+      setTimeout(() => {
+        setResubscribeModalOpen(true)
+      }, 300)
+
+    } catch (error) {
+      console.error('Start fresh error:', error)
+      showNotification('error', 'Something went wrong. Please try again.')
+      setActionLoading(false)
+      setStartFreshModalOpen(false)
     }
   }
 
@@ -624,7 +660,7 @@ function SubscriptionContent() {
             <div className="bg-white dark:bg-[#151517] rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 sm:p-10 border border-gray-100 dark:border-gray-800 transition-colors">
               <h2 className="text-xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-8 pb-4 border-b border-gray-50 dark:border-gray-800">Security & Billing</h2>
 
-              {(isActive || isTrial) && !isCancelled && (
+              {(isActive || isTrial) && !isCancelled && !isSuspended && (
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
                   <div className="max-w-xl">
                      <h4 className="font-bold text-[#111827] dark:text-white mb-2">Need to pause?</h4>
@@ -653,24 +689,26 @@ function SubscriptionContent() {
                     onClick={() => setReactivateModalOpen(true)}
                     className="px-8 py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300"
                   >
-                    Reactivate Now
+                    Reactivate
                   </button>
                 </div>
               )}
 
-              {(isCancelled || isExpired) && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
+              {(isCancelled || isExpired || isSuspended) && (
+                <div className={`${isSuspended ? 'mt-12 pt-8 border-t border-gray-50 dark:border-gray-800' : ''} flex flex-col sm:flex-row sm:items-center justify-between gap-8`}>
                    <div className="max-w-xl">
-                    <h4 className="font-bold text-[#111827] dark:text-white mb-2">Come back anytime</h4>
+                    <h4 className="font-bold text-[#111827] dark:text-white mb-2">{isSuspended ? 'Use Different Card' : 'Come back anytime'}</h4>
                     <p className="text-[#6B7280] dark:text-gray-400 text-sm leading-relaxed">
-                      Regain full access to the platform by starting a new subscription today. Your previous data is waiting for you.
+                      {isSuspended 
+                        ? 'To start fresh with a different card, we must first cancel your current failed agreement.'
+                        : 'Regain full access to the platform by starting a new subscription today. Your previous data is waiting for you.'}
                     </p>
                   </div>
                   <button
-                    onClick={() => setResubscribeModalOpen(true)}
+                    onClick={() => isSuspended ? setStartFreshModalOpen(true) : setResubscribeModalOpen(true)}
                     className="px-8 py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300"
                   >
-                    Resubscribe
+                    {isSuspended ? 'Start Fresh' : 'Resubscribe'}
                   </button>
                 </div>
               )}
@@ -733,7 +771,18 @@ function SubscriptionContent() {
         onConfirm={handleReactivate}
         title="Reactivate Plan?"
         message="Great to have you back! Your billing will resume at the end of your current term."
-        confirmText="Reactivate Now"
+        confirmText="Reactivate"
+        isLoading={actionLoading}
+      />
+
+      <ConfirmationModal
+        isOpen={startFreshModalOpen}
+        onClose={() => setStartFreshModalOpen(false)}
+        onConfirm={handleStartFreshConfirm}
+        title="Start Fresh?"
+        message="This will cancel your current failed agreement and let you pick a new plan with a different card."
+        confirmText="Cancel & Continue"
+        confirmButtonClass="bg-[#111827] hover:bg-gray-800"
         isLoading={actionLoading}
       />
 

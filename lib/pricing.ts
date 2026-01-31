@@ -1,4 +1,4 @@
-export const TRIAL_PERIOD_DAYS = 14;
+export const TRIAL_PERIOD_DAYS = 1;
 
 export const PRICING_PLANS = {
   BASIC: {

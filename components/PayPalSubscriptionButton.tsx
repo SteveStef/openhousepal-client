@@ -36,12 +36,12 @@ export default function PayPalSubscriptionButton({
   return (
     <div className="w-full min-h-[150px] relative">
       {isPending && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center space-y-4 bg-[#FAFAF7] rounded-xl">
-          <div className="w-full h-12 bg-gray-200 animate-pulse rounded-lg"></div>
-          <div className="w-full h-12 bg-gray-200 animate-pulse rounded-lg"></div>
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center space-y-4 bg-[#FAFAF7] dark:bg-[#151517] rounded-xl transition-colors">
+          <div className="w-full h-12 bg-gray-200 dark:bg-gray-800 animate-pulse rounded-lg"></div>
+          <div className="w-full h-12 bg-gray-200 dark:bg-gray-800 animate-pulse rounded-lg"></div>
           <div className="flex items-center space-x-2">
             <div className="w-4 h-4 border-2 border-[#C9A24D] border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-sm font-bold text-[#6B7280] uppercase tracking-widest">Securely loading PayPal...</span>
+            <span className="text-sm font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest">Securely loading PayPal...</span>
           </div>
         </div>
       )}
@@ -123,8 +123,8 @@ export default function PayPalSubscriptionButton({
       />
       {loading && (
         <div className="flex items-center justify-center mt-4">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#8b7355]"></div>
-          <span className="ml-2 text-gray-600">Processing...</span>
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#8b7355] dark:border-[#C9A24D]"></div>
+          <span className="ml-2 text-gray-600 dark:text-gray-400 font-medium">Processing...</span>
         </div>
       )}
     </div>

@@ -742,46 +742,46 @@ export default function RegisterPage() {
         <PayPalScriptProvider options={paypalOptions}>
           <div className="max-w-[640px] w-full space-y-4">
             <div className="text-center">
-              <h2 className="text-2xl font-black text-[#0B0B0B] mb-2 tracking-tight">Complete Payment Setup</h2>
-              <p className="text-[#6B7280] text-sm font-medium">You selected: <span className="font-bold text-[#C9A24D]">{selectedPlan?.name} - {appliedBundleCode ? PRICING_PLANS.PREMIUM.priceString : selectedPlan?.price}/month after trial</span></p>
+              <h2 className="text-2xl font-black text-[#0B0B0B] dark:text-white mb-2 tracking-tight">Complete Payment Setup</h2>
+              <p className="text-[#6B7280] dark:text-gray-400 text-sm font-medium">You selected: <span className="font-bold text-[#C9A24D]">{selectedPlan?.name} - {appliedBundleCode ? PRICING_PLANS.PREMIUM.priceString : selectedPlan?.price}/month after trial</span></p>
               <div className="flex gap-4 justify-center mt-4">
                 <button
                   onClick={() => setRegistrationStep('pricing')}
-                  className="text-[10px] font-bold text-[#C9A24D] hover:text-[#111827] uppercase tracking-wider"
+                  className="text-[10px] font-bold text-[#C9A24D] hover:text-[#111827] dark:hover:text-white uppercase tracking-wider transition-colors"
                 >
                   ← Back to plans
                 </button>
-                <span className="text-gray-300 text-xs">|</span>
+                <span className="text-gray-300 dark:text-gray-700 text-xs">|</span>
                 <button
                   onClick={() => setRegistrationStep('form')}
-                  className="text-[10px] font-bold text-[#C9A24D] hover:text-[#111827] uppercase tracking-wider"
+                  className="text-[10px] font-bold text-[#C9A24D] hover:text-[#111827] dark:hover:text-white uppercase tracking-wider transition-colors"
                 >
                   ← Back to signup
                 </button>
               </div>
             </div>
 
-            <div className="bg-[#FAFAF7] rounded-2xl p-6 border border-gray-200/60 shadow-xl">
-              <div className="mb-4 bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-                <h3 className="text-base font-black mb-3 text-[#0B0B0B]">{selectedPlan?.name} Features</h3>
-                <ul className="space-y-2 text-[#6B7280] mb-3 text-sm font-medium">
+            <div className="bg-[#FAFAF7] dark:bg-[#151517] rounded-2xl p-6 border border-gray-200/60 dark:border-gray-800 shadow-xl transition-colors">
+              <div className="mb-4 bg-white dark:bg-[#0B0B0B] rounded-xl p-4 border border-gray-200 dark:border-gray-800 shadow-sm transition-colors">
+                <h3 className="text-base font-black mb-3 text-[#0B0B0B] dark:text-white">{selectedPlan?.name} Features</h3>
+                <ul className="space-y-2 text-[#6B7280] dark:text-gray-400 mb-3 text-sm font-medium">
                   {selectedPlan?.features.map((feature, idx) => (
                     <li key={idx} className="flex items-center">
-                      <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-4 h-4 text-green-500 dark:text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
-                <div className="border-t border-gray-100 pt-3 mt-3">
+                <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-3">
                   <div className="flex justify-between items-center mb-1 text-sm font-medium">
-                    <span className="text-[#6B7280]">{appliedBundleCode ? '1-year free trial' : `${TRIAL_PERIOD_DAYS}-day free trial`}</span>
-                    <span className="font-bold text-green-600">$0.00</span>
+                    <span className="text-[#6B7280] dark:text-gray-400">{appliedBundleCode ? '1-year free trial' : `${TRIAL_PERIOD_DAYS}-day free trial`}</span>
+                    <span className="font-bold text-green-600 dark:text-green-400">$0.00</span>
                   </div>
                   <div className="flex justify-between items-center text-sm font-medium">
-                    <span className="text-[#6B7280]">After trial</span>
-                    <span className="font-black text-[#0B0B0B]">{appliedBundleCode ? PRICING_PLANS.PREMIUM.priceString : selectedPlan?.price}/month</span>
+                    <span className="text-[#6B7280] dark:text-gray-400">After trial</span>
+                    <span className="font-black text-[#0B0B0B] dark:text-white">{appliedBundleCode ? PRICING_PLANS.PREMIUM.priceString : selectedPlan?.price}/month</span>
                   </div>
                 </div>
               </div>
@@ -807,10 +807,10 @@ export default function RegisterPage() {
                 }}
               />
 
-              <p className="text-[10px] font-bold text-gray-400 text-center mt-4 uppercase tracking-wider">
+              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 text-center mt-4 uppercase tracking-wider">
                 You will not be charged until your {appliedBundleCode ? '1-year' : `${TRIAL_PERIOD_DAYS}-day`} trial ends
               </p>
-              <p className="text-[10px] font-bold text-gray-400 text-center mt-1 uppercase tracking-wider">
+              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 text-center mt-1 uppercase tracking-wider">
                 Secured with PayPal's buyer protection • Cancel anytime
               </p>
             </div>

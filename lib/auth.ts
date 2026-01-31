@@ -313,9 +313,18 @@ export async function resetPassword(token: string, newPassword: string): Promise
 export function hasValidSubscription(user: User | null): boolean {
   if (!user?.subscription_status) return false
 
-  // TRIAL or ACTIVE subscriptions are always valid
-  if (['TRIAL', 'ACTIVE'].includes(user.subscription_status)) {
+  const now = new Date()
+
+  // ACTIVE subscriptions are always valid
+  if (user.subscription_status === 'ACTIVE') {
     return true
+  }
+
+  // TRIAL subscriptions are valid if not expired
+  if (user.subscription_status === 'TRIAL') {
+    if (!user.trial_ends_at) return true // Safety fallback
+    const trialEnd = new Date(user.trial_ends_at)
+    return now < trialEnd
   }
 
   // CANCELLED subscriptions are valid if still in grace period
