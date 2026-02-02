@@ -30,12 +30,50 @@ export default function OpenHouseSignInForm({
 
   const [currentStep, setCurrentStep] = useState(1)
   const [showCollectionOffer, setShowCollectionOffer] = useState(false)
+  const [emailError, setEmailError] = useState<string | null>(null)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+    }))
+    
+    // Clear error when user types
+    if (name === 'email') {
+      setEmailError(null)
+    }
+  }
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
+  const handleEmailBlur = () => {
+    if (formData.email && !validateEmail(formData.email)) {
+      setEmailError('Please enter a valid email address')
+    }
+  }
+
+  const formatPhoneNumber = (value: string) => {
+    // Strip all non-numeric characters
+    const phoneNumber = value.replace(/\D/g, '')
+
+    // Limit to 10 digits
+    const trimmed = phoneNumber.slice(0, 10)
+
+    // Format as (XXX) XXX-XXXX
+    if (trimmed.length < 4) return trimmed
+    if (trimmed.length < 7) return `(${trimmed.slice(0, 3)}) ${trimmed.slice(3)}`
+    return `(${trimmed.slice(0, 3)}) ${trimmed.slice(3, 6)}-${trimmed.slice(6)}`
+  }
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value)
+    setFormData(prev => ({
+      ...prev,
+      phone: formatted
     }))
   }
 
@@ -44,7 +82,7 @@ export default function OpenHouseSignInForm({
       case 1:
         return formData.fullName.trim() !== ''
       case 2:
-        return formData.email.trim() !== '' && formData.phone.trim() !== ''
+        return formData.email.trim() !== '' && validateEmail(formData.email) && formData.phone.trim() !== ''
       case 3:
         return formData.hasAgent !== ''
       case 4:
@@ -265,10 +303,18 @@ export default function OpenHouseSignInForm({
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] font-medium focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all"
+                  onBlur={handleEmailBlur}
+                  className={`w-full px-4 py-3.5 bg-[#FAFAF7] border rounded-xl text-[#0B0B0B] font-medium focus:outline-none focus:ring-4 transition-all ${
+                    emailError 
+                      ? 'border-red-500 focus:ring-red-500/10 focus:border-red-500' 
+                      : 'border-gray-200 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D]'
+                  }`}
                   placeholder="name@example.com"
                   required
                 />
+                {emailError && (
+                  <p className="mt-2 text-xs text-red-500 font-bold ml-1 animate-fadeIn">{emailError}</p>
+                )}
               </div>
 
               <div>
@@ -277,7 +323,7 @@ export default function OpenHouseSignInForm({
                   type="tel"
                   name="phone"
                   value={formData.phone}
-                  onChange={handleInputChange}
+                  onChange={handlePhoneChange}
                   className="w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] font-medium focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all"
                   placeholder="(555) 000-0000"
                   required
