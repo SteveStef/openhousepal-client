@@ -47,16 +47,16 @@ export default function HomePage() {
       {/* Sophisticated Background Architecture */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Subtle Deep Layer Gradients */}
-        <div className="absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] bg-[#C9A24D]/5 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDuration: '8s' }} />
-        <div className="absolute top-[20%] right-[-10%] w-[800px] h-[800px] bg-[#111827]/5 dark:bg-[#C9A24D]/5 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDuration: '12s' }} />
-        <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] bg-[#C9A24D]/5 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen" />
+        <div className="absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] bg-[#C9A24D]/15 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDuration: '8s' }} />
+        <div className="absolute top-[20%] right-[-10%] w-[800px] h-[800px] bg-[#111827]/10 dark:bg-[#C9A24D]/5 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDuration: '12s' }} />
+        <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] bg-[#C9A24D]/15 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen" />
         
         {/* Refined Texture & Grid */}
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/pinstripe-light.png')] opacity-[0.03] dark:opacity-[0.05] mix-blend-overlay dark:mix-blend-soft-light"></div>
         <div className="absolute inset-0" style={{ 
           backgroundImage: 'radial-gradient(circle at 2px 2px, #C9A24D 1px, transparent 0)', 
           backgroundSize: '48px 48px',
-          opacity: '0.05'
+          opacity: '0.1'
         }}></div>
       </div>
 
