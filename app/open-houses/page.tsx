@@ -61,6 +61,13 @@ export default function OpenHousesPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [openHouseToDelete, setOpenHouseToDelete] = useState<OpenHouse | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [filterQuery, setFilterQuery] = useState('')
+
+  // Filter open houses based on search query
+  const filteredOpenHouses = openHouses.filter(oh => 
+    oh.address.toLowerCase().includes(filterQuery.toLowerCase()) ||
+    (oh.city && oh.city.toLowerCase().includes(filterQuery.toLowerCase()))
+  )
 
   // Open House Note Modal state
   const [isOpenHouseNoteModalOpen, setIsOpenHouseNoteModalOpen] = useState(false)
@@ -392,218 +399,138 @@ export default function OpenHousesPage() {
   return (
     <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B] flex flex-col transition-colors duration-300">
 
-      <div className="flex-1 p-4 sm:p-6">
+      <div className="flex-1 p-4 sm:p-6 pb-20">
         <div className="max-w-7xl mx-auto">
 
           {!showImageSelection ? (
-            <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-xl border border-gray-200/60 dark:border-gray-800 transition-colors">
-              {/* Page Header */}
-              <div className="border-b border-gray-100 dark:border-gray-800 p-8 bg-white/50 dark:bg-[#151517]/50">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div>
-                    <h1 className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-[#8b7355] to-gray-900 dark:from-white dark:via-[#C9A24D] dark:to-gray-200 tracking-tight">Property Portfolio</h1>
-                    <p className="text-base text-gray-500 dark:text-gray-400 mt-2 font-light tracking-wide">Manage your listings and capture leads effortlessly</p>
-                  </div>
-                  {currentUser && (
-                    <div className="flex flex-wrap items-center gap-3">
-                      {openHouses.length > 0 && (
-                        <div className="bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-800 shadow-sm rounded-full px-4 py-1.5">
-                          <span className="text-gray-700 dark:text-gray-300 font-medium text-sm">
-                            <span className="font-bold text-[#8b7355] dark:text-[#C9A24D]">{openHouses.length}</span> Active Listings
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex items-center space-x-3 bg-white dark:bg-[#0B0B0B] shadow-sm rounded-full px-2 py-2 pr-5 border border-gray-100 dark:border-gray-800">
-                        <div className="w-8 h-8 bg-[#151517] dark:bg-[#C9A24D] rounded-full flex items-center justify-center">
-                          <span className="text-white text-xs font-bold">
-                            {currentUser.first_name?.charAt(0)}{currentUser.last_name?.charAt(0)}
-                          </span>
-                        </div>
-                        <div className="leading-none">
-                          <p className="text-sm font-bold text-gray-900 dark:text-white">
-                            {currentUser.first_name} {currentUser.last_name}
-                          </p>
-                        </div>
+            <div className="space-y-12">
+              {/* 1. Generator Hero Section */}
+              <div className="bg-white dark:bg-[#151517] rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-8 sm:p-12 text-center relative overflow-hidden transition-colors">
+                 {/* Decorative Background Elements */}
+                 <div className="absolute top-0 right-0 w-64 h-64 bg-[#C9A24D]/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
+                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#111827]/5 dark:bg-white/5 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none"></div>
+
+                <div className="relative z-10 max-w-3xl mx-auto">
+                  <h1 className="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-[#8b7355] to-gray-900 dark:from-white dark:via-[#C9A24D] dark:to-gray-200 tracking-tight mb-6">
+                    Create Your Open House Kit
+                  </h1>
+                  <p className="text-lg text-gray-500 dark:text-gray-400 mb-10 font-light">
+                    Enter a property address to instantly generate a QR code, professional PDF flyer, and sign-in form.
+                  </p>
+
+                  <form onSubmit={generateQRCode} className="relative max-w-2xl mx-auto">
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <svg className="h-6 w-6 text-gray-400 group-focus-within:text-[#8b7355] dark:group-focus-within:text-[#C9A24D] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </div>
+                      <GooglePlacesAutocomplete
+                        id="address"
+                        name="address"
+                        required
+                        value={address}
+                        onChange={setAddress}
+                        placeholder="Enter property address (e.g. 123 Main St, Beverly Hills)"
+                        className="block w-full pl-12 pr-32 py-5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border-2 border-transparent focus:border-[#C9A24D] rounded-2xl text-lg text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-500 shadow-[0_4px_20px_rgba(0,0,0,0.03)] focus:shadow-[0_8px_30px_rgba(201,162,77,0.15)] focus:outline-none transition-all duration-300"
+                      />
+                      <div className="absolute inset-y-2 right-2">
+                        <button
+                          type="submit"
+                          disabled={isGenerating || isLoadingProperty}
+                          className="h-full px-6 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-bold hover:bg-[#8b7355] dark:hover:bg-[#C9A24D] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg flex items-center"
+                        >
+                          {isGenerating || isLoadingProperty ? (
+                            <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <span>Generate</span>
+                          )}
+                        </button>
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Content Area */}
-              <div className="p-4 sm:p-8 bg-gray-50/30 dark:bg-[#0B0B0B]/30">
-                <div className="grid lg:grid-cols-2 gap-10">
-                  {/* Create Form - Left Side */}
-                  <div>
-                    <div className="sticky top-6">
-                      <div className="bg-white dark:bg-[#151517] rounded-2xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-gray-800 transition-colors">
-                        <div className="mb-6">
-                          <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Create New Listing</h2>
-                          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Generate a QR code and landing page in seconds.</p>
-                        </div>
-                        
-                        <form onSubmit={generateQRCode} className="space-y-6">
-                          <div>
-                            <label htmlFor="address" className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
-                              Property Address
-                            </label>
-                            <div className="relative group">
-                              <GooglePlacesAutocomplete
-                                id="address"
-                                name="address"
-                                required
-                                value={address}
-                                onChange={setAddress}
-                                placeholder="Search by address, city, or zip..."
-                                className="block w-full px-4 py-4 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-300 font-medium hover:bg-white dark:hover:bg-[#151515] hover:border-[#C9A24D]/30"
-                              />
-                            </div>
-                            {error && <p className="text-red-500 text-xs font-medium mt-2 flex items-center animate-fadeIn pl-1">
-                              <svg className="w-3.5 h-3.5 mr-1.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              {error}
-                            </p>}
-                          </div>
-
-                          <div className="py-2">
-                            <h3 className="text-[#6B7280] dark:text-gray-400 font-bold mb-4 text-[10px] uppercase tracking-widest ml-1">
-                              Quick Start
-                            </h3>
-                            <ul className="space-y-3">
-                              {[
-                                'Enter property address',
-                                'Select the best cover image',
-                                'Generate QR code & materials'
-                              ].map((step, i) => (
-                                <li key={i} className="flex items-center text-sm text-gray-600 dark:text-gray-300">
-                                  <div className="w-5 h-5 rounded-full bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center mr-3 flex-shrink-0">
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  </div>
-                                  {step}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-
-                          <button
-                            type="submit"
-                            disabled={isGenerating || isLoadingProperty}
-                            className="w-full px-6 py-4 bg-gradient-to-br from-[#151517] via-[#3a2f25] to-[#8b7355] dark:from-[#C9A24D] dark:to-[#8b7355] text-white rounded-xl font-bold hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden"
-                          >
-                            <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                            {isGenerating || isLoadingProperty ? (
-                              <div className="flex items-center justify-center relative z-10">
-                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                                {isLoadingProperty ? 'Fetching Details...' : 'Processing...'}
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-center relative z-10">
-                                Find Property & Continue
-                                <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                                </svg>
-                              </div>
-                            )}
-                          </button>
-                        </form>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Listings History - Right Side */}
-                  <div>
-                    <div className="mb-6 flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Your Open Houses</h2>
-                                                <span className="flex items-center space-x-1 px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-900/30 border border-green-100 dark:border-green-800">
-                                                  <span className="relative flex h-2 w-2">
-                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                                                  </span>
-                                                  <span className="text-[10px] font-black text-green-700 dark:text-green-400 uppercase tracking-widest">Live</span>
-                        </span>
-                      </div>
-                    </div>
-
-                    {isLoadingHistory ? (
-                      <div className="flex items-center justify-center py-24">
-                        <div className="text-center">
-                          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 dark:border-white mx-auto mb-4"></div>
-                          <p className="text-gray-500 dark:text-gray-400 font-medium text-sm">Loading listings...</p>
-                        </div>
-                      </div>
-                    ) : openHouses.length === 0 ? (
-                      <div className="text-center py-20 bg-white dark:bg-[#151517] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                        <div className="w-20 h-20 bg-gray-50 dark:bg-[#0B0B0B] rounded-full flex items-center justify-center mx-auto mb-6">
-                          <svg className="w-10 h-10 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1" />
-                          </svg>
-                        </div>
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No active listings</h3>
-                        <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-xs mx-auto text-sm">Create your first open house listing to start tracking visitors.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4 max-h-[800px] overflow-y-auto pr-2 custom-scrollbar">
-                        {openHouses.map((openHouse, index) => (
-                          <OpenHouseListItem
-                            key={openHouse.id}
-                            openHouse={openHouse}
-                            index={index}
-                            onViewVisitors={handleViewVisitors}
-                            onViewPDF={handleViewPDF}
-                            onDelete={handleDeleteClick}
-                            onAddNote={handleOpenOpenHouseNoteModal}
-                          />
-                        ))}
-                        
-                        {/* Listing Count Footer */}
-                        {openHouses.length > 5 && (
-                          <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800 text-center">
-                            <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-                              Showing all {openHouses.length} listings
-                            </p>
-                          </div>
-                        )}
+                    {error && (
+                      <div className="absolute -bottom-8 left-0 right-0 text-center animate-fadeIn">
+                        <p className="text-red-500 text-sm font-medium flex items-center justify-center">
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          {error}
+                        </p>
                       </div>
                     )}
-                  </div>
+                  </form>
                 </div>
               </div>
 
-              {/* Coming Soon - Find Open Houses Section */}
-              <div className="mt-8 sm:mt-12">
-                <div className="bg-gradient-to-br from-gray-900 to-[#151517] dark:from-[#0B0B0B] dark:to-[#151517] rounded-2xl overflow-hidden relative shadow-2xl">
-                  {/* Decorative Elements */}
-                  <div className="absolute top-0 right-0 -mt-20 -mr-20 w-80 h-80 bg-[#8b7355] rounded-full mix-blend-overlay filter blur-3xl opacity-20 animate-pulse"></div>
-                  <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-80 h-80 bg-[#8b7355] rounded-full mix-blend-overlay filter blur-3xl opacity-20 animate-pulse" style={{ animationDelay: '2s' }}></div>
-                  
-                  <div className="relative p-8 sm:p-12 text-center z-10">
-                    <span className="inline-block px-4 py-1.5 rounded-full bg-[#8b7355]/20 border border-[#8b7355]/30 text-[#8b7355] text-[10px] font-black tracking-widest uppercase mb-6">
-                      Coming Soon
+              {/* 2. Portfolio Dashboard Section */}
+              <div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                  <div className="flex items-center space-x-4">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Your Portfolio</h2>
+                    <span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-full text-xs font-bold border border-gray-200 dark:border-gray-700">
+                      {openHouses.length} Listings
                     </span>
-                    
-                    <h2 className="text-3xl sm:text-4xl font-black text-white mb-4 tracking-tight">Discover Open Houses</h2>
-                    <p className="text-gray-400 mb-10 max-w-2xl mx-auto text-lg font-light leading-relaxed">
-                      Connect with the community. Explore listings from other top agents, track market trends, and build your referral network.
-                    </p>
+                  </div>
 
-                    <div className="grid sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
-                      {[
-                        { title: 'Location Search', desc: 'Find open houses by neighborhood' },
-                        { title: 'Smart Filters', desc: 'Filter by price, type, and date' },
-                        { title: 'Market Insights', desc: 'Track local property trends' }
-                      ].map((feature, i) => (
-                        <div key={i} className="bg-white/5 rounded-xl p-6 border border-white/10 hover:bg-white/10 transition-colors duration-300">
-                          <h3 className="text-white font-bold text-sm mb-2">{feature.title}</h3>
-                          <p className="text-gray-400 text-xs">{feature.desc}</p>
-                        </div>
-                      ))}
+                  {/* Portfolio Filter Search */}
+                  <div className="relative max-w-md w-full sm:w-80">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
                     </div>
+                    <input
+                      type="text"
+                      placeholder="Search your portfolio..."
+                      value={filterQuery}
+                      onChange={(e) => setFilterQuery(e.target.value)}
+                      className="block w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-800 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#8b7355]/20 focus:border-[#8b7355] transition-all"
+                    />
                   </div>
                 </div>
+
+                {isLoadingHistory ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                     {[1, 2, 3].map(i => (
+                       <div key={i} className="bg-white dark:bg-[#151517] rounded-2xl h-80 animate-pulse border border-gray-100 dark:border-gray-800"></div>
+                     ))}
+                  </div>
+                ) : filteredOpenHouses.length === 0 ? (
+                  <div className="text-center py-24 bg-white dark:bg-[#151517] rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+                    <div className="w-16 h-16 bg-gray-50 dark:bg-[#0B0B0B] rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+                      {filterQuery ? 'No matching listings found' : 'Your portfolio is empty'}
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm max-w-xs mx-auto">
+                      {filterQuery ? 'Try adjusting your search terms' : 'Use the generator above to create your first open house kit.'}
+                    </p>
+                    {filterQuery && (
+                       <button 
+                         onClick={() => setFilterQuery('')}
+                         className="mt-4 text-[#8b7355] hover:underline text-sm font-medium"
+                       >
+                         Clear search
+                       </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredOpenHouses.map((openHouse, index) => (
+                      <OpenHouseCard
+                        key={openHouse.id}
+                        openHouse={openHouse}
+                        index={index}
+                        onViewVisitors={handleViewVisitors}
+                        onViewPDF={handleViewPDF}
+                        onDelete={handleDeleteClick}
+                        onAddNote={handleOpenOpenHouseNoteModal}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -970,7 +897,7 @@ const DeleteConfirmationDialog = memo(function DeleteConfirmationDialog({
 }) {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[#FAFAF7] dark:bg-[#151517] rounded-[2rem] shadow-2xl max-w-md w-full overflow-hidden border border-white/50 dark:border-gray-800">
+      <div className="bg-[#FAFAF7] dark:bg-[#151517] rounded-[2rem] shadow-2xl max-w-2xl w-full overflow-hidden border border-white/50 dark:border-gray-800">
         <div className="p-8 border-b border-gray-200/50 dark:border-gray-800 bg-white/50 dark:bg-[#0B0B0B]/50">
           <div className="flex items-center">
             <div className="w-12 h-12 bg-red-50 dark:bg-red-900/20 rounded-2xl flex items-center justify-center mr-5 border border-red-100 dark:border-red-900/30 shadow-sm">
@@ -1005,7 +932,7 @@ const DeleteConfirmationDialog = memo(function DeleteConfirmationDialog({
               <div>
                 <h4 className="text-sm font-bold text-green-900 dark:text-green-400 mb-2 uppercase tracking-wider">Data Protection</h4>
                 <ul className="text-sm text-green-800/80 dark:text-green-500/80 space-y-2 font-medium">
-                  <li>• Visitor information is preserved</li>
+                  <li>• Historical reports remain accessible</li>
                   <li>• Property collections remain intact</li>
                   <li>• QR codes continue to work</li>
                 </ul>
@@ -1173,8 +1100,8 @@ const OpenHousePDFViewer = memo(function OpenHousePDFViewer({ openHouse, onClose
   )
 })
 
-// Memoized Open House List Item Component - prevents re-renders when parent state changes
-interface OpenHouseListItemProps {
+// Memoized Open House Card Component
+interface OpenHouseCardProps {
   openHouse: OpenHouse;
   index: number;
   onViewVisitors: (openHouse: OpenHouse) => void;
@@ -1183,101 +1110,125 @@ interface OpenHouseListItemProps {
   onAddNote: (openHouse: OpenHouse) => void;
 }
 
-const OpenHouseListItem = memo(function OpenHouseListItem({
+const OpenHouseCard = memo(function OpenHouseCard({
   openHouse,
   index,
   onViewVisitors,
   onViewPDF,
   onDelete,
   onAddNote
-}: OpenHouseListItemProps) {
+}: OpenHouseCardProps) {
   return (
     <div
       onClick={() => onViewVisitors(openHouse)}
-      className="bg-white dark:bg-[#151517] rounded-xl border border-gray-100 dark:border-gray-800 p-3 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] hover:border-gray-200 dark:hover:border-gray-700 transition-all duration-300 group cursor-pointer relative"
+      className="bg-white dark:bg-[#151517] rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer flex flex-col h-full isolate transform-gpu"
     >
-      <div className="flex items-start gap-4">
-        {/* Property Image */}
-        <div className="relative flex-shrink-0">
-          <div className="w-20 h-20 bg-gray-100 dark:bg-[#0B0B0B] rounded-lg overflow-hidden shadow-sm relative group-hover:scale-[1.02] transition-transform duration-300">
-            <Image
-              src={openHouse.cover_image_url}
-              alt={`Property at ${openHouse.address}`}
-              width={400}
-              height={400}
-              className="w-full h-full object-cover"
-            />
+      {/* Card Image */}
+      <div className="relative aspect-video bg-gray-100 dark:bg-[#0B0B0B] overflow-hidden">
+        <Image
+          src={openHouse.cover_image_url}
+          alt={`Property at ${openHouse.address}`}
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          className="object-cover transition-transform duration-700 group-hover:scale-105"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
+        
+        {/* Delete Button (Top Right Overlay) */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete(openHouse)
+          }}
+          className="absolute top-3 right-3 w-8 h-8 bg-black/40 backdrop-blur-md text-white/80 hover:text-red-400 hover:bg-black/60 rounded-full flex items-center justify-center transition-all duration-200 z-10"
+          title="Remove Listing"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
+
+        {/* Price Tag Overlay */}
+        {openHouse.price && (
+          <div className="absolute bottom-3 left-3">
+            <span className="text-white font-black text-lg tracking-tight drop-shadow-md">
+              ${openHouse.price?.toLocaleString()}
+            </span>
           </div>
-          <div className="absolute -top-2 -left-2 w-5 h-5 bg-[#151517] dark:bg-[#C9A24D] rounded-full flex items-center justify-center shadow-lg border-2 border-white dark:border-[#151517]">
-            <span className="text-white text-[9px] font-bold">{index + 1}</span>
+        )}
+      </div>
+
+      {/* Card Body */}
+      <div className="p-5 flex flex-col flex-1">
+        <div className="mb-6 flex-1">
+          <h3 className="text-base font-bold text-gray-900 dark:text-white leading-tight mb-2 line-clamp-2 group-hover:text-[#8b7355] dark:group-hover:text-[#C9A24D] transition-colors">
+            {openHouse.address}
+          </h3>
+          
+          <div className="flex items-center space-x-3 text-xs font-medium text-gray-500 dark:text-gray-400">
+            {openHouse.bedrooms && (
+              <span className="flex items-center">
+                <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                {openHouse.bedrooms} Beds
+              </span>
+            )}
+            {openHouse.bathrooms && (
+              <span className="flex items-center">
+                <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                {openHouse.bathrooms} Baths
+              </span>
+            )}
+            {openHouse.living_area && (
+              <span className="flex items-center">
+                 <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+                {openHouse.living_area.toLocaleString()} SqFt
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Property Info */}
-        <div className="flex-1 min-w-0 py-0.5">
-          <div className="flex justify-between items-start mb-1">
-            <h3 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-[#8b7355] dark:group-hover:text-[#C9A24D] transition-colors truncate pr-4">
-              {openHouse.address}
-            </h3>
-            {/* Status Badge - Optional */}
-            <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-100 dark:border-green-800 uppercase tracking-wide">
-              Active
-            </span>
-          </div>
+        {/* Action Grid */}
+        <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewVisitors(openHouse);
+            }}
+            className="w-full inline-flex items-center justify-center px-4 py-2.5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-bold text-xs shadow-md hover:bg-[#8b7355] dark:hover:bg-[#C9A24D] hover:text-white transition-all duration-300 group/btn"
+          >
+            <svg className="w-4 h-4 mr-2 group-hover/btn:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            View Visitors
+          </button>
 
-          <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-500 dark:text-gray-400 mb-2">
-            {openHouse.price && (
-              <span className="font-bold text-gray-900 dark:text-white text-base tracking-tight">${openHouse.price?.toLocaleString()}</span>
-            )}
-            <div className="flex items-center space-x-2 text-[10px] font-medium text-gray-400 dark:text-gray-500">
-              {openHouse.bedrooms && (
-                <span>{openHouse.bedrooms} Beds</span>
-              )}
-              {openHouse.bathrooms && (
-                <span>{openHouse.bathrooms} Baths</span>
-              )}
-              {openHouse.living_area && (
-                <span>{openHouse.living_area.toLocaleString()} SqFt</span>
-              )}
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            <div className="inline-flex items-center px-3 py-1 bg-gradient-to-br from-[#151517] via-[#3a2f25] to-[#8b7355] dark:from-[#C9A24D] dark:to-[#8b7355] text-white rounded-lg font-bold text-[10px] shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all duration-300 relative overflow-hidden group/btn">
-              <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
-              <svg className="w-3.5 h-3.5 mr-1.5 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onViewPDF(openHouse)
+              }}
+              className="flex flex-col items-center justify-center p-2 bg-gray-50 dark:bg-gray-800/50 hover:bg-[#8b7355]/10 dark:hover:bg-[#C9A24D]/10 text-gray-600 dark:text-gray-400 hover:text-[#8b7355] dark:hover:text-[#C9A24D] rounded-xl border border-gray-100 dark:border-gray-800 transition-all duration-200 group/item"
+              title="Download PDF"
+            >
+              <svg className="w-5 h-5 mb-1 group-hover/item:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <span className="relative z-10">View Visitors</span>
-            </div>
-
-            <div className="h-3 w-px bg-gray-200 dark:bg-gray-700 mx-0.5"></div>
+              <span className="text-[10px] font-bold uppercase tracking-tight">PDF Kit</span>
+            </button>
 
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 onAddNote(openHouse)
               }}
-              className="p-1 text-gray-400 dark:text-gray-500 hover:text-[#8b7355] dark:hover:text-[#C9A24D] hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
-              title="Add/View Note"
+              className="flex flex-col items-center justify-center p-2 bg-gray-50 dark:bg-gray-800/50 hover:bg-[#8b7355]/10 dark:hover:bg-[#C9A24D]/10 text-gray-600 dark:text-gray-400 hover:text-[#8b7355] dark:hover:text-[#C9A24D] rounded-xl border border-gray-100 dark:border-gray-800 transition-all duration-200 group/item"
+              title="Add Note"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 mb-1 group-hover/item:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
-            </button>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onViewPDF(openHouse)
-              }}
-              className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
-              title="Download PDF"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+              <span className="text-[10px] font-bold uppercase tracking-tight">Notes</span>
             </button>
 
             <a
@@ -1285,26 +1236,14 @@ const OpenHouseListItem = memo(function OpenHouseListItem({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
+              className="flex flex-col items-center justify-center p-2 bg-gray-50 dark:bg-gray-800/50 hover:bg-[#8b7355]/10 dark:hover:bg-[#C9A24D]/10 text-gray-600 dark:text-gray-400 hover:text-[#8b7355] dark:hover:text-[#C9A24D] rounded-xl border border-gray-100 dark:border-gray-800 transition-all duration-200 group/item"
               title="Open Sign-in Form"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 mb-1 group-hover/item:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
               </svg>
+              <span className="text-[10px] font-bold uppercase tracking-tight">Form</span>
             </a>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete(openHouse)
-              }}
-              className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200 ml-auto"
-              title="Remove Listing"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
           </div>
         </div>
       </div>
