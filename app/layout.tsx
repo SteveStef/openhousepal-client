@@ -19,7 +19,9 @@ export default function RootLayout({
         <Providers>
           <AuthProvider>
             <main className="min-h-screen flex flex-col">
-              <AppHeader />
+              <div className="print:hidden">
+                <AppHeader />
+              </div>
               {children}
             </main>
           </AuthProvider>

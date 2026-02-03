@@ -64,7 +64,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
   }
 
   return (
-    <header className="relative z-40 bg-white dark:bg-[#0B0B0B] border-b border-gray-100 dark:border-gray-800 shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-colors duration-300">
+    <header className="relative z-40 bg-white dark:bg-[#0B0B0B] border-b border-gray-100 dark:border-gray-800 shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-colors duration-300 print:hidden">
       <div className="max-w-7xl mx-auto px-4 py-2 sm:px-6 sm:py-3">
         <div className="flex items-center justify-between">
           {/* Logo */}

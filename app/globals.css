@@ -283,3 +283,190 @@ body {
 ::selection {
   background-color: rgba(59, 130, 246, 0.3);
 }
+
+/* Property Recommendations Print Styles */
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 0; /* Removes browser headers/footers */
+  }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #f9f9f9 !important;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Strict Page Container */
+  .page-container {
+    width: 8.5in;
+    height: 11in;
+    padding: 0.35in;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Header */
+  .print-view-container header.print-header {
+    height: 0.55in !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    flex: 0 0 0.55in !important;
+    width: 100% !important;
+  }
+  
+  .print-view-container header.print-header h1 {
+    font-size: 14pt !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    color: #000000 !important;
+  }
+  
+  .print-view-container header.print-header p {
+    font-size: 9pt !important;
+    color: #000000 !important;
+  }
+
+  .print-view-container header.print-header svg {
+    color: #000000 !important;
+  }
+
+  /* Main Container - Acts as wrapper */
+  .print-view-container main.print-main {
+    flex: 1;
+    padding: 0.12in 0.25in 0 0.25in !important;
+    display: block !important;
+    height: calc(10.3in - 0.55in) !important;
+    width: 100% !important;
+  }
+
+  /* Hide everything else aggressively */
+  header:not(.print-header), 
+  footer:not(.print-footer),
+  nav,
+  .fixed,
+  .absolute:not(.print-view-root):not(.print-view-container) {
+    display: none !important;
+  }
+
+  /* Actual Grid Container - Target via class for reliability */
+  .properties-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important; /* Explicit 2 columns */
+    grid-template-rows: repeat(3, 1fr) !important;
+    gap: 0.25in !important;
+    height: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  /* Card Container */
+  article {
+    height: 100% !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 8px !important;
+    background-color: white !important;
+    break-inside: avoid !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+  }
+  
+  /* Image Section (Adjusted to 53% height to give content more room) */
+  article > .relative {
+    flex: 0 0 53% !important; 
+    height: 53% !important;
+    width: 100% !important;
+  }
+  
+  /* Card Content (Increased to 47% height) */
+  article > .flex-1 {
+    display: flex !important;
+    flex-direction: column !important;
+    /* Optimized padding: less top/bottom to maximize space for elements */
+    padding: 0.1in 0.12in 0.15in 0.12in !important;
+    height: 47% !important;
+    width: 100% !important;
+  }
+
+  /* Typography Fixes */
+  article h3 { 
+    font-size: 11.5pt !important; 
+    line-height: 1.2 !important;
+    font-weight: 600 !important;
+    margin-bottom: 2px !important;
+    white-space: normal !important;
+    overflow-wrap: break-word !important;
+    color: #000000 !important;
+  }
+  
+  article p { 
+    font-size: 9.5pt !important;
+    color: #111827 !important;
+  }
+  
+  article .text-muted-foreground {
+    color: #111827 !important;
+  }
+  
+  /* KPI Chips & Icons */
+  article .bg-muted\/50 {
+    padding: 0.05in !important;
+    background-color: #f3f4f6 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  article .bg-muted\/50 svg { 
+    height: 12px !important; 
+    width: 12px !important; 
+    margin-bottom: 2px !important;
+    color: #000000 !important;
+  }
+  article .bg-muted\/50 span { 
+    font-size: 10.5pt !important; 
+    font-weight: 700 !important; 
+    line-height: 1 !important;
+    color: #000000 !important;
+  }
+
+  /* Bottom Section (QR Inline) */
+  article > .flex-1 > div:last-child {
+    margin-top: auto !important;
+    padding-top: 0 !important;
+    border-top: none !important;
+    display: flex !important;
+    align-items: center !important; /* Changed from flex-end to center to lift it higher */
+    justify-content: space-between !important;
+  }
+
+  /* QR Box */
+  article .h-12 {
+    height: 0.65in !important;
+    width: 0.65in !important;
+    padding: 0.02in !important;
+    background: white !important;
+    border: 1px solid #e5e7eb !important;
+  }
+
+  /* Utility Hiding */
+  .print\:hidden { display: none !important; }
+  .print\:block { display: block !important; }
+  
+  /* Reset general grid constraints */
+  .grid { display: grid !important; }
+  .max-w-6xl { max-width: none !important; }
+}
