@@ -68,6 +68,15 @@ export default function OpenHousesPage() {
     type: 'success' | 'error'
     message: string
   }>({ show: false, type: 'success', message: '' })
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 6
+
+  // Reset pagination when search changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filterQuery])
   
   // Dialogs
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -102,6 +111,13 @@ export default function OpenHousesPage() {
   const filteredOpenHouses = openHouses.filter(oh => 
     oh.address.toLowerCase().includes(filterQuery.toLowerCase()) ||
     (oh.city && oh.city.toLowerCase().includes(filterQuery.toLowerCase()))
+  )
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredOpenHouses.length / ITEMS_PER_PAGE)
+  const paginatedOpenHouses = filteredOpenHouses.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
   )
 
   // Notification helper function with cleanup
@@ -473,11 +489,11 @@ export default function OpenHousesPage() {
                     </div>
                   </div>
 
-                  <div className="max-h-[800px] overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="min-h-[400px]">
                     {isLoadingHistory ? (
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {[1, 2, 3].map(i => (
-                          <div key={i} className="bg-white dark:bg-[#151517] rounded-2xl h-80 animate-pulse border border-gray-100 dark:border-gray-800"></div>
+                        {[1, 2, 3, 4, 5, 6].map(i => (
+                          <div key={i} className="bg-white dark:bg-[#151517] rounded-2xl h-48 animate-pulse border border-gray-100 dark:border-gray-800"></div>
                         ))}
                       </div>
                     ) : filteredOpenHouses.length === 0 ? (
@@ -503,19 +519,50 @@ export default function OpenHousesPage() {
                         )}
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-2">
-                        {filteredOpenHouses.map((openHouse, index) => (
-                          <OpenHouseCard
-                            key={openHouse.id}
-                            openHouse={openHouse}
-                            index={index}
-                            onViewVisitors={handleViewVisitors}
-                            onViewPDF={() => handleOpenViewPDFs(openHouse)}
-                            onDelete={handleDeleteClick}
-                            onAddNote={handleOpenOpenHouseNoteModal}
-                          />
-                        ))}
-                      </div>
+                      <>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-6">
+                          {paginatedOpenHouses.map((openHouse, index) => (
+                            <OpenHouseCard
+                              key={openHouse.id}
+                              openHouse={openHouse}
+                              index={index}
+                              onViewVisitors={handleViewVisitors}
+                              onViewPDF={() => handleOpenViewPDFs(openHouse)}
+                              onDelete={handleDeleteClick}
+                              onAddNote={handleOpenOpenHouseNoteModal}
+                            />
+                          ))}
+                        </div>
+
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                          <div className="flex justify-center items-center gap-4 pt-6 border-t border-gray-200 dark:border-gray-800">
+                            <button
+                              onClick={() => {
+                                setCurrentPage(prev => Math.max(1, prev - 1));
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                              disabled={currentPage === 1}
+                              className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-[#202022] hover:border-[#8b7355] dark:hover:border-[#C9A24D] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
+                            >
+                              Previous
+                            </button>
+                            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                              Page <span className="font-bold text-gray-900 dark:text-white">{currentPage}</span> of <span className="font-bold text-gray-900 dark:text-white">{totalPages}</span>
+                            </span>
+                            <button
+                              onClick={() => {
+                                setCurrentPage(prev => Math.min(totalPages, prev + 1));
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                              disabled={currentPage === totalPages}
+                              className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-[#202022] hover:border-[#8b7355] dark:hover:border-[#C9A24D] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
+                            >
+                              Next
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -738,7 +785,7 @@ const SimilarPropertiesSelectionView = memo(function SimilarPropertiesSelectionV
   }
 
   return (
-    <div className="bg-white dark:bg-[#151517] rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-8 sm:p-12 transition-colors max-w-7xl mx-auto">
+    <div className="bg-white dark:bg-[#151517] rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-8 sm:p-12 transition-colors max-w-7xl mx-auto animate-fadeIn">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
          <div>
@@ -826,7 +873,7 @@ const FeatureSelectionView = memo(function FeatureSelectionView({ address, onNex
   }
 
   return (
-    <div className="bg-white dark:bg-[#151517] rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-8 sm:p-12 transition-colors max-w-4xl mx-auto">
+    <div className="bg-white dark:bg-[#151517] rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-8 sm:p-12 transition-colors max-w-4xl mx-auto animate-fadeIn">
       {/* Header */}
       <div className="text-center mb-12">
         <h2 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white mb-4 tracking-tight">What would you like to generate?</h2>
@@ -916,7 +963,7 @@ const ImageSelectionView = memo(function ImageSelectionView({ propertyData, addr
   const availableImages = propertyData?.originalPhotos || []
   
   return (
-    <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-6 transition-colors">
+    <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-6 transition-colors animate-fadeIn">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Select Cover Image for Sign-in Sheet</h2>
@@ -1060,7 +1107,7 @@ const DeleteConfirmationDialog = memo(function DeleteConfirmationDialog({
             </div>
             <div>
               <h3 className="text-2xl font-black text-[#0B0B0B] dark:text-white tracking-tight">Remove Listing</h3>
-              <p className="text-[#6B7280] dark:text-gray-400 text-sm mt-1 font-medium tracking-tight">This action is safe and reversible</p>
+              <p className="text-[#6B7280] dark:text-gray-400 text-sm mt-1 font-medium tracking-tight">This action is permanent and cannot be undone</p>
             </div>
           </div>
         </div>
@@ -1071,23 +1118,23 @@ const DeleteConfirmationDialog = memo(function DeleteConfirmationDialog({
               {openHouse.address}
             </p>
             <p className="text-sm text-[#6B7280] dark:text-gray-400 mt-4 font-light leading-relaxed">
-              This listing will be removed from your active dashboard. All associated data will be preserved securely for your records.
+              This listing and all associated visitor data will be removed from your dashboard.
             </p>
           </div>
 
-          <div className="bg-white/80 dark:bg-[#0B0B0B]/80 border border-green-100 dark:border-green-900/30 rounded-2xl p-6 mb-8 shadow-sm">
+          <div className="bg-red-50/50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-2xl p-6 mb-8 shadow-sm">
             <div className="flex items-start">
-              <div className="w-6 h-6 bg-green-50 dark:bg-green-900/20 rounded-full flex items-center justify-center mr-3 mt-0.5 border border-green-100 dark:border-green-900/30">
-                <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4" />
+              <div className="w-6 h-6 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mr-3 mt-0.5 border border-red-100 dark:border-red-900/30">
+                <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
               <div>
-                <h4 className="text-sm font-bold text-green-900 dark:text-green-400 mb-2 uppercase tracking-wider">Data Protection</h4>
-                <ul className="text-sm text-green-800/80 dark:text-green-500/80 space-y-2 font-medium">
-                  <li>• Historical reports remain accessible</li>
-                  <li>• Property collections remain intact</li>
-                  <li>• QR codes continue to work</li>
+                <h4 className="text-sm font-bold text-red-900 dark:text-red-400 mb-2 uppercase tracking-wider">Data Loss Warning</h4>
+                <ul className="text-sm text-red-800/80 dark:text-red-500/80 space-y-2 font-medium">
+                  <li>• Visitor logs will be permanently deleted</li>
+                  <li>• QR codes will stop working</li>
+                  <li>• This action cannot be reversed</li>
                 </ul>
               </div>
             </div>
@@ -1143,10 +1190,10 @@ const OpenHouseCard = memo(function OpenHouseCard({
   return (
     <div
       onClick={() => onViewVisitors(openHouse)}
-      className="group relative flex flex-col sm:flex-row bg-white dark:bg-[#18181b] rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer h-auto sm:h-48 isolate transform-gpu"
+      className="group relative flex flex-col sm:flex-row bg-white dark:bg-[#18181b] rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer h-auto sm:h-40 isolate transform-gpu"
     >
       {/* Left Side: Image */}
-      <div className="relative h-48 sm:h-full w-full sm:w-64 flex-shrink-0 bg-gray-100 dark:bg-[#202022]">
+      <div className="relative h-40 sm:h-full w-full sm:w-56 flex-shrink-0 bg-gray-100 dark:bg-[#202022]">
         <Image
           src={openHouse.cover_image_url}
           alt={`Property at ${openHouse.address}`}
@@ -1159,8 +1206,8 @@ const OpenHouseCard = memo(function OpenHouseCard({
 
         {/* Price Pill Badge */}
         {openHouse.price && (
-          <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
-            <span className="text-white text-xs font-semibold tracking-wide">
+          <div className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/10">
+            <span className="text-white text-[10px] font-bold tracking-wide">
               ${openHouse.price.toLocaleString()}
             </span>
           </div>
@@ -1168,49 +1215,49 @@ const OpenHouseCard = memo(function OpenHouseCard({
       </div>
 
       {/* Right Side: Content */}
-      <div className="flex-1 flex flex-col p-4 min-w-0 gap-3">
+      <div className="flex-1 flex flex-col p-3.5 min-w-0 gap-2">
         
         {/* Top Row: Title + Overflow */}
-        <div className="flex items-start justify-between gap-4">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight truncate">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-gray-100 leading-tight truncate">
             {openHouse.address}
           </h3>
           <button
             onClick={(e) => {
               e.stopPropagation()
-              onDelete(openHouse) // Using as delete trigger per prompt implication "instead of trash"
+              onDelete(openHouse)
             }}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors -mr-2 -mt-2"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors -mr-1.5 -mt-1.5"
             title="Options"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg>
           </button>
         </div>
 
         {/* Stats Row */}
-        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+        <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
           {/* Beds */}
-          <div className="flex items-center gap-1.5">
-            <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-            <span className="font-medium">{openHouse.bedrooms || '-'}</span>
-            <span className="text-gray-400 dark:text-gray-600 text-xs">Beds</span>
+          <div className="flex items-center gap-1">
+            <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            <span className="font-semibold">{openHouse.bedrooms || '-'}</span>
+            <span className="text-gray-400 dark:text-gray-600 text-[10px]">Beds</span>
           </div>
           {/* Baths */}
-          <div className="flex items-center gap-1.5">
-            <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            <span className="font-medium">{openHouse.bathrooms || '-'}</span>
-            <span className="text-gray-400 dark:text-gray-600 text-xs">Baths</span>
+          <div className="flex items-center gap-1">
+            <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span className="font-semibold">{openHouse.bathrooms || '-'}</span>
+            <span className="text-gray-400 dark:text-gray-600 text-[10px]">Baths</span>
           </div>
            {/* SqFt */}
-           <div className="flex items-center gap-1.5">
-            <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1" /></svg>
-            <span className="font-medium">{openHouse.living_area?.toLocaleString() || '-'}</span>
-            <span className="text-gray-400 dark:text-gray-600 text-xs">SqFt</span>
+           <div className="flex items-center gap-1">
+            <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1" /></svg>
+            <span className="font-semibold">{openHouse.living_area?.toLocaleString() || '-'}</span>
+            <span className="text-gray-400 dark:text-gray-600 text-[10px]">SqFt</span>
           </div>
         </div>
 
         {/* Action Row */}
-        <div className="mt-auto pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="mt-auto pt-1.5 flex flex-row items-center gap-2">
           
           {/* Primary CTA */}
           <button
@@ -1218,27 +1265,29 @@ const OpenHouseCard = memo(function OpenHouseCard({
               e.stopPropagation()
               onViewVisitors(openHouse)
             }}
-            className="flex-1 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-900 dark:text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors border border-transparent dark:border-white/5"
+            className="flex-1 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-900 dark:text-white text-xs font-bold py-2 px-3 rounded-lg transition-colors border border-transparent dark:border-white/5"
           >
-            View visitors
+            Visitors
           </button>
 
           {/* Secondary Actions */}
-          <div className="flex items-center justify-between sm:justify-end gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={(e) => { e.stopPropagation(); onViewPDF(openHouse) }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-50 dark:bg-[#202022] hover:bg-gray-100 dark:hover:bg-[#2c2c2e] border border-gray-200 dark:border-gray-800 transition-colors group/btn"
+              className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-gray-50 dark:bg-[#202022] hover:bg-gray-100 dark:hover:bg-[#2c2c2e] border border-gray-200 dark:border-gray-800 transition-colors group/btn"
+              title="View PDFs"
             >
-              <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover/btn:text-[#8b7355] dark:group-hover/btn:text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-300">PDFs</span>
+              <svg className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400 group-hover/btn:text-[#8b7355] dark:group-hover/btn:text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">PDFs</span>
             </button>
 
             <button
               onClick={(e) => { e.stopPropagation(); onAddNote(openHouse) }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-50 dark:bg-[#202022] hover:bg-gray-100 dark:hover:bg-[#2c2c2e] border border-gray-200 dark:border-gray-800 transition-colors group/btn"
+              className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-gray-50 dark:bg-[#202022] hover:bg-gray-100 dark:hover:bg-[#2c2c2e] border border-gray-200 dark:border-gray-800 transition-colors group/btn"
+              title="Add Note"
             >
-              <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover/btn:text-[#8b7355] dark:group-hover/btn:text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Notes</span>
+              <svg className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400 group-hover/btn:text-[#8b7355] dark:group-hover/btn:text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+              <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">Note</span>
             </button>
 
             <a
@@ -1246,10 +1295,11 @@ const OpenHouseCard = memo(function OpenHouseCard({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-50 dark:bg-[#202022] hover:bg-gray-100 dark:hover:bg-[#2c2c2e] border border-gray-200 dark:border-gray-800 transition-colors group/btn"
+              className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-gray-50 dark:bg-[#202022] hover:bg-gray-100 dark:hover:bg-[#2c2c2e] border border-gray-200 dark:border-gray-800 transition-colors group/btn"
+              title="Open Form Link"
             >
-              <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover/btn:text-[#8b7355] dark:group-hover/btn:text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Link</span>
+              <svg className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400 group-hover/btn:text-[#8b7355] dark:group-hover/btn:text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+              <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">Link</span>
             </a>
           </div>
         </div>

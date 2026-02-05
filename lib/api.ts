@@ -306,6 +306,7 @@ export async function sendVerificationCode(formData: {
   state: string
   brokerage: string
   password: string
+  mlsId?: string
 }) {
   const response = await fetch(`${API_BASE_URL}/auth/send-verification-code`, {
     method: 'POST',
@@ -319,6 +320,7 @@ export async function sendVerificationCode(formData: {
       state: formData.state,
       brokerage: formData.brokerage,
       password: formData.password,
+      mls_id: formData.mlsId,
     }),
   })
 

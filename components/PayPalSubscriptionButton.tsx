@@ -11,6 +11,7 @@ interface RegistrationData {
   last_name: string;
   state: string;
   brokerage: string;
+  mls_id?: string;
 }
 
 interface PayPalSubscriptionButtonProps {
@@ -85,7 +86,8 @@ export default function PayPalSubscriptionButton({
                 first_name: registrationData.first_name,
                 last_name: registrationData.last_name,
                 state: registrationData.state,
-                brokerage: registrationData.brokerage
+                brokerage: registrationData.brokerage,
+                mls_id: registrationData.mls_id
               })
             });
 

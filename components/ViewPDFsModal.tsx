@@ -23,8 +23,8 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
   onViewRecommendations 
 }: ViewPDFsModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 print:hidden animate-fadeIn">
-      <div className="bg-[#FAFAF7] dark:bg-[#151517] rounded-[2rem] shadow-2xl max-w-md w-full overflow-hidden border border-white/50 dark:border-gray-800 transform transition-all animate-slide-in-up">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 print:hidden">
+      <div className="bg-[#FAFAF7] dark:bg-[#151517] rounded-[2rem] shadow-2xl max-w-md w-full overflow-hidden border border-white/50 dark:border-gray-800 transform transition-all">
         {/* Header */}
         <div className="p-6 border-b border-gray-200/50 dark:border-gray-800 bg-white/50 dark:bg-[#0B0B0B]/50 flex justify-between items-start">
           <div>

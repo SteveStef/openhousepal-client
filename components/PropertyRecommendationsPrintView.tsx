@@ -18,14 +18,55 @@ interface Property {
 }
 
 // ... (Keep existing sample data for fallback/dev) ...
-export const allProperties = [
+export const allProperties: Property[] = [
   {
     id: 1,
     image: "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&h=600&fit=crop",
     streetAddress: "1586 Salomon Ln",
-// ... (rest of the array) ...
+    town: "Chesterbrook, PA 19087",
+    beds: 4,
+    baths: 3,
+    sqft: 2450,
+    acres: 0.5,
+    yearBuilt: 1995,
+    dom: 12
   },
-  // ... (keep rest of items)
+  {
+    id: 2,
+    image: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800&h=600&fit=crop",
+    streetAddress: "2400 Chestnut St",
+    town: "Philadelphia, PA 19103",
+    beds: 2,
+    baths: 2,
+    sqft: 1200,
+    acres: 0.0,
+    yearBuilt: 2005,
+    dom: 45
+  },
+  {
+    id: 3,
+    image: "https://images.unsplash.com/photo-1600596542815-2a4d9fdd40d9?w=800&h=600&fit=crop",
+    streetAddress: "123 Maple Ave",
+    town: "Wayne, PA 19087",
+    beds: 5,
+    baths: 4,
+    sqft: 3500,
+    acres: 1.2,
+    yearBuilt: 1920,
+    dom: 5
+  },
+  {
+    id: 4,
+    image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&h=600&fit=crop",
+    streetAddress: "789 Oak Ln",
+    town: "Berwyn, PA 19312",
+    beds: 3,
+    baths: 2.5,
+    sqft: 2100,
+    acres: 0.75,
+    yearBuilt: 1980,
+    dom: 28
+  }
 ];
 
 // Fallback logic

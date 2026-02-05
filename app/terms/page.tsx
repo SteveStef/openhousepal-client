@@ -5,39 +5,39 @@ import Footer from '@/components/Footer'
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2]">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] dark:from-[#0B0B0B] dark:via-[#111111] dark:to-[#0B0B0B] transition-colors duration-300">
       
 
       {/* Content */}
       <div className="flex-1">
         <div className="max-w-4xl mx-auto px-6 py-12">
-          <div className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-gray-200">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Terms of Service</h1>
-            <p className="text-gray-600 mb-8">Last Updated: November 2, 2025</p>
+          <div className="bg-white dark:bg-[#151517] rounded-2xl p-8 md:p-12 shadow-lg border border-gray-200 dark:border-gray-800 transition-colors duration-300">
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Terms of Service</h1>
+            <p className="text-gray-600 dark:text-gray-400 mb-8">Last Updated: November 2, 2025</p>
 
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8">
-              <p className="text-sm text-yellow-800">
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-600 p-4 mb-8">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
                 <strong>Important:</strong> Please read these Terms of Service carefully before using our Service. By using OpenHousePal, you agree to be bound by these Terms. If you do not agree, do not use the Service.
               </p>
             </div>
 
-            <div className="prose prose-gray max-w-none space-y-6 text-gray-700">
+            <div className="prose prose-gray dark:prose-invert max-w-none space-y-6 text-gray-700 dark:text-gray-300">
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Acceptance of Terms</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">1. Acceptance of Terms</h2>
                 <p>
                   By accessing and using OpenHousePal ("Service"), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to these Terms of Service, please do not use our Service.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">2. Description of Service</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">2. Description of Service</h2>
                 <p>
                   OpenHousePal provides a subscription-based platform for real estate professionals to create QR code-enabled sign-in forms for open houses and generate automated property showcases for potential buyers. The Service includes both Basic and Premium subscription tiers with varying features.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">3. Account Registration</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">3. Account Registration</h2>
                 <p>
                   To use the Service, you must:
                 </p>
@@ -54,7 +54,7 @@ export default function TermsPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">4. Subscription and Payment</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">4. Subscription and Payment</h2>
                 <p>
                   OpenHousePal offers subscription plans with a 14-day free trial period. By selecting a subscription plan:
                 </p>
@@ -69,7 +69,7 @@ export default function TermsPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">5. Cancellation and Refunds</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">5. Cancellation and Refunds</h2>
                 <p>
                   You may cancel your subscription at any time through your account settings or by contacting our support team. Upon cancellation:
                 </p>
@@ -82,7 +82,7 @@ export default function TermsPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">6. Acceptable Use</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">6. Acceptable Use</h2>
                 <p>
                   You agree to use the Service only for lawful purposes and in accordance with these Terms. You agree not to:
                 </p>
@@ -97,14 +97,14 @@ export default function TermsPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">7. Intellectual Property</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">7. Intellectual Property</h2>
                 <p>
                   The Service and its original content, features, and functionality are owned by OpenHousePal and are protected by international copyright, trademark, patent, trade secret, and other intellectual property laws. You may not reproduce, distribute, modify, or create derivative works of our Service without explicit written permission.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. Service Content and Information</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">8. Service Content and Information</h2>
                 <p>
                   All property information, images, and data provided through the Service are sourced from third-party providers, including but not limited to Multiple Listing Services (MLS) via IDX programs. You acknowledge that you do not own any of this property content and your use of it is strictly limited to the functionality provided by the Service for professional real estate purposes.
                 </p>
@@ -114,7 +114,7 @@ export default function TermsPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">9. Data Collection and Privacy</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">9. Data Collection and Privacy</h2>
                 <p>
                   When you collect visitor information through open house sign-in forms, you agree to:
                 </p>
@@ -125,12 +125,12 @@ export default function TermsPage() {
                   <li>Protect visitor information from unauthorized access or disclosure</li>
                 </ul>
                 <p className="mt-4">
-                  Please review our <Link href="/privacy" className="text-[#8b7355] hover:text-[#7a6549] transition-colors">Privacy Policy</Link> for information about how we collect and use your data.
+                  Please review our <Link href="/privacy" className="text-[#8b7355] hover:text-[#7a6549] dark:text-[#C9A24D] dark:hover:text-[#b08d42] transition-colors">Privacy Policy</Link> for information about how we collect and use your data.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">9.5 MLS and IDX Data Disclaimer</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">9.5 MLS and IDX Data Disclaimer</h2>
                 <p>
                   OpenHousePal may display real estate listing information obtained from one or more multiple listing services (“MLS”) or Internet Data Exchange (“IDX”) programs through licensed agreements with third-party providers. OpenHousePal is not a real estate broker, does not represent buyers or sellers, and does not guarantee the accuracy, completeness, or timeliness of any MLS or IDX data displayed through the Service.
                 </p>
@@ -140,7 +140,7 @@ export default function TermsPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">10. Disclaimer of Warranties</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">10. Disclaimer of Warranties</h2>
                 <p>
                   THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
                 </p>
@@ -150,7 +150,7 @@ export default function TermsPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">11. Limitation of Liability</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">11. Limitation of Liability</h2>
                 <p>
                   TO THE FULLEST EXTENT PERMITTED BY LAW, OPENHOUSEPAL SHALL NOT BE LIABLE FOR ANY DAMAGES WHATSOEVER, WHETHER DIRECT, INDIRECT, GENERAL, SPECIAL, COMPENSATORY, CONSEQUENTIAL, AND/OR INCIDENTAL, ARISING OUT OF OR RELATING TO THE USE OF THE SERVICE.
                 </p>
@@ -160,7 +160,7 @@ export default function TermsPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">12. Indemnification</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">12. Indemnification</h2>
                 <p>
                   You agree to indemnify, defend, and hold harmless OpenHousePal, its officers, directors, employees, agents, and affiliates from and against any and all claims, liabilities, damages, losses, costs, expenses, or fees (including reasonable attorneys' fees) arising from:
                 </p>
@@ -178,7 +178,7 @@ export default function TermsPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">13. DMCA Copyright Policy</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">13. DMCA Copyright Policy</h2>
                 <p>
                   We respect the intellectual property rights of others. If you believe that content available through the Service infringes your copyright, please notify us with the following information:
                 </p>
@@ -199,7 +199,7 @@ export default function TermsPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">14. Data Security and Breach Limitation</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">14. Data Security and Breach Limitation</h2>
                 <p>
                   While we implement reasonable security measures to protect your data and visitor information, no system is completely secure. You acknowledge and agree that:
                 </p>
@@ -215,7 +215,7 @@ export default function TermsPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">15. Force Majeure</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">15. Force Majeure</h2>
                 <p>
                   OpenHousePal shall not be liable for any failure or delay in performance due to causes beyond our reasonable control, including but not limited to:
                 </p>
@@ -234,21 +234,21 @@ export default function TermsPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">16. Modifications to Service</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">16. Modifications to Service</h2>
                 <p>
                   We reserve the right to modify, suspend, or discontinue any aspect of the Service at any time without notice. We may also impose limits on certain features or restrict access to parts or all of the Service without notice or liability.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">17. Changes to Terms</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">17. Changes to Terms</h2>
                 <p>
                   We reserve the right to modify these Terms at any time. We will notify users of any material changes by posting the new Terms on this page and updating the "Last Updated" date. Your continued use of the Service after such modifications constitutes your acceptance of the updated Terms.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">18. Dispute Resolution and Arbitration Agreement</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">18. Dispute Resolution and Arbitration Agreement</h2>
                 <p className="font-semibold mb-2">
                   PLEASE READ THIS SECTION CAREFULLY. IT AFFECTS YOUR LEGAL RIGHTS, INCLUDING YOUR RIGHT TO FILE A LAWSUIT IN COURT.
                 </p>
@@ -270,42 +270,42 @@ export default function TermsPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">19. Governing Law and Venue</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">19. Governing Law and Venue</h2>
                 <p>
                   These Terms shall be governed by and construed in accordance with the laws of the State of Delaware, United States, without regard to its conflict of law provisions. To the extent arbitration does not apply, you agree that any legal action or proceeding shall be brought exclusively in the state or federal courts located in Delaware, and you hereby consent to the personal jurisdiction and venue of such courts.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">20. Attorney's Fees</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">20. Attorney's Fees</h2>
                 <p>
                   In any action or proceeding to enforce rights under these Terms, the prevailing party will be entitled to recover its reasonable costs and attorneys' fees.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">21. Severability</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">21. Severability</h2>
                 <p>
                   If any provision of these Terms is found to be unlawful, void, or unenforceable, that provision shall be deemed severable from these Terms and shall not affect the validity and enforceability of any remaining provisions. The failure of OpenHousePal to enforce any right or provision of these Terms will not be deemed a waiver of such right or provision.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">22. Entire Agreement</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">22. Entire Agreement</h2>
                 <p>
                   These Terms, together with our Privacy Policy and any other legal notices published by us on the Service, constitute the entire agreement between you and OpenHousePal concerning the Service and supersede all prior or contemporaneous understandings and agreements, whether written or oral, regarding the Service.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">23. Assignment</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">23. Assignment</h2>
                 <p>
                   You may not assign or transfer these Terms or your rights hereunder, in whole or in part, without our prior written consent. We may assign these Terms at any time without notice to you. Any attempted assignment in violation of this section shall be void.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">24. Contact Information</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">24. Contact Information</h2>
                 <p>
                   If you have any questions about these Terms of Service, please contact us at:
                 </p>
@@ -317,7 +317,7 @@ export default function TermsPage() {
                 </p>
               </section>
             </div>
-            <div className="mt-12 pt-8 border-t border-gray-200">
+            <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800">
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
                   href="/register"
@@ -327,7 +327,7 @@ export default function TermsPage() {
                 </Link>
                 <Link
                   href="/"
-                  className="px-6 py-3 bg-white border-2 border-[#8b7355] text-[#8b7355] rounded-xl font-semibold hover:bg-[#8b7355] hover:text-white transition-all duration-300 hover:scale-105 text-center"
+                  className="px-6 py-3 bg-white dark:bg-transparent border-2 border-[#8b7355] dark:border-[#C9A24D] text-[#8b7355] dark:text-[#C9A24D] rounded-xl font-semibold hover:bg-[#8b7355] dark:hover:bg-[#C9A24D] hover:text-white dark:hover:text-[#111827] transition-all duration-300 hover:scale-105 text-center"
                 >
                   Back to Home
                 </Link>

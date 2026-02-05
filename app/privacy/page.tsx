@@ -5,19 +5,19 @@ import Footer from '@/components/Footer'
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2]">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] dark:from-[#0B0B0B] dark:via-[#111111] dark:to-[#0B0B0B] transition-colors duration-300">
       
 
       {/* Content */}
       <div className="flex-1">
         <div className="max-w-4xl mx-auto px-6 py-12">
-          <div className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-gray-200">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Privacy Policy</h1>
-            <p className="text-gray-600 mb-8">Last Updated: October 21, 2025</p>
+          <div className="bg-white dark:bg-[#151517] rounded-2xl p-8 md:p-12 shadow-lg border border-gray-200 dark:border-gray-800 transition-colors duration-300">
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Privacy Policy</h1>
+            <p className="text-gray-600 dark:text-gray-400 mb-8">Last Updated: October 21, 2025</p>
 
-            <div className="prose prose-gray max-w-none space-y-6 text-gray-700">
+            <div className="prose prose-gray dark:prose-invert max-w-none space-y-6 text-gray-700 dark:text-gray-300">
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Introduction</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">1. Introduction</h2>
                 <p>
                   Open House Pal ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service. Please read this policy carefully to understand our practices regarding your personal data.
                 </p>
@@ -27,9 +27,9 @@ export default function PrivacyPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">2. Information We Collect</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">2. Information We Collect</h2>
 
-                <h3 className="text-xl font-semibold text-gray-800 mb-3 mt-4">2.1 Information You Provide</h3>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3 mt-4">2.1 Information You Provide</h3>
                 <p>We collect information that you voluntarily provide when using our Service:</p>
                 <ul className="list-disc pl-6 space-y-2 mt-2">
                   <li><strong>Account Information:</strong> First name, last name, email address, state, brokerage name, and password</li>
@@ -38,7 +38,7 @@ export default function PrivacyPage() {
                   <li><strong>Communication Data:</strong> Messages you send us through support channels</li>
                 </ul>
 
-                <h3 className="text-xl font-semibold text-gray-800 mb-3 mt-4">2.2 Visitor Data You Collect</h3>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3 mt-4">2.2 Visitor Data You Collect</h3>
                 <p>
                   When you use our open house sign-in forms, you may collect information from property visitors. This information is stored in your account and you are the data controller for this information. Typical visitor data includes:
                 </p>
@@ -51,7 +51,7 @@ export default function PrivacyPage() {
                   <li>Any additional information you choose to collect through custom forms</li>
                 </ul>
 
-                <h3 className="text-xl font-semibold text-gray-800 mb-3 mt-4">2.3 Automatically Collected Information</h3>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3 mt-4">2.3 Automatically Collected Information</h3>
                 <p>When you access our Service, we automatically collect certain information:</p>
                 <ul className="list-disc pl-6 space-y-2 mt-2">
                   <li><strong>Device Information:</strong> IP address, browser type, operating system, device identifiers</li>
@@ -61,7 +61,7 @@ export default function PrivacyPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">3. How We Use Your Information</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">3. How We Use Your Information</h2>
                 <p>We use the collected information for the following purposes:</p>
                 <ul className="list-disc pl-6 space-y-2 mt-2">
                   <li><strong>Service Delivery:</strong> To provide, maintain, and improve our Service features</li>
@@ -75,7 +75,7 @@ export default function PrivacyPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">4. How We Share Your Information</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">4. How We Share Your Information</h2>
                 <p>We do not sell your personal information. We may share your information in the following circumstances:</p>
 
                 <ul className="list-disc pl-6 space-y-2 mt-2">
@@ -88,7 +88,7 @@ export default function PrivacyPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">5. Your Responsibilities as a Data Controller</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">5. Your Responsibilities as a Data Controller</h2>
                 <p>
                   When you collect visitor information through our open house forms, you act as the data controller for that information. You are responsible for:
                 </p>
@@ -103,7 +103,7 @@ export default function PrivacyPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">6. Cookies and Tracking Technologies</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">6. Cookies and Tracking Technologies</h2>
                 <p>
                   We use cookies and similar tracking technologies to enhance your experience on our Service:
                 </p>
@@ -118,7 +118,7 @@ export default function PrivacyPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">7. Data Security</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">7. Data Security</h2>
                 <p>
                   We implement industry-standard security measures to protect your information:
                 </p>
@@ -135,7 +135,7 @@ export default function PrivacyPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. Data Retention</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">8. Data Retention</h2>
                 <p>
                   We retain your personal information for as long as necessary to provide our Service and fulfill the purposes outlined in this Privacy Policy:
                 </p>
@@ -148,7 +148,7 @@ export default function PrivacyPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">9. Your Privacy Rights</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">9. Your Privacy Rights</h2>
                 <p>
                   Depending on your location, you may have certain rights regarding your personal information:
                 </p>
@@ -166,7 +166,7 @@ export default function PrivacyPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">10. California Privacy Rights (CCPA)</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">10. California Privacy Rights (CCPA)</h2>
                 <p>
                   If you are a California resident, you have additional rights under the California Consumer Privacy Act (CCPA):
                 </p>
@@ -179,28 +179,28 @@ export default function PrivacyPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">11. Children's Privacy</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">11. Children's Privacy</h2>
                 <p>
                   Our Service is not intended for individuals under the age of 18. We do not knowingly collect personal information from children. If we become aware that we have collected personal information from a child without parental consent, we will take steps to delete such information.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">12. Third-Party Links</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">12. Third-Party Links</h2>
                 <p>
                   Our Service may contain links to third-party websites or services. We are not responsible for the privacy practices of these third parties. We encourage you to review the privacy policies of any third-party sites you visit.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">13. International Data Transfers</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">13. International Data Transfers</h2>
                 <p>
                   Your information may be transferred to and processed in countries other than your country of residence. We ensure that appropriate safeguards are in place to protect your information in accordance with this Privacy Policy.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">14. Changes to This Privacy Policy</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">14. Changes to This Privacy Policy</h2>
                 <p>
                   We may update this Privacy Policy from time to time to reflect changes in our practices or legal requirements. We will notify you of material changes by:
                 </p>
@@ -215,7 +215,7 @@ export default function PrivacyPage() {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">15. Contact Us</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">15. Contact Us</h2>
                 <p>
                   If you have any questions, concerns, or requests regarding this Privacy Policy or our privacy practices, please contact us at:
                 </p>
@@ -224,12 +224,12 @@ export default function PrivacyPage() {
                   <p><strong>Support:</strong> support@openhousepal.com</p>
                 </div>
                 <p className="mt-4">
-                  For questions about our Terms of Service, please visit our <Link href="/terms" className="text-[#8b7355] hover:text-[#7a6549] transition-colors">Terms of Service</Link> page.
+                  For questions about our Terms of Service, please visit our <Link href="/terms" className="text-[#8b7355] hover:text-[#7a6549] dark:text-[#C9A24D] dark:hover:text-[#b08d42] transition-colors">Terms of Service</Link> page.
                 </p>
               </section>
             </div>
 
-            <div className="mt-12 pt-8 border-t border-gray-200">
+            <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800">
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
                   href="/register"
@@ -239,7 +239,7 @@ export default function PrivacyPage() {
                 </Link>
                 <Link
                   href="/"
-                  className="px-6 py-3 bg-white border-2 border-[#8b7355] text-[#8b7355] rounded-xl font-semibold hover:bg-[#8b7355] hover:text-white transition-all duration-300 hover:scale-105 text-center"
+                  className="px-6 py-3 bg-white dark:bg-transparent border-2 border-[#8b7355] dark:border-[#C9A24D] text-[#8b7355] dark:text-[#C9A24D] rounded-xl font-semibold hover:bg-[#8b7355] dark:hover:bg-[#C9A24D] hover:text-white dark:hover:text-[#111827] transition-all duration-300 hover:scale-105 text-center"
                 >
                   Back to Home
                 </Link>

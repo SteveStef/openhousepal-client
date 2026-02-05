@@ -269,9 +269,9 @@ export function ShowcaseContent() {
 
   // Calculate active showcases count and limit status
   const activeShowcasesCount = collections.filter(collection => collection.status === 'ACTIVE').length
-  const maxActiveShowcases = 10
+  const maxActiveShowcases = 50
   const isAtLimit = activeShowcasesCount >= maxActiveShowcases
-  const isNearLimit = activeShowcasesCount >= 8
+  const isNearLimit = activeShowcasesCount >= 45
 
   const formatPriceRange = (priceRange: string) => {
     const ranges: { [key: string]: string } = {
@@ -1099,7 +1099,7 @@ export function ShowcaseContent() {
   const handleCreateCollection = async (collectionData: any) => {
     // Check active showcases limit before creating
     if (activeShowcasesCount >= maxActiveShowcases) {
-      alert('You have reached the maximum limit of 10 active showcases. Please deactivate some showcases before creating a new one.')
+      alert('You have reached the maximum limit of 50 active showcases. Please deactivate some showcases before creating a new one.')
       return
     }
 
@@ -1436,7 +1436,7 @@ export function ShowcaseContent() {
                     ? 'bg-gray-300 dark:bg-gray-800 text-gray-500 cursor-not-allowed shadow-none border-transparent'
                     : 'bg-[#111827] dark:bg-white text-white dark:text-[#111827] border-[#C9A24D]/20 hover:border-[#C9A24D] hover:bg-[#1a2333] dark:hover:bg-[#f0f0f0]'
                 }`}
-                title={isAtLimit ? 'Maximum 10 active showcases reached' : 'Create a new showcase'}
+                title={isAtLimit ? 'Maximum 50 active showcases reached' : 'Create a new showcase'}
               >
                 <svg className={`w-3.5 h-3.5 ${isAtLimit ? 'text-gray-500' : 'text-[#C9A24D]'} transition-colors duration-300`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -1614,7 +1614,7 @@ function CreateCollectionModal({
   onClose,
   onSubmit,
   activeShowcasesCount = 0,
-  maxActiveShowcases = 10,
+  maxActiveShowcases = 50,
   isNearLimit = false
 }: {
   isOpen: boolean,

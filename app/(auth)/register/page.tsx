@@ -1,8 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
-import { register as registerUser } from '../../../lib/auth'
 import { useState, useEffect } from 'react'
 import PayPalSubscriptionButton from '../../../components/PayPalSubscriptionButton'
 import { PayPalScriptProvider } from "@paypal/react-paypal-js"
@@ -27,6 +25,7 @@ export default function RegisterPage() {
     firstName: '',
     lastName: '',
     email: '',
+    mlsId: '',
     state: '',
     brokerage: '',
     password: '',
@@ -148,6 +147,7 @@ export default function RegisterPage() {
     if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required'
     if (!formData.state.trim()) newErrors.state = 'State is required'
     if (!formData.brokerage.trim()) newErrors.brokerage = 'Brokerage is required'
+    if (!formData.mlsId.trim()) newErrors.mlsId = 'MLS ID is required'
     
     // Email validation
     if (!formData.email.trim()) {
@@ -196,7 +196,8 @@ export default function RegisterPage() {
         lastName: formData.lastName,
         state: formData.state,
         brokerage: formData.brokerage,
-        password: formData.password
+        password: formData.password,
+        mlsId: formData.mlsId
       })
 
       // Code sent successfully - move to verification step
@@ -502,33 +503,62 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* Email */}
-              <div>
-                <label htmlFor="email" className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider mb-1 ml-1">
-                  Email address
-                </label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-                    </svg>
+              {/* Email and MLS ID */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-1">
+                  <label htmlFor="email" className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider mb-1 ml-1">
+                    Email address
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                      </svg>
+                    </div>
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={handleChange}
+                      className={`block w-full pl-9 pr-4 py-2.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
+                        fieldErrors.email 
+                          ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
+                          : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30'
+                      }`}
+                      placeholder="john.smith@example.com"
+                    />
                   </div>
+                  {fieldErrors.email && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.email}</p>}
+                </div>
+
+                <div>
+                  <label htmlFor="mlsId" className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider mb-1 ml-1">
+                    MLS ID
+                  </label>
                   <input
-                    id="email"
-                    name="email"
-                    type="email"
+                    id="mlsId"
+                    name="mlsId"
+                    type="text"
+                    inputMode="numeric"
                     required
-                    value={formData.email}
-                    onChange={handleChange}
-                    className={`block w-full pl-9 pr-4 py-2.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
-                      fieldErrors.email 
+                    value={formData.mlsId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (/^\d*$/.test(val)) {
+                        handleChange(e);
+                      }
+                    }}
+                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
+                      fieldErrors.mlsId 
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
                         : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30'
                     }`}
-                    placeholder="john.smith@example.com"
+                    placeholder="1234567"
                   />
+                  {fieldErrors.mlsId && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.mlsId}</p>}
                 </div>
-                {fieldErrors.email && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.email}</p>}
               </div>
 
               {/* State and Brokerage Fields */}
@@ -795,7 +825,8 @@ export default function RegisterPage() {
                   first_name: formData.firstName,
                   last_name: formData.lastName,
                   state: formData.state,
-                  brokerage: formData.brokerage
+                  brokerage: formData.brokerage,
+                  mls_id: formData.mlsId
                 }}
                 onSuccess={async () => {
                   showNotification('success', 'Account created successfully! Redirecting...')
