@@ -366,4 +366,4 @@ export async function resendVerificationCode(email: string) {
   return response.json()
 }
 
-export default api
+export default api;

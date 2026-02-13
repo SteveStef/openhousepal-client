@@ -13,7 +13,8 @@ export default function AppHeader() {
     '/forgot-password',
     '/reset-password',
     // open-house/[id] is visitor facing, usually no nav
-    '/open-house/', 
+    '/open-house/',
+    '/property/',
   ]
 
   const isNoHeader = noHeaderPaths.some(path => pathname?.startsWith(path))

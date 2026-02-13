@@ -151,7 +151,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Video Showcase */}
+      {/* Video Showcase 
       <div className="relative z-10 py-20 lg:py-32">
         <div className="max-w-6xl mx-auto px-6">
           <div className={`text-center mb-16 transform transition-all duration-1000 delay-400 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
@@ -162,7 +162,6 @@ export default function HomePage() {
           </div>
           <div className={`relative rounded-3xl overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ring-1 ring-[#111827]/10 dark:ring-white/10 transform transition-all duration-1000 delay-500 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
             <div className="aspect-video bg-gray-100 dark:bg-gray-900 relative">
-               {/* Overlay gradient for video controls contrast */}
                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
                <video 
                 className="w-full h-full object-cover"
@@ -179,7 +178,7 @@ export default function HomePage() {
           </div>
         </div>
       </div>
-
+*/}
       {/* How It Works - Redesigned Vertical Timeline */}
       <div id="how-it-works" className="relative z-10 py-24 bg-white/50 dark:bg-[#151517]/50 overflow-hidden transition-colors duration-300">
         <div className="max-w-6xl mx-auto px-6">
