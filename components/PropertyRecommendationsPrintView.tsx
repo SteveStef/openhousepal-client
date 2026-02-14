@@ -73,8 +73,8 @@ export const allProperties: Property[] = [
 // Fallback logic
 const dynamicProperties = [
   ...allProperties,
-  ...allProperties.map(p => ({ ...p, id: p.id + 10 })),
-  ...allProperties.slice(0, 2).map(p => ({ ...p, id: p.id + 20 }))
+  ...allProperties.map(p => ({ ...p, id: Number(p.id) + 10 })),
+  ...allProperties.slice(0, 2).map(p => ({ ...p, id: Number(p.id) + 20 }))
 ];
 
 const chunkArray = <T,>(array: T[], size: number): T[][] => {

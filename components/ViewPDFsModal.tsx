@@ -6,7 +6,7 @@ import Image from 'next/image'
 interface OpenHouse {
   id: string;
   address: string;
-  cover_image_url: string;
+  cover_image_url?: string;
 }
 
 interface ViewPDFsModalProps {

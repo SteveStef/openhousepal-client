@@ -159,7 +159,7 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
               {(() => {
                 const parts = propertyAddress.split(',');
                 const raw = parts.length > 1 ? `${parts[0].trim()}, ${parts[1].trim()}` : parts[0].trim();
-                return raw.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                return raw.toLowerCase().split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
               })()}
             </div>
           </div>
@@ -594,12 +594,12 @@ export default function PropertyDetailsModal({
                   if (street.includes(',')) {
                     const parts = street.split(',');
                     const raw = parts.length > 1 ? `${parts[0].trim()}, ${parts[1].trim()}` : parts[0].trim();
-                    return raw.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                    return raw.toLowerCase().split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
                   }
                   
                   // Otherwise combine street and city
                   const raw = city ? `${street}, ${city}` : street;
-                  return raw.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                  return raw.toLowerCase().split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
                 })()}
               </h2>
               <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
