@@ -38,50 +38,94 @@ export default function PropertyReport({ resoFacts, propertyAddress }: PropertyR
   };
 
   const allReportData = [
-    { property: "BUILDING & CONSTRUCTION", value: "", isHeader: true },
-    { property: "Year Built", value: resoFacts.yearBuilt },
-    { property: "Architectural Style", value: resoFacts.architecturalStyle },
-    { property: "Construction Materials", value: formatList(resoFacts.constructionMaterials) },
-    { property: "Stories", value: resoFacts.stories },
-    { property: "Square Footage", value: resoFacts.livingArea },
+    // Listing Intelligence
+    { property: "LISTING INTELLIGENCE", value: "", isHeader: true },
+    { property: "Status", value: resoFacts.standardStatus || resoFacts.homeStatus || resoFacts.standard_status || resoFacts.home_status },
+    { property: "Days on Market", value: resoFacts.daysOnMarket || resoFacts.days_on_market },
+    { property: "Cumulative DOM", value: resoFacts.cumulativeDaysOnMarket || resoFacts.cumulative_days_on_market },
+    { property: "Original List Price", value: formatCurrency(resoFacts.originalListPrice || resoFacts.original_list_price) },
 
+    // Building & Construction
+    { property: "BUILDING & CONSTRUCTION", value: "", isHeader: true },
+    { property: "Year Built", value: resoFacts.yearBuilt || resoFacts.year_built },
+    { property: "New Construction", value: (resoFacts.newConstructionYn ?? resoFacts.new_construction_yn) ? "Yes" : (resoFacts.newConstructionYn === false || resoFacts.new_construction_yn === false ? "No" : null) },
+    { property: "Architectural Style", value: resoFacts.architecturalStyle || resoFacts.architectural_style },
+    { property: "Construction Materials", value: formatList(resoFacts.constructionMaterials || resoFacts.construction_materials) },
+    { property: "Stories", value: resoFacts.stories },
+    { property: "Total Stories", value: resoFacts.storiesTotal || resoFacts.stories_total },
+    { property: "Square Footage", value: (resoFacts.livingArea || resoFacts.living_area) ? `${(resoFacts.livingArea || resoFacts.living_area).toLocaleString()} sq ft` : null },
+    { property: "Lot Size", value: (resoFacts.lotSize || resoFacts.lot_size) ? `${(resoFacts.lotSize || resoFacts.lot_size).toLocaleString()} sq ft` : null },
+    { property: "Lot Size (Acres)", value: (resoFacts.lotSizeAcres || resoFacts.lot_size_acres) ? `${(resoFacts.lotSizeAcres || resoFacts.lot_size_acres)} AC` : null },
+    { property: "Zoning", value: resoFacts.zoning },
+
+    // Interior Features
     { property: "INTERIOR FEATURES", value: "", isHeader: true },
     { property: "Appliances", value: formatList(resoFacts.appliances) },
-    { property: "Interior Features", value: formatList(resoFacts.interiorFeatures) },
+    { property: "Interior Features", value: formatList(resoFacts.interiorFeatures || resoFacts.interior_features) },
     { property: "Flooring", value: formatList(resoFacts.flooring) },
-    { property: "Window Features", value: formatList(resoFacts.windowFeatures) },
-    { property: "Fireplace Features", value: formatList(resoFacts.fireplaceFeatures) },
+    { property: "Window Features", value: formatList(resoFacts.windowFeatures || resoFacts.window_features) },
+    { property: "Fireplace Features", value: formatList(resoFacts.fireplaceFeatures || resoFacts.fireplace_features) },
+    { property: "Fireplaces", value: resoFacts.fireplaces },
 
+    // HVAC & Systems
     { property: "HVAC & SYSTEMS", value: "", isHeader: true },
     { property: "Heating", value: formatList(resoFacts.heating) },
+    { property: "Heating Fuel", value: formatList(resoFacts.heatingFuel || resoFacts.heating_fuel) },
     { property: "Cooling", value: formatList(resoFacts.cooling) },
-    { property: "Water Source", value: formatList(resoFacts.waterSource) },
+    { property: "Cooling Fuel", value: formatList(resoFacts.coolingFuel || resoFacts.cooling_fuel) },
+    { property: "Water Source", value: formatList(resoFacts.waterSource || resoFacts.water_source) },
     { property: "Sewer", value: formatList(resoFacts.sewer) },
     { property: "Electric", value: formatList(resoFacts.electric) },
 
+    // Parking & Access
     { property: "PARKING & ACCESS", value: "", isHeader: true },
-    { property: "Total Parking", value: resoFacts.parkingCapacity ? `${resoFacts.parkingCapacity} spaces` : null },
-    { property: "Garage Parking", value: resoFacts.garageParkingCapacity ? `${resoFacts.garageParkingCapacity} spaces` : null },
-    { property: "Parking Features", value: formatList(resoFacts.parkingFeatures) },
-    { property: "Accessibility Features", value: formatList(resoFacts.accessibilityFeatures) },
+    { property: "Total Parking", value: (resoFacts.parkingCapacity || resoFacts.parking_capacity) ? `${(resoFacts.parkingCapacity || resoFacts.parking_capacity)} spaces` : null },
+    { property: "Garage Parking", value: (resoFacts.garageParkingCapacity || resoFacts.garage_parking_capacity) ? `${(resoFacts.garageParkingCapacity || resoFacts.garage_parking_capacity)} spaces` : null },
+    { property: "Attached Garage", value: (resoFacts.attachedGarageYn ?? resoFacts.attached_garage_yn) ? "Yes" : (resoFacts.attachedGarageYn === false || resoFacts.attached_garage_yn === false ? "No" : null) },
+    { property: "Parking Features", value: formatList(resoFacts.parkingFeatures || resoFacts.parking_features) },
+    { property: "Accessibility Features", value: formatList(resoFacts.accessibilityFeatures || resoFacts.accessibility_features) },
 
-    ...(resoFacts.hasAssociation ? [
+    // HOA & Fees
+    ...(resoFacts.hasAssociation || resoFacts.associationFee || resoFacts.has_association || resoFacts.association_fee ? [
       { property: "HOA & FEES", value: "", isHeader: true },
-      { property: "HOA Fee", value: resoFacts.hoaFee },
-      { property: "Annual Property Tax", value: formatCurrency(resoFacts.taxAnnualAmount) },
-      { property: "HOA Includes", value: formatList(resoFacts.associationFeeIncludes) },
+      { property: "HOA Fee", value: resoFacts.hoaFee || resoFacts.hoa_fee || resoFacts.associationFee || resoFacts.association_fee },
+      { property: "Frequency", value: resoFacts.associationFeeFrequency || resoFacts.association_fee_frequency },
+      { property: "Annual Property Tax", value: formatCurrency(resoFacts.taxAnnualAmount || resoFacts.tax_annual_amount) },
+      { property: "Capital Contribution", value: formatCurrency(resoFacts.capitalContributionFee || resoFacts.capital_contribution_fee) },
+      { property: "HOA Includes", value: formatList(resoFacts.associationFeeIncludes || resoFacts.association_fee_includes) },
+      { property: "Amenities", value: formatList(resoFacts.associationAmenities || resoFacts.association_amenities) },
     ] : []),
 
+    // Schools & District
     { property: "SCHOOLS & DISTRICT", value: "", isHeader: true },
-    { property: "Elementary School", value: resoFacts.elementarySchool ? `${resoFacts.elementarySchool}${resoFacts.elementarySchoolDistrict ? ` (${resoFacts.elementarySchoolDistrict} District)` : ''}` : null },
-    { property: "Middle School", value: resoFacts.middleOrJuniorSchool ? `${resoFacts.middleOrJuniorSchool}${resoFacts.middleOrJuniorSchoolDistrict ? ` (${resoFacts.middleOrJuniorSchoolDistrict} District)` : ''}` : null },
-    { property: "High School", value: resoFacts.highSchool ? `${resoFacts.highSchool}${resoFacts.highSchoolDistrict ? ` (${resoFacts.highSchoolDistrict} District)` : ''}` : null },
+    { property: "School District", value: resoFacts.schoolDistrictName || resoFacts.school_district_name },
+    { property: "Elementary School", value: (resoFacts.elementarySchool || resoFacts.elementary_school) ? `${(resoFacts.elementarySchool || resoFacts.elementary_school)}${(resoFacts.elementarySchoolDistrict || resoFacts.elementary_school_district) ? ` (${resoFacts.elementarySchoolDistrict || resoFacts.elementary_school_district} District)` : ''}` : null },
+    { property: "Middle School", value: (resoFacts.middleOrJuniorSchool || resoFacts.middle_or_junior_school) ? `${(resoFacts.middleOrJuniorSchool || resoFacts.middle_or_junior_school)}${(resoFacts.middleOrJuniorSchoolDistrict || resoFacts.middle_or_junior_school_district) ? ` (${resoFacts.middleOrJuniorSchoolDistrict || resoFacts.middle_or_junior_school_district} District)` : ''}` : null },
+    { property: "High School", value: (resoFacts.highSchool || resoFacts.high_school) ? `${(resoFacts.highSchool || resoFacts.high_school)}${(resoFacts.highSchoolDistrict || resoFacts.high_school_district) ? ` (${resoFacts.highSchoolDistrict || resoFacts.high_school_district} District)` : ''}` : null },
 
+    // Location & Neighborhood
+    { property: "LOCATION & NEIGHBORHOOD", value: "", isHeader: true },
+    { property: "County", value: resoFacts.county },
+    { property: "Walk Score", value: resoFacts.walkScore || resoFacts.walk_score },
+    { property: "Direction Faces", value: resoFacts.directionFaces || resoFacts.direction_faces },
+    { property: "Cross Street", value: resoFacts.crossStreet || resoFacts.cross_street },
+    { property: "Possession", value: formatList(resoFacts.possession) },
+
+    // Additional Features
     { property: "ADDITIONAL FEATURES", value: "", isHeader: true },
-    { property: "Exterior Features", value: formatList(resoFacts.exteriorFeatures) },
-    { property: "Lot Features", value: formatList(resoFacts.lotFeatures) },
-    { property: "Community Features", value: formatList(resoFacts.communityFeatures) },
-    { property: "Security Features", value: formatList(resoFacts.securityFeatures) },
+    { property: "Senior Community", value: (resoFacts.seniorCommunityYn ?? resoFacts.senior_community_yn) ? "Yes" : (resoFacts.seniorCommunityYn === false || resoFacts.senior_community_yn === false ? "No" : null) },
+    { property: "Pets Allowed", value: formatList(resoFacts.petsAllowed || resoFacts.pets_allowed) },
+    { property: "Exterior Features", value: formatList(resoFacts.exteriorFeatures || resoFacts.exterior_features) },
+    { property: "Lot Features", value: formatList(resoFacts.lotFeatures || resoFacts.lot_features) },
+    { property: "Community Features", value: formatList(resoFacts.communityFeatures || resoFacts.community_features) },
+    { property: "Security Features", value: formatList(resoFacts.securityFeatures || resoFacts.security_features) },
+
+    // Financial Details
+    { property: "FINANCIAL DETAILS", value: "", isHeader: true },
+    { property: "Tax Assessment", value: formatCurrency(resoFacts.taxAssessmentAmount || resoFacts.tax_assessment_amount) },
+    { property: "Land Assessment", value: formatCurrency(resoFacts.landAssessmentAmount || resoFacts.land_assessment_amount) },
+    { property: "Improvement Assessment", value: formatCurrency(resoFacts.improvementAssessmentAmount || resoFacts.improvement_assessment_amount) },
+    { property: "Assessment Year", value: resoFacts.assessmentYear || resoFacts.assessment_year },
   ];
 
   const reportData = allReportData.filter(row => row.isHeader || (row.value !== null && row.value !== undefined && row.value !== ''));
@@ -115,11 +159,6 @@ export default function PropertyReport({ resoFacts, propertyAddress }: PropertyR
                 <span className="w-2 h-2 rounded-full bg-green-400 mr-2 animate-pulse"></span>
                 ACTIVE
               </div>
-            </div>
-            <div className="h-10 w-px bg-gray-700"></div>
-            <div className="text-right">
-              <div className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Revision</div>
-              <div className="font-mono font-bold text-sm">#{new Date().toISOString().slice(0,10).replace(/-/g,'')}</div>
             </div>
           </div>
         </div>

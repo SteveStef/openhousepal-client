@@ -311,6 +311,15 @@ body {
   background: rgba(75, 85, 99, 0.8);
 }
 
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
 /* Property Recommendations Print Styles */
 @media print {
   @page {
@@ -449,7 +458,8 @@ body {
   }
   
   /* KPI Chips & Icons */
-  article .bg-muted\/50 {
+  article .bg-muted\/50,
+  article .kpi-chip {
     padding: 0.05in !important;
     background-color: #f3f4f6 !important;
     display: flex !important;
@@ -457,13 +467,15 @@ body {
     align-items: center !important;
     justify-content: center !important;
   }
-  article .bg-muted\/50 svg { 
+  article .bg-muted\/50 svg,
+  article .kpi-chip svg { 
     height: 12px !important; 
     width: 12px !important; 
     margin-bottom: 2px !important;
     color: #000000 !important;
   }
-  article .bg-muted\/50 span { 
+  article .bg-muted\/50 span,
+  article .kpi-chip span { 
     font-size: 10.5pt !important; 
     font-weight: 700 !important; 
     line-height: 1 !important;

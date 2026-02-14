@@ -5,10 +5,11 @@ import { PropertyRecommendationCard } from "@/components/PropertyRecommendationC
 
 // 1. Define the shape of your data
 interface Property {
-  id: number;
+  id: string | number;
   image: string;
   streetAddress: string;
   town: string;
+  price?: number;
   beds: number;
   baths: number;
   sqft: number;
@@ -86,16 +87,19 @@ const chunkArray = <T,>(array: T[], size: number): T[][] => {
 
 interface PropertyRecommendationsPrintViewProps {
     openHouseId?: string;
+    agentId?: string;
     className?: string;
     properties?: Property[]; // New prop
 }
 
-export function PropertyRecommendationsPrintView({ openHouseId, className, properties }: PropertyRecommendationsPrintViewProps) {
+export function PropertyRecommendationsPrintView({ openHouseId, agentId, className, properties }: PropertyRecommendationsPrintViewProps) {
   
-  // Use passed data OR fallback to simulation
-  const propertiesToRender = properties || dynamicProperties;
+  // Only render if we have properties, otherwise show nothing to avoid dummy data
+  if (!properties || properties.length === 0) {
+    return null;
+  }
   
-  const pages = chunkArray(propertiesToRender, 6);
+  const pages = chunkArray(properties, 6);
 
   return (
     <div className={`min-h-screen bg-background text-foreground print:bg-[#f9f9f9] print-view-root ${className || ''}`}>
@@ -134,9 +138,12 @@ export function PropertyRecommendationsPrintView({ openHouseId, className, prope
               {pageItems.map((property) => (
                 <PropertyRecommendationCard
                   key={property.id}
+                  id={property.id}
+                  agentId={agentId}
                   image={property.image}
                   streetAddress={property.streetAddress}
                   town={property.town}
+                  price={property.price}
                   beds={property.beds}
                   baths={property.baths}
                   sqft={property.sqft}

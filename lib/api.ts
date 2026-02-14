@@ -72,6 +72,10 @@ class ApiClient {
     return this.request(`/properties/${id}`)
   }
 
+  async getPropertyForAgent(agentId: string, listingKey: string): Promise<ApiResponse<{ property: any; agentName: string }>> {
+    return this.request(`/properties/agent/${agentId}/listing/${listingKey}`)
+  }
+
   // Property endpoints
   async getPropertyByQR(qrCode: string): Promise<ApiResponse<{ property: any; openHouse: any }>> {
     return this.request(`/open-house/property/${qrCode}`)

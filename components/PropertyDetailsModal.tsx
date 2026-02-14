@@ -31,14 +31,30 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
     return `$${amount.toLocaleString()}`;
   };
 
+  const formatBoolean = (val: boolean | null | undefined): string | null => {
+    if (val === null || val === undefined) return null;
+    return val ? "Yes" : "No";
+  };
+
   const allReportData = [
+    // Listing Intelligence
+    { property: "LISTING INTELLIGENCE", value: "", isHeader: true },
+    { property: "Status", value: resoFacts.standardStatus },
+    { property: "Days on Market", value: resoFacts.daysOnMarket },
+    { property: "Cumulative DOM", value: resoFacts.cumulativeDaysOnMarket },
+    { property: "Original List Price", value: formatCurrency(resoFacts.originalListPrice) },
+
     // Building & Construction
     { property: "BUILDING & CONSTRUCTION", value: "", isHeader: true },
     { property: "Year Built", value: resoFacts.yearBuilt },
+    { property: "New Construction", value: formatBoolean(resoFacts.newConstructionYn) },
     { property: "Architectural Style", value: resoFacts.architecturalStyle },
     { property: "Construction Materials", value: formatList(resoFacts.constructionMaterials) },
     { property: "Stories", value: resoFacts.stories },
+    { property: "Total Stories", value: resoFacts.storiesTotal },
     { property: "Square Footage", value: resoFacts.livingArea },
+    { property: "Lot Size (Acres)", value: resoFacts.lotSizeAcres ? `${resoFacts.lotSizeAcres} AC` : null },
+    { property: "Zoning", value: resoFacts.zoning },
 
     // Interior Features
     { property: "INTERIOR FEATURES", value: "", isHeader: true },
@@ -51,7 +67,9 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
     // HVAC & Systems
     { property: "HVAC & SYSTEMS", value: "", isHeader: true },
     { property: "Heating", value: formatList(resoFacts.heating) },
+    { property: "Heating Fuel", value: formatList(resoFacts.heatingFuel) },
     { property: "Cooling", value: formatList(resoFacts.cooling) },
+    { property: "Cooling Fuel", value: formatList(resoFacts.coolingFuel) },
     { property: "Water Source", value: formatList(resoFacts.waterSource) },
     { property: "Sewer", value: formatList(resoFacts.sewer) },
     { property: "Electric", value: formatList(resoFacts.electric) },
@@ -60,6 +78,7 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
     { property: "PARKING & ACCESS", value: "", isHeader: true },
     { property: "Total Parking", value: resoFacts.parkingCapacity ? `${resoFacts.parkingCapacity} spaces` : null },
     { property: "Garage Parking", value: resoFacts.garageParkingCapacity ? `${resoFacts.garageParkingCapacity} spaces` : null },
+    { property: "Attached Garage", value: formatBoolean(resoFacts.attachedGarageYn) },
     { property: "Parking Features", value: formatList(resoFacts.parkingFeatures) },
     { property: "Accessibility Features", value: formatList(resoFacts.accessibilityFeatures) },
 
@@ -68,21 +87,40 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
       { property: "HOA & FEES", value: "", isHeader: true },
       { property: "HOA Fee", value: resoFacts.hoaFee },
       { property: "Annual Property Tax", value: formatCurrency(resoFacts.taxAnnualAmount) },
+      { property: "Capital Contribution", value: formatCurrency(resoFacts.capitalContributionFee) },
       { property: "HOA Includes", value: formatList(resoFacts.associationFeeIncludes) },
     ] : []),
 
     // Schools & District
     { property: "SCHOOLS & DISTRICT", value: "", isHeader: true },
-    { property: "Elementary School", value: resoFacts.elementarySchool ? `${resoFacts.elementarySchool}${resoFacts.elementarySchoolDistrict ? ` (${resoFacts.elementarySchoolDistrict} District)` : ''}` : null },
-    { property: "Middle School", value: resoFacts.middleOrJuniorSchool ? `${resoFacts.middleOrJuniorSchool}${resoFacts.middleOrJuniorSchoolDistrict ? ` (${resoFacts.middleOrJuniorSchoolDistrict} District)` : ''}` : null },
-    { property: "High School", value: resoFacts.highSchool ? `${resoFacts.highSchool}${resoFacts.highSchoolDistrict ? ` (${resoFacts.highSchoolDistrict} District)` : ''}` : null },
+    { property: "School District", value: resoFacts.schoolDistrictName },
+    { property: "Elementary School", value: resoFacts.elementarySchool },
+    { property: "Middle School", value: resoFacts.middleOrJuniorSchool },
+    { property: "High School", value: resoFacts.highSchool },
+
+    // Location & Neighborhood
+    { property: "LOCATION & NEIGHBORHOOD", value: "", isHeader: true },
+    { property: "County", value: resoFacts.county },
+    { property: "Walk Score", value: resoFacts.walkScore },
+    { property: "Direction Faces", value: resoFacts.directionFaces },
+    { property: "Cross Street", value: resoFacts.crossStreet },
+    { property: "Possession", value: formatList(resoFacts.possession) },
 
     // Additional Features
     { property: "ADDITIONAL FEATURES", value: "", isHeader: true },
+    { property: "Senior Community", value: formatBoolean(resoFacts.seniorCommunityYn) },
+    { property: "Pets Allowed", value: formatList(resoFacts.petsAllowed) },
     { property: "Exterior Features", value: formatList(resoFacts.exteriorFeatures) },
     { property: "Lot Features", value: formatList(resoFacts.lotFeatures) },
     { property: "Community Features", value: formatList(resoFacts.communityFeatures) },
     { property: "Security Features", value: formatList(resoFacts.securityFeatures) },
+
+    // Financial Details
+    { property: "FINANCIAL DETAILS", value: "", isHeader: true },
+    { property: "Tax Assessment", value: formatCurrency(resoFacts.taxAssessmentAmount) },
+    { property: "Land Assessment", value: formatCurrency(resoFacts.landAssessmentAmount) },
+    { property: "Improvement Assessment", value: formatCurrency(resoFacts.improvementAssessmentAmount) },
+    { property: "Assessment Year", value: resoFacts.assessmentYear },
   ];
 
   // Filter out rows with null or empty values, but keep headers
@@ -117,7 +155,13 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
         {propertyAddress && (
           <div className="mt-4 pt-4 border-t border-gray-700 dark:border-gray-700">
             <div className="text-sm text-gray-300 dark:text-gray-400">Property Address</div>
-            <div className="font-medium">{propertyAddress}</div>
+            <div className="font-medium">
+              {(() => {
+                const parts = propertyAddress.split(',');
+                const raw = parts.length > 1 ? `${parts[0].trim()}, ${parts[1].trim()}` : parts[0].trim();
+                return raw.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+              })()}
+            </div>
           </div>
         )}
       </div>
@@ -160,7 +204,7 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
             return (
               <div
                 key={sectionIndex}
-                className="bg-white dark:bg-[#1a1614] rounded-xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm transition-colors"
+                className="bg-white dark:bg-[#151517] rounded-xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm transition-colors"
               >
                 {/* Subtle Section Header */}
                 <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 pb-2 border-b border-gray-100 dark:border-gray-800">
@@ -170,8 +214,8 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
                 {/* Full-Width Items */}
                 {fullWidthItems.length > 0 && (
                   <div className="space-y-3 mb-4">
-                    {fullWidthItems.map((item, itemIndex) => (
-                      <div key={itemIndex} className="bg-gray-50 dark:bg-[#0B0B0B] rounded-lg p-4 border border-gray-200 dark:border-gray-800">
+                    {fullWidthItems.map((item, itemIdx) => (
+                      <div key={itemIdx} className="bg-gray-50 dark:bg-[#0B0B0B] rounded-lg p-4 border border-gray-200 dark:border-gray-800">
                         <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
                           {item.property}:
                         </div>
@@ -221,8 +265,6 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
           });
         })()}
       </div>
-
-      {/* Report Footer */}
     </div>
   );
 }
@@ -238,9 +280,8 @@ function DescriptionSection({ description, details }: { description: string, det
     : description.slice(0, maxLength) + '...'
 
   return (
-    <div className="md:col-span-2 py-4 border-t border-gray-200 dark:border-gray-800 mt-4">
-      <h4 className="text-gray-600 dark:text-gray-400 font-medium mb-3">Description:</h4>
-      <div className="space-y-2">
+    <div className="py-2">
+      <div className="space-y-4">
         <p className="text-gray-900 dark:text-gray-300 leading-relaxed text-sm">{displayText}</p>
         {shouldTruncate && (
           <button
@@ -254,7 +295,7 @@ function DescriptionSection({ description, details }: { description: string, det
       
       {/* Listing Agent Info Paragraph */}
       {(details?.listAgentFullName || details?.listOfficeName) && (
-        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+        <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
           <p className="text-xs text-gray-500 dark:text-gray-500 leading-relaxed">
             <span className="font-semibold">Listing provided by:</span>{' '}
             {details.listAgentFullName || 'Agent'} 
@@ -544,10 +585,25 @@ export default function PropertyDetailsModal({
           <div className="flex items-center justify-between p-6 border-b border-gray-200/60 dark:border-gray-800 bg-gradient-to-r from-gray-50 to-white dark:from-[#0B0B0B] dark:to-[#151517]">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {(property.details as any)?.address?.streetAddress || property.address}
+                {(() => {
+                  const details = property.details as any;
+                  const street = details?.address?.streetAddress || property.address;
+                  const city = details?.city || property.city;
+                  
+                  // If street already contains a comma, it might be the full address
+                  if (street.includes(',')) {
+                    const parts = street.split(',');
+                    const raw = parts.length > 1 ? `${parts[0].trim()}, ${parts[1].trim()}` : parts[0].trim();
+                    return raw.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                  }
+                  
+                  // Otherwise combine street and city
+                  const raw = city ? `${street}, ${city}` : street;
+                  return raw.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                })()}
               </h2>
               <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
-                {(property.details as any)?.city || property.city}, {(property.details as any)?.address?.state || property.state} {(property.details as any)?.address?.zipcode || property.zipCode}
+                {((property.details as any)?.address?.state || property.state)} {((property.details as any)?.address?.zipcode || property.zipCode)}
               </p>
             </div>
             <div className="flex items-center space-x-4">
@@ -592,7 +648,7 @@ export default function PropertyDetailsModal({
                 <div className="text-center py-8 bg-red-50 rounded-2xl border border-red-200">
                   <div className="text-red-600 mb-4">
                     <svg className="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                     <p className="font-medium text-lg">{detailsError}</p>
                   </div>
@@ -668,7 +724,7 @@ export default function PropertyDetailsModal({
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                             </svg>
                           </div>
                         )}
@@ -746,6 +802,14 @@ export default function PropertyDetailsModal({
                         
                         {/* Key Details */}
                         <div className="space-y-3 text-sm border-t border-gray-100 dark:border-gray-800 pt-6 mb-8">
+                          {((property.details as any)?.standardStatus || (property.details as any)?.homeStatus || property.status) && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">Status:</span>
+                              <span className="text-gray-900 dark:text-gray-200 font-medium">
+                                {(property.details as any)?.standardStatus || (property.details as any)?.homeStatus?.replace(/_/g, ' ') || property.status}
+                              </span>
+                            </div>
+                          )}
                           {((property.details as any)?.homeType || property.propertyType) && (
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Home Type:</span>
@@ -784,11 +848,11 @@ export default function PropertyDetailsModal({
                               </span>
                             </div>
                           )}
-                          {((property.details as any)?.daysOnZillow || (property.details as any)?.resoFacts?.atAGlanceFacts?.find((fact: any) => fact.factLabel === 'Days on Zillow')?.factValue) && (
+                          {((property.details as any)?.daysOnMarket || (property.details as any)?.resoFacts?.daysOnMarket) && (
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Days on Market:</span>
                               <span className="text-gray-900 dark:text-gray-200 font-medium">
-                                {(property.details as any)?.daysOnZillow || (property.details as any)?.resoFacts?.atAGlanceFacts?.find((fact: any) => fact.factLabel === 'Days on Zillow')?.factValue}
+                                {(property.details as any)?.daysOnMarket || (property.details as any)?.resoFacts?.daysOnMarket}
                               </span>
                             </div>
                           )}
@@ -843,44 +907,7 @@ export default function PropertyDetailsModal({
                         </div>
                         Property Overview
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {(property.details as any)?.resoFacts?.subdivisionName && (
-                          <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">Subdivision:</span>
-                            <span className="text-gray-900 dark:text-white font-semibold">{(property.details as any).resoFacts.subdivisionName}</span>
-                          </div>
-                        )}
-                        {(property.details as any)?.resoFacts?.municipality && (
-                          <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">Municipality:</span>
-                            <span className="text-gray-900 dark:text-white font-semibold">{(property.details as any).resoFacts.municipality}</span>
-                          </div>
-                        )}
-                        {((property.details as any)?.homeType || property.propertyType) && (
-                          <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">Home Type:</span>
-                            <span className="text-gray-900 dark:text-white font-semibold">{(property.details as any)?.homeType?.replace(/_/g, ' ') || property.propertyType?.replace(/_/g, ' ')}</span>
-                          </div>
-                        )}
-                        {((property.details as any)?.yearBuilt || property.yearBuilt) && (
-                          <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">Year Built:</span>
-                            <span className="text-gray-900 dark:text-white font-semibold">{(property.details as any)?.yearBuilt || property.yearBuilt}</span>
-                          </div>
-                        )}
-                        {(property.details as any)?.resoFacts?.pricePerSquareFoot && (
-                          <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">Price/Square Feet:</span>
-                            <span className="text-gray-900 dark:text-white font-semibold">${(property.details as any).resoFacts.pricePerSquareFoot}</span>
-                          </div>
-                        )}
-                        {((property.details as any)?.livingArea || property.squareFeet) && (
-                          <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">Square Footage:</span>
-                            <span className="text-gray-900 dark:text-white font-semibold">{((property.details as any)?.livingArea || property.squareFeet)?.toLocaleString()} sq ft</span>
-                          </div>
-                        )}
-                        
+                      <div className="space-y-6">
                         {/* Description Field - Full Width */}
                         {(property.details as any)?.description && (
                           <DescriptionSection 
@@ -917,7 +944,7 @@ export default function PropertyDetailsModal({
                           <div className="text-center py-8 bg-red-50 rounded-2xl border border-red-200">
                             <div className="text-red-600 mb-3">
                               <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01"></path>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01"></path>
                               </svg>
                             </div>
                             <p className="text-red-600 text-sm font-medium">{commentsError}</p>

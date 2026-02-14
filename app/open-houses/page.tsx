@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, memo, useCallback } from 'react'
+import { useState, useEffect, memo, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { v4 as uuidv4 } from 'uuid'
 import Image from 'next/image'
@@ -23,20 +23,38 @@ interface PropertyImage {
 
 interface OpenHouse {
   id: string;
-  property_id: string;
+  openHouseEventId: string;
+  agentId?: string;
   address: string;
-  created_at: string;
-  qr_code_url: string;
-  cover_image_url: string;
-  form_url: string;
+  createdAt: string;
+  qrCodeUrl: string;
+  coverImageUrl: string;
+  formUrl: string;
   bedrooms?: number;
   bathrooms?: number;
-  living_area?: number;
+  livingArea?: number;
   price?: number;
   city?: string;
+  notes?: string;
+  similarPropertyIds?: string[];
 }
 
 type WizardStep = 'ADDRESS' | 'FEATURES' | 'SIMILAR_PROPS' | 'COVER_IMAGE' | 'REVIEW';
+
+// --- HELPERS ---
+const formatAddress = (address: string) => {
+  if (!address) return "";
+  const parts = address.split(',');
+  const rawAddress = parts.length > 1 
+    ? `${parts[0].trim()}, ${parts[1].trim()}`
+    : parts[0].trim();
+  
+  return rawAddress
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
 
 export default function OpenHousesPage() {
   const router = useRouter()
@@ -48,8 +66,10 @@ export default function OpenHousesPage() {
   // Data State
   const [address, setAddress] = useState('')
   const [propertyData, setPropertyData] = useState<any>(null)
+  const [similarProperties, setSimilarProperties] = useState<any[]>([])
+  const [isLoadingNeighbors, setIsLoadingNeighbors] = useState(false)
   const [selectedFeatures, setSelectedFeatures] = useState({ signinSheet: true, similarProperties: false })
-  const [selectedSimilarPropertyIds, setSelectedSimilarPropertyIds] = useState<number[]>([])
+  const [selectedSimilarPropertyIds, setSelectedSimilarPropertyIds] = useState<(string | number)[]>([])
   const [selectedImage, setSelectedImage] = useState<PropertyImage | null>(null)
   const [generatedOpenHouseId, setGeneratedOpenHouseId] = useState<string>('')
   const [qrCode, setQrCode] = useState('')
@@ -62,6 +82,7 @@ export default function OpenHousesPage() {
   // Dashboard State
   const [openHouses, setOpenHouses] = useState<OpenHouse[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
+  const isPrintingRef = useRef(false)
   const [filterQuery, setFilterQuery] = useState('')
   const [notification, setNotification] = useState<{
     show: boolean
@@ -93,19 +114,6 @@ export default function OpenHousesPage() {
   // Printing State
   const [printingOpenHouseId, setPrintingOpenHouseId] = useState<string | null>(null)
   const [printMode, setPrintMode] = useState<'flyer' | 'recommendations'>('flyer')
-
-  // Trigger print logic
-  useEffect(() => {
-    if (printingOpenHouseId) {
-      // Small delay to ensure the print-only component is rendered
-      const timer = setTimeout(() => {
-        window.print();
-        // Reset after a delay or on next tick
-        setPrintingOpenHouseId(null);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [printingOpenHouseId]);
 
   // Filter open houses based on search query
   const filteredOpenHouses = openHouses.filter(oh => 
@@ -147,13 +155,67 @@ export default function OpenHousesPage() {
   }, [])
 
   // Unified Print Trigger
-  const triggerPreview = useCallback((mode: 'flyer' | 'recommendations', id?: string) => {
+  const triggerPreview = useCallback(async (mode: 'flyer' | 'recommendations', id?: string) => {
+    if (isPrintingRef.current) return;
+    isPrintingRef.current = true;
+
     setPrintMode(mode)
     const targetId = id || generatedOpenHouseId
     if (targetId) {
        setPrintingOpenHouseId(targetId)
+       
+       // If viewing recommendations, we MUST wait for the data before printing
+       if (mode === 'recommendations') {
+         const targetOH = id ? openHouses.find(oh => oh.id === id) : propertyData
+         if (targetOH) {
+           // If it's an existing listing with a snapshot, use that. 
+           if (id && (targetOH as any).similarPropertiesSnapshot) {
+             setSimilarProperties((targetOH as any).similarPropertiesSnapshot)
+             setSelectedSimilarPropertyIds([]) // Ensure we show all properties in the snapshot
+           } else if (id) {
+             // Existing listing WITHOUT a snapshot: fetch and auto-select 12
+             await fetchSimilarProperties(targetOH, true)
+           } else if (similarProperties.length === 0) {
+             // New creation wizard: only fetch if we don't have data yet
+             await fetchSimilarProperties(targetOH, false)
+           }
+         }
+       }
+       
+       // Give the DOM enough time to render the new data then open print dialog
+       setTimeout(() => {
+         window.print()
+         setPrintingOpenHouseId(null)
+         isPrintingRef.current = false;
+       }, 1200)
+    } else {
+      isPrintingRef.current = false;
     }
-  }, [generatedOpenHouseId])
+  }, [generatedOpenHouseId, openHouses, propertyData, similarProperties.length, qrCode, selectedImage])
+
+  const fetchCuratedProperties = async (keys: string[]) => {
+    setIsLoadingNeighbors(true)
+    try {
+      const response = await apiRequest('/api/properties/similar', {
+        method: 'POST',
+        body: JSON.stringify({
+          listingKeys: keys
+        })
+      })
+
+      if (response.status === 200 && response.data?.properties) {
+        setSimilarProperties(response.data.properties)
+        // Ensure ALL these properties are selected for the print view
+        setSelectedSimilarPropertyIds(keys)
+        return response.data.properties
+      }
+    } catch (err) {
+      console.error('Failed to fetch curated properties:', err)
+    } finally {
+      setIsLoadingNeighbors(false)
+    }
+    return []
+  }
 
   // Open House Note handlers
   const handleOpenOpenHouseNoteModal = useCallback((openHouse: OpenHouse) => {
@@ -300,10 +362,45 @@ export default function OpenHousesPage() {
     }
   }
 
+  const fetchSimilarProperties = async (data: any, autoSelect = false) => {
+    setIsLoadingNeighbors(true)
+    try {
+      const response = await apiRequest('/api/properties/similar', {
+        method: 'POST',
+        body: JSON.stringify({
+          listingKey: data.listingKey || (data as any).listing_key,
+          city: data.address?.city || data.city,
+          state: data.address?.state || data.state,
+          zipcode: data.address?.zipcode || data.zipcode,
+          price: data.price,
+          bedrooms: data.bedrooms
+        })
+      })
+
+      if (response.status === 200 && response.data?.properties) {
+        setSimilarProperties(response.data.properties)
+        
+        // If we are auto-selecting (viewing an old portfolio item), 
+        // select the first 12 properties automatically to fill two full PDF pages.
+        if (autoSelect) {
+          const topIds = response.data.properties.slice(0, 12).map((p: any) => p.listingKey || p.id)
+          setSelectedSimilarPropertyIds(topIds)
+        }
+        return response.data.properties
+      }
+    } catch (err) {
+      console.error('Failed to fetch similar properties:', err)
+    } finally {
+      setIsLoadingNeighbors(false)
+    }
+    return []
+  }
+
   // Step 2: Feature Selection -> Next Step
   const handleFeatureSelectionComplete = (features: { signinSheet: boolean; similarProperties: boolean }) => {
     setSelectedFeatures(features)
     if (features.similarProperties) {
+      fetchSimilarProperties(propertyData)
       setCurrentStep('SIMILAR_PROPS')
     } else {
       setCurrentStep('COVER_IMAGE')
@@ -311,7 +408,7 @@ export default function OpenHousesPage() {
   }
 
   // Step 3: Similar Properties -> Next Step
-  const handleSimilarPropertiesComplete = (selectedIds: number[]) => {
+  const handleSimilarPropertiesComplete = (selectedIds: (string | number)[]) => {
     setSelectedSimilarPropertyIds(selectedIds)
     setCurrentStep('COVER_IMAGE')
   }
@@ -339,14 +436,19 @@ export default function OpenHousesPage() {
         return
       }
 
+      // Get the full data objects for the selected similar properties
+      const selectedSnapshot = similarProperties.filter(p => 
+        selectedSimilarPropertyIds.includes(p.listingKey || p.id)
+      )
+
       const response = await apiRequest('/api/open-houses', {
         method: 'POST',
         body: JSON.stringify({
           address: address,
           property_data: propertyData,
-          cover_image_url: selectedImage.url,
-          open_house_event_id: generatedOpenHouseId,
-          // We could persist the selectedSimilarPropertyIds here if the backend supported it
+          coverImageUrl: selectedImage.url,
+          openHouseEventId: generatedOpenHouseId,
+          similarPropertiesSnapshot: selectedSnapshot
         })
       })
 
@@ -393,7 +495,25 @@ export default function OpenHousesPage() {
   }
 
   // Get filtered list of similar properties for the print view
-  const selectedSimilarProperties = mockSimilarProperties.filter(p => selectedSimilarPropertyIds.includes(p.id))
+  // If we have selected IDs (new creation), filter by them. 
+  // If we don't (loading a snapshot from portfolio), use the whole list.
+  const propsToMap = selectedSimilarPropertyIds.length > 0 
+    ? similarProperties.filter(p => selectedSimilarPropertyIds.includes(p.listingKey || p.id))
+    : (generatedOpenHouseId ? [] : similarProperties);
+
+  const selectedSimilarProperties = propsToMap.map(p => ({
+      id: p.listingKey || p.id,
+      image: p.imageUrl || p.imgSrc || p.image || "/placeholder.svg",
+      streetAddress: p.address,
+      town: p.city,
+      price: p.price,
+      beds: p.bedrooms ?? p.beds ?? 0,
+      baths: p.bathrooms ?? p.baths ?? 0,
+      sqft: p.livingArea || p.sqft || 0,
+      acres: p.lotSize ? Number((p.lotSize / 43560).toFixed(2)) : (p.acres || 0),
+      yearBuilt: p.yearBuilt || p.year_built,
+      dom: p.daysOnMarket || p.dom || 0
+    }))
 
   return (
     <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B] flex flex-col transition-colors duration-300 relative">
@@ -579,6 +699,9 @@ export default function OpenHousesPage() {
               />
             ) : currentStep === 'SIMILAR_PROPS' ? (
               <SimilarPropertiesSelectionView
+                properties={similarProperties}
+                isLoading={isLoadingNeighbors}
+                initialSelectedIds={selectedSimilarPropertyIds}
                 onNext={handleSimilarPropertiesComplete}
                 onBack={() => setCurrentStep('FEATURES')}
               />
@@ -606,31 +729,58 @@ export default function OpenHousesPage() {
       {/* 2. Print-only Layouts */}
       {printMode === 'flyer' ? (
          (() => {
-           const targetOpenHouse = openHouses.find(oh => oh.id === printingOpenHouseId);
+           const targetOpenHouse = openHouses.find(oh => 
+             oh.id === printingOpenHouseId || 
+             oh.openHouseEventId === printingOpenHouseId || 
+             (oh as any).open_house_event_id === printingOpenHouseId
+           );
+           
            const flyerUrl = generatedOpenHouseId 
              ? `${typeof window !== 'undefined' ? window.location.origin : ''}/open-house/${generatedOpenHouseId}`
-             : (targetOpenHouse?.form_url || (targetOpenHouse?.id ? `${typeof window !== 'undefined' ? window.location.origin : ''}/open-house/${targetOpenHouse.id}` : ''));
+             : (targetOpenHouse?.formUrl || (targetOpenHouse as any)?.form_url || (targetOpenHouse?.id ? `${typeof window !== 'undefined' ? window.location.origin : ''}/open-house/${targetOpenHouse.id}` : ''));
              
            return (
              <div className="hidden print:block absolute top-0 left-0 w-full h-full print-view-root bg-white">
                 <OpenHouseFlyer 
-                  coverImage={selectedImage?.url || targetOpenHouse?.cover_image_url || ''}
-                  price={propertyData?.price || targetOpenHouse?.price || 0}
-                  beds={propertyData?.bedrooms || targetOpenHouse?.bedrooms || 0}
-                  baths={propertyData?.bathrooms || targetOpenHouse?.bathrooms || 0}
-                  sqft={propertyData?.livingArea || targetOpenHouse?.living_area || 0}
-                  qrCodeUrl={targetOpenHouse?.qr_code_url || ''}
+                  coverImage={selectedImage?.url || targetOpenHouse?.coverImageUrl || (targetOpenHouse as any)?.cover_image_url || ''}
+                  address={formatAddress(address || targetOpenHouse?.address || '')}
+                  price={propertyData?.price || targetOpenHouse?.price || (targetOpenHouse as any)?.price || 0}
+                  beds={propertyData?.bedrooms || targetOpenHouse?.bedrooms || (targetOpenHouse as any)?.bedrooms || 0}
+                  baths={propertyData?.bathrooms || targetOpenHouse?.bathrooms || (targetOpenHouse as any)?.bathrooms || 0}
+                  sqft={propertyData?.livingArea || targetOpenHouse?.livingArea || (targetOpenHouse as any)?.living_area || 0}
+                  qrCodeUrl={qrCode || targetOpenHouse?.qrCodeUrl || (targetOpenHouse as any)?.qr_code_url || undefined}
                   openHouseUrl={flyerUrl}
                 />
              </div>
            );
          })()
       ) : (
-         <PropertyRecommendationsPrintView 
-            openHouseId={printingOpenHouseId || ''} 
-            className="hidden print:block absolute top-0 left-0 w-full"
-            properties={selectedSimilarProperties.length > 0 ? selectedSimilarProperties : undefined}
-         />
+         isLoadingNeighbors ? (
+           <div className="hidden print:flex absolute inset-0 z-[100] bg-white items-center justify-center flex-col gap-4">
+             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355]"></div>
+             <p className="text-lg font-bold text-gray-900">Fetching live neighbor data...</p>
+           </div>
+         ) : selectedSimilarProperties.length === 0 ? (
+           <div className="hidden print:flex absolute inset-0 z-[100] bg-white items-center justify-center flex-col gap-4 p-12 text-center">
+             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+               <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 9.172a4 4 0 0112.728 0M9 10a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2z" /></svg>
+             </div>
+             <h3 className="text-xl font-bold text-gray-900">No Neighbor Listings Found</h3>
+             <p className="text-gray-500">We couldn't find any active similar properties in this neighborhood at this time.</p>
+           </div>
+         ) : (
+           (() => {
+             const targetOpenHouse = openHouses.find(oh => oh.id === printingOpenHouseId);
+             return (
+               <PropertyRecommendationsPrintView 
+                  openHouseId={printingOpenHouseId || ''} 
+                  agentId={targetOpenHouse?.agentId || (targetOpenHouse as any)?.agent_id || currentUser?.id}
+                  className="hidden print:block absolute top-0 left-0 w-full"
+                  properties={selectedSimilarProperties}
+               />
+             );
+           })()
+         )
       )}
       
       
@@ -775,12 +925,36 @@ export default function OpenHousesPage() {
 }
 
 // Similar Properties Selection Component
-const SimilarPropertiesSelectionView = memo(function SimilarPropertiesSelectionView({ onNext, onBack }: { onNext: (selectedIds: number[]) => void, onBack: () => void }) {
-  const [selectedIds, setSelectedIds] = useState<number[]>([])
+const SimilarPropertiesSelectionView = memo(function SimilarPropertiesSelectionView({ 
+  properties, 
+  isLoading, 
+  initialSelectedIds = [], 
+  onNext, 
+  onBack 
+}: { 
+  properties: any[], 
+  isLoading: boolean, 
+  initialSelectedIds?: (string | number)[], 
+  onNext: (selectedIds: (string | number)[]) => void, 
+  onBack: () => void 
+}) {
+  const [selectedIds, setSelectedIds] = useState<(string | number)[]>(initialSelectedIds)
 
-  const toggleProperty = (id: number) => {
+  const toggleProperty = (id: string | number) => {
     setSelectedIds(prev => 
       prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="bg-white dark:bg-[#151517] rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-8 sm:p-12 text-center transition-colors max-w-7xl mx-auto animate-fadeIn">
+        <div className="py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355] dark:border-[#C9A24D] mx-auto mb-4"></div>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Finding similar properties...</h2>
+          <p className="text-gray-500 dark:text-gray-400">Searching Bright MLS for active neighbor listings.</p>
+        </div>
+      </div>
     )
   }
 
@@ -800,48 +974,29 @@ const SimilarPropertiesSelectionView = memo(function SimilarPropertiesSelectionV
 
       {/* Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-12 max-h-[60vh] overflow-y-auto pr-2">
-        {mockSimilarProperties.map((property) => (
-          <div 
-            key={property.id} 
-            onClick={() => toggleProperty(property.id)}
-            className={`relative rounded-xl border-2 transition-all cursor-pointer overflow-hidden group ${
-              selectedIds.includes(property.id) 
-                ? 'border-[#8b7355] ring-2 ring-[#8b7355]/20 ring-offset-2 dark:ring-offset-[#151517]' 
-                : 'border-transparent hover:border-gray-200 dark:hover:border-gray-700'
-            }`}
-          >
-            {/* Selection Checkbox Overlay */}
-            <div className={`absolute top-2 right-2 z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-              selectedIds.includes(property.id)
-                ? 'bg-[#8b7355] border-[#8b7355] text-white'
-                : 'bg-white/80 border-gray-300 text-transparent'
-            }`}>
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-            </div>
-
-            {/* Render the generic card, but pointer-events-none so the wrapper handles click */}
-            <div className="pointer-events-none">
-              <PropertyRecommendationCard 
-                image={property.image}
-                streetAddress={property.streetAddress}
-                town={property.town}
-                beds={property.beds}
-                baths={property.baths}
-                sqft={property.sqft}
-                acres={property.acres}
-                yearBuilt={property.yearBuilt}
-                dom={property.dom}
-                hideQr={true}
-                isCompact={true}
-              />
-            </div>
-            
-            {/* Overlay for unselected state to dim it slightly? Optional. */}
-            {!selectedIds.includes(property.id) && (
-              <div className="absolute inset-0 bg-white/10 dark:bg-black/10 group-hover:bg-transparent transition-colors pointer-events-none" />
-            )}
-          </div>
-        ))}
+                {properties.map((property) => (
+                  <div 
+                    key={property.listingKey || property.id} 
+                    onClick={() => toggleProperty(property.listingKey || property.id)}
+                    className="relative cursor-pointer"
+                  >
+                    <PropertyRecommendationCard 
+                      image={property.imageUrl || property.imgSrc || property.image || "/placeholder.svg"}
+                      streetAddress={property.address}
+                      town={property.city}
+                      price={property.price}
+                      beds={property.bedrooms ?? property.beds ?? 0}
+                      baths={property.bathrooms ?? property.baths ?? 0}
+                      sqft={property.livingArea || property.sqft || 0}
+                      acres={property.lotSize ? Number((property.lotSize / 43560).toFixed(2)) : (property.acres || 0)}
+                      yearBuilt={property.yearBuilt || property.year_built}
+                      dom={property.daysOnMarket || property.dom}
+                      hideQr={true}
+                      isCompact={true}
+                      selected={selectedIds.includes(property.listingKey || property.id)}
+                    />
+                  </div>
+                ))}
       </div>
 
       {/* Actions */}
@@ -1195,7 +1350,7 @@ const OpenHouseCard = memo(function OpenHouseCard({
       {/* Left Side: Image */}
       <div className="relative h-40 sm:h-full w-full sm:w-56 flex-shrink-0 bg-gray-100 dark:bg-[#202022]">
         <Image
-          src={openHouse.cover_image_url}
+          src={openHouse.coverImageUrl || (openHouse as any).cover_image_url || "/placeholder.svg"}
           alt={`Property at ${openHouse.address}`}
           fill
           sizes="(max-width: 640px) 100vw, 300px"
@@ -1203,15 +1358,6 @@ const OpenHouseCard = memo(function OpenHouseCard({
         />
         {/* Subtle Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 sm:bg-gradient-to-tr sm:from-black/50 sm:via-transparent sm:to-transparent"></div>
-
-        {/* Price Pill Badge */}
-        {openHouse.price && (
-          <div className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/10">
-            <span className="text-white text-[10px] font-bold tracking-wide">
-              ${openHouse.price.toLocaleString()}
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Right Side: Content */}
@@ -1219,8 +1365,11 @@ const OpenHouseCard = memo(function OpenHouseCard({
         
         {/* Top Row: Title + Overflow */}
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-gray-100 leading-tight truncate">
-            {openHouse.address}
+          <h3 
+            className="text-sm sm:text-base font-bold text-gray-900 dark:text-gray-100 leading-tight truncate"
+            title={openHouse.address}
+          >
+            {formatAddress(openHouse.address)}
           </h3>
           <button
             onClick={(e) => {
@@ -1251,7 +1400,7 @@ const OpenHouseCard = memo(function OpenHouseCard({
            {/* SqFt */}
            <div className="flex items-center gap-1">
             <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1" /></svg>
-            <span className="font-semibold">{openHouse.living_area?.toLocaleString() || '-'}</span>
+            <span className="font-semibold">{(openHouse.livingArea || (openHouse as any).living_area)?.toLocaleString() || '-'}</span>
             <span className="text-gray-400 dark:text-gray-600 text-[10px]">SqFt</span>
           </div>
         </div>
@@ -1291,7 +1440,7 @@ const OpenHouseCard = memo(function OpenHouseCard({
             </button>
 
             <a
-              href={openHouse.form_url}
+              href={openHouse.formUrl || (openHouse as any).form_url}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}

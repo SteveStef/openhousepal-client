@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import { useParams } from 'next/navigation'
-import { Property, Comment } from '@/types'
-// import { api } from '@/lib/api'
+import { Property } from '@/types'
+import { api } from '@/lib/api'
 import { 
   X, Send, 
   ChevronLeft, ChevronRight, Maximize2, Home, Info, User
@@ -17,6 +17,7 @@ import ScheduleTourModal, { TourRequest } from '@/components/ScheduleTourModal'
 export default function PropertyPage() {
   const { propertyId, agentId } = useParams()
   const [property, setProperty] = useState<Property | null>(null)
+  const [agentName, setAgentName] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -32,72 +33,62 @@ export default function PropertyPage() {
     alert('Tour request sent successfully!')
   }
 
+  function cleanAddress(address: string): string {
+    if (!address) return "";
+    const tmp = address.toLowerCase().split(",")[0];
+    return tmp
+      .split(" ")
+      .filter(word => word.length > 0)
+      .map(word => word[0].toUpperCase() + word.substring(1))
+      .join(" ");
+  }
+
   useEffect(() => {
     const fetchProperty = async () => {
       try {
         setLoading(true)
-        // Dummy data for now
-        const dummyProperty: Property = {
-          id: propertyId as string,
-          address: "123 Ocean View Dr",
-          city: "Malibu",
-          state: "CA",
-          zipCode: "90265",
-          price: 5495000,
-          beds: 4,
-          baths: 5,
-          squareFeet: 4200,
-          yearBuilt: 2015,
-          propertyType: "Single Family Home",
-          description: "Stunning contemporary oceanfront masterpiece in the heart of Malibu. This architectural gem offers unparalleled views of the Pacific Ocean with floor-to-ceiling glass walls that seamlessly blend indoor and outdoor living. Features include a gourmet chef's kitchen, private infinity pool, state-of-the-art home theater, and a primary suite that feels like a five-star resort. Experience the pinnacle of coastal luxury living in this one-of-a-kind residence.",
-          images: [
-            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
-            "https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=1200&q=80",
-            "https://images.unsplash.com/photo-1512915920396-3a97b01c9c4a?auto=format&fit=crop&w=1200&q=80"
-          ],
-          liked: false,
-          disliked: false,
-          comments: [
-            { id: 1, author: "Agent Smith", content: "This property is even better in person. The sunset views are unbeatable.", createdAt: new Date().toISOString() }
-          ],
-          details: {
-            resoFacts: {
-              yearBuilt: 2015,
-              livingArea: 4200,
-              heating: ["Forced Air", "Natural Gas"],
-              cooling: ["Central Air"],
-              appliances: ["Dishwasher", "Dryer", "Freezer", "Microwave", "Refrigerator", "Washer"],
-              architecturalStyle: "Contemporary",
-              constructionMaterials: ["Steel", "Glass", "Stucco"],
-              parkingCapacity: 4,
-              garageParkingCapacity: 2,
-              hasAssociation: true,
-              hoaFee: "$450/month",
-              taxAnnualAmount: 68000,
-              elementarySchool: "Malibu Elementary",
-              middleOrJuniorSchool: "Malibu Middle",
-              highSchool: "Malibu High"
-            },
-            address: { streetAddress: "123 Ocean View Dr", state: "CA", zipcode: "90265" },
-            city: "Malibu",
-            homeStatus: "FOR_SALE",
-            listAgentFullName: "John Doe",
-            listOfficeName: "Luxury Estates International"
-          } as any
-        }
+        const response = await api.getPropertyForAgent(agentId as string, propertyId as string)
         
-        setTimeout(() => {
-          setProperty(dummyProperty)
-          setLoading(false)
-        }, 800)
+        if (response.success && response.data) {
+          console.log(response.data)
+          const propertyData = response.data.property
+          setAgentName(response.data.agentName)
+          
+          // Map backend property data to frontend Property type
+          const mappedProperty: Property = {
+            id: propertyData.listingKey,
+            mlsId: propertyData.mlsId,
+            address: cleanAddress(propertyData.address.streetAddress),
+            city: propertyData.address.city,
+            state: propertyData.address.state,
+            zipCode: propertyData.address.zipcode,
+            price: propertyData.price,
+            beds: propertyData.bedrooms,
+            baths: propertyData.bathrooms,
+            squareFeet: propertyData.livingArea,
+            yearBuilt: propertyData.yearBuilt,
+            propertyType: propertyData.homeType,
+            description: propertyData.description,
+            images: propertyData.originalPhotos?.map((p: any) => p.mixedSources?.jpeg?.[0]?.url).filter(Boolean) || [],
+            status: propertyData.homeStatus,
+            listOfficeName: propertyData.listOfficeName,
+            details: propertyData.resoFacts
+          }
+          
+          setProperty(mappedProperty)
+        } else {
+          setError(response.error || "Property not found")
+        }
       } catch (err) {
         setError("An unexpected error occurred")
+        console.error(err)
+      } finally {
         setLoading(false)
       }
     }
 
-    if (propertyId) fetchProperty()
-  }, [propertyId])
+    if (propertyId && agentId) fetchProperty()
+  }, [propertyId, agentId])
 
   const nextImage = useCallback(() => {
     if (property?.images?.length) {
@@ -155,7 +146,7 @@ export default function PropertyPage() {
   }
 
   const images = property.images || []
-  const resoFacts = (property.details as any)?.resoFacts
+  const resoFacts = property.details as any
 
   return (
     <div className="flex-1 bg-[#faf9f7] dark:bg-[#0B0B0B] transition-colors duration-300">
@@ -181,7 +172,10 @@ export default function PropertyPage() {
           <div>
             <div className="flex items-center space-x-3 mb-1">
               <span className="px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
-                {property.status || "FOR SALE"}
+                {property.status === 'forSale' ? 'For Sale' :
+                 property.status === 'forRent' ? 'For Rent' :
+                 property.status === 'recentlySold' ? 'Recently Sold' :
+                 property.status?.replace("_", " ") || "FOR SALE"}
               </span>
               <span className="text-gray-400 dark:text-gray-500 text-[10px] font-bold uppercase tracking-widest">MLS: {property.mlsId || '12345678'}</span>
             </div>
@@ -226,6 +220,31 @@ export default function PropertyPage() {
             </section>
 
             {resoFacts && <PropertyReport resoFacts={resoFacts} propertyAddress={property.address} />}
+
+            {/* Compliance Footer */}
+            <div className="border-t border-gray-200 dark:border-gray-800 mt-12 pt-8 text-center text-xs text-gray-500 dark:text-gray-500 space-y-4 pb-12">
+              <p>Data last updated: {resoFacts?.updated_at 
+                ? new Date(resoFacts.updated_at).toLocaleString('en-US', {
+                    month: 'numeric',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                  }).replace(',', '')
+                : `${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`}</p>
+              <p className="font-bold">Information Deemed Reliable But Not Guaranteed.</p>
+              <p className="max-w-4xl mx-auto leading-relaxed">
+                The data relating to real estate for sale on this website appears in part through the BRIGHT Internet Data Exchange program, a voluntary cooperative exchange of property listing data between licensed real estate brokerage firms in which participates, and is provided by BRIGHT through a licensing agreement.
+              </p>
+              <div className="flex items-center justify-center space-x-4 pt-4">
+                <div className="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-md font-bold">MLS</div>
+                <p className="font-medium">
+                  © {new Date().getFullYear()} Bright MLS • All Rights Reserved
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="lg:col-span-4 space-y-8">
@@ -233,7 +252,9 @@ export default function PropertyPage() {
               <div className="mb-8 pb-8 border-b border-gray-100 dark:border-gray-800">
                 <div className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">List Price</div>
                 <div className="text-5xl font-black text-gray-900 dark:text-white tracking-tighter">{formatPrice(property.price)}</div>
-                <div className="text-gray-500 dark:text-gray-400 font-medium text-xs mt-1">Est. Payment: $28,450/mo</div>
+                <div className="text-gray-500 dark:text-gray-400 font-medium text-xs mt-1">
+                  Est. Payment: ${Math.round((property.price || 0) * 0.006).toLocaleString()}/mo
+                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-6 mb-8">
@@ -244,7 +265,7 @@ export default function PropertyPage() {
                   { val: property.yearBuilt, label: 'Built' }
                 ].map((s, i) => (
                   <div key={i} className="p-4 bg-gray-50 dark:bg-[#0B0B0B] rounded-2xl border border-gray-100 dark:border-gray-800 text-center">
-                    <div className="text-2xl font-black text-gray-900 dark:text-white">{s.val}</div>
+                    <div className="text-2xl font-black text-gray-900 dark:text-white">{s.val || '-'}</div>
                     <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">{s.label}</div>
                   </div>
                 ))}
@@ -252,10 +273,10 @@ export default function PropertyPage() {
 
               <div className="space-y-4">
                 {[
-                  { label: 'Type', val: property.propertyType },
-                  { label: 'Price/Sq Ft', val: `$${Math.round((property.price || 0) / (property.squareFeet || 1))}` },
-                  { label: 'Lot Size', val: '0.85 Acres' },
-                  { label: 'HOA', val: '$450/mo' }
+                  { label: 'Type', val: property.propertyType?.replace("_", " ") },
+                  { label: 'Price/Sq Ft', val: property.price && property.squareFeet ? `$${Math.round(property.price / property.squareFeet)}` : '-' },
+                  { label: 'Lot Size', val: resoFacts?.lotSizeAcres ? `${resoFacts.lotSizeAcres} Acres` : '-' },
+                  { label: 'HOA', val: resoFacts?.hoaFee || 'None' }
                 ].map((stat, i) => (
                   <div key={i} className="flex justify-between items-center py-3 border-b last:border-0 border-gray-50 dark:border-gray-800">
                     <span className="text-gray-500 dark:text-gray-400 font-medium">{stat.label}</span>
@@ -283,7 +304,7 @@ export default function PropertyPage() {
                   <User className="text-purple-600 dark:text-purple-400" size={24} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Contact Agent</h2>
+                  <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{agentName || 'Agent'}</h2>
                   <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Get more details about this home</p>
                 </div>
               </div>

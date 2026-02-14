@@ -1243,7 +1243,23 @@ export function ShowcaseContent() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
               <div>
                 <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight mb-1">Property Recommendations</h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-light">Curated properties based on client preferences</p>
+                <p 
+                  className="text-sm text-gray-500 dark:text-gray-400 font-light"
+                  title={selectedCollection.originalProperty.address}
+                >
+                  Curated properties for {(() => {
+                    const parts = selectedCollection.originalProperty.address.split(',');
+                    const rawAddress = parts.length > 1 
+                      ? `${parts[0].trim()}, ${parts[1].trim()}`
+                      : parts[0].trim();
+                    
+                    return rawAddress
+                      .toLowerCase()
+                      .split(' ')
+                      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                      .join(' ');
+                  })()}
+                </p>
               </div>
 
               <div className="flex items-center gap-3 sm:gap-4">

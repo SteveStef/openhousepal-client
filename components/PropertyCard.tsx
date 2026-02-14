@@ -130,8 +130,22 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
           {property.city}, {property.state} {property.zipCode}
         </p>
         
-        <h3 className="text-lg font-black text-[#0B0B0B] dark:text-white mb-1 tracking-tight leading-snug group-hover:text-[#C9A24D] transition-colors line-clamp-1">
-          {property.address}
+        <h3 
+          className="text-lg font-black text-[#0B0B0B] dark:text-white mb-1 tracking-tight leading-snug group-hover:text-[#C9A24D] transition-colors line-clamp-1"
+          title={property.address}
+        >
+          {(() => {
+            const parts = property.address.split(',');
+            const rawAddress = parts.length > 1 
+              ? `${parts[0].trim()}, ${parts[1].trim()}`
+              : parts[0].trim();
+            
+            return rawAddress
+              .toLowerCase()
+              .split(' ')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
+          })()}
         </h3>
 
         {/* Broker Attribution */}
