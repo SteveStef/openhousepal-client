@@ -203,14 +203,14 @@ export default function MobilePhoneMockup() {
       </div>
 
       {/* Floating Success Badge */}
-      <div className="absolute -top-4 -right-4 bg-white rounded-2xl p-4 shadow-xl border border-gray-100 animate-bounce">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-[#111827] rounded-xl flex items-center justify-center">
-            <svg className="w-5 h-5 text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="absolute -top-2 sm:-top-4 right-0 sm:-right-4 bg-white rounded-2xl p-3 sm:p-4 shadow-xl border border-gray-100 animate-bounce scale-90 sm:scale-100 z-20">
+        <div className="flex items-center space-x-2 sm:space-x-3">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#111827] rounded-xl flex items-center justify-center">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <div className="text-xs">
+          <div className="text-[10px] sm:text-xs">
             <div className="text-[#0B0B0B] font-black uppercase tracking-wide">Showcase</div>
             <div className="text-[#6B7280] font-medium">Created!</div>
           </div>

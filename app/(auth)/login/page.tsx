@@ -155,18 +155,32 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    <div className="h-screen flex flex-col lg:flex-row overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B]">
       {/* Left Section - Login Form (55%) */}
-      <div className="w-full lg:w-[55%] bg-[#FAFAF7] dark:bg-[#0B0B0B] relative flex items-center justify-center px-6 py-12 overflow-hidden transition-colors duration-300">
+      <div className="w-full lg:w-[55%] h-full relative flex items-center justify-center px-6 py-4 overflow-hidden transition-colors duration-300">
         {/* Refined Background Gradient Orbs */}
         <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#C9A24D]/5 rounded-full blur-[120px] pointer-events-none mix-blend-multiply dark:mix-blend-screen"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#111827]/5 dark:bg-[#C9A24D]/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply dark:mix-blend-screen"></div>
         
-        <div className="max-w-[480px] w-full relative z-10">
+        <div className="max-w-[480px] w-full relative z-10 flex flex-col items-center">
+          {/* Mobile Logo */}
+          <Link href="/" className="mb-4 lg:mb-12 flex flex-col items-center group">
+            <div className="relative overflow-hidden rounded-xl bg-white dark:bg-transparent p-1 shadow-sm mb-1">
+              <Image
+                src="/logo.png"
+                alt="OpenHousePal Logo"
+                width={100}
+                height={56}
+                className="h-10 sm:h-12 w-auto group-hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+            <h1 className="text-lg font-black text-[#111827] dark:text-white tracking-tight leading-none">OpenHousePal</h1>
+          </Link>
+
           {/* Header */}
-          <div className="mb-10 text-center">
-            <h2 className="text-4xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-3">Welcome back</h2>
-            <p className="text-[#6B7280] dark:text-gray-400 text-base font-medium">Please enter your details to sign in.</p>
+          <div className="mb-6 text-center w-full">
+            <h2 className="text-3xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-1">Welcome back</h2>
+            <p className="text-[#6B7280] dark:text-gray-400 text-sm font-medium">Please enter your details to sign in.</p>
           </div>
 
           {/* Login Card */}
@@ -318,7 +332,7 @@ function LoginContent() {
       </div>
 
       {/* Right Section - Explanation (45%) */}
-      <div className="w-full lg:w-[45%] relative bg-[#151517] text-white overflow-hidden flex flex-col justify-center">
+      <div className="hidden lg:flex w-full lg:w-[45%] relative bg-[#151517] text-white overflow-hidden flex-col justify-center">
         {/* Rich Background Gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#151517] via-[#3a2f25] to-[#8b7355] opacity-90"></div>
         

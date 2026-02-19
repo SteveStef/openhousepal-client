@@ -79,9 +79,8 @@ export default function NotificationDropdown({
     }
   }
 
-  return (
-    <div className="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-[#151517] rounded-xl shadow-2xl border border-gray-200 dark:border-gray-800 z-[9999] overflow-hidden transition-colors duration-300">
-      {/* Header */}
+        return (
+          <div className="fixed inset-x-0 top-[64px] mx-auto w-[95%] sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 bg-white dark:bg-[#151517] rounded-2xl sm:rounded-xl shadow-2xl border border-gray-200 dark:border-gray-800 z-[9999] overflow-hidden transition-colors duration-300">      {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0B0B0B]">
         <div>
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</h3>

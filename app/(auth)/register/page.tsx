@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import PayPalSubscriptionButton from '../../../components/PayPalSubscriptionButton'
 import { PayPalScriptProvider } from "@paypal/react-paypal-js"
@@ -244,17 +245,31 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col lg:flex-row overflow-hidden">
+    <div className="h-screen flex flex-col lg:flex-row overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B]">
       {/* Left Section - Form (55%) */}
-      <div className="w-full lg:w-[55%] bg-[#FAFAF7] dark:bg-[#0B0B0B] relative h-full flex flex-col transition-colors duration-300">
+      <div className="w-full lg:w-[55%] h-full relative flex flex-col overflow-hidden transition-colors duration-300">
         {/* Refined Background Gradient Orbs - Clipped */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#C9A24D]/5 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen"></div>
           <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#111827]/5 dark:bg-[#C9A24D]/5 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-screen"></div>
         </div>
 
-        {/* Scrollable Content Container */}
-        <div className="relative z-10 w-full h-full overflow-y-auto overflow-x-hidden flex items-center justify-center px-6 py-6">
+        {/* Content Container */}
+        <div className="relative z-10 w-full h-full overflow-hidden flex flex-col items-center justify-center px-6 py-4">
+          {/* Logo - Compact for no-scroll mobile layout */}
+          <Link href="/" className="mb-4 lg:mb-12 flex flex-col items-center group">
+            <div className="relative overflow-hidden rounded-xl bg-white dark:bg-transparent p-1 shadow-sm mb-1">
+              <Image
+                src="/logo.png"
+                alt="OpenHousePal Logo"
+                width={100}
+                height={56}
+                className="h-10 sm:h-12 w-auto group-hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+            <h1 className="text-lg font-black text-[#111827] dark:text-white tracking-tight leading-none">OpenHousePal</h1>
+          </Link>
+
           {/* Notification Toast */}
           {notification.type && (
             <div className={`fixed bottom-4 right-4 z-50 max-w-md p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
@@ -852,7 +867,7 @@ export default function RegisterPage() {
       </div>
 
       {/* Right Section - Explanation (45%) */}
-      <div className="w-full lg:w-[45%] relative bg-[#151517] text-white overflow-hidden flex flex-col justify-center">
+      <div className="hidden lg:flex w-full lg:w-[45%] relative bg-[#151517] text-white overflow-hidden flex-col justify-center">
         {/* Rich Background Gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#151517] via-[#3a2f25] to-[#8b7355] opacity-90"></div>
         

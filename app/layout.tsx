@@ -14,11 +14,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} bg-[#faf9f7] dark:bg-[#0B0B0B] min-h-screen text-[#111827] dark:text-[#F3F4F6]`}>
+    <html lang="en" suppressHydrationWarning className="overflow-x-hidden">
+      <body className={`${inter.className} bg-[#faf9f7] dark:bg-[#0B0B0B] min-h-screen text-[#111827] dark:text-[#F3F4F6] overflow-x-hidden`}>
         <Providers>
           <AuthProvider>
-            <main className="min-h-screen flex flex-col">
+            <main className="min-h-screen flex flex-col overflow-x-hidden">
               <div className="print:hidden">
                 <AppHeader />
               </div>

@@ -611,7 +611,7 @@ export default function EditPreferencesModal({
             <div className={`p-6 rounded-2xl border transition-all duration-300 ${isUsingAreaSearch() ? 'border-[#C9A24D] bg-[#FAFAF7] dark:bg-[#0B0B0B] shadow-md' : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151517] hover:border-gray-300 dark:hover:border-gray-700'}`}>
               <div className="flex items-center justify-between mb-6">
                 <h5 className={`text-md font-black uppercase tracking-wide flex items-center ${isUsingAreaSearch() ? 'text-[#111827] dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
-                  <div className={`p-2 rounded-full mr-3 ${isUsingAreaSearch() ? 'bg-[#C9A24D] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}`}>
+                  <div className={`p-2 rounded-full mr-3 ${isUsingAddressSearch() ? 'bg-[#C9A24D] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}`}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                     </svg>
@@ -835,7 +835,7 @@ export default function EditPreferencesModal({
                   <select
                     value={formData.visiting_reason || ''}
                     onChange={(e) => handleInputChange('visiting_reason', e.target.value || null)}
-                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white dark:hover:bg-[#151515] hover:border-[#C9A24D]/30 appearance-none cursor-pointer"
+                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white dark:hover:bg-[#151517] hover:border-[#C9A24D]/30 appearance-none cursor-pointer"
                   >
                     <option value="">Not specified</option>
                     <option value="BUYING_SOON">Buying soon</option>
@@ -861,7 +861,7 @@ export default function EditPreferencesModal({
                   <select
                     value={formData.has_agent || ''}
                     onChange={(e) => handleInputChange('has_agent', e.target.value || null)}
-                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white dark:hover:bg-[#151515] hover:border-[#C9A24D]/30 appearance-none cursor-pointer"
+                    className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white dark:hover:bg-[#151517] hover:border-[#C9A24D]/30 appearance-none cursor-pointer"
                   >
                     <option value="">Not specified</option>
                     <option value="YES">Yes</option>

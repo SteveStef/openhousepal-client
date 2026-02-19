@@ -97,7 +97,7 @@ export default function HomePage() {
                 <div className="flex flex-col sm:flex-row gap-5 mb-14">
                   <Link
                     href="/register"
-                    className="group relative px-8 py-4 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-bold text-lg overflow-hidden shadow-[0_10px_30px_-5px_rgba(17,24,39,0.3)] transform transition-all duration-300 hover:scale-105 hover:shadow-[0_20px_40px_-5px_rgba(201,162,77,0.3)] active:scale-95 hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D]"
+                    className="group relative px-6 sm:px-8 py-4 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-bold text-lg overflow-hidden shadow-[0_10px_30px_-5px_rgba(17,24,39,0.3)] transform transition-all duration-300 hover:scale-105 hover:shadow-[0_20px_40px_-5px_rgba(201,162,77,0.3)] active:scale-95 hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] whitespace-nowrap"
                   >
                     <span className="relative z-10 flex items-center justify-center">
                       Start Free Trial

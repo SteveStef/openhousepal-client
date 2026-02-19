@@ -91,10 +91,10 @@ export function PropertyRecommendationCard({
         
         {/* Top: Address & Price */}
         <div className="mb-4 print:mb-2">
-          <h3 className={`font-serif font-bold leading-tight text-gray-900 dark:text-white print:text-black ${isCompact ? 'text-base' : 'text-lg'} print:text-[11pt]`}>
+          <h3 className={`font-black tracking-tight leading-tight text-[#111827] dark:text-white print:text-black ${isCompact ? 'text-base' : 'text-lg'} print:text-[11pt]`}>
             {cleanAddress}
           </h3>
-          <p className="text-sm font-bold text-[#8b7355] dark:text-[#C9A24D] mt-1 print:text-black print:text-[10pt]">
+          <p className="text-sm font-black text-[#8b7355] dark:text-[#C9A24D] mt-1 print:text-black print:text-[10pt]">
             {price ? `$${price.toLocaleString()}` : 'Price not available'}
           </p>
         </div>
@@ -105,22 +105,22 @@ export function PropertyRecommendationCard({
           {/* Stats Row */}
           <div className="flex items-center gap-3 print:gap-2">
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-bold text-slate-900">{beds || 0}</span>
-              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold print:text-[8pt]">Beds</span>
+              <span className="text-sm font-black text-[#111827] dark:text-white">{beds || 0}</span>
+              <span className="text-[10px] uppercase tracking-widest text-gray-500 dark:text-gray-400 font-bold print:text-[8pt]">Beds</span>
             </div>
             
-            <div className="w-px h-3 bg-slate-200" />
+            <div className="w-px h-3 bg-gray-200 dark:bg-gray-700" />
             
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-bold text-slate-900">{baths || 0}</span>
-              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold print:text-[8pt]">Baths</span>
+              <span className="text-sm font-black text-[#111827] dark:text-white">{baths || 0}</span>
+              <span className="text-[10px] uppercase tracking-widest text-gray-500 dark:text-gray-400 font-bold print:text-[8pt]">Baths</span>
             </div>
 
-            <div className="w-px h-3 bg-slate-200" />
+            <div className="w-px h-3 bg-gray-200 dark:bg-gray-700" />
             
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-bold text-slate-900">{sqft?.toLocaleString() || '-'}</span>
-              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold print:text-[8pt]">Sq Ft</span>
+              <span className="text-sm font-black text-[#111827] dark:text-white">{sqft?.toLocaleString() || '-'}</span>
+              <span className="text-[10px] uppercase tracking-widest text-gray-500 dark:text-gray-400 font-bold print:text-[8pt]">Sq Ft</span>
             </div>
           </div>
 

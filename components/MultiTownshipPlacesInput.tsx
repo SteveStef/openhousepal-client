@@ -183,10 +183,10 @@ export default function MultiTownshipPlacesInput({
       <div
         onClick={handleContainerClick}
         className={`
-          min-h-[42px] w-full px-3 py-2 border border-gray-300 rounded-lg
-          focus-within:outline-none focus-within:ring-2 focus-within:ring-[#8b7355] focus-within:border-[#8b7355]
+          min-h-[42px] w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg
+          focus-within:outline-none focus-within:ring-2 focus-within:ring-[#8b7355] dark:focus-within:ring-[#C9A24D]/20 focus-within:border-[#8b7355] dark:focus-within:border-[#C9A24D]
           transition-all duration-300 cursor-text relative
-          ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white hover:border-gray-400'}
+          ${disabled ? 'bg-gray-100 dark:bg-gray-900 cursor-not-allowed' : 'bg-white dark:bg-[#0B0B0B] hover:border-gray-400 dark:hover:border-gray-600'}
           ${error ? 'border-red-300 focus-within:ring-red-500 focus-within:border-red-500' : ''}
         `}
       >
@@ -211,7 +211,7 @@ export default function MultiTownshipPlacesInput({
             onKeyDown={handleKeyDown}
             placeholder={townships.length === 0 ? placeholder : 'Add another township...'}
             disabled={disabled}
-            className="w-full border-none outline-none bg-transparent text-gray-900 placeholder-gray-400 min-w-[200px] pr-8"
+            className="w-full border-none outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 min-w-[200px] pr-8"
           />
           
           {/* Loading/Status Indicator */}

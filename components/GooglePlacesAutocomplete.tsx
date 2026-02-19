@@ -171,7 +171,7 @@ export default function GooglePlacesAutocomplete({
         value={value}
         onChange={handleInputChange}
         disabled={disabled}
-        className={`w-full px-4 py-3 bg-white/80 border border-gray-200/50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#8b7355]/60 focus:border-[#8b7355]/60 transition-all duration-300 shadow-sm ${className}`}
+        className={`w-full px-4 py-3 bg-white/80 dark:bg-[#0B0B0B] border border-gray-200/50 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#8b7355]/60 dark:focus:ring-[#C9A24D]/20 focus:border-[#8b7355]/60 dark:focus:border-[#C9A24D] transition-all duration-300 shadow-sm ${className}`}
         placeholder={placeholder}
       />
       
