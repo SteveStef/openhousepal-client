@@ -3,6 +3,7 @@
 import { useState, useEffect, memo, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { v4 as uuidv4 } from 'uuid'
+import { Bed, Bath, BoxSelect, DollarSign } from 'lucide-react'
 import Image from 'next/image'
 import Footer from '@/components/Footer'
 import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
@@ -45,6 +46,28 @@ type WizardStep = 'ADDRESS' | 'FEATURES' | 'SIMILAR_PROPS' | 'COVER_IMAGE' | 'RE
 const formatAddress = (address: string) => {
   if (!address) return "";
   const parts = address.split(',');
+  
+  // Usually address is: Street, City, State Zip, County
+  // We want to keep everything before the Zip, and the Zip itself, but remove County if it follows.
+  
+  // If it's a typical full address with many commas
+  if (parts.length > 2) {
+    const street = parts[0].trim();
+    const city = parts[1].trim();
+    const stateZip = parts[2].trim(); // This might contain "PA 19087 Delaware"
+    
+    // Clean up StateZip to remove anything after the 5-digit zip code
+    const zipMatch = stateZip.match(/^([A-Z]{2}\s+\d{5})/);
+    const cleanedStateZip = zipMatch ? zipMatch[1] : stateZip;
+    
+    const rawAddress = `${street}, ${city}, ${cleanedStateZip}`;
+    return rawAddress
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
   const rawAddress = parts.length > 1 
     ? `${parts[0].trim()}, ${parts[1].trim()}`
     : parts[0].trim();
@@ -1171,7 +1194,7 @@ const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selecte
       <div className="bg-[#FAFAF7] dark:bg-[#151517] rounded-[2rem] shadow-2xl max-w-2xl w-full overflow-hidden border border-white/50 dark:border-gray-800">
         <div className="p-8 border-b border-gray-200/50 dark:border-gray-800 bg-white/50 dark:bg-[#0B0B0B]/50">
           <h3 className="text-2xl font-black text-[#0B0B0B] dark:text-white tracking-tight">Review & Save</h3>
-          <p className="text-[#6B7280] dark:text-gray-400 text-sm mt-2 font-medium">{address}</p>
+          <p className="text-[#6B7280] dark:text-gray-400 text-sm mt-2 font-medium">{formatAddress(address)}</p>
         </div>
         
         <div className="p-8">
@@ -1184,7 +1207,7 @@ const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selecte
             <div className="flex-1">
               <p className="text-base font-bold text-[#0B0B0B] dark:text-white">Kit Ready to Generate</p>
               <p className="text-sm text-[#6B7280] dark:text-gray-400 mt-1 font-light leading-relaxed">
-                Includes Sign-in Flyer {hasRecommendations && '& Similar Property Recommendations'}.
+                Includes Sign-in Flyer {hasRecommendations && '& Active COMPS'}.
               </p>
             </div>
           </div>
@@ -1206,7 +1229,7 @@ const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selecte
                 <div className="flex items-center justify-between p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700">
                    <div className="flex items-center">
                       <span className="text-[#C9A24D] mr-3 font-bold">✓</span>
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Property Recommendations</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Active COMPS</span>
                    </div>
                    <button onClick={onPreviewRecommendations} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">
                       Preview PDF
@@ -1385,22 +1408,35 @@ const OpenHouseCard = memo(function OpenHouseCard({
         <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
           {/* Beds */}
           <div className="flex items-center gap-1">
-            <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            <Bed className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
             <span className="font-semibold">{openHouse.bedrooms || '-'}</span>
             <span className="text-gray-400 dark:text-gray-600 text-[10px]">Beds</span>
           </div>
           {/* Baths */}
           <div className="flex items-center gap-1">
-            <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <Bath className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
             <span className="font-semibold">{openHouse.bathrooms || '-'}</span>
             <span className="text-gray-400 dark:text-gray-600 text-[10px]">Baths</span>
           </div>
            {/* SqFt */}
            <div className="flex items-center gap-1">
-            <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1" /></svg>
+            <BoxSelect className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
             <span className="font-semibold">{(openHouse.livingArea || (openHouse as any).living_area)?.toLocaleString() || '-'}</span>
             <span className="text-gray-400 dark:text-gray-600 text-[10px]">SqFt</span>
           </div>
+          {/* Price */}
+          {openHouse.price && (
+            <div className="flex items-center gap-1 border-l border-gray-200 dark:border-gray-700 pl-3">
+              <DollarSign className="w-3.5 h-3.5 text-[#8b7355] dark:text-[#C9A24D]" />
+              <span className="font-bold text-[#8b7355] dark:text-[#C9A24D]">
+                {openHouse.price.toLocaleString('en-US', {
+                  style: 'currency',
+                  currency: 'USD',
+                  maximumFractionDigits: 0
+                })}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Action Row */}

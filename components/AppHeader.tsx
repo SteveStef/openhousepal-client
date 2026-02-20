@@ -15,6 +15,7 @@ export default function AppHeader() {
     // open-house/[id] is visitor facing, usually no nav
     '/open-house/',
     '/property/',
+    '/showcase/',
   ]
 
   const isNoHeader = noHeaderPaths.some(path => pathname?.startsWith(path))

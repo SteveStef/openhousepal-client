@@ -81,7 +81,7 @@ export default function PropertyReport({ resoFacts, propertyAddress }: PropertyR
     { property: "PARKING & ACCESS", value: "", isHeader: true },
     { property: "Total Parking", value: (resoFacts.parkingCapacity || resoFacts.parking_capacity) ? `${(resoFacts.parkingCapacity || resoFacts.parking_capacity)} spaces` : null },
     { property: "Garage Parking", value: (resoFacts.garageParkingCapacity || resoFacts.garage_parking_capacity) ? `${(resoFacts.garageParkingCapacity || resoFacts.garage_parking_capacity)} spaces` : null },
-    { property: "Attached Garage", value: (resoFacts.attachedGarageYn ?? resoFacts.attached_garage_yn) ? "Yes" : (resoFacts.attachedGarageYn === false || resoFacts.attached_garage_yn === false ? "No" : null) },
+    { property: "Attached Garage", value: (resoFacts.attachedGarageYn ?? resoFacts.attached_garage_yn) ? "Yes" : null },
     { property: "Parking Features", value: formatList(resoFacts.parkingFeatures || resoFacts.parking_features) },
     { property: "Accessibility Features", value: formatList(resoFacts.accessibilityFeatures || resoFacts.accessibility_features) },
 
@@ -129,15 +129,30 @@ export default function PropertyReport({ resoFacts, propertyAddress }: PropertyR
   ];
 
   const reportData = allReportData.filter(row => row.isHeader || (row.value !== null && row.value !== undefined && row.value !== ''));
-  const filteredData = reportData.filter((row, index) => {
-    if (!row.isHeader) return true;
-    const nextRows = reportData.slice(index + 1);
-    const hasDataInSection = nextRows.some((nextRow) => {
-      if (nextRow.isHeader) return false;
-      return !nextRow.isHeader;
-    });
-    return hasDataInSection;
-  });
+  
+  interface ReportSection {
+    header: string;
+    items: Array<{ property: string; value: any }>;
+  }
+
+  // Group data by sections and filter out empty sections
+  const sections: ReportSection[] = [];
+  let currentSection: ReportSection | null = null;
+
+  for (const row of reportData) {
+    if (row.isHeader) {
+      if (currentSection && currentSection.items.length > 0) {
+        sections.push(currentSection);
+      }
+      currentSection = { header: row.property, items: [] };
+    } else if (currentSection) {
+      currentSection.items.push({ property: row.property, value: row.value });
+    }
+  }
+
+  if (currentSection && currentSection.items.length > 0) {
+    sections.push(currentSection);
+  }
 
   return (
     <div className="bg-white dark:bg-[#151517] rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden transition-colors">
@@ -165,22 +180,8 @@ export default function PropertyReport({ resoFacts, propertyAddress }: PropertyR
       </div>
 
       <div className="p-8 space-y-8 bg-gray-50/50 dark:bg-[#0B0B0B]">
-        {(() => {
-          const sections: Array<{ header: string; items: Array<{ property: string; value: any }> }> = [];
-          let currentSection: { header: string; items: Array<{ property: string; value: any }> } | null = null;
-
-          filteredData.forEach((row) => {
-            if (row.isHeader) {
-              if (currentSection) sections.push(currentSection);
-              currentSection = { header: row.property, items: [] };
-            } else if (currentSection) {
-              currentSection.items.push({ property: row.property, value: row.value });
-            }
-          });
-          if (currentSection) sections.push(currentSection);
-
-          return sections.map((section, sectionIndex) => {
-            const Icon = sectionIcons[section.header] || Layers;
+        {sections.map((section, sectionIndex) => {
+          const Icon = sectionIcons[section.header] || Layers;
             
             const fullWidthItems = section.items.filter(item => String(item.value).length > 40);
             const gridItems = section.items.filter(item => String(item.value).length <= 40);
@@ -227,8 +228,7 @@ export default function PropertyReport({ resoFacts, propertyAddress }: PropertyR
                 </div>
               </div>
             );
-          });
-        })()}
+          })}
       </div>
     </div>
   );

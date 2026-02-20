@@ -86,11 +86,11 @@ export default function CustomerCollectionView({
       if (response.ok) {
         const cacheResponse = await response.json()
         
-        if (cacheResponse.success && cacheResponse.details) {
-          // Update property with detailed information
+        if (cacheResponse.success && cacheResponse.property) {
+          // Update property with detailed information merging flat data
           const enhancedProperty = {
             ...property,
-            details: cacheResponse.details
+            ...cacheResponse.property
           }
           setSelectedProperty(enhancedProperty)
         } else {

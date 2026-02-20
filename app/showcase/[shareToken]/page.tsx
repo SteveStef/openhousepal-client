@@ -528,11 +528,11 @@ export default function CustomerShowcasePage() {
       if (response.ok) {
         const cacheResponse = await response.json()
 
-        if (cacheResponse.success && cacheResponse.details) {
-          // Update property with enhanced details
+        if (cacheResponse.success && cacheResponse.property) {
+          // Update property with enhanced flat details
           const enhancedProperty = {
             ...property,
-            details: cacheResponse.details
+            ...cacheResponse.property
           }
           setSelectedProperty(enhancedProperty)
         }
@@ -624,11 +624,11 @@ export default function CustomerShowcasePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#FAFAF7] flex flex-col">
+      <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col transition-colors">
         <div className="flex-1 flex items-center justify-center py-20">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#111827] mx-auto mb-4"></div>
-            <p className="text-[#6B7280] font-medium">Loading showcase...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#111827] dark:border-white mx-auto mb-4"></div>
+            <p className="text-[#6B7280] dark:text-gray-400 font-medium">Loading showcase...</p>
           </div>
         </div>
       </div>
@@ -637,16 +637,16 @@ export default function CustomerShowcasePage() {
 
   if (error || !showcase) {
     return (
-      <div className="min-h-screen bg-[#FAFAF7] flex flex-col">
+      <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col transition-colors">
         <div className="flex-1 flex items-center justify-center py-20">
-          <div className="text-center bg-white p-8 rounded-2xl shadow-sm border border-gray-100 max-w-md mx-auto">
-            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className="text-center bg-white dark:bg-[#151517] p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 max-w-md mx-auto">
+            <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
               <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.664-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
               </svg>
             </div>
-            <h3 className="text-xl font-black text-[#0B0B0B] mb-2 tracking-tight">{error || 'Collection not found'}</h3>
-            <p className="text-[#6B7280]">Please check the link and try again</p>
+            <h3 className="text-xl font-black text-[#0B0B0B] dark:text-white mb-2 tracking-tight">{error || 'Collection not found'}</h3>
+            <p className="text-[#6B7280] dark:text-gray-400">Please check the link and try again</p>
           </div>
         </div>
       </div>
@@ -654,22 +654,22 @@ export default function CustomerShowcasePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAF7] flex flex-col">
+    <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col transition-colors">
       <div className="flex-1 p-4 sm:p-6">
         <div className="max-w-7xl mx-auto">
           {/* Customer Header */}
-          <div className="bg-white/50 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 p-4 sm:p-6 mb-6">
+          <div className="bg-white/50 dark:bg-[#151517]/50 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-gray-800 p-4 sm:p-6 mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <div>
-                <h1 className="text-xl sm:text-2xl font-black text-[#0B0B0B] mb-1 tracking-tight">{showcase.customer.firstName} {showcase.customer.lastName}'s Showcase</h1>
-                <p className="text-[#6B7280] text-sm font-light">Curated property recommendations</p>
+                <h1 className="text-xl sm:text-2xl font-black text-[#0B0B0B] dark:text-white mb-1 tracking-tight">{showcase.customer.firstName} {showcase.customer.lastName}'s Showcase</h1>
+                <p className="text-[#6B7280] dark:text-gray-400 text-sm font-light">Curated property recommendations</p>
               </div>
               
               <div className="flex items-center space-x-4">
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider ${
                   showcase.status === 'ACTIVE' 
-                    ? 'bg-green-50 text-green-700 border-green-100'
-                    : 'bg-gray-50 text-[#6B7280] border-gray-200'
+                    ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-900/30'
+                    : 'bg-gray-50 dark:bg-gray-800 text-[#6B7280] dark:text-gray-400 border-gray-200 dark:border-gray-700'
                 }`}>
                   <div className={`w-2 h-2 rounded-full mr-2 ${showcase.status === 'ACTIVE' ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
                   {showcase.status}
@@ -689,15 +689,15 @@ export default function CustomerShowcasePage() {
                   onClick={() => setActiveTab(tab.key as any)}
                   className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center space-x-2 border ${
                     activeTab === tab.key
-                      ? 'bg-[#111827] text-white border-[#111827] shadow-md'
-                      : 'bg-white text-[#6B7280] hover:bg-gray-50 border-gray-200 hover:border-gray-300'
+                      ? 'bg-[#111827] dark:bg-white text-white dark:text-[#111827] border-[#111827] dark:border-white shadow-md'
+                      : 'bg-white dark:bg-[#1A1A1C] text-[#6B7280] dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
                 >
                   <span>{tab.label}</span>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] ${
                     activeTab === tab.key
-                      ? 'bg-white/20 text-white'
-                      : 'bg-gray-100 text-[#6B7280]'
+                      ? 'bg-white/20 dark:bg-[#111827]/10 text-white dark:text-[#111827]'
+                      : 'bg-gray-100 dark:bg-gray-800 text-[#6B7280] dark:text-gray-400'
                   }`}>
                     {tab.count}
                   </span>
@@ -706,20 +706,20 @@ export default function CustomerShowcasePage() {
             </div>
 
             {/* Sorting Controls */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-100">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">
               <div className="group">
-                <label className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1.5">Sort by</label>
+                <label className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-500 uppercase tracking-wider mb-1.5">Sort by</label>
                 <div className="relative">
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as 'price' | 'beds' | 'squareFeet')}
-                    className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-[#0B0B0B] text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/20 focus:border-[#C9A24D] transition-all duration-300 appearance-none cursor-pointer hover:bg-gray-50"
+                    className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B]/50 border border-gray-200 dark:border-gray-800 rounded-xl text-[#0B0B0B] dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/20 focus:border-[#C9A24D] transition-all duration-300 appearance-none cursor-pointer hover:bg-gray-50 dark:hover:bg-[#151517]"
                   >
                     <option value="price">Price</option>
                     <option value="beds">Bedrooms</option>
                     <option value="squareFeet">Square Feet</option>
                   </select>
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[#6B7280]">
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[#6B7280] dark:text-gray-500">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -728,17 +728,17 @@ export default function CustomerShowcasePage() {
               </div>
               
               <div className="group">
-                <label className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-wider mb-1.5">Sort Order</label>
+                <label className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-500 uppercase tracking-wider mb-1.5">Sort Order</label>
                 <div className="relative">
                   <select
                     value={sortOrder}
                     onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-                    className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-[#0B0B0B] text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/20 focus:border-[#C9A24D] transition-all duration-300 appearance-none cursor-pointer hover:bg-gray-50"
+                    className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B]/50 border border-gray-200 dark:border-gray-800 rounded-xl text-[#0B0B0B] dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/20 focus:border-[#C9A24D] transition-all duration-300 appearance-none cursor-pointer hover:bg-gray-50 dark:hover:bg-[#151517]"
                   >
                     <option value="asc">Low to High</option>
                     <option value="desc">High to Low</option>
                   </select>
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[#6B7280]">
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[#6B7280] dark:text-gray-500">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -753,7 +753,7 @@ export default function CustomerShowcasePage() {
                     setSortOrder('asc')
                     setActiveTab('all')
                   }}
-                  className="w-full px-4 py-2.5 bg-white text-[#6B7280] hover:text-[#111827] border border-gray-200 hover:border-gray-300 rounded-xl text-sm font-medium transition-all duration-300 hover:shadow-sm"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-[#151517] text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 rounded-xl text-sm font-medium transition-all duration-300 hover:shadow-sm"
                 >
                   Reset Filters
                 </button>
@@ -764,10 +764,10 @@ export default function CustomerShowcasePage() {
           {/* Professional Separator */}
           <div className="relative mb-8">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
+              <div className="w-full border-t border-gray-200 dark:border-gray-800"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="bg-[#FAFAF7] px-4 text-[#6B7280] font-medium uppercase tracking-widest text-xs">
+              <span className="bg-[#FAFAF7] dark:bg-[#0B0B0B] px-4 text-[#6B7280] dark:text-gray-500 font-medium uppercase tracking-widest text-xs">
                 {activeTab === 'all' ? 'All Properties' : 
                  activeTab === 'liked' ? 'Liked Properties' :
                  'Disliked Properties'}

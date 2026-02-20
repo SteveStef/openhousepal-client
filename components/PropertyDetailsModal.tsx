@@ -39,104 +39,120 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
   const allReportData = [
     // Listing Intelligence
     { property: "LISTING INTELLIGENCE", value: "", isHeader: true },
-    { property: "Status", value: resoFacts.standardStatus },
-    { property: "Days on Market", value: resoFacts.daysOnMarket },
-    { property: "Cumulative DOM", value: resoFacts.cumulativeDaysOnMarket },
-    { property: "Original List Price", value: formatCurrency(resoFacts.originalListPrice) },
+    { property: "Status", value: resoFacts.standardStatus || resoFacts.homeStatus || resoFacts.standard_status || resoFacts.home_status },
+    { property: "Days on Market", value: resoFacts.daysOnMarket || resoFacts.days_on_market },
+    { property: "Cumulative DOM", value: resoFacts.cumulativeDaysOnMarket || resoFacts.cumulative_days_on_market },
+    { property: "Original List Price", value: formatCurrency(resoFacts.originalListPrice || resoFacts.original_list_price) },
 
     // Building & Construction
     { property: "BUILDING & CONSTRUCTION", value: "", isHeader: true },
-    { property: "Year Built", value: resoFacts.yearBuilt },
-    { property: "New Construction", value: formatBoolean(resoFacts.newConstructionYn) },
-    { property: "Architectural Style", value: resoFacts.architecturalStyle },
-    { property: "Construction Materials", value: formatList(resoFacts.constructionMaterials) },
+    { property: "Year Built", value: resoFacts.yearBuilt || resoFacts.year_built },
+    { property: "New Construction", value: (resoFacts.newConstructionYn ?? resoFacts.new_construction_yn) ? "Yes" : (resoFacts.newConstructionYn === false || resoFacts.new_construction_yn === false ? "No" : null) },
+    { property: "Architectural Style", value: resoFacts.architecturalStyle || resoFacts.architectural_style },
+    { property: "Construction Materials", value: formatList(resoFacts.constructionMaterials || resoFacts.construction_materials) },
     { property: "Stories", value: resoFacts.stories },
-    { property: "Total Stories", value: resoFacts.storiesTotal },
-    { property: "Square Footage", value: resoFacts.livingArea },
-    { property: "Lot Size (Acres)", value: resoFacts.lotSizeAcres ? `${resoFacts.lotSizeAcres} AC` : null },
+    { property: "Total Stories", value: resoFacts.storiesTotal || resoFacts.stories_total },
+    { property: "Square Footage", value: (resoFacts.livingArea || resoFacts.living_area) ? `${(resoFacts.livingArea || resoFacts.living_area).toLocaleString()} sq ft` : null },
+    { property: "Lot Size", value: (resoFacts.lotSize || resoFacts.lot_size) ? `${(resoFacts.lotSize || resoFacts.lot_size).toLocaleString()} sq ft` : null },
+    { property: "Lot Size (Acres)", value: (resoFacts.lotSizeAcres || resoFacts.lot_size_acres) ? `${(resoFacts.lotSizeAcres || resoFacts.lot_size_acres)} AC` : null },
     { property: "Zoning", value: resoFacts.zoning },
 
     // Interior Features
     { property: "INTERIOR FEATURES", value: "", isHeader: true },
     { property: "Appliances", value: formatList(resoFacts.appliances) },
-    { property: "Interior Features", value: formatList(resoFacts.interiorFeatures) },
+    { property: "Interior Features", value: formatList(resoFacts.interiorFeatures || resoFacts.interior_features) },
     { property: "Flooring", value: formatList(resoFacts.flooring) },
-    { property: "Window Features", value: formatList(resoFacts.windowFeatures) },
-    { property: "Fireplace Features", value: formatList(resoFacts.fireplaceFeatures) },
+    { property: "Window Features", value: formatList(resoFacts.windowFeatures || resoFacts.window_features) },
+    { property: "Fireplace Features", value: formatList(resoFacts.fireplaceFeatures || resoFacts.fireplace_features) },
+    { property: "Fireplaces", value: resoFacts.fireplaces },
 
     // HVAC & Systems
     { property: "HVAC & SYSTEMS", value: "", isHeader: true },
     { property: "Heating", value: formatList(resoFacts.heating) },
-    { property: "Heating Fuel", value: formatList(resoFacts.heatingFuel) },
+    { property: "Heating Fuel", value: formatList(resoFacts.heatingFuel || resoFacts.heating_fuel) },
     { property: "Cooling", value: formatList(resoFacts.cooling) },
-    { property: "Cooling Fuel", value: formatList(resoFacts.coolingFuel) },
-    { property: "Water Source", value: formatList(resoFacts.waterSource) },
+    { property: "Cooling Fuel", value: formatList(resoFacts.coolingFuel || resoFacts.cooling_fuel) },
+    { property: "Water Source", value: formatList(resoFacts.waterSource || resoFacts.water_source) },
     { property: "Sewer", value: formatList(resoFacts.sewer) },
     { property: "Electric", value: formatList(resoFacts.electric) },
 
     // Parking & Access
     { property: "PARKING & ACCESS", value: "", isHeader: true },
-    { property: "Total Parking", value: resoFacts.parkingCapacity ? `${resoFacts.parkingCapacity} spaces` : null },
-    { property: "Garage Parking", value: resoFacts.garageParkingCapacity ? `${resoFacts.garageParkingCapacity} spaces` : null },
-    { property: "Attached Garage", value: formatBoolean(resoFacts.attachedGarageYn) },
-    { property: "Parking Features", value: formatList(resoFacts.parkingFeatures) },
-    { property: "Accessibility Features", value: formatList(resoFacts.accessibilityFeatures) },
+    { property: "Total Parking", value: (resoFacts.parkingCapacity || resoFacts.parking_capacity) ? `${(resoFacts.parkingCapacity || resoFacts.parking_capacity)} spaces` : null },
+    { property: "Garage Parking", value: (resoFacts.garageParkingCapacity || resoFacts.garage_parking_capacity) ? `${(resoFacts.garageParkingCapacity || resoFacts.garage_parking_capacity)} spaces` : null },
+    { property: "Attached Garage", value: (resoFacts.attachedGarageYn ?? resoFacts.attached_garage_yn) ? "Yes" : null },
+    { property: "Parking Features", value: formatList(resoFacts.parkingFeatures || resoFacts.parking_features) },
+    { property: "Accessibility Features", value: formatList(resoFacts.accessibilityFeatures || resoFacts.accessibility_features) },
 
-    // HOA & Fees (only if has association)
-    ...(resoFacts.hasAssociation ? [
+    // HOA & Fees
+    ...(resoFacts.hasAssociation || resoFacts.associationFee || resoFacts.has_association || resoFacts.association_fee ? [
       { property: "HOA & FEES", value: "", isHeader: true },
-      { property: "HOA Fee", value: resoFacts.hoaFee },
-      { property: "Annual Property Tax", value: formatCurrency(resoFacts.taxAnnualAmount) },
-      { property: "Capital Contribution", value: formatCurrency(resoFacts.capitalContributionFee) },
-      { property: "HOA Includes", value: formatList(resoFacts.associationFeeIncludes) },
+      { property: "HOA Fee", value: resoFacts.hoaFee || resoFacts.hoa_fee || resoFacts.associationFee || resoFacts.association_fee },
+      { property: "Frequency", value: resoFacts.associationFeeFrequency || resoFacts.association_fee_frequency },
+      { property: "Annual Property Tax", value: formatCurrency(resoFacts.taxAnnualAmount || resoFacts.tax_annual_amount) },
+      { property: "Capital Contribution", value: formatCurrency(resoFacts.capitalContributionFee || resoFacts.capital_contribution_fee) },
+      { property: "HOA Includes", value: formatList(resoFacts.associationFeeIncludes || resoFacts.association_fee_includes) },
+      { property: "Amenities", value: formatList(resoFacts.associationAmenities || resoFacts.association_amenities) },
     ] : []),
 
     // Schools & District
     { property: "SCHOOLS & DISTRICT", value: "", isHeader: true },
-    { property: "School District", value: resoFacts.schoolDistrictName },
-    { property: "Elementary School", value: resoFacts.elementarySchool },
-    { property: "Middle School", value: resoFacts.middleOrJuniorSchool },
-    { property: "High School", value: resoFacts.highSchool },
+    { property: "School District", value: resoFacts.schoolDistrictName || resoFacts.school_district_name },
+    { property: "Elementary School", value: (resoFacts.elementarySchool || resoFacts.elementary_school) ? `${(resoFacts.elementarySchool || resoFacts.elementary_school)}${(resoFacts.elementarySchoolDistrict || resoFacts.elementary_school_district) ? ` (${resoFacts.elementarySchoolDistrict || resoFacts.elementary_school_district} District)` : ''}` : null },
+    { property: "Middle School", value: (resoFacts.middleOrJuniorSchool || resoFacts.middle_or_junior_school) ? `${(resoFacts.middleOrJuniorSchool || resoFacts.middle_or_junior_school)}${(resoFacts.middleOrJuniorSchoolDistrict || resoFacts.middle_or_junior_school_district) ? ` (${resoFacts.middleOrJuniorSchoolDistrict || resoFacts.middle_or_junior_school_district} District)` : ''}` : null },
+    { property: "High School", value: (resoFacts.highSchool || resoFacts.high_school) ? `${(resoFacts.highSchool || resoFacts.high_school)}${(resoFacts.highSchoolDistrict || resoFacts.high_school_district) ? ` (${resoFacts.highSchoolDistrict || resoFacts.high_school_district} District)` : ''}` : null },
 
     // Location & Neighborhood
     { property: "LOCATION & NEIGHBORHOOD", value: "", isHeader: true },
     { property: "County", value: resoFacts.county },
-    { property: "Walk Score", value: resoFacts.walkScore },
-    { property: "Direction Faces", value: resoFacts.directionFaces },
-    { property: "Cross Street", value: resoFacts.crossStreet },
+    { property: "Walk Score", value: resoFacts.walkScore || resoFacts.walk_score },
+    { property: "Direction Faces", value: resoFacts.directionFaces || resoFacts.direction_faces },
+    { property: "Cross Street", value: resoFacts.crossStreet || resoFacts.cross_street },
     { property: "Possession", value: formatList(resoFacts.possession) },
 
     // Additional Features
     { property: "ADDITIONAL FEATURES", value: "", isHeader: true },
-    { property: "Senior Community", value: formatBoolean(resoFacts.seniorCommunityYn) },
-    { property: "Pets Allowed", value: formatList(resoFacts.petsAllowed) },
-    { property: "Exterior Features", value: formatList(resoFacts.exteriorFeatures) },
-    { property: "Lot Features", value: formatList(resoFacts.lotFeatures) },
-    { property: "Community Features", value: formatList(resoFacts.communityFeatures) },
-    { property: "Security Features", value: formatList(resoFacts.securityFeatures) },
+    { property: "Senior Community", value: (resoFacts.seniorCommunityYn ?? resoFacts.senior_community_yn) ? "Yes" : (resoFacts.seniorCommunityYn === false || resoFacts.senior_community_yn === false ? "No" : null) },
+    { property: "Pets Allowed", value: formatList(resoFacts.petsAllowed || resoFacts.pets_allowed) },
+    { property: "Exterior Features", value: formatList(resoFacts.exteriorFeatures || resoFacts.exterior_features) },
+    { property: "Lot Features", value: formatList(resoFacts.lotFeatures || resoFacts.lot_features) },
+    { property: "Community Features", value: formatList(resoFacts.communityFeatures || resoFacts.community_features) },
+    { property: "Security Features", value: formatList(resoFacts.securityFeatures || resoFacts.security_features) },
 
     // Financial Details
     { property: "FINANCIAL DETAILS", value: "", isHeader: true },
-    { property: "Tax Assessment", value: formatCurrency(resoFacts.taxAssessmentAmount) },
-    { property: "Land Assessment", value: formatCurrency(resoFacts.landAssessmentAmount) },
-    { property: "Improvement Assessment", value: formatCurrency(resoFacts.improvementAssessmentAmount) },
-    { property: "Assessment Year", value: resoFacts.assessmentYear },
+    { property: "Tax Assessment", value: formatCurrency(resoFacts.taxAssessmentAmount || resoFacts.tax_assessment_amount) },
+    { property: "Land Assessment", value: formatCurrency(resoFacts.landAssessmentAmount || resoFacts.land_assessment_amount) },
+    { property: "Improvement Assessment", value: formatCurrency(resoFacts.improvementAssessmentAmount || resoFacts.improvement_assessment_amount) },
+    { property: "Assessment Year", value: resoFacts.assessmentYear || resoFacts.assessment_year },
   ];
 
   // Filter out rows with null or empty values, but keep headers
   const reportData = allReportData.filter(row => row.isHeader || (row.value !== null && row.value !== undefined && row.value !== ''));
 
-  // Filter out empty sections - keep headers only if they have data rows below them
-  const filteredData = reportData.filter((row, index) => {
-    if (!row.isHeader) return true; // Keep all data rows
-    // For header rows, check if there are any actual data rows in the same section
-    const nextRows = reportData.slice(index + 1);
-    const hasDataInSection = nextRows.some((nextRow) => {
-      if (nextRow.isHeader) return false; // Stop at next header
-      return !nextRow.isHeader; // Only count actual data rows, not headers
-    });
-    return hasDataInSection;
-  });
+  interface ReportSection {
+    header: string;
+    items: Array<{ property: string; value: any }>;
+  }
+
+  // Group data by sections and filter out empty sections
+  const sections: ReportSection[] = [];
+  let currentSection: ReportSection | null = null;
+
+  for (const row of reportData) {
+    if (row.isHeader) {
+      if (currentSection && currentSection.items.length > 0) {
+        sections.push(currentSection);
+      }
+      currentSection = { header: row.property, items: [] };
+    } else if (currentSection) {
+      currentSection.items.push({ property: row.property, value: row.value });
+    }
+  }
+
+  if (currentSection && currentSection.items.length > 0) {
+    sections.push(currentSection);
+  }
 
   return (
     <div className="bg-white dark:bg-[#0B0B0B] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
@@ -168,102 +184,81 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
 
       {/* Report Content - Grouped Sections */}
       <div className="p-4 sm:p-6 space-y-6 bg-gray-50 dark:bg-[#0B0B0B]">
-        {(() => {
-          // Group data by sections
-          const sections: Array<{ header: string; items: Array<{ property: string; value: any }> }> = [];
-          let currentSection: { header: string; items: Array<{ property: string; value: any }> } | null = null;
-
-          filteredData.forEach((row) => {
-            if (row.isHeader) {
-              if (currentSection) {
-                sections.push(currentSection);
-              }
-              currentSection = { header: row.property, items: [] };
-            } else if (currentSection) {
-              currentSection.items.push({ property: row.property, value: row.value });
-            }
+        {sections.map((section, sectionIndex) => {
+          // Separate items into full-width and regular items based on comma count
+          const fullWidthItems = section.items.filter(item => {
+            const value = String(item.value);
+            const commaCount = (value.match(/,/g) || []).length;
+            return commaCount >= 3; // 3+ commas = 4+ items in list
+          });
+          const regularItems = section.items.filter(item => {
+            const value = String(item.value);
+            const commaCount = (value.match(/,/g) || []).length;
+            return commaCount < 3;
           });
 
-          if (currentSection) {
-            sections.push(currentSection);
-          }
+          return (
+            <div
+              key={sectionIndex}
+              className="bg-white dark:bg-[#151517] rounded-xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm transition-colors"
+            >
+              {/* Subtle Section Header */}
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 pb-2 border-b border-gray-100 dark:border-gray-800">
+                {section.header}
+              </h3>
 
-          return sections.map((section, sectionIndex) => {
-            // Separate items into full-width and regular items based on comma count
-            const fullWidthItems = section.items.filter(item => {
-              const value = String(item.value);
-              const commaCount = (value.match(/,/g) || []).length;
-              return commaCount >= 3; // 3+ commas = 4+ items in list
-            });
-            const regularItems = section.items.filter(item => {
-              const value = String(item.value);
-              const commaCount = (value.match(/,/g) || []).length;
-              return commaCount < 3;
-            });
+              {/* Full-Width Items */}
+              {fullWidthItems.length > 0 && (
+                <div className="space-y-3 mb-4">
+                  {fullWidthItems.map((item, itemIdx) => (
+                    <div key={itemIdx} className="bg-gray-50 dark:bg-[#0B0B0B] rounded-lg p-4 border border-gray-200 dark:border-gray-800">
+                      <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                        {item.property}:
+                      </div>
+                      <div className="text-sm text-gray-900 dark:text-gray-200 leading-relaxed">
+                        {item.value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-            return (
-              <div
-                key={sectionIndex}
-                className="bg-white dark:bg-[#151517] rounded-xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm transition-colors"
-              >
-                {/* Subtle Section Header */}
-                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 pb-2 border-b border-gray-100 dark:border-gray-800">
-                  {section.header}
-                </h3>
-
-                {/* Full-Width Items */}
-                {fullWidthItems.length > 0 && (
-                  <div className="space-y-3 mb-4">
-                    {fullWidthItems.map((item, itemIdx) => (
-                      <div key={itemIdx} className="bg-gray-50 dark:bg-[#0B0B0B] rounded-lg p-4 border border-gray-200 dark:border-gray-800">
-                        <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+              {/* Regular Items - Single Item or Grid */}
+              {regularItems.length > 0 && (
+                regularItems.length === 1 ? (
+                  // Single item - display full width
+                  <div className="flex justify-between items-start gap-4 py-1">
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400 flex-shrink-0">
+                      {regularItems[0].property}:
+                    </span>
+                    <span className="text-sm text-gray-900 dark:text-gray-200 text-right break-words flex-1">
+                      {regularItems[0].value}
+                    </span>
+                  </div>
+                ) : (
+                  // Multiple items - display in 2-column grid
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3">
+                    {regularItems.map((item, itemIndex) => (
+                      <div
+                        key={itemIndex}
+                        className={`flex justify-between items-start gap-4 ${
+                          itemIndex % 2 === 0 ? 'md:pr-4' : 'md:pl-4 md:border-l md:border-gray-200 dark:md:border-gray-800'
+                        }`}
+                      >
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400 flex-shrink-0">
                           {item.property}:
-                        </div>
-                        <div className="text-sm text-gray-900 dark:text-gray-200 leading-relaxed">
+                        </span>
+                        <span className="text-sm text-gray-900 dark:text-gray-200 text-right break-words">
                           {item.value}
-                        </div>
+                        </span>
                       </div>
                     ))}
                   </div>
-                )}
-
-                {/* Regular Items - Single Item or Grid */}
-                {regularItems.length > 0 && (
-                  regularItems.length === 1 ? (
-                    // Single item - display full width
-                    <div className="flex justify-between items-start gap-4 py-1">
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400 flex-shrink-0">
-                        {regularItems[0].property}:
-                      </span>
-                      <span className="text-sm text-gray-900 dark:text-gray-200 text-right break-words flex-1">
-                        {regularItems[0].value}
-                      </span>
-                    </div>
-                  ) : (
-                    // Multiple items - display in 2-column grid
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3">
-                      {regularItems.map((item, itemIndex) => (
-                        <div
-                          key={itemIndex}
-                          className={`flex justify-between items-start gap-4 ${
-                            itemIndex % 2 === 0 ? 'md:pr-4' : 'md:pl-4 md:border-l md:border-gray-200 dark:md:border-gray-800'
-                          }`}
-                        >
-                          <span className="text-sm font-medium text-gray-600 dark:text-gray-400 flex-shrink-0">
-                            {item.property}:
-                          </span>
-                          <span className="text-sm text-gray-900 dark:text-gray-200 text-right break-words">
-                            {item.value}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                )}
-              </div>
-            );
-          });
-        })()}
+                )
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -327,23 +322,28 @@ export default function PropertyDetailsModal({
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isLightboxOpen, setIsLightboxOpen] = useState(false)
   const commentsContainerRef = useRef<HTMLDivElement>(null)
+  console.log(property)
 
   // Enhanced photo handling for property data
   const getPropertyImages = useCallback(() => {
-    if ((property?.details as any)?.originalPhotos && (property?.details as any)?.originalPhotos?.length > 0) {
+    const photos = (property as any)?.originalPhotos || (property as any)?.photos;
+    if (photos && photos.length > 0) {
       // Use high-quality photos from property data
-      return (property?.details as any).originalPhotos
+      return photos
         .map((photo: any) => {
           const jpegSources = photo.mixedSources?.jpeg;
           const webpSources = photo.mixedSources?.webp;
           // Select highest resolution (last in array) instead of lowest (first)
           return jpegSources?.[jpegSources.length - 1]?.url ||
-                 webpSources?.[webpSources.length - 1]?.url;
+                 webpSources?.[webpSources.length - 1]?.url ||
+                 photo.url ||
+                 '';
         })
-        .filter(Boolean) as string[]
+        .filter((url: string) => typeof url === 'string' && url.length > 0) as string[]
     }
     // Fallback to basic images
-    return (property?.images || [property?.imageUrl].filter(Boolean)) as string[]
+    const basicImages = (property?.images || [property?.imageUrl || '/placeholder.jpg'])
+    return basicImages.filter((url: any) => typeof url === 'string' && url.length > 0) as string[]
   }, [property])
   
   const images = getPropertyImages()
@@ -532,15 +532,17 @@ export default function PropertyDetailsModal({
         
         <div className="relative w-full h-full flex items-center justify-center p-8">
           <div className="relative w-full h-full" onClick={(e) => e.stopPropagation()}>
-            <Image
-              src={images[currentImageIndex]}
-              alt={`${property.address} - Image ${currentImageIndex + 1}`}
-              fill
-              sizes="100vw"
-              className="object-contain"
-              quality={90}
-              priority
-            />
+            {images[currentImageIndex] && (
+              <Image
+                src={images[currentImageIndex]}
+                alt={`${property.address} - Image ${currentImageIndex + 1}`}
+                fill
+                sizes="100vw"
+                className="object-contain"
+                quality={90}
+                priority
+              />
+            )}
           </div>
           
           {images.length > 1 && (
@@ -586,9 +588,8 @@ export default function PropertyDetailsModal({
             <div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                 {(() => {
-                  const details = property.details as any;
-                  const street = details?.address?.streetAddress || property.address;
-                  const city = details?.city || property.city;
+                  const street = (property as any)?.address?.streetAddress || property.address;
+                  const city = property.city;
                   
                   // If street already contains a comma, it might be the full address
                   if (street.includes(',')) {
@@ -603,22 +604,22 @@ export default function PropertyDetailsModal({
                 })()}
               </h2>
               <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
-                {((property.details as any)?.address?.state || property.state)} {((property.details as any)?.address?.zipcode || property.zipCode)}
+                {(property as any)?.address?.state || property.state} {(property as any)?.address?.zipcode || property.zipCode}
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              {(property.details as any)?.homeStatus && (
+              {(property as any)?.homeStatus && (
                 <span className={`px-3 py-1 text-sm font-medium rounded-full ${
-                  (property.details as any).homeStatus === 'FOR_SALE' 
+                  (property as any).homeStatus === 'FOR_SALE' 
                     ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' 
-                    : (property.details as any).homeStatus === 'FOR_RENT'
+                    : (property as any).homeStatus === 'FOR_RENT'
                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300'
                 }`}>
-                  {(property.details as any).homeStatus === 'forSale' ? 'For Sale' :
-                   (property.details as any).homeStatus === 'forRent' ? 'For Rent' :
-                   (property.details as any).homeStatus === 'recentlySold' ? 'Recently Sold' :
-                   (property.details as any)?.homeStatus?.replace("_", " ")}
+                  {(property as any).homeStatus === 'forSale' ? 'For Sale' :
+                   (property as any).homeStatus === 'forRent' ? 'For Rent' :
+                   (property as any).homeStatus === 'recentlySold' ? 'Recently Sold' :
+                   (property as any)?.homeStatus?.replace("_", " ")}
                 </span>
               )}
               <button
@@ -670,7 +671,7 @@ export default function PropertyDetailsModal({
                     {/* Enhanced Photo Gallery */}
                     <div className="lg:col-span-8">
                       <div className="relative h-[500px] bg-gray-100 dark:bg-[#0B0B0B] rounded-2xl overflow-hidden group shadow-lg">
-                        {images.length > 0 ? (
+                        {images.length > 0 && images[currentImageIndex] ? (
                           <>
                             <Image
                               src={images[currentImageIndex]}
@@ -697,9 +698,9 @@ export default function PropertyDetailsModal({
                             </div>
                             
                             {/* Photo Caption */}
-                            {(property.details as any)?.originalPhotos?.[currentImageIndex]?.caption && (
+                            {(property as any)?.originalPhotos?.[currentImageIndex]?.caption && (
                               <div className="absolute bottom-20 left-4 right-4 bg-black/70 text-white text-sm p-3 rounded-lg">
-                                {(property.details as any).originalPhotos[currentImageIndex].caption}
+                                {(property as any).originalPhotos[currentImageIndex].caption}
                               </div>
                             )}
                             
@@ -770,11 +771,11 @@ export default function PropertyDetailsModal({
                         {/* Price Section */}
                         <div className="text-center mb-8">
                           <div className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                            {formatPrice((property.details as any)?.price || property.price)}
+                            {formatPrice((property as any)?.price || property.price)}
                           </div>
                           <div className="text-gray-600 dark:text-gray-400 text-sm mb-2">List Price</div>
-                          {(property.details as any)?.resoFacts?.pricePerSquareFoot && (
-                            <div className="text-gray-500 dark:text-gray-500 text-xs mb-4">${(property.details as any).resoFacts.pricePerSquareFoot}/sq ft</div>
+                          {(property as any)?.resoFacts?.pricePerSquareFoot && (
+                            <div className="text-gray-500 dark:text-gray-500 text-xs mb-4">${(property as any).resoFacts.pricePerSquareFoot}/sq ft</div>
                           )}
                         </div>
                         
@@ -782,19 +783,19 @@ export default function PropertyDetailsModal({
                         <div className="grid grid-cols-3 gap-4 mb-8">
                           <div className="text-center">
                             <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-                              {(property.details as any)?.bedrooms || property.beds || '-'}
+                              {(property as any)?.bedrooms || property.beds || '-'}
                             </div>
                             <div className="text-gray-600 dark:text-gray-400 text-sm">Beds</div>
                           </div>
                           <div className="text-center">
                             <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-                              {(property.details as any)?.bathrooms || property.baths || '-'}
+                              {(property as any)?.bathrooms || property.baths || '-'}
                             </div>
                             <div className="text-gray-600 dark:text-gray-400 text-sm">Baths</div>
                           </div>
                           <div className="text-center">
                             <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                              {(((property.details as any)?.livingArea || property.squareFeet || 0) / 1000).toFixed(1)}k
+                              {((((property as any)?.livingArea || property.squareFeet || 0)) / 1000).toFixed(1)}k
                             </div>
                             <div className="text-gray-600 dark:text-gray-400 text-sm">Sq Ft</div>
                           </div>
@@ -802,64 +803,66 @@ export default function PropertyDetailsModal({
                         
                         {/* Key Details */}
                         <div className="space-y-3 text-sm border-t border-gray-100 dark:border-gray-800 pt-6 mb-8">
-                          {((property.details as any)?.standardStatus || (property.details as any)?.homeStatus || property.status) && (
+                          {((property as any)?.standardStatus || (property as any)?.homeStatus || property.status) && (
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Status:</span>
                               <span className="text-gray-900 dark:text-gray-200 font-medium">
-                                {(property.details as any)?.standardStatus || (property.details as any)?.homeStatus?.replace(/_/g, ' ') || property.status}
+                                {(property as any)?.standardStatus || (property as any)?.homeStatus?.replace(/_/g, ' ') || property.status}
                               </span>
                             </div>
                           )}
-                          {((property.details as any)?.homeType || property.propertyType) && (
+                          {((property as any)?.homeType || property.propertyType) && (
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Home Type:</span>
                               <span className="text-gray-900 dark:text-gray-200 font-medium">
-                                {(property.details as any)?.homeType?.replace(/_/g, ' ') || property.propertyType?.replace(/_/g, ' ')}
+                                {(property as any)?.homeType?.replace(/_/g, ' ') || property.propertyType?.replace(/_/g, ' ')}
                               </span>
                             </div>
                           )}
-                          {((property.details as any)?.yearBuilt || property.yearBuilt) && (
+                          {((property as any)?.yearBuilt || property.yearBuilt) && 
+                           Number((property as any)?.yearBuilt || property.yearBuilt) !== 0 && (
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Year Built:</span>
                               <span className="text-gray-900 dark:text-gray-200 font-medium">
-                                {(property.details as any)?.yearBuilt || property.yearBuilt}
+                                {(property as any)?.yearBuilt || property.yearBuilt}
                               </span>
                             </div>
                           )}
-                          {(property.details as any)?.resoFacts?.pricePerSquareFoot && (
+                          {(property as any)?.resoFacts?.pricePerSquareFoot && (
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Price/Sq Ft:</span>
                               <span className="text-gray-900 dark:text-gray-200 font-medium">
-                                ${(property.details as any).resoFacts.pricePerSquareFoot}
+                                ${(property as any).resoFacts.pricePerSquareFoot}
                               </span>
                             </div>
                           )}
-                          {(property.details as any)?.resoFacts?.stories && (
+                          {(property as any)?.resoFacts?.stories && Number((property as any)?.resoFacts?.stories) !== 0 && (
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Stories:</span>
-                              <span className="text-gray-900 dark:text-gray-200 font-medium">{(property.details as any).resoFacts.stories}</span>
+                              <span className="text-gray-900 dark:text-gray-200 font-medium">{(property as any).resoFacts.stories}</span>
                             </div>
                           )}
-                          {(property.details as any)?.lotSize && (
+                          {(property as any)?.lotSize && Number((property as any)?.lotSize) !== 0 && (
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Lot Size:</span>
                               <span className="text-gray-900 dark:text-gray-200 font-medium">
-                                {((property.details as any).lotSize / 43560).toFixed(2)} acres
+                                {((property as any).lotSize / 43560).toFixed(2)} acres
                               </span>
                             </div>
                           )}
-                          {((property.details as any)?.daysOnMarket || (property.details as any)?.resoFacts?.daysOnMarket) && (
+                          {((property as any)?.daysOnMarket || (property as any)?.resoFacts?.daysOnMarket) && 
+                           Number((property as any)?.daysOnMarket || (property as any)?.resoFacts?.daysOnMarket) !== 0 && (
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Days on Market:</span>
                               <span className="text-gray-900 dark:text-gray-200 font-medium">
-                                {(property.details as any)?.daysOnMarket || (property.details as any)?.resoFacts?.daysOnMarket}
+                                {(property as any)?.daysOnMarket || (property as any)?.resoFacts?.daysOnMarket}
                               </span>
                             </div>
                           )}
-                          {(property.details as any)?.resoFacts?.propertyCondition && (
+                          {(property as any)?.resoFacts?.propertyCondition && (
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Condition:</span>
-                              <span className="text-gray-900 dark:text-gray-200 font-medium">{(property.details as any).resoFacts.propertyCondition}</span>
+                              <span className="text-gray-900 dark:text-gray-200 font-medium">{(property as any).resoFacts.propertyCondition}</span>
                             </div>
                           )}
                         </div>
@@ -909,10 +912,10 @@ export default function PropertyDetailsModal({
                       </h3>
                       <div className="space-y-6">
                         {/* Description Field - Full Width */}
-                        {(property.details as any)?.description && (
+                        {(property as any)?.description && (
                           <DescriptionSection 
-                            description={(property.details as any).description} 
-                            details={property.details}
+                            description={(property as any).description} 
+                            details={property}
                           />
                         )}
                       </div>
@@ -1005,17 +1008,17 @@ export default function PropertyDetailsModal({
               </div>
               
               {/* Property Details Report - Professional Table Format */}
-              {!isLoadingDetails && !detailsError && (property.details as any)?.resoFacts && (
+              {!isLoadingDetails && !detailsError && (property as any)?.resoFacts && (
                 <PropertyReport 
-                  resoFacts={(property.details as any).resoFacts} 
-                  propertyAddress={(property.details as any).abbreviatedAddress}
+                  resoFacts={(property as any).resoFacts} 
+                  propertyAddress={(property as any).abbreviatedAddress || property.address}
                 />
               )}
               
               {/* Compliance Footer */}
               <div className="border-t border-gray-200 dark:border-gray-800 mt-8 pt-6 text-center text-xs text-gray-500 dark:text-gray-500 space-y-2">
-                <p>Data last updated: {(property.details as any)?.resoFacts?.updated_at 
-                  ? new Date((property.details as any).resoFacts.updated_at).toLocaleString('en-US', {
+                <p>Data last updated: {(property as any)?.resoFacts?.updated_at 
+                  ? new Date((property as any).resoFacts.updated_at).toLocaleString('en-US', {
                       month: 'numeric',
                       day: 'numeric',
                       year: 'numeric',

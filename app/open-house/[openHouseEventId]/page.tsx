@@ -179,18 +179,6 @@ export default function OpenHouseSignInPage() {
               Your information has been submitted successfully.
             </p>
             
-            {property && (
-              <div className="bg-[#FAFAF7] rounded-xl p-5 mb-8 text-left border border-gray-100">
-                <h3 className="font-bold text-[#0B0B0B] text-sm uppercase tracking-wide mb-2">Property You Visited</h3>
-                <p className="text-[#111827] text-base font-semibold mb-2">{property.address}</p>
-                <div className="flex items-center space-x-4 text-xs font-bold text-[#6B7280] uppercase tracking-widest">
-                  <span>{property.beds} beds</span>
-                  <span className="text-[#C9A24D]">•</span>
-                  <span>{property.baths} baths</span>
-                </div>
-              </div>
-            )}
-            
             <p className="text-gray-400 text-xs">
               You can close this page now or continue browsing.
             </p>

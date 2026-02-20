@@ -714,11 +714,11 @@ export function ShowcaseContent() {
       if (response.ok) {
         const cacheResponse = await response.json()
         
-        if (cacheResponse.success && cacheResponse.details) {
-          // Update property with detailed information
+        if (cacheResponse.success && cacheResponse.property) {
+          // Update property with detailed information merging flat data
           const enhancedProperty = {
             ...property,
-            details: cacheResponse.details
+            ...cacheResponse.property
           }
           setSelectedProperty(enhancedProperty)
         } else {
@@ -937,7 +937,7 @@ export function ShowcaseContent() {
 
   const handleSavePreferences = async (collectionId: string, preferences: any) => {
     try {
-      preferences.diameter = Math.round(preferences.diameter * 1.8 * 10) / 10
+      preferences.diameter = Math.round(preferences.diameter * 10) / 10
 
       const hasAddress = preferences.address && preferences.address.trim()
       if(hasAddress) {
@@ -1127,7 +1127,9 @@ export function ShowcaseContent() {
           cities: collectionData.cities || [],
           townships: collectionData.townships || [],
           address: collectionData.address,
-          diameter: parseFloat((parseFloat(collectionData.diameter) * 1.8).toFixed(1)),
+          lat: collectionData.lat,
+          long: collectionData.long,
+          diameter: parseFloat(parseFloat(collectionData.diameter).toFixed(1)),
           
           // Property types
           is_town_house: collectionData.isTownHouse || false,
@@ -1664,6 +1666,8 @@ function CreateCollectionModal({
     minYearBuilt: '',
     maxYearBuilt: '',
     address: '',
+    lat: null as number | null,
+    long: null as number | null,
     cities: [] as string[],
     townships: [] as string[],
     diameter: '0',
@@ -1728,7 +1732,7 @@ function CreateCollectionModal({
     return value.replace(/,/g, '')
   }
 
-  const handleInputChange = (field: string, value: string | number | boolean | string[]) => {
+  const handleInputChange = (field: string, value: string | number | boolean | string[] | null) => {
     // Use functional state update to avoid stale closure issues
     setFormData(prevFormData => {
       let updatedFormData = { ...prevFormData, [field]: value }
@@ -1829,6 +1833,8 @@ function CreateCollectionModal({
         minYearBuilt: '',
         maxYearBuilt: '',
         address: '',
+        lat: null,
+        long: null,
         cities: [],
         townships: [],
         diameter: '2',
@@ -2200,6 +2206,8 @@ function CreateCollectionModal({
                         type="button"
                         onClick={() => {
                           handleInputChange('address', '')
+                          handleInputChange('lat', null)
+                          handleInputChange('long', null)
                           handleInputChange('diameter', '0')
                         }}
                         className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] dark:hover:text-white uppercase tracking-widest transition-colors py-2 px-3 hover:bg-[#C9A24D]/10 rounded-lg"
@@ -2217,6 +2225,10 @@ function CreateCollectionModal({
                       <GooglePlacesAutocomplete
                         value={formData.address}
                         onChange={(address) => handleInputChange('address', address)}
+                        onCoordinatesChange={(lat, long) => {
+                          handleInputChange('lat', lat)
+                          handleInputChange('long', long)
+                        }}
                         disabled={isUsingAreaSearch()}
                         className={`block w-full px-4 py-3.5 border rounded-xl placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 transition-all duration-200 font-medium ${
                           isUsingAreaSearch() 

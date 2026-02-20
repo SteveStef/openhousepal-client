@@ -16,6 +16,44 @@ interface ViewPDFsModalProps {
   onViewRecommendations: () => void;
 }
 
+// --- HELPERS ---
+const formatAddress = (address: string) => {
+  if (!address) return "";
+  const parts = address.split(',');
+  
+  // Usually address is: Street, City, State Zip, County
+  // We want to keep everything before the Zip, and the Zip itself, but remove County if it follows.
+  
+  // If it's a typical full address with many commas
+  if (parts.length > 2) {
+    const street = parts[0].trim();
+    const city = parts[1].trim();
+    const stateZip = parts[2].trim(); // This might contain "PA 19087 Delaware"
+    
+    // Clean up StateZip to remove anything after the 5-digit zip code
+    const zipMatch = stateZip.match(/^([A-Z]{2}\s+\d{5})/);
+    const cleanedStateZip = zipMatch ? zipMatch[1] : stateZip;
+    
+    const rawAddress = `${street}, ${city}, ${cleanedStateZip}`;
+    return rawAddress
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
+  // Fallback for shorter addresses
+  const rawAddress = parts.length > 1 
+    ? `${parts[0].trim()}, ${parts[1].trim()}`
+    : parts[0].trim();
+  
+  return rawAddress
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 export const ViewPDFsModal = memo(function ViewPDFsModal({ 
   openHouse, 
   onClose, 
@@ -30,10 +68,10 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
 
         {/* Header */}
         <div className="pt-10 pb-6 px-8 text-center border-b border-gray-100 dark:border-gray-800 bg-white/50 dark:bg-[#0B0B0B]/30">
-          <h3 className="font-serif text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Listing Documents</h3>
+          <h3 className="font-serif text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Documents</h3>
           <div className="mt-2 flex items-center justify-center gap-2">
             <span className="h-px w-4 bg-[#C9A24D]/40" />
-            <p className="text-[#6B7280] dark:text-gray-400 text-xs font-bold uppercase tracking-[0.2em]">{openHouse.address}</p>
+            <p className="text-[#6B7280] dark:text-gray-400 text-xs font-bold uppercase tracking-[0.2em]">{formatAddress(openHouse.address)}</p>
             <span className="h-px w-4 bg-[#C9A24D]/40" />
           </div>
         </div>
@@ -76,8 +114,8 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
             </div>
 
             <div className="relative z-10 flex-1">
-              <h4 className="text-lg font-bold text-gray-900 dark:text-white">Supplemental Sheet</h4>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Similar active neighbor listings</p>
+              <h4 className="text-lg font-bold text-gray-900 dark:text-white">Active COMPS</h4>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Similar Active Listings</p>
             </div>
 
             <div className="relative z-10 ml-4">
