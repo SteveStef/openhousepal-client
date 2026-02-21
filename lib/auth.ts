@@ -14,6 +14,7 @@ export interface User {
   last_name?: string;
   state?: string;
   brokerage?: string;
+  mls_id?: string;
   created_at: string;
   updated_at?: string;
   // PayPal subscription fields
