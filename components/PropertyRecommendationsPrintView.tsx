@@ -102,7 +102,7 @@ export function PropertyRecommendationsPrintView({ openHouseId, agentId, classNa
   const pages = chunkArray(properties, 6);
 
   return (
-    <div className={`min-h-screen bg-background text-foreground print:bg-[#f9f9f9] print-view-root ${className || ''}`}>
+    <div className={`min-h-screen bg-white text-black print-view-root ${className || ''}`}>
       {pages.map((pageItems, pageIndex) => (
         <div 
           key={pageIndex}
@@ -112,22 +112,22 @@ export function PropertyRecommendationsPrintView({ openHouseId, agentId, classNa
           {/* Header */}
           <header className="flex w-full items-center justify-between px-6 py-4 print:px-0 print:py-0 print-header">
             <div className="flex flex-row items-center gap-4">
-              <div className="flex items-center justify-center rounded-lg bg-primary/10 p-2 print:hidden">
-                <Home className="h-6 w-6 text-primary" strokeWidth={2} />
+              <div className="flex items-center justify-center rounded-lg bg-gray-100 p-2 print:hidden">
+                <Home className="h-6 w-6 text-[#111827]" strokeWidth={2} />
               </div>
-              <Home className="hidden h-5 w-5 text-primary print:block" strokeWidth={2} />
+              <Home className="hidden h-5 w-5 text-black print:block" strokeWidth={2} />
               
               <div className="flex flex-col text-left">
-                <h1 className="font-serif text-2xl font-semibold tracking-tight text-foreground print:text-lg">
+                <h1 className="font-serif text-2xl font-semibold tracking-tight text-[#111827] print:text-lg">
                   Property Recommendations
                 </h1>
-                <p className="text-sm text-muted-foreground print:text-xs">
+                <p className="text-sm text-gray-500 print:text-xs">
                   Page {pageIndex + 1} of {pages.length}
                 </p>
               </div>
             </div>
             {/* Show Open House ID for context during dev */}
-            <div className="text-xs text-muted-foreground print:hidden">
+            <div className="text-xs text-gray-400 print:hidden">
                 Open House: {openHouseId}
             </div>
           </header>

@@ -8,7 +8,7 @@ import PropertyGrid from '@/components/PropertyGrid'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import ScheduleTourModal, { TourRequest } from '@/components/ScheduleTourModal'
 import Toast from '@/components/Toast'
-import Footer from '@/components/Footer'
+import MLSComplianceFooter from '@/components/MLSComplianceFooter'
 
 export default function CustomerShowcasePage() {
   const params = useParams()
@@ -655,7 +655,7 @@ export default function CustomerShowcasePage() {
 
   return (
     <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col transition-colors">
-      <div className="flex-1 p-4 sm:p-6">
+      <div className="flex-1 p-4 sm:p-6 pb-20">
         <div className="max-w-7xl mx-auto">
           {/* Customer Header */}
           <div className="bg-white/50 dark:bg-[#151517]/50 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-gray-800 p-4 sm:p-6 mb-6">
@@ -776,15 +776,17 @@ export default function CustomerShowcasePage() {
           </div>
 
           {/* Property Grid */}
-          <PropertyGrid
-            properties={filteredProperties}
-            title="Matched Properties"
-            onLike={handlePropertyLike}
-            onDislike={handlePropertyDislike}
-            onPropertyClick={handlePropertyClick}
-            onScheduleTour={handleScheduleTourClick}
-            showNewForUnviewed={true}
-          />
+          <div className="mb-32">
+            <PropertyGrid
+              properties={filteredProperties}
+              title="Matched Properties"
+              onLike={handlePropertyLike}
+              onDislike={handlePropertyDislike}
+              onPropertyClick={handlePropertyClick}
+              onScheduleTour={handleScheduleTourClick}
+              showNewForUnviewed={true}
+            />
+          </div>
 
           {/* Property Details Modal */}
           <PropertyDetailsModal
@@ -818,7 +820,7 @@ export default function CustomerShowcasePage() {
         isVisible={toast.isVisible}
         onClose={closeToast}
       />
-      <Footer />
+      <MLSComplianceFooter />
     </div>
   )
 }

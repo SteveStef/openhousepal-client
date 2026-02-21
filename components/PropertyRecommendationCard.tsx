@@ -60,10 +60,10 @@ export function PropertyRecommendationCard({
   )}&bgcolor=ffffff&color=1a1a1a`;
 
   return (
-    <article className={`group relative flex flex-col overflow-hidden rounded-2xl bg-white dark:bg-[#1c1c1e] shadow-sm border-2 transition-all duration-300 ${
+    <article className={`group relative flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm border-2 transition-all duration-300 ${
       selected 
-        ? 'border-[#8b7355] dark:border-[#C9A24D] ring-4 ring-[#8b7355]/10 dark:ring-[#C9A24D]/10 scale-[1.02]' 
-        : 'border-transparent hover:border-gray-200 dark:hover:border-gray-800'
+        ? 'border-[#8b7355] ring-4 ring-[#8b7355]/10 scale-[1.02]' 
+        : 'border-transparent hover:border-gray-200'
     } ${isCompact ? '' : ''}`}>
       
       {/* Property Image */}
@@ -78,8 +78,8 @@ export function PropertyRecommendationCard({
         
         {/* Selection Overlay Indicator */}
         {selected && (
-          <div className="absolute inset-0 bg-[#8b7355]/10 dark:bg-[#C9A24D]/10 flex items-center justify-center">
-            <div className="bg-[#8b7355] dark:bg-[#C9A24D] text-white p-2 rounded-full shadow-lg transform scale-110 animate-fadeIn">
+          <div className="absolute inset-0 bg-[#8b7355]/10 flex items-center justify-center">
+            <div className="bg-[#8b7355] text-white p-2 rounded-full shadow-lg transform scale-110 animate-fadeIn">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
             </div>
           </div>
@@ -91,10 +91,10 @@ export function PropertyRecommendationCard({
         
         {/* Top: Address & Price */}
         <div className="mb-4 print:mb-2">
-          <h3 className={`font-black tracking-tight leading-tight text-[#111827] dark:text-white print:text-black ${isCompact ? 'text-base' : 'text-lg'} print:text-[11pt]`}>
+          <h3 className={`font-black tracking-tight leading-tight text-[#111827] print:text-black ${isCompact ? 'text-base' : 'text-lg'} print:text-[11pt]`}>
             {cleanAddress}
           </h3>
-          <p className="text-sm font-black text-[#8b7355] dark:text-[#C9A24D] mt-1 print:text-black print:text-[10pt]">
+          <p className="text-sm font-black text-[#8b7355] mt-1 print:text-black print:text-[10pt]">
             {price ? `$${price.toLocaleString()}` : 'Price not available'}
           </p>
         </div>
@@ -105,22 +105,22 @@ export function PropertyRecommendationCard({
           {/* Stats Row */}
           <div className="flex items-center gap-3 print:gap-2">
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-black text-[#111827] dark:text-white">{beds || 0}</span>
-              <span className="text-[10px] uppercase tracking-widest text-gray-500 dark:text-gray-400 font-bold print:text-[8pt]">Beds</span>
+              <span className="text-sm font-black text-[#111827] print:text-black">{beds || 0}</span>
+              <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold print:text-[8pt] print:text-gray-700">Beds</span>
             </div>
             
-            <div className="w-px h-3 bg-gray-200 dark:bg-gray-700" />
+            <div className="w-px h-3 bg-gray-200" />
             
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-black text-[#111827] dark:text-white">{baths || 0}</span>
-              <span className="text-[10px] uppercase tracking-widest text-gray-500 dark:text-gray-400 font-bold print:text-[8pt]">Baths</span>
+              <span className="text-sm font-black text-[#111827] print:text-black">{baths || 0}</span>
+              <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold print:text-[8pt] print:text-gray-700">Baths</span>
             </div>
 
-            <div className="w-px h-3 bg-gray-200 dark:bg-gray-700" />
+            <div className="w-px h-3 bg-gray-200" />
             
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-black text-[#111827] dark:text-white">{sqft?.toLocaleString() || '-'}</span>
-              <span className="text-[10px] uppercase tracking-widest text-gray-500 dark:text-gray-400 font-bold print:text-[8pt]">Sq Ft</span>
+              <span className="text-sm font-black text-[#111827] print:text-black">{sqft?.toLocaleString() || '-'}</span>
+              <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold print:text-[8pt] print:text-gray-700">Sq Ft</span>
             </div>
           </div>
 

@@ -19,6 +19,26 @@ const paypalOptions = {
   currency: "USD",
 }
 
+const US_STATES = [
+  { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
+  { code: 'AR', name: 'Arkansas' }, { code: 'CA', name: 'California' }, { code: 'CO', name: 'Colorado' },
+  { code: 'CT', name: 'Connecticut' }, { code: 'DE', name: 'Delaware' }, { code: 'DC', name: 'District of Columbia' },
+  { code: 'FL', name: 'Florida' }, { code: 'GA', name: 'Georgia' }, { code: 'HI', name: 'Hawaii' },
+  { code: 'ID', name: 'Idaho' }, { code: 'IL', name: 'Illinois' }, { code: 'IN', name: 'Indiana' },
+  { code: 'IA', name: 'Iowa' }, { code: 'KS', name: 'Kansas' }, { code: 'KY', name: 'Kentucky' },
+  { code: 'LA', name: 'Louisiana' }, { code: 'ME', name: 'Maine' }, { code: 'MD', name: 'Maryland' },
+  { code: 'MA', name: 'Massachusetts' }, { code: 'MI', name: 'Michigan' }, { code: 'MN', name: 'Minnesota' },
+  { code: 'MS', name: 'Mississippi' }, { code: 'MO', name: 'Missouri' }, { code: 'MT', name: 'Montana' },
+  { code: 'NE', name: 'Nebraska' }, { code: 'NV', name: 'Nevada' }, { code: 'NH', name: 'New Hampshire' },
+  { code: 'NJ', name: 'New Jersey' }, { code: 'NM', name: 'New Mexico' }, { code: 'NY', name: 'New York' },
+  { code: 'NC', name: 'North Carolina' }, { code: 'ND', name: 'North Dakota' }, { code: 'OH', name: 'Ohio' },
+  { code: 'OK', name: 'Oklahoma' }, { code: 'OR', name: 'Oregon' }, { code: 'PA', name: 'Pennsylvania' },
+  { code: 'RI', name: 'Rhode Island' }, { code: 'SC', name: 'South Carolina' }, { code: 'SD', name: 'South Dakota' },
+  { code: 'TN', name: 'Tennessee' }, { code: 'TX', name: 'Texas' }, { code: 'UT', name: 'Utah' },
+  { code: 'VT', name: 'Vermont' }, { code: 'VA', name: 'Virginia' }, { code: 'WA', name: 'Washington' },
+  { code: 'WV', name: 'West Virginia' }, { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' }
+]
+
 export default function RegisterPage() {
   const router = useRouter()
   const { refreshUser } = useAuth()
@@ -209,12 +229,23 @@ export default function RegisterPage() {
       console.error('Verification code error:', err)
       const errorMessage = err.message || 'Failed to send verification code. Please try again.'
 
-      // Check if it's an email already registered error
-      if (errorMessage.includes('already registered')) {
-        setFieldErrors({ email: errorMessage })
+      // Field-specific error catching
+      const newFieldErrors: {[key: string]: string} = {}
+      
+      const lowerError = errorMessage.toLowerCase();
+      if (lowerError.includes('email') && lowerError.includes('registered')) {
+        newFieldErrors.email = errorMessage
+      } else if (lowerError.includes('mls id')) {
+        newFieldErrors.mlsId = errorMessage
       }
 
-      showNotification('error', errorMessage)
+      if (Object.keys(newFieldErrors).length > 0) {
+        setFieldErrors(newFieldErrors)
+        showNotification('error', 'Please correct the errors in the form')
+      } else {
+        showNotification('error', errorMessage)
+      }
+
       setIsLoading(false)
       return
     }
@@ -582,20 +613,32 @@ export default function RegisterPage() {
                   <label htmlFor="state" className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider mb-1 ml-1">
                     State
                   </label>
-                  <input
-                    id="state"
-                    name="state"
-                    type="text"
-                    required
-                    value={formData.state}
-                    onChange={handleChange}
-                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
-                      fieldErrors.state 
-                        ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                        : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30'
-                    }`}
-                    placeholder="CA"
-                  />
+                  <div className="relative">
+                    <select
+                      id="state"
+                      name="state"
+                      required
+                      value={formData.state}
+                      onChange={(e: any) => handleChange(e)}
+                      className={`block w-full px-3 py-2.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm appearance-none cursor-pointer ${
+                        fieldErrors.state 
+                          ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
+                          : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30'
+                      }`}
+                    >
+                      <option value="" disabled>Select State</option>
+                      {US_STATES.map((state) => (
+                        <option key={state.code} value={state.code}>
+                          {state.name} ({state.code})
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
                   {fieldErrors.state && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.state}</p>}
                 </div>
                 

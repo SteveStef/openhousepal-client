@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Property } from '@/types'
 import { X, MessageCircle, Send, ThumbsUp, ThumbsDown, ChevronLeft, ChevronRight, Maximize2, Home, User } from 'lucide-react'
+import { cleanAddress } from '@/lib/utils'
 
 interface PropertyDetailsModalProps {
   property: Property | null
@@ -172,11 +173,7 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
           <div className="mt-4 pt-4 border-t border-gray-700 dark:border-gray-700">
             <div className="text-sm text-gray-300 dark:text-gray-400">Property Address</div>
             <div className="font-medium">
-              {(() => {
-                const parts = propertyAddress.split(',');
-                const raw = parts.length > 1 ? `${parts[0].trim()}, ${parts[1].trim()}` : parts[0].trim();
-                return raw.toLowerCase().split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-              })()}
+              {cleanAddress(propertyAddress)}
             </div>
           </div>
         )}
@@ -587,21 +584,7 @@ export default function PropertyDetailsModal({
           <div className="flex items-center justify-between p-6 border-b border-gray-200/60 dark:border-gray-800 bg-gradient-to-r from-gray-50 to-white dark:from-[#0B0B0B] dark:to-[#151517]">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {(() => {
-                  const street = (property as any)?.address?.streetAddress || property.address;
-                  const city = property.city;
-                  
-                  // If street already contains a comma, it might be the full address
-                  if (street.includes(',')) {
-                    const parts = street.split(',');
-                    const raw = parts.length > 1 ? `${parts[0].trim()}, ${parts[1].trim()}` : parts[0].trim();
-                    return raw.toLowerCase().split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                  }
-                  
-                  // Otherwise combine street and city
-                  const raw = city ? `${street}, ${city}` : street;
-                  return raw.toLowerCase().split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                })()}
+                {cleanAddress(property.address, property.city)}
               </h2>
               <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
                 {(property as any)?.address?.state || property.state} {(property as any)?.address?.zipcode || property.zipCode}
