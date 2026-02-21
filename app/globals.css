@@ -320,6 +320,19 @@ body {
   scrollbar-width: none;  /* Firefox */
 }
 
+/* PayPal Button Fix - Removes white gaps in dark mode */
+.paypal-button-container {
+  width: 100%;
+}
+
+.paypal-button-container :first-child {
+  background-color: transparent !important;
+}
+
+.dark .paypal-button-container iframe {
+  color-scheme: dark !important;
+}
+
 /* Property Recommendations Print Styles */
 @media print {
   @page {

@@ -29,18 +29,22 @@ export default function SubscriptionGuard({ children, requiredPlan }: Subscripti
         return
       }
 
-      // Check if user has valid subscription (including grace periods)
-      if (!hasValidSubscription(user)) {
-        // Subscription expired, cancelled without grace period, or suspended
-        router.push('/upgrade-required')
-        return
+      // Check for users waiting to pay or with no active subscription
+      if (user.subscription_status === 'PENDING_PAYMENT' || !hasValidSubscription(user)) {
+        // Authorized but no active plan - send to checkout
+        if (!user.is_admin) {
+          router.push('/checkout')
+          return
+        }
       }
 
-      // Check if user has required plan tier
+      // Check if user has required plan tier (Premium vs Basic)
       if (requiredPlan === 'PREMIUM' && user.plan_tier !== 'PREMIUM') {
-        // User needs to upgrade to Premium
-        router.push('/upgrade-required')
-        return
+        if (!user.is_admin) {
+          // User has Basic but needs Premium - send to upgrade page
+          router.push('/upgrade-required')
+          return
+        }
       }
 
       // All checks passed - grant access

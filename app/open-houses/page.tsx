@@ -6,6 +6,9 @@ import { v4 as uuidv4 } from 'uuid'
 import { Bed, Bath, BoxSelect, DollarSign } from 'lucide-react'
 import Image from 'next/image'
 import Footer from '@/components/Footer'
+import AuthGuard from '@/components/AuthGuard'
+import SubscriptionGuard from '@/components/SubscriptionGuard'
+import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
 import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
 import { apiRequest, hasValidSubscription } from '@/lib/auth'
 import { openHouseApi } from '@/lib/api'
@@ -80,6 +83,18 @@ const formatAddress = (address: string) => {
 };
 
 export default function OpenHousesPage() {
+  return (
+    <AuthGuard>
+      <BrokerAuthorizationGuard>
+        <SubscriptionGuard requiredPlan="BASIC">
+          <OpenHouseContent />
+        </SubscriptionGuard>
+      </BrokerAuthorizationGuard>
+    </AuthGuard>
+  )
+}
+
+function OpenHouseContent() {
   const router = useRouter()
   const { user: currentUser, isAuthenticated, isLoading: isAuthenticating } = useAuth()
   
@@ -310,23 +325,12 @@ export default function OpenHousesPage() {
     setOpenHouseToDelete(null)
   }
 
-  // Check authentication and load data
+  // load data
   useEffect(() => {
-    if (!isAuthenticating) {
-      if (!isAuthenticated) {
-        router.push(`/login?redirect=${encodeURIComponent('/open-houses')}`)
-        return
-      }
-
-      if (currentUser) {
-        if (!hasValidSubscription(currentUser)) {
-          router.push('/upgrade-required')
-          return
-        }
-        loadOpenHouseHistory()
-      }
+    if (!isAuthenticating && isAuthenticated && currentUser) {
+      loadOpenHouseHistory()
     }
-  }, [isAuthenticating, isAuthenticated, currentUser, router])
+  }, [isAuthenticating, isAuthenticated, currentUser])
 
 
   const loadOpenHouseHistory = useCallback(async () => {

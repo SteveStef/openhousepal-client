@@ -347,9 +347,11 @@ export default function RegisterPage() {
         // Step 2: Email Verification
         <EmailVerificationInput
           email={formData.email}
-          onVerified={() => {
-            setRegistrationStep('pricing')
-            showNotification('success', 'Email verified! Now choose your plan.')
+          onVerified={async () => {
+            // Backend now creates user and returns token during verify-code
+            // Refresh local auth state to reflect the new account
+            await refreshUser()
+            router.push('/broker-authorization')
           }}
           onBack={() => {
             setRegistrationStep('form')

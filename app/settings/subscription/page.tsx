@@ -313,7 +313,14 @@ function SubscriptionContent() {
   // Status badge component
   const StatusBadge = ({ status }: { status: string }) => {
     const getStatusConfig = () => {
+      // Prioritize unauthorized status
+      if (!user?.broker_authorized && !user?.is_admin) {
+        return { color: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700', icon: AlertCircle, text: 'Pending Verification' }
+      }
+
       switch (status) {
+        case 'PENDING_PAYMENT':
+          return { color: 'bg-[#C9A24D]/10 text-[#C9A24D] border-[#C9A24D]/20', icon: Sparkles, text: 'Awaiting Plan Selection' }
         case 'TRIAL':
           return { color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-100 dark:border-blue-900/30', icon: Sparkles, text: 'Free Trial' }
         case 'ACTIVE':
@@ -375,6 +382,7 @@ function SubscriptionContent() {
 
   // Determine plan name
   const getPlanName = () => {
+    if (user?.subscription_status === 'PENDING_PAYMENT') return 'No Plan Active'
     if (user?.plan_tier === 'PREMIUM') return 'Premium Plan'
     if (user?.plan_tier === 'BASIC') return 'Basic Plan'
     return 'Unknown Plan'
@@ -382,6 +390,7 @@ function SubscriptionContent() {
 
   // Determine plan price
   const getPlanPrice = () => {
+    if (user?.subscription_status === 'PENDING_PAYMENT') return '$0.00'
     if (user?.plan_tier === 'PREMIUM') return PRICING_PLANS.PREMIUM.priceString
     if (user?.plan_tier === 'BASIC') return PRICING_PLANS.BASIC.priceString
     return 'N/A'
@@ -405,6 +414,8 @@ function SubscriptionContent() {
   const isSuspended = user?.subscription_status === 'SUSPENDED'
   const isTrial = user?.subscription_status === 'TRIAL'
   const isActive = user?.subscription_status === 'ACTIVE'
+  const isAuthorized = user?.broker_authorized || user?.is_admin
+  const isPendingPayment = user?.subscription_status === 'PENDING_PAYMENT' && isAuthorized
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAFAF7] dark:bg-[#0B0B0B] relative overflow-hidden transition-colors duration-300">
@@ -468,6 +479,27 @@ function SubscriptionContent() {
               Manage your OpenHousePal plan, billing details, and subscription preferences.
             </p>
           </div>
+
+          {/* Alert for pending payment (Account authorized but no plan) */}
+          {isPendingPayment && (
+            <div className="mb-12 bg-white/90 dark:bg-[#151517]/90 border-2 border-[#C9A24D]/30 rounded-[2.5rem] p-8 sm:p-10 flex flex-col sm:flex-row items-center gap-8 shadow-2xl shadow-[#C9A24D]/5 transition-all">
+              <div className="w-20 h-20 bg-[#C9A24D]/10 rounded-[2rem] flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-10 h-10 text-[#C9A24D]" />
+              </div>
+              <div className="flex-1 text-center sm:text-left">
+                <h3 className="font-black text-[#111827] dark:text-white mb-2 uppercase tracking-widest text-xs">Account Authorized</h3>
+                <p className="text-lg text-[#6B7280] dark:text-gray-400 leading-relaxed font-medium mb-0">
+                  Your brokerage credentials have been verified! Choose a plan below to activate your <span className="text-[#C9A24D] font-black">7-day free trial</span> and get started.
+                </p>
+              </div>
+              <button
+                onClick={() => router.push('/checkout')}
+                className="w-full sm:w-auto px-10 py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 transition-all hover:-translate-y-1 active:scale-95"
+              >
+                Choose Plan
+              </button>
+            </div>
+          )}
 
           {/* Alert for suspended/expired subscriptions */}
           {(isSuspended || isExpired) && (
@@ -589,28 +621,30 @@ function SubscriptionContent() {
                 </div>
               </div>
 
-              {/* Feature list */}
-              <div className="mt-10 pt-10 border-t border-gray-100 dark:border-gray-800">
-                <p className="text-xs font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-6">Features Included in {getPlanName()}</p>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {[
-                    'Unlimited Open House QR codes',
-                    'Dynamic visitor sign-in forms',
-                    'Advanced lead management dashboard',
-                    ...(isPremium ? ['Personalized Property Showcases', 'Automated buyer matching engine', 'Priority support'] : [])
-                  ].map((feature, i) => (
-                    <div key={i} className="flex items-center text-sm text-gray-700 dark:text-gray-300 font-bold group">
-                      <div className="w-6 h-6 rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 flex items-center justify-center mr-3 flex-shrink-0 group-hover:bg-green-100 dark:group-hover:bg-green-900/40 transition-colors">
-                        <CheckCircle2 size={14} strokeWidth={3} />
+              {/* Feature list - Only shown if authorized */}
+              {isAuthorized && (
+                <div className="mt-10 pt-10 border-t border-gray-100 dark:border-gray-800">
+                  <p className="text-xs font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-6">Features Included in {getPlanName()}</p>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {[
+                      'Unlimited Open House QR codes',
+                      'Dynamic visitor sign-in forms',
+                      'Advanced lead management dashboard',
+                      ...(isPremium ? ['Personalized Property Showcases', 'Automated buyer matching engine', 'Priority support'] : [])
+                    ].map((feature, i) => (
+                      <div key={i} className="flex items-center text-sm text-gray-700 dark:text-gray-300 font-bold group">
+                        <div className="w-6 h-6 rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 flex items-center justify-center mr-3 flex-shrink-0 group-hover:bg-green-100 dark:group-hover:bg-green-900/40 transition-colors">
+                          <CheckCircle2 size={14} strokeWidth={3} />
+                        </div>
+                        {feature}
                       </div>
-                      {feature}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* 2. Change Plan Card */}
+            {/* 2. Change Plan Card - Only shown if they have an active or trial subscription */}
             {(isActive || isTrial) && (
               <div className="bg-white dark:bg-[#151517] rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 sm:p-10 border border-gray-100 dark:border-gray-800 relative overflow-hidden group hover:shadow-lg transition-all duration-300">
                  <div className="flex items-center mb-6">
@@ -656,74 +690,65 @@ function SubscriptionContent() {
               </div>
             )}
 
-            {/* 3. Manage Subscription Card */}
-            <div className="bg-white dark:bg-[#151517] rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 sm:p-10 border border-gray-100 dark:border-gray-800 transition-colors">
-              <h2 className="text-xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-8 pb-4 border-b border-gray-50 dark:border-gray-800">Security & Billing</h2>
+            {/* 3. Manage Subscription Card - Only shown if authorized and has a subscription status (not pending payment) */}
+            {isAuthorized && user?.subscription_status !== 'PENDING_PAYMENT' && (
+              <div className="bg-white dark:bg-[#151517] rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 sm:p-10 border border-gray-100 dark:border-gray-800 transition-colors">
+                <h2 className="text-xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-8 pb-4 border-b border-gray-50 dark:border-gray-800">Security & Billing</h2>
 
-              {(isActive || isTrial) && !isCancelled && !isSuspended && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
-                  <div className="max-w-xl">
-                     <h4 className="font-bold text-[#111827] dark:text-white mb-2">Need to pause?</h4>
-                     <p className="text-[#6B7280] dark:text-gray-400 text-sm leading-relaxed">
-                        If you cancel, your data stays safe and secure. You'll keep full access to all features until the end of your current billing term.
-                     </p>
+                {(isActive || isTrial) && !isCancelled && !isSuspended && (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
+                    <div className="max-w-xl">
+                      <h4 className="font-bold text-[#111827] dark:text-white mb-2">Need to pause?</h4>
+                      <p className="text-[#6B7280] dark:text-gray-400 text-sm leading-relaxed">
+                          If you cancel, your data stays safe and secure. You'll keep full access to all features until the end of your current billing term.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setCancelModalOpen(true)}
+                      className="px-6 py-4 border border-red-100 dark:border-red-900/30 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 dark:hover:border-red-900/50 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 whitespace-nowrap"
+                    >
+                      Cancel Plan
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setCancelModalOpen(true)}
-                    className="px-6 py-4 border border-red-100 dark:border-red-900/30 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 dark:hover:border-red-900/50 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 whitespace-nowrap"
-                  >
-                    Cancel Plan
-                  </button>
-                </div>
-              )}
+                )}
 
-              {isSuspended && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
-                  <div className="max-w-xl">
-                    <h4 className="font-bold text-[#111827] dark:text-white mb-2">Restore Access</h4>
-                    <p className="text-[#6B7280] dark:text-gray-400 text-sm leading-relaxed">
-                      Reactivate your subscription to immediately restore access to your showcases and visitor data.
-                    </p>
+                {isSuspended && (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
+                    <div className="max-w-xl">
+                      <h4 className="font-bold text-[#111827] dark:text-white mb-2">Restore Access</h4>
+                      <p className="text-[#6B7280] dark:text-gray-400 text-sm leading-relaxed">
+                        Reactivate your subscription to immediately restore access to your showcases and visitor data.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setReactivateModalOpen(true)}
+                      className="px-8 py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300"
+                    >
+                      Reactivate
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setReactivateModalOpen(true)}
-                    className="px-8 py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300"
-                  >
-                    Reactivate
-                  </button>
-                </div>
-              )}
+                )}
 
-              {(isCancelled || isExpired || isSuspended) && (
-                <div className={`${isSuspended ? 'mt-12 pt-8 border-t border-gray-50 dark:border-gray-800' : ''} flex flex-col sm:flex-row sm:items-center justify-between gap-8`}>
-                   <div className="max-w-xl">
-                    <h4 className="font-bold text-[#111827] dark:text-white mb-2">{isSuspended ? 'Use Different Card' : 'Come back anytime'}</h4>
-                    <p className="text-[#6B7280] dark:text-gray-400 text-sm leading-relaxed">
-                      {isSuspended 
-                        ? 'To start fresh with a different card, we must first cancel your current failed agreement.'
-                        : 'Regain full access to the platform by starting a new subscription today. Your previous data is waiting for you.'}
-                    </p>
+                {(isCancelled || isExpired || isSuspended) && (
+                  <div className={`${isSuspended ? 'mt-12 pt-8 border-t border-gray-50 dark:border-gray-800' : ''} flex flex-col sm:flex-row sm:items-center justify-between gap-8`}>
+                    <div className="max-w-xl">
+                      <h4 className="font-bold text-[#111827] dark:text-white mb-2">{isSuspended ? 'Use Different Card' : 'Come back anytime'}</h4>
+                      <p className="text-[#6B7280] dark:text-gray-400 text-sm leading-relaxed">
+                        {isSuspended 
+                          ? 'To start fresh with a different card, we must first cancel your current failed agreement.'
+                          : 'Regain full access to the platform by starting a new subscription today. Your previous data is waiting for you.'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => isSuspended ? setStartFreshModalOpen(true) : setResubscribeModalOpen(true)}
+                      className="px-8 py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300"
+                    >
+                      {isSuspended ? 'Start Fresh' : 'Resubscribe'}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => isSuspended ? setStartFreshModalOpen(true) : setResubscribeModalOpen(true)}
-                    className="px-8 py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300"
-                  >
-                    {isSuspended ? 'Start Fresh' : 'Resubscribe'}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Back button */}
-          <div className="mt-16 text-center">
-            <button
-              onClick={() => router.push('/')}
-              className="group inline-flex items-center text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white font-bold text-xs uppercase tracking-widest transition-all duration-300 px-6 py-3 rounded-full hover:bg-white dark:hover:bg-[#151517] hover:shadow-sm"
-            >
-              <span className="mr-2 group-hover:-translate-x-1 transition-transform">←</span>
-              Back to Dashboard
-            </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </main>

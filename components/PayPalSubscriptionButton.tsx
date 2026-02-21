@@ -2,7 +2,6 @@
 
 import { PayPalButtons, usePayPalScriptReducer } from "@paypal/react-paypal-js";
 import { useState } from "react";
-import { register as registerUser } from '../lib/auth';
 
 interface RegistrationData {
   email: string;
@@ -16,8 +15,9 @@ interface RegistrationData {
 
 interface PayPalSubscriptionButtonProps {
   planId: string;
-  bundleCode?: string; // New optional prop
+  bundleCode?: string;
   registrationData: RegistrationData;
+  isCheckoutOnly?: boolean;
   onSuccess: () => void;
   onError: (error: string) => void;
 }
@@ -26,13 +26,22 @@ export default function PayPalSubscriptionButton({
   planId,
   bundleCode,
   registrationData,
+  isCheckoutOnly = false,
   onSuccess,
   onError
 }: PayPalSubscriptionButtonProps) {
   const [loading, setLoading] = useState(false);
-  const [{ isPending, isRejected }] = usePayPalScriptReducer();
+  const [{ isPending }] = usePayPalScriptReducer();
 
-  // ... (keeping existing error check)
+  const getToken = (): string | null => {
+    if (typeof document === 'undefined') return null;
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+      const [name, value] = cookie.trim().split('=');
+      if (name === 'auth_token') return value;
+    }
+    return null;
+  }
 
   return (
     <div className="w-full min-h-[150px] relative">
@@ -47,82 +56,97 @@ export default function PayPalSubscriptionButton({
         </div>
       )}
       
-      <PayPalButtons
-        style={{
-          layout: "vertical",
-          color: "gold",
-          shape: "rect",
-          label: "subscribe"
-        }}
-        createSubscription={async (data, actions) => {
-          try {
-            return actions.subscription.create({
-              plan_id: planId
-            });
-          } catch (error) {
-            console.error('Error creating subscription:', error);
-            onError('Failed to initialize subscription');
-            throw error;
-          }
-        }}
-        onApprove={async (data, actions) => {
-          setLoading(true);
-          try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-            // Added bundle_code to the query string
-            let url = `${apiUrl}/auth/signup-with-subscription?subscription_id=${encodeURIComponent(data.subscriptionID || '')}&plan_id=${encodeURIComponent(planId)}`;
-            if (bundleCode) {
-              url += `&bundle_code=${encodeURIComponent(bundleCode)}`;
+      <div className="paypal-button-container">
+        <PayPalButtons
+          style={{
+            layout: "vertical",
+            color: "gold",
+            shape: "rect",
+            label: "subscribe"
+          }}
+          createSubscription={async (data, actions) => {
+            try {
+              return actions.subscription.create({
+                plan_id: planId
+              });
+            } catch (error) {
+              console.error('Error creating subscription:', error);
+              onError('Failed to initialize subscription');
+              throw error;
             }
+          }}
+          onApprove={async (data, actions) => {
+            setLoading(true);
+            try {
+              const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+              
+              if (isCheckoutOnly) {
+                let url = `${apiUrl}/auth/link-subscription?subscription_id=${encodeURIComponent(data.subscriptionID || '')}&plan_id=${encodeURIComponent(planId)}`;
+                if (bundleCode) url += `&bundle_code=${encodeURIComponent(bundleCode)}`;
 
-            const response = await fetch(url, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                email: registrationData.email,
-                password: registrationData.password,
-                first_name: registrationData.first_name,
-                last_name: registrationData.last_name,
-                state: registrationData.state,
-                brokerage: registrationData.brokerage,
-                mls_id: registrationData.mls_id
-              })
-            });
+                const response = await fetch(url, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${getToken()}`
+                  }
+                });
 
-            if (response.ok) {
-              // Success! Account and subscription created atomically
-              const result = await response.json();
+                if (response.ok) {
+                  onSuccess();
+                } else {
+                  const errorData = await response.json();
+                  onError(errorData.detail || 'Failed to link subscription.');
+                }
+              } else {
+                let url = `${apiUrl}/auth/signup-with-subscription?subscription_id=${encodeURIComponent(data.subscriptionID || '')}&plan_id=${encodeURIComponent(planId)}`;
+                if (bundleCode) url += `&bundle_code=${encodeURIComponent(bundleCode)}`;
 
-              // Store token in cookie (matching auth.ts pattern)
-              if (typeof document !== 'undefined' && result.access_token) {
-                const expires = new Date();
-                expires.setTime(expires.getTime() + (24 * 60 * 60 * 1000)); // 24 hours
-                document.cookie = `auth_token=${result.access_token}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+                const response = await fetch(url, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    email: registrationData.email,
+                    password: registrationData.password,
+                    first_name: registrationData.first_name,
+                    last_name: registrationData.last_name,
+                    state: registrationData.state,
+                    brokerage: registrationData.brokerage,
+                    mls_id: registrationData.mls_id
+                  })
+                });
+
+                if (response.ok) {
+                  const result = await response.json();
+                  if (typeof document !== 'undefined' && result.access_token) {
+                    const expires = new Date();
+                    expires.setTime(expires.getTime() + (24 * 60 * 60 * 1000));
+                    document.cookie = `auth_token=${result.access_token}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+                  }
+                  onSuccess();
+                } else {
+                  const errorData = await response.json();
+                  onError(errorData.detail || 'Failed to create account.');
+                }
               }
-
-              onSuccess();
-            } else {
-              const errorData = await response.json();
-              onError(errorData.detail || 'Failed to create account. Please try again.');
+            } catch (error) {
+              console.error('Error in payment processing:', error);
+              onError('Failed to process payment. Please try again.');
+            } finally {
+              setLoading(false);
             }
-          } catch (error) {
-            console.error('Error in signup with subscription:', error);
-            onError('Failed to complete registration. Please try again.');
-          } finally {
-            setLoading(false);
-          }
-        }}
-        onCancel={() => {
-          onError('Payment setup was cancelled. Please complete payment to continue.');
-        }}
-        onError={(err) => {
-          console.error('PayPal error:', err);
-          onError('Payment system error. Please try again.');
-        }}
-        disabled={loading}
-      />
+          }}
+          onCancel={() => {
+            onError('Payment setup was cancelled. Please complete payment to continue.');
+          }}
+          onError={(err) => {
+            console.error('PayPal error:', err);
+            onError('Payment system error. Please try again.');
+          }}
+          disabled={loading}
+        />
+      </div>
+
       {loading && (
         <div className="flex items-center justify-center mt-4">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#8b7355] dark:border-[#C9A24D]"></div>

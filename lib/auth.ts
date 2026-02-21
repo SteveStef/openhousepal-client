@@ -9,6 +9,7 @@ export interface ApiResponse<T = any> {
 export interface User {
   id: string;
   email: string;
+  is_admin?: boolean;
   first_name?: string;
   last_name?: string;
   state?: string;
@@ -18,6 +19,7 @@ export interface User {
   // PayPal subscription fields
   subscription_id?: string;
   subscription_status?: string;  // TRIAL, ACTIVE, SUSPENDED, CANCELLED, EXPIRED
+  broker_authorized?: boolean;
   plan_id?: string;
   plan_tier?: string;  // BASIC or PREMIUM
   trial_ends_at?: string;

@@ -87,7 +87,14 @@ export default function EmailVerificationInput({
     setError('')
 
     try {
-      await verifyCode(email, fullCode)
+      const response = await verifyCode(email, fullCode)
+
+      // Store token in cookie for immediate login
+      if (typeof document !== 'undefined' && response.access_token) {
+        const expires = new Date()
+        expires.setTime(expires.getTime() + (24 * 60 * 60 * 1000)) // 24 hours
+        document.cookie = `auth_token=${response.access_token}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`
+      }
 
       // Success!
       setIsVerified(true)

@@ -12,7 +12,9 @@ import ShareCollectionModal from '@/components/ShareCollectionModal'
 import EditPreferencesModal from '@/components/EditPreferencesModal'
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal'
 import ViewToursModal, { PropertyTour } from '@/components/ViewToursModal'
+import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
+import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
 import Toast from '@/components/Toast'
 import { Share2, Calendar } from 'lucide-react'
 import { apiRequest, updatePreferencesAndRefresh } from '@/lib/auth'
@@ -100,13 +102,6 @@ export function ShowcaseContent() {
   const closeToast = () => {
     setToast(prev => ({ ...prev, isVisible: false }))
   }
-
-  // Check authentication and redirect if needed
-  useEffect(() => {
-    if (!isAuthenticating && !isAuthenticated) {
-      router.push(`/login?redirect=${encodeURIComponent('/showcases')}`)
-    }
-  }, [isAuthenticating, isAuthenticated, router])
 
   // Load property interactions when a collection is selected
 
@@ -2520,18 +2515,24 @@ function CreateCollectionModal({
 
 export default function ShowcasesPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#f8f8f6] flex flex-col">
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355] mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading showcases...</p>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    }>
-      <ShowcaseContent />
-    </Suspense>
+    <AuthGuard>
+      <BrokerAuthorizationGuard>
+        <SubscriptionGuard requiredPlan="PREMIUM">
+          <Suspense fallback={
+            <div className="min-h-screen bg-[#f8f8f6] flex flex-col">
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355] mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading showcases...</p>
+                </div>
+              </div>
+              <Footer />
+            </div>
+          }>
+            <ShowcaseContent />
+          </Suspense>
+        </SubscriptionGuard>
+      </BrokerAuthorizationGuard>
+    </AuthGuard>
   )
 }

@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { Home, Moon, Sun, Menu, X, LogOut, Settings, Sparkles } from 'lucide-react'
+import { Home, Moon, Sun, Menu, X, LogOut, Settings, Sparkles, ShieldCheck } from 'lucide-react'
 import { logout, hasValidSubscription } from '@/lib/auth'
 import { useAuth } from '@/contexts/AuthContext'
 import NotificationBell from './NotificationBell'
@@ -131,8 +131,27 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                 
                 {/* Desktop Menu */}
                 <div className="hidden md:flex items-center space-x-1 sm:space-x-3">
+                  {/* Admin Tab */}
+                  {user?.is_admin && (
+                    <Link
+                      href="/admin"
+                      className={`relative px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center group ${
+                        isActive('/admin') 
+                          ? 'text-[#C9A24D] bg-[#C9A24D]/5' 
+                          : 'text-[#6B7280] dark:text-gray-400 hover:text-[#C9A24D] hover:bg-[#C9A24D]/5'
+                      }`}
+                    >
+                      <ShieldCheck className="w-4 h-4 mr-2" />
+                      <span>Admin</span>
+                    </Link>
+                  )}
+
                   <Link
-                    href={hasValidSubscription(user) ? "/open-houses" : "/upgrade-required"}
+                    href={
+                      !user?.is_admin && !user?.broker_authorized ? "/broker-authorization" :
+                      !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
+                      "/open-houses"
+                    }
                     className={`relative px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center group ${
                       isActive('/open-houses') 
                         ? 'text-[#111827] dark:text-white bg-gray-50 dark:bg-gray-800' 
@@ -145,7 +164,12 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                   </Link>
                   
                   <Link 
-                    href={hasPremiumAccess && hasValidSubscription(user) ? "/showcases" : "/upgrade-required"}
+                    href={
+                      !user?.is_admin && !user?.broker_authorized ? "/broker-authorization" :
+                      !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
+                      !user?.is_admin && hasPremiumAccess === false ? "/upgrade-required" :
+                      "/showcases"
+                    }
                     className={`relative px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center group ${
                       isActive('/showcases') 
                         ? 'text-[#111827] dark:text-white bg-gray-50 dark:bg-gray-800' 
@@ -230,8 +254,26 @@ export default function Header({ mode = 'app' }: HeaderProps) {
           {/* Menu Card */}
           <div className="absolute right-4 top-20 left-4 bg-white dark:bg-[#151517] rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden transform transition-all">
             <div className="p-2 space-y-1">
+              {user?.is_admin && (
+                <Link
+                  href="/admin"
+                  className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
+                    isActive('/admin') 
+                      ? 'bg-[#C9A24D]/10 text-[#C9A24D]' 
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  <ShieldCheck className="w-5 h-5" />
+                  <span>Admin Panel</span>
+                </Link>
+              )}
+
               <Link
-                href="/open-houses"
+                href={
+                  !user?.is_admin && !user?.broker_authorized ? "/broker-authorization" :
+                  !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
+                  "/open-houses"
+                }
                 className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
                   isActive('/open-houses') 
                     ? 'bg-[#C9A24D]/10 text-[#C9A24D]' 
@@ -243,7 +285,12 @@ export default function Header({ mode = 'app' }: HeaderProps) {
               </Link>
 
               <Link
-                href="/showcases"
+                href={
+                  !user?.is_admin && !user?.broker_authorized ? "/broker-authorization" :
+                  !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
+                  !user?.is_admin && hasPremiumAccess === false ? "/upgrade-required" :
+                  "/showcases"
+                }
                 className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
                   isActive('/showcases') 
                     ? 'bg-[#C9A24D]/10 text-[#C9A24D]' 
