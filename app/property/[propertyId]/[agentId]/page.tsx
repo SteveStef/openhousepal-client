@@ -33,16 +33,6 @@ export default function PropertyPage() {
     alert('Tour request sent successfully!')
   }
 
-  function cleanAddress(address: string): string {
-    if (!address) return "";
-    const tmp = address.toLowerCase().split(",")[0];
-    return tmp
-      .split(" ")
-      .filter(word => word.length > 0)
-      .map(word => word[0].toUpperCase() + word.substring(1))
-      .join(" ");
-  }
-
   useEffect(() => {
     const fetchProperty = async () => {
       try {
@@ -52,27 +42,43 @@ export default function PropertyPage() {
         if (response.success && response.data) {
           console.log(response.data)
           const propertyData = response.data.property
+          // console.log(propertyData)
           setAgentName(response.data.agentName)
           
           // Map backend property data to frontend Property type
+          const propertyImages = (propertyData.originalPhotos?.length > 0)
+            ? propertyData.originalPhotos.map((p: any) => p.mixedSources?.jpeg?.[0]?.url || p.url).filter(Boolean)
+            : (propertyData.photos?.length > 0)
+              ? propertyData.photos.map((p: any) => p.mixedSources?.jpeg?.[0]?.url || p.url).filter(Boolean)
+              : [propertyData.imageUrl || propertyData.imgSrc || propertyData.image_url].filter(Boolean)
+
           const mappedProperty: Property = {
             id: propertyData.listingKey,
             mlsId: propertyData.mlsId,
-            address: cleanAddress(propertyData.address.streetAddress),
-            city: propertyData.address.city,
-            state: propertyData.address.state,
-            zipCode: propertyData.address.zipcode,
+            address: propertyData.address,
+            city: propertyData.city,
+            state: propertyData.state,
+            zipCode: propertyData.zipcode,
             price: propertyData.price,
             beds: propertyData.bedrooms,
             baths: propertyData.bathrooms,
             squareFeet: propertyData.livingArea,
+            lotSize: propertyData.lotSize,
             yearBuilt: propertyData.yearBuilt,
             propertyType: propertyData.homeType,
             description: propertyData.description,
-            images: propertyData.originalPhotos?.map((p: any) => p.mixedSources?.jpeg?.[0]?.url).filter(Boolean) || [],
+            images: propertyImages,
             status: propertyData.homeStatus,
             listOfficeName: propertyData.listOfficeName,
-            details: propertyData.resoFacts
+            listAgentEmail: propertyData.listAgentEmail,
+            listAgentFullName: propertyData.listAgentFullName,
+            details: {
+              ...propertyData.resoFacts,
+              listAgentEmail: propertyData.listAgentEmail,
+              listAgentFullName: propertyData.listAgentFullName,
+              listOfficeName: propertyData.listOfficeName,
+              listOfficePhone: propertyData.listOfficePhone
+            }
           }
           
           setProperty(mappedProperty)
@@ -108,6 +114,17 @@ export default function PropertyPage() {
       currency: 'USD',
       minimumFractionDigits: 0
     }) : 'Price Available Upon Request'
+  }
+
+  const formatLotSize = (acres?: number, sqft?: number) => {
+    if (acres) return `${acres.toLocaleString()} Acres`
+    if (sqft) {
+      if (sqft >= 10890) { // 0.25 acres
+        return `${(sqft / 43560).toFixed(2)} Acres`
+      }
+      return `${sqft.toLocaleString()} Sq Ft`
+    }
+    return '-'
   }
 
   const handleSubmitMessage = (e: React.FormEvent) => {
@@ -252,9 +269,6 @@ export default function PropertyPage() {
               <div className="mb-8 pb-8 border-b border-gray-100 dark:border-gray-800">
                 <div className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">List Price</div>
                 <div className="text-5xl font-black text-gray-900 dark:text-white tracking-tighter">{formatPrice(property.price)}</div>
-                <div className="text-gray-500 dark:text-gray-400 font-medium text-xs mt-1">
-                  Est. Payment: ${Math.round((property.price || 0) * 0.006).toLocaleString()}/mo
-                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-6 mb-8">
@@ -275,8 +289,8 @@ export default function PropertyPage() {
                 {[
                   { label: 'Type', val: property.propertyType?.replace("_", " ") },
                   { label: 'Price/Sq Ft', val: property.price && property.squareFeet ? `$${Math.round(property.price / property.squareFeet)}` : '-' },
-                  { label: 'Lot Size', val: resoFacts?.lotSizeAcres ? `${resoFacts.lotSizeAcres} Acres` : '-' },
-                  { label: 'HOA', val: resoFacts?.hoaFee || 'None' }
+                  { label: 'Lot Size', val: formatLotSize(resoFacts?.lotSizeAcres, property.lotSize || resoFacts?.lotSize) },
+                  { label: 'Zip Code', val: property.zipCode || '-' }
                 ].map((stat, i) => (
                   <div key={i} className="flex justify-between items-center py-3 border-b last:border-0 border-gray-50 dark:border-gray-800">
                     <span className="text-gray-500 dark:text-gray-400 font-medium">{stat.label}</span>
@@ -288,12 +302,14 @@ export default function PropertyPage() {
 
             <div className="bg-blue-600 rounded-3xl p-8 text-white shadow-xl shadow-blue-500/20">
               <h3 className="text-xl font-bold mb-4">Interested in a Tour?</h3>
-              <p className="text-blue-100 mb-6 text-sm leading-relaxed">Schedule a private viewing of this exceptional property with a local expert.</p>
+              <p className="text-blue-100 mb-6 text-sm leading-relaxed">
+                Schedule a private viewing of this property with {agentName?.split(' ')[0] || 'your agent'}.
+              </p>
               <button 
                 onClick={() => setIsTourModalOpen(true)}
                 className="w-full py-4 bg-white text-blue-600 rounded-2xl font-black hover:bg-blue-50 transition-colors shadow-lg"
               >
-                Schedule Viewing
+                Schedule Showing
               </button>
             </div>
 
@@ -304,7 +320,7 @@ export default function PropertyPage() {
                   <User className="text-purple-600 dark:text-purple-400" size={24} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{agentName || 'Agent'}</h2>
+                  <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight"> Message {agentName || 'Agent'}</h2>
                   <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Get more details about this home</p>
                 </div>
               </div>

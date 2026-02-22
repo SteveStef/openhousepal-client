@@ -639,7 +639,6 @@ export default function EditPreferencesModal({
                   </label>
                   <MultiCityPlacesInput
                     cities={formData.cities || []}
-                    maxCities={5 - ((formData.townships || []).length)}
                     onChange={(cities) => {
                       setFormData(prev => {
                         // Clear address if cities are being added
@@ -665,7 +664,6 @@ export default function EditPreferencesModal({
                   </label>
                   <MultiTownshipPlacesInput
                     townships={formData.townships || []}
-                    maxTownships={5 - ((formData.cities || []).length)}
                     onChange={(townships) => {
                       setFormData(prev => {
                         // Clear address if townships are being added

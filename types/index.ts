@@ -61,6 +61,8 @@ export interface Property {
   added_at?: string; // ISO timestamp when property was added to collection
   is_new?: boolean;   // Backend-computed flag for recently added properties
   listOfficeName?: string; // Listing brokerage name
+  listAgentEmail?: string; // Listing agent email
+  listAgentFullName?: string; // Listing agent name
 }
 
 // New Open House Event interface matching backend schema

@@ -43,7 +43,15 @@ interface OpenHouse {
   similarPropertyIds?: string[];
 }
 
-type WizardStep = 'ADDRESS' | 'FEATURES' | 'SIMILAR_PROPS' | 'COVER_IMAGE' | 'REVIEW';
+type WizardStep = 'ADDRESS' | 'FEATURES' | 'PREFERENCES' | 'SIMILAR_PROPS' | 'COVER_IMAGE' | 'REVIEW';
+
+interface SearchPreferences {
+  minPrice: number;
+  maxPrice: number;
+  minBeds: number;
+  minBaths: number;
+  radius: number;
+}
 
 // --- HELPERS ---
 const formatAddress = (address: string) => {
@@ -103,10 +111,18 @@ function OpenHouseContent() {
   
   // Data State
   const [address, setAddress] = useState('')
+  const [coordinates, setCoordinates] = useState<{ lat: number, lng: number } | null>(null)
   const [propertyData, setPropertyData] = useState<any>(null)
   const [similarProperties, setSimilarProperties] = useState<any[]>([])
   const [isLoadingNeighbors, setIsLoadingNeighbors] = useState(false)
   const [selectedFeatures, setSelectedFeatures] = useState({ signinSheet: true, similarProperties: false })
+  const [searchPreferences, setSearchPreferences] = useState<SearchPreferences>({
+    minPrice: 0,
+    maxPrice: 0,
+    minBeds: 0,
+    minBaths: 0,
+    radius: 5
+  })
   const [selectedSimilarPropertyIds, setSelectedSimilarPropertyIds] = useState<(string | number)[]>([])
   const [selectedImage, setSelectedImage] = useState<PropertyImage | null>(null)
   const [generatedOpenHouseId, setGeneratedOpenHouseId] = useState<string>('')
@@ -389,19 +405,34 @@ function OpenHouseContent() {
     }
   }
 
-  const fetchSimilarProperties = async (data: any, autoSelect = false) => {
+  const fetchSimilarProperties = async (data: any, autoSelect = false, preferences?: SearchPreferences) => {
     setIsLoadingNeighbors(true)
     try {
+      const payload: any = {
+        listingKey: data.listingKey || (data as any).listing_key,
+        city: data.address?.city || data.city,
+        state: data.address?.state || data.state,
+        zipcode: data.address?.zipcode || data.zipcode,
+        price: data.price,
+        bedrooms: data.bedrooms
+      }
+
+      if (preferences) {
+        payload.minPrice = preferences.minPrice
+        payload.maxPrice = preferences.maxPrice
+        payload.minBeds = preferences.minBeds
+        payload.minBaths = preferences.minBaths
+        payload.radius = preferences.radius
+      }
+
+      if (coordinates) {
+        payload.lat = coordinates.lat
+        payload.lng = coordinates.lng
+      }
+
       const response = await apiRequest('/api/properties/similar', {
         method: 'POST',
-        body: JSON.stringify({
-          listingKey: data.listingKey || (data as any).listing_key,
-          city: data.address?.city || data.city,
-          state: data.address?.state || data.state,
-          zipcode: data.address?.zipcode || data.zipcode,
-          price: data.price,
-          bedrooms: data.bedrooms
-        })
+        body: JSON.stringify(payload)
       })
 
       if (response.status === 200 && response.data?.properties) {
@@ -427,8 +458,19 @@ function OpenHouseContent() {
   const handleFeatureSelectionComplete = (features: { signinSheet: boolean; similarProperties: boolean }) => {
     setSelectedFeatures(features)
     if (features.similarProperties) {
-      fetchSimilarProperties(propertyData)
-      setCurrentStep('SIMILAR_PROPS')
+      // Initialize preferences from property data
+      const price = propertyData?.price || 0
+      const beds = propertyData?.bedrooms || 0
+      const baths = propertyData?.bathrooms || 0
+      
+      setSearchPreferences({
+        minPrice: Math.floor(price * 0.8),
+        maxPrice: Math.floor(price * 1.2),
+        minBeds: Math.max(0, beds - 1),
+        minBaths: Math.max(0, Math.floor(baths) - 1),
+        radius: 5
+      })
+      setCurrentStep('PREFERENCES')
     } else {
       setCurrentStep('COVER_IMAGE')
     }
@@ -581,6 +623,7 @@ function OpenHouseContent() {
                             required
                             value={address}
                             onChange={setAddress}
+                            onCoordinatesChange={(lat, lng) => setCoordinates({ lat, lng })}
                             placeholder="Enter property address..."
                             className="block w-full pl-11 sm:pl-12 pr-4 py-3 sm:py-4 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-transparent focus:border-[#C9A24D] rounded-xl text-base text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-500 shadow-[0_2px_10px_rgba(0,0,0,0.05)] focus:shadow-[0_8px_30px_rgba(201,162,77,0.15)] focus:outline-none transition-all duration-300"
                           />
@@ -722,7 +765,19 @@ function OpenHouseContent() {
                   setCurrentStep('ADDRESS')
                   setAddress('') // Optional: clear address or keep it? Keeping is better UX usually, but here we go back to start.
                   setPropertyData(null)
+                  setCoordinates(null)
                 }}
+              />
+            ) : currentStep === 'PREFERENCES' ? (
+              <SimilarPropertiesPreferencesView
+                preferences={searchPreferences}
+                address={address}
+                onFindProperties={async (prefs) => {
+                  setSearchPreferences(prefs)
+                  await fetchSimilarProperties(propertyData, false, prefs)
+                  setCurrentStep('SIMILAR_PROPS')
+                }}
+                onBack={() => setCurrentStep('FEATURES')}
               />
             ) : currentStep === 'SIMILAR_PROPS' ? (
               <SimilarPropertiesSelectionView
@@ -730,7 +785,7 @@ function OpenHouseContent() {
                 isLoading={isLoadingNeighbors}
                 initialSelectedIds={selectedSimilarPropertyIds}
                 onNext={handleSimilarPropertiesComplete}
-                onBack={() => setCurrentStep('FEATURES')}
+                onBack={() => setCurrentStep('PREFERENCES')}
               />
             ) : currentStep === 'COVER_IMAGE' ? (
                <ImageSelectionView
@@ -1490,6 +1545,160 @@ const OpenHouseCard = memo(function OpenHouseCard({
             </a>
           </div>
         </div>
+      </div>
+    </div>
+  )
+})
+
+// Similar Properties Preferences Component
+const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesPreferencesView({ 
+  preferences: initialPreferences, 
+  address,
+  onFindProperties, 
+  onBack 
+}: { 
+  preferences: SearchPreferences, 
+  address: string,
+  onFindProperties: (prefs: SearchPreferences) => void, 
+  onBack: () => void 
+}) {
+  const [prefs, setPrefs] = useState<SearchPreferences>(initialPreferences)
+
+  const formatPriceForDisplay = (val: number) => {
+    return val === 0 ? "" : val.toLocaleString()
+  }
+
+  const parsePriceFromDisplay = (val: string) => {
+    return Number(val.replace(/\D/g, ""))
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    
+    if (name === "minPrice" || name === "maxPrice") {
+      setPrefs(prev => ({
+        ...prev,
+        [name]: parsePriceFromDisplay(value)
+      }))
+    } else {
+      setPrefs(prev => ({
+        ...prev,
+        [name]: Number(value)
+      }))
+    }
+  }
+
+  return (
+    <div className="bg-white dark:bg-[#151517] rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-5 sm:p-12 transition-colors max-w-4xl mx-auto animate-fadeIn">
+      {/* Header */}
+      <div className="text-center mb-8 sm:mb-12">
+        <h2 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white mb-3 sm:mb-4 tracking-tight">Refine Your Search</h2>
+        <p className="text-base sm:text-lg text-gray-500 dark:text-gray-400 font-light truncate px-4">Find properties similar to <span className="font-medium text-gray-900 dark:text-white">{address}</span></p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 sm:mb-12">
+        {/* Price Section */}
+        <div className="space-y-4 bg-[#faf9f7] dark:bg-[#1c1c1e] p-6 rounded-2xl border border-gray-100 dark:border-gray-800">
+          <h3 className="text-sm font-bold text-[#8b7355] dark:text-[#C9A24D] uppercase tracking-widest flex items-center">
+            <DollarSign className="w-4 h-4 mr-2" /> Price Range
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Min Price</label>
+              <input
+                type="text"
+                name="minPrice"
+                value={formatPriceForDisplay(prefs.minPrice)}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#C9A24D] transition-all"
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Max Price</label>
+              <input
+                type="text"
+                name="maxPrice"
+                value={formatPriceForDisplay(prefs.maxPrice)}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#C9A24D] transition-all"
+                placeholder="No Max"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Filters Section */}
+        <div className="space-y-4 bg-[#faf9f7] dark:bg-[#1c1c1e] p-6 rounded-2xl border border-gray-100 dark:border-gray-800">
+          <h3 className="text-sm font-bold text-[#8b7355] dark:text-[#C9A24D] uppercase tracking-widest flex items-center">
+            <BoxSelect className="w-4 h-4 mr-2" /> Property Details
+          </h3>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-6">
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Min Beds</label>
+              <select
+                name="minBeds"
+                value={prefs.minBeds}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#C9A24D] transition-all appearance-none"
+              >
+                {[0, 1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}+ Beds</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Min Baths</label>
+              <select
+                name="minBaths"
+                value={prefs.minBaths}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#C9A24D] transition-all appearance-none"
+              >
+                {[0, 1, 1.5, 2, 2.5, 3, 3.5, 4].map(n => <option key={n} value={n}>{n}+ Baths</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Radius Section (Full Width) */}
+        <div className="md:col-span-2 space-y-4 bg-[#faf9f7] dark:bg-[#1c1c1e] p-6 rounded-2xl border border-gray-100 dark:border-gray-800">
+          <h3 className="text-sm font-bold text-[#8b7355] dark:text-[#C9A24D] uppercase tracking-widest flex items-center">
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            Search Radius
+          </h3>
+          <div className="flex items-center gap-6">
+            <input
+              type="range"
+              name="radius"
+              min="1"
+              max="20"
+              step="1"
+              value={prefs.radius}
+              onChange={handleChange}
+              className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#C9A24D]"
+            />
+            <div className="bg-white dark:bg-[#0B0B0B] px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 min-w-[100px] text-center">
+              <span className="text-lg font-black text-gray-900 dark:text-white">{prefs.radius}</span>
+              <span className="text-[10px] font-bold text-gray-500 uppercase ml-1">Miles</span>
+            </div>
+          </div>
+          <p className="text-[10px] text-gray-400 font-medium">Search area centered on the property coordinates captured from address entry.</p>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-col-reverse sm:flex-row justify-between items-center gap-3">
+        <button
+          onClick={onBack}
+          className="w-full sm:w-auto px-6 py-3.5 bg-white dark:bg-transparent text-gray-600 dark:text-gray-400 font-bold rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 text-sm"
+        >
+          Back
+        </button>
+        <button
+          onClick={() => onFindProperties(prefs)}
+          className="w-full sm:w-auto px-10 py-3.5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] font-bold rounded-xl shadow-lg hover:shadow-xl hover:bg-[#8b7355] dark:hover:bg-[#C9A24D] hover:text-white transform hover:-translate-y-0.5 transition-all duration-300 active:scale-95 text-sm uppercase tracking-widest"
+        >
+          Find Properties
+        </button>
       </div>
     </div>
   )

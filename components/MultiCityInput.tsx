@@ -16,7 +16,7 @@ export default function MultiCityInput({
   cities,
   onChange,
   placeholder = 'Type city name and press Enter...',
-  maxCities = 10,
+  maxCities = 50,
   className = '',
   disabled = false
 }: MultiCityInputProps) {
@@ -140,7 +140,7 @@ export default function MultiCityInput({
       {!error && (
         <p className="mt-1 text-sm text-gray-500">
           {cities.length > 0 
-            ? `${cities.length}/${maxCities} cities selected. Press Enter or comma to add cities.`
+            ? `${cities.length} cities selected. Press Enter or comma to add cities.`
             : 'Type city names and press Enter or comma to add them.'
           }
         </p>

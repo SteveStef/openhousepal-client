@@ -62,7 +62,7 @@ export function PropertyRecommendationCard({
   return (
     <article className={`group relative flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm border-2 transition-all duration-300 ${
       selected 
-        ? 'border-[#8b7355] ring-4 ring-[#8b7355]/10 scale-[1.02]' 
+        ? 'border-[#8b7355] ring-4 ring-[#8b7355]/10' 
         : 'border-transparent hover:border-gray-200'
     } ${isCompact ? '' : ''}`}>
       
@@ -79,7 +79,7 @@ export function PropertyRecommendationCard({
         {/* Selection Overlay Indicator */}
         {selected && (
           <div className="absolute inset-0 bg-[#8b7355]/10 flex items-center justify-center">
-            <div className="bg-[#8b7355] text-white p-2 rounded-full shadow-lg transform scale-110 animate-fadeIn">
+            <div className="bg-[#8b7355] text-white p-2 rounded-full shadow-lg transform animate-fadeIn">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
             </div>
           </div>
@@ -100,34 +100,36 @@ export function PropertyRecommendationCard({
         </div>
 
         {/* Bottom Row: Stats & QR Code */}
-        <div className="mt-auto flex items-center justify-between gap-4 print:gap-2">
+        <div className="mt-auto flex items-end justify-between gap-2 print:gap-2">
           
-          {/* Stats Row */}
-          <div className="flex items-center gap-3 print:gap-2">
-            <div className="flex items-center gap-1.5">
+          {/* Stats Row - Improved for mobile responsiveness */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 print:gap-2 min-w-0">
+            <div className="flex items-center gap-1 whitespace-nowrap">
               <span className="text-sm font-black text-[#111827] print:text-black">{beds || 0}</span>
-              <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold print:text-[8pt] print:text-gray-700">Beds</span>
+              <span className="text-[9px] sm:text-[10px] uppercase tracking-widest text-gray-500 font-bold print:text-[8pt] print:text-gray-700">Beds</span>
             </div>
             
-            <div className="w-px h-3 bg-gray-200" />
+            <div className="hidden sm:block w-px h-3 bg-gray-200" />
             
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 whitespace-nowrap">
               <span className="text-sm font-black text-[#111827] print:text-black">{baths || 0}</span>
-              <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold print:text-[8pt] print:text-gray-700">Baths</span>
+              <span className="text-[9px] sm:text-[10px] uppercase tracking-widest text-gray-500 font-bold print:text-[8pt] print:text-gray-700">Baths</span>
             </div>
 
-            <div className="w-px h-3 bg-gray-200" />
+            <div className="hidden sm:block w-px h-3 bg-gray-200" />
             
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm font-black text-[#111827] print:text-black">{sqft?.toLocaleString() || '-'}</span>
-              <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold print:text-[8pt] print:text-gray-700">Sq Ft</span>
+            <div className="flex items-center gap-1 whitespace-nowrap min-w-0">
+              <span className="text-sm font-black text-[#111827] print:text-black">
+                {sqft ? sqft.toLocaleString() : '-'}
+              </span>
+              <span className="text-[9px] sm:text-[10px] uppercase tracking-widest text-gray-500 font-bold print:text-[8pt] print:text-gray-700 shrink-0">Sq Ft</span>
             </div>
           </div>
 
           {/* QR Code */}
           {!hideQr && (
-            <div className="shrink-0 print:block">
-              <div className="relative h-12 w-12 overflow-hidden rounded-xl bg-white p-1 shadow-sm border border-gray-100 print:h-14 print:w-14 print:border-gray-200">
+            <div className="shrink-0 print:block ml-2">
+              <div className="relative h-10 w-10 sm:h-12 sm:w-12 overflow-hidden rounded-xl bg-white p-1 shadow-sm border border-gray-100 print:h-14 print:w-14 print:border-gray-200">
                  <Image
                   src={qrUrl || "/placeholder.svg"}
                   alt="Scan"

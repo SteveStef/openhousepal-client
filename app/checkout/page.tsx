@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import PayPalSubscriptionButton from '@/components/PayPalSubscriptionButton'
 import { PayPalScriptProvider } from "@paypal/react-paypal-js"
 import { PRICING_PLANS, TRIAL_PERIOD_DAYS } from '@/lib/pricing'
+import { hasValidSubscription } from '@/lib/auth'
 import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
 import AuthGuard from '@/components/AuthGuard'
 import Toast from '@/components/Toast'
@@ -52,8 +53,8 @@ function CheckoutContent() {
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' })
 
   useEffect(() => {
-    // If user is already paid, send them to showcases
-    if (!isAuthLoading && user && user.subscription_status !== 'PENDING_PAYMENT' && user.subscription_id) {
+    // If user is already paid and has a valid subscription, send them to showcases
+    if (!isAuthLoading && user && hasValidSubscription(user)) {
       router.push('/showcases')
     }
   }, [user, isAuthLoading, router])

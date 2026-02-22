@@ -18,7 +18,7 @@ export default function MultiCityPlacesInput({
   cities,
   onChange,
   placeholder = 'Type city name and press Enter...',
-  maxCities = 10,
+  maxCities = 50,
   className = '',
   disabled = false
 }: MultiCityPlacesInputProps) {
@@ -256,7 +256,7 @@ export default function MultiCityPlacesInput({
       {!error && (
         <p className="mt-1 text-sm text-gray-500">
           {cities.length > 0 
-            ? `${cities.length}/${maxCities} cities selected. Type city names for suggestions or press Enter to add.`
+            ? `${cities.length} cities selected. Type city names for suggestions or press Enter to add.`
             : isLoaded 
               ? 'Start typing city names to see suggestions from Google Places.'
               : 'Type city names and press Enter or comma to add them.'

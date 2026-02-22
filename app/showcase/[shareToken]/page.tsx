@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { Collection, Property, Comment } from '@/types'
 import { getToken } from '@/lib/auth'
+import { propertyApi } from '@/lib/api'
 import PropertyGrid from '@/components/PropertyGrid'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import ScheduleTourModal, { TourRequest } from '@/components/ScheduleTourModal'
@@ -523,10 +524,10 @@ export default function CustomerShowcasePage() {
 
     try {
       // Fetch/cache detailed property information in background
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/properties/${property.id}/cache`)
+      const response = await propertyApi.cache(property.id as string)
 
-      if (response.ok) {
-        const cacheResponse = await response.json()
+      if (response.success && response.data) {
+        const cacheResponse = response.data
 
         if (cacheResponse.success && cacheResponse.property) {
           // Update property with enhanced flat details

@@ -119,7 +119,7 @@ export function PropertyRecommendationsPrintView({ openHouseId, agentId, classNa
               
               <div className="flex flex-col text-left">
                 <h1 className="font-serif text-2xl font-semibold tracking-tight text-[#111827] print:text-lg">
-                  Property Recommendations
+                  Similar Properties
                 </h1>
                 <p className="text-sm text-gray-500 print:text-xs">
                   Page {pageIndex + 1} of {pages.length}

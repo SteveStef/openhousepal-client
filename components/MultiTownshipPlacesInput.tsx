@@ -17,7 +17,7 @@ export default function MultiTownshipPlacesInput({
   townships,
   onChange,
   placeholder = 'Type township name and press Enter...',
-  maxTownships = 10,
+  maxTownships = 50,
   className = '',
   disabled = false
 }: MultiTownshipPlacesInputProps) {
@@ -256,7 +256,7 @@ export default function MultiTownshipPlacesInput({
       {!error && (
         <p className="mt-1 text-sm text-gray-500">
           {townships.length > 0 
-            ? `${townships.length}/${maxTownships} townships selected. Type township names for suggestions or press Enter to add.`
+            ? `${townships.length} townships selected. Type township names for suggestions or press Enter to add.`
             : isLoaded 
               ? 'Start typing township names to see suggestions from Google Places.'
               : 'Type township names and press Enter or comma to add them.'

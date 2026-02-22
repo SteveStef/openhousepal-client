@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Collection, Property } from '@/types'
+import { propertyApi } from '@/lib/api'
 import PropertyCard from './PropertyCard'
 import PropertyDetailsModal from './PropertyDetailsModal'
 import ChatAssistant from './ChatAssistant'
@@ -81,10 +82,10 @@ export default function CustomerCollectionView({
     
     // Fetch detailed property information in background
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/properties/${property.id}/cache`)
+      const response = await propertyApi.cache(property.id as string)
       
-      if (response.ok) {
-        const cacheResponse = await response.json()
+      if (response.success && response.data) {
+        const cacheResponse = response.data
         
         if (cacheResponse.success && cacheResponse.property) {
           // Update property with detailed information merging flat data

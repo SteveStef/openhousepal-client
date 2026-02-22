@@ -16,7 +16,7 @@ export default function MultiTownshipInput({
   townships,
   onChange,
   placeholder = 'Type township name and press Enter...',
-  maxTownships = 10,
+  maxTownships = 50,
   className = '',
   disabled = false
 }: MultiTownshipInputProps) {
@@ -140,7 +140,7 @@ export default function MultiTownshipInput({
       {!error && (
         <p className="mt-1 text-sm text-gray-500">
           {townships.length > 0 
-            ? `${townships.length}/${maxTownships} townships selected. Press Enter or comma to add townships.`
+            ? `${townships.length} townships selected. Press Enter or comma to add townships.`
             : 'Type township names and press Enter or comma to add them.'
           }
         </p>

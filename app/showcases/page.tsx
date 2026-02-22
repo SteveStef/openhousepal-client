@@ -18,7 +18,7 @@ import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
 import Toast from '@/components/Toast'
 import { Share2, Calendar } from 'lucide-react'
 import { apiRequest, updatePreferencesAndRefresh } from '@/lib/auth'
-import { collectionsApi } from '@/lib/api'
+import { collectionsApi, propertyApi } from '@/lib/api'
 import MultiCityPlacesInput from '@/components/MultiCityPlacesInput'
 import MultiTownshipPlacesInput from '@/components/MultiTownshipPlacesInput'
 import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
@@ -704,10 +704,10 @@ export function ShowcaseContent() {
     
     // Fetch detailed property information in background
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/properties/${property.id}/cache`)
+      const response = await propertyApi.cache(property.id as string)
       
-      if (response.ok) {
-        const cacheResponse = await response.json()
+      if (response.success && response.data) {
+        const cacheResponse = response.data
         
         if (cacheResponse.success && cacheResponse.property) {
           // Update property with detailed information merging flat data
@@ -1743,20 +1743,7 @@ function CreateCollectionModal({
           }
         }
       } else if (field === 'cities' || field === 'townships') {
-        // Check combined cities/townships limit (max 5 total)
         const newValue = value as string[]
-        const newCities = field === 'cities' ? newValue : prevFormData.cities || []
-        const newTownships = field === 'townships' ? newValue : prevFormData.townships || []
-
-        // Prevent adding if it would exceed combined limit of 5
-        if (newCities.length + newTownships.length > 5) {
-          const otherFieldCount = field === 'cities' ? newTownships.length : newCities.length
-          setValidationErrors(prev => ({
-            ...prev,
-            location: `Maximum 5 total cities and townships combined. You currently have ${otherFieldCount} ${field === 'cities' ? 'townships' : 'cities'}.`
-          }))
-          return prevFormData // Don't update the form data
-        }
 
         // If area filters are being used and we have an address, clear it
         if (newValue.length > 0 && prevFormData.address) {
@@ -2284,13 +2271,6 @@ function CreateCollectionModal({
                           >
                             Clear
                           </button>
-                          <span className={`text-[10px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider ${
-                            ((formData.cities?.length || 0) + (formData.townships?.length || 0)) >= 5
-                              ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 border border-red-200 dark:border-red-800'
-                              : 'bg-[#111827] dark:bg-white text-white dark:text-[#111827]'
-                          }`}>
-                            {(formData.cities?.length || 0) + (formData.townships?.length || 0)}/5 locations
-                          </span>
                         </>
                       )}
                     </div>
@@ -2303,18 +2283,8 @@ function CreateCollectionModal({
                       </label>
                       <MultiCityPlacesInput
                         cities={formData.cities}
-                        maxCities={5 - (formData.townships?.length || 0)}
                         onChange={(cities) => {
                           setFormData(prev => {
-                            const newTownships = prev.townships || []
-                            // Check combined limit (max 5 total)
-                            if (cities.length + newTownships.length > 5) {
-                              setValidationErrors(prevErrors => ({
-                                ...prevErrors,
-                                location: `Maximum 5 total cities and townships combined. You currently have ${newTownships.length} townships.`
-                              }))
-                              return prev // Don't update
-                            }
                             // Clear address if cities are being added
                             if (cities.length > 0 && prev.address) {
                               return { ...prev, cities, address: '' }
@@ -2338,18 +2308,8 @@ function CreateCollectionModal({
                       </label>
                       <MultiTownshipPlacesInput
                         townships={formData.townships}
-                        maxTownships={5 - (formData.cities?.length || 0)}
                         onChange={(townships) => {
                           setFormData(prev => {
-                            const newCities = prev.cities || []
-                            // Check combined limit (max 5 total)
-                            if (townships.length + newCities.length > 5) {
-                              setValidationErrors(prevErrors => ({
-                                ...prevErrors,
-                                location: `Maximum 5 total cities and townships combined. You currently have ${newCities.length} cities.`
-                              }))
-                              return prev // Don't update
-                            }
                             // Clear address if townships are being added
                             if (townships.length > 0 && prev.address) {
                               return { ...prev, townships, address: '' }

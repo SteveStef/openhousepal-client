@@ -81,6 +81,10 @@ class ApiClient {
     return this.request(`/open-house/property/${qrCode}`)
   }
 
+  async cacheProperty(propertyId: string): Promise<ApiResponse<any>> {
+    return this.request(`/properties/${propertyId}/cache`)
+  }
+
   // Open house form submission
   async submitSignIn(data: {
     formData: SignInFormData
@@ -216,6 +220,7 @@ export const api = new ApiClient(API_BASE_URL)
 export const propertyApi = {
   getByQR: (qrCode: string) => api.getPropertyByQR(qrCode),
   getById: (id: string) => api.getProperty(id),
+  cache: (id: string) => api.cacheProperty(id),
 }
 
 export const customerApi = {
