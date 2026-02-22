@@ -13,7 +13,7 @@ import Link from 'next/link'
 import PropertyReport from '@/components/PropertyReport'
 import DescriptionSection from '@/components/DescriptionSection'
 import ScheduleTourModal, { TourRequest } from '@/components/ScheduleTourModal'
-import Toast from '@/components/Toast'
+import { useToast } from '@/contexts/ToastContext'
 
 export default function PropertyPage() {
   const { propertyId, agentId } = useParams()
@@ -29,25 +29,7 @@ export default function PropertyPage() {
   const [visitorContact, setVisitorContact] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Toast notification state
-  const [toast, setToast] = useState<{
-    message: string
-    type: 'success' | 'error'
-    isVisible: boolean
-  }>({
-    message: '',
-    type: 'success',
-    isVisible: false
-  })
-
-  // Toast helper functions
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ message, type, isVisible: true })
-  }
-
-  const closeToast = () => {
-    setToast(prev => ({ ...prev, isVisible: false }))
-  }
+  const { showToast } = useToast()
 
   async function handleTourSubmit(data: TourRequest) {
     console.log('Tour requested:', data)
@@ -280,9 +262,15 @@ export default function PropertyPage() {
             </div>
             
             {images.length > 1 && (
-              <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+              <div className="flex flex-nowrap space-x-4 overflow-x-auto pb-4 custom-scrollbar snap-x">
                 {images.map((imageUrl, index) => (
-                  <button key={index} onClick={() => setCurrentImageIndex(index)} className={`relative flex-shrink-0 w-24 h-24 rounded-2xl overflow-hidden border-4 transition-all ${index === currentImageIndex ? 'border-blue-500 shadow-lg scale-105' : 'border-transparent hover:border-gray-300 dark:hover:border-gray-700'}`}><Image src={imageUrl} alt={`Thumbnail ${index + 1}`} fill className="object-cover" /></button>
+                  <button 
+                    key={index} 
+                    onClick={() => setCurrentImageIndex(index)} 
+                    className={`relative flex-shrink-0 w-24 h-24 rounded-2xl overflow-hidden border-4 transition-all snap-start ${index === currentImageIndex ? 'border-blue-500 shadow-lg scale-105' : 'border-transparent hover:border-gray-300 dark:hover:border-gray-700'}`}
+                  >
+                    <Image src={imageUrl} alt={`Thumbnail ${index + 1}`} fill className="object-cover" />
+                  </button>
                 ))}
               </div>
             )}
@@ -429,14 +417,6 @@ export default function PropertyPage() {
         onClose={() => setIsTourModalOpen(false)}
         property={property}
         onSubmit={handleTourSubmit}
-      />
-      
-      {/* Toast Notification */}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        isVisible={toast.isVisible}
-        onClose={closeToast}
       />
     </div>
   )

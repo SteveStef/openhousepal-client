@@ -15,8 +15,8 @@ import ViewToursModal, { PropertyTour } from '@/components/ViewToursModal'
 import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
-import Toast from '@/components/Toast'
 import { Share2, Calendar } from 'lucide-react'
+import { useToast } from '@/contexts/ToastContext'
 import { apiRequest, updatePreferencesAndRefresh } from '@/lib/auth'
 import { collectionsApi, propertyApi } from '@/lib/api'
 import MultiCityPlacesInput from '@/components/MultiCityPlacesInput'
@@ -83,25 +83,7 @@ export function ShowcaseContent() {
   const [isToursModalOpen, setIsToursModalOpen] = useState(false)
   const [isLoadingTours, setIsLoadingTours] = useState(false)
 
-  // Toast notification state
-  const [toast, setToast] = useState<{
-    message: string
-    type: 'success' | 'error'
-    isVisible: boolean
-  }>({
-    message: '',
-    type: 'success',
-    isVisible: false
-  })
-
-  // Toast helper functions
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ message, type, isVisible: true })
-  }
-
-  const closeToast = () => {
-    setToast(prev => ({ ...prev, isVisible: false }))
-  }
+  const { showToast } = useToast()
 
   // Load property interactions when a collection is selected
 
@@ -1606,14 +1588,6 @@ export function ShowcaseContent() {
         activeShowcasesCount={activeShowcasesCount}
         maxActiveShowcases={maxActiveShowcases}
         isNearLimit={isNearLimit}
-      />
-
-      {/* Toast Notification */}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        isVisible={toast.isVisible}
-        onClose={closeToast}
       />
 
     </div>

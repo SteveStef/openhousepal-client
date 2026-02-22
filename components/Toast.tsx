@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { CheckCircle2, XCircle, X } from 'lucide-react'
 
 export interface ToastProps {
   message: string
@@ -20,25 +21,55 @@ export default function Toast({ message, type, isVisible, onClose, duration = 50
 
   if (!isVisible) return null
 
-  const bgColor = type === 'success' ? 'bg-emerald-600' : 'bg-red-600'
-  const borderAccent = type === 'success' ? 'border-l-emerald-700' : 'border-l-red-700'
+  const config = {
+    success: {
+      icon: <CheckCircle2 className="w-5 h-5 text-emerald-500" />,
+      border: 'border-emerald-500/20',
+      bg: 'bg-emerald-50/90 dark:bg-emerald-500/10',
+      accent: 'bg-emerald-500',
+    },
+    error: {
+      icon: <XCircle className="w-5 h-5 text-red-500" />,
+      border: 'border-red-500/20',
+      bg: 'bg-red-50/90 dark:bg-red-500/10',
+      accent: 'bg-red-500',
+    }
+  }
+
+  const { icon, border, bg, accent } = config[type]
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 animate-slide-in-right">
-      <div className={`${bgColor} ${borderAccent} border-l-4 text-white rounded-lg shadow-2xl ring-1 ring-black/10 p-4 max-w-md flex items-center space-x-3`}>
-        {/* Message */}
-        <div className="flex-1">
-          <p className="text-base font-medium whitespace-pre-line">{message}</p>
+    <div className="fixed bottom-8 right-8 z-[100] animate-slide-in-right">
+      <div className={`
+        ${bg} ${border}
+        backdrop-blur-md border px-5 py-4 rounded-2xl shadow-2xl 
+        min-w-[320px] max-w-md flex items-center gap-4
+        ring-1 ring-black/5 dark:ring-white/10
+      `}>
+        {/* Left Status Accent Bar */}
+        <div className={`absolute left-0 top-1/4 bottom-1/4 w-1 rounded-r-full ${accent}`} />
+
+        {/* Icon Container */}
+        <div className="flex-shrink-0">
+          {icon}
         </div>
 
-        {/* Close button */}
+        {/* Message Content */}
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">
+            {type === 'success' ? 'Success' : 'Attention'}
+          </p>
+          <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 font-medium whitespace-pre-line leading-relaxed">
+            {message}
+          </p>
+        </div>
+
+        {/* Close Button */}
         <button
           onClick={onClose}
-          className="text-white/70 hover:text-white transition-colors flex-shrink-0"
+          className="flex-shrink-0 p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-          </svg>
+          <X size={16} strokeWidth={2.5} />
         </button>
       </div>
     </div>

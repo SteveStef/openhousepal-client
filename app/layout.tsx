@@ -3,6 +3,7 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { ToastProvider } from '@/contexts/ToastContext'
 import { Providers } from './providers'
 import AppHeader from '@/components/AppHeader'
 
@@ -17,14 +18,16 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className="overflow-x-hidden">
       <body className={`${inter.className} bg-[#faf9f7] dark:bg-[#0B0B0B] min-h-screen text-[#111827] dark:text-[#F3F4F6] overflow-x-hidden`}>
         <Providers>
-          <AuthProvider>
-            <main className="min-h-screen flex flex-col overflow-x-hidden">
-              <div className="print:hidden">
-                <AppHeader />
-              </div>
-              {children}
-            </main>
-          </AuthProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <main className="min-h-screen flex flex-col overflow-x-hidden">
+                <div className="print:hidden">
+                  <AppHeader />
+                </div>
+                {children}
+              </main>
+            </AuthProvider>
+          </ToastProvider>
         </Providers>
       </body>
     </html>
