@@ -200,6 +200,27 @@ class ApiClient {
     return this.request('/api/v1/notifications/unread-count')
   }
 
+  async sendMessageToAgent(data: {
+    agentId: string
+    propertyId: string
+    propertyAddress: string
+    visitorName: string
+    visitorContact: string
+    message: string
+  }): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request('/api/properties/message-agent', {
+      method: 'POST',
+      body: JSON.stringify({
+        agent_id: data.agentId,
+        property_id: data.propertyId,
+        property_address: data.propertyAddress,
+        visitor_name: data.visitorName,
+        visitor_contact: data.visitorContact,
+        message: data.message
+      }),
+    })
+  }
+
   async markNotificationAsRead(notificationId: string): Promise<ApiResponse<NotificationResponse>> {
     return this.request(`/api/v1/notifications/${notificationId}/mark-as-read`, {
       method: 'PATCH',

@@ -13,6 +13,7 @@ import Link from 'next/link'
 import PropertyReport from '@/components/PropertyReport'
 import DescriptionSection from '@/components/DescriptionSection'
 import ScheduleTourModal, { TourRequest } from '@/components/ScheduleTourModal'
+import Toast from '@/components/Toast'
 
 export default function PropertyPage() {
   const { propertyId, agentId } = useParams()
@@ -24,13 +25,35 @@ export default function PropertyPage() {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false)
   const [isTourModalOpen, setIsTourModalOpen] = useState(false)
   const [message, setMessage] = useState('')
+  const [visitorName, setVisitorName] = useState('')
+  const [visitorContact, setVisitorContact] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Toast notification state
+  const [toast, setToast] = useState<{
+    message: string
+    type: 'success' | 'error'
+    isVisible: boolean
+  }>({
+    message: '',
+    type: 'success',
+    isVisible: false
+  })
+
+  // Toast helper functions
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type, isVisible: true })
+  }
+
+  const closeToast = () => {
+    setToast(prev => ({ ...prev, isVisible: false }))
+  }
 
   async function handleTourSubmit(data: TourRequest) {
     console.log('Tour requested:', data)
     // I will customize this later to send to backend
     await new Promise(resolve => setTimeout(resolve, 1000))
-    alert('Tour request sent successfully!')
+    showToast('Tour request sent successfully!', 'success')
   }
 
   useEffect(() => {
@@ -127,15 +150,48 @@ export default function PropertyPage() {
     return '-'
   }
 
-  const handleSubmitMessage = (e: React.FormEvent) => {
+  const handleSubmitMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!message.trim()) return
+    
+    if (!visitorName.trim()) {
+      showToast('Please enter your name.', 'error')
+      return
+    }
+    if (!visitorContact.trim()) {
+      showToast('Please enter your email or phone number.', 'error')
+      return
+    }
+    if (!message.trim()) {
+      showToast('Please enter a message.', 'error')
+      return
+    }
+    if (!property) return
+    
     setIsSubmitting(true)
-    setTimeout(() => {
-      setMessage('')
+    try {
+      const response = await api.sendMessageToAgent({
+        agentId: agentId as string,
+        propertyId: propertyId as string,
+        propertyAddress: property.address,
+        visitorName,
+        visitorContact,
+        message
+      })
+
+      if (response.success) {
+        setMessage('')
+        setVisitorName('')
+        setVisitorContact('')
+        showToast('Message sent to agent!', 'success')
+      } else {
+        showToast('Failed to send message: ' + response.error, 'error')
+      }
+    } catch (err) {
+      console.error('Error sending message:', err)
+      showToast('An unexpected error occurred while sending your message.', 'error')
+    } finally {
       setIsSubmitting(false)
-      alert('Message sent to agent!')
-    }, 800)
+    }
   }
 
   if (loading) {
@@ -327,16 +383,37 @@ export default function PropertyPage() {
 
               <form onSubmit={handleSubmitMessage} className="space-y-4">
                 <div>
+                  <input 
+                    type="text"
+                    value={visitorName}
+                    onChange={(e) => setVisitorName(e.target.value)}
+                    placeholder="Your Name"
+                    className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-2 border-gray-100 dark:border-gray-800 focus:border-gray-900 dark:focus:border-white rounded-2xl p-4 text-sm focus:outline-none transition-all dark:text-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <input 
+                    type="text"
+                    value={visitorContact}
+                    onChange={(e) => setVisitorContact(e.target.value)}
+                    placeholder="Email or Phone Number"
+                    className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-2 border-gray-100 dark:border-gray-800 focus:border-gray-900 dark:focus:border-white rounded-2xl p-4 text-sm focus:outline-none transition-all dark:text-white"
+                    required
+                  />
+                </div>
+                <div>
                   <textarea 
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="I'm interested in this property. Please send me more information..."
                     className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-2 border-gray-100 dark:border-gray-800 focus:border-gray-900 dark:focus:border-white rounded-2xl p-4 text-sm min-h-[150px] resize-none focus:outline-none transition-all dark:text-white"
+                    required
                   />
                 </div>
                 <button 
                   type="submit"
-                  disabled={!message.trim() || isSubmitting}
+                  disabled={isSubmitting}
                   className="w-full bg-gray-900 hover:bg-black dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 disabled:from-gray-300 disabled:to-gray-300 text-white py-4 rounded-2xl font-black shadow-xl transition-all flex items-center justify-center space-x-2 transform hover:-translate-y-0.5 active:scale-[0.98]"
                 >
                   <Send size={18} />
@@ -352,6 +429,14 @@ export default function PropertyPage() {
         onClose={() => setIsTourModalOpen(false)}
         property={property}
         onSubmit={handleTourSubmit}
+      />
+      
+      {/* Toast Notification */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isVisible={toast.isVisible}
+        onClose={closeToast}
       />
     </div>
   )
