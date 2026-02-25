@@ -38,8 +38,8 @@ export default function PropertyReport({ resoFacts, propertyAddress }: PropertyR
   };
 
   const allReportData = [
-    // Listing Intelligence
-    { property: "LISTING INTELLIGENCE", value: "", isHeader: true },
+    // Listing Information
+    { property: "Listing Information", value: "", isHeader: true },
     { property: "Status", value: resoFacts.standardStatus || resoFacts.homeStatus || resoFacts.standard_status || resoFacts.home_status },
     { property: "Days on Market", value: resoFacts.daysOnMarket || resoFacts.days_on_market },
     { property: "Cumulative DOM", value: resoFacts.cumulativeDaysOnMarket || resoFacts.cumulative_days_on_market },
@@ -163,9 +163,9 @@ export default function PropertyReport({ resoFacts, propertyAddress }: PropertyR
               <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
                 <FileText size={20} className="text-white" />
               </div>
-              <h2 className="text-3xl font-black tracking-tight">Technical Datasheet</h2>
+              <h2 className="text-3xl font-black tracking-tight">Property Datasheet</h2>
             </div>
-            <p className="text-gray-400 font-medium">Verified Property Specifications & Compliance Data</p>
+            <p className="text-gray-400 font-medium">Detailed Property Specifications</p>
           </div>
           <div className="flex items-center space-x-6">
             <div className="text-right">

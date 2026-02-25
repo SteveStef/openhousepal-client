@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { X, Calendar, Send } from 'lucide-react'
-import { Property } from '@/types'
+import { Property, TourRequest } from '@/types'
 import { cleanAddress } from '@/lib/utils'
 
 interface ScheduleTourModalProps {
@@ -11,18 +11,7 @@ interface ScheduleTourModalProps {
   isOpen: boolean
   onClose: () => void
   onSubmit: (data: TourRequest) => Promise<void>
-}
-
-export interface TourRequest {
-  propertyId: string | number
-  propertyAddress: string
-  preferredDate: string
-  preferredTime: string
-  preferredDate2?: string
-  preferredTime2?: string
-  preferredDate3?: string
-  preferredTime3?: string
-  message?: string
+  showContactFields?: boolean
 }
 
 // Generate time options from 6:00 AM to 8:00 PM in 30-minute increments
@@ -58,8 +47,11 @@ export default function ScheduleTourModal({
   property,
   isOpen,
   onClose,
-  onSubmit
+  onSubmit,
+  showContactFields = false
 }: ScheduleTourModalProps) {
+  const [visitorName, setVisitorName] = useState('')
+  const [visitorContact, setVisitorContact] = useState('')
   const [preferredDate, setPreferredDate] = useState('')
   const [preferredTime, setPreferredTime] = useState('')
   const [preferredDate2, setPreferredDate2] = useState('')
@@ -77,6 +69,11 @@ export default function ScheduleTourModal({
     setError('')
 
     // Validation
+    if (showContactFields && (!visitorName.trim() || !visitorContact.trim())) {
+      setError('Please enter your name and contact information')
+      return
+    }
+
     if (!preferredDate || !preferredTime) {
       setError('Please select at least your first choice date and time')
       return
@@ -87,6 +84,8 @@ export default function ScheduleTourModal({
       await onSubmit({
         propertyId: property.id!,
         propertyAddress: property.address,
+        visitorName: showContactFields ? visitorName : undefined,
+        visitorContact: showContactFields ? visitorContact : undefined,
         preferredDate,
         preferredTime,
         preferredDate2: preferredDate2 || undefined,
@@ -97,6 +96,8 @@ export default function ScheduleTourModal({
       })
 
       // Reset form
+      setVisitorName('')
+      setVisitorContact('')
       setPreferredDate('')
       setPreferredTime('')
       setPreferredDate2('')
@@ -195,6 +196,47 @@ export default function ScheduleTourModal({
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-10">
+            {showContactFields && (
+              <div className="space-y-6">
+                <div className="flex items-center space-x-3 pb-2 border-b border-gray-100 dark:border-gray-800">
+                  <div className="w-1 h-6 bg-[#C9A24D] rounded-full"></div>
+                  <h4 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight uppercase">Your Information</h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="visitorName" className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
+                      Full Name *
+                    </label>
+                    <input
+                      id="visitorName"
+                      type="text"
+                      value={visitorName}
+                      onChange={(e) => setVisitorName(e.target.value)}
+                      placeholder="Enter your name"
+                      className="block w-full px-4 py-3.5 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:border-[#C9A24D]/30"
+                      disabled={isSubmitting}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="visitorContact" className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
+                      Email or Phone *
+                    </label>
+                    <input
+                      id="visitorContact"
+                      type="text"
+                      value={visitorContact}
+                      onChange={(e) => setVisitorContact(e.target.value)}
+                      placeholder="Email or phone number"
+                      className="block w-full px-4 py-3.5 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:border-[#C9A24D]/30"
+                      disabled={isSubmitting}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Preferred Tour Times */}
             <div className="space-y-6">
               <div className="flex items-center space-x-3 pb-2 border-b border-gray-100 dark:border-gray-800">

@@ -153,6 +153,20 @@ export interface CollectionPreferences {
   updated_at?: string;
 }
 
+export interface TourRequest {
+  propertyId: string | number
+  propertyAddress: string
+  visitorName?: string
+  visitorContact?: string
+  preferredDate: string
+  preferredTime: string
+  preferredDate2?: string
+  preferredTime2?: string
+  preferredDate3?: string
+  preferredTime3?: string
+  message?: string
+}
+
 export interface Collection {
   id: string; // Changed to string to match backend UUID
   customer: Customer;

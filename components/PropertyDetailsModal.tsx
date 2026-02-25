@@ -38,8 +38,8 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
   };
 
   const allReportData = [
-    // Listing Intelligence
-    { property: "LISTING INTELLIGENCE", value: "", isHeader: true },
+    // Listing Information
+    { property: "Listing Information", value: "", isHeader: true },
     { property: "Status", value: resoFacts.standardStatus || resoFacts.homeStatus || resoFacts.standard_status || resoFacts.home_status },
     { property: "Days on Market", value: resoFacts.daysOnMarket || resoFacts.days_on_market },
     { property: "Cumulative DOM", value: resoFacts.cumulativeDaysOnMarket || resoFacts.cumulative_days_on_market },

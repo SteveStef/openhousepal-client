@@ -1,4 +1,4 @@
-import { Property, SignInFormData, ApiResponse, CollectionPreferences, NotificationResponse, Notification } from '@/types'
+import { Property, SignInFormData, ApiResponse, CollectionPreferences, NotificationResponse, Notification, TourRequest } from '@/types'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
@@ -216,6 +216,26 @@ class ApiClient {
         property_address: data.propertyAddress,
         visitor_name: data.visitorName,
         visitor_contact: data.visitorContact,
+        message: data.message
+      }),
+    })
+  }
+
+  async scheduleTour(data: TourRequest & { agentId: string }): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request('/api/properties/schedule-tour', {
+      method: 'POST',
+      body: JSON.stringify({
+        agent_id: data.agentId,
+        property_id: data.propertyId,
+        property_address: data.propertyAddress,
+        visitor_name: data.visitorName,
+        visitor_contact: data.visitorContact,
+        preferred_date: data.preferredDate,
+        preferred_time: data.preferredTime,
+        preferred_date_2: data.preferredDate2,
+        preferred_time_2: data.preferredTime2,
+        preferred_date_3: data.preferredDate3,
+        preferred_time_3: data.preferredTime3,
         message: data.message
       }),
     })

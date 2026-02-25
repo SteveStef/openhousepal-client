@@ -12,7 +12,9 @@ import {
 import Link from 'next/link'
 import PropertyReport from '@/components/PropertyReport'
 import DescriptionSection from '@/components/DescriptionSection'
-import ScheduleTourModal, { TourRequest } from '@/components/ScheduleTourModal'
+import ScheduleTourModal from '@/components/ScheduleTourModal'
+import MLSComplianceFooter from '@/components/MLSComplianceFooter'
+import { TourRequest } from '@/types'
 import { useToast } from '@/contexts/ToastContext'
 
 export default function PropertyPage() {
@@ -33,9 +35,22 @@ export default function PropertyPage() {
 
   async function handleTourSubmit(data: TourRequest) {
     console.log('Tour requested:', data)
-    // I will customize this later to send to backend
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    showToast('Tour request sent successfully!', 'success')
+    
+    try {
+      const response = await api.scheduleTour({
+        ...data,
+        agentId: agentId as string
+      })
+
+      if (response.success) {
+        showToast('Tour request sent successfully!', 'success')
+      } else {
+        showToast('Failed to send tour request: ' + response.error, 'error')
+      }
+    } catch (err) {
+      console.error('Error scheduling tour:', err)
+      showToast('An unexpected error occurred while scheduling your tour.', 'error')
+    }
   }
 
   useEffect(() => {
@@ -275,41 +290,8 @@ export default function PropertyPage() {
               </div>
             )}
 
-            <section className="bg-white dark:bg-[#151517] rounded-3xl p-8 shadow-lg border border-gray-200 dark:border-gray-800">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center"><Info className="mr-3 text-blue-500" /> Property Overview</h2>
-              <DescriptionSection description={property.description || ""} details={property.details} />
-            </section>
-
-            {resoFacts && <PropertyReport resoFacts={resoFacts} propertyAddress={property.address} />}
-
-            {/* Compliance Footer */}
-            <div className="border-t border-gray-200 dark:border-gray-800 mt-12 pt-8 text-center text-xs text-gray-500 dark:text-gray-500 space-y-4 pb-12">
-              <p>Data last updated: {resoFacts?.updated_at 
-                ? new Date(resoFacts.updated_at).toLocaleString('en-US', {
-                    month: 'numeric',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: true
-                  }).replace(',', '')
-                : `${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`}</p>
-              <p className="font-bold">Information Deemed Reliable But Not Guaranteed.</p>
-              <p className="max-w-4xl mx-auto leading-relaxed">
-                The data relating to real estate for sale on this website appears in part through the BRIGHT Internet Data Exchange program, a voluntary cooperative exchange of property listing data between licensed real estate brokerage firms in which participates, and is provided by BRIGHT through a licensing agreement.
-              </p>
-              <div className="flex items-center justify-center space-x-4 pt-4">
-                <div className="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-md font-bold">MLS</div>
-                <p className="font-medium">
-                  © {new Date().getFullYear()} Bright MLS • All Rights Reserved
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="lg:col-span-4 space-y-8">
-            <div className="bg-white dark:bg-[#151517] rounded-3xl p-8 shadow-xl border border-gray-100 dark:border-gray-800">
+            {/* Price Card - Mobile Only (swapped with overview) */}
+            <div className="lg:hidden bg-white dark:bg-[#151517] rounded-3xl p-8 shadow-xl border border-gray-100 dark:border-gray-800">
               <div className="mb-8 pb-8 border-b border-gray-100 dark:border-gray-800">
                 <div className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">List Price</div>
                 <div className="text-5xl font-black text-gray-900 dark:text-white tracking-tighter">{formatPrice(property.price)}</div>
@@ -344,7 +326,120 @@ export default function PropertyPage() {
               </div>
             </div>
 
-            <div className="bg-blue-600 rounded-3xl p-8 text-white shadow-xl shadow-blue-500/20">
+            <section className="bg-white dark:bg-[#151517] rounded-3xl p-8 shadow-lg border border-gray-200 dark:border-gray-800">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center"><Info className="mr-3 text-blue-500" /> Property Overview</h2>
+              <DescriptionSection description={property.description || ""} details={property.details} />
+            </section>
+
+            {/* Mobile-only Tour and Message sections (to appear before Datasheet) */}
+            <div className="lg:hidden space-y-8">
+              <div className="bg-blue-600 rounded-3xl p-8 text-white shadow-xl shadow-blue-500/20">
+                <h3 className="text-xl font-bold mb-4">Interested in a Tour?</h3>
+                <p className="text-blue-100 mb-6 text-sm leading-relaxed">
+                  Schedule a private viewing of this property with {agentName?.split(' ')[0] || 'your agent'}.
+                </p>
+                <button 
+                  onClick={() => setIsTourModalOpen(true)}
+                  className="w-full py-4 bg-white text-blue-600 rounded-2xl font-black hover:bg-blue-50 transition-colors shadow-lg"
+                >
+                  Schedule Showing
+                </button>
+              </div>
+
+              <div className="bg-white dark:bg-[#151517] rounded-3xl p-8 shadow-lg border border-gray-200 dark:border-gray-800">
+                <div className="flex items-center mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mr-4">
+                    <User className="text-purple-600 dark:text-purple-400" size={24} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight"> Message {agentName || 'Agent'}</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Get more details about this home</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSubmitMessage} className="space-y-4">
+                  <div>
+                    <input 
+                      type="text"
+                      value={visitorName}
+                      onChange={(e) => setVisitorName(e.target.value)}
+                      placeholder="Your Name"
+                      className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-2 border-gray-100 dark:border-gray-800 focus:border-gray-900 dark:focus:border-white rounded-2xl p-4 text-sm focus:outline-none transition-all dark:text-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <input 
+                      type="text"
+                      value={visitorContact}
+                      onChange={(e) => setVisitorContact(e.target.value)}
+                      placeholder="Email or Phone Number"
+                      className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-2 border-gray-100 dark:border-gray-800 focus:border-gray-900 dark:focus:border-white rounded-2xl p-4 text-sm focus:outline-none transition-all dark:text-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <textarea 
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="I'm interested in this property. Please send me more information..."
+                      className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-2 border-gray-100 dark:border-gray-800 focus:border-gray-900 dark:focus:border-white rounded-2xl p-4 text-sm min-h-[150px] resize-none focus:outline-none transition-all dark:text-white"
+                      required
+                    />
+                  </div>
+                  <button 
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full bg-gray-900 hover:bg-black dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 disabled:from-gray-300 disabled:to-gray-300 text-white py-4 rounded-2xl font-black shadow-xl transition-all flex items-center justify-center space-x-2 transform hover:-translate-y-0.5 active:scale-[0.98]"
+                  >
+                    <Send size={18} />
+                    <span>{isSubmitting ? 'Sending...' : 'Send Message'}</span>
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            {resoFacts && <PropertyReport resoFacts={resoFacts} propertyAddress={property.address} />}
+          </div>
+
+          <div className="lg:col-span-4 space-y-8">
+            {/* Price Card - Desktop Only */}
+            <div className="hidden lg:block bg-white dark:bg-[#151517] rounded-3xl p-8 shadow-xl border border-gray-100 dark:border-gray-800">
+              <div className="mb-8 pb-8 border-b border-gray-100 dark:border-gray-800">
+                <div className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">List Price</div>
+                <div className="text-5xl font-black text-gray-900 dark:text-white tracking-tighter">{formatPrice(property.price)}</div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-6 mb-8">
+                {[
+                  { val: property.beds, label: 'Beds' },
+                  { val: property.baths, label: 'Baths' },
+                  { val: property.squareFeet?.toLocaleString(), label: 'Sq Ft' },
+                  { val: property.yearBuilt, label: 'Built' }
+                ].map((s, i) => (
+                  <div key={i} className="p-4 bg-gray-50 dark:bg-[#0B0B0B] rounded-2xl border border-gray-100 dark:border-gray-800 text-center">
+                    <div className="text-2xl font-black text-gray-900 dark:text-white">{s.val || '-'}</div>
+                    <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  { label: 'Type', val: property.propertyType?.replace("_", " ") },
+                  { label: 'Price/Sq Ft', val: property.price && property.squareFeet ? `$${Math.round(property.price / property.squareFeet)}` : '-' },
+                  { label: 'Lot Size', val: formatLotSize(resoFacts?.lotSizeAcres, property.lotSize || resoFacts?.lotSize) },
+                  { label: 'Zip Code', val: property.zipCode || '-' }
+                ].map((stat, i) => (
+                  <div key={i} className="flex justify-between items-center py-3 border-b last:border-0 border-gray-50 dark:border-gray-800">
+                    <span className="text-gray-500 dark:text-gray-400 font-medium">{stat.label}</span>
+                    <span className="text-gray-900 dark:text-white font-bold">{stat.val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="hidden lg:block bg-blue-600 rounded-3xl p-8 text-white shadow-xl shadow-blue-500/20">
               <h3 className="text-xl font-bold mb-4">Interested in a Tour?</h3>
               <p className="text-blue-100 mb-6 text-sm leading-relaxed">
                 Schedule a private viewing of this property with {agentName?.split(' ')[0] || 'your agent'}.
@@ -357,8 +452,8 @@ export default function PropertyPage() {
               </button>
             </div>
 
-            {/* Contact Form Sidebar */}
-            <div className="bg-white dark:bg-[#151517] rounded-3xl p-8 shadow-lg border border-gray-200 dark:border-gray-800 sticky top-8">
+            {/* Contact Form Sidebar - Desktop Only */}
+            <div className="hidden lg:block bg-white dark:bg-[#151517] rounded-3xl p-8 shadow-lg border border-gray-200 dark:border-gray-800 sticky top-8">
               <div className="flex items-center mb-6">
                 <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mr-4">
                   <User className="text-purple-600 dark:text-purple-400" size={24} />
@@ -412,11 +507,13 @@ export default function PropertyPage() {
           </div>
         </div>
       </div>
+      <MLSComplianceFooter />
       <ScheduleTourModal 
         isOpen={isTourModalOpen}
         onClose={() => setIsTourModalOpen(false)}
         property={property}
         onSubmit={handleTourSubmit}
+        showContactFields={true}
       />
     </div>
   )
