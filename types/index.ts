@@ -183,6 +183,7 @@ export interface Collection {
   };
   stats: {
     totalProperties: number;
+    activeProperties: number;
     viewedProperties: number;
     likedProperties: number;
     lastActivity?: string;

@@ -61,7 +61,7 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
   onViewRecommendations 
 }: ViewPDFsModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 print:hidden animate-fadeIn">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 print:hidden animate-fadeIn">
       <div className="bg-[#FAFAF7] dark:bg-[#151517] rounded-[2.5rem] shadow-2xl max-w-md w-full overflow-hidden border border-white/50 dark:border-gray-800 transform transition-all relative">
         {/* Decorative Top Bar */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#8b7355] via-[#C9A24D] to-[#8b7355]" />

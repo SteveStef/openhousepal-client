@@ -149,8 +149,12 @@ export default function CollectionCard({
               <div className="flex flex-col">
                 <span className="text-[10px] font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-1">Properties</span>
                 <div className="flex items-baseline">
-                  <span className="text-xl font-black text-[#0B0B0B] dark:text-white leading-none transition-transform origin-left">{collection.stats.totalProperties}</span>
-                  <span className="ml-1.5 text-xs font-bold text-[#6B7280] dark:text-gray-500">Total</span>
+                  <span className="text-xl font-black text-[#0B0B0B] dark:text-white leading-none transition-transform origin-left">
+                    {collection.stats.activeProperties}
+                  </span>
+                  <span className="ml-1.5 text-[10px] font-bold text-[#6B7280] dark:text-gray-500 whitespace-nowrap">
+                    Active / {collection.stats.totalProperties} Total
+                  </span>
                 </div>
               </div>
               <div className="flex flex-col border-l border-gray-200 dark:border-gray-800 pl-4">

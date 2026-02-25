@@ -822,7 +822,7 @@ function OpenHouseContent() {
              : (targetOpenHouse?.formUrl || (targetOpenHouse as any)?.form_url || (targetOpenHouse?.id ? `${typeof window !== 'undefined' ? window.location.origin : ''}/open-house/${targetOpenHouse.id}` : ''));
              
            return (
-             <div className="hidden print:block absolute top-0 left-0 w-full h-full print-view-root bg-white">
+             <div className="hidden print:block relative top-0 left-0 w-full h-full print-view-root bg-white">
                 <OpenHouseFlyer 
                   coverImage={selectedImage?.url || targetOpenHouse?.coverImageUrl || (targetOpenHouse as any)?.cover_image_url || ''}
                   address={formatAddress(address || targetOpenHouse?.address || '')}
@@ -857,7 +857,7 @@ function OpenHouseContent() {
                <PropertyRecommendationsPrintView 
                   openHouseId={printingOpenHouseId || ''} 
                   agentId={targetOpenHouse?.agentId || (targetOpenHouse as any)?.agent_id || currentUser?.id}
-                  className="hidden print:block absolute top-0 left-0 w-full"
+                  className="hidden print:block relative top-0 left-0 w-full"
                   properties={selectedSimilarProperties}
                />
              );

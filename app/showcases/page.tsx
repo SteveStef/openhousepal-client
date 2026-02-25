@@ -154,6 +154,7 @@ export function ShowcaseContent() {
             },
             stats: {
               totalProperties: backendCollection.property_count || 0,
+              activeProperties: backendCollection.active_property_count || 0,
               viewedProperties: 0,
               likedProperties: 0,
               lastActivity: backendCollection.updated_at
@@ -999,6 +1000,7 @@ export function ShowcaseContent() {
               },
               stats: {
                 totalProperties: backendCollection.property_count || 0,
+                activeProperties: backendCollection.active_property_count || 0,
                 viewedProperties: 0,
                 likedProperties: 0,
                 lastActivity: backendCollection.updated_at
@@ -1179,6 +1181,7 @@ export function ShowcaseContent() {
             },
             stats: {
               totalProperties: backendCollection.property_count || 0,
+              activeProperties: backendCollection.active_property_count || 0,
               viewedProperties: 0,
               likedProperties: 0,
               lastActivity: backendCollection.updated_at
