@@ -491,7 +491,7 @@ export default function CustomerShowcasePage() {
     // Track property view
     if (showcase?.id && property.id) {
       try {
-        const response = await apiRequest(`/collections/${showcase.id}/properties/${String(property.id)}/view`, {
+        const response = await apiRequest(`/api/collections/${showcase.id}/properties/${String(property.id)}/view`, {
           method: 'POST'
         })
 
@@ -528,16 +528,15 @@ export default function CustomerShowcasePage() {
       const response = await propertyApi.cache(property.id as string)
 
       if (response.success && response.data) {
-        const cacheResponse = response.data
-
-        if (cacheResponse.success && cacheResponse.property) {
-          // Update property with enhanced flat details
-          const enhancedProperty = {
-            ...property,
-            ...cacheResponse.property
-          }
-          setSelectedProperty(enhancedProperty)
+        // ApiClient already unwraps the data
+        const detailedProperty = response.data
+        
+        // Update property with enhanced flat details
+        const enhancedProperty = {
+          ...property,
+          ...detailedProperty
         }
+        setSelectedProperty(enhancedProperty)
       }
     } catch (error) {
       console.error('Error fetching property details:', error)

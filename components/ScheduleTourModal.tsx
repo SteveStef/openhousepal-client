@@ -162,11 +162,11 @@ export default function ScheduleTourModal({
           {/* Property Info */}
           <div className="bg-[#FAFAF7] dark:bg-[#0B0B0B] rounded-2xl p-5 mb-10 border border-gray-100 dark:border-gray-800 shadow-sm">
             <div className="flex items-center space-x-5">
-              {property.imageUrl && (
+              {property.ListPictureURL && (
                 <div className="relative w-20 h-20 flex-shrink-0">
                   <Image
-                    src={property.imageUrl}
-                    alt={property.address}
+                    src={property.ListPictureURL}
+                    alt={property.FullStreetAddress}
                     fill
                     className="object-cover rounded-xl shadow-sm"
                   />
@@ -174,19 +174,19 @@ export default function ScheduleTourModal({
               )}
               <div className="flex-1 min-w-0">
                 <h3 className="font-black text-[#0B0B0B] dark:text-white text-lg tracking-tight truncate">
-                  {cleanAddress(property.address, property.city)}
+                  {cleanAddress(property.FullStreetAddress, property.City)}
                 </h3>
                 <p className="text-[#6B7280] dark:text-gray-400 text-sm font-medium">
-                  {property.city}, {property.state} {property.zipCode}
+                  {property.City}, {property.StateOrProvince} {property.PostalCode}
                 </p>
                 <div className="flex items-center space-x-4 mt-2 text-xs font-bold text-[#C9A24D] uppercase tracking-widest">
-                  <span>{property.beds} beds</span>
+                  <span>{property.BedroomsTotal} beds</span>
                   <span className="text-gray-300">•</span>
-                  <span>{property.baths} baths</span>
-                  {property.squareFeet && (
+                  <span>{property.BathroomsTotal} baths</span>
+                  {property.LivingArea && (
                     <>
                       <span className="text-gray-300">•</span>
-                      <span>{property.squareFeet.toLocaleString()} sqft</span>
+                      <span>{property.LivingArea.toLocaleString()} sqft</span>
                     </>
                   )}
                 </div>

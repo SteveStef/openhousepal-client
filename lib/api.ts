@@ -69,20 +69,28 @@ class ApiClient {
 
   // Property endpoints
   async getProperty(id: string): Promise<ApiResponse<Property>> {
-    return this.request(`/properties/${id}`)
+    const res = await this.request<{ property: Property }>(`/api/properties/${id}`)
+    if (res.success && res.data) {
+      return { success: true, data: res.data.property }
+    }
+    return res as ApiResponse<Property>
   }
 
-  async getPropertyForAgent(agentId: string, listingKey: string): Promise<ApiResponse<{ property: any; agentName: string }>> {
-    return this.request(`/properties/agent/${agentId}/listing/${listingKey}`)
+  async getPropertyForAgent(agentId: string, listingKey: string): Promise<ApiResponse<{ property: Property; agentName: string }>> {
+    return this.request(`/api/properties/agent/${agentId}/listing/${listingKey}`)
   }
 
   // Property endpoints
   async getPropertyByQR(qrCode: string): Promise<ApiResponse<{ property: any; openHouse: any }>> {
-    return this.request(`/open-house/property/${qrCode}`)
+    return this.request(`/api/open-house/property/${qrCode}`)
   }
 
-  async cacheProperty(propertyId: string): Promise<ApiResponse<any>> {
-    return this.request(`/properties/${propertyId}/cache`)
+  async cacheProperty(propertyId: string): Promise<ApiResponse<Property>> {
+    const res = await this.request<{ property: Property }>(`/api/properties/${propertyId}/cache`)
+    if (res.success && res.data) {
+      return { success: true, data: res.data.property }
+    }
+    return res as ApiResponse<Property>
   }
 
   // Open house form submission
@@ -128,8 +136,19 @@ class ApiClient {
     return this.request(`/agents/${agentId}/collections`)
   }
 
-  async getCollectionProperties(collectionId: number): Promise<ApiResponse<Property[]>> {
-    return this.request(`/collections/${collectionId}/properties`)
+  async getPropertyDetails(listingKey?: string, address?: string): Promise<ApiResponse<Property>> {
+    return this.request('/api/property', {
+      method: 'POST',
+      body: JSON.stringify({ listing_key: listingKey, address })
+    })
+  }
+
+  async getCollectionProperties(collectionId: string): Promise<ApiResponse<Property[]>> {
+    const res = await this.request<{ properties: Property[] }>(`/collections/${collectionId}/properties`)
+    if (res.success && res.data) {
+      return { success: true, data: res.data.properties }
+    }
+    return res as ApiResponse<Property[] | any>
   }
 
   // Collection preferences endpoints

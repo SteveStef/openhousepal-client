@@ -386,7 +386,7 @@ function OpenHouseContent() {
       
       if (response.status === 200 && response.data) {
         setPropertyData(response.data)
-        const hasImages = response.data.originalPhotos && response.data.originalPhotos.length > 0
+        const hasImages = (response.data.photos && response.data.photos.length > 0) || response.data.ListPictureURL
         if (hasImages) {
           // Advance to Feature Selection
           setCurrentStep('FEATURES')
@@ -409,12 +409,12 @@ function OpenHouseContent() {
     setIsLoadingNeighbors(true)
     try {
       const payload: any = {
-        listingKey: data.listingKey || (data as any).listing_key,
-        city: data.address?.city || data.city,
-        state: data.address?.state || data.state,
-        zipcode: data.address?.zipcode || data.zipcode,
-        price: data.price,
-        bedrooms: data.bedrooms
+        listingKey: data.ListingKey || data.listing_key,
+        city: data.City || data.city,
+        state: data.StateOrProvince || data.state,
+        zipcode: data.PostalCode || data.zipcode,
+        price: data.ListPrice || data.price,
+        bedrooms: data.BedroomsTotal || data.bedrooms
       }
 
       if (preferences) {
@@ -459,9 +459,9 @@ function OpenHouseContent() {
     setSelectedFeatures(features)
     if (features.similarProperties) {
       // Initialize preferences from property data
-      const price = propertyData?.price || 0
-      const beds = propertyData?.bedrooms || 0
-      const baths = propertyData?.bathrooms || 0
+      const price = propertyData?.ListPrice || 0
+      const beds = propertyData?.BedroomsTotal || 0
+      const baths = propertyData?.BathroomsTotal || 0
       
       setSearchPreferences({
         minPrice: Math.floor(price * 0.8),
@@ -506,9 +506,10 @@ function OpenHouseContent() {
       }
 
       // Get the full data objects for the selected similar properties
-      const selectedSnapshot = similarProperties.filter(p => 
-        selectedSimilarPropertyIds.includes(p.listingKey || p.id)
-      )
+      const selectedSnapshot = similarProperties.filter(p => {
+        const pId = String(p.ListingKey || p.listingKey || p.id);
+        return selectedSimilarPropertyIds.map(sid => String(sid)).includes(pId);
+      })
 
       const response = await apiRequest('/api/open-houses', {
         method: 'POST',
@@ -564,24 +565,25 @@ function OpenHouseContent() {
   }
 
   // Get filtered list of similar properties for the print view
-  // If we have selected IDs (new creation), filter by them. 
-  // If we don't (loading a snapshot from portfolio), use the whole list.
   const propsToMap = selectedSimilarPropertyIds.length > 0 
-    ? similarProperties.filter(p => selectedSimilarPropertyIds.includes(p.listingKey || p.id))
+    ? similarProperties.filter(p => {
+        const pId = String(p.ListingKey || p.listingKey || p.id);
+        return selectedSimilarPropertyIds.map(sid => String(sid)).includes(pId);
+      })
     : (generatedOpenHouseId ? [] : similarProperties);
 
   const selectedSimilarProperties = propsToMap.map(p => ({
-      id: p.listingKey || p.id,
-      image: p.imageUrl || p.imgSrc || p.image || "/placeholder.svg",
-      streetAddress: p.address,
-      town: p.city,
-      price: p.price,
-      beds: p.bedrooms ?? p.beds ?? 0,
-      baths: p.bathrooms ?? p.baths ?? 0,
-      sqft: p.livingArea || p.sqft || 0,
-      acres: p.lotSize ? Number((p.lotSize / 43560).toFixed(2)) : (p.acres || 0),
-      yearBuilt: p.yearBuilt || p.year_built,
-      dom: p.daysOnMarket || p.dom || 0
+      id: p.ListingKey || p.listingKey || p.id,
+      ListPictureURL: p.ListPictureURL || p.imageUrl || p.imgSrc || p.image || "/placeholder.svg",
+      FullStreetAddress: p.FullStreetAddress || p.address,
+      City: p.City || p.city,
+      ListPrice: p.ListPrice || p.price,
+      BedroomsTotal: p.BedroomsTotal ?? p.bedrooms ?? p.beds ?? 0,
+      BathroomsTotal: p.BathroomsTotal ?? p.bathrooms ?? p.baths ?? 0,
+      LivingArea: p.LivingArea || p.sqft || 0,
+      LotSizeAcres: p.LotSizeSquareFeet ? Number((p.LotSizeSquareFeet / 43560).toFixed(2)) : (p.LotSizeAcres || p.acres || 0),
+      YearBuilt: p.YearBuilt || p.yearBuilt || p.year_built,
+      DaysOnMarket: p.DaysOnMarket || p.daysOnMarket || p.dom || 0
     }))
 
   return (
@@ -826,10 +828,10 @@ function OpenHouseContent() {
                 <OpenHouseFlyer 
                   coverImage={selectedImage?.url || targetOpenHouse?.coverImageUrl || (targetOpenHouse as any)?.cover_image_url || ''}
                   address={formatAddress(address || targetOpenHouse?.address || '')}
-                  price={propertyData?.price || targetOpenHouse?.price || (targetOpenHouse as any)?.price || 0}
-                  beds={propertyData?.bedrooms || targetOpenHouse?.bedrooms || (targetOpenHouse as any)?.bedrooms || 0}
-                  baths={propertyData?.bathrooms || targetOpenHouse?.bathrooms || (targetOpenHouse as any)?.bathrooms || 0}
-                  sqft={propertyData?.livingArea || targetOpenHouse?.livingArea || (targetOpenHouse as any)?.living_area || 0}
+                  price={propertyData?.ListPrice || targetOpenHouse?.price || (targetOpenHouse as any)?.price || 0}
+                  beds={propertyData?.BedroomsTotal || targetOpenHouse?.bedrooms || (targetOpenHouse as any)?.bedrooms || 0}
+                  baths={propertyData?.BathroomsTotal || targetOpenHouse?.bathrooms || (targetOpenHouse as any)?.bathrooms || 0}
+                  sqft={propertyData?.LivingArea || targetOpenHouse?.livingArea || (targetOpenHouse as any)?.living_area || 0}
                   qrCodeUrl={qrCode || targetOpenHouse?.qrCodeUrl || (targetOpenHouse as any)?.qr_code_url || undefined}
                   openHouseUrl={flyerUrl}
                 />
@@ -1023,9 +1025,13 @@ const SimilarPropertiesSelectionView = memo(function SimilarPropertiesSelectionV
   const [selectedIds, setSelectedIds] = useState<(string | number)[]>(initialSelectedIds)
 
   const toggleProperty = (id: string | number) => {
-    setSelectedIds(prev => 
-      prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
-    )
+    const stringId = String(id);
+    setSelectedIds(prev => {
+      const stringPrev = prev.map(p => String(p));
+      return stringPrev.includes(stringId) 
+        ? stringPrev.filter(pid => pid !== stringId) 
+        : [...stringPrev, stringId];
+    });
   }
 
   if (isLoading) {
@@ -1056,29 +1062,34 @@ const SimilarPropertiesSelectionView = memo(function SimilarPropertiesSelectionV
 
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-8 sm:mb-12 max-h-[50vh] sm:max-h-[60vh] overflow-y-auto pr-1">
-                {properties.map((property) => (
-                  <div 
-                    key={property.listingKey || property.id} 
-                    onClick={() => toggleProperty(property.listingKey || property.id)}
-                    className="relative cursor-pointer"
-                  >
-                    <PropertyRecommendationCard 
-                      image={property.imageUrl || property.imgSrc || property.image || "/placeholder.svg"}
-                      streetAddress={property.address}
-                      town={property.city}
-                      price={property.price}
-                      beds={property.bedrooms ?? property.beds ?? 0}
-                      baths={property.bathrooms ?? property.baths ?? 0}
-                      sqft={property.livingArea || property.sqft || 0}
-                      acres={property.lotSize ? Number((property.lotSize / 43560).toFixed(2)) : (property.acres || 0)}
-                      yearBuilt={property.yearBuilt || property.year_built}
-                      dom={property.daysOnMarket || property.dom}
-                      hideQr={true}
-                      isCompact={true}
-                      selected={selectedIds.includes(property.listingKey || property.id)}
-                    />
-                  </div>
-                ))}
+                {properties.map((property) => {
+                  const propertyId = String(property.ListingKey || property.listingKey || property.id);
+                  const isSelected = selectedIds.map(sid => String(sid)).includes(propertyId);
+                  
+                  return (
+                    <div 
+                      key={propertyId} 
+                      onClick={() => toggleProperty(propertyId)}
+                      className="relative cursor-pointer"
+                    >
+                      <PropertyRecommendationCard 
+                        image={property.ListPictureURL || property.imageUrl || property.imgSrc || property.image || "/placeholder.svg"}
+                        streetAddress={property.FullStreetAddress || property.address}
+                        town={property.City || property.city}
+                        price={property.ListPrice || property.price}
+                        beds={property.BedroomsTotal ?? property.bedrooms ?? property.beds ?? 0}
+                        baths={property.BathroomsTotal ?? property.bathrooms ?? property.baths ?? 0}
+                        sqft={property.LivingArea || property.sqft || 0}
+                        acres={property.LotSizeSquareFeet ? Number((property.LotSizeSquareFeet / 43560).toFixed(2)) : (property.acres || 0)}
+                        yearBuilt={property.YearBuilt || property.yearBuilt || property.year_built}
+                        dom={property.DaysOnMarket || property.daysOnMarket || property.dom}
+                        hideQr={true}
+                        isCompact={true}
+                        selected={isSelected}
+                      />
+                    </div>
+                  );
+                })}
       </div>
 
       {/* Actions */}
@@ -1195,7 +1206,9 @@ const FeatureSelectionView = memo(function FeatureSelectionView({ address, onNex
 
 // Image Selection Component
 const ImageSelectionView = memo(function ImageSelectionView({ propertyData, address, onImageSelect, onBack }: any) {
-  const availableImages = propertyData?.originalPhotos || []
+  const availableImages = propertyData?.photos && propertyData.photos.length > 0 
+    ? propertyData.photos 
+    : [propertyData?.ListPictureURL].filter(Boolean)
   
   return (
     <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-6 transition-colors animate-fadeIn">
@@ -1216,8 +1229,7 @@ const ImageSelectionView = memo(function ImageSelectionView({ propertyData, addr
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {availableImages.map((photo: any, index: number) => {
-          const imageUrl = photo.mixedSources?.jpeg?.[0]?.url || photo.url
+        {availableImages.map((imageUrl: string, index: number) => {
           return (
             <div
               key={index}
@@ -1468,27 +1480,27 @@ const OpenHouseCard = memo(function OpenHouseCard({
           {/* Beds */}
           <div className="flex items-center gap-1">
             <Bed className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-            <span className="font-semibold">{openHouse.bedrooms || '-'}</span>
+            <span className="font-semibold">{openHouse.BedroomsTotal || (openHouse as any).bedrooms || '-'}</span>
             <span className="text-gray-400 dark:text-gray-600 text-[10px]">Beds</span>
           </div>
           {/* Baths */}
           <div className="flex items-center gap-1">
             <Bath className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-            <span className="font-semibold">{openHouse.bathrooms || '-'}</span>
+            <span className="font-semibold">{openHouse.BathroomsTotal || (openHouse as any).bathrooms || '-'}</span>
             <span className="text-gray-400 dark:text-gray-600 text-[10px]">Baths</span>
           </div>
            {/* SqFt */}
            <div className="flex items-center gap-1">
             <BoxSelect className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-            <span className="font-semibold">{(openHouse.livingArea || (openHouse as any).living_area)?.toLocaleString() || '-'}</span>
+            <span className="font-semibold">{(openHouse.LivingArea || (openHouse as any).living_area || (openHouse as any).livingArea)?.toLocaleString() || '-'}</span>
             <span className="text-gray-400 dark:text-gray-600 text-[10px]">SqFt</span>
           </div>
           {/* Price */}
-          {openHouse.price && (
+          {(openHouse.ListPrice || (openHouse as any).price) && (
             <div className="flex items-center gap-1 border-l border-gray-200 dark:border-gray-700 pl-3">
               <DollarSign className="w-3.5 h-3.5 text-[#8b7355] dark:text-[#C9A24D]" />
               <span className="font-bold text-[#8b7355] dark:text-[#C9A24D]">
-                {openHouse.price.toLocaleString('en-US', {
+                {(openHouse.ListPrice || (openHouse as any).price).toLocaleString('en-US', {
                   style: 'currency',
                   currency: 'USD',
                   maximumFractionDigits: 0

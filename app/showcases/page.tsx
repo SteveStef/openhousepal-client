@@ -118,16 +118,17 @@ export function ShowcaseContent() {
             // propertyId: 1, // This could be derived from actual property data if available
             originalProperty: {
               id: backendCollection.original_property?.id || 1,
-              address: backendCollection.original_property?.address || backendCollection.name || "Collection Name Not Set",
-              city: backendCollection.original_property?.city || "West Chester",
-              state: backendCollection.original_property?.state || "PA",
-              zipCode: backendCollection.original_property?.zipCode || "19380", 
-              price: backendCollection.original_property?.price || 0,
-              beds: backendCollection.original_property?.beds || 0,
-              baths: backendCollection.original_property?.baths || 0,
-              squareFeet: backendCollection.original_property?.squareFeet || 0,
-              propertyType: backendCollection.original_property?.propertyType || "Property",
-              imageUrl: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400'
+              FullStreetAddress: backendCollection.original_property?.street_address || backendCollection.name || "Collection Name Not Set",
+              City: backendCollection.original_property?.city || "West Chester",
+              StateOrProvince: backendCollection.original_property?.state || "PA",
+              PostalCode: backendCollection.original_property?.zipcode || "19380", 
+              ListPrice: backendCollection.original_property?.price || 0,
+              BedroomsTotal: backendCollection.original_property?.bedrooms || 0,
+              BathroomsTotal: backendCollection.original_property?.bathrooms || 0,
+              LivingArea: backendCollection.original_property?.living_area || 0,
+              PropertyType: backendCollection.original_property?.home_type || "Property",
+              ListPictureURL: backendCollection.original_property?.img_src || 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400',
+              MlsStatus: backendCollection.original_property?.home_status || 'ACTIVE'
             },
             createdAt: backendCollection.created_at,
             updatedAt: backendCollection.updated_at,
@@ -292,16 +293,16 @@ export function ShowcaseContent() {
 
       switch (sortBy) {
         case 'price':
-          aValue = a.price || 0
-          bValue = b.price || 0
+          aValue = a.ListPrice || 0
+          bValue = b.ListPrice || 0
           break
         case 'beds':
-          aValue = a.beds || 0
-          bValue = b.beds || 0
+          aValue = a.BedroomsTotal || 0
+          bValue = b.BedroomsTotal || 0
           break
         case 'squareFeet':
-          aValue = a.squareFeet || 0
-          bValue = b.squareFeet || 0
+          aValue = a.LivingArea || 0
+          bValue = b.LivingArea || 0
           break
         default:
           return 0
@@ -690,20 +691,17 @@ export function ShowcaseContent() {
       const response = await propertyApi.cache(property.id as string)
       
       if (response.success && response.data) {
-        const cacheResponse = response.data
+        // ApiClient.cacheProperty already returns { success: true, data: property }
+        // We merge the new detailed data with existing basic data
+        const detailedProperty = response.data
         
-        if (cacheResponse.success && cacheResponse.property) {
-          // Update property with detailed information merging flat data
-          const enhancedProperty = {
-            ...property,
-            ...cacheResponse.property
-          }
-          setSelectedProperty(enhancedProperty)
-        } else {
-          setDetailsError('Failed to load additional property details')
+        const enhancedProperty = {
+          ...property,
+          ...detailedProperty
         }
+        setSelectedProperty(enhancedProperty)
       } else {
-        setDetailsError('Failed to connect to property service')
+        setDetailsError('Failed to load additional property details')
       }
     } catch (error) {
       console.error('Error fetching property details:', error)
@@ -963,15 +961,17 @@ export function ShowcaseContent() {
               },
               originalProperty: {
                 id: backendCollection.original_property?.id || 1,
-                address: backendCollection.original_property?.address || backendCollection.name || "Collection Name Not Set",
-                city: backendCollection.original_property?.city || "West Chester",
-                state: backendCollection.original_property?.state || "PA",
-                zipCode: backendCollection.original_property?.zipCode || "19380", 
-                price: backendCollection.original_property?.price || 0,
-                beds: backendCollection.original_property?.beds || 0,
-                baths: backendCollection.original_property?.baths || 0,
-                squareFeet: backendCollection.original_property?.squareFeet || 0,
-                propertyType: backendCollection.original_property?.propertyType || "Property",
+                FullStreetAddress: backendCollection.original_property?.street_address || backendCollection.name || "Collection Name Not Set",
+                City: backendCollection.original_property?.city || "West Chester",
+                StateOrProvince: backendCollection.original_property?.state || "PA",
+                PostalCode: backendCollection.original_property?.zipcode || "19380", 
+                ListPrice: backendCollection.original_property?.price || 0,
+                BedroomsTotal: backendCollection.original_property?.bedrooms || 0,
+                BathroomsTotal: backendCollection.original_property?.bathrooms || 0,
+                LivingArea: backendCollection.original_property?.living_area || 0,
+                PropertyType: backendCollection.original_property?.home_type || "Property",
+                ListPictureURL: backendCollection.original_property?.img_src || 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400',
+                MlsStatus: backendCollection.original_property?.home_status || 'ACTIVE'
               },
               createdAt: backendCollection.created_at,
               updatedAt: backendCollection.updated_at,
@@ -1145,16 +1145,17 @@ export function ShowcaseContent() {
             propertyId: 1,
             originalProperty: {
               id: 1,
-              address: backendCollection.name || "Collection Name Not Set",
-              city: "West Chester",
-              state: "PA",
-              zipCode: "19380", 
-              price: backendCollection.preferences?.min_price || 0,
-              beds: 0,
-              baths: 0,
-              squareFeet: 0,
-              propertyType: "Collection",
-              imageUrl: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400'
+              FullStreetAddress: backendCollection.name || "Collection Name Not Set",
+              City: "West Chester",
+              StateOrProvince: "PA",
+              PostalCode: "19380", 
+              ListPrice: backendCollection.preferences?.min_price || 0,
+              BedroomsTotal: 0,
+              BathroomsTotal: 0,
+              LivingArea: 0,
+              PropertyType: "Collection",
+              ListPictureURL: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400',
+              MlsStatus: 'ACTIVE'
             },
             createdAt: backendCollection.created_at,
             updatedAt: backendCollection.updated_at,
@@ -1227,10 +1228,10 @@ export function ShowcaseContent() {
                 <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight mb-1">Property Recommendations</h1>
                 <p 
                   className="text-sm text-gray-500 dark:text-gray-400 font-light"
-                  title={selectedCollection.originalProperty.address}
+                  title={selectedCollection.originalProperty.FullStreetAddress}
                 >
                   Curated properties for {(() => {
-                    const parts = selectedCollection.originalProperty.address.split(',');
+                    const parts = selectedCollection.originalProperty.FullStreetAddress.split(',');
                     const rawAddress = parts.length > 1 
                       ? `${parts[0].trim()}, ${parts[1].trim()}`
                       : parts[0].trim();

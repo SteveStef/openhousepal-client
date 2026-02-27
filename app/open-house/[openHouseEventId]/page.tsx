@@ -45,18 +45,19 @@ export default function OpenHouseSignInPage() {
         // Transform the API response to match the Property interface
         const transformedProperty: Property = {
           id: propertyData.id,
-          address: propertyData.address,
-          city: propertyData.city || '',
-          state: propertyData.state || '',
-          zipCode: propertyData.zipCode || '',
-          price: propertyData.price || 0,
-          beds: propertyData.beds || 0,
-          baths: propertyData.baths || 0,
-          squareFeet: propertyData.squareFeet || 0,
-          lotSize: propertyData.lotSize || 0,
-          propertyType: propertyData.propertyType || '',
-          description: propertyData.description || '',
-          imageSrc: propertyData.imageSrc || ''
+          ListingKey: propertyData.listingKey || '', // Fallback if listing key not in OH meta
+          FullStreetAddress: propertyData.address || '',
+          City: propertyData.city || '',
+          StateOrProvince: propertyData.state || '',
+          PostalCode: propertyData.zipCode || '',
+          ListPrice: propertyData.price || 0,
+          BedroomsTotal: propertyData.beds || 0,
+          BathroomsTotal: propertyData.baths || 0,
+          LivingArea: propertyData.squareFeet || 0,
+          LotSizeSquareFeet: propertyData.lotSize || 0,
+          PropertyType: propertyData.propertyType || '',
+          MlsStatus: propertyData.homeStatus || 'ACTIVE',
+          ListPictureURL: propertyData.imageSrc || ''
         }
         
         setProperty(transformedProperty)

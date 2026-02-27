@@ -30,12 +30,13 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
 
   // Helper function to determine if property is available (clickable)
   const isPropertyAvailable = useMemo(() => {
-    const status = property.status || (property.details as any)?.homeStatus;
+    const status = property.MlsStatus;
     if (!status) return true; // Assume available if no status
 
-    const normalizedStatus = status.toLowerCase().replace(/[_\s]/g, '');
-    return normalizedStatus === 'forsale' || normalizedStatus === 'forrent';
-  }, [property.status, property.details])
+    const normalizedStatus = status.toLowerCase().replace(/[_\s-]/g, '');
+    // Standard RESO statuses: Active, Coming Soon, Active-Bright
+    return normalizedStatus === 'active' || normalizedStatus === 'activebright' || normalizedStatus === 'comingsoon';
+  }, [property.MlsStatus])
 
   // Helper function to format status display
   const formatStatus = (status: string) => {
@@ -46,11 +47,15 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
       'off_market': 'Off Market',
       'offmarket': 'Off Market',
       'forrent': 'For Rent',
-      'for_rent': 'For Rent'
+      'for_rent': 'For Rent',
+      'activebright': 'For Sale',
+      'active': 'For Sale',
+      'comingsoon': 'Coming Soon',
+      'comingsoonbright': 'Coming Soon'
     };
 
-    const normalized = status.toLowerCase().replace(/[_\s]/g, '');
-    return statusMap[normalized] || status.replace(/_/g, ' ');
+    const normalized = status.toLowerCase().replace(/[_\s-]/g, '');
+    return statusMap[normalized] || status.replace(/[_-]/g, ' ');
   }
 
   const formatPrice = (price?: number) => {
@@ -62,7 +67,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
   }
 
   const available = isPropertyAvailable
-  const status = property.status || (property.details as any)?.homeStatus
+  const status = property.MlsStatus
 
   return (
     <div
@@ -75,10 +80,10 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
     >
       {/* Property Image */}
       <div className="relative bg-gray-100 dark:bg-[#0B0B0B] aspect-[16/9] overflow-hidden">
-        {property.imageUrl ? (
+        {property.ListPictureURL ? (
           <Image
-            src={property.imageUrl}
-            alt={property.address}
+            src={property.ListPictureURL}
+            alt={property.FullStreetAddress}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover transition-transform duration-500"
@@ -128,20 +133,20 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
       {/* Property Details */}
       <div className="p-6 pb-0">
         <p className="text-gray-500 dark:text-gray-400 text-[10px] mb-1 font-bold uppercase tracking-widest">
-          {property.city}, {property.state} {property.zipCode}
+          {property.City}, {property.StateOrProvince} {property.PostalCode}
         </p>
         
         <h3 
           className="text-lg font-black text-[#0B0B0B] dark:text-white mb-1 tracking-tight leading-snug group-hover:text-[#C9A24D] transition-colors line-clamp-1"
-          title={property.address}
+          title={property.FullStreetAddress}
         >
-          {cleanAddress(property.address, property.city)}
+          {cleanAddress(property.FullStreetAddress, property.City)}
         </h3>
 
         {/* Broker Attribution */}
-        {property.listOfficeName && (
+        {property.ListOfficeName && (
           <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-4 line-clamp-1">
-            Courtesy of {property.listOfficeName}
+            Courtesy of {property.ListOfficeName}
           </p>
         )}
 
@@ -149,18 +154,18 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
         <div className="flex items-center space-x-4 text-sm mb-6">
             <div className="flex items-center text-gray-600 dark:text-gray-400">
             <Bed className="w-4 h-4 mr-1.5 text-gray-400 dark:text-gray-500" />
-            <span className="font-medium text-[#111827] dark:text-white">{property.beds}</span><span className="ml-1 text-xs">beds</span>
+            <span className="font-medium text-[#111827] dark:text-white">{property.BedroomsTotal}</span><span className="ml-1 text-xs">beds</span>
           </div>
           
             <div className="flex items-center text-gray-600 dark:text-gray-400">
               <Bath className="w-4 h-4 mr-1.5 text-gray-400 dark:text-gray-500" />
-              <span className="font-medium text-[#111827] dark:text-white">{property.baths}</span><span className="ml-1 text-xs">baths</span>
+              <span className="font-medium text-[#111827] dark:text-white">{property.BathroomsTotal}</span><span className="ml-1 text-xs">baths</span>
             </div>
           
-          {property.squareFeet && (
+          {property.LivingArea && (
             <div className="flex items-center text-gray-600 dark:text-gray-400">
               <Square className="w-4 h-4 mr-1.5 text-gray-400 dark:text-gray-500" />
-              <span className="font-medium text-[#111827] dark:text-white">{property.squareFeet.toLocaleString()}</span><span className="ml-1 text-xs">sqft</span>
+              <span className="font-medium text-[#111827] dark:text-white">{property.LivingArea.toLocaleString()}</span><span className="ml-1 text-xs">sqft</span>
             </div>
           )}
         </div>
@@ -168,7 +173,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
         {/* Price and Quick Actions */}
         <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <span className="text-lg font-black text-[#C9A24D] tracking-tight">
-            {formatPrice(property.price)}
+            {formatPrice(property.ListPrice)}
           </span>
             
             <div className="flex items-center space-x-2">

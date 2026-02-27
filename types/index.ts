@@ -19,64 +19,147 @@ export interface PropertyInteraction {
 }
 
 export interface Property {
-  id?: number | string;
-  mlsId?: string;
-  address: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
-  price?: number;
-  beds?: number;
-  baths?: number;
-  squareFeet?: number;
-  lotSize?: number;
-  propertyType?: string;
-  description?: string;
-  imageUrl?: string;
-  imageSrc?: string; // Added for open house event metadata
-  images?: string[];
+  id: string;
+  ListingKey: string;
+  FullStreetAddress: string;
+  UnparsedAddress?: string;
+  City: string;
+  StateOrProvince: string;
+  PostalCode?: string;
+  
+  ListPrice?: number;
+  BedroomsTotal?: number;
+  BathroomsTotal?: number;
+  LivingArea?: number;
+  LotSizeSquareFeet?: number;
+  PropertyType?: string;
+  MlsStatus: string;
+  
+  SubdivisionName?: string;
+  
+  ListPictureURL?: string;
+  Latitude?: number;
+  Longitude?: number;
+  
+  DaysOnMarket?: number;
+  YearBuilt?: number;
+  MLSListDate?: string;
+  PriceChangeTimestamp?: string;
+
+  // Collection metadata
+  added_at?: string;
+  is_new?: boolean;
   liked?: boolean;
   disliked?: boolean;
   viewed?: boolean;
   viewCount?: number;
   lastViewedAt?: string;
-  comments?: Comment[];
-  tourCount?: number;
-  hasTourScheduled?: boolean;
-  details?: JSON;
-  visitorInteractions?: PropertyInteraction[];
-  listingUpdated?: string;
-  status?: string;
-  mlsNumber?: string;
-  daysOnMarket?: number;
-  taxes?: number;
-  hoaFees?: number | null;
-  condoCoopFees?: number | null;
-  compassType?: string;
-  mlsType?: string;
-  yearBuilt?: number;
-  lotSizeAcres?: number;
-  lotSizeSquareFeet?: number;
-  county?: string;
-  added_at?: string; // ISO timestamp when property was added to collection
-  is_new?: boolean;   // Backend-computed flag for recently added properties
-  listOfficeName?: string; // Listing brokerage name
-  listAgentEmail?: string; // Listing agent email
-  listAgentFullName?: string; // Listing agent name
+}
+
+export interface PropertyDetailResponse extends Property {
+  PublicRemarks?: string;
+  photos?: string[];
+  
+  // Listing Agent & Office
+  ListAgentFullName?: string;
+  ListAgentEmail?: string;
+  ListAgentPreferredPhone?: string;
+  ListOfficeName?: string;
+  ListOfficePhone?: string;
+
+  // Features
+  ArchitecturalStyle?: string[];
+  ConstructionMaterials?: string[];
+  Roof?: string[];
+  FoundationDetails?: string[];
+  StructureType?: string[];
+  Levels?: string[];
+  
+  InteriorFeatures?: string[];
+  ExteriorFeatures?: string[];
+  Flooring?: string[];
+  Appliances?: string[];
+  FireplacesTotal?: number;
+  FireplaceFeatures?: string[];
+  DoorFeatures?: string[];
+  WindowFeatures?: string[];
+  
+  Cooling?: string[];
+  Heating?: string[];
+  WaterSource?: string[];
+  Sewer?: string[];
+  Utilities?: string[];
+  
+  AboveGradeFinishedArea?: number;
+  BelowGradeFinishedArea?: number;
+  Basement?: string[];
+  AccessibilityFeatures?: string[];
+
+  BasementYN?: boolean;
+  CentralAirYN?: boolean;
+  FireplaceYN?: boolean;
+
+  GarageSpaces?: number;
+  ParkingFeatures?: string[];
+  GarageYN?: boolean;
+  
+  AssociationFee?: number;
+  AssociationFeeFrequency?: string;
+  AssociationFee2?: number;
+  AssociationFee2Frequency?: string;
+  AssociationAmenities?: string[];
+  AssociationFeeIncludes?: string[];
+  AssociationYN?: boolean;
+  
+  LotFeatures?: string[];
+  View?: string[];
+  WaterfrontFeatures?: string[];
+  WaterfrontViewYN?: boolean;
+  ViewYN?: boolean;
+  
+  TaxAnnualAmount?: number;
+  TaxYear?: number;
+  ListingTaxID?: string;
+  
+  ElementarySchool?: string;
+  MiddleOrJuniorSchool?: string;
+  HighSchool?: string;
+  SchoolDistrictName?: string;
+  
+  County?: string;
+  Directions?: string;
+  Zoning?: string;
+  
+  TaxAssessmentAmount?: number;
+  AssessmentYear?: number;
+  Possession?: string[];
+  
+  CoolingFuel?: string[];
+  HeatingFuel?: string[];
+  LotSizeAcres?: number;
+  AttachedGarageYN?: boolean;
+  NewConstructionYN?: boolean;
+  SeniorCommunityYN?: boolean;
+  PetsAllowed?: string[];
+  
+  OriginalListPrice?: number;
+  CumulativeDaysOnMarket?: number;
+  Stories?: number;
+  ModificationTimestamp?: string;
 }
 
 // New Open House Event interface matching backend schema
 export interface OpenHouseEvent {
   id: string;
   open_house_event_id: string;
-  address: string;
+  FullStreetAddress: string;
   cover_image_url: string;
   qr_code_url: string;
   form_url: string;
-  bedrooms?: number;
-  bathrooms?: number;
-  living_area?: number;
-  price?: number;
+  BedroomsTotal?: number;
+  BathroomsTotal?: number;
+  LivingArea?: number;
+  ListPrice?: number;
   created_at: string;
 }
 

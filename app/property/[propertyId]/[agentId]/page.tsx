@@ -117,16 +117,16 @@ export default function PropertyPage() {
   }, [propertyId, agentId])
 
   const nextImage = useCallback(() => {
-    if (property?.images?.length) {
-      setCurrentImageIndex((prev) => (prev + 1) % property.images!.length)
+    if (property?.photos?.length) {
+      setCurrentImageIndex((prev) => (prev + 1) % property.photos!.length)
     }
-  }, [property?.images])
+  }, [property?.photos])
 
   const prevImage = useCallback(() => {
-    if (property?.images?.length) {
-      setCurrentImageIndex((prev) => (prev - 1 + property.images!.length) % property.images!.length)
+    if (property?.photos?.length) {
+      setCurrentImageIndex((prev) => (prev - 1 + property.photos!.length) % property.photos!.length)
     }
-  }, [property?.images])
+  }, [property?.photos])
 
   const formatPrice = (price?: number) => {
     return price ? price.toLocaleString('en-US', {
@@ -215,8 +215,8 @@ export default function PropertyPage() {
     )
   }
 
-  const images = property.images || []
-  const resoFacts = property.details as any
+  const images = property.photos || []
+  const resoFacts = property
 
   return (
     <div className="flex-1 bg-[#faf9f7] dark:bg-[#0B0B0B] transition-colors duration-300">
@@ -225,7 +225,7 @@ export default function PropertyPage() {
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center" onClick={() => setIsLightboxOpen(false)}>
           <button className="absolute top-4 right-4 text-white p-3 rounded-full bg-black/40 hover:bg-black/60 z-[110]" onClick={() => setIsLightboxOpen(false)}><X size={24} /></button>
           <div className="relative w-full h-full flex items-center justify-center p-8" onClick={e => e.stopPropagation()}>
-            <Image src={images[currentImageIndex]} alt="Property Image" fill className="object-contain" priority />
+            <Image src={images[currentImageIndex]} alt={property.FullStreetAddress} fill className="object-contain" priority />
             {images.length > 1 && (
               <>
                 <button onClick={prevImage} className="absolute left-8 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-4 rounded-full bg-black/20 hover:bg-black/40"><ChevronLeft size={32} /></button>
@@ -242,16 +242,13 @@ export default function PropertyPage() {
           <div>
             <div className="flex items-center space-x-3 mb-1">
               <span className="px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
-                {property.status === 'forSale' ? 'For Sale' :
-                 property.status === 'forRent' ? 'For Rent' :
-                 property.status === 'recentlySold' ? 'Recently Sold' :
-                 property.status?.replace("_", " ") || "FOR SALE"}
+                {property.MlsStatus}
               </span>
-              <span className="text-gray-400 dark:text-gray-500 text-[10px] font-bold uppercase tracking-widest">MLS: {property.mlsId || '12345678'}</span>
+              <span className="text-gray-400 dark:text-gray-500 text-[10px] font-bold uppercase tracking-widest">MLS: {property.ListingKey}</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tight">{property.address}</h1>
+            <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tight">{property.FullStreetAddress}</h1>
             <div className="flex items-center mt-1 text-gray-500 dark:text-gray-400 font-medium">
-              <span>{property.city}, {property.state} {property.zipCode}</span>
+              <span>{property.City}, {property.StateOrProvince} {property.PostalCode}</span>
             </div>
           </div>
         </div>
@@ -263,7 +260,7 @@ export default function PropertyPage() {
             <div className="relative h-[400px] md:h-[550px] bg-gray-100 dark:bg-[#151517] rounded-3xl overflow-hidden group shadow-2xl border border-gray-200 dark:border-gray-800">
               {images.length > 0 ? (
                 <>
-                  <Image src={images[currentImageIndex]} alt={property.address} fill className="object-cover cursor-pointer" onClick={() => setIsLightboxOpen(true)} priority />
+                  <Image src={images[currentImageIndex]} alt={property.FullStreetAddress} fill className="object-cover cursor-pointer" onClick={() => setIsLightboxOpen(true)} priority />
                   <button onClick={() => setIsLightboxOpen(true)} className="absolute top-6 left-6 bg-black/50 hover:bg-black/70 text-white p-3 rounded-2xl transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md"><Maximize2 size={20} /></button>
                   <div className="absolute top-6 right-6 bg-black/60 backdrop-blur-md text-white text-sm px-4 py-2 rounded-2xl font-bold border border-white/10">{currentImageIndex + 1} / {images.length}</div>
                   {images.length > 1 && (
@@ -294,15 +291,15 @@ export default function PropertyPage() {
             <div className="lg:hidden bg-white dark:bg-[#151517] rounded-3xl p-8 shadow-xl border border-gray-100 dark:border-gray-800">
               <div className="mb-8 pb-8 border-b border-gray-100 dark:border-gray-800">
                 <div className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">List Price</div>
-                <div className="text-5xl font-black text-gray-900 dark:text-white tracking-tighter">{formatPrice(property.price)}</div>
+                <div className="text-5xl font-black text-gray-900 dark:text-white tracking-tighter">{formatPrice(property.ListPrice)}</div>
               </div>
               
               <div className="grid grid-cols-2 gap-6 mb-8">
                 {[
-                  { val: property.beds, label: 'Beds' },
-                  { val: property.baths, label: 'Baths' },
-                  { val: property.squareFeet?.toLocaleString(), label: 'Sq Ft' },
-                  { val: property.yearBuilt, label: 'Built' }
+                  { val: property.BedroomsTotal, label: 'Beds' },
+                  { val: property.BathroomsTotal, label: 'Baths' },
+                  { val: property.LivingArea?.toLocaleString(), label: 'Sq Ft' },
+                  { val: property.YearBuilt, label: 'Built' }
                 ].map((s, i) => (
                   <div key={i} className="p-4 bg-gray-50 dark:bg-[#0B0B0B] rounded-2xl border border-gray-100 dark:border-gray-800 text-center">
                     <div className="text-2xl font-black text-gray-900 dark:text-white">{s.val || '-'}</div>
@@ -313,10 +310,10 @@ export default function PropertyPage() {
 
               <div className="space-y-4">
                 {[
-                  { label: 'Type', val: property.propertyType?.replace("_", " ") },
-                  { label: 'Price/Sq Ft', val: property.price && property.squareFeet ? `$${Math.round(property.price / property.squareFeet)}` : '-' },
-                  { label: 'Lot Size', val: formatLotSize(resoFacts?.lotSizeAcres, property.lotSize || resoFacts?.lotSize) },
-                  { label: 'Zip Code', val: property.zipCode || '-' }
+                  { label: 'Type', val: property.PropertyType },
+                  { label: 'Price/Sq Ft', val: property.ListPrice && property.LivingArea ? `$${Math.round(property.ListPrice / property.LivingArea)}` : '-' },
+                  { label: 'Lot Size', val: formatLotSize(property.LotSizeAcres, property.LotSizeSquareFeet) },
+                  { label: 'Zip Code', val: property.PostalCode || '-' }
                 ].map((stat, i) => (
                   <div key={i} className="flex justify-between items-center py-3 border-b last:border-0 border-gray-50 dark:border-gray-800">
                     <span className="text-gray-500 dark:text-gray-400 font-medium">{stat.label}</span>
@@ -328,7 +325,7 @@ export default function PropertyPage() {
 
             <section className="bg-white dark:bg-[#151517] rounded-3xl p-8 shadow-lg border border-gray-200 dark:border-gray-800">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center"><Info className="mr-3 text-blue-500" /> Property Overview</h2>
-              <DescriptionSection description={property.description || ""} details={property.details} />
+              <DescriptionSection description={property.PublicRemarks || ""} details={property} />
             </section>
 
             {/* Mobile-only Tour and Message sections (to appear before Datasheet) */}
@@ -399,7 +396,7 @@ export default function PropertyPage() {
               </div>
             </div>
 
-            {resoFacts && <PropertyReport resoFacts={resoFacts} propertyAddress={property.address} />}
+            {resoFacts && <PropertyReport property={property as PropertyDetailResponse} />}
           </div>
 
           <div className="lg:col-span-4 space-y-8">
@@ -407,15 +404,15 @@ export default function PropertyPage() {
             <div className="hidden lg:block bg-white dark:bg-[#151517] rounded-3xl p-8 shadow-xl border border-gray-100 dark:border-gray-800">
               <div className="mb-8 pb-8 border-b border-gray-100 dark:border-gray-800">
                 <div className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">List Price</div>
-                <div className="text-5xl font-black text-gray-900 dark:text-white tracking-tighter">{formatPrice(property.price)}</div>
+                <div className="text-5xl font-black text-gray-900 dark:text-white tracking-tighter">{formatPrice(property.ListPrice)}</div>
               </div>
               
               <div className="grid grid-cols-2 gap-6 mb-8">
                 {[
-                  { val: property.beds, label: 'Beds' },
-                  { val: property.baths, label: 'Baths' },
-                  { val: property.squareFeet?.toLocaleString(), label: 'Sq Ft' },
-                  { val: property.yearBuilt, label: 'Built' }
+                  { val: property.BedroomsTotal, label: 'Beds' },
+                  { val: property.BathroomsTotal, label: 'Baths' },
+                  { val: property.LivingArea?.toLocaleString(), label: 'Sq Ft' },
+                  { val: property.YearBuilt, label: 'Built' }
                 ].map((s, i) => (
                   <div key={i} className="p-4 bg-gray-50 dark:bg-[#0B0B0B] rounded-2xl border border-gray-100 dark:border-gray-800 text-center">
                     <div className="text-2xl font-black text-gray-900 dark:text-white">{s.val || '-'}</div>
@@ -426,10 +423,10 @@ export default function PropertyPage() {
 
               <div className="space-y-4">
                 {[
-                  { label: 'Type', val: property.propertyType?.replace("_", " ") },
-                  { label: 'Price/Sq Ft', val: property.price && property.squareFeet ? `$${Math.round(property.price / property.squareFeet)}` : '-' },
-                  { label: 'Lot Size', val: formatLotSize(resoFacts?.lotSizeAcres, property.lotSize || resoFacts?.lotSize) },
-                  { label: 'Zip Code', val: property.zipCode || '-' }
+                  { label: 'Type', val: property.PropertyType },
+                  { label: 'Price/Sq Ft', val: property.ListPrice && property.LivingArea ? `$${Math.round(property.ListPrice / property.LivingArea)}` : '-' },
+                  { label: 'Lot Size', val: formatLotSize(property.LotSizeAcres, property.LotSizeSquareFeet) },
+                  { label: 'Zip Code', val: property.PostalCode || '-' }
                 ].map((stat, i) => (
                   <div key={i} className="flex justify-between items-center py-3 border-b last:border-0 border-gray-50 dark:border-gray-800">
                     <span className="text-gray-500 dark:text-gray-400 font-medium">{stat.label}</span>

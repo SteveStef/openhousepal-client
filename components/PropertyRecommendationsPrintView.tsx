@@ -6,16 +6,16 @@ import { PropertyRecommendationCard } from "@/components/PropertyRecommendationC
 // 1. Define the shape of your data
 interface Property {
   id: string | number;
-  image: string;
-  streetAddress: string;
-  town: string;
-  price?: number;
-  beds: number;
-  baths: number;
-  sqft: number;
-  acres: number;
-  yearBuilt: number;
-  dom: number;
+  ListPictureURL: string;
+  FullStreetAddress: string;
+  City: string;
+  ListPrice?: number;
+  BedroomsTotal: number;
+  BathroomsTotal: number;
+  LivingArea: number;
+  LotSizeAcres: number;
+  YearBuilt: number;
+  DaysOnMarket: number;
 }
 
 // ... (Keep existing sample data for fallback/dev) ...
@@ -140,16 +140,16 @@ export function PropertyRecommendationsPrintView({ openHouseId, agentId, classNa
                   key={property.id}
                   id={property.id}
                   agentId={agentId}
-                  image={property.image}
-                  streetAddress={property.streetAddress}
-                  town={property.town}
-                  price={property.price}
-                  beds={property.beds}
-                  baths={property.baths}
-                  sqft={property.sqft}
-                  acres={property.acres}
-                  yearBuilt={property.yearBuilt}
-                  dom={property.dom}
+                  image={property.ListPictureURL}
+                  streetAddress={property.FullStreetAddress}
+                  town={property.City}
+                  price={property.ListPrice}
+                  beds={property.BedroomsTotal}
+                  baths={property.BathroomsTotal}
+                  sqft={property.LivingArea}
+                  acres={property.LotSizeAcres}
+                  yearBuilt={property.YearBuilt}
+                  dom={property.DaysOnMarket}
                 />
               ))}
             </div>

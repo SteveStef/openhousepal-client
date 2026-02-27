@@ -7,12 +7,12 @@ import { X, MessageCircle, Send, ThumbsUp, ThumbsDown, ChevronLeft, ChevronRight
 import { cleanAddress } from '@/lib/utils'
 
 interface PropertyDetailsModalProps {
-  property: Property | null
+  property: PropertyDetailResponse | null
   isOpen: boolean
   onClose: () => void
-  onLike?: (propertyId: string | number, liked: boolean) => void
-  onDislike?: (propertyId: string | number, disliked: boolean) => void
-  onAddComment?: (propertyId: string | number, comment: string) => void
+  onLike?: (propertyId: string, liked: boolean) => void
+  onDislike?: (propertyId: string, disliked: boolean) => void
+  onAddComment?: (propertyId: string, comment: string) => void
   isLoadingDetails?: boolean
   detailsError?: string | null
   onRetryDetails?: () => void
@@ -21,10 +21,16 @@ interface PropertyDetailsModalProps {
 }
 
 // Property Report Table Component
-function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, propertyAddress?: string }) {
-  const formatList = (items: string[] | null | undefined): string | null => {
-    if (!items || items.length === 0) return null;
-    return items.join(", ");
+function PropertyReport({ property }: { property: PropertyDetailResponse }) {
+  const propertyAddress = property.FullStreetAddress;
+  
+  const formatList = (items: any): string | null => {
+    if (!items) return null;
+    if (Array.isArray(items)) {
+      if (items.length === 0) return null;
+      return items.join(", ");
+    }
+    return String(items);
   };
 
   const formatCurrency = (amount: number | null | undefined): string | null => {
@@ -32,100 +38,89 @@ function PropertyReport({ resoFacts, propertyAddress }: { resoFacts: any, proper
     return `$${amount.toLocaleString()}`;
   };
 
-  const formatBoolean = (val: boolean | null | undefined): string | null => {
-    if (val === null || val === undefined) return null;
-    return val ? "Yes" : "No";
-  };
-
   const allReportData = [
     // Listing Information
     { property: "Listing Information", value: "", isHeader: true },
-    { property: "Status", value: resoFacts.standardStatus || resoFacts.homeStatus || resoFacts.standard_status || resoFacts.home_status },
-    { property: "Days on Market", value: resoFacts.daysOnMarket || resoFacts.days_on_market },
-    { property: "Cumulative DOM", value: resoFacts.cumulativeDaysOnMarket || resoFacts.cumulative_days_on_market },
-    { property: "Original List Price", value: formatCurrency(resoFacts.originalListPrice || resoFacts.original_list_price) },
+    { property: "Status", value: property.MlsStatus },
+    { property: "Days on Market", value: property.DaysOnMarket },
+    { property: "Cumulative DOM", value: property.CumulativeDaysOnMarket },
+    { property: "Original List Price", value: formatCurrency(property.OriginalListPrice) },
 
     // Building & Construction
     { property: "BUILDING & CONSTRUCTION", value: "", isHeader: true },
-    { property: "Year Built", value: resoFacts.yearBuilt || resoFacts.year_built },
-    { property: "New Construction", value: (resoFacts.newConstructionYn ?? resoFacts.new_construction_yn) ? "Yes" : (resoFacts.newConstructionYn === false || resoFacts.new_construction_yn === false ? "No" : null) },
-    { property: "Architectural Style", value: resoFacts.architecturalStyle || resoFacts.architectural_style },
-    { property: "Construction Materials", value: formatList(resoFacts.constructionMaterials || resoFacts.construction_materials) },
-    { property: "Stories", value: resoFacts.stories },
-    { property: "Total Stories", value: resoFacts.storiesTotal || resoFacts.stories_total },
-    { property: "Square Footage", value: (resoFacts.livingArea || resoFacts.living_area) ? `${(resoFacts.livingArea || resoFacts.living_area).toLocaleString()} sq ft` : null },
-    { property: "Lot Size", value: (resoFacts.lotSize || resoFacts.lot_size) ? `${(resoFacts.lotSize || resoFacts.lot_size).toLocaleString()} sq ft` : null },
-    { property: "Lot Size (Acres)", value: (resoFacts.lotSizeAcres || resoFacts.lot_size_acres) ? `${(resoFacts.lotSizeAcres || resoFacts.lot_size_acres)} AC` : null },
-    { property: "Zoning", value: resoFacts.zoning },
+    { property: "Year Built", value: property.YearBuilt },
+    { property: "New Construction", value: property.NewConstructionYN ? "Yes" : (property.NewConstructionYN === false ? "No" : null) },
+    { property: "Architectural Style", value: formatList(property.ArchitecturalStyle) },
+    { property: "Construction Materials", value: formatList(property.ConstructionMaterials) },
+    { property: "Stories", value: property.Stories },
+    { property: "Square Footage", value: property.LivingArea ? `${property.LivingArea.toLocaleString()} sq ft` : null },
+    { property: "Lot Size", value: property.LotSizeSquareFeet ? `${property.LotSizeSquareFeet.toLocaleString()} sq ft` : null },
+    { property: "Lot Size (Acres)", value: property.LotSizeAcres ? `${property.LotSizeAcres} AC` : null },
+    { property: "Zoning", value: property.Zoning },
 
     // Interior Features
     { property: "INTERIOR FEATURES", value: "", isHeader: true },
-    { property: "Appliances", value: formatList(resoFacts.appliances) },
-    { property: "Interior Features", value: formatList(resoFacts.interiorFeatures || resoFacts.interior_features) },
-    { property: "Flooring", value: formatList(resoFacts.flooring) },
-    { property: "Window Features", value: formatList(resoFacts.windowFeatures || resoFacts.window_features) },
-    { property: "Fireplace Features", value: formatList(resoFacts.fireplaceFeatures || resoFacts.fireplace_features) },
-    { property: "Fireplaces", value: resoFacts.fireplaces },
+    { property: "Appliances", value: formatList(property.Appliances) },
+    { property: "Interior Features", value: formatList(property.InteriorFeatures) },
+    { property: "Flooring", value: formatList(property.Flooring) },
+    { property: "Window Features", value: formatList(property.WindowFeatures) },
+    { property: "Fireplace Features", value: formatList(property.FireplaceFeatures) },
+    { property: "Fireplaces", value: property.FireplacesTotal },
 
     // HVAC & Systems
     { property: "HVAC & SYSTEMS", value: "", isHeader: true },
-    { property: "Heating", value: formatList(resoFacts.heating) },
-    { property: "Heating Fuel", value: formatList(resoFacts.heatingFuel || resoFacts.heating_fuel) },
-    { property: "Cooling", value: formatList(resoFacts.cooling) },
-    { property: "Cooling Fuel", value: formatList(resoFacts.coolingFuel || resoFacts.cooling_fuel) },
-    { property: "Water Source", value: formatList(resoFacts.waterSource || resoFacts.water_source) },
-    { property: "Sewer", value: formatList(resoFacts.sewer) },
-    { property: "Electric", value: formatList(resoFacts.electric) },
+    { property: "Heating", value: formatList(property.Heating) },
+    { property: "Heating Fuel", value: formatList(property.HeatingFuel) },
+    { property: "Cooling", value: formatList(property.Cooling) },
+    { property: "Cooling Fuel", value: formatList(property.CoolingFuel) },
+    { property: "Water Source", value: formatList(property.WaterSource) },
+    { property: "Sewer", value: formatList(property.Sewer) },
+    { property: "Utilities", value: formatList(property.Utilities) },
 
     // Parking & Access
     { property: "PARKING & ACCESS", value: "", isHeader: true },
-    { property: "Total Parking", value: (resoFacts.parkingCapacity || resoFacts.parking_capacity) ? `${(resoFacts.parkingCapacity || resoFacts.parking_capacity)} spaces` : null },
-    { property: "Garage Parking", value: (resoFacts.garageParkingCapacity || resoFacts.garage_parking_capacity) ? `${(resoFacts.garageParkingCapacity || resoFacts.garage_parking_capacity)} spaces` : null },
-    { property: "Attached Garage", value: (resoFacts.attachedGarageYn ?? resoFacts.attached_garage_yn) ? "Yes" : null },
-    { property: "Parking Features", value: formatList(resoFacts.parkingFeatures || resoFacts.parking_features) },
-    { property: "Accessibility Features", value: formatList(resoFacts.accessibilityFeatures || resoFacts.accessibility_features) },
+    { property: "Garage Spaces", value: property.GarageSpaces ? `${property.GarageSpaces} spaces` : null },
+    { property: "Attached Garage", value: property.AttachedGarageYN ? "Yes" : (property.AttachedGarageYN === false ? "No" : null) },
+    { property: "Parking Features", value: formatList(property.ParkingFeatures) },
+    { property: "Accessibility Features", value: formatList(property.AccessibilityFeatures) },
 
     // HOA & Fees
-    ...(resoFacts.hasAssociation || resoFacts.associationFee || resoFacts.has_association || resoFacts.association_fee ? [
+    ...(property.AssociationYN || property.AssociationFee ? [
       { property: "HOA & FEES", value: "", isHeader: true },
-      { property: "HOA Fee", value: resoFacts.hoaFee || resoFacts.hoa_fee || resoFacts.associationFee || resoFacts.association_fee },
-      { property: "Frequency", value: resoFacts.associationFeeFrequency || resoFacts.association_fee_frequency },
-      { property: "Annual Property Tax", value: formatCurrency(resoFacts.taxAnnualAmount || resoFacts.tax_annual_amount) },
-      { property: "Capital Contribution", value: formatCurrency(resoFacts.capitalContributionFee || resoFacts.capital_contribution_fee) },
-      { property: "HOA Includes", value: formatList(resoFacts.associationFeeIncludes || resoFacts.association_fee_includes) },
-      { property: "Amenities", value: formatList(resoFacts.associationAmenities || resoFacts.association_amenities) },
+      { property: "HOA Fee", value: formatCurrency(property.AssociationFee) },
+      { property: "Frequency", value: property.AssociationFeeFrequency },
+      { property: "HOA Fee 2", value: formatCurrency(property.AssociationFee2) },
+      { property: "Frequency 2", value: property.AssociationFee2Frequency },
+      { property: "Annual Property Tax", value: formatCurrency(property.TaxAnnualAmount) },
+      { property: "HOA Includes", value: formatList(property.AssociationFeeIncludes) },
+      { property: "Amenities", value: formatList(property.AssociationAmenities) },
     ] : []),
 
     // Schools & District
     { property: "SCHOOLS & DISTRICT", value: "", isHeader: true },
-    { property: "School District", value: resoFacts.schoolDistrictName || resoFacts.school_district_name },
-    { property: "Elementary School", value: (resoFacts.elementarySchool || resoFacts.elementary_school) ? `${(resoFacts.elementarySchool || resoFacts.elementary_school)}${(resoFacts.elementarySchoolDistrict || resoFacts.elementary_school_district) ? ` (${resoFacts.elementarySchoolDistrict || resoFacts.elementary_school_district} District)` : ''}` : null },
-    { property: "Middle School", value: (resoFacts.middleOrJuniorSchool || resoFacts.middle_or_junior_school) ? `${(resoFacts.middleOrJuniorSchool || resoFacts.middle_or_junior_school)}${(resoFacts.middleOrJuniorSchoolDistrict || resoFacts.middle_or_junior_school_district) ? ` (${resoFacts.middleOrJuniorSchoolDistrict || resoFacts.middle_or_junior_school_district} District)` : ''}` : null },
-    { property: "High School", value: (resoFacts.highSchool || resoFacts.high_school) ? `${(resoFacts.highSchool || resoFacts.high_school)}${(resoFacts.highSchoolDistrict || resoFacts.high_school_district) ? ` (${resoFacts.highSchoolDistrict || resoFacts.high_school_district} District)` : ''}` : null },
+    { property: "School District", value: property.SchoolDistrictName },
+    { property: "Elementary School", value: property.ElementarySchool },
+    { property: "Middle School", value: property.MiddleOrJuniorSchool },
+    { property: "High School", value: property.HighSchool },
 
     // Location & Neighborhood
     { property: "LOCATION & NEIGHBORHOOD", value: "", isHeader: true },
-    { property: "County", value: resoFacts.county },
-    { property: "Walk Score", value: resoFacts.walkScore || resoFacts.walk_score },
-    { property: "Direction Faces", value: resoFacts.directionFaces || resoFacts.direction_faces },
-    { property: "Cross Street", value: resoFacts.crossStreet || resoFacts.cross_street },
-    { property: "Possession", value: formatList(resoFacts.possession) },
+    { property: "County", value: property.County },
+    { property: "Subdivision", value: property.SubdivisionName },
+    { property: "Possession", value: formatList(property.Possession) },
 
     // Additional Features
     { property: "ADDITIONAL FEATURES", value: "", isHeader: true },
-    { property: "Senior Community", value: (resoFacts.seniorCommunityYn ?? resoFacts.senior_community_yn) ? "Yes" : (resoFacts.seniorCommunityYn === false || resoFacts.senior_community_yn === false ? "No" : null) },
-    { property: "Pets Allowed", value: formatList(resoFacts.petsAllowed || resoFacts.pets_allowed) },
-    { property: "Exterior Features", value: formatList(resoFacts.exteriorFeatures || resoFacts.exterior_features) },
-    { property: "Lot Features", value: formatList(resoFacts.lotFeatures || resoFacts.lot_features) },
-    { property: "Community Features", value: formatList(resoFacts.communityFeatures || resoFacts.community_features) },
-    { property: "Security Features", value: formatList(resoFacts.securityFeatures || resoFacts.security_features) },
+    { property: "Senior Community", value: property.SeniorCommunityYN ? "Yes" : (property.SeniorCommunityYN === false ? "No" : null) },
+    { property: "Pets Allowed", value: formatList(property.PetsAllowed) },
+    { property: "Exterior Features", value: formatList(property.ExteriorFeatures) },
+    { property: "Lot Features", value: formatList(property.LotFeatures) },
 
     // Financial Details
     { property: "FINANCIAL DETAILS", value: "", isHeader: true },
-    { property: "Tax Assessment", value: formatCurrency(resoFacts.taxAssessmentAmount || resoFacts.tax_assessment_amount) },
-    { property: "Land Assessment", value: formatCurrency(resoFacts.landAssessmentAmount || resoFacts.land_assessment_amount) },
-    { property: "Improvement Assessment", value: formatCurrency(resoFacts.improvementAssessmentAmount || resoFacts.improvement_assessment_amount) },
-    { property: "Assessment Year", value: resoFacts.assessmentYear || resoFacts.assessment_year },
+    { property: "Tax Assessment", value: formatCurrency(property.TaxAssessmentAmount) },
+    { property: "Assessment Year", value: property.AssessmentYear },
+    { property: "Tax ID", value: property.ListingTaxID },
   ];
 
   // Filter out rows with null or empty values, but keep headers
@@ -286,14 +281,14 @@ function DescriptionSection({ description, details }: { description: string, det
       </div>
       
       {/* Listing Agent Info Paragraph */}
-      {(details?.listAgentFullName || details?.listOfficeName) && (
+      {(details?.ListAgentFullName || details?.ListOfficeName) && (
         <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
           <p className="text-xs text-gray-500 dark:text-gray-500 leading-relaxed">
             <span className="font-semibold">Listing provided by:</span>{' '}
-            {details.listAgentFullName || 'Agent'} 
-            {details.listOfficeName && ` of ${details.listOfficeName}`}
-            {details.listOfficePhone && ` (${details.listOfficePhone})`}.
-            {details.listAgentEmail && ` Email: ${details.listAgentEmail}.`}
+            {details.ListAgentFullName || 'Agent'} 
+            {details.ListOfficeName && ` of ${details.ListOfficeName}`}
+            {details.ListOfficePhone && ` (${details.ListOfficePhone})`}.
+            {details.ListAgentEmail && ` Email: ${details.ListAgentEmail}.`}
           </p>
         </div>
       )}
@@ -323,24 +318,12 @@ export default function PropertyDetailsModal({
 
   // Enhanced photo handling for property data
   const getPropertyImages = useCallback(() => {
-    const photos = (property as any)?.originalPhotos || (property as any)?.photos;
+    const photos = (property as PropertyDetailResponse)?.photos;
     if (photos && photos.length > 0) {
-      // Use high-quality photos from property data
-      return photos
-        .map((photo: any) => {
-          const jpegSources = photo.mixedSources?.jpeg;
-          const webpSources = photo.mixedSources?.webp;
-          // Select highest resolution (last in array) instead of lowest (first)
-          return jpegSources?.[jpegSources.length - 1]?.url ||
-                 webpSources?.[webpSources.length - 1]?.url ||
-                 photo.url ||
-                 '';
-        })
-        .filter((url: string) => typeof url === 'string' && url.length > 0) as string[]
+      return photos.filter((url: string) => typeof url === 'string' && url.length > 0);
     }
-    // Fallback to basic images
-    const basicImages = (property?.images || [property?.imageUrl || '/placeholder.jpg'])
-    return basicImages.filter((url: any) => typeof url === 'string' && url.length > 0) as string[]
+    // Fallback to primary image
+    return [property?.ListPictureURL || '/placeholder.jpg'].filter(url => url !== undefined);
   }, [property])
   
   const images = getPropertyImages()
@@ -584,25 +567,22 @@ export default function PropertyDetailsModal({
           <div className="flex items-center justify-between p-6 border-b border-gray-200/60 dark:border-gray-800 bg-gradient-to-r from-gray-50 to-white dark:from-[#0B0B0B] dark:to-[#151517]">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {cleanAddress(property.address, property.city)}
+                {cleanAddress(property.FullStreetAddress, property.City)}
               </h2>
               <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
-                {(property as any)?.address?.state || property.state} {(property as any)?.address?.zipcode || property.zipCode}
+                {property.StateOrProvince} {property.PostalCode}
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              {(property as any)?.homeStatus && (
+              {property.MlsStatus && (
                 <span className={`px-3 py-1 text-sm font-medium rounded-full ${
-                  (property as any).homeStatus === 'FOR_SALE' 
+                  property.MlsStatus.includes('ACTIVE') 
                     ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' 
-                    : (property as any).homeStatus === 'FOR_RENT'
+                    : property.MlsStatus.includes('COMING')
                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300'
                 }`}>
-                  {(property as any).homeStatus === 'forSale' ? 'For Sale' :
-                   (property as any).homeStatus === 'forRent' ? 'For Rent' :
-                   (property as any).homeStatus === 'recentlySold' ? 'Recently Sold' :
-                   (property as any)?.homeStatus?.replace("_", " ")}
+                  {property.MlsStatus}
                 </span>
               )}
               <button
@@ -754,31 +734,28 @@ export default function PropertyDetailsModal({
                         {/* Price Section */}
                         <div className="text-center mb-8">
                           <div className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                            {formatPrice((property as any)?.price || property.price)}
+                            {formatPrice(property.ListPrice)}
                           </div>
                           <div className="text-gray-600 dark:text-gray-400 text-sm mb-2">List Price</div>
-                          {(property as any)?.resoFacts?.pricePerSquareFoot && (
-                            <div className="text-gray-500 dark:text-gray-500 text-xs mb-4">${(property as any).resoFacts.pricePerSquareFoot}/sq ft</div>
-                          )}
                         </div>
                         
                         {/* Property Specs */}
                         <div className="grid grid-cols-3 gap-4 mb-8">
                           <div className="text-center">
                             <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-                              {(property as any)?.bedrooms || property.beds || '-'}
+                              {property.BedroomsTotal || '-'}
                             </div>
                             <div className="text-gray-600 dark:text-gray-400 text-sm">Beds</div>
                           </div>
                           <div className="text-center">
                             <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-                              {(property as any)?.bathrooms || property.baths || '-'}
+                              {property.BathroomsTotal || '-'}
                             </div>
                             <div className="text-gray-600 dark:text-gray-400 text-sm">Baths</div>
                           </div>
                           <div className="text-center">
                             <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                              {((((property as any)?.livingArea || property.squareFeet || 0)) / 1000).toFixed(1)}k
+                              {property.LivingArea ? (property.LivingArea / 1000).toFixed(1) + 'k' : '-'}
                             </div>
                             <div className="text-gray-600 dark:text-gray-400 text-sm">Sq Ft</div>
                           </div>
@@ -786,66 +763,44 @@ export default function PropertyDetailsModal({
                         
                         {/* Key Details */}
                         <div className="space-y-3 text-sm border-t border-gray-100 dark:border-gray-800 pt-6 mb-8">
-                          {((property as any)?.standardStatus || (property as any)?.homeStatus || property.status) && (
+                          {property.MlsStatus && (
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Status:</span>
                               <span className="text-gray-900 dark:text-gray-200 font-medium">
-                                {(property as any)?.standardStatus || (property as any)?.homeStatus?.replace(/_/g, ' ') || property.status}
+                                {property.MlsStatus}
                               </span>
                             </div>
                           )}
-                          {((property as any)?.homeType || property.propertyType) && (
+                          {property.PropertyType && (
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Home Type:</span>
                               <span className="text-gray-900 dark:text-gray-200 font-medium">
-                                {(property as any)?.homeType?.replace(/_/g, ' ') || property.propertyType?.replace(/_/g, ' ')}
+                                {property.PropertyType}
                               </span>
                             </div>
                           )}
-                          {((property as any)?.yearBuilt || property.yearBuilt) && 
-                           Number((property as any)?.yearBuilt || property.yearBuilt) !== 0 && (
+                          {property.YearBuilt && Number(property.YearBuilt) !== 0 && (
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Year Built:</span>
                               <span className="text-gray-900 dark:text-gray-200 font-medium">
-                                {(property as any)?.yearBuilt || property.yearBuilt}
+                                {property.YearBuilt}
                               </span>
                             </div>
                           )}
-                          {(property as any)?.resoFacts?.pricePerSquareFoot && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600 dark:text-gray-400">Price/Sq Ft:</span>
-                              <span className="text-gray-900 dark:text-gray-200 font-medium">
-                                ${(property as any).resoFacts.pricePerSquareFoot}
-                              </span>
-                            </div>
-                          )}
-                          {(property as any)?.resoFacts?.stories && Number((property as any)?.resoFacts?.stories) !== 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600 dark:text-gray-400">Stories:</span>
-                              <span className="text-gray-900 dark:text-gray-200 font-medium">{(property as any).resoFacts.stories}</span>
-                            </div>
-                          )}
-                          {(property as any)?.lotSize && Number((property as any)?.lotSize) !== 0 && (
+                          {property.LotSizeAcres && Number(property.LotSizeAcres) !== 0 && (
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Lot Size:</span>
                               <span className="text-gray-900 dark:text-gray-200 font-medium">
-                                {((property as any).lotSize / 43560).toFixed(2)} acres
+                                {property.LotSizeAcres.toFixed(2)} acres
                               </span>
                             </div>
                           )}
-                          {((property as any)?.daysOnMarket || (property as any)?.resoFacts?.daysOnMarket) && 
-                           Number((property as any)?.daysOnMarket || (property as any)?.resoFacts?.daysOnMarket) !== 0 && (
+                          {property.DaysOnMarket && Number(property.DaysOnMarket) !== 0 && (
                             <div className="flex justify-between">
                               <span className="text-gray-600 dark:text-gray-400">Days on Market:</span>
                               <span className="text-gray-900 dark:text-gray-200 font-medium">
-                                {(property as any)?.daysOnMarket || (property as any)?.resoFacts?.daysOnMarket}
+                                {property.DaysOnMarket}
                               </span>
-                            </div>
-                          )}
-                          {(property as any)?.resoFacts?.propertyCondition && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600 dark:text-gray-400">Condition:</span>
-                              <span className="text-gray-900 dark:text-gray-200 font-medium">{(property as any).resoFacts.propertyCondition}</span>
                             </div>
                           )}
                         </div>
@@ -895,9 +850,9 @@ export default function PropertyDetailsModal({
                       </h3>
                       <div className="space-y-6">
                         {/* Description Field - Full Width */}
-                        {(property as any)?.description && (
+                        {property.PublicRemarks && (
                           <DescriptionSection 
-                            description={(property as any).description} 
+                            description={property.PublicRemarks} 
                             details={property}
                           />
                         )}
@@ -991,17 +946,16 @@ export default function PropertyDetailsModal({
               </div>
               
               {/* Property Details Report - Professional Table Format */}
-              {!isLoadingDetails && !detailsError && (property as any)?.resoFacts && (
+              {!isLoadingDetails && !detailsError && (
                 <PropertyReport 
-                  resoFacts={(property as any).resoFacts} 
-                  propertyAddress={(property as any).abbreviatedAddress || property.address}
+                  property={property as PropertyDetailResponse} 
                 />
               )}
               
               {/* Compliance Footer */}
               <div className="border-t border-gray-200 dark:border-gray-800 mt-8 pt-6 text-center text-xs text-gray-500 dark:text-gray-500 space-y-2">
-                <p>Data last updated: {(property as any)?.resoFacts?.updated_at 
-                  ? new Date((property as any).resoFacts.updated_at).toLocaleString('en-US', {
+                <p>Data last updated: {property.updated_at 
+                  ? new Date(property.updated_at).toLocaleString('en-US', {
                       month: 'numeric',
                       day: 'numeric',
                       year: 'numeric',

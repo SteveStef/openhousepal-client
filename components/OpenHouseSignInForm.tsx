@@ -196,7 +196,7 @@ export default function OpenHouseSignInForm({
     )
   }
 
-  const the_image_src = property.imageSrc || "";
+  const the_image_src = property.ListPictureURL || "";
 
   return (
     <div className="max-w-lg w-full bg-white rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 overflow-hidden">
@@ -215,7 +215,7 @@ export default function OpenHouseSignInForm({
             <div className="w-32 h-32 flex-shrink-0 bg-gray-100 relative">
               <Image
                 src={the_image_src}
-                alt={property.address}
+                alt={property.FullStreetAddress}
                 fill
                 className="object-cover"
               />
@@ -225,26 +225,26 @@ export default function OpenHouseSignInForm({
           {/* Property Details */}
           <div className="flex-1 p-4 flex flex-col justify-center min-w-0">
             <h2 className="text-sm font-black text-[#0B0B0B] mb-2 leading-tight truncate">
-              {property.address}
+              {property.FullStreetAddress}
             </h2>
 
             <div className="space-y-3">
               <div>
                 <span className="text-base font-black text-[#C9A24D] tracking-tight">
-                  {formatPrice(property.price)}
+                  {formatPrice(property.ListPrice)}
                 </span>
               </div>
 
               <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-[#6B7280]">
-                {property.beds && (
+                {property.BedroomsTotal && (
                   <span className="flex items-center">
-                    <span className="text-[#111827] mr-1">{property.beds}</span> Beds
+                    <span className="text-[#111827] mr-1">{property.BedroomsTotal}</span> Beds
                   </span>
                 )}
                 <span className="text-gray-200">•</span>
-                {property.baths && (
+                {property.BathroomsTotal && (
                   <span className="flex items-center">
-                    <span className="text-[#111827] mr-1">{property.baths}</span> Baths
+                    <span className="text-[#111827] mr-1">{property.BathroomsTotal}</span> Baths
                   </span>
                 )}
               </div>
