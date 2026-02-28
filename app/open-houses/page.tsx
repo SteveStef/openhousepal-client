@@ -379,7 +379,7 @@ function OpenHouseContent() {
     setIsLoadingProperty(true)
 
     try {
-      const response = await apiRequest('/api/property', {
+      const response = await apiRequest('/api/properties/lookup', {
         method: 'POST',
         body: JSON.stringify({ address: address })
       })

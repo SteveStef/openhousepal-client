@@ -230,6 +230,8 @@ export interface CollectionPreferences {
   is_multi_family?: boolean | null;
   is_single_family?: boolean | null;
   is_apartment?: boolean | null;
+  is_commercial?: boolean | null;
+  is_farm?: boolean | null;
   visiting_reason?: string | null;
   has_agent?: string | null;
   created_at?: string;

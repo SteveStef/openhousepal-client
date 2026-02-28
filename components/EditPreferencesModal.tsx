@@ -43,7 +43,9 @@ export default function EditPreferencesModal({
     is_condo: false,
     is_multi_family: false,
     is_single_family: false,
-    is_apartment: false
+    is_apartment: false,
+    is_commercial: false,
+    is_farm: false
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(false)
@@ -55,7 +57,8 @@ export default function EditPreferencesModal({
   // Validation helper functions
   const validatePropertyTypes = () => {
     const hasPropertyType = formData.is_single_family || formData.is_condo || formData.is_town_house || 
-                           formData.is_apartment || formData.is_multi_family || formData.is_lot_land
+                           formData.is_apartment || formData.is_multi_family || formData.is_lot_land ||
+                           formData.is_commercial || formData.is_farm
     return hasPropertyType
   }
 
@@ -123,6 +126,7 @@ export default function EditPreferencesModal({
             } else if (prefs.township) {
               townships = [prefs.township]
             }
+            console.log(prefs)
             
             setFormData({
               min_beds: prefs.min_beds || null,
@@ -145,9 +149,11 @@ export default function EditPreferencesModal({
               is_town_house: prefs.is_town_house || false,
               is_lot_land: prefs.is_lot_land || false,
               is_condo: prefs.is_condo || false,
-              is_multi_family: prefs.is_multi_family || false,
-              is_single_family: prefs.is_single_family || false,
-              is_apartment: prefs.is_apartment || false,
+              is_multi_family: prefs.is_multi_family ?? false,
+              is_single_family: prefs.is_single_family ?? false,
+              is_apartment: prefs.is_apartment ?? false,
+              is_commercial: prefs.is_commercial ?? false,
+              is_farm: prefs.is_farm ?? false,
               visiting_reason: prefs.visiting_reason || null,
               has_agent: prefs.has_agent || null
             })
@@ -190,12 +196,14 @@ export default function EditPreferencesModal({
                 townships: townships,
                 diameter: prefs.diameter ? Math.round(prefs.diameter * 10) / 10 : null,
                 special_features: prefs.special_features || '',
-                is_town_house: prefs.is_town_house || false,
-                is_lot_land: prefs.is_lot_land || false,
-                is_condo: prefs.is_condo || false,
-                is_multi_family: prefs.is_multi_family || false,
-                is_single_family: prefs.is_single_family || false,
-                is_apartment: prefs.is_apartment || false,
+                is_town_house: prefs.is_town_house ?? false,
+                is_lot_land: prefs.is_lot_land ?? false,
+                is_condo: prefs.is_condo ?? false,
+                is_multi_family: prefs.is_multi_family ?? false,
+                is_single_family: prefs.is_single_family ?? false,
+                is_apartment: prefs.is_apartment ?? false,
+                is_commercial: prefs.is_commercial ?? false,
+                is_farm: prefs.is_farm ?? false,
                 visiting_reason: prefs.visiting_reason || null,
                 has_agent: prefs.has_agent || null
               })
@@ -225,6 +233,8 @@ export default function EditPreferencesModal({
                 is_multi_family: false,
                 is_single_family: false,
                 is_apartment: false,
+                is_commercial: false,
+                is_farm: false,
                 visiting_reason: null,
                 has_agent: null
               })
@@ -257,6 +267,8 @@ export default function EditPreferencesModal({
             is_multi_family: false,
             is_single_family: false,
             is_apartment: false,
+            is_commercial: false,
+            is_farm: false,
             visiting_reason: null,
             has_agent: null
           })
@@ -304,7 +316,8 @@ export default function EditPreferencesModal({
     }
 
     if ((field === 'is_single_family' || field === 'is_condo' || field === 'is_town_house' ||
-         field === 'is_apartment' || field === 'is_multi_family' || field === 'is_lot_land') && validationErrors.propertyTypes) {
+         field === 'is_apartment' || field === 'is_multi_family' || field === 'is_lot_land' ||
+         field === 'is_commercial' || field === 'is_farm') && validationErrors.propertyTypes) {
       setValidationErrors(prev => ({ ...prev, propertyTypes: '' }))
     }
   }
@@ -699,7 +712,7 @@ export default function EditPreferencesModal({
           </div>
 
           {/* Special Features */}
-          <div className="space-y-6">
+          {/* <div className="space-y-6">
             <div className="flex items-center space-x-3 pb-2 border-b border-gray-100 dark:border-gray-800">
               <div className="w-1 h-6 bg-[#C9A24D] rounded-full"></div>
               <h4 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight uppercase">Special Features</h4>
@@ -717,7 +730,7 @@ export default function EditPreferencesModal({
                 placeholder="e.g., pool, garage, modern kitchen, hardwood floors..."
               />
             </div>
-          </div>
+          </div> */}
 
           {/* Home Type Preferences */}
           <div className="space-y-6">
@@ -730,76 +743,125 @@ export default function EditPreferencesModal({
             
             <div className={`p-6 rounded-2xl border transition-all duration-300 ${validationErrors.propertyTypes ? 'border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-700 bg-[#FAFAF7] dark:bg-[#0B0B0B]'}`}>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                <label className="flex items-center space-x-3 cursor-pointer group">
+                <label className={`flex items-center space-x-3 cursor-pointer group transition-all duration-200 ${formData.is_apartment ? 'opacity-40 cursor-not-allowed' : ''}`}>
                   <div className="relative flex items-center">
                     <input
                       type="checkbox"
                       checked={formData.is_single_family || false}
                       onChange={(e) => handleInputChange('is_single_family', e.target.checked)}
-                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                      disabled={!!formData.is_apartment}
+                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200 disabled:opacity-50"
                     />
                   </div>
-                  <span className="text-sm font-bold text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Single Family</span>
+                  <span className={`text-sm font-bold transition-colors ${formData.is_apartment ? 'text-gray-400' : 'text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`}>Single Family</span>
                 </label>
 
-                <label className="flex items-center space-x-3 cursor-pointer group">
+                <label className={`flex items-center space-x-3 cursor-pointer group transition-all duration-200 ${formData.is_apartment ? 'opacity-40 cursor-not-allowed' : ''}`}>
                   <div className="relative flex items-center">
                     <input
                       type="checkbox"
                       checked={formData.is_condo || false}
                       onChange={(e) => handleInputChange('is_condo', e.target.checked)}
-                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                      disabled={!!formData.is_apartment}
+                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200 disabled:opacity-50"
                     />
                   </div>
-                  <span className="text-sm font-bold text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Condo</span>
+                  <span className={`text-sm font-bold transition-colors ${formData.is_apartment ? 'text-gray-400' : 'text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`}>Condo</span>
                 </label>
 
-                <label className="flex items-center space-x-3 cursor-pointer group">
+                <label className={`flex items-center space-x-3 cursor-pointer group transition-all duration-200 ${formData.is_apartment ? 'opacity-40 cursor-not-allowed' : ''}`}>
                   <div className="relative flex items-center">
                     <input
                       type="checkbox"
                       checked={formData.is_town_house || false}
                       onChange={(e) => handleInputChange('is_town_house', e.target.checked)}
-                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                      disabled={!!formData.is_apartment}
+                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200 disabled:opacity-50"
                     />
                   </div>
-                  <span className="text-sm font-bold text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Townhouse</span>
+                  <span className={`text-sm font-bold transition-colors ${formData.is_apartment ? 'text-gray-400' : 'text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`}>Townhouse</span>
                 </label>
 
-                <label className="flex items-center space-x-3 cursor-pointer group">
+                <label className={`flex items-center space-x-3 cursor-pointer group transition-all duration-200 ${(formData.is_single_family || formData.is_condo || formData.is_town_house || formData.is_multi_family || formData.is_lot_land || formData.is_commercial || formData.is_farm) ? 'opacity-40 cursor-not-allowed' : ''}`}>
                   <div className="relative flex items-center">
                     <input
                       type="checkbox"
                       checked={formData.is_apartment || false}
-                      onChange={(e) => handleInputChange('is_apartment', e.target.checked)}
-                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        if (val) {
+                          setFormData(prev => ({
+                            ...prev,
+                            is_apartment: true,
+                            is_single_family: false,
+                            is_condo: false,
+                            is_town_house: false,
+                            is_multi_family: false,
+                            is_lot_land: false,
+                            is_commercial: false,
+                            is_farm: false
+                          }));
+                        } else {
+                          handleInputChange('is_apartment', false);
+                        }
+                      }}
+                      disabled={!!(formData.is_single_family || formData.is_condo || formData.is_town_house || formData.is_multi_family || formData.is_lot_land || formData.is_commercial || formData.is_farm)}
+                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200 disabled:opacity-50"
                     />
                   </div>
-                  <span className="text-sm font-bold text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Apartment</span>
+                  <span className={`text-sm font-bold transition-colors ${(formData.is_single_family || formData.is_condo || formData.is_town_house || formData.is_multi_family || formData.is_lot_land || formData.is_commercial || formData.is_farm) ? 'text-gray-400' : 'text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`}>Rentals</span>
                 </label>
 
-                <label className="flex items-center space-x-3 cursor-pointer group">
+                <label className={`flex items-center space-x-3 cursor-pointer group transition-all duration-200 ${formData.is_apartment ? 'opacity-40 cursor-not-allowed' : ''}`}>
                   <div className="relative flex items-center">
                     <input
                       type="checkbox"
                       checked={formData.is_multi_family || false}
                       onChange={(e) => handleInputChange('is_multi_family', e.target.checked)}
-                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                      disabled={!!formData.is_apartment}
+                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200 disabled:opacity-50"
                     />
                   </div>
-                  <span className="text-sm font-bold text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Multi-Family</span>
+                  <span className={`text-sm font-bold transition-colors ${formData.is_apartment ? 'text-gray-400' : 'text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`}>Multi-Family</span>
                 </label>
 
-                <label className="flex items-center space-x-3 cursor-pointer group">
+                <label className={`flex items-center space-x-3 cursor-pointer group transition-all duration-200 ${formData.is_apartment ? 'opacity-40 cursor-not-allowed' : ''}`}>
                   <div className="relative flex items-center">
                     <input
                       type="checkbox"
                       checked={formData.is_lot_land || false}
                       onChange={(e) => handleInputChange('is_lot_land', e.target.checked)}
-                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200"
+                      disabled={!!formData.is_apartment}
+                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200 disabled:opacity-50"
                     />
                   </div>
-                  <span className="text-sm font-bold text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Lot/Land</span>
+                  <span className={`text-sm font-bold transition-colors ${formData.is_apartment ? 'text-gray-400' : 'text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`}>Lot/Land</span>
+                </label>
+
+                <label className={`flex items-center space-x-3 cursor-pointer group transition-all duration-200 ${formData.is_apartment ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                  <div className="relative flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_commercial || false}
+                      onChange={(e) => handleInputChange('is_commercial', e.target.checked)}
+                      disabled={!!formData.is_apartment}
+                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200 disabled:opacity-50"
+                    />
+                  </div>
+                  <span className={`text-sm font-bold transition-colors ${formData.is_apartment ? 'text-gray-400' : 'text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`}>Commercial</span>
+                </label>
+
+                <label className={`flex items-center space-x-3 cursor-pointer group transition-all duration-200 ${formData.is_apartment ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                  <div className="relative flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_farm || false}
+                      onChange={(e) => handleInputChange('is_farm', e.target.checked)}
+                      disabled={!!formData.is_apartment}
+                      className="w-5 h-5 text-[#111827] dark:text-white border-gray-300 dark:border-gray-600 rounded focus:ring-[#C9A24D] focus:ring-offset-0 transition-all duration-200 disabled:opacity-50"
+                    />
+                  </div>
+                  <span className={`text-sm font-bold transition-colors ${formData.is_apartment ? 'text-gray-400' : 'text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`}>Farm</span>
                 </label>
               </div>
             </div>

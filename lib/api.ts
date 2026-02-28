@@ -137,7 +137,7 @@ class ApiClient {
   }
 
   async getPropertyDetails(listingKey?: string, address?: string): Promise<ApiResponse<Property>> {
-    return this.request('/api/property', {
+    return this.request('/api/properties/lookup', {
       method: 'POST',
       body: JSON.stringify({ listing_key: listingKey, address })
     })
