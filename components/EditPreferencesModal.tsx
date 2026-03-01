@@ -6,6 +6,7 @@ import { collectionPreferencesApi } from '@/lib/api'
 import { X } from 'lucide-react'
 import MultiCityPlacesInput from './MultiCityPlacesInput'
 import MultiTownshipPlacesInput from './MultiTownshipPlacesInput'
+import MultiSchoolDistrictInput from './MultiSchoolDistrictInput'
 import GooglePlacesAutocomplete from './GooglePlacesAutocomplete'
 
 interface EditPreferencesModalProps {
@@ -36,6 +37,7 @@ export default function EditPreferencesModal({
     address: '',
     cities: [],
     townships: [],
+    school_districts: [],
     diameter: null,
     special_features: '',
     is_town_house: false,
@@ -65,7 +67,8 @@ export default function EditPreferencesModal({
   const validateLocationPreferences = () => {
     const hasAddress = formData.address && formData.address.trim()
     const hasAreaFilters = (formData.cities && formData.cities.length > 0) || 
-                          (formData.townships && formData.townships.length > 0)
+                          (formData.townships && formData.townships.length > 0) ||
+                          (formData.school_districts && formData.school_districts.length > 0)
     
     // If address is provided, diameter must be provided
     if (hasAddress && !formData.diameter) {
@@ -74,7 +77,7 @@ export default function EditPreferencesModal({
     
     // Must have either address or area filters
     if (!hasAddress && !hasAreaFilters) {
-      return { isValid: false, error: 'Please specify either an address with search diameter OR select cities/townships' }
+      return { isValid: false, error: 'Please specify either an address with search diameter OR select cities/townships/school districts' }
     }
     
     return { isValid: true, error: '' }
@@ -86,7 +89,8 @@ export default function EditPreferencesModal({
 
   const isUsingAreaSearch = () => {
     return (formData.cities && formData.cities.length > 0) || 
-           (formData.townships && formData.townships.length > 0)
+           (formData.townships && formData.townships.length > 0) ||
+           (formData.school_districts && formData.school_districts.length > 0)
   }
 
   // Helper to format number with commas
@@ -126,6 +130,12 @@ export default function EditPreferencesModal({
             } else if (prefs.township) {
               townships = [prefs.township]
             }
+
+            let school_districts: string[] = []
+            if (prefs.school_districts && Array.isArray(prefs.school_districts)) {
+              school_districts = prefs.school_districts
+            }
+
             console.log(prefs)
             
             setFormData({
@@ -144,6 +154,7 @@ export default function EditPreferencesModal({
               cities: cities,
               township: prefs.township || null,
               townships: townships,
+              school_districts: school_districts,
               diameter: prefs.diameter ? Math.round(prefs.diameter * 10) / 10 : null,
               special_features: prefs.special_features || '',
               is_town_house: prefs.is_town_house || false,
@@ -177,6 +188,11 @@ export default function EditPreferencesModal({
               } else if (prefs.township) {
                 townships = [prefs.township]
               }
+
+              let school_districts: string[] = []
+              if (prefs.school_districts && Array.isArray(prefs.school_districts)) {
+                school_districts = prefs.school_districts
+              }
               
               setFormData({
                 min_beds: prefs.min_beds || null,
@@ -194,6 +210,7 @@ export default function EditPreferencesModal({
                 cities: cities,
                 township: prefs.township || null,
                 townships: townships,
+                school_districts: school_districts,
                 diameter: prefs.diameter ? Math.round(prefs.diameter * 10) / 10 : null,
                 special_features: prefs.special_features || '',
                 is_town_house: prefs.is_town_house ?? false,
@@ -225,6 +242,7 @@ export default function EditPreferencesModal({
                 cities: [],
                 township: null,
                 townships: [],
+                school_districts: [],
                 diameter: null,
                 special_features: '',
                 is_town_house: false,
@@ -259,6 +277,7 @@ export default function EditPreferencesModal({
             cities: [],
             township: null,
             townships: [],
+            school_districts: [],
             diameter: null,
             special_features: '',
             is_town_house: false,
@@ -289,17 +308,18 @@ export default function EditPreferencesModal({
       // Handle location field conflicts
       if (field === 'address') {
         // If address is being filled and we have area filters, clear them
-        if (value && (prevFormData.cities?.length || prevFormData.townships?.length)) {
+        if (value && (prevFormData.cities?.length || prevFormData.townships?.length || prevFormData.school_districts?.length)) {
           updatedFormData = {
             ...updatedFormData,
             cities: [],
-            townships: []
+            townships: [],
+            school_districts: []
           }
         }
-      } else if (field === 'cities' || field === 'townships') {
+      } else if (field === 'cities' || field === 'townships' || field === 'school_districts') {
         // If area filters are being used and we have an address, clear it
         const newValue = value as string[]
-        if (newValue.length > 0 && prevFormData.address) {
+        if (newValue && newValue.length > 0 && prevFormData.address) {
           updatedFormData = {
             ...updatedFormData,
             address: ''
@@ -311,7 +331,7 @@ export default function EditPreferencesModal({
     })
 
     // Clear validation errors when relevant fields change
-    if ((field === 'address' || field === 'diameter' || field === 'cities' || field === 'townships') && validationErrors.location) {
+    if ((field === 'address' || field === 'diameter' || field === 'cities' || field === 'townships' || field === 'school_districts') && validationErrors.location) {
       setValidationErrors(prev => ({ ...prev, location: '' }))
     }
 
@@ -629,14 +649,15 @@ export default function EditPreferencesModal({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                     </svg>
                   </div>
-                  City/Township Search
+                  City/Township/School District Search
                 </h5>
-                {((formData.cities?.length || 0) + (formData.townships?.length || 0)) > 0 && (
+                {((formData.cities?.length || 0) + (formData.townships?.length || 0) + (formData.school_districts?.length || 0)) > 0 && (
                   <button
                     type="button"
                     onClick={() => {
                       handleInputChange('cities', [])
                       handleInputChange('townships', [])
+                      handleInputChange('school_districts', [])
                     }}
                     className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] dark:hover:text-white uppercase tracking-widest transition-colors py-2 px-3 hover:bg-[#C9A24D]/10 rounded-lg"
                   >
@@ -679,18 +700,39 @@ export default function EditPreferencesModal({
                     townships={formData.townships || []}
                     onChange={(townships) => {
                       setFormData(prev => {
-                        // Clear address if townships are being added
                         if (townships.length > 0 && prev.address) {
                           return { ...prev, townships, address: '' }
                         }
                         return { ...prev, townships }
                       })
-                      // Clear validation errors
                       if (validationErrors.location) {
                         setValidationErrors(prev => ({ ...prev, location: '' }))
                       }
                     }}
                     placeholder={isUsingAddressSearch() ? 'Disabled - using address search' : 'Type township names and press Enter...'}
+                    className="mb-4"
+                    disabled={isUsingAddressSearch()}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
+                    School Districts
+                  </label>
+                  <MultiSchoolDistrictInput
+                    schoolDistricts={formData.school_districts || []}
+                    onChange={(school_districts) => {
+                      setFormData(prev => {
+                        if (school_districts.length > 0 && prev.address) {
+                          return { ...prev, school_districts, address: '' }
+                        }
+                        return { ...prev, school_districts }
+                      })
+                      if (validationErrors.location) {
+                        setValidationErrors(prev => ({ ...prev, location: '' }))
+                      }
+                    }}
+                    placeholder={isUsingAddressSearch() ? 'Disabled - using address search' : 'Type school district names...'}
                     className="mb-4"
                     disabled={isUsingAddressSearch()}
                   />

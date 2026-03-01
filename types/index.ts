@@ -222,6 +222,7 @@ export interface CollectionPreferences {
   cities?: string[]; // New field for multiple cities
   township?: string | null; // Keep for backward compatibility
   townships?: string[]; // New field for multiple townships
+  school_districts?: string[]; // New field for school districts
   diameter?: number | null;
   special_features?: string;
   is_town_house?: boolean | null;

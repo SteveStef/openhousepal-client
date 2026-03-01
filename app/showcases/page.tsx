@@ -21,6 +21,7 @@ import { apiRequest, updatePreferencesAndRefresh } from '@/lib/auth'
 import { collectionsApi, propertyApi } from '@/lib/api'
 import MultiCityPlacesInput from '@/components/MultiCityPlacesInput'
 import MultiTownshipPlacesInput from '@/components/MultiTownshipPlacesInput'
+import MultiSchoolDistrictInput from '@/components/MultiSchoolDistrictInput'
 import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -1645,6 +1646,7 @@ function CreateCollectionModal({
     long: null as number | null,
     cities: [] as string[],
     townships: [] as string[],
+    schoolDistricts: [] as string[],
     diameter: '0',
     isTownHouse: false,
     isLotLand: false,
@@ -1673,7 +1675,8 @@ function CreateCollectionModal({
   const validateLocationPreferences = () => {
     const hasAddress = formData.address && formData.address.trim()
     const hasAreaFilters = (formData.cities && formData.cities.length > 0) || 
-                          (formData.townships && formData.townships.length > 0)
+                          (formData.townships && formData.townships.length > 0) ||
+                          (formData.schoolDistricts && formData.schoolDistricts.length > 0)
     
     // If address is provided, diameter must be provided
     if (hasAddress && !formData.diameter) {
@@ -1682,7 +1685,7 @@ function CreateCollectionModal({
     
     // Must have either address or area filters
     if (!hasAddress && !hasAreaFilters) {
-      return { isValid: false, error: 'Please specify either an address with search diameter OR select cities/townships' }
+      return { isValid: false, error: 'Please specify either an address with search diameter OR select cities/townships/school districts' }
     }
     
     return { isValid: true, error: '' }
@@ -1694,7 +1697,8 @@ function CreateCollectionModal({
 
   const isUsingAreaSearch = () => {
     return (formData.cities && formData.cities.length > 0) || 
-           (formData.townships && formData.townships.length > 0)
+           (formData.townships && formData.townships.length > 0) ||
+           (formData.schoolDistricts && formData.schoolDistricts.length > 0)
   }
 
   // Helper to format number with commas
@@ -1718,18 +1722,19 @@ function CreateCollectionModal({
       // Handle location field conflicts
       if (field === 'address') {
         // If address is being filled and we have area filters, clear them
-        if (value && (prevFormData.cities?.length || prevFormData.townships?.length)) {
+        if (value && (prevFormData.cities?.length || prevFormData.townships?.length || prevFormData.schoolDistricts?.length)) {
           updatedFormData = {
             ...updatedFormData,
             cities: [],
-            townships: []
+            townships: [],
+            schoolDistricts: []
           }
         }
-      } else if (field === 'cities' || field === 'townships') {
+      } else if (field === 'cities' || field === 'townships' || field === 'schoolDistricts') {
         const newValue = value as string[]
 
         // If area filters are being used and we have an address, clear it
-        if (newValue.length > 0 && prevFormData.address) {
+        if (newValue && newValue.length > 0 && prevFormData.address) {
           updatedFormData = {
             ...updatedFormData,
             address: ''
@@ -1741,7 +1746,7 @@ function CreateCollectionModal({
     })
 
     // Clear validation errors when relevant fields change
-    if ((field === 'address' || field === 'diameter' || field === 'cities' || field === 'townships') && validationErrors.location) {
+    if ((field === 'address' || field === 'diameter' || field === 'cities' || field === 'townships' || field === 'schoolDistricts') && validationErrors.location) {
       setValidationErrors(prev => ({ ...prev, location: '' }))
     }
 
@@ -1803,6 +1808,7 @@ function CreateCollectionModal({
         long: null,
         cities: [],
         townships: [],
+        schoolDistricts: [],
         diameter: '2',
         isTownHouse: false,
         isLotLand: false,
@@ -2242,16 +2248,17 @@ function CreateCollectionModal({
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                         </svg>
                       </div>
-                      City/Township Search
+                      City/Township/School District Search
                     </h5>
                     <div className="flex items-center space-x-3">
-                      {((formData.cities?.length || 0) + (formData.townships?.length || 0)) > 0 && (
+                      {((formData.cities?.length || 0) + (formData.townships?.length || 0) + (formData.schoolDistricts?.length || 0)) > 0 && (
                         <>
                           <button
                             type="button"
                             onClick={() => {
                               handleInputChange('cities', [])
                               handleInputChange('townships', [])
+                              handleInputChange('schoolDistricts', [])
                             }}
                             className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] dark:hover:text-white uppercase tracking-widest transition-colors py-2 px-3 hover:bg-[#C9A24D]/10 rounded-lg"
                           >
@@ -2308,6 +2315,19 @@ function CreateCollectionModal({
                           }
                         }}
                         placeholder={isUsingAddressSearch() ? 'Disabled - using address search' : 'Type township names and press Enter...'}
+                        className="mb-4"
+                        disabled={isUsingAddressSearch()}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
+                        School Districts
+                      </label>
+                      <MultiSchoolDistrictInput
+                        schoolDistricts={formData.schoolDistricts}
+                        onChange={(districts) => handleInputChange('schoolDistricts', districts)}
+                        placeholder={isUsingAddressSearch() ? 'Disabled - using address search' : 'Type school district names...'}
                         className="mb-4"
                         disabled={isUsingAddressSearch()}
                       />

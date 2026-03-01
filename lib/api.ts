@@ -187,6 +187,10 @@ class ApiClient {
     return this.request(`/api/open-houses/${openHouseId}/visitors`)
   }
 
+  async searchSchoolDistricts(query: string): Promise<ApiResponse<{ results: string[] }>> {
+    return this.request(`/api/properties/school-districts?query=${encodeURIComponent(query)}`)
+  }
+
   async updateVisitorNote(visitorId: string, notes: string): Promise<ApiResponse<{ success: boolean }>> {
     return this.request(`/api/visitors/${visitorId}/note`, {
       method: 'PUT',
