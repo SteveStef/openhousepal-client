@@ -39,4 +39,25 @@ export const cleanAddress = (address: string, city?: string): string => {
     .join(' ');
 };
 
+/**
+ * Standardizes MLS Status strings for display.
+ * Renames "ACTIVE-BRIGHT" to "FOR SALE" and "COMING SOON-BRIGHT" to "COMING SOON".
+ */
+export const formatMlsStatus = (status: string | null | undefined): string => {
+  if (!status) return 'Active';
+  
+  const s = status.toUpperCase().trim();
+  
+  if (s.includes('ACTIVE-BRIGHT') || s === 'ACTIVE') {
+    return 'FOR SALE';
+  }
+  
+  if (s.includes('COMING SOON')) {
+    return 'COMING SOON';
+  }
+  
+  // Default to the original but cleaned up
+  return s;
+};
+
 const anyDigit = (s: string) => /\d/.test(s);

@@ -127,6 +127,7 @@ export interface PropertyDetailResponse extends Property {
   SchoolDistrictName?: string;
   
   County?: string;
+  MLSAreaMajor?: string;
   Directions?: string;
   Zoning?: string;
   

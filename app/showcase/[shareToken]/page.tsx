@@ -150,16 +150,16 @@ export default function CustomerShowcasePage() {
       
       switch (sortBy) {
         case 'price':
-          aValue = a.price || 0
-          bValue = b.price || 0
+          aValue = a.ListPrice || 0
+          bValue = b.ListPrice || 0
           break
         case 'beds':
-          aValue = a.beds || 0
-          bValue = b.beds || 0
+          aValue = a.BedroomsTotal || 0
+          bValue = b.BedroomsTotal || 0
           break
         case 'squareFeet':
-          aValue = a.squareFeet || 0
-          bValue = b.squareFeet || 0
+          aValue = a.LivingArea || 0
+          bValue = b.LivingArea || 0
           break
         default:
           return 0
@@ -491,7 +491,7 @@ export default function CustomerShowcasePage() {
     // Track property view
     if (showcase?.id && property.id) {
       try {
-        const response = await apiRequest(`/api/collections/${showcase.id}/properties/${String(property.id)}/view`, {
+        const response = await apiRequest(`/collections/${showcase.id}/properties/${String(property.id)}/view`, {
           method: 'POST'
         })
 

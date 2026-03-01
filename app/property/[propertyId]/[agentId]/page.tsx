@@ -1,25 +1,26 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { useParams } from 'next/navigation'
-import { Property } from '@/types'
+import { PropertyDetailResponse, TourRequest } from '@/types'
 import { api } from '@/lib/api'
 import { 
   X, Send, 
-  ChevronLeft, ChevronRight, Maximize2, Home, Info, User
+  ChevronLeft, ChevronRight, Maximize2, Home, Info, User,
+  Bed, Bath, Ruler, Calendar, MapPin, Clock, ShieldCheck
 } from 'lucide-react'
 import Link from 'next/link'
 import PropertyReport from '@/components/PropertyReport'
 import DescriptionSection from '@/components/DescriptionSection'
 import ScheduleTourModal from '@/components/ScheduleTourModal'
 import MLSComplianceFooter from '@/components/MLSComplianceFooter'
-import { TourRequest } from '@/types'
 import { useToast } from '@/contexts/ToastContext'
+import { cleanAddress, formatMlsStatus } from '@/lib/utils'
 
 export default function PropertyPage() {
   const { propertyId, agentId } = useParams()
-  const [property, setProperty] = useState<Property | null>(null)
+  const [property, setProperty] = useState<PropertyDetailResponse | null>(null)
   const [agentName, setAgentName] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -34,8 +35,6 @@ export default function PropertyPage() {
   const { showToast } = useToast()
 
   async function handleTourSubmit(data: TourRequest) {
-    console.log('Tour requested:', data)
-    
     try {
       const response = await api.scheduleTour({
         ...data,
@@ -60,48 +59,8 @@ export default function PropertyPage() {
         const response = await api.getPropertyForAgent(agentId as string, propertyId as string)
         
         if (response.success && response.data) {
-          console.log(response.data)
-          const propertyData = response.data.property
-          // console.log(propertyData)
+          setProperty(response.data.property)
           setAgentName(response.data.agentName)
-          
-          // Map backend property data to frontend Property type
-          const propertyImages = (propertyData.originalPhotos?.length > 0)
-            ? propertyData.originalPhotos.map((p: any) => p.mixedSources?.jpeg?.[0]?.url || p.url).filter(Boolean)
-            : (propertyData.photos?.length > 0)
-              ? propertyData.photos.map((p: any) => p.mixedSources?.jpeg?.[0]?.url || p.url).filter(Boolean)
-              : [propertyData.imageUrl || propertyData.imgSrc || propertyData.image_url].filter(Boolean)
-
-          const mappedProperty: Property = {
-            id: propertyData.listingKey,
-            mlsId: propertyData.mlsId,
-            address: propertyData.address,
-            city: propertyData.city,
-            state: propertyData.state,
-            zipCode: propertyData.zipcode,
-            price: propertyData.price,
-            beds: propertyData.bedrooms,
-            baths: propertyData.bathrooms,
-            squareFeet: propertyData.livingArea,
-            lotSize: propertyData.lotSize,
-            yearBuilt: propertyData.yearBuilt,
-            propertyType: propertyData.homeType,
-            description: propertyData.description,
-            images: propertyImages,
-            status: propertyData.homeStatus,
-            listOfficeName: propertyData.listOfficeName,
-            listAgentEmail: propertyData.listAgentEmail,
-            listAgentFullName: propertyData.listAgentFullName,
-            details: {
-              ...propertyData.resoFacts,
-              listAgentEmail: propertyData.listAgentEmail,
-              listAgentFullName: propertyData.listAgentFullName,
-              listOfficeName: propertyData.listOfficeName,
-              listOfficePhone: propertyData.listOfficePhone
-            }
-          }
-          
-          setProperty(mappedProperty)
         } else {
           setError(response.error || "Property not found")
         }
@@ -136,17 +95,6 @@ export default function PropertyPage() {
     }) : 'Price Available Upon Request'
   }
 
-  const formatLotSize = (acres?: number, sqft?: number) => {
-    if (acres) return `${acres.toLocaleString()} Acres`
-    if (sqft) {
-      if (sqft >= 10890) { // 0.25 acres
-        return `${(sqft / 43560).toFixed(2)} Acres`
-      }
-      return `${sqft.toLocaleString()} Sq Ft`
-    }
-    return '-'
-  }
-
   const handleSubmitMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -169,7 +117,7 @@ export default function PropertyPage() {
       const response = await api.sendMessageToAgent({
         agentId: agentId as string,
         propertyId: propertyId as string,
-        propertyAddress: property.address,
+        propertyAddress: property.FullStreetAddress,
         visitorName,
         visitorContact,
         message
@@ -193,10 +141,10 @@ export default function PropertyPage() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-[60vh]">
+      <div className="flex-1 flex items-center justify-center min-h-[60vh] bg-[#FAFAF7] dark:bg-[#0B0B0B]">
         <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-          <p className="text-gray-600 dark:text-gray-400 font-medium">Loading property details...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#C9A24D] border-t-transparent"></div>
+          <p className="text-gray-600 dark:text-gray-400 font-bold uppercase tracking-widest text-xs">Loading property...</p>
         </div>
       </div>
     )
@@ -204,307 +152,280 @@ export default function PropertyPage() {
 
   if (error || !property) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-[60vh] p-4">
-        <div className="text-center bg-white dark:bg-[#151517] p-8 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 max-w-md w-full">
-          <div className="text-red-500 mb-4 flex justify-center"><Info size={48} /></div>
-          <h2 className="text-2xl font-bold mb-2">Error</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">{error || "Property not found"}</p>
-          <Link href="/showcases" className="text-blue-600 hover:text-blue-700 font-medium">Back to Showcases</Link>
+      <div className="flex-1 flex items-center justify-center min-h-[60vh] p-4 bg-[#FAFAF7] dark:bg-[#0B0B0B]">
+        <div className="text-center bg-white dark:bg-[#151517] p-12 rounded-3xl shadow-xl border border-gray-200 dark:border-gray-800 max-w-md w-full">
+          <div className="text-red-500 mb-6 flex justify-center"><Info size={64} /></div>
+          <h2 className="text-2xl font-black mb-2 tracking-tight">Listing Not Found</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-8 font-medium">{error || "This property is no longer available or the link is invalid."}</p>
+          <Link href="/" className="inline-block px-8 py-4 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-2xl font-black uppercase tracking-widest text-xs transition-all hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] dark:hover:text-white">Return Home</Link>
         </div>
       </div>
     )
   }
 
-  const images = property.photos || []
-  const resoFacts = property
+  const images = property.photos || [property.ListPictureURL || '/placeholder.jpg']
 
   return (
-    <div className="flex-1 bg-[#faf9f7] dark:bg-[#0B0B0B] transition-colors duration-300">
+    <div className="flex-1 bg-[#FAFAF7] dark:bg-[#0B0B0B] transition-colors duration-300 min-h-screen">
       {/* Lightbox */}
       {isLightboxOpen && images.length > 0 && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center" onClick={() => setIsLightboxOpen(false)}>
-          <button className="absolute top-4 right-4 text-white p-3 rounded-full bg-black/40 hover:bg-black/60 z-[110]" onClick={() => setIsLightboxOpen(false)}><X size={24} /></button>
-          <div className="relative w-full h-full flex items-center justify-center p-8" onClick={e => e.stopPropagation()}>
-            <Image src={images[currentImageIndex]} alt={property.FullStreetAddress} fill className="object-contain" priority />
+        <div className="fixed inset-0 bg-black/98 z-[100] flex items-center justify-center" onClick={() => setIsLightboxOpen(false)}>
+          <button className="absolute top-6 right-6 text-white/70 hover:text-white p-3 rounded-full bg-black/20 hover:bg-black/40 z-[110]" onClick={() => setIsLightboxOpen(false)}><X size={32} /></button>
+          <div className="relative w-full h-full flex items-center justify-center" onClick={e => e.stopPropagation()}>
+            <Image src={images[currentImageIndex]} alt={property.FullStreetAddress} fill className="object-contain" priority quality={100} />
             {images.length > 1 && (
               <>
-                <button onClick={prevImage} className="absolute left-8 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-4 rounded-full bg-black/20 hover:bg-black/40"><ChevronLeft size={32} /></button>
-                <button onClick={nextImage} className="absolute right-8 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-4 rounded-full bg-black/20 hover:bg-black/40"><ChevronRight size={32} /></button>
+                <button onClick={prevImage} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-4 transition-all bg-black/10 hover:bg-black/20 rounded-full"><ChevronLeft size={48} /></button>
+                <button onClick={nextImage} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-4 transition-all bg-black/10 hover:bg-black/20 rounded-full"><ChevronRight size={48} /></button>
               </>
             )}
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full text-white/80 text-sm font-black tracking-widest uppercase">
+              {currentImageIndex + 1} / {images.length}
+            </div>
           </div>
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 py-8 md:px-6 lg:px-8">
-        {/* Header Section */}
-        <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <div className="flex items-center space-x-3 mb-1">
-              <span className="px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
-                {property.MlsStatus}
-              </span>
-              <span className="text-gray-400 dark:text-gray-500 text-[10px] font-bold uppercase tracking-widest">MLS: {property.ListingKey}</span>
+      <div className="max-w-7xl mx-auto px-4 py-8 md:px-6 lg:px-8 space-y-8">
+        
+        {/* Modern Image Grid Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 p-2 sm:p-4 bg-white dark:bg-[#151517] rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm">
+          {/* Main Large Image */}
+          <div 
+            className="relative aspect-[4/3] lg:aspect-auto lg:h-full min-h-[350px] lg:min-h-[500px] rounded-2xl overflow-hidden group cursor-pointer shadow-sm"
+            onClick={() => {
+              setCurrentImageIndex(0);
+              setIsLightboxOpen(true);
+            }}
+          >
+            <Image
+              src={images[0] || '/placeholder.jpg'}
+              alt="Main property view"
+              fill
+              className="object-cover transition-transform duration-700 group-hover:scale-105"
+              priority
+              quality={90}
+            />
+            <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute top-4 right-4 bg-black/60 backdrop-blur px-3 py-1.5 rounded-full text-[10px] font-black text-white uppercase tracking-widest border border-white/10">
+              1 / {images.length}
             </div>
-            <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tight">{property.FullStreetAddress}</h1>
-            <div className="flex items-center mt-1 text-gray-500 dark:text-gray-400 font-medium">
-              <span>{property.City}, {property.StateOrProvince} {property.PostalCode}</span>
+            <button className="absolute bottom-6 right-6 bg-white/90 dark:bg-black/60 backdrop-blur px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl flex items-center space-x-2 group-hover:bg-[#C9A24D] group-hover:text-white transition-all">
+              <Maximize2 size={12} />
+              <span>View all photos</span>
+            </button>
+          </div>
+
+          {/* Grid of 4 Smaller Images */}
+          <div className="hidden lg:grid grid-cols-2 grid-rows-2 gap-2 h-full min-h-[500px]">
+            {[1, 2, 3, 4].map((i) => (
+              <div 
+                key={i} 
+                className="relative overflow-hidden cursor-pointer group shadow-sm rounded-2xl"
+                onClick={() => {
+                  if (images[i]) {
+                    setCurrentImageIndex(i);
+                    setIsLightboxOpen(true);
+                  }
+                }}
+              >
+                {images[i] ? (
+                  <>
+                    <Image
+                      src={images[i]}
+                      alt={`View ${i + 1}`}
+                      fill
+                      className="object-cover transition-transform duration-700 group-hover:scale-110"
+                      quality={70}
+                    />
+                    <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </>
+                ) : (
+                  <div className="w-full h-full bg-gray-50 dark:bg-[#0B0B0B] flex items-center justify-center">
+                    <Home className="text-gray-200 dark:text-gray-800" size={24} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Primary Info Row */}
+        <div className="bg-white dark:bg-[#151517] rounded-3xl p-8 sm:p-10 border border-gray-200 dark:border-gray-800 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3">
+                <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-[0.15em] rounded-full shadow-sm ${
+                  property.MlsStatus?.includes('ACTIVE') 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-gray-800 text-white'
+                }`}>
+                  {formatMlsStatus(property.MlsStatus)}
+                </span>
+                <div className="h-1 w-1 bg-gray-300 rounded-full" />
+                <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em]">
+                  {property.PropertyType} • Built in {property.YearBuilt || 'N/A'}
+                </span>
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-tight mb-2">
+                  {cleanAddress(property.FullStreetAddress)}
+                </h1>
+                <div className="flex items-center text-sm sm:text-base font-bold text-gray-500 dark:text-gray-400">
+                  <MapPin size={16} className="mr-2 text-[#C9A24D]" />
+                  <span>{property.City}, {property.StateOrProvince} {property.PostalCode}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="md:text-right">
+              <div className="text-4xl sm:text-5xl font-black text-gray-900 dark:text-white tracking-tight leading-none">
+                {formatPrice(property.ListPrice)}
+              </div>
+              <div className="text-[10px] font-black text-[#C9A24D] uppercase tracking-[0.2em] mt-3">Current Market Price</div>
             </div>
           </div>
         </div>
 
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-8 space-y-8">
-            {/* Gallery */}
-            <div className="relative h-[400px] md:h-[550px] bg-gray-100 dark:bg-[#151517] rounded-3xl overflow-hidden group shadow-2xl border border-gray-200 dark:border-gray-800">
-              {images.length > 0 ? (
-                <>
-                  <Image src={images[currentImageIndex]} alt={property.FullStreetAddress} fill className="object-cover cursor-pointer" onClick={() => setIsLightboxOpen(true)} priority />
-                  <button onClick={() => setIsLightboxOpen(true)} className="absolute top-6 left-6 bg-black/50 hover:bg-black/70 text-white p-3 rounded-2xl transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md"><Maximize2 size={20} /></button>
-                  <div className="absolute top-6 right-6 bg-black/60 backdrop-blur-md text-white text-sm px-4 py-2 rounded-2xl font-bold border border-white/10">{currentImageIndex + 1} / {images.length}</div>
-                  {images.length > 1 && (
-                    <>
-                      <button onClick={prevImage} className="absolute left-6 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 p-4 rounded-full shadow-xl transition-all opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100"><ChevronLeft size={24} /></button>
-                      <button onClick={nextImage} className="absolute right-6 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 p-4 rounded-full shadow-xl transition-all opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100"><ChevronRight size={24} /></button>
-                    </>
-                  )}
-                </>
-              ) : <div className="w-full h-full flex items-center justify-center"><Home size={64} className="text-gray-300" /></div>}
-            </div>
-            
-            {images.length > 1 && (
-              <div className="flex flex-nowrap space-x-4 overflow-x-auto pb-4 custom-scrollbar snap-x">
-                {images.map((imageUrl, index) => (
-                  <button 
-                    key={index} 
-                    onClick={() => setCurrentImageIndex(index)} 
-                    className={`relative flex-shrink-0 w-24 h-24 rounded-2xl overflow-hidden border-4 transition-all snap-start ${index === currentImageIndex ? 'border-blue-500 shadow-lg scale-105' : 'border-transparent hover:border-gray-300 dark:hover:border-gray-700'}`}
-                  >
-                    <Image src={imageUrl} alt={`Thumbnail ${index + 1}`} fill className="object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Price Card - Mobile Only (swapped with overview) */}
-            <div className="lg:hidden bg-white dark:bg-[#151517] rounded-3xl p-8 shadow-xl border border-gray-100 dark:border-gray-800">
-              <div className="mb-8 pb-8 border-b border-gray-100 dark:border-gray-800">
-                <div className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">List Price</div>
-                <div className="text-5xl font-black text-gray-900 dark:text-white tracking-tighter">{formatPrice(property.ListPrice)}</div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-6 mb-8">
-                {[
-                  { val: property.BedroomsTotal, label: 'Beds' },
-                  { val: property.BathroomsTotal, label: 'Baths' },
-                  { val: property.LivingArea?.toLocaleString(), label: 'Sq Ft' },
-                  { val: property.YearBuilt, label: 'Built' }
-                ].map((s, i) => (
-                  <div key={i} className="p-4 bg-gray-50 dark:bg-[#0B0B0B] rounded-2xl border border-gray-100 dark:border-gray-800 text-center">
-                    <div className="text-2xl font-black text-gray-900 dark:text-white">{s.val || '-'}</div>
-                    <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">{s.label}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-4">
-                {[
-                  { label: 'Type', val: property.PropertyType },
-                  { label: 'Price/Sq Ft', val: property.ListPrice && property.LivingArea ? `$${Math.round(property.ListPrice / property.LivingArea)}` : '-' },
-                  { label: 'Lot Size', val: formatLotSize(property.LotSizeAcres, property.LotSizeSquareFeet) },
-                  { label: 'Zip Code', val: property.PostalCode || '-' }
-                ].map((stat, i) => (
-                  <div key={i} className="flex justify-between items-center py-3 border-b last:border-0 border-gray-50 dark:border-gray-800">
-                    <span className="text-gray-500 dark:text-gray-400 font-medium">{stat.label}</span>
-                    <span className="text-gray-900 dark:text-white font-bold">{stat.val}</span>
-                  </div>
-                ))}
+        {/* Facts Bar with Integrated Tour Action */}
+        <div className="bg-white dark:bg-[#151517] p-6 px-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-wrap items-center justify-between gap-6">
+          <div className="flex flex-wrap items-center gap-x-12 gap-y-6">
+            <div className="flex items-center space-x-3">
+              <Bed className="text-[#C9A24D]" size={20} />
+              <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
+                <span className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{property.BedroomsTotal || '-'}</span>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Beds</span>
               </div>
             </div>
 
-            <section className="bg-white dark:bg-[#151517] rounded-3xl p-8 shadow-lg border border-gray-200 dark:border-gray-800">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center"><Info className="mr-3 text-blue-500" /> Property Overview</h2>
-              <DescriptionSection description={property.PublicRemarks || ""} details={property} />
-            </section>
-
-            {/* Mobile-only Tour and Message sections (to appear before Datasheet) */}
-            <div className="lg:hidden space-y-8">
-              <div className="bg-blue-600 rounded-3xl p-8 text-white shadow-xl shadow-blue-500/20">
-                <h3 className="text-xl font-bold mb-4">Interested in a Tour?</h3>
-                <p className="text-blue-100 mb-6 text-sm leading-relaxed">
-                  Schedule a private viewing of this property with {agentName?.split(' ')[0] || 'your agent'}.
-                </p>
-                <button 
-                  onClick={() => setIsTourModalOpen(true)}
-                  className="w-full py-4 bg-white text-blue-600 rounded-2xl font-black hover:bg-blue-50 transition-colors shadow-lg"
-                >
-                  Schedule Showing
-                </button>
-              </div>
-
-              <div className="bg-white dark:bg-[#151517] rounded-3xl p-8 shadow-lg border border-gray-200 dark:border-gray-800">
-                <div className="flex items-center mb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mr-4">
-                    <User className="text-purple-600 dark:text-purple-400" size={24} />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight"> Message {agentName || 'Agent'}</h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Get more details about this home</p>
-                  </div>
-                </div>
-
-                <form onSubmit={handleSubmitMessage} className="space-y-4">
-                  <div>
-                    <input 
-                      type="text"
-                      value={visitorName}
-                      onChange={(e) => setVisitorName(e.target.value)}
-                      placeholder="Your Name"
-                      className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-2 border-gray-100 dark:border-gray-800 focus:border-gray-900 dark:focus:border-white rounded-2xl p-4 text-sm focus:outline-none transition-all dark:text-white"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <input 
-                      type="text"
-                      value={visitorContact}
-                      onChange={(e) => setVisitorContact(e.target.value)}
-                      placeholder="Email or Phone Number"
-                      className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-2 border-gray-100 dark:border-gray-800 focus:border-gray-900 dark:focus:border-white rounded-2xl p-4 text-sm focus:outline-none transition-all dark:text-white"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <textarea 
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="I'm interested in this property. Please send me more information..."
-                      className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-2 border-gray-100 dark:border-gray-800 focus:border-gray-900 dark:focus:border-white rounded-2xl p-4 text-sm min-h-[150px] resize-none focus:outline-none transition-all dark:text-white"
-                      required
-                    />
-                  </div>
-                  <button 
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full bg-gray-900 hover:bg-black dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 disabled:from-gray-300 disabled:to-gray-300 text-white py-4 rounded-2xl font-black shadow-xl transition-all flex items-center justify-center space-x-2 transform hover:-translate-y-0.5 active:scale-[0.98]"
-                  >
-                    <Send size={18} />
-                    <span>{isSubmitting ? 'Sending...' : 'Send Message'}</span>
-                  </button>
-                </form>
+            <div className="flex items-center space-x-3">
+              <Bath className="text-[#C9A24D]" size={20} />
+              <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
+                <span className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{property.BathroomsTotal || '-'}</span>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Baths</span>
               </div>
             </div>
 
-            {resoFacts && <PropertyReport property={property as PropertyDetailResponse} />}
+            <div className="flex items-center space-x-3">
+              <Ruler className="text-[#C9A24D]" size={20} />
+              <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
+                <span className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{property.LivingArea?.toLocaleString() || '-'}</span>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sq Ft</span>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <Clock className="text-[#C9A24D]" size={20} />
+              <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
+                <span className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{property.DaysOnMarket || '-'}</span>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Days on Market</span>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <ShieldCheck className="text-[#C9A24D]" size={20} />
+              <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
+                <span className="text-xl font-black text-gray-900 dark:text-white tracking-tight">
+                  {property.AssociationYN ? 'Yes' : 'No'}
+                </span>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">HOA</span>
+              </div>
+            </div>
           </div>
 
-          <div className="lg:col-span-4 space-y-8">
-            {/* Price Card - Desktop Only */}
-            <div className="hidden lg:block bg-white dark:bg-[#151517] rounded-3xl p-8 shadow-xl border border-gray-100 dark:border-gray-800">
-              <div className="mb-8 pb-8 border-b border-gray-100 dark:border-gray-800">
-                <div className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">List Price</div>
-                <div className="text-5xl font-black text-gray-900 dark:text-white tracking-tighter">{formatPrice(property.ListPrice)}</div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-6 mb-8">
-                {[
-                  { val: property.BedroomsTotal, label: 'Beds' },
-                  { val: property.BathroomsTotal, label: 'Baths' },
-                  { val: property.LivingArea?.toLocaleString(), label: 'Sq Ft' },
-                  { val: property.YearBuilt, label: 'Built' }
-                ].map((s, i) => (
-                  <div key={i} className="p-4 bg-gray-50 dark:bg-[#0B0B0B] rounded-2xl border border-gray-100 dark:border-gray-800 text-center">
-                    <div className="text-2xl font-black text-gray-900 dark:text-white">{s.val || '-'}</div>
-                    <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">{s.label}</div>
-                  </div>
-                ))}
-              </div>
+          <button 
+            onClick={() => setIsTourModalOpen(true)}
+            className="flex-1 sm:flex-none px-10 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all hover:bg-blue-700 shadow-lg transform hover:-translate-y-0.5 active:scale-[0.98] flex items-center justify-center gap-2"
+          >
+            <Calendar size={16} />
+            <span>Schedule Showing</span>
+          </button>
+        </div>
 
-              <div className="space-y-4">
-                {[
-                  { label: 'Type', val: property.PropertyType },
-                  { label: 'Price/Sq Ft', val: property.ListPrice && property.LivingArea ? `$${Math.round(property.ListPrice / property.LivingArea)}` : '-' },
-                  { label: 'Lot Size', val: formatLotSize(property.LotSizeAcres, property.LotSizeSquareFeet) },
-                  { label: 'Zip Code', val: property.PostalCode || '-' }
-                ].map((stat, i) => (
-                  <div key={i} className="flex justify-between items-center py-3 border-b last:border-0 border-gray-50 dark:border-gray-800">
-                    <span className="text-gray-500 dark:text-gray-400 font-medium">{stat.label}</span>
-                    <span className="text-gray-900 dark:text-white font-bold">{stat.val}</span>
-                  </div>
-                ))}
+        {/* Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column (Description) */}
+          <div className="lg:col-span-2 space-y-8">
+            <div className="bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-800 rounded-3xl p-8 sm:p-10 shadow-sm h-full">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                <h3 className="text-xs font-black text-[#C9A24D] uppercase tracking-[0.3em]">Property Description</h3>
+                <div className="flex flex-wrap gap-4 text-[10px] font-black uppercase tracking-wider text-gray-400">
+                  {property.MLSAreaMajor && (
+                    <div className="flex items-center px-3 py-1.5 bg-gray-50 dark:bg-[#0B0B0B] rounded-lg border border-gray-100 dark:border-gray-800">
+                      <span className="text-[#C9A24D] mr-2">Township:</span>
+                      <span className="text-gray-900 dark:text-gray-200">{property.MLSAreaMajor}</span>
+                    </div>
+                  )}
+                  {property.SchoolDistrictName && (
+                    <div className="flex items-center px-3 py-1.5 bg-gray-50 dark:bg-[#0B0B0B] rounded-lg border border-gray-100 dark:border-gray-800">
+                      <span className="text-[#C9A24D] mr-2">District:</span>
+                      <span className="text-gray-900 dark:text-gray-200">{property.SchoolDistrictName}</span>
+                    </div>
+                  )}
+                </div>
               </div>
+              <DescriptionSection description={property.PublicRemarks || ""} details={property} />
             </div>
+          </div>
 
-            <div className="hidden lg:block bg-blue-600 rounded-3xl p-8 text-white shadow-xl shadow-blue-500/20">
-              <h3 className="text-xl font-bold mb-4">Interested in a Tour?</h3>
-              <p className="text-blue-100 mb-6 text-sm leading-relaxed">
-                Schedule a private viewing of this property with {agentName?.split(' ')[0] || 'your agent'}.
-              </p>
-              <button 
-                onClick={() => setIsTourModalOpen(true)}
-                className="w-full py-4 bg-white text-blue-600 rounded-2xl font-black hover:bg-blue-50 transition-colors shadow-lg"
-              >
-                Schedule Showing
-              </button>
-            </div>
-
-            {/* Contact Form Sidebar - Desktop Only */}
-            <div className="hidden lg:block bg-white dark:bg-[#151517] rounded-3xl p-8 shadow-lg border border-gray-200 dark:border-gray-800 sticky top-8">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mr-4">
-                  <User className="text-purple-600 dark:text-purple-400" size={24} />
+          {/* Right Column (Actions) */}
+          <div className="space-y-8 lg:col-span-1">
+            {/* Message Form */}
+            <div className="bg-white dark:bg-[#151517] rounded-3xl p-8 border border-gray-200 dark:border-gray-800 shadow-sm h-full flex flex-col">
+              <div className="flex items-center mb-8">
+                <div className="w-12 h-12 rounded-2xl bg-[#C9A24D]/10 flex items-center justify-center mr-4">
+                  <User className="text-[#C9A24D]" size={24} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight"> Message {agentName || 'Agent'}</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Get more details about this home</p>
+                  <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight uppercase"> Message Agent</h2>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Contact {agentName || 'Agent'}</p>
                 </div>
               </div>
 
-              <form onSubmit={handleSubmitMessage} className="space-y-4">
-                <div>
-                  <input 
-                    type="text"
-                    value={visitorName}
-                    onChange={(e) => setVisitorName(e.target.value)}
-                    placeholder="Your Name"
-                    className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-2 border-gray-100 dark:border-gray-800 focus:border-gray-900 dark:focus:border-white rounded-2xl p-4 text-sm focus:outline-none transition-all dark:text-white"
-                    required
-                  />
-                </div>
-                <div>
-                  <input 
-                    type="text"
-                    value={visitorContact}
-                    onChange={(e) => setVisitorContact(e.target.value)}
-                    placeholder="Email or Phone Number"
-                    className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-2 border-gray-100 dark:border-gray-800 focus:border-gray-900 dark:focus:border-white rounded-2xl p-4 text-sm focus:outline-none transition-all dark:text-white"
-                    required
-                  />
-                </div>
-                <div>
-                  <textarea 
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="I'm interested in this property. Please send me more information..."
-                    className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-2 border-gray-100 dark:border-gray-800 focus:border-gray-900 dark:focus:border-white rounded-2xl p-4 text-sm min-h-[150px] resize-none focus:outline-none transition-all dark:text-white"
-                    required
-                  />
-                </div>
+              <form onSubmit={handleSubmitMessage} className="space-y-4 flex-1 flex flex-col">
+                <input 
+                  type="text"
+                  value={visitorName}
+                  onChange={(e) => setVisitorName(e.target.value)}
+                  placeholder="Your Full Name"
+                  className="w-full bg-gray-50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-800 focus:border-[#C9A24D] rounded-2xl p-4 text-sm focus:outline-none transition-all dark:text-white font-medium"
+                  required
+                />
+                <input 
+                  type="text"
+                  value={visitorContact}
+                  onChange={(e) => setVisitorContact(e.target.value)}
+                  placeholder="Email or Phone Number"
+                  className="w-full bg-gray-50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-800 focus:border-[#C9A24D] rounded-2xl p-4 text-sm focus:outline-none transition-all dark:text-white font-medium"
+                  required
+                />
+                <textarea 
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Type your message here..."
+                  className="w-full bg-gray-50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-800 focus:border-[#C9A24D] rounded-2xl p-4 text-sm min-h-[150px] flex-1 resize-none focus:outline-none transition-all dark:text-white font-medium"
+                  required
+                />
                 <button 
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full bg-gray-900 hover:bg-black dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 disabled:from-gray-300 disabled:to-gray-300 text-white py-4 rounded-2xl font-black shadow-xl transition-all flex items-center justify-center space-x-2 transform hover:-translate-y-0.5 active:scale-[0.98]"
+                  className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black py-4 rounded-2xl transition-all hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:text-white uppercase tracking-widest text-xs disabled:opacity-50 shadow-md transform hover:-translate-y-0.5 active:scale-[0.98]"
                 >
-                  <Send size={18} />
-                  <span>{isSubmitting ? 'Sending...' : 'Send Message'}</span>
+                  {isSubmitting ? 'Sending...' : 'Send Message'}
                 </button>
               </form>
             </div>
           </div>
         </div>
+
+        {/* Full Width Property Report */}
+        <div className="pt-4">
+          <PropertyReport property={property} />
+        </div>
       </div>
+      
       <MLSComplianceFooter />
+      
       <ScheduleTourModal 
         isOpen={isTourModalOpen}
         onClose={() => setIsTourModalOpen(false)}
