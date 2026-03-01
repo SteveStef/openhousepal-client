@@ -155,10 +155,75 @@ export default function MultiCityPlacesInput({
     setError(null)
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     const value = inputValue.trim()
 
-    if (e.key === 'Enter' || e.key === ',') {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (!value) return
+
+      // Programmatic Lookup Approach:
+      // We use Google's AutocompleteService to find the best match for what was typed
+      try {
+        const autocompleteService = new google.maps.places.AutocompleteService()
+        const predictions = await autocompleteService.getPlacePredictions({
+          input: value,
+          types: ['(cities)'],
+          componentRestrictions: { country: 'us' }
+        })
+
+        if (predictions.predictions && predictions.predictions.length > 0) {
+          const topMatch = predictions.predictions[0]
+          
+          // Get full details for the top match to extract city/state
+          const placesService = new google.maps.places.PlacesService(document.createElement('div'))
+          placesService.getDetails({
+            placeId: topMatch.place_id,
+            fields: ['address_components', 'formatted_address']
+          }, (place, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK && place?.address_components) {
+              let cityName = ''
+              let stateAbbr = ''
+
+              for (const component of place.address_components) {
+                if (component.types.includes('locality') || 
+                    component.types.includes('sublocality') || 
+                    component.types.includes('administrative_area_level_3')) {
+                  cityName = component.long_name
+                  break
+                }
+              }
+
+              for (const component of place.address_components) {
+                if (component.types.includes('administrative_area_level_1')) {
+                  stateAbbr = component.short_name
+                  break
+                }
+              }
+
+              if (!cityName && place.address_components.length > 0) {
+                cityName = place.address_components[0].long_name
+              }
+
+              const formattedName = stateAbbr ? `${cityName}, ${stateAbbr}` : cityName
+              if (formattedName) {
+                addCity(formattedName)
+                setInputValue('')
+              }
+            } else {
+              // Fallback to raw value if details lookup fails
+              addCity(value)
+            }
+          })
+        } else {
+          // No suggestions found, add raw value
+          addCity(value)
+        }
+      } catch (err) {
+        console.error("Auto-matching failed:", err)
+        addCity(value)
+      }
+    } else if (e.key === ',') {
       e.preventDefault()
       if (value) {
         addCity(value)

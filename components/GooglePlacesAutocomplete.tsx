@@ -160,6 +160,55 @@ export default function GooglePlacesAutocomplete({
     onChange(e.target.value)
   }
 
+  const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const value = inputRef.current?.value.trim()
+      if (!value) return
+      
+      e.preventDefault()
+
+      try {
+        const autocompleteService = new google.maps.places.AutocompleteService()
+        const predictions = await autocompleteService.getPlacePredictions({
+          input: value,
+          types: ['address'],
+          componentRestrictions: { country: 'us' }
+        })
+
+        if (predictions.predictions && predictions.predictions.length > 0) {
+          const topMatch = predictions.predictions[0]
+          const placesService = new google.maps.places.PlacesService(document.createElement('div'))
+          
+          placesService.getDetails({
+            placeId: topMatch.place_id,
+            fields: ['address_components', 'formatted_address', 'geometry']
+          }, (place, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+              const formattedAddress = formatAddressWithoutCountry(place)
+              
+              // Trigger parent updates
+              onChangeRef.current(formattedAddress)
+              
+              if (onCoordinatesChangeRef.current && place.geometry?.location) {
+                onCoordinatesChangeRef.current(
+                  place.geometry.location.lat(),
+                  place.geometry.location.lng()
+                )
+              }
+
+              // Update visual value
+              if (inputRef.current) {
+                inputRef.current.value = formattedAddress
+              }
+            }
+          })
+        }
+      } catch (err) {
+        console.error("Address auto-match failed:", err)
+      }
+    }
+  }
+
   return (
     <div className="relative">
       <input
@@ -170,6 +219,7 @@ export default function GooglePlacesAutocomplete({
         required={required}
         value={value}
         onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
         disabled={disabled}
         className={`w-full px-4 py-3 bg-white/80 dark:bg-[#0B0B0B] border border-gray-200/50 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#8b7355]/60 dark:focus:ring-[#C9A24D]/20 focus:border-[#8b7355]/60 dark:focus:border-[#C9A24D] transition-all duration-300 shadow-sm ${className}`}
         placeholder={placeholder}

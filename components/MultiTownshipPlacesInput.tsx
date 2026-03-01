@@ -155,10 +155,70 @@ export default function MultiTownshipPlacesInput({
     setError(null)
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     const value = inputValue.trim()
 
-    if (e.key === 'Enter' || e.key === ',') {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (!value) return
+
+      try {
+        const autocompleteService = new google.maps.places.AutocompleteService()
+        const predictions = await autocompleteService.getPlacePredictions({
+          input: value,
+          types: ['sublocality', 'administrative_area_level_3'],
+          componentRestrictions: { country: 'us' }
+        })
+
+        if (predictions.predictions && predictions.predictions.length > 0) {
+          const topMatch = predictions.predictions[0]
+          const placesService = new google.maps.places.PlacesService(document.createElement('div'))
+          
+          placesService.getDetails({
+            placeId: topMatch.place_id,
+            fields: ['address_components']
+          }, (place, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK && place?.address_components) {
+              let townshipName = ''
+              let stateAbbr = ''
+
+              for (const component of place.address_components) {
+                if (component.types.includes('administrative_area_level_3') ||
+                    component.types.includes('sublocality') ||
+                    component.types.includes('neighborhood')) {
+                  townshipName = component.long_name
+                  break
+                }
+              }
+
+              for (const component of place.address_components) {
+                if (component.types.includes('administrative_area_level_1')) {
+                  stateAbbr = component.short_name
+                  break
+                }
+              }
+
+              if (!townshipName && place.address_components.length > 0) {
+                townshipName = place.address_components[0].long_name
+              }
+
+              const formattedName = stateAbbr ? `${townshipName}, ${stateAbbr}` : townshipName
+              if (formattedName) {
+                addTownship(formattedName)
+                setInputValue('')
+              }
+            } else {
+              addTownship(value)
+            }
+          })
+        } else {
+          addTownship(value)
+        }
+      } catch (err) {
+        console.error("Auto-matching failed:", err)
+        addTownship(value)
+      }
+    } else if (e.key === ',') {
       e.preventDefault()
       if (value) {
         addTownship(value)
