@@ -54,6 +54,12 @@ export interface Property {
   viewed?: boolean;
   viewCount?: number;
   lastViewedAt?: string;
+  comments?: Comment[];
+  visitorInteractions?: PropertyInteraction[];
+  tourCount?: number;
+  hasTourScheduled?: boolean;
+  updated_at?: string;
+  LotSizeAcres?: number;
 }
 
 export interface PropertyDetailResponse extends Property {

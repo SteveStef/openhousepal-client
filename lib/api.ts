@@ -73,7 +73,7 @@ class ApiClient {
     if (res.success && res.data) {
       return { success: true, data: res.data.property }
     }
-    return res as ApiResponse<Property>
+    return { success: false, error: res.error || 'Failed to get property' }
   }
 
   async getPropertyForAgent(agentId: string, listingKey: string): Promise<ApiResponse<{ property: Property; agentName: string }>> {
@@ -90,7 +90,7 @@ class ApiClient {
     if (res.success && res.data) {
       return { success: true, data: res.data.property }
     }
-    return res as ApiResponse<Property>
+    return { success: false, error: res.error || 'Failed to cache property' }
   }
 
   // Open house form submission
@@ -132,7 +132,7 @@ class ApiClient {
   }
 
   // Agent endpoints
-  async getAgentCollections(agentId: number): Promise<ApiResponse<any[]>> {
+  async getAgentCollections(agentId: string): Promise<ApiResponse<any[]>> {
     return this.request(`/agents/${agentId}/collections`)
   }
 
@@ -148,7 +148,7 @@ class ApiClient {
     if (res.success && res.data) {
       return { success: true, data: res.data.properties }
     }
-    return res as ApiResponse<Property[] | any>
+    return { success: false, error: res.error || 'Failed to get collection properties' }
   }
 
   // Collection preferences endpoints
@@ -308,8 +308,8 @@ export const propertyVisitApi = {
 }
 
 export const agentApi = {
-  getCollections: (agentId: number) => api.getAgentCollections(agentId),
-  getCollectionProperties: (collectionId: number) => api.getCollectionProperties(collectionId),
+  getCollections: (agentId: string) => api.getAgentCollections(agentId),
+  getCollectionProperties: (collectionId: string) => api.getCollectionProperties(collectionId),
 }
 
 export const collectionPreferencesApi = {

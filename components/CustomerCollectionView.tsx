@@ -75,7 +75,7 @@ export default function CustomerCollectionView({
     }
 
     // Skip loading if property already has details
-    if (property.details) {
+    if ((property as any).PublicRemarks) {
       setIsLoadingDetails(false)
       return
     }
@@ -85,20 +85,16 @@ export default function CustomerCollectionView({
       const response = await propertyApi.cache(property.id as string)
       
       if (response.success && response.data) {
-        const cacheResponse = response.data
+        const detailedProperty = response.data
         
-        if (cacheResponse.success && cacheResponse.property) {
-          // Update property with detailed information merging flat data
-          const enhancedProperty = {
-            ...property,
-            ...cacheResponse.property
-          }
-          setSelectedProperty(enhancedProperty)
-        } else {
-          setDetailsError('Failed to load additional property details')
+        // Update property with detailed information merging flat data
+        const enhancedProperty = {
+          ...property,
+          ...detailedProperty
         }
+        setSelectedProperty(enhancedProperty)
       } else {
-        setDetailsError('Failed to connect to property service')
+        setDetailsError('Failed to load additional property details')
       }
     } catch (error) {
       console.error('Error fetching property details:', error)

@@ -581,10 +581,10 @@ export function ShowcaseContent() {
           return {
             ...tour,
             property: property ? {
-              street_address: property.address,
-              city: property.city,
-              state: property.state,
-              imageUrl: property.imageUrl
+              street_address: property.FullStreetAddress,
+              city: property.City,
+              state: property.StateOrProvince,
+              imageUrl: property.ListPictureURL
             } : undefined
           }
         })
@@ -682,7 +682,7 @@ export function ShowcaseContent() {
     }
 
     // Skip loading if property already has details
-    if (property.details) {
+    if ((property as any).PublicRemarks) {
       setIsLoadingDetails(false)
       return
     }

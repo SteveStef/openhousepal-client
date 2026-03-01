@@ -83,7 +83,7 @@ export default function ScheduleTourModal({
     try {
       await onSubmit({
         propertyId: property.id!,
-        propertyAddress: property.address,
+        propertyAddress: property.FullStreetAddress,
         visitorName: showContactFields ? visitorName : undefined,
         visitorContact: showContactFields ? visitorContact : undefined,
         preferredDate,

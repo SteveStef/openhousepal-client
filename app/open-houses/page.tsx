@@ -13,7 +13,7 @@ import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
 import { apiRequest, hasValidSubscription } from '@/lib/auth'
 import { openHouseApi } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
-import { PropertyRecommendationsPrintView, allProperties as mockSimilarProperties } from '@/components/PropertyRecommendationsPrintView'
+import { PropertyRecommendationsPrintView } from '@/components/PropertyRecommendationsPrintView'
 import { OpenHouseFlyer } from '@/components/OpenHouseFlyer'
 import { PropertyRecommendationCard } from '@/components/PropertyRecommendationCard'
 import { ViewPDFsModal } from '@/components/ViewPDFsModal'
@@ -38,6 +38,10 @@ interface OpenHouse {
   bathrooms?: number;
   livingArea?: number;
   price?: number;
+  BedroomsTotal?: number;
+  BathroomsTotal?: number;
+  LivingArea?: number;
+  ListPrice?: number;
   city?: string;
   notes?: string;
   similarPropertyIds?: string[];
@@ -574,9 +578,12 @@ function OpenHouseContent() {
 
   const selectedSimilarProperties = propsToMap.map(p => ({
       id: p.ListingKey || p.listingKey || p.id,
+      ListingKey: String(p.ListingKey || p.listingKey || p.id),
       ListPictureURL: p.ListPictureURL || p.imageUrl || p.imgSrc || p.image || "/placeholder.svg",
       FullStreetAddress: p.FullStreetAddress || p.address,
       City: p.City || p.city,
+      StateOrProvince: p.StateOrProvince || p.state || "PA",
+      MlsStatus: p.MlsStatus || p.status || "ACTIVE",
       ListPrice: p.ListPrice || p.price,
       BedroomsTotal: p.BedroomsTotal ?? p.bedrooms ?? p.beds ?? 0,
       BathroomsTotal: p.BathroomsTotal ?? p.bathrooms ?? p.baths ?? 0,
