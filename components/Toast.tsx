@@ -24,14 +24,14 @@ export default function Toast({ message, type, isVisible, onClose, duration = 50
   const config = {
     success: {
       icon: <CheckCircle2 className="w-5 h-5 text-emerald-500" />,
-      border: 'border-emerald-500/20',
-      bg: 'bg-emerald-50/90 dark:bg-emerald-500/10',
+      border: 'border-emerald-500/30',
+      bg: 'bg-white dark:bg-[#1A1A1A]',
       accent: 'bg-emerald-500',
     },
     error: {
       icon: <XCircle className="w-5 h-5 text-red-500" />,
-      border: 'border-red-500/20',
-      bg: 'bg-red-50/90 dark:bg-red-500/10',
+      border: 'border-red-500/30',
+      bg: 'bg-white dark:bg-[#1A1A1A]',
       accent: 'bg-red-500',
     }
   }
@@ -42,9 +42,9 @@ export default function Toast({ message, type, isVisible, onClose, duration = 50
     <div className="fixed bottom-8 right-8 z-[100] animate-slide-in-right">
       <div className={`
         ${bg} ${border}
-        backdrop-blur-md border px-5 py-4 rounded-2xl shadow-2xl 
+        border px-5 py-4 rounded-2xl shadow-2xl 
         min-w-[320px] max-w-md flex items-center gap-4
-        ring-1 ring-black/5 dark:ring-white/10
+        ring-1 ring-black/5 dark:ring-white/5
       `}>
         {/* Left Status Accent Bar */}
         <div className={`absolute left-0 top-1/4 bottom-1/4 w-1 rounded-r-full ${accent}`} />

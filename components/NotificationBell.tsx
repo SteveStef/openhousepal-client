@@ -15,11 +15,18 @@ export default function NotificationBell() {
   const [isLoading, setIsLoading] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const bellRef = useRef<HTMLButtonElement>(null)
+  const lastFetchedRef = useRef<number>(0)
   const { isAuthenticated, isLoading: isAuthenticating } = useAuth()
 
-  // Fetch notifications from API
-  const fetchNotifications = async () => {
+  // Fetch notifications from API with throttling
+  const fetchNotifications = async (force = false) => {
     if (!isAuthenticated || isAuthenticating) return
+
+    const now = Date.now()
+    // Throttling: Only fetch every 30 seconds unless forced
+    if (!force && now - lastFetchedRef.current < 30000) {
+      return
+    }
 
     try {
       setIsLoading(true)
@@ -27,8 +34,7 @@ export default function NotificationBell() {
 
       if (response && response.success && response.data) {
         setNotifications(response.data)
-      } else {
-        console.error('Failed to fetch notifications')
+        lastFetchedRef.current = now
       }
     } catch (error) {
       console.error('Error fetching notifications:', error)
@@ -37,24 +43,19 @@ export default function NotificationBell() {
     }
   }
 
-  // Load notifications on mount and when auth status changes
+  // Unified effect for auth changes and window focus
   useEffect(() => {
-    if (!isAuthenticating) {
-      fetchNotifications()
-    }
-  }, [isAuthenticating, isAuthenticated])
+    if (isAuthenticating || !isAuthenticated) return
 
-  // Fetch notifications when window gains focus
-  useEffect(() => {
-    if (!isAuthenticated) return
+    // Initial fetch on mount or auth change
+    fetchNotifications()
 
-    const handleFocus = () => {
-      fetchNotifications()
-    }
-
+    // Fetch on window focus
+    const handleFocus = () => fetchNotifications()
     window.addEventListener('focus', handleFocus)
+    
     return () => window.removeEventListener('focus', handleFocus)
-  }, [isAuthenticated])
+  }, [isAuthenticating, isAuthenticated])
 
   // Close dropdown when clicking outside
   useEffect(() => {

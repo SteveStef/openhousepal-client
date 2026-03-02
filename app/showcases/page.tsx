@@ -83,15 +83,17 @@ export function ShowcaseContent() {
   const [collectionTours, setCollectionTours] = useState<PropertyTour[]>([])
   const [isToursModalOpen, setIsToursModalOpen] = useState(false)
   const [isLoadingTours, setIsLoadingTours] = useState(false)
+  const fetchInProgressRef = useRef(false)
 
   const { showToast } = useToast()
 
-  // Load property interactions when a collection is selected
-
-
+  // Load collections
   useEffect(() => {
-    if (!isAuthenticating) {
-      const fetchCollections = async () => {
+    if (isAuthenticating || !isAuthenticated) return
+    if (fetchInProgressRef.current) return
+
+    const fetchCollections = async () => {
+      fetchInProgressRef.current = true
       setIsLoading(true)
       try {
         const response = await apiRequest('/collections/')
@@ -170,21 +172,19 @@ export function ShowcaseContent() {
           setCollections(transformedCollections)
         } else {
           console.error('Failed to fetch collections:', response.error)
-          // Fallback to empty array if API fails
           setCollections([])
         }
       } catch (error) {
         console.error('Error fetching collections:', error)
-        // Fallback to empty array if API fails
         setCollections([])
       } finally {
         setIsLoading(false)
+        fetchInProgressRef.current = false
       }
     }
 
-      fetchCollections()
-    }
-  }, [isAuthenticating]);
+    fetchCollections()
+  }, [isAuthenticating, isAuthenticated]);
 
   // Sync URL query parameter with selected collection
   useEffect(() => {
@@ -246,12 +246,6 @@ export function ShowcaseContent() {
       return matchesSearch && matchesStatus
     })
   }, [collections, searchTerm, statusFilter])
-
-  // Calculate active showcases count and limit status
-  const activeShowcasesCount = collections.filter(collection => collection.status === 'ACTIVE').length
-  const maxActiveShowcases = 50
-  const isAtLimit = activeShowcasesCount >= maxActiveShowcases
-  const isNearLimit = activeShowcasesCount >= 45
 
   const formatPriceRange = (priceRange: string) => {
     const ranges: { [key: string]: string } = {
@@ -605,11 +599,11 @@ export function ShowcaseContent() {
     }
   }
 
-  const handleUpdateTourStatus = async (tourId: string, status: string) => {
+  const handleUpdateTourCompletion = async (tourId: string, isCompleted: boolean) => {
     try {
-      const response = await apiRequest(`/collections/tours/${tourId}/status`, {
+      const response = await apiRequest(`/collections/tours/${tourId}/completion`, {
         method: 'PATCH',
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ is_completed: isCompleted })
       })
 
       if (response.status === 200) {
@@ -618,11 +612,11 @@ export function ShowcaseContent() {
           await fetchCollectionTours(selectedCollection.id)
         }
       } else {
-        throw new Error('Failed to update tour status')
+        throw new Error('Failed to update tour completion status')
       }
     } catch (error) {
-      console.error('Error updating tour status:', error)
-      alert('Failed to update tour status. Please try again.')
+      console.error('Error updating tour completion:', error)
+      alert('Failed to update tour completion status. Please try again.')
     }
   }
 
@@ -1077,12 +1071,6 @@ export function ShowcaseContent() {
   }
 
   const handleCreateCollection = async (collectionData: any) => {
-    // Check active showcases limit before creating
-    if (activeShowcasesCount >= maxActiveShowcases) {
-      alert('You have reached the maximum limit of 50 active showcases. Please deactivate some showcases before creating a new one.')
-      return
-    }
-
     try {
       const response = await apiRequest('/collections/create-manually', {
         method: 'POST',
@@ -1389,7 +1377,7 @@ export function ShowcaseContent() {
             isOpen={isToursModalOpen}
             onClose={handleCloseToursModal}
             tours={collectionTours}
-            onUpdateStatus={handleUpdateTourStatus}
+            onUpdateCompletion={handleUpdateTourCompletion}
             isLoading={isLoadingTours}
           />
 
@@ -1432,39 +1420,14 @@ export function ShowcaseContent() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                disabled={isAtLimit}
-                className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-[0_0_20px_rgba(201,162,77,0.2)] hover:scale-[1.02] transform border-2 ${
-                  isAtLimit
-                    ? 'bg-gray-300 dark:bg-gray-800 text-gray-500 cursor-not-allowed shadow-none border-transparent'
-                    : 'bg-[#111827] dark:bg-white text-white dark:text-[#111827] border-[#C9A24D]/20 hover:border-[#C9A24D] hover:bg-[#1a2333] dark:hover:bg-[#f0f0f0]'
-                }`}
-                title={isAtLimit ? 'Maximum 50 active showcases reached' : 'Create a new showcase'}
+                className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-[0_0_20px_rgba(201,162,77,0.2)] hover:scale-[1.02] transform border-2 bg-[#111827] dark:bg-white text-white dark:text-[#111827] border-[#C9A24D]/20 hover:border-[#C9A24D] hover:bg-[#1a2333] dark:hover:bg-[#f0f0f0]`}
+                title={'Create a new showcase'}
               >
-                <svg className={`w-3.5 h-3.5 ${isAtLimit ? 'text-gray-500' : 'text-[#C9A24D]'} transition-colors duration-300`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`w-3.5 h-3.5 text-[#C9A24D] transition-colors duration-300`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
                 <span className="tracking-widest uppercase">Create Showcase</span>
               </button>
-
-              {/* Active Showcases Counter */}
-              <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border ${
-                isAtLimit
-                  ? 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-900 text-red-700 dark:text-red-400'
-                  : isNearLimit
-                  ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900 text-amber-700 dark:text-amber-400'
-                  : 'bg-white dark:bg-[#0B0B0B] border-gray-200 dark:border-gray-700 text-[#111827] dark:text-white shadow-sm'
-              }`}>
-                <div className={`w-2 h-2 rounded-full ${
-                  isAtLimit
-                    ? 'bg-red-500 animate-pulse'
-                    : isNearLimit
-                    ? 'bg-amber-500'
-                    : 'bg-green-500'
-                }`}></div>
-                <span className="text-[10px] font-black uppercase tracking-wider">
-                  {activeShowcasesCount}/{maxActiveShowcases} <span className="font-bold text-[#6B7280] dark:text-gray-400 ml-0.5">Active</span>
-                </span>
-              </div>
             </div>
           </div>
           
@@ -1476,11 +1439,6 @@ export function ShowcaseContent() {
                 <span className="text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider">
                   {filteredCollections.length} results
                 </span>
-                {isAtLimit && (
-                  <span className="text-[10px] px-2 py-0.5 bg-red-50 text-red-600 rounded-full border border-red-100 font-bold uppercase tracking-wide">
-                    Limit Reached
-                  </span>
-                )}
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -1546,6 +1504,7 @@ export function ShowcaseContent() {
                 onClick={() => {
                   setSelectedCollection(collection)
                   router.push(`?showcase=${collection.id}`, { scroll: false })
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
                 }}
                 onShare={handleShareShowcase}
                 onEditPreferences={handleEditPreferences}
@@ -1592,9 +1551,6 @@ export function ShowcaseContent() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateCollection}
-        activeShowcasesCount={activeShowcasesCount}
-        maxActiveShowcases={maxActiveShowcases}
-        isNearLimit={isNearLimit}
       />
 
     </div>
@@ -1606,17 +1562,11 @@ export function ShowcaseContent() {
 function CreateCollectionModal({
   isOpen,
   onClose,
-  onSubmit,
-  activeShowcasesCount = 0,
-  maxActiveShowcases = 50,
-  isNearLimit = false
+  onSubmit
 }: {
   isOpen: boolean,
   onClose: () => void,
-  onSubmit: (data: any) => void,
-  activeShowcasesCount?: number,
-  maxActiveShowcases?: number,
-  isNearLimit?: boolean
+  onSubmit: (data: any) => void
 }) {
   const [formData, setFormData] = useState({
     // Collection Info
@@ -1655,6 +1605,7 @@ function CreateCollectionModal({
     isSingleFamily: false,
     isApartment: false,
     isCommercial: false,
+    isApartment_as_residential: false, // Legacy
     isFarm: false
   })
   
@@ -1817,6 +1768,7 @@ function CreateCollectionModal({
         isSingleFamily: false,
         isApartment: false,
         isCommercial: false,
+        isApartment_as_residential: false,
         isFarm: false
       })
       // Reset validation errors
@@ -1849,29 +1801,6 @@ function CreateCollectionModal({
               </svg>
             </button>
           </div>
-
-          {/* Limit Warning */}
-          {isNearLimit && (
-            <div className={`mt-6 p-4 rounded-xl flex items-center ${
-              activeShowcasesCount >= maxActiveShowcases
-                ? 'bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900'
-                : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900'
-            }`}>
-              <svg className={`w-5 h-5 mr-3 flex-shrink-0 ${
-                activeShowcasesCount >= maxActiveShowcases ? 'text-red-500' : 'text-amber-500'
-              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className={`text-sm font-bold ${
-                activeShowcasesCount >= maxActiveShowcases ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'
-              }`}>
-                {activeShowcasesCount >= maxActiveShowcases
-                  ? `You have reached the maximum limit of ${maxActiveShowcases} active showcases. Please deactivate some showcases before creating a new one.`
-                  : `You are near the limit of ${maxActiveShowcases} active showcases (${activeShowcasesCount}/${maxActiveShowcases}). Consider deactivating inactive showcases.`
-                }
-              </p>
-            </div>
-          )}
         </div>
         
         <form onSubmit={handleSubmit} className="p-8 space-y-10">
@@ -1996,24 +1925,6 @@ function CreateCollectionModal({
                 </div>
               </div>
             </div>
-            {/* <div>
-              <label className="flex items-center text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
-                Special features they're looking for
-                <span 
-                  className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[10px] font-bold cursor-help border border-gray-200 dark:border-gray-700"
-                  title="Separating keywords with commas will prioritize properties containing these terms in their descriptions (e.g., pool, garage, waterfront)."
-                >
-                  i
-                </span>
-              </label>
-              <textarea
-                value={formData.additionalComments}
-                onChange={(e) => handleInputChange('additionalComments', e.target.value)}
-                rows={3}
-                className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium hover:bg-white dark:hover:bg-[#151515] hover:border-[#C9A24D]/30"
-                placeholder="pool, garage, modern kitchen..."
-              />
-            </div> */}
           </div>
 
           {/* Property Search Preferences */}

@@ -62,6 +62,7 @@ function PropertyReport({ property }: { property: PropertyDetailResponse }) {
     { property: "Days on Market", value: property.DaysOnMarket },
     { property: "Cumulative DOM", value: property.CumulativeDaysOnMarket },
     { property: "Original List Price", value: formatCurrency(property.OriginalListPrice) },
+    { property: "Price Per Sq Ft", value: property.PricePerSquareFoot ? `$${property.PricePerSquareFoot.toFixed(2)}` : null },
 
     // Building & Construction
     { property: "BUILDING & CONSTRUCTION", value: "", isHeader: true },
@@ -126,6 +127,7 @@ function PropertyReport({ property }: { property: PropertyDetailResponse }) {
 
     // Location & Neighborhood
     { property: "LOCATION & NEIGHBORHOOD", value: "", isHeader: true },
+    { property: "Incorporated City", value: property.IncorporatedCityName },
     { property: "County", value: property.County },
     { property: "Township", value: property.MLSAreaMajor },
     { property: "Subdivision", value: property.SubdivisionName },
@@ -628,6 +630,16 @@ export default function PropertyDetailsModal({
                           <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Sq Ft</span>
                         </div>
                       </div>
+
+                      {property.PricePerSquareFoot && (
+                        <div className="flex items-center space-x-3">
+                          <span className="text-[#C9A24D] font-bold text-lg">$</span>
+                          <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
+                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.PricePerSquareFoot.toFixed(0)}</span>
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">/ Sq Ft</span>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="flex items-center space-x-3">
                         <Calendar className="text-[#C9A24D]" size={18} />

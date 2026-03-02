@@ -153,7 +153,18 @@ class ApiClient {
 
   // Collection preferences endpoints
   async getCollectionPreferences(collectionId: string): Promise<ApiResponse<CollectionPreferences>> {
-    return this.request(`/collection-preferences/collection/${collectionId}`)
+    return this.request(`/collections/collection/${collectionId}`)
+  }
+
+  async getCollectionTours(collectionId: string): Promise<ApiResponse<PropertyTourResponse[]>> {
+    return this.request(`/collections/${collectionId}/tours`)
+  }
+
+  async updateTourCompletion(tourId: string, isCompleted: boolean): Promise<ApiResponse<PropertyTourResponse>> {
+    return this.request(`/collections/tours/${tourId}/completion`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_completed: isCompleted })
+    })
   }
 
   async updateCollectionPreferences(collectionId: string, preferences: Partial<CollectionPreferences>): Promise<ApiResponse<CollectionPreferences>> {

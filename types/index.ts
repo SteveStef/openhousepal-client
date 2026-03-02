@@ -45,6 +45,8 @@ export interface Property {
   YearBuilt?: number;
   MLSListDate?: string;
   PriceChangeTimestamp?: string;
+  PricePerSquareFoot?: number;
+  IncorporatedCityName?: string;
 
   // Collection metadata
   added_at?: string;
@@ -258,6 +260,44 @@ export interface TourRequest {
   preferredDate3?: string
   preferredTime3?: string
   message?: string
+}
+
+export interface PropertyTour {
+  id: string;
+  collectionId: string;
+  propertyId: string;
+  visitorName: string;
+  visitorEmail: string;
+  visitorPhone: string;
+  preferredDate: string;
+  preferredTime: string;
+  preferredDate2?: string;
+  preferredTime2?: string;
+  preferredDate3?: string;
+  preferredTime3?: string;
+  message?: string;
+  isCompleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PropertyTourResponse {
+  id: string;
+  collection_id: string;
+  property_id: string;
+  visitor_name: string;
+  visitor_email: string;
+  visitor_phone: string;
+  preferred_date: string;
+  preferred_time: string;
+  preferred_date_2?: string;
+  preferred_time_2?: string;
+  preferred_date_3?: string;
+  preferred_time_3?: string;
+  message?: string;
+  is_completed: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Collection {

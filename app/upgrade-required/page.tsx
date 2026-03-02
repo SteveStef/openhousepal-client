@@ -10,22 +10,7 @@ import { PRICING_PLANS } from '@/lib/pricing'
 
 export default function UpgradeRequiredPage() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const userData = await getCurrentUser()
-        setUser(userData)
-      } catch (error) {
-        console.error('Error fetching user:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchUser()
-  }, [])
+  const { user, isLoading } = useAuth()
 
   const handleUpgrade = () => {
     router.push('/settings/subscription')

@@ -13,6 +13,7 @@ import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
 import { apiRequest, hasValidSubscription } from '@/lib/auth'
 import { openHouseApi } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
+import { useToast } from '@/contexts/ToastContext'
 import { PropertyRecommendationsPrintView } from '@/components/PropertyRecommendationsPrintView'
 import { OpenHouseFlyer } from '@/components/OpenHouseFlyer'
 import { PropertyRecommendationCard } from '@/components/PropertyRecommendationCard'
@@ -109,6 +110,7 @@ export default function OpenHousesPage() {
 function OpenHouseContent() {
   const router = useRouter()
   const { user: currentUser, isAuthenticated, isLoading: isAuthenticating } = useAuth()
+  const { showToast } = useToast()
   
   // Wizard State
   const [currentStep, setCurrentStep] = useState<WizardStep>('ADDRESS')
@@ -142,11 +144,6 @@ function OpenHouseContent() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   const isPrintingRef = useRef(false)
   const [filterQuery, setFilterQuery] = useState('')
-  const [notification, setNotification] = useState<{
-    show: boolean
-    type: 'success' | 'error'
-    message: string
-  }>({ show: false, type: 'success', message: '' })
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1)
@@ -185,16 +182,6 @@ function OpenHouseContent() {
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   )
-
-  // Notification helper function with cleanup
-  const showNotification = useCallback((type: 'success' | 'error', message: string) => {
-    setNotification({ show: true, type, message })
-    const timeout = setTimeout(() => {
-      setNotification(prev => ({ ...prev, show: false }))
-    }, 5000)
-    // Cleanup will happen automatically on next call or unmount
-    return () => clearTimeout(timeout)
-  }, [])
 
   const handleViewVisitors = useCallback((openHouse: any) => {
     const url = `/open-houses/visitors/${openHouse.id}`;
@@ -299,15 +286,15 @@ function OpenHouseContent() {
         setIsOpenHouseNoteModalOpen(false)
         setSelectedOpenHouseForNote(null)
         setCurrentOpenHouseNote('')
-        showNotification('success', 'Note saved successfully')
+        showToast('Note saved successfully', 'success')
       } else {
-        showNotification('error', 'Failed to save note: ' + (response.error || 'Unknown error'))
+        showToast('Failed to save note: ' + (response.error || 'Unknown error'), 'error')
       }
     } catch (err) {
       console.error('Error saving open house note:', err)
-      showNotification('error', 'An error occurred while saving the note.')
+      showToast('An error occurred while saving the note.', 'error')
     }
-  }, [selectedOpenHouseForNote, currentOpenHouseNote, showNotification])
+  }, [selectedOpenHouseForNote, currentOpenHouseNote, showToast])
 
   // Delete handlers
   const handleDeleteClick = useCallback((openHouse: OpenHouse) => {
@@ -325,7 +312,7 @@ function OpenHouseContent() {
       })
 
       if (response.status === 200) {
-        showNotification('success', '🗑 Listing removed successfully. All related data is preserved.')
+        showToast('🗑 Listing removed successfully. All related data is preserved.', 'success')
         await loadOpenHouseHistory() // Refresh the list
         setShowDeleteDialog(false)
         setOpenHouseToDelete(null)
@@ -334,7 +321,7 @@ function OpenHouseContent() {
       }
     } catch (error) {
       console.error('Error deleting open house:', error)
-      showNotification('error', 'Failed to remove listing. Please try again.')
+      showToast('Failed to remove listing. Please try again.', 'error')
     } finally {
       setIsDeleting(false)
     }
@@ -542,14 +529,14 @@ function OpenHouseContent() {
         setSelectedFeatures({ signinSheet: true, similarProperties: false })
         setSelectedSimilarPropertyIds([])
         
-        showNotification('success', '🎉 Open House created successfully!')
+        showToast('🎉 Open House created successfully!', 'success')
       } else {
         throw new Error(response.error || 'Failed to save open house')
       }
       
     } catch (error) {
       console.error('Error saving open house:', error)
-      showNotification('error', 'Failed to save open house. Please try again.')
+      showToast('Failed to save open house. Please try again.', 'error')
     }
   }
 
@@ -963,52 +950,6 @@ function OpenHouseContent() {
             onCancel={handleDeleteCancel}
             isDeleting={isDeleting}
           />
-        </div>
-      )}
-      
-      {/* Toast Notification */}
-      {notification.show && (
-        <div className={`fixed bottom-6 right-0 left-0 sm:left-auto sm:right-6 z-50 transform transition-all duration-300 ease-in-out px-4 sm:px-0 print:hidden ${
-          notification.show ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
-        }`}>
-          <div className={`p-4 rounded-xl shadow-lg border-l-4 w-full sm:min-w-[320px] sm:max-w-md ${
-            notification.type === 'success' 
-              ? 'bg-white border-l-green-500 shadow-green-100' 
-              : 'bg-white border-l-red-500 shadow-red-100'
-          }`}>
-            <div className="flex items-start space-x-3">
-              <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
-                notification.type === 'success' 
-                  ? 'bg-green-100 text-green-600' 
-                  : 'bg-red-100 text-red-600'
-              }`}>
-                {notification.type === 'success' ? (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                )}
-              </div>
-              <div className="flex-1">
-                <p className={`text-sm font-medium ${
-                  notification.type === 'success' ? 'text-green-900' : 'text-red-900'
-                }`}>
-                  {notification.message}
-                </p>
-              </div>
-              <button
-                onClick={() => setNotification(prev => ({ ...prev, show: false }))}
-                className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>

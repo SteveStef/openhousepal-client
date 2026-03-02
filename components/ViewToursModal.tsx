@@ -18,7 +18,7 @@ export interface PropertyTour {
   preferred_date_3?: string
   preferred_time_3?: string
   message?: string
-  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED'
+  is_completed: boolean
   created_at: string
   updated_at: string
   property?: {
@@ -33,7 +33,7 @@ interface ViewToursModalProps {
   isOpen: boolean
   onClose: () => void
   tours: PropertyTour[]
-  onUpdateStatus: (tourId: string, status: string) => Promise<void>
+  onUpdateCompletion: (tourId: string, isCompleted: boolean) => Promise<void>
   isLoading: boolean
 }
 
@@ -41,7 +41,7 @@ export default function ViewToursModal({
   isOpen,
   onClose,
   tours,
-  onUpdateStatus,
+  onUpdateCompletion,
   isLoading
 }: ViewToursModalProps) {
   const [updatingTourId, setUpdatingTourId] = useState<string | null>(null)
@@ -66,10 +66,10 @@ export default function ViewToursModal({
     return `${displayHour}:${minutes} ${ampm}`
   }
 
-  const handleStatusUpdate = async (tourId: string, newStatus: string) => {
+  const handleCompletionToggle = async (tourId: string, currentStatus: boolean) => {
     setUpdatingTourId(tourId)
     try {
-      await onUpdateStatus(tourId, newStatus)
+      await onUpdateCompletion(tourId, !currentStatus)
     } finally {
       setUpdatingTourId(null)
     }
@@ -78,19 +78,6 @@ export default function ViewToursModal({
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose()
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PENDING':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'CONFIRMED':
-        return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'CANCELLED':
-        return 'bg-red-100 text-red-800 border-red-200'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
     }
   }
 
@@ -109,7 +96,7 @@ export default function ViewToursModal({
             <div>
               <h2 className="text-2xl font-black text-[#111827] dark:text-white tracking-tight">Tour Requests</h2>
               <p className="text-[#6B7280] dark:text-gray-400 font-medium text-sm mt-0.5">
-                {tours.length} {tours.length === 1 ? 'request' : 'requests'} pending your review
+                {tours.filter(t => !t.is_completed).length} pending your review
               </p>
             </div>
           </div>
@@ -140,7 +127,7 @@ export default function ViewToursModal({
               {tours.map((tour) => (
                 <div
                   key={tour.id}
-                  className="bg-white dark:bg-[#151517] rounded-2xl p-6 border border-gray-100 dark:border-gray-800 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_30px_-4px_rgba(0,0,0,0.08)] hover:border-[#C9A24D]/30 transition-all duration-300 group"
+                  className={`bg-white dark:bg-[#151517] rounded-2xl p-6 border border-gray-100 dark:border-gray-800 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_30px_-4px_rgba(0,0,0,0.08)] hover:border-[#C9A24D]/30 transition-all duration-300 group relative ${tour.is_completed ? 'opacity-75' : ''}`}
                 >
                   {/* Property Info */}
                   {tour.property && (
@@ -168,13 +155,11 @@ export default function ViewToursModal({
                               </p>
                             )}
                           </div>
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider ${getStatusColor(
-                              tour.status
-                            )}`}
-                          >
-                            {tour.status}
-                          </span>
+                          {tour.is_completed && (
+                            <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full text-xs font-bold uppercase tracking-wider">
+                              Completed
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -264,31 +249,25 @@ export default function ViewToursModal({
                     </div>
                   )}
 
-                  {/* Status Update */}
+                  {/* Completion Toggle */}
                   <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <label htmlFor={`status-${tour.id}`} className="text-sm font-bold text-[#111827] dark:text-white">
-                        Update Status:
-                      </label>
-                      <div className="relative">
-                        <select
-                          id={`status-${tour.id}`}
-                          value={tour.status}
-                          onChange={(e) => handleStatusUpdate(tour.id, e.target.value)}
-                          disabled={updatingTourId === tour.id}
-                          className="px-4 py-2.5 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#C9A24D]/20 focus:border-[#C9A24D] transition-all text-sm font-medium text-[#111827] dark:text-white cursor-pointer hover:border-gray-300 dark:hover:border-gray-600 disabled:opacity-50 pr-10 appearance-none"
-                        >
-                          <option value="PENDING">Pending</option>
-                          <option value="CONFIRMED">Confirmed</option>
-                          <option value="CANCELLED">Cancelled</option>
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
+                    <button
+                      onClick={() => handleCompletionToggle(tour.id, tour.is_completed)}
+                      disabled={updatingTourId === tour.id}
+                      className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-2 ${
+                        tour.is_completed
+                          ? 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                          : 'bg-[#111827] dark:bg-white text-white dark:text-[#111827] hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] dark:hover:text-white shadow-md'
+                      }`}
+                    >
+                      {updatingTourId === tour.id ? (
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                      ) : tour.is_completed ? (
+                        <span>Flag as Incomplete</span>
+                      ) : (
+                        <span>Flag as Completed</span>
+                      )}
+                    </button>
                     <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
                       Requested {new Date(tour.created_at).toLocaleDateString()}
                     </span>

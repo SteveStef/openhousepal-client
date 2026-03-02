@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { checkAuth, handleAuthError } from '@/lib/auth'
+import { useEffect } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
+import { handleAuthError } from '@/lib/auth'
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -9,35 +10,32 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children, fallback }: AuthGuardProps) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+  const { isAuthenticated, isLoading } = useAuth()
 
   useEffect(() => {
-    const verifyAuth = async () => {
-      const isAuth = await checkAuth()
-      
-      if (!isAuth) {
-        handleAuthError()
-        return
-      }
-      
-      setIsAuthenticated(isAuth)
+    // Only redirect if loading is finished and we are definitely not authenticated
+    if (!isLoading && !isAuthenticated) {
+      handleAuthError()
     }
+  }, [isLoading, isAuthenticated])
 
-    verifyAuth()
-  }, [])
-
-  // Show loading state while checking authentication
-  if (isAuthenticated === null) {
+  // Show loading state while AuthContext is fetching the initial user state
+  if (isLoading) {
     return (
       fallback || (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355] dark:border-[#C9A24D]"></div>
+        <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center transition-colors duration-300">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-[#C9A24D]/20 border-t-[#C9A24D] rounded-full animate-spin"></div>
+            <p className="text-sm font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest animate-pulse">
+              Checking authentication...
+            </p>
+          </div>
         </div>
       )
     )
   }
 
-  // If not authenticated, the redirect will happen in useEffect
+  // If not authenticated, we return null while the useEffect handles the redirect
   if (!isAuthenticated) {
     return null
   }

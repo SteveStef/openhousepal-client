@@ -9,11 +9,12 @@ import PropertyGrid from '@/components/PropertyGrid'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import ScheduleTourModal from '@/components/ScheduleTourModal'
 import { TourRequest } from '@/types'
-import Toast from '@/components/Toast'
+import { useToast } from '@/contexts/ToastContext'
 import MLSComplianceFooter from '@/components/MLSComplianceFooter'
 
 export default function CustomerShowcasePage() {
   const params = useParams()
+  const { showToast } = useToast()
   const [showcase, setShowcase] = useState<Collection | null>(null)
   const [matchedProperties, setMatchedProperties] = useState<Property[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -37,23 +38,7 @@ export default function CustomerShowcasePage() {
   const [selectedPropertyForTour, setSelectedPropertyForTour] = useState<Property | null>(null)
   const [isTourModalOpen, setIsTourModalOpen] = useState(false)
 
-  // Toast notification state
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; isVisible: boolean }>({
-    message: '',
-    type: 'success',
-    isVisible: false
-  })
-
   const shareToken = params.shareToken as string
-
-  // Toast helper function
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ message, type, isVisible: true })
-  }
-
-  const closeToast = () => {
-    setToast(prev => ({ ...prev, isVisible: false }))
-  }
 
   // Simple API request helper for this page
   const apiRequest = async (endpoint: string, options: any = {}) => {
@@ -814,13 +799,6 @@ export default function CustomerShowcasePage() {
         </div>
       </div>
 
-      {/* Toast Notification */}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        isVisible={toast.isVisible}
-        onClose={closeToast}
-      />
       <MLSComplianceFooter />
     </div>
   )
