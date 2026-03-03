@@ -60,4 +60,13 @@ export const formatMlsStatus = (status: string | null | undefined): string => {
   return s;
 };
 
+/**
+ * Formats property type strings for display.
+ * Replaces underscores with spaces (e.g., "SINGLE_FAMILY" -> "SINGLE FAMILY").
+ */
+export const formatPropertyType = (type: string | null | undefined): string => {
+  if (!type) return 'N/A';
+  return type.replace(/_/g, ' ').toUpperCase();
+};
+
 const anyDigit = (s: string) => /\d/.test(s);

@@ -235,32 +235,8 @@ function OpenHouseContent() {
        }, 1200)
     } else {
       isPrintingRef.current = false;
-    }
-  }, [generatedOpenHouseId, openHouses, propertyData, similarProperties.length, qrCode, selectedImage])
-
-  const fetchCuratedProperties = async (keys: string[]) => {
-    setIsLoadingNeighbors(true)
-    try {
-      const response = await apiRequest('/api/properties/similar', {
-        method: 'POST',
-        body: JSON.stringify({
-          listingKeys: keys
-        })
-      })
-
-      if (response.status === 200 && response.data?.properties) {
-        setSimilarProperties(response.data.properties)
-        // Ensure ALL these properties are selected for the print view
-        setSelectedSimilarPropertyIds(keys)
-        return response.data.properties
       }
-    } catch (err) {
-      console.error('Failed to fetch curated properties:', err)
-    } finally {
-      setIsLoadingNeighbors(false)
-    }
-    return []
-  }
+      }, [generatedOpenHouseId, openHouses, propertyData, similarProperties.length, qrCode, selectedImage])
 
   // Open House Note handlers
   const handleOpenOpenHouseNoteModal = useCallback((openHouse: OpenHouse) => {
@@ -770,8 +746,12 @@ function OpenHouseContent() {
                 address={address}
                 onFindProperties={async (prefs) => {
                   setSearchPreferences(prefs)
-                  await fetchSimilarProperties(propertyData, false, prefs)
-                  setCurrentStep('SIMILAR_PROPS')
+                  const properties = await fetchSimilarProperties(propertyData, false, prefs)
+                  if (properties && properties.length > 0) {
+                    setCurrentStep('SIMILAR_PROPS')
+                  } else {
+                    showToast('No properties found with these filters. Please try broadening your search.', 'error')
+                  }
                 }}
                 onBack={() => setCurrentStep('FEATURES')}
               />

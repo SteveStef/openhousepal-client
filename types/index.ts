@@ -21,6 +21,7 @@ export interface PropertyInteraction {
 export interface Property {
   id: string;
   ListingKey: string;
+  ListingId?: string; // MLS Number
   FullStreetAddress: string;
   UnparsedAddress?: string;
   City: string;

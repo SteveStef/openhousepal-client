@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Property, PropertyDetailResponse } from '@/types'
 import { X, MessageCircle, Send, ThumbsUp, ThumbsDown, ChevronLeft, ChevronRight, Maximize2, Home, User, Ruler, Bed, Bath, Calendar, MapPin, Clock, ShieldCheck } from 'lucide-react'
-import { cleanAddress, formatMlsStatus } from '@/lib/utils'
+import { cleanAddress, formatMlsStatus, formatPropertyType } from '@/lib/utils'
 
 const formatDate = (dateString: string) => {
   try {
@@ -113,7 +113,6 @@ function PropertyReport({ property }: { property: PropertyDetailResponse }) {
       { property: "Frequency", value: property.AssociationFeeFrequency },
       { property: "HOA Fee 2", value: formatCurrency(property.AssociationFee2) },
       { property: "Frequency 2", value: property.AssociationFee2Frequency },
-      { property: "Annual Property Tax", value: formatCurrency(property.TaxAnnualAmount) },
       { property: "HOA Includes", value: formatList(property.AssociationFeeIncludes) },
       { property: "Amenities", value: formatList(property.AssociationAmenities) },
     ] : []),
@@ -145,6 +144,7 @@ function PropertyReport({ property }: { property: PropertyDetailResponse }) {
 
     // Financial Details
     { property: "FINANCIAL DETAILS", value: "", isHeader: true },
+    { property: "Annual Property Tax", value: formatCurrency(property.TaxAnnualAmount) },
     { property: "Tax Assessment", value: formatCurrency(property.TaxAssessmentAmount) },
     { property: "Assessment Year", value: property.AssessmentYear },
     { property: "Tax ID", value: property.ListingTaxID },
@@ -269,12 +269,12 @@ function DescriptionSection({ description, details }: { description: string, det
         <div className="mt-8 pt-8 border-t border-gray-100 dark:border-gray-800">
           <p className="text-xs text-gray-400 dark:text-gray-500 leading-relaxed italic">
             <span className="font-bold uppercase tracking-widest not-italic mr-2">Listing Source:</span>{' '}
-            {details.ListAgentFullName || 'Agent'} 
+            {details.ListAgentFullName || 'Agent'}
             {details.ListOfficeName && ` of ${details.ListOfficeName}`}
             {details.ListOfficePhone && ` (${details.ListOfficePhone})`}.
             {details.ListAgentEmail && ` Email: ${details.ListAgentEmail}.`}
-          </p>
-        </div>
+            {details.ListingId && ` (MLS# ${details.ListingId})`}
+          </p>        </div>
       )}
     </div>
   )
@@ -578,9 +578,8 @@ export default function PropertyDetailsModal({
                       </span>
                       <div className="h-1 w-1 bg-gray-300 rounded-full" />
                       <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em]">
-                        {property.PropertyType} • Built in {property.YearBuilt || 'N/A'}
-                      </span>
-                    </div>
+                        {formatPropertyType(property.PropertyType)} • Built in {property.YearBuilt || 'N/A'}
+                      </span>                    </div>
                     <div>
                       <h1 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-tight mb-1">
                         {cleanAddress(property.FullStreetAddress)}
@@ -654,7 +653,7 @@ export default function PropertyDetailsModal({
                           <Clock className="text-[#C9A24D]" size={18} />
                           <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
                             <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.DaysOnMarket}</span>
-                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Days on Market</span>
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">DOM</span>
                           </div>
                         </div>
                       )}

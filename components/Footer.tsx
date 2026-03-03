@@ -23,10 +23,6 @@ export default function Footer() {
             <p className="text-gray-400 text-base leading-relaxed max-w-sm">
               Empowering real estate agents with next-generation lead capture and automated follow-up tools. Built for the modern professional.
             </p>
-            <div className="flex items-center space-x-3 text-xs font-bold uppercase tracking-widest text-[#C9A24D]">
-              <div className="w-2 h-2 bg-[#C9A24D] rounded-full animate-pulse"></div>
-              <span>System Operational</span>
-            </div>
           </div>
 
           {/* Links Section */}

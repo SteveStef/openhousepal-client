@@ -11,7 +11,7 @@ import {
   Layers
 } from 'lucide-react'
 import { PropertyDetailResponse } from '@/types'
-import { formatMlsStatus } from '@/lib/utils'
+import { formatMlsStatus, formatPropertyType } from '@/lib/utils'
 
 interface PropertyReportProps {
   property: PropertyDetailResponse
@@ -59,6 +59,7 @@ export default function PropertyReport({ property }: PropertyReportProps) {
 
     // Building & Construction
     { property: "BUILDING & CONSTRUCTION", value: "", isHeader: true },
+    { property: "Property Type", value: formatPropertyType(property.PropertyType) },
     { property: "Year Built", value: property.YearBuilt },
     { property: "New Construction", value: property.NewConstructionYN ? "Yes" : (property.NewConstructionYN === false ? "No" : null) },
     { property: "Architectural Style", value: formatList(property.ArchitecturalStyle) },
@@ -106,7 +107,6 @@ export default function PropertyReport({ property }: PropertyReportProps) {
       { property: "Frequency", value: property.AssociationFeeFrequency },
       { property: "HOA Fee 2", value: formatCurrency(property.AssociationFee2) },
       { property: "Frequency 2", value: property.AssociationFee2Frequency },
-      { property: "Annual Property Tax", value: formatCurrency(property.TaxAnnualAmount) },
       { property: "HOA Includes", value: formatList(property.AssociationFeeIncludes) },
       { property: "Amenities", value: formatList(property.AssociationAmenities) },
     ] : []),
@@ -137,6 +137,7 @@ export default function PropertyReport({ property }: PropertyReportProps) {
 
     // Financial Details
     { property: "FINANCIAL DETAILS", value: "", isHeader: true },
+    { property: "Annual Property Tax", value: formatCurrency(property.TaxAnnualAmount) },
     { property: "Tax Assessment", value: formatCurrency(property.TaxAssessmentAmount) },
     { property: "Assessment Year", value: property.AssessmentYear },
     { property: "Tax ID", value: property.ListingTaxID },
@@ -184,7 +185,9 @@ export default function PropertyReport({ property }: PropertyReportProps) {
             <p className="text-gray-500 dark:text-gray-400 text-sm">Comprehensive technical overview and specifications</p>
           </div>
           <div className="text-right hidden sm:block">
-            <div className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-black tracking-[0.2em] mb-1">Status</div>
+            <div className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-black tracking-[0.2em] mb-1">
+              {formatPropertyType(property.PropertyType)} • Status
+            </div>
             <div className="flex items-center justify-end text-green-500 font-bold text-sm">
               <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
               {formatMlsStatus(property.MlsStatus)}
@@ -223,6 +226,20 @@ export default function PropertyReport({ property }: PropertyReportProps) {
             </div>
           );
         })}
+
+        {/* Listing Agent Info Paragraph */}
+        {(property.ListAgentFullName || property.ListOfficeName) && (
+          <div className="mt-12 pt-8 border-t border-gray-100 dark:border-gray-800">
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-relaxed italic">
+              <span className="font-bold uppercase tracking-widest not-italic mr-2 text-[9px]">Listing Source:</span>{' '}
+              {property.ListAgentFullName || 'Agent'}
+              {property.ListOfficeName && ` of ${property.ListOfficeName}`}
+              {property.ListOfficePhone && ` (${property.ListOfficePhone})`}.
+              {property.ListAgentEmail && ` Email: ${property.ListAgentEmail}.`}
+              {property.ListingId && ` (MLS# ${property.ListingId})`}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
