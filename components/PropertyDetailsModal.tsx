@@ -415,27 +415,40 @@ export default function PropertyDetailsModal({
     if (!isLightboxOpen || images.length === 0) return null
     return (
       <div 
-        className="fixed inset-0 bg-black/98 z-[70] flex items-center justify-center"
+        className="fixed inset-0 bg-black z-[70] flex items-center justify-center overflow-hidden"
         onClick={() => setIsLightboxOpen(false)}
       >
+        {/* Blurred Background Layer to fill empty space */}
+        <div className="absolute inset-0 z-0 opacity-40 scale-110 blur-2xl">
+          {images[currentImageIndex] && (
+            <Image
+              src={images[currentImageIndex]}
+              alt="Blurred background"
+              fill
+              className="object-cover"
+              unoptimized
+            />
+          )}
+        </div>
+
         <button
           onClick={() => setIsLightboxOpen(false)}
-          className="absolute top-6 right-6 text-white/70 hover:text-white p-3 transition-all z-[80] bg-black/20 rounded-full hover:bg-black/40"
+          className="absolute top-6 right-6 text-white/70 hover:text-white p-3 transition-all z-[80] bg-black/20 rounded-full hover:bg-black/40 backdrop-blur-md"
         >
           <X size={32} />
         </button>
         
-        <div className="relative w-full h-full flex items-center justify-center">
-          <div className="relative w-full h-full" onClick={(e) => e.stopPropagation()}>
+        <div className="relative w-full h-full flex items-center justify-center z-10 p-4 sm:p-12">
+          <div className="relative w-full h-full max-w-6xl flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
             {images[currentImageIndex] && (
               <Image
                 src={images[currentImageIndex]}
                 alt={`${property.FullStreetAddress} - Full Image`}
                 fill
                 sizes="100vw"
-                className="object-contain"
-                quality={100}
+                className="object-contain drop-shadow-2xl"
                 priority
+                unoptimized
               />
             )}
           </div>
@@ -513,6 +526,7 @@ export default function PropertyDetailsModal({
                     src={images[0] || '/placeholder.jpg'}
                     alt="Main property view"
                     fill
+                    sizes="(max-width: 1024px) 100vw, 50vw"
                     className="object-cover transition-transform duration-700 group-hover:scale-105"
                     priority
                     quality={90}
@@ -549,8 +563,9 @@ export default function PropertyDetailsModal({
                             src={images[i]}
                             alt={`View ${i + 1}`}
                             fill
+                            sizes="(max-width: 1024px) 25vw, 15vw"
                             className="object-cover transition-transform duration-700 group-hover:scale-110"
-                            quality={70}
+                            quality={75}
                           />
                           <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </>
@@ -647,16 +662,6 @@ export default function PropertyDetailsModal({
                           <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Built</span>
                         </div>
                       </div>
-
-                      {property.DaysOnMarket !== undefined && property.DaysOnMarket !== null && (
-                        <div className="flex items-center space-x-3">
-                          <Clock className="text-[#C9A24D]" size={18} />
-                          <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.DaysOnMarket}</span>
-                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">DOM</span>
-                          </div>
-                        </div>
-                      )}
 
                       <div className="flex items-center space-x-3">
                         <ShieldCheck className="text-[#C9A24D]" size={18} />
