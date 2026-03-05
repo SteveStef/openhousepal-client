@@ -1,4 +1,4 @@
-import { Property, SignInFormData, ApiResponse, CollectionPreferences, NotificationResponse, Notification, TourRequest } from '@/types'
+import { Property, SignInFormData, ApiResponse, CollectionPreferences, NotificationResponse, Notification, TourRequest, PropertyTourResponse, PropertyTour } from '@/types'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 

@@ -131,7 +131,7 @@ export default function ViewToursModal({
                 >
                   {/* Property Info */}
                   {tour.property && (
-                    <div className="flex items-start space-x-5 mb-6 pb-6 border-b border-gray-100 dark:border-gray-800">
+                    <div className="flex items-start space-x-5 mb-6">
                       {tour.property.imageUrl && (
                         <div className="relative w-20 h-20 flex-shrink-0">
                           <Image
@@ -165,88 +165,92 @@ export default function ViewToursModal({
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Visitor Info */}
-                    <div className="space-y-4">
-                      <h4 className="font-bold text-[#111827] dark:text-white text-xs uppercase tracking-widest flex items-center">
-                        <span className="w-1.5 h-1.5 bg-[#C9A24D] rounded-full mr-2"></span>
-                        Visitor Information
-                      </h4>
-                      <div className="space-y-3 text-sm">
-                        <div className="flex items-center text-[#6B7280] dark:text-gray-400 group/item">
-                          <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center mr-3 group-hover/item:bg-[#111827] dark:group-hover/item:bg-white transition-colors duration-300">
-                            <User size={14} className="text-gray-400 dark:text-gray-500 group-hover/item:text-white dark:group-hover/item:text-[#111827]" />
+                  {!tour.is_completed && (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Visitor Info */}
+                        <div className="space-y-4">
+                          <h4 className="font-bold text-[#111827] dark:text-white text-xs uppercase tracking-widest flex items-center">
+                            <span className="w-1.5 h-1.5 bg-[#C9A24D] rounded-full mr-2"></span>
+                            Visitor Information
+                          </h4>
+                          <div className="space-y-3 text-sm">
+                            <div className="flex items-center text-[#6B7280] dark:text-gray-400 group/item">
+                              <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center mr-3 group-hover/item:bg-[#111827] dark:group-hover/item:bg-white transition-colors duration-300">
+                                <User size={14} className="text-gray-400 dark:text-gray-500 group-hover/item:text-white dark:group-hover/item:text-[#111827]" />
+                              </div>
+                              <span className="font-medium text-[#111827] dark:text-white">{tour.visitor_name}</span>
+                            </div>
+                            <div className="flex items-center text-[#6B7280] dark:text-gray-400 group/item">
+                              <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center mr-3 group-hover/item:bg-[#111827] dark:group-hover/item:bg-white transition-colors duration-300">
+                                <Mail size={14} className="text-gray-400 dark:text-gray-500 group-hover/item:text-white dark:group-hover/item:text-[#111827]" />
+                              </div>
+                              <a
+                                href={`mailto:${tour.visitor_email}`}
+                                className="text-[#6B7280] dark:text-gray-400 hover:text-[#C9A24D] transition-colors font-medium"
+                              >
+                                {tour.visitor_email}
+                              </a>
+                            </div>
+                            <div className="flex items-center text-[#6B7280] dark:text-gray-400 group/item">
+                              <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center mr-3 group-hover/item:bg-[#111827] dark:group-hover/item:bg-white transition-colors duration-300">
+                                <Phone size={14} className="text-gray-400 dark:text-gray-500 group-hover/item:text-white dark:group-hover/item:text-[#111827]" />
+                              </div>
+                              <a
+                                href={`tel:${tour.visitor_phone}`}
+                                className="text-[#6B7280] dark:text-gray-400 hover:text-[#C9A24D] transition-colors font-medium"
+                              >
+                                {tour.visitor_phone}
+                              </a>
+                            </div>
                           </div>
-                          <span className="font-medium text-[#111827] dark:text-white">{tour.visitor_name}</span>
                         </div>
-                        <div className="flex items-center text-[#6B7280] dark:text-gray-400 group/item">
-                          <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center mr-3 group-hover/item:bg-[#111827] dark:group-hover/item:bg-white transition-colors duration-300">
-                            <Mail size={14} className="text-gray-400 dark:text-gray-500 group-hover/item:text-white dark:group-hover/item:text-[#111827]" />
+
+                        {/* Preferred Times */}
+                        <div className="space-y-4">
+                          <h4 className="font-bold text-[#111827] dark:text-white text-xs uppercase tracking-widest flex items-center">
+                            <span className="w-1.5 h-1.5 bg-[#C9A24D] rounded-full mr-2"></span>
+                            Preferred Times
+                          </h4>
+                          <div className="space-y-3 text-sm">
+                            <div className="flex items-center bg-gray-50 dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700">
+                              <span className="font-bold text-[#111827] dark:text-white mr-3 bg-white dark:bg-[#151517] w-6 h-6 rounded-full flex items-center justify-center shadow-sm text-xs">1</span>
+                              <span className="text-[#6B7280] dark:text-gray-300 font-medium">
+                                {formatDate(tour.preferred_date)} at {formatTime(tour.preferred_time)}
+                              </span>
+                            </div>
+                            {tour.preferred_date_2 && tour.preferred_time_2 && (
+                              <div className="flex items-center bg-gray-50 dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700">
+                                <span className="font-bold text-[#111827] dark:text-white mr-3 bg-white dark:bg-[#151517] w-6 h-6 rounded-full flex items-center justify-center shadow-sm text-xs">2</span>
+                                <span className="text-[#6B7280] dark:text-gray-300 font-medium">
+                                  {formatDate(tour.preferred_date_2)} at {formatTime(tour.preferred_time_2)}
+                                </span>
+                              </div>
+                            )}
+                            {tour.preferred_date_3 && tour.preferred_time_3 && (
+                              <div className="flex items-center bg-gray-50 dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700">
+                                <span className="font-bold text-[#111827] dark:text-white mr-3 bg-white dark:bg-[#151517] w-6 h-6 rounded-full flex items-center justify-center shadow-sm text-xs">3</span>
+                                <span className="text-[#6B7280] dark:text-gray-300 font-medium">
+                                  {formatDate(tour.preferred_date_3)} at {formatTime(tour.preferred_time_3)}
+                                </span>
+                              </div>
+                            )}
                           </div>
-                          <a
-                            href={`mailto:${tour.visitor_email}`}
-                            className="text-[#6B7280] dark:text-gray-400 hover:text-[#C9A24D] transition-colors font-medium"
-                          >
-                            {tour.visitor_email}
-                          </a>
-                        </div>
-                        <div className="flex items-center text-[#6B7280] dark:text-gray-400 group/item">
-                          <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center mr-3 group-hover/item:bg-[#111827] dark:group-hover/item:bg-white transition-colors duration-300">
-                            <Phone size={14} className="text-gray-400 dark:text-gray-500 group-hover/item:text-white dark:group-hover/item:text-[#111827]" />
-                          </div>
-                          <a
-                            href={`tel:${tour.visitor_phone}`}
-                            className="text-[#6B7280] dark:text-gray-400 hover:text-[#C9A24D] transition-colors font-medium"
-                          >
-                            {tour.visitor_phone}
-                          </a>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Preferred Times */}
-                    <div className="space-y-4">
-                      <h4 className="font-bold text-[#111827] dark:text-white text-xs uppercase tracking-widest flex items-center">
-                        <span className="w-1.5 h-1.5 bg-[#C9A24D] rounded-full mr-2"></span>
-                        Preferred Times
-                      </h4>
-                      <div className="space-y-3 text-sm">
-                        <div className="flex items-center bg-gray-50 dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700">
-                          <span className="font-bold text-[#111827] dark:text-white mr-3 bg-white dark:bg-[#151517] w-6 h-6 rounded-full flex items-center justify-center shadow-sm text-xs">1</span>
-                          <span className="text-[#6B7280] dark:text-gray-300 font-medium">
-                            {formatDate(tour.preferred_date)} at {formatTime(tour.preferred_time)}
-                          </span>
+                      {/* Message */}
+                      {tour.message && (
+                        <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
+                          <h4 className="font-bold text-[#111827] dark:text-white text-xs uppercase tracking-widest mb-3">
+                            Message
+                          </h4>
+                          <p className="text-sm text-[#6B7280] dark:text-gray-300 bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 italic leading-relaxed">
+                            "{tour.message}"
+                          </p>
                         </div>
-                        {tour.preferred_date_2 && tour.preferred_time_2 && (
-                          <div className="flex items-center bg-gray-50 dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700">
-                            <span className="font-bold text-[#111827] dark:text-white mr-3 bg-white dark:bg-[#151517] w-6 h-6 rounded-full flex items-center justify-center shadow-sm text-xs">2</span>
-                            <span className="text-[#6B7280] dark:text-gray-300 font-medium">
-                              {formatDate(tour.preferred_date_2)} at {formatTime(tour.preferred_time_2)}
-                            </span>
-                          </div>
-                        )}
-                        {tour.preferred_date_3 && tour.preferred_time_3 && (
-                          <div className="flex items-center bg-gray-50 dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700">
-                            <span className="font-bold text-[#111827] dark:text-white mr-3 bg-white dark:bg-[#151517] w-6 h-6 rounded-full flex items-center justify-center shadow-sm text-xs">3</span>
-                            <span className="text-[#6B7280] dark:text-gray-300 font-medium">
-                              {formatDate(tour.preferred_date_3)} at {formatTime(tour.preferred_time_3)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Message */}
-                  {tour.message && (
-                    <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
-                      <h4 className="font-bold text-[#111827] dark:text-white text-xs uppercase tracking-widest mb-3">
-                        Message
-                      </h4>
-                      <p className="text-sm text-[#6B7280] dark:text-gray-300 bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 italic leading-relaxed">
-                        "{tour.message}"
-                      </p>
-                    </div>
+                      )}
+                    </>
                   )}
 
                   {/* Completion Toggle */}

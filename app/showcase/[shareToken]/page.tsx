@@ -564,7 +564,10 @@ export default function CustomerShowcasePage() {
           preferred_time_2: tourRequest.preferredTime2,
           preferred_date_3: tourRequest.preferredDate3,
           preferred_time_3: tourRequest.preferredTime3,
-          message: tourRequest.message
+          message: tourRequest.message,
+          visitor_name: tourRequest.visitorName,
+          visitor_email: tourRequest.visitorContact?.includes('@') ? tourRequest.visitorContact : undefined,
+          visitor_phone: !tourRequest.visitorContact?.includes('@') ? tourRequest.visitorContact : undefined
         })
       })
 
@@ -794,6 +797,10 @@ export default function CustomerShowcasePage() {
             isOpen={isTourModalOpen}
             onClose={handleCloseTourModal}
             onSubmit={handleScheduleTourSubmit}
+            showContactFields={
+              showcase?.customer?.firstName === 'Anonymous' || 
+              showcase?.customer?.email === 'anonymous@visitor.com'
+            }
           />
 
         </div>
