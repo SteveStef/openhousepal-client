@@ -34,8 +34,9 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
     if (!status) return true; // Assume available if no status
 
     const normalizedStatus = status.toLowerCase().replace(/[_\s-]/g, '');
-    // Standard RESO statuses: Active, Coming Soon, Active-Bright
-    return normalizedStatus === 'active' || normalizedStatus === 'activebright' || normalizedStatus === 'comingsoon';
+    // Standard RESO statuses: Active, Coming Soon, Active-Bright, Coming-Soon-Bright
+    const allowed = ['active', 'activebright', 'comingsoon', 'comingsoonbright'];
+    return allowed.includes(normalizedStatus);
   }, [property.MlsStatus])
 
   // Helper function to format status display
