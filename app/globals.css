@@ -320,6 +320,24 @@ body {
   scrollbar-width: none;  /* Firefox */
 }
 
+/* Fix for browser autofill background color */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+    transition: background-color 5000s ease-in-out 0s;
+    -webkit-text-fill-color: #0B0B0B !important;
+    -webkit-box-shadow: 0 0 0px 1000px #FAFAF7 inset !important;
+}
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover, 
+.dark input:-webkit-autofill:focus, 
+.dark input:-webkit-autofill:active {
+    -webkit-text-fill-color: #F3F4F6 !important;
+    -webkit-box-shadow: 0 0 0px 1000px #0B0B0B inset !important;
+}
+
 /* PayPal Button Fix - Removes white gaps in dark mode */
 .paypal-button-container {
   width: 100%;

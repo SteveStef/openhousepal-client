@@ -123,11 +123,11 @@ export default function OpenHouseSignInPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAF7] p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAF7] dark:bg-[#0B0B0B] p-4 transition-colors duration-300">
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#111827] mx-auto mb-4"></div>
-            <p className="text-[#6B7280] font-medium">Loading property details...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#111827] dark:border-white mx-auto mb-4"></div>
+            <p className="text-[#6B7280] dark:text-gray-400 font-medium">Loading property details...</p>
           </div>
         </div>
         <ComplianceFooter />
@@ -137,24 +137,24 @@ export default function OpenHouseSignInPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAF7] px-4 p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAF7] dark:bg-[#0B0B0B] px-4 p-4 transition-colors duration-300">
         <div className="flex-1 flex items-center justify-center">
-          <div className="max-w-md w-full bg-white rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 text-center border border-gray-100">
-            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="max-w-md w-full bg-white dark:bg-[#151517] rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 text-center border border-gray-100 dark:border-gray-800">
+            <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
             </div>
-            <h2 className="text-xl font-black text-[#0B0B0B] mb-2 tracking-tight">Unable to Load Property</h2>
-            <p className="text-[#6B7280] mb-8 leading-relaxed">{error}</p>
+            <h2 className="text-xl font-black text-[#0B0B0B] dark:text-white mb-2 tracking-tight">Unable to Load Property</h2>
+            <p className="text-[#6B7280] dark:text-gray-400 mb-8 leading-relaxed">{error}</p>
             <div className="space-y-4">
               <button
                 onClick={() => router.refresh()}
-                className="w-full bg-[#111827] hover:bg-[#C9A24D] text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition-all duration-300 hover:scale-[1.02]"
+                className="w-full bg-[#111827] dark:bg-white hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] text-white dark:text-[#111827] dark:hover:text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition-all duration-300 hover:scale-[1.02]"
               >
                 Try Again
               </button>
-              <p className="text-gray-400 text-xs">
+              <p className="text-gray-400 dark:text-gray-500 text-xs">
                 If this problem persists, please contact the property agent directly.
               </p>
             </div>
@@ -167,20 +167,20 @@ export default function OpenHouseSignInPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAF7] px-4 p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAF7] dark:bg-[#0B0B0B] px-4 p-4 transition-colors duration-300">
         <div className="flex-1 flex items-center justify-center">
-          <div className="max-w-md w-full bg-white rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 text-center border border-gray-100">
-            <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="max-w-md w-full bg-white dark:bg-[#151517] rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 text-center border border-gray-100 dark:border-gray-800">
+            <div className="w-20 h-20 bg-green-50 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path>
               </svg>
             </div>
-            <h2 className="text-3xl font-black text-[#0B0B0B] mb-3 tracking-tight">Thank You!</h2>
-            <p className="text-[#6B7280] mb-8 leading-relaxed font-medium">
+            <h2 className="text-3xl font-black text-[#0B0B0B] dark:text-white mb-3 tracking-tight">Thank You!</h2>
+            <p className="text-[#6B7280] dark:text-gray-400 mb-8 leading-relaxed font-medium">
               Your information has been submitted successfully.
             </p>
             
-            <p className="text-gray-400 text-xs">
+            <p className="text-gray-400 dark:text-gray-500 text-xs">
               You can close this page now or continue browsing.
             </p>
           </div>
@@ -192,18 +192,18 @@ export default function OpenHouseSignInPage() {
 
   if (!property) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FAFAF7] px-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 text-center border border-gray-100">
-          <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAF7] dark:bg-[#0B0B0B] px-4 transition-colors duration-300">
+        <div className="max-w-md w-full bg-white dark:bg-[#151517] rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 text-center border border-gray-100 dark:border-gray-800">
+          <div className="w-16 h-16 bg-amber-50 dark:bg-amber-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1"></path>
             </svg>
           </div>
-          <h2 className="text-xl font-black text-[#0B0B0B] mb-2 tracking-tight">Property Not Found</h2>
-          <p className="text-[#6B7280] mb-6 leading-relaxed">
+          <h2 className="text-xl font-black text-[#0B0B0B] dark:text-white mb-2 tracking-tight">Property Not Found</h2>
+          <p className="text-[#6B7280] dark:text-gray-400 mb-6 leading-relaxed">
             This property listing may have been removed or is no longer available.
           </p>
-          <p className="text-gray-400 text-xs">
+          <p className="text-gray-400 dark:text-gray-500 text-xs">
             Please check the QR code or contact the agent directly for assistance.
           </p>
         </div>
@@ -212,7 +212,7 @@ export default function OpenHouseSignInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAF7] flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col items-center justify-center p-4 transition-colors duration-300">
       <div className="flex-1 flex items-center justify-center w-full">
         <div className="w-full max-w-lg">
           {/* Form */}
@@ -226,7 +226,7 @@ export default function OpenHouseSignInPage() {
 
       {/* Compliance Footer */}
       <div className="mt-12 text-center max-w-3xl mx-auto pb-4">
-        <p className="text-[10px] text-gray-400 font-medium leading-relaxed uppercase tracking-wider">
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium leading-relaxed uppercase tracking-wider">
           © BRIGHT, All Rights Reserved | Information Deemed Reliable But Not Guaranteed. Some properties which appear for sale may no longer be available. 
           <span className="block sm:inline ml-0 sm:ml-1">Data last updated: {new Date().toLocaleDateString()}</span>
         </p>

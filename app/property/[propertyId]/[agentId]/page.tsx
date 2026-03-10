@@ -169,14 +169,42 @@ export default function PropertyPage() {
     <div className="flex-1 bg-[#FAFAF7] dark:bg-[#0B0B0B] transition-colors duration-300 min-h-screen">
       {/* Lightbox */}
       {isLightboxOpen && images.length > 0 && (
-        <div className="fixed inset-0 bg-black/98 z-[100] flex items-center justify-center" onClick={() => setIsLightboxOpen(false)}>
-          <button className="absolute top-6 right-6 text-white/70 hover:text-white p-3 rounded-full bg-black/20 hover:bg-black/40 z-[110]" onClick={() => setIsLightboxOpen(false)}><X size={32} /></button>
-          <div className="relative w-full h-full flex items-center justify-center" onClick={e => e.stopPropagation()}>
-            <Image src={images[currentImageIndex]} alt={property.FullStreetAddress} fill className="object-contain" priority quality={100} />
+        <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center overflow-hidden" onClick={() => setIsLightboxOpen(false)}>
+          {/* Blurred Background Layer to fill empty space */}
+          <div className="absolute inset-0 z-0 opacity-40 scale-110 blur-2xl">
+            {images[currentImageIndex] && (
+              <Image
+                src={images[currentImageIndex]}
+                alt="Blurred background"
+                fill
+                className="object-cover"
+                unoptimized
+              />
+            )}
+          </div>
+
+          <button 
+            className="absolute top-6 right-6 text-white/70 hover:text-white p-3 rounded-full bg-black/20 hover:bg-black/40 z-[110] backdrop-blur-md transition-all" 
+            onClick={() => setIsLightboxOpen(false)}
+          >
+            <X size={32} />
+          </button>
+          
+          <div className="relative w-full h-full flex items-center justify-center z-10 p-4 sm:p-12">
+            <div className="relative w-full h-full max-w-6xl flex items-center justify-center" onClick={e => e.stopPropagation()}>
+              <Image 
+                src={images[currentImageIndex]} 
+                alt={property.FullStreetAddress} 
+                fill 
+                className="object-contain drop-shadow-2xl" 
+                priority 
+                unoptimized
+              />
+            </div>
             {images.length > 1 && (
               <>
-                <button onClick={prevImage} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-4 transition-all bg-black/10 hover:bg-black/20 rounded-full"><ChevronLeft size={48} /></button>
-                <button onClick={nextImage} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-4 transition-all bg-black/10 hover:bg-black/20 rounded-full"><ChevronRight size={48} /></button>
+                <button onClick={(e) => { e.stopPropagation(); prevImage(); }} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-4 transition-all bg-black/10 hover:bg-black/20 rounded-full"><ChevronLeft size={48} /></button>
+                <button onClick={(e) => { e.stopPropagation(); nextImage(); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-4 transition-all bg-black/10 hover:bg-black/20 rounded-full"><ChevronRight size={48} /></button>
               </>
             )}
             <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full text-white/80 text-sm font-black tracking-widest uppercase">
@@ -186,13 +214,13 @@ export default function PropertyPage() {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 py-8 md:px-6 lg:px-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8 md:px-6 lg:px-8 space-y-6 sm:space-y-8">
         
         {/* Modern Image Grid Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 p-2 sm:p-4 bg-white dark:bg-[#151517] rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm">
           {/* Main Large Image */}
           <div 
-            className="relative aspect-[4/3] lg:aspect-auto lg:h-full min-h-[350px] lg:min-h-[500px] rounded-2xl overflow-hidden group cursor-pointer shadow-sm"
+            className="relative aspect-[3/2] sm:aspect-video lg:aspect-auto lg:h-full min-h-[200px] max-h-[50vh] sm:max-h-none sm:min-h-[350px] lg:min-h-[500px] rounded-2xl overflow-hidden group cursor-pointer shadow-sm"
             onClick={() => {
               setCurrentImageIndex(0);
               setIsLightboxOpen(true);
@@ -251,19 +279,19 @@ export default function PropertyPage() {
         </div>
 
         {/* Primary Info Row */}
-        <div className="bg-white dark:bg-[#151517] rounded-3xl p-8 sm:p-10 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-            <div className="space-y-4">
+        <div className="bg-white dark:bg-[#151517] rounded-3xl p-6 sm:p-8 lg:p-10 border border-gray-200 dark:border-gray-800 shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+            <div className="space-y-4 order-2 lg:order-1">
               <div className="flex items-center space-x-3">
-                <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-[0.15em] rounded-full shadow-sm ${
+                <span className={`px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.15em] rounded-full shadow-sm ${
                   property.MlsStatus?.includes('ACTIVE') 
                     ? 'bg-green-500 text-white' 
                     : 'bg-gray-800 text-white'
                 }`}>
                   {formatMlsStatus(property.MlsStatus)}
                 </span>
-                <div className="h-1 w-1 bg-gray-300 rounded-full" />
-                <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em]">
+                <div className="h-1 w-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
+                <span className="text-[8px] font-black text-gray-400 uppercase tracking-[0.15em]">
                   {property.PropertyType} • Built in {property.YearBuilt || 'N/A'}
                 </span>
               </div>
@@ -272,24 +300,24 @@ export default function PropertyPage() {
                   {cleanAddress(property.FullStreetAddress)}
                 </h1>
                 <div className="flex items-center text-sm sm:text-base font-bold text-gray-500 dark:text-gray-400">
-                  <MapPin size={16} className="mr-2 text-[#C9A24D]" />
-                  <span>{property.City}, {property.StateOrProvince} {property.PostalCode}</span>
+                  <MapPin size={16} className="mr-2 text-[#C9A24D] shrink-0" />
+                  <span className="truncate">{property.City}, {property.StateOrProvince} {property.PostalCode}</span>
                 </div>
               </div>
             </div>
             
-            <div className="md:text-right">
-              <div className="text-4xl sm:text-5xl font-black text-gray-900 dark:text-white tracking-tight leading-none">
+            <div className="lg:text-right order-1 lg:order-2 pt-2 lg:pt-0">
+              <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#111827] dark:text-white tracking-tighter leading-none">
                 {formatPrice(property.ListPrice)}
               </div>
-              <div className="text-[10px] font-black text-[#C9A24D] uppercase tracking-[0.2em] mt-3">Current Market Price</div>
+              <div className="text-[10px] font-black text-[#C9A24D] uppercase tracking-[0.2em] mt-2 ml-0.5 lg:ml-0">Current Market Price</div>
             </div>
           </div>
         </div>
 
         {/* Facts Bar with Integrated Tour Action */}
-        <div className="bg-white dark:bg-[#151517] p-6 px-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-wrap items-center justify-between gap-6">
-          <div className="flex flex-wrap items-center gap-x-12 gap-y-6">
+        <div className="bg-white dark:bg-[#151517] p-6 sm:p-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap lg:items-center gap-x-8 gap-y-6 lg:gap-x-12 lg:gap-y-4">
             <div className="flex items-center space-x-3">
               <Bed className="text-[#C9A24D]" size={20} />
               <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
@@ -315,10 +343,22 @@ export default function PropertyPage() {
             </div>
 
             <div className="flex items-center space-x-3">
-              <Clock className="text-[#C9A24D]" size={20} />
+              <span className="text-[#C9A24D] font-bold text-lg">$</span>
               <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                <span className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{property.DaysOnMarket || '-'}</span>
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Days on Market</span>
+                <span className="text-xl font-black text-gray-900 dark:text-white tracking-tight">
+                  {property.PricePerSquareFoot 
+                    ? property.PricePerSquareFoot.toFixed(0) 
+                    : (property.ListPrice && property.LivingArea ? (property.ListPrice / property.LivingArea).toFixed(0) : '-')}
+                </span>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">/ Sq Ft</span>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <Calendar className="text-[#C9A24D]" size={20} />
+              <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
+                <span className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{property.YearBuilt || '-'}</span>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Built</span>
               </div>
             </div>
 
@@ -326,20 +366,22 @@ export default function PropertyPage() {
               <ShieldCheck className="text-[#C9A24D]" size={20} />
               <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
                 <span className="text-xl font-black text-gray-900 dark:text-white tracking-tight">
-                  {property.AssociationYN ? 'Yes' : 'No'}
+                  {property.AssociationYN || (property.AssociationFee && property.AssociationFee > 0) ? 'Yes' : 'No'}
                 </span>
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">HOA</span>
               </div>
             </div>
           </div>
 
-          <button 
-            onClick={() => setIsTourModalOpen(true)}
-            className="flex-1 sm:flex-none px-10 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all hover:bg-blue-700 shadow-lg transform hover:-translate-y-0.5 active:scale-[0.98] flex items-center justify-center gap-2"
-          >
-            <Calendar size={16} />
-            <span>Schedule Showing</span>
-          </button>
+          <div className="flex items-center justify-center sm:justify-start pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-gray-100 dark:border-gray-800 lg:pl-8">
+            <button 
+              onClick={() => setIsTourModalOpen(true)}
+              className="w-full sm:w-auto px-10 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all hover:bg-blue-700 shadow-lg transform hover:-translate-y-0.5 active:scale-[0.98] flex items-center justify-center gap-2"
+            >
+              <Calendar size={16} />
+              <span>Schedule Showing</span>
+            </button>
+          </div>
         </div>
 
         {/* Content Grid */}

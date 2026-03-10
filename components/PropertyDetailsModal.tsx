@@ -484,14 +484,6 @@ export default function PropertyDetailsModal({
       <div className="fixed inset-0 bg-[#0B0B0B]/80 z-50 flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300">
         <div className="bg-white dark:bg-[#0B0B0B] w-full max-w-7xl h-full sm:h-[95vh] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
           
-          {/* Top Floating Close Button */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 z-50 bg-white/90 dark:bg-black/50 hover:bg-white dark:hover:bg-black p-2 rounded-full shadow-lg transition-all text-gray-800 dark:text-white sm:hidden"
-          >
-            <X size={20} />
-          </button>
-
           <div className="flex-1 overflow-y-auto scrollbar-hide bg-[#FAFAF7] dark:bg-[#0B0B0B]">
             {/* Minimal Header with Close Button */}
             <div className="sticky top-0 z-40 bg-white/95 dark:bg-[#0B0B0B]/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
@@ -516,7 +508,7 @@ export default function PropertyDetailsModal({
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 p-2 sm:p-4 bg-white dark:bg-[#0B0B0B] border-b border-gray-100 dark:border-gray-900">
                 {/* Main Large Image (Half Width) */}
                 <div 
-                  className="relative aspect-[4/3] lg:aspect-auto lg:h-full min-h-[350px] lg:min-h-[450px] rounded-2xl sm:rounded-l-3xl overflow-hidden group cursor-pointer shadow-sm"
+                  className="relative aspect-[3/2] sm:aspect-video lg:aspect-auto lg:h-full min-h-[250px] sm:min-h-[350px] lg:min-h-[450px] rounded-2xl sm:rounded-l-3xl overflow-hidden group cursor-pointer shadow-sm"
                   onClick={() => {
                     setCurrentImageIndex(0);
                     setIsLightboxOpen(true);
@@ -580,37 +572,39 @@ export default function PropertyDetailsModal({
               </div>
 
               {/* Primary Property Info (Address, Price, Status) */}
-              <div className="px-6 sm:px-12 pt-10 pb-4 bg-white dark:bg-[#0B0B0B]">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                  <div className="space-y-3">
+              <div className="px-6 sm:px-12 pt-8 sm:pt-10 pb-4 bg-white dark:bg-[#0B0B0B]">
+                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+                  <div className="space-y-4 order-2 lg:order-1">
                     <div className="flex items-center space-x-3">
-                      <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-[0.15em] rounded-full shadow-sm ${
+                      <span className={`px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.15em] rounded-full shadow-sm ${
                         property.MlsStatus?.includes('ACTIVE') 
                           ? 'bg-green-500 text-white' 
                           : 'bg-gray-800 text-white'
                       }`}>
                         {formatMlsStatus(property.MlsStatus)}
                       </span>
-                      <div className="h-1 w-1 bg-gray-300 rounded-full" />
-                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em]">
+                      <div className="h-1 w-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
+                      <span className="text-[8px] font-black text-gray-400 uppercase tracking-[0.15em]">
                         {formatPropertyType(property.PropertyType)} • Built in {property.YearBuilt || 'N/A'}
-                      </span>                    </div>
+                      </span>
+                    </div>
+                    
                     <div>
-                      <h1 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-tight mb-1">
+                      <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-tight mb-1.5">
                         {cleanAddress(property.FullStreetAddress)}
                       </h1>
-                      <div className="flex items-center text-base sm:text-lg font-bold text-gray-500 dark:text-gray-400">
-                        <MapPin size={16} className="mr-2 text-[#C9A24D]" />
-                        <span>{property.City}, {property.StateOrProvince} {property.PostalCode}</span>
+                      <div className="flex items-center text-sm sm:text-base lg:text-lg font-bold text-gray-500 dark:text-gray-400">
+                        <MapPin size={14} className="mr-2 text-[#C9A24D] shrink-0" />
+                        <span className="truncate">{property.City}, {property.StateOrProvince} {property.PostalCode}</span>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="md:text-right">
-                    <div className="text-4xl sm:text-5xl font-black text-gray-900 dark:text-white tracking-tight leading-none">
+                  <div className="lg:text-right order-1 lg:order-2 pt-2 lg:pt-0">
+                    <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#111827] dark:text-white tracking-tighter leading-none">
                       {formatPrice(property.ListPrice)}
                     </div>
-                    <div className="text-[9px] font-black text-[#C9A24D] uppercase tracking-[0.2em] mt-2">Current Market Price</div>
+                    <div className="text-[9px] font-black text-[#C9A24D] uppercase tracking-[0.2em] mt-2 ml-0.5 lg:ml-0">Current Market Price</div>
                   </div>
                 </div>
               </div>
@@ -619,84 +613,86 @@ export default function PropertyDetailsModal({
                 
                 {/* Important Facts / Specs Bar */}
                 <section>
-                  <div className="flex flex-wrap items-center justify-between gap-6 bg-white dark:bg-[#151517] p-6 px-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
-                    <div className="flex flex-wrap items-center gap-x-10 gap-y-4">
-                      <div className="flex items-center space-x-3">
-                        <Bed className="text-[#C9A24D]" size={18} />
-                        <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                          <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.BedroomsTotal || '-'}</span>
-                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Beds</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <Bath className="text-[#C9A24D]" size={18} />
-                        <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                          <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.BathroomsTotal || '-'}</span>
-                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Baths</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <Ruler className="text-[#C9A24D]" size={18} />
-                        <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                          <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.LivingArea?.toLocaleString() || '-'}</span>
-                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Sq Ft</span>
-                        </div>
-                      </div>
-
-                      {property.PricePerSquareFoot && (
+                  <div className="bg-white dark:bg-[#151517] p-6 sm:p-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap lg:items-center gap-x-8 gap-y-6 lg:gap-x-10 lg:gap-y-4">
                         <div className="flex items-center space-x-3">
-                          <span className="text-[#C9A24D] font-bold text-lg">$</span>
+                          <Bed className="text-[#C9A24D]" size={18} />
                           <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.PricePerSquareFoot.toFixed(0)}</span>
-                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">/ Sq Ft</span>
+                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.BedroomsTotal || '-'}</span>
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Beds</span>
                           </div>
                         </div>
-                      )}
 
-                      <div className="flex items-center space-x-3">
-                        <Calendar className="text-[#C9A24D]" size={18} />
-                        <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                          <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.YearBuilt || '-'}</span>
-                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Built</span>
+                        <div className="flex items-center space-x-3">
+                          <Bath className="text-[#C9A24D]" size={18} />
+                          <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
+                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.BathroomsTotal || '-'}</span>
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Baths</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-3">
+                          <Ruler className="text-[#C9A24D]" size={18} />
+                          <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
+                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.LivingArea?.toLocaleString() || '-'}</span>
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Sq Ft</span>
+                          </div>
+                        </div>
+
+                        {property.PricePerSquareFoot && (
+                          <div className="flex items-center space-x-3">
+                            <span className="text-[#C9A24D] font-bold text-lg">$</span>
+                            <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
+                              <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.PricePerSquareFoot.toFixed(0)}</span>
+                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">/ Sq Ft</span>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex items-center space-x-3">
+                          <Calendar className="text-[#C9A24D]" size={18} />
+                          <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
+                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.YearBuilt || '-'}</span>
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Built</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-3">
+                          <ShieldCheck className="text-[#C9A24D]" size={18} />
+                          <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
+                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">
+                              {property.AssociationYN || (property.AssociationFee && property.AssociationFee > 0) ? 'Yes' : 'No'}
+                            </span>
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">HOA</span>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-3">
-                        <ShieldCheck className="text-[#C9A24D]" size={18} />
-                        <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                          <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">
-                            {property.AssociationYN || (property.AssociationFee && property.AssociationFee > 0) ? 'Yes' : 'No'}
-                          </span>
-                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">HOA</span>
-                        </div>
+                      <div className="flex items-center justify-center sm:justify-start space-x-3 pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-gray-100 dark:border-gray-800 lg:pl-8 h-auto lg:h-10">
+                        <button
+                          onClick={() => onLike?.(property.id!, !property.liked)}
+                          className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl transition-all border font-black text-[9px] uppercase tracking-widest ${
+                            property.liked
+                              ? 'bg-green-500 border-green-500 text-white shadow-lg shadow-green-500/20'
+                              : 'bg-white dark:bg-[#0B0B0B] border-gray-200 dark:border-gray-800 text-gray-400 hover:text-green-500 hover:border-green-200 shadow-sm'
+                          }`}
+                        >
+                          <ThumbsUp size={14} fill={property.liked ? "currentColor" : "none"} />
+                          <span className="hidden sm:inline">Like</span>
+                        </button>
+                        <button
+                          onClick={() => onDislike?.(property.id!, !property.disliked)}
+                          className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl transition-all border font-black text-[9px] uppercase tracking-widest ${
+                            property.disliked
+                              ? 'bg-gray-900 dark:bg-white border-gray-900 dark:border-white text-white dark:text-gray-900 shadow-lg'
+                              : 'bg-white dark:bg-[#0B0B0B] border-gray-200 dark:border-gray-800 text-gray-400 hover:text-red-500 hover:border-red-200 shadow-sm'
+                          }`}
+                        >
+                          <ThumbsDown size={14} fill={property.disliked ? "currentColor" : "none"} />
+                          <span className="hidden sm:inline">Pass</span>
+                        </button>
                       </div>
-                    </div>
-
-                    <div className="flex items-center space-x-3 border-l border-gray-100 dark:border-gray-800 pl-8 h-10">
-                      <button
-                        onClick={() => onLike?.(property.id!, !property.liked)}
-                        className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl transition-all border font-black text-[9px] uppercase tracking-widest ${
-                          property.liked
-                            ? 'bg-green-500 border-green-500 text-white shadow-lg shadow-green-500/20'
-                            : 'bg-white dark:bg-[#0B0B0B] border-gray-200 dark:border-gray-800 text-gray-400 hover:text-green-500 hover:border-green-200 shadow-sm'
-                        }`}
-                      >
-                        <ThumbsUp size={14} fill={property.liked ? "currentColor" : "none"} />
-                        <span className="hidden sm:inline">Like</span>
-                      </button>
-                      <button
-                        onClick={() => onDislike?.(property.id!, !property.disliked)}
-                        className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl transition-all border font-black text-[9px] uppercase tracking-widest ${
-                          property.disliked
-                            ? 'bg-gray-900 dark:bg-white border-gray-900 dark:border-white text-white dark:text-gray-900 shadow-lg'
-                            : 'bg-white dark:bg-[#0B0B0B] border-gray-200 dark:border-gray-800 text-gray-400 hover:text-red-500 hover:border-red-200 shadow-sm'
-                        }`}
-                      >
-                        <ThumbsDown size={14} fill={property.disliked ? "currentColor" : "none"} />
-                        <span className="hidden sm:inline">Pass</span>
-                      </button>
                     </div>
                   </div>
                 </section>

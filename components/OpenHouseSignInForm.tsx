@@ -152,27 +152,27 @@ export default function OpenHouseSignInForm({
 
   if (showCollectionOffer) {
     return (
-      <div className="max-w-lg mx-auto bg-white rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100">
+      <div className="max-w-lg mx-auto bg-white dark:bg-[#151517] rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 transition-colors duration-300">
         <div className="p-10">
           <div className="text-center mb-10">
-            <div className="w-20 h-20 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+            <div className="w-20 h-20 bg-green-50 dark:bg-green-900/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path>
               </svg>
             </div>
-            <h2 className="text-3xl font-black text-[#0B0B0B] mb-4 tracking-tight">Thank You!</h2>
-            <p className="text-[#6B7280] text-lg font-medium leading-relaxed">Would you like automated updates on similar properties in this area?</p>
+            <h2 className="text-3xl font-black text-[#0B0B0B] dark:text-white mb-4 tracking-tight">Thank You!</h2>
+            <p className="text-[#6B7280] dark:text-gray-400 text-lg font-medium leading-relaxed">Would you like automated updates on similar properties in this area?</p>
           </div>
 
           <div className="space-y-4">
             <button
               onClick={() => handleCollectionResponse(true)}
-              className="w-full bg-[#111827] hover:bg-[#C9A24D] text-white font-black uppercase tracking-widest py-4 px-8 rounded-2xl transition-all duration-300 shadow-xl hover:scale-[1.02] active:scale-95"
+              className="w-full bg-[#111827] dark:bg-white hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] text-white dark:text-[#111827] dark:hover:text-white font-black uppercase tracking-widest py-4 px-8 rounded-2xl transition-all duration-300 shadow-xl hover:scale-[1.02] active:scale-95"
               disabled={isLoading}
             >
               {isLoading ? (
                 <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white dark:text-[#111827]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
@@ -185,7 +185,7 @@ export default function OpenHouseSignInForm({
             
             <button
               onClick={() => handleCollectionResponse(false)}
-              className="w-full bg-white hover:bg-gray-50 text-[#6B7280] font-bold py-4 px-8 rounded-2xl border-2 border-gray-100 transition-all duration-300 uppercase tracking-widest text-xs"
+              className="w-full bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-[#6B7280] dark:text-gray-400 font-bold py-4 px-8 rounded-2xl border-2 border-gray-100 dark:border-gray-800 transition-all duration-300 uppercase tracking-widest text-xs"
               disabled={isLoading}
             >
               No thanks
@@ -199,20 +199,20 @@ export default function OpenHouseSignInForm({
   const the_image_src = property.ListPictureURL || "";
 
   return (
-    <div className="max-w-lg w-full bg-white rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 overflow-hidden">
+    <div className="max-w-lg w-full bg-white dark:bg-[#151517] rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 overflow-hidden transition-colors duration-300">
       {/* Property Info Header */}
-      <div className="p-6 bg-[#FAFAF7] border-b border-gray-100">
+      <div className="p-6 bg-[#FAFAF7] dark:bg-[#1A1A1C] border-b border-gray-100 dark:border-gray-800">
         <div className="text-center mb-6">
-          <h1 className="text-xl font-black text-[#0B0B0B] tracking-tight uppercase relative inline-block">
+          <h1 className="text-xl font-black text-[#0B0B0B] dark:text-white tracking-tight uppercase relative inline-block">
             Guest Sign-in
             <span className="absolute -bottom-2 left-0 right-0 h-1 bg-[#C9A24D] rounded-full opacity-30"></span>
           </h1>
         </div>
 
-        <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 flex shadow-sm">
+        <div className="bg-white dark:bg-[#151517] rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex shadow-sm">
           {/* Property Image */}
           {the_image_src && (
-            <div className="w-32 h-32 flex-shrink-0 bg-gray-100 relative">
+            <div className="w-32 h-32 flex-shrink-0 bg-gray-100 dark:bg-gray-800 relative">
               <Image
                 src={the_image_src}
                 alt={property.FullStreetAddress}
@@ -224,7 +224,7 @@ export default function OpenHouseSignInForm({
 
           {/* Property Details */}
           <div className="flex-1 p-4 flex flex-col justify-center min-w-0">
-            <h2 className="text-sm font-black text-[#0B0B0B] mb-2 leading-tight truncate">
+            <h2 className="text-sm font-black text-[#0B0B0B] dark:text-white mb-2 leading-tight truncate">
               {property.FullStreetAddress}
             </h2>
 
@@ -235,16 +235,16 @@ export default function OpenHouseSignInForm({
                 </span>
               </div>
 
-              <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-[#6B7280]">
+              <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-[#6B7280] dark:text-gray-400">
                 {property.BedroomsTotal && (
                   <span className="flex items-center">
-                    <span className="text-[#111827] mr-1">{property.BedroomsTotal}</span> Beds
+                    <span className="text-[#111827] dark:text-white mr-1">{property.BedroomsTotal}</span> Beds
                   </span>
                 )}
-                <span className="text-gray-200">•</span>
+                <span className="text-gray-200 dark:text-gray-700">•</span>
                 {property.BathroomsTotal && (
                   <span className="flex items-center">
-                    <span className="text-[#111827] mr-1">{property.BathroomsTotal}</span> Baths
+                    <span className="text-[#111827] dark:text-white mr-1">{property.BathroomsTotal}</span> Baths
                   </span>
                 )}
               </div>
@@ -256,14 +256,14 @@ export default function OpenHouseSignInForm({
       {/* Progress Section */}
       <div className="p-8 pb-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-black text-[#0B0B0B] tracking-tight">{getStepTitle()}</h3>
-          <span className="text-[10px] font-black text-[#6B7280] bg-[#FAFAF7] px-3 py-1 rounded-full border border-gray-100 uppercase tracking-widest">
+          <h3 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight">{getStepTitle()}</h3>
+          <span className="text-[10px] font-black text-[#6B7280] dark:text-gray-400 bg-[#FAFAF7] dark:bg-[#1A1A1C] px-3 py-1 rounded-full border border-gray-100 dark:border-gray-800 uppercase tracking-widest">
             {currentStep} of 4
           </span>
         </div>
         
         <div className="relative">
-          <div className="w-full bg-gray-100 rounded-full h-1">
+          <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1">
             <div 
               className="bg-[#C9A24D] h-full rounded-full transition-all duration-500"
               style={{ width: `${(currentStep / 4) * 100}%` }}
@@ -279,13 +279,13 @@ export default function OpenHouseSignInForm({
           {currentStep === 1 && (
             <div className="space-y-4 animate-fadeIn">
               <div>
-                <label className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">Full Name*</label>
+                <label className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Full Name*</label>
                 <input
                   type="text"
                   name="fullName"
                   value={formData.fullName}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] font-medium focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all"
+                  className="w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white font-medium focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all"
                   placeholder="Enter your full name"
                   required
                 />
@@ -297,17 +297,17 @@ export default function OpenHouseSignInForm({
           {currentStep === 2 && (
             <div className="space-y-4 animate-fadeIn">
               <div>
-                <label className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">Email Address*</label>
+                <label className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Email Address*</label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
                   onBlur={handleEmailBlur}
-                  className={`w-full px-4 py-3.5 bg-[#FAFAF7] border rounded-xl text-[#0B0B0B] font-medium focus:outline-none focus:ring-4 transition-all ${
+                  className={`w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border rounded-xl text-[#0B0B0B] dark:text-white font-medium focus:outline-none focus:ring-4 transition-all ${
                     emailError 
                       ? 'border-red-500 focus:ring-red-500/10 focus:border-red-500' 
-                      : 'border-gray-200 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D]'
+                      : 'border-gray-200 dark:border-gray-700 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D]'
                   }`}
                   placeholder="name@example.com"
                   required
@@ -318,13 +318,13 @@ export default function OpenHouseSignInForm({
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">Phone Number*</label>
+                <label className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Phone Number*</label>
                 <input
                   type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handlePhoneChange}
-                  className="w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] font-medium focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all"
+                  className="w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white font-medium focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all"
                   placeholder="(555) 000-0000"
                   required
                 />
@@ -335,9 +335,9 @@ export default function OpenHouseSignInForm({
           {/* Step 3: Agent Question */}
           {currentStep === 3 && (
             <div className="space-y-6 animate-fadeIn text-center">
-              <div className="bg-[#FAFAF7] rounded-2xl p-6 border border-gray-100">
-                <h4 className="text-sm font-bold text-[#6B7280] uppercase tracking-widest mb-2">Agent Representation</h4>
-                <p className="text-[#0B0B0B] text-base font-bold">Do you have an active agreement with a real estate agent?</p>
+              <div className="bg-[#FAFAF7] dark:bg-[#1A1A1C] rounded-2xl p-6 border border-gray-100 dark:border-gray-800">
+                <h4 className="text-sm font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2">Agent Representation</h4>
+                <p className="text-[#0B0B0B] dark:text-white text-base font-bold">Do you have an active agreement with a real estate agent?</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -346,8 +346,8 @@ export default function OpenHouseSignInForm({
                   onClick={() => setFormData(prev => ({ ...prev, hasAgent: 'NO' }))}
                   className={`py-4 px-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all duration-300 border-2 ${
                     formData.hasAgent === 'NO'
-                      ? 'bg-[#111827] text-white border-[#111827] shadow-xl'
-                      : 'bg-white border-gray-100 text-[#6B7280] hover:border-[#C9A24D]'
+                      ? 'bg-[#111827] dark:bg-white text-white dark:text-[#111827] border-[#111827] dark:border-white shadow-xl'
+                      : 'bg-white dark:bg-[#0B0B0B] border-gray-100 dark:border-gray-800 text-[#6B7280] dark:text-gray-400 hover:border-[#C9A24D]'
                   }`}
                 >
                   No
@@ -358,8 +358,8 @@ export default function OpenHouseSignInForm({
                   onClick={() => setFormData(prev => ({ ...prev, hasAgent: 'YES' }))}
                   className={`py-4 px-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all duration-300 border-2 ${
                     formData.hasAgent === 'YES'
-                      ? 'bg-[#111827] text-white border-[#111827] shadow-xl'
-                      : 'bg-white border-gray-100 text-[#6B7280] hover:border-[#C9A24D]'
+                      ? 'bg-[#111827] dark:bg-white text-white dark:text-[#111827] border-[#111827] dark:border-white shadow-xl'
+                      : 'bg-white dark:bg-[#0B0B0B] border-gray-100 dark:border-gray-800 text-[#6B7280] dark:text-gray-400 hover:border-[#C9A24D]'
                   }`}
                 >
                   Yes
@@ -371,18 +371,18 @@ export default function OpenHouseSignInForm({
           {/* Step 4: Final Question */}
           {currentStep === 4 && (
             <div className="space-y-4 animate-fadeIn">
-              <div className="bg-[#FAFAF7] rounded-2xl p-6 border border-gray-100 text-center">
-                <h4 className="text-sm font-bold text-[#6B7280] uppercase tracking-widest mb-2">Preferences</h4>
-                <p className="text-[#0B0B0B] text-base font-bold leading-tight">What are the must-have features for your dream home?</p>
+              <div className="bg-[#FAFAF7] dark:bg-[#1A1A1C] rounded-2xl p-6 border border-gray-100 dark:border-gray-800 text-center">
+                <h4 className="text-sm font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2">Preferences</h4>
+                <p className="text-[#0B0B0B] dark:text-white text-base font-bold leading-tight">What are the must-have features for your dream home?</p>
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-[#6B7280] uppercase tracking-widest mb-2 ml-1">Special Features (Optional)</label>
+                <label className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Special Features (Optional)</label>
                 <textarea
                   name="additionalComments"
                   value={formData.additionalComments}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3.5 bg-[#FAFAF7] border border-gray-200 rounded-xl text-[#0B0B0B] font-medium focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all min-h-[120px]"
+                  className="w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white font-medium focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all min-h-[120px]"
                   rows={3}
                   placeholder="Pool, home office, large lot, etc..."
                 />
@@ -396,7 +396,7 @@ export default function OpenHouseSignInForm({
             <button
               type="button"
               onClick={handlePrevStep}
-              className="flex-1 bg-white hover:bg-gray-50 text-[#6B7280] font-black uppercase tracking-widest py-4 px-6 rounded-2xl border-2 border-gray-100 transition-all text-xs"
+              className="flex-1 bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-[#6B7280] dark:text-gray-400 font-black uppercase tracking-widest py-4 px-6 rounded-2xl border-2 border-gray-100 dark:border-gray-800 transition-all text-xs"
             >
               Back
             </button>
@@ -405,12 +405,12 @@ export default function OpenHouseSignInForm({
           <button
             type={currentStep === 4 ? "submit" : "button"}
             onClick={currentStep === 4 ? undefined : handleNextStep}
-            className={`${currentStep > 1 ? 'flex-1' : 'w-full'} bg-[#111827] hover:bg-[#C9A24D] text-white font-black uppercase tracking-widest py-4 px-6 rounded-2xl transition-all duration-300 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] text-xs`}
+            className={`${currentStep > 1 ? 'flex-1' : 'w-full'} bg-[#111827] dark:bg-white hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] text-white dark:text-[#111827] dark:hover:text-white font-black uppercase tracking-widest py-4 px-6 rounded-2xl transition-all duration-300 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] text-xs`}
             disabled={isLoading || !isStepValid()}
           >
             {isLoading ? (
               <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white dark:text-[#111827]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
