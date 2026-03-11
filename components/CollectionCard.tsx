@@ -170,7 +170,7 @@ export default function CollectionCard({
           <div className="flex items-center gap-2">
             <AlertTriangle className={`w-3.5 h-3.5 ${collection.stats.totalProperties === 0 ? 'text-red-500' : 'text-amber-500'}`} />
             <p className={`text-[10px] font-bold uppercase tracking-wide ${collection.stats.totalProperties === 0 ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'}`}>
-              {collection.stats.totalProperties === 0 ? 'No properties found' : 'Large collection limit'}
+              {collection.stats.totalProperties === 0 ? 'No properties found' : 'Large collection'}
             </p>
           </div>
         </div>
@@ -179,17 +179,6 @@ export default function CollectionCard({
       {/* Preferences Preview */}
       <div className="p-6 flex-1 bg-white dark:bg-[#151517]">
         <div className="space-y-4">
-          {/* Intent */}
-          <div className="flex items-center space-x-3 bg-[#FAFAF7] dark:bg-[#0B0B0B] rounded-xl p-3 border border-gray-100 dark:border-gray-800">
-            <div className="w-2 h-2 bg-[#C9A24D] rounded-full shadow-[0_0_8px_rgba(201,162,77,0.4)]"></div>
-            <span className="text-xs font-bold text-[#0B0B0B] dark:text-white">
-              {(collection.preferences as any)?.visiting_reason
-                ? (collection.preferences as any).visiting_reason.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())
-                : 'Browsing'
-              }
-            </span>
-          </div>
-
           {/* Property Types Tags */}
           {collection.preferences && (
             <div className="flex flex-wrap gap-1.5">
@@ -199,6 +188,23 @@ export default function CollectionCard({
               {(collection.preferences as any).is_apartment && <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-[#6B7280] dark:text-gray-400 shadow-sm">Apartment</span>}
               {(collection.preferences as any).is_multi_family && <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-[#6B7280] dark:text-gray-400 shadow-sm">Multi-Family</span>}
               {(collection.preferences as any).is_lot_land && <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-[#6B7280] dark:text-gray-400 shadow-sm">Lot/Land</span>}
+              
+              {/* Requirement Tags */}
+              {(collection.preferences as any).min_beds > 0 && (
+                <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#C9A24D]/5 dark:bg-[#C9A24D]/10 border border-[#C9A24D]/20 text-[#C9A24D] shadow-sm">
+                  {(collection.preferences as any).min_beds}+ Beds
+                </span>
+              )}
+              {(collection.preferences as any).min_baths > 0 && (
+                <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#C9A24D]/5 dark:bg-[#C9A24D]/10 border border-[#C9A24D]/20 text-[#C9A24D] shadow-sm">
+                  {(collection.preferences as any).min_baths}+ Baths
+                </span>
+              )}
+              {(collection.preferences as any).diameter > 0 && (
+                <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400 shadow-sm">
+                  {(collection.preferences as any).diameter}mi Radius
+                </span>
+              )}
             </div>
           )}
         </div>
