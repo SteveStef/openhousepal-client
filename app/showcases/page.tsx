@@ -1708,6 +1708,33 @@ function CreateCollectionModal({
     }
   }
 
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const scrollY = window.scrollY
+      const originalBodyOverflow = document.body.style.overflow
+      const originalBodyPosition = document.body.style.position
+      const originalBodyTop = document.body.style.top
+      const originalBodyWidth = document.body.style.width
+      const originalHtmlOverflow = document.documentElement.style.overflow
+      
+      document.body.style.overflow = 'hidden'
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.width = '100%'
+      document.documentElement.style.overflow = 'hidden'
+      
+      return () => {
+        document.body.style.overflow = originalBodyOverflow
+        document.body.style.position = originalBodyPosition
+        document.body.style.top = originalBodyTop
+        document.body.style.width = originalBodyWidth
+        document.documentElement.style.overflow = originalHtmlOverflow
+        window.scrollTo(0, scrollY)
+      }
+    }
+  }, [isOpen])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -1785,7 +1812,10 @@ function CreateCollectionModal({
 
   return (
     <div className="fixed inset-0 bg-[#111827]/60 flex items-center justify-center z-50 p-4 transition-all duration-300">
-      <div className="bg-white dark:bg-[#151517] rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-gray-100 dark:border-gray-800 max-w-4xl w-full max-h-[90vh] overflow-y-auto transform transition-all">
+      <div 
+        className="bg-white dark:bg-[#151517] rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-gray-100 dark:border-gray-800 max-w-4xl w-full max-h-[90vh] overflow-y-auto transform transition-all"
+        style={{ overscrollBehavior: 'contain' }}
+      >
         <div className="p-8 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white/95 dark:bg-[#151517]/95 z-10">
           <div className="flex items-center justify-between">
             <div>

@@ -353,6 +353,38 @@ export default function PropertyDetailsModal({
     }
   }, [property?.id, images.length, currentImageIndex])
 
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      // Save original styles
+      const scrollY = window.scrollY
+      const originalBodyOverflow = document.body.style.overflow
+      const originalBodyPosition = document.body.style.position
+      const originalBodyTop = document.body.style.top
+      const originalBodyWidth = document.body.style.width
+      const originalHtmlOverflow = document.documentElement.style.overflow
+      
+      // Apply aggressive lock
+      document.body.style.overflow = 'hidden'
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.width = '100%'
+      document.documentElement.style.overflow = 'hidden'
+      
+      return () => {
+        // Restore original styles on cleanup
+        document.body.style.overflow = originalBodyOverflow
+        document.body.style.position = originalBodyPosition
+        document.body.style.top = originalBodyTop
+        document.body.style.width = originalBodyWidth
+        document.documentElement.style.overflow = originalHtmlOverflow
+        
+        // Restore scroll position
+        window.scrollTo(0, scrollY)
+      }
+    }
+  }, [isOpen])
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -481,8 +513,11 @@ export default function PropertyDetailsModal({
   return (
     <>
       {renderLightbox()}
-      <div className="fixed inset-0 bg-[#0B0B0B]/80 z-50 flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300">
-        <div className="bg-white dark:bg-[#0B0B0B] w-full max-w-7xl h-full sm:h-[95vh] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+      <div className="fixed inset-0 bg-[#0B0B0B]/80 z-50 flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300 overscroll-none">
+        <div 
+          className="bg-white dark:bg-[#0B0B0B] w-full max-w-7xl h-full sm:h-[95vh] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300"
+          style={{ overscrollBehavior: 'contain' }}
+        >
           
           <div className="flex-1 overflow-y-auto scrollbar-hide bg-[#FAFAF7] dark:bg-[#0B0B0B]">
             {/* Minimal Header with Close Button */}
