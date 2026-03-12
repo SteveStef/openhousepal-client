@@ -48,6 +48,7 @@ export interface Property {
   PriceChangeTimestamp?: string;
   PricePerSquareFoot?: number;
   IncorporatedCityName?: string;
+  ModificationTimestamp?: string;
 
   // Collection metadata
   added_at?: string;
@@ -155,7 +156,6 @@ export interface PropertyDetailResponse extends Property {
   OriginalListPrice?: number;
   CumulativeDaysOnMarket?: number;
   Stories?: number;
-  ModificationTimestamp?: string;
 }
 
 // New Open House Event interface matching backend schema

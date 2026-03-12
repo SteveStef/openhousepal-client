@@ -57,13 +57,24 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
 
   const isViewed = property.viewCount !== undefined && property.viewCount > 0
 
+  const isRecentPriceChange = useMemo(() => {
+    if (!property.PriceChangeTimestamp) return false
+    try {
+      const changeDate = new Date(property.PriceChangeTimestamp)
+      const today = new Date()
+      const diffTime = Math.abs(today.getTime() - changeDate.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      return diffDays <= 14
+    } catch (e) {
+      return false
+    }
+  }, [property.PriceChangeTimestamp])
+
   return (
     <div
-      onClick={available ? () => onPropertyClick?.(property) : undefined}
-      className={`bg-white dark:bg-[#151517] rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 transition-all duration-500 flex flex-col h-full shadow-[0_2px_8px_rgba(0,0,0,0.02)] will-change-transform group ${
-        available
-          ? 'hover:border-[#C9A24D]/30 dark:hover:border-[#C9A24D]/30 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] cursor-pointer'
-          : 'opacity-75 cursor-not-allowed'
+      onClick={() => onPropertyClick?.(property)}
+      className={`bg-white dark:bg-[#151517] rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 transition-all duration-500 flex flex-col h-full shadow-[0_2px_8px_rgba(0,0,0,0.02)] will-change-transform group hover:border-[#C9A24D]/30 dark:hover:border-[#C9A24D]/30 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] cursor-pointer ${
+        !available ? 'opacity-75' : ''
       }`}
     >
       {/* 70% Height - Rectangle Image (Landscape) */}
@@ -98,6 +109,25 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
           )}
         </div>
 
+        {/* Top Right Badges */}
+        <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
+          {/* Days on Market */}
+          {property.DaysOnMarket !== undefined && property.DaysOnMarket !== null && (
+            <span className="bg-white/90 dark:bg-[#151517]/90 backdrop-blur-md text-[#111827] dark:text-white font-bold px-2.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider shadow-sm border border-gray-200 dark:border-gray-800 flex items-center gap-1">
+              <span className="text-xs font-black text-[#C9A24D]">{property.DaysOnMarket}</span>
+              <span>{property.DaysOnMarket === 1 ? 'Day' : 'Days'} on Market</span>
+            </span>
+          )}
+
+          {/* Recent Price Change */}
+          {isRecentPriceChange && (
+            <span className="bg-green-500/90 backdrop-blur-md text-white font-black px-2.5 py-1.5 rounded-lg text-[8px] uppercase tracking-widest shadow-xl border border-white/10 flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+              Recent Price Change
+            </span>
+          )}
+        </div>
+
         {/* Interaction Indicators (Bottom Right) */}
         <div className="absolute bottom-3 right-3 flex gap-1.5">
           {isViewed && (
@@ -128,7 +158,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (property.id !== undefined && available) {
+                  if (property.id !== undefined) {
                     onLike?.(property.id, !property.liked);
                   }
                 }}
@@ -144,7 +174,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (property.id !== undefined && available) {
+                  if (property.id !== undefined) {
                     onDislike?.(property.id, !property.disliked);
                   }
                 }}
@@ -205,7 +235,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (available) onScheduleTour?.(property);
+                onScheduleTour?.(property);
               }}
               className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                 property.hasTourScheduled
@@ -219,7 +249,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (available) onPropertyClick?.(property);
+                onPropertyClick?.(property);
               }}
               className="w-full py-3 bg-gray-900 dark:bg-white/10 text-white dark:text-white hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-lg"
             >

@@ -49,7 +49,7 @@ export function ShowcaseContent() {
 
   // Property filtering states
   const [activeTab, setActiveTab] = useState<'all' | 'liked' | 'disliked'>('all')
-  const [sortBy, setSortBy] = useState<'price' | 'beds' | 'squareFeet'>('price')
+  const [sortBy, setSortBy] = useState<'price' | 'beds' | 'squareFeet' | 'daysOnMarket' | 'lastUpdated'>('daysOnMarket')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   // Modal states
@@ -298,6 +298,14 @@ export function ShowcaseContent() {
         case 'squareFeet':
           aValue = a.LivingArea || 0
           bValue = b.LivingArea || 0
+          break
+        case 'daysOnMarket':
+          aValue = a.DaysOnMarket || 0
+          bValue = b.DaysOnMarket || 0
+          break
+        case 'lastUpdated':
+          aValue = a.ModificationTimestamp ? new Date(a.ModificationTimestamp).getTime() : 0
+          bValue = b.ModificationTimestamp ? new Date(b.ModificationTimestamp).getTime() : 0
           break
         default:
           return 0
@@ -1298,12 +1306,14 @@ export function ShowcaseContent() {
                 <div className="relative">
                   <select
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as 'price' | 'beds' | 'squareFeet')}
+                    onChange={(e) => setSortBy(e.target.value as 'price' | 'beds' | 'squareFeet' | 'daysOnMarket' | 'lastUpdated')}
                     className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#8b7355]/20 focus:border-[#8b7355] transition-all duration-300 appearance-none cursor-pointer hover:bg-gray-50 dark:hover:bg-[#151515]"
                   >
+                    <option value="daysOnMarket">Days on Market</option>
                     <option value="price">Price</option>
                     <option value="beds">Bedrooms</option>
                     <option value="squareFeet">Square Feet</option>
+                    <option value="lastUpdated">Last Updated</option>
                   </select>
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400 dark:text-gray-500">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1335,7 +1345,7 @@ export function ShowcaseContent() {
               <div className="flex items-end">
                 <button
                   onClick={() => {
-                    setSortBy('price')
+                    setSortBy('daysOnMarket')
                     setSortOrder('asc')
                     setActiveTab('all')
                   }}
