@@ -151,7 +151,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Video Showcase 
       <div className="relative z-10 py-20 lg:py-32">
         <div className="max-w-6xl mx-auto px-6">
           <div className={`text-center mb-16 transform transition-all duration-1000 delay-400 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
@@ -178,7 +177,7 @@ export default function HomePage() {
           </div>
         </div>
       </div>
-*/}
+
       {/* How It Works - Redesigned Vertical Timeline */}
       <div id="how-it-works" className="relative z-10 py-24 bg-white/50 dark:bg-[#151517]/50 overflow-hidden transition-colors duration-300">
         <div className="max-w-6xl mx-auto px-6">
