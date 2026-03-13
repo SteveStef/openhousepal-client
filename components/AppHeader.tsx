@@ -16,6 +16,7 @@ export default function AppHeader() {
     '/open-house/',
     '/property/',
     '/showcase/',
+    '/unsubscribe',
   ]
 
   const isNoHeader = noHeaderPaths.some(path => pathname?.startsWith(path))

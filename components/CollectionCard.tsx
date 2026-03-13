@@ -130,9 +130,12 @@ export default function CollectionCard({
                     onStatusToggle(collection)
                   }}
                   className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all duration-200 border ${getStatusColor(collection.status)} hover:shadow-sm`}
+                  title={collection.status === 'ACTIVE' 
+                    ? 'Turn off to stop property syncs and automated email notifications for this customer' 
+                    : 'Turn on to resume property syncs and email notifications'}
                 >
                   <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${collection.status === 'ACTIVE' ? 'bg-green-500 animate-pulse' : 'bg-gray-400 dark:bg-gray-500'}`}></div>
-                  {collection.status}
+                  {collection.status === 'ACTIVE' ? 'Turn Off' : 'Turn On'}
                 </button>
               ) : (
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${getStatusColor(collection.status)}`}>

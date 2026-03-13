@@ -309,6 +309,8 @@ export interface Collection {
   createdAt: string;
   updatedAt: string;
   status: 'ACTIVE' | 'INACTIVE';
+  notifyVisitor: boolean;
+  notifyAgent: boolean;
   preferences?: CollectionPreferences | {
     priceRange: string;
     visitingReason?: string;

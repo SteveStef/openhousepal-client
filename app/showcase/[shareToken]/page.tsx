@@ -23,7 +23,7 @@ export default function CustomerShowcasePage() {
   
   // Property filtering states
   const [activeTab, setActiveTab] = useState<'all' | 'liked' | 'disliked'>('all')
-  const [sortBy, setSortBy] = useState<'price' | 'beds' | 'squareFeet'>('price')
+  const [sortBy, setSortBy] = useState<'price' | 'beds' | 'squareFeet' | 'daysOnMarket' | 'lastUpdated'>('daysOnMarket')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   // Modal states
@@ -145,6 +145,14 @@ export default function CustomerShowcasePage() {
         case 'squareFeet':
           aValue = a.LivingArea || 0
           bValue = b.LivingArea || 0
+          break
+        case 'daysOnMarket':
+          aValue = a.DaysOnMarket || 0
+          bValue = b.DaysOnMarket || 0
+          break
+        case 'lastUpdated':
+          aValue = a.ModificationTimestamp ? new Date(a.ModificationTimestamp).getTime() : 0
+          bValue = b.ModificationTimestamp ? new Date(b.ModificationTimestamp).getTime() : 0
           break
         default:
           return 0
@@ -611,6 +619,34 @@ export default function CustomerShowcasePage() {
     setSelectedPropertyForTour(null)
   }
 
+  const handleNotificationToggle = async () => {
+    if (!showcase || !shareToken) return
+
+    const newNotifyVisitor = !showcase.notifyVisitor
+
+    try {
+      const response = await apiRequest(`/collections/shared/${shareToken}/notifications`, {
+        method: 'PATCH',
+        body: JSON.stringify({ notify_visitor: newNotifyVisitor })
+      })
+
+      if (response.status === 200) {
+        setShowcase(prev => prev ? { ...prev, notifyVisitor: newNotifyVisitor } : null)
+        showToast(
+          newNotifyVisitor 
+            ? 'Notifications enabled! You will be notified of new matches.' 
+            : 'Notifications disabled.',
+          'success'
+        )
+      } else {
+        showToast('Failed to update notification settings', 'error')
+      }
+    } catch (error) {
+      console.error('Error updating notification settings:', error)
+      showToast('Error updating notification settings', 'error')
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col transition-colors">
@@ -666,32 +702,52 @@ export default function CustomerShowcasePage() {
               </div>
             </div>
             
-            {/* Property Status Tabs */}
-            <div className="flex flex-wrap gap-2 mb-4">
-              {[
-                { key: 'all', label: 'All Properties', count: tabCounts.all },
-                { key: 'liked', label: 'Liked', count: tabCounts.liked },
-                { key: 'disliked', label: 'Disliked', count: tabCounts.disliked }
-              ].map((tab) => (
+            {/* Actions Row: Tabs and Notification Toggle */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
+              {/* Property Status Tabs (Left) */}
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: 'all', label: 'All Properties', count: tabCounts.all },
+                  { key: 'liked', label: 'Liked', count: tabCounts.liked },
+                  { key: 'disliked', label: 'Disliked', count: tabCounts.disliked }
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key as any)}
+                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center space-x-2 border ${
+                      activeTab === tab.key
+                        ? 'bg-[#111827] dark:bg-white text-white dark:text-[#111827] border-[#111827] dark:border-white shadow-md'
+                        : 'bg-white dark:bg-[#1A1A1C] text-[#6B7280] dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                      activeTab === tab.key
+                        ? 'bg-white/20 dark:bg-[#111827]/10 text-white dark:text-[#111827]'
+                        : 'bg-gray-100 dark:bg-gray-800 text-[#6B7280] dark:text-gray-400'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Notification Toggle (Right) */}
+              <div className="flex items-center space-x-3 text-sm bg-gray-50/50 dark:bg-white/5 p-1.5 px-3 rounded-2xl border border-gray-100 dark:border-gray-800/50">
+                <span className="text-[#6B7280] dark:text-gray-400 font-medium whitespace-nowrap hidden sm:inline">Automated Alerts:</span>
                 <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key as any)}
-                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center space-x-2 border ${
-                    activeTab === tab.key
-                      ? 'bg-[#111827] dark:bg-white text-white dark:text-[#111827] border-[#111827] dark:border-white shadow-md'
-                      : 'bg-white dark:bg-[#1A1A1C] text-[#6B7280] dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  onClick={handleNotificationToggle}
+                  className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 border ${
+                    showcase.notifyVisitor
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-100'
+                      : 'bg-gray-50 dark:bg-gray-800 text-[#6B7280] dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-100'
                   }`}
+                  title={showcase.notifyVisitor ? 'Click to disable property update emails' : 'Click to enable property update emails'}
                 >
-                  <span>{tab.label}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] ${
-                    activeTab === tab.key
-                      ? 'bg-white/20 dark:bg-[#111827]/10 text-white dark:text-[#111827]'
-                      : 'bg-gray-100 dark:bg-gray-800 text-[#6B7280] dark:text-gray-400'
-                  }`}>
-                    {tab.count}
-                  </span>
+                  <div className={`w-2 h-2 rounded-full mr-2 ${showcase.notifyVisitor ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
+                  {showcase.notifyVisitor ? 'Alerts On' : 'Alerts Off'}
                 </button>
-              ))}
+              </div>
             </div>
 
             {/* Sorting Controls */}
@@ -701,12 +757,14 @@ export default function CustomerShowcasePage() {
                 <div className="relative">
                   <select
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as 'price' | 'beds' | 'squareFeet')}
+                    onChange={(e) => setSortBy(e.target.value as 'price' | 'beds' | 'squareFeet' | 'daysOnMarket' | 'lastUpdated')}
                     className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B]/50 border border-gray-200 dark:border-gray-800 rounded-xl text-[#0B0B0B] dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/20 focus:border-[#C9A24D] transition-all duration-300 appearance-none cursor-pointer hover:bg-gray-50 dark:hover:bg-[#151517]"
                   >
+                    <option value="daysOnMarket">Days on Market</option>
                     <option value="price">Price</option>
                     <option value="beds">Bedrooms</option>
                     <option value="squareFeet">Square Feet</option>
+                    <option value="lastUpdated">Last Updated</option>
                   </select>
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[#6B7280] dark:text-gray-500">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -738,7 +796,7 @@ export default function CustomerShowcasePage() {
               <div className="flex items-end">
                 <button
                   onClick={() => {
-                    setSortBy('price')
+                    setSortBy('daysOnMarket')
                     setSortOrder('asc')
                     setActiveTab('all')
                   }}

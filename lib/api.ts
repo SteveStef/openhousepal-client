@@ -193,6 +193,20 @@ class ApiClient {
     })
   }
 
+  async updateCollectionNotifications(collectionId: string, notifyVisitor: boolean, notifyAgent: boolean): Promise<ApiResponse<{ success: boolean; message: string; notify_visitor: boolean; notify_agent: boolean }>> {
+    return this.request(`/collections/${collectionId}/notifications`, {
+      method: 'PATCH',
+      body: JSON.stringify({ notify_visitor: notifyVisitor, notify_agent: notifyAgent }),
+    })
+  }
+
+  async unsubscribeVisitor(email: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request('/collections/unsubscribe', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
+  }
+
   // Open house visitors endpoints
   async getOpenHouseVisitors(openHouseId: string): Promise<ApiResponse<any[]>> {
     return this.request(`/api/open-houses/${openHouseId}/visitors`)
@@ -333,6 +347,9 @@ export const collectionPreferencesApi = {
 
 export const collectionsApi = {
   delete: (collectionId: string) => api.deleteCollection(collectionId),
+  updateNotifications: (collectionId: string, notifyVisitor: boolean, notifyAgent: boolean) => 
+    api.updateCollectionNotifications(collectionId, notifyVisitor, notifyAgent),
+  unsubscribe: (email: string) => api.unsubscribeVisitor(email),
 }
 
 export const analyticsApi = {

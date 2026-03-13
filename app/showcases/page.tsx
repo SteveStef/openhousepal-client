@@ -136,8 +136,9 @@ export function ShowcaseContent() {
             createdAt: backendCollection.created_at,
             updatedAt: backendCollection.updated_at,
             status: (backendCollection.status || 'ACTIVE') as 'ACTIVE' | 'INACTIVE',
-            preferences: backendCollection.preferences ? {
-              // Include the detailed preferences from backend
+            notifyVisitor: backendCollection.notify_visitor !== undefined ? backendCollection.notify_visitor : true,
+            notifyAgent: backendCollection.notify_agent !== undefined ? backendCollection.notify_agent : true,
+            preferences: backendCollection.preferences ? {              // Include the detailed preferences from backend
               ...backendCollection.preferences,
               // Also provide formatted display values for compatibility
               priceRange: (backendCollection.preferences?.min_price && backendCollection.preferences?.max_price) ? 
@@ -979,6 +980,8 @@ export function ShowcaseContent() {
               createdAt: backendCollection.created_at,
               updatedAt: backendCollection.updated_at,
               status: (backendCollection.status || 'ACTIVE') as 'ACTIVE' | 'INACTIVE',
+              notifyVisitor: backendCollection.notify_visitor !== undefined ? backendCollection.notify_visitor : true,
+              notifyAgent: backendCollection.notify_agent !== undefined ? backendCollection.notify_agent : true,
               preferences: backendCollection.preferences ? {
                 // Include the detailed preferences from backend
                 ...backendCollection.preferences,
@@ -1078,6 +1081,39 @@ export function ShowcaseContent() {
     }
   }
 
+  const handleNotificationToggle = async (collectionId: string, type: 'visitor' | 'agent') => {
+    const collection = collections.find(c => c.id === collectionId)
+    if (!collection) return
+
+    const newNotifyVisitor = type === 'visitor' ? !collection.notifyVisitor : collection.notifyVisitor
+    const newNotifyAgent = type === 'agent' ? !collection.notifyAgent : collection.notifyAgent
+
+    try {
+      const response = await collectionsApi.updateNotifications(collectionId, newNotifyVisitor, newNotifyAgent)
+
+      if (response.success) {
+        // Update collections list
+        setCollections(prevShowcases =>
+          prevShowcases.map(c =>
+            c.id === collectionId
+              ? { ...c, notifyVisitor: newNotifyVisitor, notifyAgent: newNotifyAgent }
+              : c
+          )
+        )
+        // If it's the currently selected collection, update that too
+        if (selectedCollection?.id === collectionId) {
+          setSelectedCollection(prev => prev ? { ...prev, notifyVisitor: newNotifyVisitor, notifyAgent: newNotifyAgent } : null)
+        }
+        
+        showToast(`${type === 'visitor' ? 'Visitor' : 'Agent'} notifications ${type === 'visitor' ? (newNotifyVisitor ? 'enabled' : 'disabled') : (newNotifyAgent ? 'enabled' : 'disabled')}`, 'success')
+      } else {
+        showToast('Failed to update notification settings', 'error')
+      }
+    } catch (error) {
+      showToast('Error updating notification settings', 'error')
+    }
+  }
+
   const handleCreateCollection = async (collectionData: any) => {
     try {
       const response = await apiRequest('/collections/create-manually', {
@@ -1159,8 +1195,9 @@ export function ShowcaseContent() {
             createdAt: backendCollection.created_at,
             updatedAt: backendCollection.updated_at,
             status: (backendCollection.status || 'ACTIVE') as 'ACTIVE' | 'INACTIVE',
-            preferences: backendCollection.preferences ? {
-              // Include the detailed preferences from backend
+            notifyVisitor: backendCollection.notify_visitor !== undefined ? backendCollection.notify_visitor : true,
+            notifyAgent: backendCollection.notify_agent !== undefined ? backendCollection.notify_agent : true,
+            preferences: backendCollection.preferences ? {              // Include the detailed preferences from backend
               ...backendCollection.preferences,
               // Also provide formatted display values for compatibility
               priceRange: (backendCollection.preferences?.min_price && backendCollection.preferences?.max_price) ? 
@@ -1261,42 +1298,82 @@ export function ShowcaseContent() {
                       ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-900 hover:bg-green-100 dark:hover:bg-green-900/30'
                       : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
-                  title={`Click to ${selectedCollection.status === 'ACTIVE' ? 'deactivate' : 'activate'} this collection`}
+                  title={selectedCollection.status === 'ACTIVE' 
+                    ? 'Turn off to stop property syncs and automated email notifications for this customer' 
+                    : 'Turn on to resume property syncs and email notifications'}
                 >
                   <div className={`w-2 h-2 rounded-full mr-2 ${
                     selectedCollection.status === 'ACTIVE' ? 'bg-green-500 animate-pulse' : 'bg-gray-400 dark:bg-gray-500'
                   }`} />
-                  {selectedCollection.status}
+                  {selectedCollection.status === 'ACTIVE' ? 'Turn Off' : 'Turn On'}
                 </button>
               </div>
             </div>
-            
-            {/* Property Status Tabs */}
-            <div className="flex flex-wrap gap-2 mb-4">
-              {[
-                { key: 'all', label: 'All Properties', count: tabCounts.all },
-                { key: 'liked', label: 'Liked', count: tabCounts.liked },
-                { key: 'disliked', label: 'Disliked', count: tabCounts.disliked }
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key as any)}
-                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center space-x-2 border ${
-                    activeTab === tab.key
-                      ? 'bg-[#151517] dark:bg-white text-white dark:text-[#111827] border-[#151517] dark:border-white shadow-md'
-                      : 'bg-white dark:bg-[#151517] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] ${
-                    activeTab === tab.key
-                      ? 'bg-white/20 dark:bg-black/10 text-white dark:text-[#111827]'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
-                  }`}>
-                    {tab.count}
-                  </span>
-                </button>
-              ))}
+
+            {/* Actions Row: Tabs and Notification Toggles */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
+              {/* Property Status Tabs (Left) */}
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: 'all', label: 'All Properties', count: tabCounts.all },
+                  { key: 'liked', label: 'Liked', count: tabCounts.liked },
+                  { key: 'disliked', label: 'Disliked', count: tabCounts.disliked }
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key as any)}
+                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center space-x-2 border ${
+                      activeTab === tab.key
+                        ? 'bg-[#151517] dark:bg-white text-white dark:text-[#111827] border-[#151517] dark:border-white shadow-md'
+                        : 'bg-white dark:bg-[#151517] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                      activeTab === tab.key
+                        ? 'bg-white/20 dark:bg-black/10 text-white dark:text-[#111827]'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Notification Toggles (Right) */}
+              <div className="flex items-center space-x-3 text-sm bg-gray-50/50 dark:bg-white/5 p-1.5 px-3 rounded-2xl border border-gray-100 dark:border-gray-800/50">
+                <span className="text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap hidden sm:inline">Automated Alerts:</span>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handleNotificationToggle(selectedCollection.id, 'visitor')}
+                    className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                      selectedCollection.notifyVisitor
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
+                        : 'bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700'
+                    }`}
+                    title="Sends automated emails to the visitor for new matches and price drops. Direct comments will still be sent."
+                  >
+                    <div className={`w-2 h-2 rounded-full mr-2 ${
+                      selectedCollection.notifyVisitor ? 'bg-blue-500' : 'bg-gray-400 dark:bg-gray-500'
+                    }`} />
+                    Visitor
+                  </button>
+                  <button
+                    onClick={() => handleNotificationToggle(selectedCollection.id, 'agent')}
+                    className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                      selectedCollection.notifyAgent
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
+                        : 'bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700'
+                    }`}
+                    title="Sends automated emails to you (the agent) for new matches and price drops."
+                  >
+                    <div className={`w-2 h-2 rounded-full mr-2 ${
+                      selectedCollection.notifyAgent ? 'bg-blue-500' : 'bg-gray-400 dark:bg-gray-500'
+                    }`} />
+                    Agent
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Sorting Controls */}
