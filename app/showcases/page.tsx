@@ -138,6 +138,7 @@ export function ShowcaseContent() {
             status: (backendCollection.status || 'ACTIVE') as 'ACTIVE' | 'INACTIVE',
             notifyVisitor: backendCollection.notify_visitor !== undefined ? backendCollection.notify_visitor : true,
             notifyAgent: backendCollection.notify_agent !== undefined ? backendCollection.notify_agent : true,
+            isBlacklisted: backendCollection.is_blacklisted || false,
             preferences: backendCollection.preferences ? {              // Include the detailed preferences from backend
               ...backendCollection.preferences,
               // Also provide formatted display values for compatibility
@@ -1197,6 +1198,7 @@ export function ShowcaseContent() {
             status: (backendCollection.status || 'ACTIVE') as 'ACTIVE' | 'INACTIVE',
             notifyVisitor: backendCollection.notify_visitor !== undefined ? backendCollection.notify_visitor : true,
             notifyAgent: backendCollection.notify_agent !== undefined ? backendCollection.notify_agent : true,
+            isBlacklisted: backendCollection.is_blacklisted || false,
             preferences: backendCollection.preferences ? {              // Include the detailed preferences from backend
               ...backendCollection.preferences,
               // Also provide formatted display values for compatibility
@@ -1341,36 +1343,51 @@ export function ShowcaseContent() {
               </div>
 
               {/* Notification Toggles (Right) */}
-              <div className="flex items-center space-x-3 text-sm bg-gray-50/50 dark:bg-white/5 p-1.5 px-3 rounded-2xl border border-gray-100 dark:border-gray-800/50">
-                <span className="text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap hidden sm:inline">Automated Alerts:</span>
+              <div className="flex items-center space-x-6 text-sm bg-gray-50/50 dark:bg-white/5 p-2 px-4 rounded-2xl border border-gray-100 dark:border-gray-800/50">
+                <span className="text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap hidden lg:inline">Email Alerts:</span>
+                
+                {/* Visitor Toggle */}
                 <div className="flex items-center space-x-2">
+                  <span className={`text-xs font-semibold ${selectedCollection.isBlacklisted ? 'text-gray-400 dark:text-gray-600' : 'text-gray-500 dark:text-gray-400'}`}>Visitor</span>
                   <button
-                    onClick={() => handleNotificationToggle(selectedCollection.id, 'visitor')}
-                    className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
-                      selectedCollection.notifyVisitor
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
-                        : 'bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700'
+                    onClick={() => {
+                      if (!selectedCollection.isBlacklisted) {
+                        handleNotificationToggle(selectedCollection.id, 'visitor')
+                      }
+                    }}
+                    disabled={selectedCollection.isBlacklisted}
+                    className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      selectedCollection.isBlacklisted 
+                        ? 'bg-gray-200 dark:bg-gray-800 cursor-not-allowed' 
+                        : (selectedCollection.notifyVisitor ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700')
                     }`}
-                    title="Sends automated emails to the visitor for new matches and price drops. Direct comments will still be sent."
+                    title={selectedCollection.isBlacklisted ? "Visitor has unsubscribed from emails." : "Automated emails to visitor for new matches and price drops"}
                   >
-                    <div className={`w-2 h-2 rounded-full mr-2 ${
-                      selectedCollection.notifyVisitor ? 'bg-blue-500' : 'bg-gray-400 dark:bg-gray-500'
-                    }`} />
-                    Visitor
+                    <span
+                      aria-hidden="true"
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        (selectedCollection.notifyVisitor && !selectedCollection.isBlacklisted) ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
                   </button>
+                </div>
+
+                {/* Agent Toggle */}
+                <div className="flex items-center space-x-2 border-l border-gray-200 dark:border-gray-800 pl-6">
+                  <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Agent</span>
                   <button
                     onClick={() => handleNotificationToggle(selectedCollection.id, 'agent')}
-                    className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
-                      selectedCollection.notifyAgent
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
-                        : 'bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700'
+                    className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      selectedCollection.notifyAgent ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
                     }`}
-                    title="Sends automated emails to you (the agent) for new matches and price drops."
+                    title="Automated emails to you for new matches and price drops"
                   >
-                    <div className={`w-2 h-2 rounded-full mr-2 ${
-                      selectedCollection.notifyAgent ? 'bg-blue-500' : 'bg-gray-400 dark:bg-gray-500'
-                    }`} />
-                    Agent
+                    <span
+                      aria-hidden="true"
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        selectedCollection.notifyAgent ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
                   </button>
                 </div>
               </div>

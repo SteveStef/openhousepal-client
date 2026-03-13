@@ -734,18 +734,27 @@ export default function CustomerShowcasePage() {
 
               {/* Notification Toggle (Right) */}
               <div className="flex items-center space-x-3 text-sm bg-gray-50/50 dark:bg-white/5 p-1.5 px-3 rounded-2xl border border-gray-100 dark:border-gray-800/50">
-                <span className="text-[#6B7280] dark:text-gray-400 font-medium whitespace-nowrap hidden sm:inline">Automated Alerts:</span>
+                <span className={`font-medium whitespace-nowrap hidden sm:inline ${showcase.customer?.is_blacklisted ? 'text-[#9CA3AF] dark:text-gray-500' : 'text-[#6B7280] dark:text-gray-400'}`}>Email Alerts:</span>
                 <button
-                  onClick={handleNotificationToggle}
-                  className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 border ${
-                    showcase.notifyVisitor
-                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-100'
-                      : 'bg-gray-50 dark:bg-gray-800 text-[#6B7280] dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-100'
+                  onClick={() => {
+                    if (!showcase.customer?.is_blacklisted) {
+                      handleNotificationToggle()
+                    }
+                  }}
+                  disabled={showcase.customer?.is_blacklisted}
+                  className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    showcase.customer?.is_blacklisted
+                      ? 'bg-gray-200 dark:bg-gray-800 cursor-not-allowed'
+                      : (showcase.notifyVisitor ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700')
                   }`}
-                  title={showcase.notifyVisitor ? 'Click to disable property update emails' : 'Click to enable property update emails'}
+                  title={showcase.customer?.is_blacklisted ? "You have unsubscribed from property update emails." : (showcase.notifyVisitor ? 'Click to disable property update emails' : 'Click to enable property update emails')}
                 >
-                  <div className={`w-2 h-2 rounded-full mr-2 ${showcase.notifyVisitor ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
-                  {showcase.notifyVisitor ? 'Alerts On' : 'Alerts Off'}
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      (showcase.notifyVisitor && !showcase.customer?.is_blacklisted) ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
                 </button>
               </div>
             </div>

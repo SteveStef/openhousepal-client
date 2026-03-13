@@ -197,6 +197,7 @@ export interface Customer {
   visitingReason?: string;
   priceRange?: string;
   additionalComments?: string;
+  is_blacklisted?: boolean;
 }
 
 export interface SignInFormData {
@@ -311,6 +312,7 @@ export interface Collection {
   status: 'ACTIVE' | 'INACTIVE';
   notifyVisitor: boolean;
   notifyAgent: boolean;
+  isBlacklisted?: boolean;
   preferences?: CollectionPreferences | {
     priceRange: string;
     visitingReason?: string;
