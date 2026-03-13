@@ -87,6 +87,13 @@ export function ShowcaseContent() {
 
   const { showToast } = useToast()
 
+  // Debug: Log if selected collection's visitor is blacklisted
+  useEffect(() => {
+    if (selectedCollection) {
+      console.log(`[Showcase Debug] Collection: ${selectedCollection.id}, Visitor: ${selectedCollection.customer?.email}, isBlacklisted: ${selectedCollection.isBlacklisted}`);
+    }
+  }, [selectedCollection]);
+
   // Load collections
   useEffect(() => {
     if (isAuthenticating || !isAuthenticated) return
