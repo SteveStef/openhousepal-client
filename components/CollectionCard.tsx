@@ -22,6 +22,7 @@ export default function CollectionCard({
   onStatusToggle,
   formatPriceRange
 }: CollectionCardProps) {
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'ACTIVE':
@@ -42,7 +43,7 @@ export default function CollectionCard({
   }
 
   const getActivityStatus = () => {
-    if (!collection.stats.lastActivity) return 'No activity'
+    if (!collection.stats.lastActivity) return ''
     
     const lastActivity = new Date(collection.stats.lastActivity)
     const now = new Date()
@@ -142,8 +143,9 @@ export default function CollectionCard({
                   {collection.status}
                 </span>
               )}
-              <span className="text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest">{getActivityStatus()}</span>
-            </div>
+              <span className="text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest">
+                {collection.stats.lastActivity ? `Last Visited: ${getActivityStatus()}` : 'No activity'}
+              </span>            </div>
           </div>
     
           {/* Metrics Section */}

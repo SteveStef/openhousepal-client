@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { Home, Moon, Sun, Menu, X, LogOut, Settings, Sparkles, ShieldCheck } from 'lucide-react'
+import { Home, Moon, Sun, Menu, X, LogOut, Settings, Layout, ShieldCheck } from 'lucide-react'
 import { logout, hasValidSubscription } from '@/lib/auth'
 import { useAuth } from '@/contexts/AuthContext'
 import NotificationBell from './NotificationBell'
@@ -176,7 +176,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                         : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
                     }`}
                   >
-                    <Sparkles className={`w-4 h-4 mr-2 ${isActive('/showcases') ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
+                    <Layout className={`w-4 h-4 mr-2 ${isActive('/showcases') ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
                     <span>Showcases</span>
                     {isActive('/showcases') && <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full"></div>}
                   </Link>
@@ -297,7 +297,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                     : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                 }`}
               >
-                <Sparkles className="w-5 h-5" />
+                <Layout className="w-5 h-5" />
                 <span>Showcases</span>
               </Link>
 

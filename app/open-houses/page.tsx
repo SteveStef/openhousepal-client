@@ -59,6 +59,17 @@ interface SearchPreferences {
 }
 
 // --- HELPERS ---
+const formatStreetAddress = (address: string) => {
+  if (!address) return "";
+  const parts = address.split(',');
+  const rawAddress = parts[0].trim();
+  return rawAddress
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 const formatAddress = (address: string) => {
   if (!address) return "";
   const parts = address.split(',');
@@ -559,8 +570,19 @@ function OpenHouseContent() {
   return (
     <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B] flex flex-col transition-colors duration-300 relative overflow-x-hidden">
       
+      {/* Print Preparation Overlay */}
+      {printingOpenHouseId && (
+        <div className="fixed inset-0 z-[1000] bg-[#faf9f7] dark:bg-[#0B0B0B] flex flex-col items-center justify-center p-6 print:hidden animate-fadeIn">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355] dark:border-[#C9A24D] mb-6"></div>
+          <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Preparing Your Document</h2>
+          <p className="text-gray-500 dark:text-gray-400 mt-2 text-center max-w-xs font-medium">
+            Generating your high-resolution print-ready PDF...
+          </p>
+        </div>
+      )}
+
       {/* 1. Main Dashboard (Hidden on Print) */}
-      <div className={`${printingOpenHouseId ? 'print:hidden' : ''} flex-1 flex flex-col w-full max-w-full overflow-x-hidden`}>
+      <div className={`${printingOpenHouseId ? 'hidden print:hidden' : ''} flex-1 flex flex-col w-full max-w-full overflow-x-hidden`}>
         <div className="flex-1 p-4 sm:p-6 pb-20 w-full">
           <div className="max-w-7xl mx-auto w-full">
 
@@ -799,11 +821,10 @@ function OpenHouseContent() {
              
            return (
              <div className="hidden print:block relative top-0 left-0 w-full h-full print-view-root bg-white">
-                <OpenHouseFlyer 
+                <OpenHouseFlyer
                   coverImage={selectedImage?.url || targetOpenHouse?.coverImageUrl || (targetOpenHouse as any)?.cover_image_url || ''}
-                  address={formatAddress(address || targetOpenHouse?.address || '')}
-                  price={propertyData?.ListPrice || targetOpenHouse?.price || (targetOpenHouse as any)?.price || 0}
-                  beds={propertyData?.BedroomsTotal || targetOpenHouse?.bedrooms || (targetOpenHouse as any)?.bedrooms || 0}
+                  address={formatStreetAddress(address || targetOpenHouse?.address || '')}
+                  price={propertyData?.ListPrice || targetOpenHouse?.price || (targetOpenHouse as any)?.price || 0}                  beds={propertyData?.BedroomsTotal || targetOpenHouse?.bedrooms || (targetOpenHouse as any)?.bedrooms || 0}
                   baths={propertyData?.BathroomsTotal || targetOpenHouse?.bathrooms || (targetOpenHouse as any)?.bathrooms || 0}
                   sqft={propertyData?.LivingArea || targetOpenHouse?.livingArea || (targetOpenHouse as any)?.living_area || 0}
                   qrCodeUrl={qrCode || targetOpenHouse?.qrCodeUrl || (targetOpenHouse as any)?.qr_code_url || undefined}
@@ -844,31 +865,35 @@ function OpenHouseContent() {
       
       {/* Save Dialog (Review Step) */}
       {currentStep === 'REVIEW' && (
-        <SaveOpenHouseDialog
-          address={address}
-          selectedImage={selectedImage}
-          qrCode={qrCode}
-          onSave={saveOpenHouse}
-          onCancel={() => setCurrentStep('COVER_IMAGE')}
-          onPreviewFlyer={() => triggerPreview('flyer')}
-          onPreviewRecommendations={() => triggerPreview('recommendations')}
-          hasRecommendations={selectedFeatures.similarProperties}
-        />
+        <div className={printingOpenHouseId ? 'hidden' : ''}>
+          <SaveOpenHouseDialog
+            address={address}
+            selectedImage={selectedImage}
+            qrCode={qrCode}
+            onSave={saveOpenHouse}
+            onCancel={() => setCurrentStep('COVER_IMAGE')}
+            onPreviewFlyer={() => triggerPreview('flyer')}
+            onPreviewRecommendations={() => triggerPreview('recommendations')}
+            hasRecommendations={selectedFeatures.similarProperties}
+          />
+        </div>
       )}
 
       {/* View PDFs Modal */}
       {isViewPDFsModalOpen && openHouseForPDFs && (
-        <ViewPDFsModal
-          openHouse={openHouseForPDFs}
-          onClose={handleCloseViewPDFs}
-          onViewFlyer={() => triggerPreview('flyer', openHouseForPDFs.id)}
-          onViewRecommendations={() => triggerPreview('recommendations', openHouseForPDFs.id)}
-        />
+        <div className={printingOpenHouseId ? 'hidden' : ''}>
+          <ViewPDFsModal
+            openHouse={openHouseForPDFs}
+            onClose={handleCloseViewPDFs}
+            onViewFlyer={() => triggerPreview('flyer', openHouseForPDFs.id)}
+            onViewRecommendations={() => triggerPreview('recommendations', openHouseForPDFs.id)}
+          />
+        </div>
       )}
 
       {/* Open House Note Modal */}
       {isOpenHouseNoteModalOpen && selectedOpenHouseForNote && (
-        <div className="fixed inset-0 bg-[#111827]/60 z-50 flex items-center justify-center p-4 transition-all duration-300 print:hidden">
+        <div className={`fixed inset-0 bg-[#111827]/60 z-50 flex items-center justify-center p-4 transition-all duration-300 print:hidden ${printingOpenHouseId ? 'hidden' : ''}`}>
           <div className="bg-white dark:bg-[#151517] rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 max-w-lg w-full overflow-hidden transform transition-all">
             <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-[#faf9f7] dark:bg-[#0B0B0B]">
               <div>

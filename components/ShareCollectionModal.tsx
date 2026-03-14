@@ -131,7 +131,7 @@ export default function ShareCollectionModal({
                 <div className="space-y-4">
                   <div className="flex flex-col sm:flex-row items-stretch gap-3">
                     <div className="flex-1 bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3.5 shadow-sm group hover:border-[#C9A24D]/30 dark:hover:border-[#C9A24D]/30 transition-all">
-                      <p className="text-[#111827] dark:text-white text-sm font-mono break-all">{shareUrl}</p>
+                      <p className="text-[#111827] dark:text-white text-[13px] font-mono break-all">{shareUrl}</p>
                     </div>
                     <button
                       onClick={handleCopyLink}

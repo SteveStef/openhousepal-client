@@ -165,12 +165,18 @@ export function ShowcaseContent() {
               hasAgent: 'Not specified',
               additionalComments: ''
             },
-            stats: {
+            stats: backendCollection.stats ? {
+              totalProperties: backendCollection.stats.totalProperties || 0,
+              activeProperties: backendCollection.stats.activeProperties || 0,
+              viewedProperties: backendCollection.stats.viewedProperties || 0,
+              likedProperties: backendCollection.stats.likedProperties || 0,
+              lastActivity: backendCollection.stats.lastActivity
+            } : {
               totalProperties: backendCollection.property_count || 0,
               activeProperties: backendCollection.active_property_count || 0,
               viewedProperties: 0,
               likedProperties: 0,
-              lastActivity: backendCollection.updated_at
+              lastActivity: null
             },
             shareToken: backendCollection.share_token,
             sharedAt: backendCollection.created_at,
@@ -1225,12 +1231,18 @@ export function ShowcaseContent() {
               hasAgent: 'Not specified',
               additionalComments: ''
             },
-            stats: {
+            stats: backendCollection.stats ? {
+              totalProperties: backendCollection.stats.totalProperties || 0,
+              activeProperties: backendCollection.stats.activeProperties || 0,
+              viewedProperties: backendCollection.stats.viewedProperties || 0,
+              likedProperties: backendCollection.stats.likedProperties || 0,
+              lastActivity: backendCollection.stats.lastActivity
+            } : {
               totalProperties: backendCollection.property_count || 0,
               activeProperties: backendCollection.active_property_count || 0,
               viewedProperties: 0,
               likedProperties: 0,
-              lastActivity: backendCollection.updated_at
+              lastActivity: null
             },
             shareToken: backendCollection.share_token,
             sharedAt: backendCollection.created_at,

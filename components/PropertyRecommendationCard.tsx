@@ -131,7 +131,7 @@ export function PropertyRecommendationCard({
           {/* QR Code */}
           {!hideQr && (
             <div className="shrink-0 print:block ml-2">
-              <div className="relative h-10 w-10 sm:h-12 sm:w-12 overflow-hidden rounded-xl bg-white p-1 shadow-sm border border-gray-100 print:h-14 print:w-14 print:border-gray-200">
+              <div className="relative h-10 w-10 sm:h-12 sm:w-12 overflow-hidden rounded-none bg-white p-1 shadow-sm border border-gray-100 print:h-14 print:w-14 print:border-gray-200">
                  <Image
                   src={qrUrl || "/placeholder.svg"}
                   alt="Scan"
