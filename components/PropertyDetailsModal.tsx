@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Property, PropertyDetailResponse } from '@/types'
 import { X, MessageCircle, Send, ThumbsUp, ThumbsDown, ChevronLeft, ChevronRight, Maximize2, Home, User, Ruler, Bed, Bath, Calendar, MapPin, Clock, ShieldCheck } from 'lucide-react'
-import { cleanAddress, formatMlsStatus, formatPropertyType } from '@/lib/utils'
+import { cleanAddress, formatMlsStatus, formatPropertyType, formatPropertyFeature } from '@/lib/utils'
 
 const formatDate = (dateString: string) => {
   try {
@@ -654,7 +654,7 @@ export default function PropertyDetailsModal({
                         <div className="flex items-center space-x-3">
                           <Bed className="text-[#C9A24D]" size={18} />
                           <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.BedroomsTotal || '-'}</span>
+                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{formatPropertyFeature(property.BedroomsTotal)}</span>
                             <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Beds</span>
                           </div>
                         </div>
@@ -662,7 +662,7 @@ export default function PropertyDetailsModal({
                         <div className="flex items-center space-x-3">
                           <Bath className="text-[#C9A24D]" size={18} />
                           <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.BathroomsTotal || '-'}</span>
+                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{formatPropertyFeature(property.BathroomsTotal)}</span>
                             <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Baths</span>
                           </div>
                         </div>
@@ -670,7 +670,7 @@ export default function PropertyDetailsModal({
                         <div className="flex items-center space-x-3">
                           <Ruler className="text-[#C9A24D]" size={18} />
                           <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.LivingArea?.toLocaleString() || '-'}</span>
+                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{formatPropertyFeature(property.LivingArea, true)}</span>
                             <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Sq Ft</span>
                           </div>
                         </div>

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { Bed, Bath, Square, TreePine, Calendar, Clock } from "lucide-react";
+import { formatPropertyFeature } from "@/lib/utils";
 
 interface PropertyCardProps {
   image: string;
@@ -107,14 +108,14 @@ export function PropertyRecommendationCard({
           {/* Stats Row - Improved for mobile responsiveness */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 print:gap-2 min-w-0">
             <div className="flex items-center gap-1 whitespace-nowrap">
-              <span className="text-sm font-black text-[#111827] print:text-black">{beds || 0}</span>
+              <span className="text-sm font-black text-[#111827] print:text-black">{formatPropertyFeature(beds)}</span>
               <span className="text-[9px] sm:text-[10px] uppercase tracking-widest text-gray-500 font-bold print:text-[8pt] print:text-gray-700">Beds</span>
             </div>
             
             <div className="hidden sm:block w-px h-3 bg-gray-200" />
             
             <div className="flex items-center gap-1 whitespace-nowrap">
-              <span className="text-sm font-black text-[#111827] print:text-black">{baths || 0}</span>
+              <span className="text-sm font-black text-[#111827] print:text-black">{formatPropertyFeature(baths)}</span>
               <span className="text-[9px] sm:text-[10px] uppercase tracking-widest text-gray-500 font-bold print:text-[8pt] print:text-gray-700">Baths</span>
             </div>
 
@@ -122,7 +123,7 @@ export function PropertyRecommendationCard({
             
             <div className="flex items-center gap-1 whitespace-nowrap min-w-0">
               <span className="text-sm font-black text-[#111827] print:text-black">
-                {sqft ? sqft.toLocaleString() : '-'}
+                {formatPropertyFeature(sqft, true)}
               </span>
               <span className="text-[9px] sm:text-[10px] uppercase tracking-widest text-gray-500 font-bold print:text-[8pt] print:text-gray-700 shrink-0">Sq Ft</span>
             </div>

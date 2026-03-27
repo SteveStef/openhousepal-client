@@ -4,7 +4,7 @@ import { useMemo, memo } from 'react'
 import Image from 'next/image'
 import { Property } from '@/types'
 import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye, Bed, Bath, Square, Home } from 'lucide-react'
-import { cleanAddress, formatMlsStatus } from '@/lib/utils'
+import { cleanAddress, formatMlsStatus, formatPropertyFeature } from '@/lib/utils'
 
 interface PropertyCardProps {
   property: Property
@@ -214,19 +214,17 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
 
           <div className="flex items-center gap-4 text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
             <div className="flex items-center">
-              <span className="text-[#111827] dark:text-white mr-1.5">{property.BedroomsTotal}</span>
+              <span className="text-[#111827] dark:text-white mr-1.5">{formatPropertyFeature(property.BedroomsTotal)}</span>
               <span>Beds</span>
             </div>
             <div className="flex items-center">
-              <span className="text-[#111827] dark:text-white mr-1.5">{property.BathroomsTotal}</span>
+              <span className="text-[#111827] dark:text-white mr-1.5">{formatPropertyFeature(property.BathroomsTotal)}</span>
               <span>Baths</span>
             </div>
-            {property.LivingArea && (
-              <div className="flex items-center">
-                <span className="text-[#111827] dark:text-white mr-1.5">{property.LivingArea.toLocaleString()}</span>
-                <span>SqFt</span>
-              </div>
-            )}
+            <div className="flex items-center">
+              <span className="text-[#111827] dark:text-white mr-1.5">{formatPropertyFeature(property.LivingArea, true)}</span>
+              <span>SqFt</span>
+            </div>
           </div>
         </div>
 

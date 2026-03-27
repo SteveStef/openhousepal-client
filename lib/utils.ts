@@ -69,4 +69,22 @@ export const formatPropertyType = (type: string | null | undefined): string => {
   return type.replace(/_/g, ' ').toUpperCase();
 };
 
+/**
+ * Formats property features like beds, baths, and sqft.
+ * Displays a dash (-) if the value is null, undefined, or 0.
+ */
+export const formatPropertyFeature = (value: number | string | null | undefined, isSqFt: boolean = false): string => {
+  if (value === null || value === undefined || value === 0 || value === '0' || value === '') {
+    return '-';
+  }
+  
+  if (isSqFt) {
+    const numValue = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : value;
+    if (isNaN(numValue)) return '-';
+    return numValue.toLocaleString();
+  }
+  
+  return String(value);
+};
+
 const anyDigit = (s: string) => /\d/.test(s);
