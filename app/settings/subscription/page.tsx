@@ -9,7 +9,7 @@ import { getCurrentUser, User, apiRequest } from '@/lib/auth'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { CreditCard, Sparkles, AlertCircle, Calendar, CheckCircle2 } from 'lucide-react'
-import { PRICING_PLANS } from '@/lib/pricing'
+import { TRIAL_PERIOD_DAYS, PRICING_PLANS  } from '@/lib/pricing'
 
 function SubscriptionContent() {
   const router = useRouter()
@@ -416,7 +416,7 @@ function SubscriptionContent() {
               <div className="flex-1 text-center sm:text-left">
                 <h3 className="font-black text-[#111827] dark:text-white mb-2 uppercase tracking-widest text-xs">Account Authorized</h3>
                 <p className="text-lg text-[#6B7280] dark:text-gray-400 leading-relaxed font-medium mb-0">
-                  Your brokerage credentials have been verified! Choose a plan below to activate your <span className="text-[#C9A24D] font-black">7-day free trial</span> and get started.
+                  Your brokerage credentials have been verified! Choose a plan below to activate your <span className="text-[#C9A24D] font-black">{TRIAL_PERIOD_DAYS}-day free trial</span> and get started.
                 </p>
               </div>
               <button

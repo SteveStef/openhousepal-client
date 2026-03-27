@@ -4,8 +4,8 @@ export const PRICING_PLANS = {
   BASIC: {
     id: 'basic',
     name: 'Basic',
-    price: 34.95,
-    priceString: '$34.95',
+    price: 24.95,
+    priceString: '$24.95',
     paypalPlanId: process.env.NEXT_PUBLIC_BASIC_PLAN_ID || 'P-DEFAULT_BASIC_ID',
     features: [
       'Generated PDFs for Open Houses',
@@ -16,8 +16,8 @@ export const PRICING_PLANS = {
   PREMIUM: {
     id: 'premium',
     name: 'Premium',
-    price: 99.95,
-    priceString: '$99.95',
+    price: 74.95,
+    priceString: '$74.95',
     paypalPlanId: process.env.NEXT_PUBLIC_PREMIUM_PLAN_ID || 'P-DEFAULT_PREMIUM_ID',
     features: [
       'Automated follow-up emails',
