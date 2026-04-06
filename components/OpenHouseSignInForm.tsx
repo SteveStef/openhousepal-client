@@ -85,8 +85,6 @@ export default function OpenHouseSignInForm({
         return formData.email.trim() !== '' && validateEmail(formData.email) && formData.phone.trim() !== ''
       case 3:
         return formData.hasAgent !== ''
-      case 4:
-        return true // Step 4 has optional fields
       default:
         return false
     }
@@ -96,7 +94,7 @@ export default function OpenHouseSignInForm({
     if (!isStepValid()) {
       return // Don't advance if validation fails
     }
-    if (currentStep < 4) {
+    if (currentStep < 3) {
       setCurrentStep(currentStep + 1)
     }
   }
@@ -110,13 +108,13 @@ export default function OpenHouseSignInForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (currentStep < 4) {
+    if (currentStep < 3) {
       // If not on the final step, just move to next step
       handleNextStep()
       return
     }
 
-    if (currentStep === 4) {
+    if (currentStep === 3) {
       // If user already has an agent, skip collection offer and submit directly
       if (formData.hasAgent === 'YES') {
         const finalData = { ...formData, interestedInSimilar: false }
@@ -145,7 +143,6 @@ export default function OpenHouseSignInForm({
       case 1: return "Welcome!"
       case 2: return "Contact Info"
       case 3: return "Your Visit"
-      case 4: return "Almost Done"
       default: return "Sign In"
     }
   }
@@ -258,7 +255,7 @@ export default function OpenHouseSignInForm({
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight">{getStepTitle()}</h3>
           <span className="text-[10px] font-black text-[#6B7280] dark:text-gray-400 bg-[#FAFAF7] dark:bg-[#1A1A1C] px-3 py-1 rounded-full border border-gray-100 dark:border-gray-800 uppercase tracking-widest">
-            {currentStep} of 4
+            {currentStep} of 3
           </span>
         </div>
         
@@ -266,7 +263,7 @@ export default function OpenHouseSignInForm({
           <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1">
             <div 
               className="bg-[#C9A24D] h-full rounded-full transition-all duration-500"
-              style={{ width: `${(currentStep / 4) * 100}%` }}
+              style={{ width: `${(currentStep / 3) * 100}%` }}
             ></div>
           </div>
         </div>
@@ -367,28 +364,6 @@ export default function OpenHouseSignInForm({
               </div>
             </div>
           )}
-
-          {/* Step 4: Final Question */}
-          {currentStep === 4 && (
-            <div className="space-y-4 animate-fadeIn">
-              <div className="bg-[#FAFAF7] dark:bg-[#1A1A1C] rounded-2xl p-6 border border-gray-100 dark:border-gray-800 text-center">
-                <h4 className="text-sm font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2">Preferences</h4>
-                <p className="text-[#0B0B0B] dark:text-white text-base font-bold leading-tight">What are the must-have features for your dream home?</p>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Special Features (Optional)</label>
-                <textarea
-                  name="additionalComments"
-                  value={formData.additionalComments}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white font-medium focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all min-h-[120px]"
-                  rows={3}
-                  placeholder="Pool, home office, large lot, etc..."
-                />
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="flex space-x-4 pt-8">
@@ -403,8 +378,8 @@ export default function OpenHouseSignInForm({
           )}
           
           <button
-            type={currentStep === 4 ? "submit" : "button"}
-            onClick={currentStep === 4 ? undefined : handleNextStep}
+            type={currentStep === 3 ? "submit" : "button"}
+            onClick={currentStep === 3 ? undefined : handleNextStep}
             className={`${currentStep > 1 ? 'flex-1' : 'w-full'} bg-[#111827] dark:bg-white hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] text-white dark:text-[#111827] dark:hover:text-white font-black uppercase tracking-widest py-4 px-6 rounded-2xl transition-all duration-300 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] text-xs`}
             disabled={isLoading || !isStepValid()}
           >
@@ -418,7 +393,7 @@ export default function OpenHouseSignInForm({
               </span>
             ) : (
               <span className="flex items-center justify-center">
-                {currentStep === 4 ? (
+                {currentStep === 3 ? (
                   <>
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path>
