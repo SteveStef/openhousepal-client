@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { PDFViewer } from '@react-pdf/renderer';
-import { X } from 'lucide-react';
-import { OpenHousePDF, PropertyRecommendationsPDF } from '@/lib/pdf';
+import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
+import { X, Download } from 'lucide-react';
+import { OpenHouseFlyerDocument, SimilarPropertiesDocument } from '@/lib/pdfs';
 
 interface PDFPreviewModalProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ interface PDFPreviewModalProps {
   title?: string;
   type?: 'flyer' | 'recommendations';
   agentId?: string;
+  address?: string;
 }
 
 export default function PDFPreviewModal({ 
@@ -20,25 +21,30 @@ export default function PDFPreviewModal({
   data, 
   title = "Document Preview",
   type = 'flyer',
-  agentId
+  agentId,
+  address
 }: PDFPreviewModalProps) {
   const document = useMemo(() => {
     if (!data) return null;
     
     if (type === 'flyer') {
-      const flyerData = data.previewId ? data : data; // flyer is flat or has previewId
-      return <OpenHousePDF data={flyerData} />;
+      return <OpenHouseFlyerDocument data={data} />;
     }
     
-    // Recommendations case: data is { properties, previewId }
-    const properties = data.properties || (Array.isArray(data) ? data : []);
-    return <PropertyRecommendationsPDF properties={properties} agentId={agentId} />;
-  }, [data, type, agentId]);
+    // Recommendations case: data is the array of properties
+    const properties = Array.isArray(data) ? data : (data.properties || []);
+    return <SimilarPropertiesDocument properties={properties} agentId={agentId} address={address} />;
+  }, [data, type, agentId, address]);
+
+  const fileName = useMemo(() => {
+    const baseAddress = (address || data?.address || 'Document').split(',')[0].replace(/\s+/g, '-');
+    return `${type === 'flyer' ? 'Flyer' : 'COMPS'}-${baseAddress}.pdf`;
+  }, [address, data?.address, type]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 md:p-10 bg-black/80 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 md:p-10 bg-black/80 animate-fadeIn">
       <div className="bg-[#151517] w-full max-w-5xl h-full max-h-[90vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-white/10 relative">
         
         {/* Header */}
@@ -51,6 +57,23 @@ export default function PDFPreviewModal({
           </div>
           
           <div className="flex items-center gap-3">
+            {document && (
+              <PDFDownloadLink
+                document={document}
+                fileName={fileName}
+                className="flex items-center gap-2 px-6 py-3 bg-[#C9A24D] hover:bg-[#8b7355] text-[#111827] hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all duration-300 shadow-lg shadow-[#C9A24D]/10"
+              >
+                {({ loading }) => (
+                  <>
+                    <Download size={16} className={loading ? 'animate-bounce' : ''} />
+                    <span>{loading ? 'Preparing...' : 'Download PDF'}</span>
+                  </>
+                )}
+              </PDFDownloadLink>
+            )}
+
+            <div className="w-px h-8 bg-white/10 mx-1" />
+
             <button 
               onClick={onClose}
               className="p-3 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-2xl transition-all duration-200 group"
