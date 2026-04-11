@@ -1,4 +1,4 @@
-'use client';
+/*'use client';
 
 import { Home } from "lucide-react";
 import { PropertyRecommendationCard } from "@/components/PropertyRecommendationCard";
@@ -36,7 +36,6 @@ export function PropertyRecommendationsPrintView({ openHouseId, agentId, classNa
           className="page-container mx-auto max-w-6xl print:mx-0 print:max-w-none print-view-container"
           style={{ breakAfter: pageIndex < pages.length - 1 ? 'page' : 'auto' }}
         >
-          {/* Header */}
           <header className="flex w-full items-center justify-between px-6 py-4 print:px-0 print:py-0 print-header">
             <div className="flex flex-row items-center gap-4">
               <div className="flex items-center justify-center rounded-lg bg-gray-100 p-2 print:hidden">
@@ -53,13 +52,11 @@ export function PropertyRecommendationsPrintView({ openHouseId, agentId, classNa
                 </p>
               </div>
             </div>
-            {/* Show Open House ID for context during dev */}
             <div className="text-xs text-gray-400 print:hidden">
                 Open House: {openHouseId}
             </div>
           </header>
 
-          {/* Properties Grid */}
           <main className="w-full px-6 pb-6 print:px-0 print:pb-0 print-main">
             <div className="properties-grid grid gap-6 sm:grid-cols-2 lg:grid-cols-2 print:gap-0">
               {pageItems.map((property) => (
@@ -85,4 +82,4 @@ export function PropertyRecommendationsPrintView({ openHouseId, agentId, classNa
       ))}
     </div>
   );
-}
+}*/

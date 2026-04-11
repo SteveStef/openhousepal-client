@@ -1,14 +1,7 @@
 'use client'
 
 import { 
-  Building2, 
-  DoorOpen, 
-  Wind, 
-  Car, 
-  ShieldCheck, 
-  GraduationCap, 
   FileText,
-  Layers
 } from 'lucide-react'
 import { PropertyDetailResponse } from '@/types'
 import { formatMlsStatus, formatPropertyType } from '@/lib/utils'

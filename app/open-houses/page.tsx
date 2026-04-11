@@ -14,10 +14,9 @@ import { apiRequest, hasValidSubscription } from '@/lib/auth'
 import { openHouseApi } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
-import { PropertyRecommendationsPrintView } from '@/components/PropertyRecommendationsPrintView'
-import { OpenHouseFlyer } from '@/components/OpenHouseFlyer'
 import { PropertyRecommendationCard } from '@/components/PropertyRecommendationCard'
 import { ViewPDFsModal } from '@/components/ViewPDFsModal'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 
 interface PropertyImage {
   url: string;
@@ -46,6 +45,7 @@ interface OpenHouse {
   city?: string;
   notes?: string;
   similarPropertyIds?: string[];
+  similarPropertiesSnapshot?: any[];
 }
 
 type WizardStep = 'ADDRESS' | 'FEATURES' | 'PREFERENCES' | 'SIMILAR_PROPS' | 'COVER_IMAGE' | 'REVIEW';
@@ -104,6 +104,25 @@ const formatAddress = (address: string) => {
     .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
+};
+
+const formatStreetAndCity = (address: string, city?: string) => {
+  if (!address) return "";
+  const parts = address.split(',');
+  
+  const street = parts[0].trim();
+  const targetCity = city || (parts.length >= 2 ? parts[1].trim() : "");
+  
+  if (targetCity) {
+    const rawAddress = `${street}, ${targetCity}`;
+    return rawAddress
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+  
+  return formatStreetAddress(address);
 };
 
 export default function OpenHousesPage() {
@@ -177,9 +196,14 @@ function OpenHouseContent() {
   const [isViewPDFsModalOpen, setIsViewPDFsModalOpen] = useState(false)
   const [openHouseForPDFs, setOpenHouseForPDFs] = useState<OpenHouse | null>(null)
   
-  // Printing State
-  const [printingOpenHouseId, setPrintingOpenHouseId] = useState<string | null>(null)
-  const [printMode, setPrintMode] = useState<'flyer' | 'recommendations'>('flyer')
+  // PDF Preview State
+  const [isPDFPreviewOpen, setIsPDFPreviewOpen] = useState(false)
+  const [pdfPreviewData, setPdfPreviewData] = useState<any>(null)
+  const [pdfPreviewType, setPdfPreviewType] = useState<'flyer' | 'recommendations'>('flyer')
+  const [pdfPreviewTitle, setPdfPreviewTitle] = useState('')
+  const [pdfPreviewAddress, setPdfPreviewAddress] = useState('')
+  const [pdfPreviewAgentId, setPdfPreviewAgentId] = useState('')
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
 
   // Filter open houses based on search query
   const filteredOpenHouses = openHouses.filter(oh => 
@@ -210,44 +234,64 @@ function OpenHouseContent() {
     setOpenHouseForPDFs(null)
   }, [])
 
-  // Unified Print Trigger
+  // Unified PDF Preview Trigger
   const triggerPreview = useCallback(async (mode: 'flyer' | 'recommendations', id?: string) => {
     if (isPrintingRef.current) return;
     isPrintingRef.current = true;
+    setIsGeneratingPDF(true);
 
-    setPrintMode(mode)
     const targetId = id || generatedOpenHouseId
     if (targetId) {
-       setPrintingOpenHouseId(targetId)
+       let currentSimilarProps = similarProperties;
+       const targetOH = id ? openHouses.find(oh => oh.id === id) : propertyData
        
-       // If viewing recommendations, we MUST wait for the data before printing
-       if (mode === 'recommendations') {
-         const targetOH = id ? openHouses.find(oh => oh.id === id) : propertyData
-         if (targetOH) {
-           // If it's an existing listing with a snapshot, use that. 
-           if (id && (targetOH as any).similarPropertiesSnapshot) {
-             setSimilarProperties((targetOH as any).similarPropertiesSnapshot)
-             setSelectedSimilarPropertyIds([]) // Ensure we show all properties in the snapshot
-           } else if (id) {
-             // Existing listing WITHOUT a snapshot: fetch and auto-select 12
-             await fetchSimilarProperties(targetOH, true)
-           } else if (similarProperties.length === 0) {
-             // New creation wizard: only fetch if we don't have data yet
-             await fetchSimilarProperties(targetOH, false)
-           }
-         }
+       if (mode === 'recommendations' && targetOH) {
+          if (id) {
+            // Dashboard: Strict Snapshot only (No Backup)
+            currentSimilarProps = (targetOH as any).similarPropertiesSnapshot || [];
+          } else {
+            // Wizard: Filter the currently fetched similar properties by user selection
+            currentSimilarProps = similarProperties.filter(p => {
+               const pId = String(p.ListingKey || p.listingKey || p.id);
+               return selectedSimilarPropertyIds.map(sid => String(sid)).includes(pId);
+            });
+          }
+       }       
+       // Prepare data for PDF components
+       if (mode === 'flyer') {
+          const flyerData = {
+            address: formatStreetAndCity(
+              id ? (targetOH as any).address : address, 
+              id ? ((targetOH as any).city || (targetOH as any).City) : (propertyData?.city || propertyData?.City)
+            ),
+            price: id ? ((targetOH as any).price || (targetOH as any).ListPrice) : (propertyData?.ListPrice || 0),
+            beds: id ? ((targetOH as any).bedrooms || (targetOH as any).BedroomsTotal) : (propertyData?.BedroomsTotal || 0),
+            baths: id ? ((targetOH as any).bathrooms || (targetOH as any).BathroomsTotal) : (propertyData?.BathroomsTotal || 0),
+            sqft: id ? ((targetOH as any).LivingArea || (targetOH as any).livingArea || (targetOH as any).living_area) : (propertyData?.LivingArea || propertyData?.livingArea || 0),
+            coverImage: id ? (targetOH as any).coverImageUrl : selectedImage?.url,
+            openHouseUrl: id ? (targetOH as any).formUrl : `${window.location.origin}/open-house/${generatedOpenHouseId}`
+          };
+          setPdfPreviewData(flyerData);
+          setPdfPreviewTitle("Sign-In Flyer");
+       } else {
+          setPdfPreviewData(currentSimilarProps);
+          setPdfPreviewTitle("Property Recommendations");
+          setPdfPreviewAddress(formatStreetAndCity(
+            id ? (targetOH as any).address : address,
+            id ? ((targetOH as any).city || (targetOH as any).City) : (propertyData?.city || propertyData?.City)
+          ));
+          setPdfPreviewAgentId(currentUser?.id || '');
        }
-       
-       // Give the DOM enough time to render the new data then open print dialog
-       setTimeout(() => {
-         window.print()
-         setPrintingOpenHouseId(null)
-         isPrintingRef.current = false;
-       }, 1200)
+
+       setPdfPreviewType(mode);
+       setIsPDFPreviewOpen(true);
+       setIsGeneratingPDF(false);
+       isPrintingRef.current = false;
     } else {
       isPrintingRef.current = false;
-      }
-      }, [generatedOpenHouseId, openHouses, propertyData, similarProperties.length, qrCode, selectedImage])
+      setIsGeneratingPDF(false);
+    }
+  }, [generatedOpenHouseId, openHouses, propertyData, similarProperties, address, selectedImage, currentUser, selectedSimilarPropertyIds])
 
   // Open House Note handlers
   const handleOpenOpenHouseNoteModal = useCallback((openHouse: OpenHouse) => {
@@ -570,19 +614,22 @@ function OpenHouseContent() {
   return (
     <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B] flex flex-col transition-colors duration-300 relative overflow-x-hidden">
       
-      {/* Print Preparation Overlay */}
-      {printingOpenHouseId && (
-        <div className="fixed inset-0 z-[1000] bg-[#faf9f7] dark:bg-[#0B0B0B] flex flex-col items-center justify-center p-6 print:hidden animate-fadeIn">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355] dark:border-[#C9A24D] mb-6"></div>
-          <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Preparing Your Document</h2>
-          <p className="text-gray-500 dark:text-gray-400 mt-2 text-center max-w-xs font-medium">
-            Generating your high-resolution print-ready PDF...
+      {/* PDF Generation Overlay */}
+      {isGeneratingPDF && (
+        <div className="fixed inset-0 z-[1000] bg-[#faf9f7]/80 dark:bg-[#0B0B0B]/80 backdrop-blur-md flex flex-col items-center justify-center p-6 print:hidden animate-fadeIn">
+          <div className="w-16 h-16 relative mb-8">
+            <div className="absolute inset-0 border-4 border-[#8b7355]/20 dark:border-[#C9A24D]/20 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-t-[#8b7355] dark:border-t-[#C9A24D] rounded-full animate-spin"></div>
+          </div>
+          <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight mb-3">Crafting Your PDF</h2>
+          <p className="text-gray-500 dark:text-gray-400 text-center max-w-xs font-medium uppercase text-[10px] tracking-[0.2em]">
+            Preparing high-resolution assets...
           </p>
         </div>
       )}
 
-      {/* 1. Main Dashboard (Hidden on Print) */}
-      <div className={`${printingOpenHouseId ? 'hidden print:hidden' : ''} flex-1 flex flex-col w-full max-w-full overflow-x-hidden`}>
+      {/* 1. Main Dashboard */}
+      <div className="flex-1 flex flex-col w-full max-w-full overflow-x-hidden">
         <div className="flex-1 p-4 sm:p-6 pb-20 w-full">
           <div className="max-w-7xl mx-auto w-full">
 
@@ -806,66 +853,20 @@ function OpenHouseContent() {
         <Footer />
       </div>
 
-      {/* 2. Print-only Layouts */}
-      {printMode === 'flyer' ? (
-         (() => {
-           const targetOpenHouse = openHouses.find(oh => 
-             oh.id === printingOpenHouseId || 
-             oh.openHouseEventId === printingOpenHouseId || 
-             (oh as any).open_house_event_id === printingOpenHouseId
-           );
-           
-           const flyerUrl = generatedOpenHouseId 
-             ? `${typeof window !== 'undefined' ? window.location.origin : ''}/open-house/${generatedOpenHouseId}`
-             : (targetOpenHouse?.formUrl || (targetOpenHouse as any)?.form_url || (targetOpenHouse?.id ? `${typeof window !== 'undefined' ? window.location.origin : ''}/open-house/${targetOpenHouse.id}` : ''));
-             
-           return (
-             <div className="hidden print:block relative top-0 left-0 w-full h-full print-view-root bg-white">
-                <OpenHouseFlyer
-                  coverImage={selectedImage?.url || targetOpenHouse?.coverImageUrl || (targetOpenHouse as any)?.cover_image_url || ''}
-                  address={formatStreetAddress(address || targetOpenHouse?.address || '')}
-                  price={propertyData?.ListPrice || targetOpenHouse?.price || (targetOpenHouse as any)?.price || 0}                  beds={propertyData?.BedroomsTotal || targetOpenHouse?.bedrooms || (targetOpenHouse as any)?.bedrooms || 0}
-                  baths={propertyData?.BathroomsTotal || targetOpenHouse?.bathrooms || (targetOpenHouse as any)?.bathrooms || 0}
-                  sqft={propertyData?.LivingArea || targetOpenHouse?.livingArea || (targetOpenHouse as any)?.living_area || 0}
-                  qrCodeUrl={qrCode || targetOpenHouse?.qrCodeUrl || (targetOpenHouse as any)?.qr_code_url || undefined}
-                  openHouseUrl={flyerUrl}
-                />
-             </div>
-           );
-         })()
-      ) : (
-         isLoadingNeighbors ? (
-           <div className="hidden print:flex absolute inset-0 z-[100] bg-white items-center justify-center flex-col gap-4">
-             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355]"></div>
-             <p className="text-lg font-bold text-gray-900">Fetching live neighbor data...</p>
-           </div>
-         ) : selectedSimilarProperties.length === 0 ? (
-           <div className="hidden print:flex absolute inset-0 z-[100] bg-white items-center justify-center flex-col gap-4 p-12 text-center">
-             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-               <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 9.172a4 4 0 0112.728 0M9 10a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2z" /></svg>
-             </div>
-             <h3 className="text-xl font-bold text-gray-900">No Neighbor Listings Found</h3>
-             <p className="text-gray-500">We couldn't find any active similar properties in this neighborhood at this time.</p>
-           </div>
-         ) : (
-           (() => {
-             const targetOpenHouse = openHouses.find(oh => oh.id === printingOpenHouseId);
-             return (
-               <PropertyRecommendationsPrintView 
-                  openHouseId={printingOpenHouseId || ''} 
-                  agentId={targetOpenHouse?.agentId || (targetOpenHouse as any)?.agent_id || currentUser?.id}
-                  className="hidden print:block relative top-0 left-0 w-full"
-                  properties={selectedSimilarProperties}
-               />
-             );
-           })()
-         )
-      )}
-      
-      
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        isOpen={isPDFPreviewOpen}
+        onClose={() => setIsPDFPreviewOpen(false)}
+        type={pdfPreviewType}
+        data={pdfPreviewData}
+        title={pdfPreviewTitle}
+        address={pdfPreviewAddress}
+        agentId={pdfPreviewAgentId}
+      />
+
       {/* Save Dialog (Review Step) */}
       {currentStep === 'REVIEW' && (
-        <div className={printingOpenHouseId ? 'hidden' : ''}>
+        <div>
           <SaveOpenHouseDialog
             address={address}
             selectedImage={selectedImage}
@@ -881,7 +882,7 @@ function OpenHouseContent() {
 
       {/* View PDFs Modal */}
       {isViewPDFsModalOpen && openHouseForPDFs && (
-        <div className={printingOpenHouseId ? 'hidden' : ''}>
+        <div>
           <ViewPDFsModal
             openHouse={openHouseForPDFs}
             onClose={handleCloseViewPDFs}
@@ -893,7 +894,7 @@ function OpenHouseContent() {
 
       {/* Open House Note Modal */}
       {isOpenHouseNoteModalOpen && selectedOpenHouseForNote && (
-        <div className={`fixed inset-0 bg-[#111827]/60 z-50 flex items-center justify-center p-4 transition-all duration-300 print:hidden ${printingOpenHouseId ? 'hidden' : ''}`}>
+        <div className={`fixed inset-0 bg-[#111827]/60 z-50 flex items-center justify-center p-4 transition-all duration-300 print:hidden`}>
           <div className="bg-white dark:bg-[#151517] rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 max-w-lg w-full overflow-hidden transform transition-all">
             <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-[#faf9f7] dark:bg-[#0B0B0B]">
               <div>

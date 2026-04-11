@@ -1,4 +1,4 @@
-'use client';
+/*'use client';
 
 import Image from "next/image";
 import { Bed, Bath, Square, ChevronRight } from "lucide-react";
@@ -31,7 +31,6 @@ export function OpenHouseFlyer({
   return (
     <div className="w-full h-full bg-white text-[#1a1a1a] print:h-screen flex flex-col overflow-hidden">
       
-      {/* Top Section: Hero Image */}
       <div className="relative h-[40%] w-full bg-gray-100 overflow-hidden">
         <Image
           src={coverImage || "/placeholder.svg"}
@@ -40,14 +39,11 @@ export function OpenHouseFlyer({
           priority
           className="object-cover object-[center_35%]"
         />
-        {/* Subtle shadow at the bottom for transition */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent" />
       </div>
 
-      {/* Bottom Section: Content */}
       <div className="h-[60%] w-full p-12 flex flex-row justify-between gap-12">
         
-        {/* Left Column: Details */}
         <div className="flex-1 flex flex-col justify-between py-4">
           <div>
             <h1 className="font-serif text-6xl font-medium tracking-tight mb-3">
@@ -59,7 +55,6 @@ export function OpenHouseFlyer({
             
             <div className="w-full h-px bg-gray-200 mb-10" />
 
-            {/* Address */}
             <div className="mb-12">
               <p className="text-xs font-bold tracking-[0.15em] text-gray-400 uppercase mb-3">
                 Property Address
@@ -69,9 +64,7 @@ export function OpenHouseFlyer({
               </p>
             </div>
 
-            {/* Icons Grid */}
             <div className="flex items-start gap-16">
-              {/* Beds */}
               <div className="flex flex-col items-center gap-2">
                 <Bed className="w-8 h-8 text-[#2a2a2a]" strokeWidth={1.5} />
                 <div className="flex flex-col items-center">
@@ -80,7 +73,6 @@ export function OpenHouseFlyer({
                 </div>
               </div>
 
-              {/* Baths */}
               <div className="flex flex-col items-center gap-2">
                 <Bath className="w-8 h-8 text-[#2a2a2a]" strokeWidth={1.5} />
                 <div className="flex flex-col items-center">
@@ -89,7 +81,6 @@ export function OpenHouseFlyer({
                 </div>
               </div>
 
-              {/* Sq Ft */}
               <div className="flex flex-col items-center gap-2">
                 <Square className="w-8 h-8 text-[#2a2a2a]" strokeWidth={1.5} />
                 <div className="flex flex-col items-center">
@@ -100,7 +91,6 @@ export function OpenHouseFlyer({
             </div>
           </div>
 
-          {/* Price Footer */}
           <div>
              <div className="w-full h-px bg-gray-200 mb-6" />
              <p className="text-xs uppercase tracking-[0.15em] text-gray-500 font-bold mb-1">
@@ -112,7 +102,6 @@ export function OpenHouseFlyer({
           </div>
         </div>
 
-        {/* Right Column: QR Card */}
         <div className="w-[340px] shrink-0">
           <div className="h-full w-full bg-[#F5F5F2] rounded-3xl p-8 flex flex-col items-center text-center border border-[#e5e5e0]">
             <h3 className="font-serif text-2xl font-medium mb-3 mt-2">
@@ -122,7 +111,6 @@ export function OpenHouseFlyer({
               Complete our online sign-in form to register your visit
             </p>
 
-            {/* QR Code Container */}
             <div className="flex flex-col items-center gap-4 mb-auto">
               <div className="relative w-64 h-64 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center">
                 {finalQrCodeUrl ? (
@@ -150,4 +138,4 @@ export function OpenHouseFlyer({
       </div>
     </div>
   );
-}
+}*/
