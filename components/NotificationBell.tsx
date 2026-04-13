@@ -152,13 +152,11 @@ export default function NotificationBell() {
       <button
         ref={bellRef}
         onClick={toggleDropdown}
-        className="relative flex items-center space-x-1 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+        className="relative flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+        title="Notifications"
         aria-label="Notifications"
       >
         <Bell className="w-5 h-5 sm:w-4 sm:h-4 text-[#C9A24D]" />
-        <span className="hidden sm:inline text-sm font-medium text-gray-700 dark:text-gray-300">
-          Notifications
-        </span>
 
         {/* Unread Badge */}
         {unreadCount > 0 && (

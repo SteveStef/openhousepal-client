@@ -154,7 +154,7 @@ export default function HomePage() {
       <div className="relative z-10 py-20 lg:py-32">
         <div className="max-w-6xl mx-auto px-6">
           <div className={`text-center mb-16 transform transition-all duration-1000 delay-400 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-            <h3 className="text-4xl font-extrabold text-[#0B0B0B] dark:text-white mb-6 tracking-tight">Experience the Future</h3>
+            <h3 className="text-4xl sm:text-5xl font-extrabold text-[#0B0B0B] dark:text-white mb-6 tracking-tight">Experience the Future</h3>
             <p className="text-xl text-[#6B7280] dark:text-gray-400 font-light max-w-2xl mx-auto">
               See how OpenHousePal seamlessly bridges the gap between physical visits and digital conversion.
             </p>
@@ -183,7 +183,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-6">
           <div className={`text-center mb-24 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
             <span className="text-[#C9A24D] font-bold tracking-widest uppercase text-sm mb-4 block">Simple Workflow</span>
-            <h3 className="text-5xl font-extrabold text-[#0B0B0B] dark:text-white mb-6 tracking-tight">How It Works</h3>
+            <h3 className="text-4xl sm:text-5xl font-extrabold text-[#0B0B0B] dark:text-white mb-6 tracking-tight">How It Works</h3>
             <p className="text-xl text-[#6B7280] dark:text-gray-400 font-light max-w-2xl mx-auto">
               From open house visitor to signed client in four automated steps.
             </p>
@@ -297,19 +297,19 @@ export default function HomePage() {
 
         <div className={`text-center mb-16 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           <span className="text-[#C9A24D] font-bold tracking-wider uppercase text-sm mb-4 block">Simple Pricing</span>
-          <h3 className="text-5xl font-extrabold text-[#0B0B0B] dark:text-white mb-6 tracking-tight">Invest in Your Growth</h3>
+          <h3 className="text-4xl sm:text-5xl font-extrabold text-[#0B0B0B] dark:text-white mb-6 tracking-tight">Invest in Your Growth</h3>
           
           {/* Trial Banner */}
-          <div className="inline-flex items-center gap-6 px-6 py-3 bg-white dark:bg-[#151517] rounded-full border border-gray-200 dark:border-gray-800 shadow-sm text-sm text-[#6B7280] dark:text-gray-400 mt-4">
+          <div className="flex flex-col sm:flex-row sm:inline-flex items-center gap-3 sm:gap-6 px-6 py-4 sm:py-3 bg-white dark:bg-[#151517] rounded-2xl sm:rounded-full border border-gray-200 dark:border-gray-800 shadow-sm text-sm text-[#6B7280] dark:text-gray-400 mt-4 mx-6 sm:mx-0">
             <span className="flex items-center"><svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>{TRIAL_PERIOD_DAYS}-day free trial</span>
             <span className="flex items-center"><svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>Cancel anytime</span>
             <span className="flex items-center"><svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>No commitment</span>
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-10 max-w-5xl mx-auto px-6 items-start">
+        <div className="grid md:grid-cols-2 gap-10 max-w-5xl mx-auto px-6 items-stretch">
           {/* Basic Plan */}
-          <div className={`bg-white dark:bg-[#151517] rounded-[2rem] p-10 border border-gray-100 dark:border-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.05)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative transition-all hover:shadow-[0_30px_60px_rgba(0,0,0,0.08)]`}>
+          <div className={`bg-white dark:bg-[#151517] rounded-[2rem] p-6 sm:p-10 border border-gray-100 dark:border-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.05)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative transition-all hover:shadow-[0_30px_60px_rgba(0,0,0,0.08)] flex flex-col h-full`}>
             <div className="text-center mb-10">
               <h4 className="text-xl font-bold text-[#0B0B0B] dark:text-white mb-4 uppercase tracking-wide">{PRICING_PLANS.BASIC.name}</h4>
               <div className="flex items-baseline justify-center mb-2">
@@ -319,7 +319,7 @@ export default function HomePage() {
               <p className="text-sm text-gray-400">after {TRIAL_PERIOD_DAYS}-day free trial</p>
             </div>
 
-            <ul className="space-y-4 mb-10">
+            <ul className="space-y-4 mb-10 flex-grow">
               {[
                 'Generated PDFs for Open Houses',
                 'Custom open house sign-in forms',
@@ -334,7 +334,7 @@ export default function HomePage() {
               ))}
             </ul>
 
-            <div className="border-t border-gray-100 dark:border-gray-800 pt-8 mt-8 mb-8">
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-8 mt-auto mb-8">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4">Missing Key Features</p>
               <ul className="space-y-3">
                 {[
@@ -361,21 +361,21 @@ export default function HomePage() {
           </div>
 
           {/* Premium Plan */}
-          <div className={`bg-[#111827] rounded-[2rem] p-10 shadow-[0_30px_80px_-20px_rgba(201,162,77,0.3)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative border border-gray-800 flex flex-col overflow-hidden`}>
+          <div className={`bg-[#111827] rounded-[2rem] p-6 sm:p-10 shadow-[0_30px_80px_-20px_rgba(201,162,77,0.3)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative border border-gray-800 flex flex-col h-full overflow-hidden`}>
             {/* Gradient Background */}
             <div className="absolute inset-0 bg-gradient-to-br from-[#111827] via-[#2c241b] to-[#3d3226] z-0"></div>
             <div className="absolute top-0 right-0 w-64 h-64 bg-[#C9A24D]/20 rounded-full blur-[80px] z-0"></div>
             
-            <div className="relative z-10">
-              <div className="flex justify-between items-start mb-10">
+            <div className="relative z-10 flex flex-col h-full">
+              <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start text-center sm:text-left gap-6 sm:gap-0 mb-10">
                 <div>
                   <h4 className="text-xl font-bold text-white mb-2 uppercase tracking-wide">{PRICING_PLANS.PREMIUM.name}</h4>
                   <div className="inline-block bg-[#C9A24D] text-[#111827] text-xs font-bold px-3 py-1 rounded-md">
                     MOST POPULAR
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="flex items-baseline justify-end">
+                <div className="sm:text-right">
+                  <div className="flex items-baseline justify-center sm:justify-end">
                     <span className="text-5xl font-black text-white tracking-tight">{PRICING_PLANS.PREMIUM.priceString}</span>
                     <span className="text-gray-400 ml-2 font-medium">/mo</span>
                   </div>
@@ -383,7 +383,7 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="space-y-6 mb-12">
+              <div className="space-y-6 mb-12 flex-grow">
                 <div className="bg-white/10 rounded-xl p-5 border border-white/10">
                   <div className="flex items-center text-white font-bold mb-2">
                     <svg className="w-5 h-5 text-[#C9A24D] mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -393,11 +393,10 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <ul className="space-y-4">
+                <ul className="space-y-6">
                   {[
                     'Automated follow-up emails',
                     'Real-time property alerts',
-                    'Advanced analytics & insights',
                     'Personalized property Showcases',
                     'Visitor interaction tracking'
                   ].map((feature, index) => (
@@ -413,13 +412,15 @@ export default function HomePage() {
                 </ul>
               </div>
 
-              <Link
-                href="/register"
-                className="block w-full text-center px-6 py-4 bg-gradient-to-r from-[#C9A24D] to-[#b38e3e] text-[#111827] rounded-xl font-bold text-lg hover:shadow-lg hover:shadow-[#C9A24D]/30 transition-all duration-300 hover:-translate-y-1"
-              >
-                Start Premium Trial
-              </Link>
-              <p className="text-center text-gray-500 text-xs mt-4">Secure billing powered by PayPal</p>
+              <div className="mt-auto">
+                <Link
+                  href="/register"
+                  className="block w-full text-center px-6 py-4 bg-gradient-to-r from-[#C9A24D] to-[#b38e3e] text-[#111827] rounded-xl font-bold text-lg hover:shadow-lg hover:shadow-[#C9A24D]/30 transition-all duration-300 hover:-translate-y-1"
+                >
+                  Start Premium Trial
+                </Link>
+                <p className="text-center text-gray-500 text-xs mt-4">Secure billing powered by PayPal</p>
+              </div>
             </div>
           </div>
         </div>
@@ -429,7 +430,7 @@ export default function HomePage() {
       <div id="faq" className="py-24">
         <div className="max-w-4xl mx-auto px-6">
           <div className={`text-center mb-16 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-            <h3 className="text-4xl font-extrabold text-[#0B0B0B] dark:text-white mb-6 tracking-tight">Questions?</h3>
+            <h3 className="text-4xl sm:text-5xl font-extrabold text-[#0B0B0B] dark:text-white mb-6 tracking-tight text-center">Questions?</h3>
             <p className="text-xl text-[#6B7280] dark:text-gray-400 font-light">
               We're here to help you succeed.
             </p>

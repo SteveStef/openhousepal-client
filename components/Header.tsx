@@ -183,14 +183,14 @@ export default function Header({ mode = 'app' }: HeaderProps) {
 
                   <Link 
                     href="/settings/subscription" 
+                    title="Settings"
                     className={`relative px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center group ${
                       isActive('/settings/subscription') 
                         ? 'text-[#111827] dark:text-white bg-gray-50 dark:bg-gray-800' 
                         : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
                     }`}
                   >
-                    <Settings className={`w-4 h-4 mr-2 ${isActive('/settings/subscription') ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
-                    <span>Settings</span>
+                    <Settings className={`w-4 h-4 ${isActive('/settings/subscription') ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
                   </Link>
 
                   {/* Desktop Only: Icons after Settings */}
