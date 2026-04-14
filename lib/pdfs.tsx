@@ -155,13 +155,18 @@ const formatAddress = (street: string, city: string): string => {
   return `${formattedStreet}, ${formattedCity}`;
 };
 
+function normalizeImageUrl(url?: string) {
+  if (!url) return '';
+  return url.replace(/^http:\/\//i, 'https://');
+};
+
 const PropertyPDFCard = ({ item, agentId }: { item: any; agentId?: string }) => {
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`https://openhousepal.com/property/${item.id}/${agentId || 'agent'}`)}`;
   const address = formatAddress(item.FullStreetAddress, item.City);
   
   return (
     <View style={styles.card}>
-      <Image src={item.ListPictureURL || item.image || ''} style={styles.cardImage} />
+      <Image src={normalizeImageUrl(item.ListPictureURL || item.image || '')} style={styles.cardImage} />
       <View style={styles.cardBody}>
         <View>
           <Text style={styles.cardAddress} {...({ numberOfLines: 1 } as any)}>{address || 'Address N/A'}</Text>
@@ -198,7 +203,7 @@ export const OpenHouseFlyerDocument = ({ data }: { data: any }) => {
     <Document>
       <Page size="LETTER" style={styles.flyerPage}>
         <View style={styles.heroSection}>
-          <Image src={data.coverImage} style={styles.coverImage} />
+          <Image src={normalizeImageUrl(data.coverImage)} style={styles.coverImage} />
           <View style={styles.heroOverlay} />
         </View>
 

@@ -3,18 +3,18 @@ const nextConfig = {
   images: {
     qualities: [50, 70, 75, 80, 85, 90, 100],
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**.zillowstatic.com',
-      },
-      {
-        protocol: 'https',
-        hostname: '**.zillow.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'photos.zillowstatic.com',
-      },
+      // {
+      //   protocol: 'https',
+      //   hostname: '**.zillowstatic.com',
+      // },
+      // {
+      //   protocol: 'https',
+      //   hostname: '**.zillow.com',
+      // },
+      // {
+      //   protocol: 'https',
+      //   hostname: 'photos.zillowstatic.com',
+      // },
       {
         protocol: 'https',
         hostname: '**.hdpcdn.com',
@@ -50,14 +50,3 @@ const nextConfig = {
 }
 
 module.exports = nextConfig
-
-// /** @type {import('next').NextConfig} */
-// const nextConfig = {
-//   
-//   images: {
-//     unoptimized: true,
-//     domains: ['photos.zillowstatic.com', 'maps.googleapis.com'], // Add the allowed domain(s) here
-//   },
-// };
-//
-//export default nextConfig;
