@@ -56,7 +56,8 @@ export default function PropertyPage() {
     const fetchProperty = async () => {
       try {
         setLoading(true)
-        const response = await api.getPropertyForAgent(agentId as string, propertyId as string)
+        console.log("propertyId", propertyId);
+        const response = await api.getPropertyForAgent(propertyId as string, agentId as string)
         
         if (response.success && response.data) {
           setProperty(response.data.property)

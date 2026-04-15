@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { User, apiRequest } from '@/lib/auth'
 import AuthGuard from '@/components/AuthGuard'
 import Toast from '@/components/Toast'
+import ConfirmationModal from '@/components/ConfirmationModal'
 import { 
   Users, 
   Search, 
@@ -41,6 +42,12 @@ function AdminDashboardContent() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; isVisible: boolean }>({
     message: '', type: 'success', isVisible: false
   })
+
+  // Plan Update States
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false)
+  const [targetUser, setTargetUser] = useState<User | null>(null)
+  const [targetPlan, setTargetPlan] = useState<string | null>(null)
+  const [isUpdatingPlan, setIsUpdatingPlan] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticating) {
@@ -83,6 +90,39 @@ function AdminDashboardContent() {
     } catch (err) {
       showToast('An error occurred during update', 'error')
     }
+  }
+
+  const handlePlanClick = (u: User, tier: string) => {
+    if ((u.plan_tier || 'FREE') === tier) return // Already on this plan
+    setTargetUser(u)
+    setTargetPlan(tier)
+    setIsPlanModalOpen(true)
+  }
+
+  const confirmUpdatePlan = async () => {
+    if (!targetUser || !targetPlan) return
+
+      console.log(targetUser, targetPlan);
+
+      setIsUpdatingPlan(true)
+      try {
+        const response = await apiRequest(`/admin/users/${targetUser.id}/plan?plan_tier=${targetPlan}`, {
+          method: 'PATCH'
+        })
+
+        if (response.status === 200 || response.data?.success) {
+          setUsers(users.map(u => u.id === targetUser.id ? { ...u, plan_tier: targetPlan === 'FREE' ? undefined : targetPlan } : u))
+          showToast(`User plan updated to ${targetPlan}`, 'success')
+        } else {          showToast(response.error || 'Failed to update plan', 'error')
+        }
+      } catch (err) {
+        showToast('An error occurred during plan update', 'error')
+      } finally {
+        setIsUpdatingPlan(false)
+        setIsPlanModalOpen(false)
+        setTargetUser(null)
+        setTargetPlan(null)
+      }
   }
 
   const showToast = (message: string, type: 'success' | 'error') => {
@@ -241,15 +281,30 @@ function AdminDashboardContent() {
                       </div>
                     </td>
                     <td className="px-8 py-6">
-                      <div className="flex flex-col gap-1.5">
-                        <span className={`inline-flex items-center w-fit px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
-                          u.plan_tier === 'PREMIUM' 
-                            ? 'bg-[#C9A24D]/10 text-[#C9A24D]' 
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-                        }`}>
-                          {u.plan_tier || 'FREE'} PLAN
-                        </span>
-                        <div className="flex items-center gap-1.5 text-[10px] text-[#6B7280] dark:text-gray-500 font-bold uppercase tracking-wider">
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-1 p-1 bg-gray-50 dark:bg-gray-900/50 rounded-xl w-fit border border-gray-100 dark:border-gray-800">
+                          {['FREE', 'BASIC', 'PREMIUM'].map((tier) => {
+                            const isActive = (u.plan_tier || 'FREE') === tier;
+                            return (
+                              <button
+                                key={tier}
+                                onClick={() => handlePlanClick(u, tier)}
+                                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                                  isActive
+                                    ? tier === 'PREMIUM'
+                                      ? 'bg-[#C9A24D] text-white shadow-lg shadow-[#C9A24D]/20'
+                                      : tier === 'BASIC'
+                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                                        : 'bg-gray-500 text-white shadow-lg'
+                                    : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-white dark:hover:bg-gray-800'
+                                }`}
+                              >
+                                {tier}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[10px] text-[#6B7280] dark:text-gray-500 font-bold uppercase tracking-wider ml-1">
                           <Calendar className="w-3 h-3" />
                           Joined {new Date(u.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                         </div>
@@ -282,17 +337,6 @@ function AdminDashboardContent() {
                             )}
                           </div>
                         </button>
-                        
-                        {u.subscription_id && (
-                          <a 
-                            href={`https://www.paypal.com/mep/dashboard`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-[9px] font-black text-gray-400 hover:text-[#C9A24D] transition-colors uppercase tracking-[0.2em] decoration-[#C9A24D]/30"
-                          >
-                            Sync with PayPal <ExternalLink className="w-2 h-2" />
-                          </a>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -338,6 +382,18 @@ function AdminDashboardContent() {
           </p>
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={isPlanModalOpen}
+        onClose={() => setIsPlanModalOpen(false)}
+        onConfirm={confirmUpdatePlan}
+        title="Update User Plan?"
+        message={`Are you sure you want to change ${targetUser?.first_name}'s plan to ${targetPlan}? 
+        
+        WARNING: This ONLY updates our database. It DOES NOT cancel or modify their actual PayPal subscription. Only use this for manual overrides or if the user is not paying for their own subscription. If they have a live subscription, you must manage it in the PayPal dashboard.`}
+        confirmText="Yes, Update Plan"
+        isLoading={isUpdatingPlan}
+      />
 
       <Toast
         message={toast.message}

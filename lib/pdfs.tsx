@@ -161,7 +161,8 @@ function normalizeImageUrl(url?: string) {
 };
 
 const PropertyPDFCard = ({ item, agentId }: { item: any; agentId?: string }) => {
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`https://openhousepal.com/property/${item.id}/${agentId || 'agent'}`)}`;
+  const url = `${process.env.NEXT_PUBLIC_CLIENT_URL}/property/${agentId || 'agent'}/${item.ListingKey}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(url)}`;
   const address = formatAddress(item.FullStreetAddress, item.City);
   
   return (
@@ -196,7 +197,10 @@ const PropertyPDFCard = ({ item, agentId }: { item: any; agentId?: string }) => 
 };
 
 export const OpenHouseFlyerDocument = ({ data }: { data: any }) => {
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(data.openHouseUrl || '')}`;
+  const url = `${process.env.NEXT_PUBLIC_CLIENT_URL || "https://openhousepal.com"}${data.openHouseUrl}`;
+  console.log(process.env.NEXT_PUBLIC_CLIENT_URL);
+  console.log(url)
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
   const propertyAddress = data?.address || "Address Not Available";
 
   return (
