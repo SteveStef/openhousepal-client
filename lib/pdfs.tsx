@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Font,
 } from '@react-pdf/renderer';
+import { normalizeImageUrl } from '@/lib/utils';
 
 // 1. Register Fonts
 Font.register({
@@ -52,7 +53,7 @@ const styles = StyleSheet.create({
   addressBlock: { marginTop: 0, width: '100%', display: 'flex', flexDirection: 'column', marginBottom: 10 },
   welcomeLabel: { fontSize: 12, fontFamily: 'Playfair Display', textTransform: 'uppercase', letterSpacing: 3, color: COLORS.muted, marginBottom: 2 },
   mainHeading: { fontSize: 36, fontFamily: 'Playfair Display', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 },
-  addressText: { fontSize: 22, fontWeight: 700, lineHeight: 1.2, color: COLORS.text },
+  addressText: { fontSize: 22, fontWeight: 700, lineHeight: 1.2, color: COLORS.text, hyphens: 'none'},
   
   detailsHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 5, marginBottom: 10 },
   detailsTitle: { fontSize: 7, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: COLORS.muted },
@@ -153,11 +154,6 @@ const formatAddress = (street: string, city: string): string => {
   const formattedCity = toTitleCase(city);
 
   return `${formattedStreet}, ${formattedCity}`;
-};
-
-function normalizeImageUrl(url?: string) {
-  if (!url) return '';
-  return url.replace(/^http:\/\//i, 'https://');
 };
 
 const PropertyPDFCard = ({ item, agentId }: { item: any; agentId?: string }) => {

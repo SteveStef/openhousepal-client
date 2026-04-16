@@ -4,7 +4,7 @@ import { useMemo, memo } from 'react'
 import Image from 'next/image'
 import { Property } from '@/types'
 import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye, Bed, Bath, Square, Home } from 'lucide-react'
-import { cleanAddress, formatMlsStatus, formatPropertyFeature } from '@/lib/utils'
+import { cleanAddress, formatMlsStatus, formatPropertyFeature, normalizeImageUrl } from '@/lib/utils'
 
 interface PropertyCardProps {
   property: Property
@@ -81,7 +81,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
       <div className="relative bg-gray-100 dark:bg-[#0B0B0B] aspect-video overflow-hidden flex-[7]">
         {property.ListPictureURL ? (
           <Image
-            src={property.ListPictureURL}
+            src={normalizeImageUrl(property.ListPictureURL)}
             alt={property.FullStreetAddress}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"

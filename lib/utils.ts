@@ -88,3 +88,9 @@ export const formatPropertyFeature = (value: number | string | null | undefined,
 };
 
 const anyDigit = (s: string) => /\d/.test(s);
+
+export function normalizeImageUrl(url?: string) {
+  if (!url) return '';
+  return url.replace(/^http:\/\//i, 'https://');
+};
+

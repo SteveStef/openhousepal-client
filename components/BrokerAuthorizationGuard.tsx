@@ -25,6 +25,9 @@ export default function BrokerAuthorizationGuard({ children }: BrokerAuthorizati
     // If not authenticated, let AuthGuard handle it
     if (!isAuthenticated || !user) return
 
+    // Admins are exempt from this check
+    if (user.is_admin) return
+
     // Check for authorization
     if (!user.broker_authorized && pathname !== '/broker-authorization') {
       console.log('Redirecting to broker authorization page...')
@@ -46,7 +49,7 @@ export default function BrokerAuthorizationGuard({ children }: BrokerAuthorizati
   }
 
   // If not authorized, don't render children until redirect
-  if (isAuthenticated && user && !user.broker_authorized && pathname !== '/broker-authorization') {
+  if (isAuthenticated && user && !user.is_admin && !user.broker_authorized && pathname !== '/broker-authorization') {
     return null
   }
 

@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Property, PropertyDetailResponse } from '@/types'
 import { X, MessageCircle, Send, ThumbsUp, ThumbsDown, ChevronLeft, ChevronRight, Maximize2, Home, User, Ruler, Bed, Bath, Calendar, MapPin, Clock, ShieldCheck } from 'lucide-react'
-import { cleanAddress, formatMlsStatus, formatPropertyType, formatPropertyFeature } from '@/lib/utils'
+import { cleanAddress, formatMlsStatus, formatPropertyType, formatPropertyFeature, normalizeImageUrl } from '@/lib/utils'
 
 const formatDate = (dateString: string) => {
   try {
@@ -37,7 +37,6 @@ interface PropertyDetailsModalProps {
 
 // Property Report Table Component
 function PropertyReport({ property }: { property: PropertyDetailResponse }) {
-  const propertyAddress = property.FullStreetAddress;
   
   const formatList = (items: any): string | null => {
     if (!items) return null;
@@ -454,7 +453,7 @@ export default function PropertyDetailsModal({
         <div className="absolute inset-0 z-0 opacity-40 scale-110 blur-2xl">
           {images[currentImageIndex] && (
             <Image
-              src={images[currentImageIndex]}
+              src={normalizeImageUrl(images[currentImageIndex])}
               alt="Blurred background"
               fill
               className="object-cover"
@@ -474,7 +473,7 @@ export default function PropertyDetailsModal({
           <div className="relative w-full h-full max-w-6xl flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
             {images[currentImageIndex] && (
               <Image
-                src={images[currentImageIndex]}
+                src={normalizeImageUrl(images[currentImageIndex])}
                 alt={`${property.FullStreetAddress} - Full Image`}
                 fill
                 sizes="100vw"
@@ -550,13 +549,13 @@ export default function PropertyDetailsModal({
                   }}
                 >
                   <Image
-                    src={images[0] || '/placeholder.jpg'}
+                    src={normalizeImageUrl(images[0]) || '/placeholder.jpg'}
                     alt="Main property view"
                     fill
                     sizes="(max-width: 1024px) 100vw, 50vw"
                     className="object-cover transition-transform duration-700 group-hover:scale-105"
-                    priority
                     quality={90}
+                    priority
                   />
                   <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                   
@@ -587,12 +586,12 @@ export default function PropertyDetailsModal({
                       {images[i] ? (
                         <>
                           <Image
-                            src={images[i]}
+                            src={normalizeImageUrl(images[i])}
                             alt={`View ${i + 1}`}
                             fill
                             sizes="(max-width: 1024px) 25vw, 15vw"
                             className="object-cover transition-transform duration-700 group-hover:scale-110"
-                            quality={75}
+                            quality={90}
                           />
                           <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </>

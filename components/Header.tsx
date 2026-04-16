@@ -131,57 +131,73 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                 
                 {/* Desktop Menu */}
                 <div className="hidden md:flex items-center space-x-1 sm:space-x-3">
-                  {/* Admin Tab */}
-                  {user?.is_admin && (
+                {/* Admin Tab */}
+                {user?.is_admin && (
+                  <Link
+                    href="/admin"
+                    className={`relative px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center group ${
+                      isActive('/admin') 
+                        ? 'text-[#C9A24D] bg-[#C9A24D]/5' 
+                        : 'text-[#6B7280] dark:text-gray-400 hover:text-[#C9A24D] hover:bg-[#C9A24D]/5'
+                    }`}
+                  >
+                    <ShieldCheck className="w-4 h-4 mr-2" />
+                    <span>Admin</span>
+                  </Link>
+                )}
+
+                {!user?.is_admin && !user?.broker_authorized ? (
+                  <Link
+                    href="/broker-authorization"
+                    className={`relative px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center group ${
+                      isActive('/broker-authorization') 
+                        ? 'text-[#111827] dark:text-white bg-gray-50 dark:bg-gray-800' 
+                        : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <ShieldCheck className={`w-4 h-4 mr-2 ${isActive('/broker-authorization') ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
+                    <span>Broker Authorization</span>
+                    {isActive('/broker-authorization') && <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full"></div>}
+                  </Link>
+                ) : (
+                  <>
                     <Link
-                      href="/admin"
+                      href={
+                        !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
+                        "/open-houses"
+                      }
                       className={`relative px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center group ${
-                        isActive('/admin') 
-                          ? 'text-[#C9A24D] bg-[#C9A24D]/5' 
-                          : 'text-[#6B7280] dark:text-gray-400 hover:text-[#C9A24D] hover:bg-[#C9A24D]/5'
+                        isActive('/open-houses') 
+                          ? 'text-[#111827] dark:text-white bg-gray-50 dark:bg-gray-800' 
+                          : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
                       }`}
                     >
-                      <ShieldCheck className="w-4 h-4 mr-2" />
-                      <span>Admin</span>
+                      <Home className={`w-4 h-4 mr-2 ${isActive('/open-houses') ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
+                      <span>Open Houses</span>
+                      {isActive('/open-houses') && <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full"></div>}
                     </Link>
-                  )}
 
-                  <Link
-                    href={
-                      !user?.is_admin && !user?.broker_authorized ? "/broker-authorization" :
-                      !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
-                      "/open-houses"
-                    }
-                    className={`relative px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center group ${
-                      isActive('/open-houses') 
-                        ? 'text-[#111827] dark:text-white bg-gray-50 dark:bg-gray-800' 
-                        : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    <Home className={`w-4 h-4 mr-2 ${isActive('/open-houses') ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
-                    <span>Open Houses</span>
-                    {isActive('/open-houses') && <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full"></div>}
-                  </Link>
-                  
-                  <Link 
-                    href={
-                      !user?.is_admin && !user?.broker_authorized ? "/broker-authorization" :
-                      !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
-                      !user?.is_admin && hasPremiumAccess === false ? "/upgrade-required" :
-                      "/showcases"
-                    }
-                    className={`relative px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center group ${
-                      isActive('/showcases') 
-                        ? 'text-[#111827] dark:text-white bg-gray-50 dark:bg-gray-800' 
-                        : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    <Layout className={`w-4 h-4 mr-2 ${isActive('/showcases') ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
-                    <span>Showcases</span>
-                    {isActive('/showcases') && <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full"></div>}
-                  </Link>
+                    <Link 
+                      href={
+                        !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
+                        !user?.is_admin && hasPremiumAccess === false ? "/upgrade-required" :
+                        "/showcases"
+                      }
+                      className={`relative px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center group ${
+                        isActive('/showcases') 
+                          ? 'text-[#111827] dark:text-white bg-gray-50 dark:bg-gray-800' 
+                          : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      <Layout className={`w-4 h-4 mr-2 ${isActive('/showcases') ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
+                      <span>Showcases</span>
+                      {isActive('/showcases') && <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full"></div>}
+                    </Link>
+                  </>
+                )}
 
-                  <Link 
+                <Link 
+ 
                     href="/settings/subscription" 
                     title="Settings"
                     className={`relative px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center group ${
@@ -268,38 +284,52 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                 </Link>
               )}
 
-              <Link
-                href={
-                  !user?.is_admin && !user?.broker_authorized ? "/broker-authorization" :
-                  !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
-                  "/open-houses"
-                }
-                className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
-                  isActive('/open-houses') 
-                    ? 'bg-[#C9A24D]/10 text-[#C9A24D]' 
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }`}
-              >
-                <Home className="w-5 h-5" />
-                <span>Open Houses</span>
-              </Link>
+              {!user?.is_admin && !user?.broker_authorized ? (
+                <Link
+                  href="/broker-authorization"
+                  className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
+                    isActive('/broker-authorization') 
+                      ? 'bg-[#C9A24D]/10 text-[#C9A24D]' 
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  <ShieldCheck className="w-5 h-5" />
+                  <span>Broker Authorization</span>
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href={
+                      !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
+                      "/open-houses"
+                    }
+                    className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
+                      isActive('/open-houses') 
+                        ? 'bg-[#C9A24D]/10 text-[#C9A24D]' 
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <Home className="w-5 h-5" />
+                    <span>Open Houses</span>
+                  </Link>
 
-              <Link
-                href={
-                  !user?.is_admin && !user?.broker_authorized ? "/broker-authorization" :
-                  !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
-                  !user?.is_admin && hasPremiumAccess === false ? "/upgrade-required" :
-                  "/showcases"
-                }
-                className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
-                  isActive('/showcases') 
-                    ? 'bg-[#C9A24D]/10 text-[#C9A24D]' 
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }`}
-              >
-                <Layout className="w-5 h-5" />
-                <span>Showcases</span>
-              </Link>
+                  <Link
+                    href={
+                      !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
+                      !user?.is_admin && hasPremiumAccess === false ? "/upgrade-required" :
+                      "/showcases"
+                    }
+                    className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
+                      isActive('/showcases') 
+                        ? 'bg-[#C9A24D]/10 text-[#C9A24D]' 
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <Layout className="w-5 h-5" />
+                    <span>Showcases</span>
+                  </Link>
+                </>
+              )}
 
               <Link
                 href="/settings/subscription"

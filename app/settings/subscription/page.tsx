@@ -5,10 +5,10 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Footer from '@/components/Footer'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import ResubscribeModal from '@/components/ResubscribeModal'
-import { getCurrentUser, User, apiRequest } from '@/lib/auth'
+import { User, apiRequest } from '@/lib/auth'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
-import { CreditCard, Sparkles, AlertCircle, Calendar, CheckCircle2 } from 'lucide-react'
+import { Sparkles, AlertCircle, Calendar, CheckCircle2 } from 'lucide-react'
 import { TRIAL_PERIOD_DAYS, PRICING_PLANS  } from '@/lib/pricing'
 
 function SubscriptionContent() {
@@ -20,6 +20,7 @@ function SubscriptionContent() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
+  console.log(user);
 
   // Modal states
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
@@ -281,9 +282,22 @@ function SubscriptionContent() {
     }
   }
 
+  // Helper to determine if subscription is managed by brokerage/team
+  const isManagedSubscription = (user: User | null) => {
+    if (!user) return false
+    return !user.subscription_id && !user.plan_id && !!user.plan_tier
+  }
+
+  const hasFreeSub = isManagedSubscription(user)
+
   // Status badge component
   const StatusBadge = ({ status }: { status: string }) => {
     const getStatusConfig = () => {
+      // Prioritize managed status
+      if (hasFreeSub) {
+        return { color: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/30', icon: CheckCircle2, text: 'Managed Subscription' }
+      }
+
       // Prioritize unauthorized status
       if (!user?.broker_authorized && !user?.is_admin) {
         return { color: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700', icon: AlertCircle, text: 'Pending Verification' }
@@ -353,6 +367,9 @@ function SubscriptionContent() {
 
   // Determine plan name
   const getPlanName = () => {
+    if (hasFreeSub) {
+      return user?.plan_tier === 'PREMIUM' ? 'Premium (Managed)' : 'Basic (Managed)'
+    }
     if (user?.subscription_status === 'PENDING_PAYMENT') return 'No Plan Active'
     if (user?.plan_tier === 'PREMIUM') return 'Premium Plan'
     if (user?.plan_tier === 'BASIC') return 'Basic Plan'
@@ -361,6 +378,7 @@ function SubscriptionContent() {
 
   // Determine plan price
   const getPlanPrice = () => {
+    if (hasFreeSub) return 'Brokerage Paid'
     if (user?.subscription_status === 'PENDING_PAYMENT') return '$0.00'
     if (user?.plan_tier === 'PREMIUM') return PRICING_PLANS.PREMIUM.priceString
     if (user?.plan_tier === 'BASIC') return PRICING_PLANS.BASIC.priceString
@@ -416,15 +434,17 @@ function SubscriptionContent() {
               <div className="flex-1 text-center sm:text-left">
                 <h3 className="font-black text-[#111827] dark:text-white mb-2 uppercase tracking-widest text-xs">Account Authorized</h3>
                 <p className="text-lg text-[#6B7280] dark:text-gray-400 leading-relaxed font-medium mb-0">
-                  Your brokerage credentials have been verified! Choose a plan below to activate your <span className="text-[#C9A24D] font-black">{TRIAL_PERIOD_DAYS}-day free trial</span> and get started.
+                  Your brokerage credentials have been verified! {hasFreeSub ? 'Your account has been upgraded to a managed plan by your brokerage.' : `Choose a plan below to activate your ${TRIAL_PERIOD_DAYS}-day free trial and get started.`}
                 </p>
               </div>
-              <button
-                onClick={() => router.push('/checkout')}
-                className="w-full sm:w-auto px-10 py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 transition-all hover:-translate-y-1 active:scale-95"
-              >
-                Choose Plan
-              </button>
+              {!hasFreeSub && (
+                <button
+                  onClick={() => router.push('/checkout')}
+                  className="w-full sm:w-auto px-10 py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 transition-all hover:-translate-y-1 active:scale-95"
+                >
+                  Choose Plan
+                </button>
+              )}
             </div>
           )}
 
@@ -499,51 +519,64 @@ function SubscriptionContent() {
                     <p className="text-3xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-6">{getPlanName()}</p>
                     <div className="flex items-baseline bg-white dark:bg-[#151517] px-6 py-3 rounded-2xl border border-gray-100 dark:border-gray-800 w-fit shadow-sm">
                       <span className="text-3xl font-black text-[#C9A24D] tracking-tighter">{getPlanPrice()}</span>
-                      <span className="ml-2 text-xs font-bold text-[#6B7280] dark:text-gray-500 uppercase tracking-wider">/month</span>
+                      {!hasFreeSub && <span className="ml-2 text-xs font-bold text-[#6B7280] dark:text-gray-500 uppercase tracking-wider">/month</span>}
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-6 py-2">
-                  {isTrial && user?.trial_ends_at && (
-                    <div className="flex justify-between items-center group">
-                      <p className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Trial Ends</p>
-                      <p className="text-base font-black text-[#0B0B0B] dark:text-white">{formatDate(user.trial_ends_at)}</p>
+                  {hasFreeSub ? (
+                    <div className="h-full flex flex-col justify-center">
+                      <div className="p-6 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100/50 dark:border-indigo-900/20 rounded-2xl">
+                        <p className="text-xs font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-widest mb-2">Billing Information</p>
+                        <p className="text-sm text-indigo-900/70 dark:text-indigo-300/70 leading-relaxed font-medium">
+                          Your subscription is managed and paid for by your team lead or brokerage. You have full access to all features included in the {user?.plan_tier === 'PREMIUM' ? 'Premium' : 'Basic'} tier.
+                        </p>
+                      </div>
                     </div>
-                  )}
+                  ) : (
+                    <>
+                      {isTrial && user?.trial_ends_at && (
+                        <div className="flex justify-between items-center group">
+                          <p className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Trial Ends</p>
+                          <p className="text-base font-black text-[#0B0B0B] dark:text-white">{formatDate(user.trial_ends_at)}</p>
+                        </div>
+                      )}
 
-                  {user?.subscription_started_at && (
-                    <div className="flex justify-between items-center group">
-                      <p className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Active Since</p>
-                      <p className="text-base font-black text-[#0B0B0B] dark:text-white">{formatDate(user.subscription_started_at)}</p>
-                    </div>
-                  )}
+                      {user?.subscription_started_at && (
+                        <div className="flex justify-between items-center group">
+                          <p className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Active Since</p>
+                          <p className="text-base font-black text-[#0B0B0B] dark:text-white">{formatDate(user.subscription_started_at)}</p>
+                        </div>
+                      )}
 
-                  {user?.last_billing_date && (
-                    <div className="flex justify-between items-center group">
-                      <p className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Last Billing</p>
-                      <p className="text-base font-black text-[#0B0B0B] dark:text-white">{formatDate(user.last_billing_date)}</p>
-                    </div>
-                  )}
+                      {user?.last_billing_date && (
+                        <div className="flex justify-between items-center group">
+                          <p className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest group-hover:text-[#111827] dark:group-hover:text-white transition-colors">Last Billing</p>
+                          <p className="text-base font-black text-[#0B0B0B] dark:text-white">{formatDate(user.last_billing_date)}</p>
+                        </div>
+                      )}
 
-                  {(isTrial || isActive) && (user?.next_billing_date || user?.trial_ends_at) && (
-                    <div className="flex justify-between items-center pt-6 border-t border-gray-100 dark:border-gray-800 mt-2">
-                      <p className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest">
-                        {isTrial ? 'First Payment' : 'Next Renewal'}
-                      </p>
-                      <p className="text-base font-black text-[#C9A24D]">
-                        {formatDate(isTrial ? user.trial_ends_at : user.next_billing_date)}
-                      </p>
-                    </div>
-                  )}
+                      {(isTrial || isActive) && (user?.next_billing_date || user?.trial_ends_at) && (
+                        <div className="flex justify-between items-center pt-6 border-t border-gray-100 dark:border-gray-800 mt-2">
+                          <p className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest">
+                            {isTrial ? 'First Payment' : 'Next Renewal'}
+                          </p>
+                          <p className="text-base font-black text-[#C9A24D]">
+                            {formatDate(isTrial ? user.trial_ends_at : user.next_billing_date)}
+                          </p>
+                        </div>
+                      )}
 
-                  {isCancelled && (user?.next_billing_date || user?.trial_ends_at) && (
-                    <div className="flex justify-between items-center pt-6 border-t border-gray-100 dark:border-gray-800 mt-2">
-                      <p className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest">Access Ends</p>
-                      <p className="text-base font-black text-amber-600 dark:text-amber-400">
-                        {formatDate(user.next_billing_date || user.trial_ends_at)}
-                      </p>
-                    </div>
+                      {isCancelled && (user?.next_billing_date || user?.trial_ends_at) && (
+                        <div className="flex justify-between items-center pt-6 border-t border-gray-100 dark:border-gray-800 mt-2">
+                          <p className="text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest">Access Ends</p>
+                          <p className="text-base font-black text-amber-600 dark:text-amber-400">
+                            {formatDate(user.next_billing_date || user.trial_ends_at)}
+                          </p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -571,8 +604,8 @@ function SubscriptionContent() {
               )}
             </div>
 
-            {/* 2. Change Plan Card - Only shown if they have an active or trial subscription */}
-            {(isActive || isTrial) && (
+            {/* 2. Change Plan Card - Only shown if they have an active or trial subscription and NOT managed */}
+            {!hasFreeSub && (isActive || isTrial) && (
               <div className="bg-white dark:bg-[#151517] rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 sm:p-10 border border-gray-100 dark:border-gray-800 relative overflow-hidden group hover:shadow-lg transition-all duration-300">
                  <div className="flex items-center mb-6">
                   <div className="w-12 h-12 bg-[#FAFAF7] dark:bg-[#0B0B0B] rounded-2xl flex items-center justify-center mr-5 border border-gray-100 dark:border-gray-800 shadow-sm group-hover:scale-105 transition-transform">
@@ -617,8 +650,8 @@ function SubscriptionContent() {
               </div>
             )}
 
-            {/* 3. Manage Subscription Card - Only shown if authorized and has a subscription status (not pending payment) */}
-            {isAuthorized && user?.subscription_status !== 'PENDING_PAYMENT' && (
+            {/* 3. Manage Subscription Card - Only shown if authorized, NOT managed, and has a subscription status (not pending payment) */}
+            {!hasFreeSub && isAuthorized && user?.subscription_status !== 'PENDING_PAYMENT' && (
               <div className="bg-white dark:bg-[#151517] rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 sm:p-10 border border-gray-100 dark:border-gray-800 transition-colors">
                 <h2 className="text-xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-8 pb-4 border-b border-gray-50 dark:border-gray-800">Security & Billing</h2>
 

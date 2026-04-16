@@ -1,8 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Bed, Bath, Square, TreePine, Calendar, Clock } from "lucide-react";
-import { formatPropertyFeature } from "@/lib/utils";
+import { formatPropertyFeature, normalizeImageUrl } from "@/lib/utils";
 
 interface PropertyCardProps {
   image: string;
@@ -70,7 +69,7 @@ export function PropertyRecommendationCard({
       {/* Property Image */}
       <div className={`relative w-full overflow-hidden bg-muted ${isCompact ? 'aspect-[16/10]' : 'aspect-[4/3]'}`}>
         <Image
-          src={image || "/placeholder.svg"}
+          src={normalizeImageUrl(image) || "/placeholder.svg"}
           alt={cleanAddress}
           fill
           priority
