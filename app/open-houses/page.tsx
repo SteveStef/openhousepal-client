@@ -107,13 +107,24 @@ const formatAddress = (address: string) => {
 };
 
 const formatStreetAndCity = (address: string, city?: string) => {
-  if (!address) return "";
+  if (!address) {
+    return "";
+  }
   const parts = address.split(',');
   
   const street = parts[0].trim();
   const targetCity = city || (parts.length >= 2 ? parts[1].trim() : "");
   
   if (targetCity) {
+    // If the street already includes the city, don't append it again
+    if (street.toLowerCase().includes(targetCity.toLowerCase())) {
+      return street
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    }
+
     const rawAddress = `${street}, ${targetCity}`;
     return rawAddress
       .toLowerCase()
@@ -269,7 +280,7 @@ function OpenHouseContent() {
             baths: id ? ((targetOH as any).bathrooms || (targetOH as any).BathroomsTotal) : (propertyData?.BathroomsTotal || 0),
             sqft: id ? ((targetOH as any).LivingArea || (targetOH as any).livingArea || (targetOH as any).living_area) : (propertyData?.LivingArea || propertyData?.livingArea || 0),
             coverImage: id ? (targetOH as any).coverImageUrl : selectedImage?.url,
-            openHouseUrl: id ? (targetOH as any).formUrl : `${window.location.origin}/open-house/${generatedOpenHouseId}`
+            openHouseUrl: id ? (targetOH as any).formUrl : `${process.env.NEXT_PUBLIC_CLIENT_URL || window.location.origin}/open-house/${generatedOpenHouseId}`
           };
           setPdfPreviewData(flyerData);
           setPdfPreviewTitle("Sign-In Flyer");

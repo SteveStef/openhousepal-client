@@ -11,6 +11,8 @@ import {
 import { normalizeImageUrl } from '@/lib/utils';
 
 // 1. Register Fonts
+Font.registerHyphenationCallback(word => [word]);
+
 Font.register({
   family: 'Montserrat',
   fonts: [
@@ -194,8 +196,6 @@ const PropertyPDFCard = ({ item, agentId }: { item: any; agentId?: string }) => 
 
 export const OpenHouseFlyerDocument = ({ data }: { data: any }) => {
   const url = `${process.env.NEXT_PUBLIC_CLIENT_URL || "https://openhousepal.com"}${data.openHouseUrl}`;
-  console.log(process.env.NEXT_PUBLIC_CLIENT_URL);
-  console.log(url)
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
   const propertyAddress = data?.address || "Address Not Available";
 
