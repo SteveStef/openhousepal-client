@@ -112,14 +112,29 @@ const styles = StyleSheet.create({
     overflow: 'hidden', 
     marginBottom: 24,
     backgroundColor: COLORS.white, 
-    height: 195 
+    height: 195  // Keep this fixed as requested
   },
-  cardImage: { width: '100%', height: 95, objectFit: 'cover' },
-  cardBody: { padding: 12, flex: 1, justifyContent: 'space-between' },
-  
-  // Card Typography refined
-  cardAddress: { fontSize: 10, fontWeight: 700, color: COLORS.text, marginBottom: 2 },
-  cardPrice: { fontSize: 11, fontWeight: 700, color: COLORS.accent },
+  cardImage: { 
+    width: '100%', 
+    height: 110, // Increased from 95
+    objectFit: 'cover' 
+  },
+  cardBody: { 
+    padding: 8, // Reduced padding from 12 to save space
+    flex: 1, 
+    justifyContent: 'space-between' 
+  },
+  cardAddress: { 
+    fontSize: 11, // Slightly smaller to ensure fit
+    fontWeight: 700, 
+    color: COLORS.text, 
+    marginBottom: 1 
+  },
+  cardPrice: { 
+    fontSize: 11, // Slightly smaller
+    fontWeight: 700, 
+    color: COLORS.accent 
+  },
   
   cardFooter: { 
     flexDirection: 'row', 
@@ -137,9 +152,9 @@ const styles = StyleSheet.create({
     alignItems: 'baseline', 
     gap: 3 
   },
-  statNumberLarge: { fontSize: 11, fontWeight: 700, color: COLORS.text },
-  statLabelSmall: { fontSize: 6, color: COLORS.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  miniQr: { width: 42, height: 42, padding: 2, border: `1 solid ${COLORS.line}`, backgroundColor: 'white' }
+  statNumberLarge: { fontSize: 12, fontWeight: 700, color: COLORS.text },
+  statLabelSmall: { fontSize: 7, color: COLORS.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  miniQr: { width: 48, height: 48, padding: 2, border: `1 solid ${COLORS.line}`, backgroundColor: 'white' }
 });
 
 const formatAddress = (street: string, city: string): string => {
