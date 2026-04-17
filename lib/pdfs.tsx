@@ -128,11 +128,11 @@ const styles = StyleSheet.create({
     fontSize: 11, // Slightly smaller to ensure fit
     fontWeight: 700, 
     color: COLORS.text, 
-    marginBottom: 1 
+    marginBottom: 8
   },
   cardPrice: { 
-    fontSize: 11, // Slightly smaller
-    fontWeight: 700, 
+    fontSize: 12, // Slightly smaller
+    fontWeight: 900, 
     color: COLORS.accent 
   },
   
