@@ -170,6 +170,8 @@ export default function OpenHouseSignInForm({
                 src={the_image_src}
                 alt={property.FullStreetAddress}
                 fill
+                sizes="256px"
+                quality={90}
                 className="object-cover"
               />
             </div>
