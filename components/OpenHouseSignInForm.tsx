@@ -29,7 +29,6 @@ export default function OpenHouseSignInForm({
   })
 
   const [currentStep, setCurrentStep] = useState(1)
-  const [showCollectionOffer, setShowCollectionOffer] = useState(false)
   const [emailError, setEmailError] = useState<string | null>(null)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -77,6 +76,21 @@ export default function OpenHouseSignInForm({
     }))
   }
 
+  const handleAgentResponse = async (value: 'YES' | 'NO') => {
+    if (isLoading) return;
+    
+    // Update state
+    setFormData(prev => ({ ...prev, hasAgent: value }));
+    
+    if (value === 'YES') {
+      // If YES, skip collection offer and submit directly
+      await onSubmit({ ...formData, hasAgent: value, interestedInSimilar: false });
+    } else {
+      // If NO, assume they want to be updated and submit directly
+      await onSubmit({ ...formData, hasAgent: value, interestedInSimilar: true });
+    }
+  }
+
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
@@ -115,23 +129,11 @@ export default function OpenHouseSignInForm({
     }
 
     if (currentStep === 3) {
-      // If user already has an agent, skip collection offer and submit directly
-      if (formData.hasAgent === 'YES') {
-        const finalData = { ...formData, interestedInSimilar: false }
-        await onSubmit(finalData)
-        return
-      }
-
-      setShowCollectionOffer(true)
+      // Logic handled by handleAgentResponse buttons
       return
     }
 
     await onSubmit(formData)
-  }
-
-  const handleCollectionResponse = async (interested: boolean) => {
-    const finalData = { ...formData, interestedInSimilar: interested }
-    await onSubmit(finalData)
   }
 
   const formatPrice = (price?: number) => {
@@ -145,52 +147,6 @@ export default function OpenHouseSignInForm({
       case 3: return "Your Visit"
       default: return "Sign In"
     }
-  }
-
-  if (showCollectionOffer) {
-    return (
-      <div className="max-w-lg mx-auto bg-white dark:bg-[#151517] rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 transition-colors duration-300">
-        <div className="p-10">
-          <div className="text-center mb-10">
-            <div className="w-20 h-20 bg-green-50 dark:bg-green-900/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <svg className="w-10 h-10 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path>
-              </svg>
-            </div>
-            <h2 className="text-3xl font-black text-[#0B0B0B] dark:text-white mb-4 tracking-tight">Thank You!</h2>
-            <p className="text-[#6B7280] dark:text-gray-400 text-lg font-medium leading-relaxed">Would you like automated updates on similar properties in this area?</p>
-          </div>
-
-          <div className="space-y-4">
-            <button
-              onClick={() => handleCollectionResponse(true)}
-              className="w-full bg-[#111827] dark:bg-white hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] text-white dark:text-[#111827] dark:hover:text-white font-black uppercase tracking-widest py-4 px-8 rounded-2xl transition-all duration-300 shadow-xl hover:scale-[1.02] active:scale-95"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white dark:text-[#111827]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Creating...
-                </span>
-              ) : (
-                'Yes, keep me updated'
-              )}
-            </button>
-            
-            <button
-              onClick={() => handleCollectionResponse(false)}
-              className="w-full bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-[#6B7280] dark:text-gray-400 font-bold py-4 px-8 rounded-2xl border-2 border-gray-100 dark:border-gray-800 transition-all duration-300 uppercase tracking-widest text-xs"
-              disabled={isLoading}
-            >
-              No thanks
-            </button>
-          </div>
-        </div>
-      </div>
-    )
   }
 
   const the_image_src = property.ListPictureURL || "";
@@ -340,26 +296,28 @@ export default function OpenHouseSignInForm({
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, hasAgent: 'NO' }))}
-                  className={`py-4 px-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all duration-300 border-2 ${
-                    formData.hasAgent === 'NO'
-                      ? 'bg-[#111827] dark:bg-white text-white dark:text-[#111827] border-[#111827] dark:border-white shadow-xl'
-                      : 'bg-white dark:bg-[#0B0B0B] border-gray-100 dark:border-gray-800 text-[#6B7280] dark:text-gray-400 hover:border-[#C9A24D]'
-                  }`}
+                  onClick={() => handleAgentResponse('NO')}
+                  disabled={isLoading}
+                  className={`py-6 px-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all duration-300 border-2 bg-white dark:bg-[#0B0B0B] border-gray-100 dark:border-gray-800 text-[#6B7280] dark:text-gray-400 hover:border-[#C9A24D] hover:text-[#C9A24D] active:scale-95 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   No
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, hasAgent: 'YES' }))}
-                  className={`py-4 px-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all duration-300 border-2 ${
-                    formData.hasAgent === 'YES'
-                      ? 'bg-[#111827] dark:bg-white text-white dark:text-[#111827] border-[#111827] dark:border-white shadow-xl'
-                      : 'bg-white dark:bg-[#0B0B0B] border-gray-100 dark:border-gray-800 text-[#6B7280] dark:text-gray-400 hover:border-[#C9A24D]'
-                  }`}
+                  onClick={() => handleAgentResponse('YES')}
+                  disabled={isLoading}
+                  className={`py-6 px-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all duration-300 border-2 bg-white dark:bg-[#0B0B0B] border-gray-100 dark:border-gray-800 text-[#6B7280] dark:text-gray-400 hover:border-[#C9A24D] hover:text-[#C9A24D] active:scale-95 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  Yes
+                  {isLoading && formData.hasAgent === 'YES' ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-[#111827] dark:text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Processing...
+                    </span>
+                  ) : 'Yes'}
                 </button>
               </div>
             </div>
@@ -367,7 +325,7 @@ export default function OpenHouseSignInForm({
         </div>
 
         <div className="flex space-x-4 pt-8">
-          {currentStep > 1 && (
+          {currentStep > 1 && currentStep < 3 && (
             <button
               type="button"
               onClick={handlePrevStep}
@@ -377,40 +335,31 @@ export default function OpenHouseSignInForm({
             </button>
           )}
           
-          <button
-            type={currentStep === 3 ? "submit" : "button"}
-            onClick={currentStep === 3 ? undefined : handleNextStep}
-            className={`${currentStep > 1 ? 'flex-1' : 'w-full'} bg-[#111827] dark:bg-white hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] text-white dark:text-[#111827] dark:hover:text-white font-black uppercase tracking-widest py-4 px-6 rounded-2xl transition-all duration-300 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] text-xs`}
-            disabled={isLoading || !isStepValid()}
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white dark:text-[#111827]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processing...
-              </span>
-            ) : (
-              <span className="flex items-center justify-center">
-                {currentStep === 3 ? (
-                  <>
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    Complete
-                  </>
-                ) : (
-                  <>
-                    Continue
-                    <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7"></path>
-                    </svg>
-                  </>
-                )}
-              </span>
-            )}
-          </button>
+          {currentStep < 3 && (
+            <button
+              type="button"
+              onClick={handleNextStep}
+              className={`${currentStep > 1 ? 'flex-1' : 'w-full'} bg-[#111827] dark:bg-white hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] text-white dark:text-[#111827] dark:hover:text-white font-black uppercase tracking-widest py-4 px-6 rounded-2xl transition-all duration-300 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] text-xs`}
+              disabled={isLoading || !isStepValid()}
+            >
+              {isLoading ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white dark:text-[#111827]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </span>
+              ) : (
+                <span className="flex items-center justify-center">
+                  Continue
+                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7"></path>
+                  </svg>
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </form>
     </div>
