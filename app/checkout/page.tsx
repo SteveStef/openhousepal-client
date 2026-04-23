@@ -53,12 +53,20 @@ function CheckoutContent() {
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' })
 
   useEffect(() => {
-    // If user is already paid and has a valid subscription, send them to showcases
-    if (!isAuthLoading && user && hasValidSubscription(user)) {
-      router.push('/showcases')
+    if (isAuthLoading || !user) return
+
+    // If user is already paid and has a valid subscription, send them to open-houses
+    if (hasValidSubscription(user)) {
+      router.push('/open-houses')
+      return
+    }
+
+    // If they had a subscription that is now cancelled/expired, send them to settings
+    // This prevents them from getting another free trial through the checkout page
+    if (user.subscription_status === 'CANCELLED' || user.subscription_status === 'EXPIRED') {
+      router.push('/settings/subscription')
     }
   }, [user, isAuthLoading, router])
-
   const handleVerifyBundleCode = async () => {
     if (!bundleCode.trim()) return
     
@@ -326,7 +334,7 @@ function CheckoutContent() {
                             bundleCode={appliedBundleCode || undefined}
                             onSuccess={async () => {
                               await refreshUser()
-                              router.push('/showcases')
+                              router.push('/open-houses')
                             }}
                             onError={(err) => setNotification({ type: 'error', message: err })}
                           />

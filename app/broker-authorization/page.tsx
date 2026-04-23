@@ -25,7 +25,7 @@ function BrokerAuthorizationContent() {
 
   useEffect(() => {
     if (!isLoading && user?.broker_authorized) {
-      router.push('/showcases')
+      router.push('/open-houses')
     }
   }, [user, isLoading, router])
 

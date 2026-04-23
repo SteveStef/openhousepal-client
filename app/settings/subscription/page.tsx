@@ -360,7 +360,7 @@ function SubscriptionContent() {
     const diffTime = endDate.getTime() - now.getTime()
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
-    return diffDays > 0 ? diffDays : 0
+    return diffDays
   }
 
   const daysRemaining = getDaysRemaining()
@@ -406,6 +406,65 @@ function SubscriptionContent() {
   const isAuthorized = user?.broker_authorized || user?.is_admin
   const isPendingPayment = user?.subscription_status === 'PENDING_PAYMENT' && isAuthorized
 
+  const SecurityBillingSection = !hasFreeSub && isAuthorized && user?.subscription_status !== 'PENDING_PAYMENT' ? (
+    <div className="bg-white dark:bg-[#151517] rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 sm:p-10 border border-gray-100 dark:border-gray-800 transition-colors">
+      <h2 className="text-xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-8 pb-4 border-b border-gray-50 dark:border-gray-800">Security & Billing</h2>
+
+      {(isActive || isTrial) && !isCancelled && !isSuspended && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
+          <div className="max-w-xl">
+            <h4 className="font-bold text-[#111827] dark:text-white mb-2">Need to pause?</h4>
+            <p className="text-[#6B7280] dark:text-gray-400 text-sm leading-relaxed">
+                If you cancel, your data stays safe and secure. You'll keep full access to all features until the end of your current billing term.
+            </p>
+          </div>
+          <button
+            onClick={() => setCancelModalOpen(true)}
+            className="px-6 py-4 border border-red-100 dark:border-red-900/30 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 dark:hover:border-red-900/50 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 whitespace-nowrap"
+          >
+            Cancel Plan
+          </button>
+        </div>
+      )}
+
+      {isSuspended && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
+          <div className="max-w-xl">
+            <h4 className="font-bold text-[#111827] dark:text-white mb-2">Restore Access</h4>
+            <p className="text-[#6B7280] dark:text-gray-400 text-sm leading-relaxed">
+              Reactivate your subscription to immediately restore access to your showcases and visitor data.
+            </p>
+          </div>
+          <button
+            onClick={() => setReactivateModalOpen(true)}
+            className="px-8 py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300"
+          >
+            Reactivate
+          </button>
+        </div>
+      )}
+
+      {(isCancelled || isExpired || isSuspended) && (
+        <div className={`${isSuspended ? 'mt-12 pt-8 border-t border-gray-50 dark:border-gray-800' : ''} flex flex-col sm:flex-row sm:items-center justify-between gap-8`}>
+          <div className="max-w-xl">
+            <h4 className="font-bold text-[#111827] dark:text-white mb-2">{isSuspended ? 'Use Different Card' : 'Come back anytime'}</h4>
+            <p className="text-[#6B7280] dark:text-gray-400 text-sm leading-relaxed">
+              {isSuspended 
+                ? 'To start fresh with a different card, we must first cancel your current failed agreement.'
+                : 'Regain full access to the platform by starting a new subscription today. Your previous data is waiting for you.'}
+            </p>
+          </div>
+          <button
+            onClick={() => isSuspended ? setStartFreshModalOpen(true) : setResubscribeModalOpen(true)}
+            className="px-8 py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300"
+          >
+            {isSuspended ? 'Start Fresh' : 'Resubscribe'}
+          </button>
+        </div>
+      )}
+    </div>
+  ) : null
+
   return (
     <div className="min-h-screen flex flex-col bg-[#FAFAF7] dark:bg-[#0B0B0B] relative overflow-hidden transition-colors duration-300">
       {/* Sophisticated Background */}
@@ -449,7 +508,7 @@ function SubscriptionContent() {
           )}
 
           {/* Alert for suspended/expired subscriptions */}
-          {(isSuspended || isExpired) && (
+          {(isSuspended || isExpired || (isCancelled && daysRemaining !== null && daysRemaining < 0)) && (
             <div className="mb-8 bg-white/90 dark:bg-[#151517]/90 border border-red-100 dark:border-red-900/30 rounded-3xl p-8 flex items-start shadow-xl shadow-red-500/5 transition-colors">
               <div className="w-12 h-12 bg-red-50 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mr-6 flex-shrink-0 shadow-inner">
                 <AlertCircle className="w-6 h-6 text-red-500 dark:text-red-400" />
@@ -461,14 +520,16 @@ function SubscriptionContent() {
                 <p className="text-base text-red-700/80 dark:text-red-300/80 leading-relaxed font-medium">
                   {isSuspended
                     ? 'Your last payment could not be processed. Please update your payment method on PayPal to restore full access.'
-                    : 'Your current subscription term has ended. Please reactivate your plan to continue using our premium tools.'}
+                    : (isCancelled && daysRemaining !== null && daysRemaining < 0) 
+                      ? 'Your access period has ended. Please resubscribe to continue using our premium tools.'
+                      : 'Your current subscription term has ended. Please reactivate your plan to continue using our premium tools.'}
                 </p>
               </div>
             </div>
           )}
 
           {/* Alert for cancelled subscription */}
-          {isCancelled && (
+          {isCancelled && daysRemaining !== null && daysRemaining >= 0 && (
             <div className="mb-8 bg-white/90 dark:bg-[#151517]/90 border border-amber-100 dark:border-amber-900/30 rounded-3xl p-8 flex items-start shadow-xl shadow-amber-500/5 transition-colors">
               <div className="w-12 h-12 bg-amber-50 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center mr-6 flex-shrink-0 shadow-inner">
                 <AlertCircle className="w-6 h-6 text-amber-500 dark:text-amber-400" />
@@ -478,7 +539,7 @@ function SubscriptionContent() {
                 <p className="text-base text-amber-800/80 dark:text-amber-300/80 leading-relaxed font-medium mb-6">
                   Your subscription has been cancelled. You will maintain access to all features until your current period expires.
                 </p>
-                {daysRemaining !== null && daysRemaining > 0 && (
+                {daysRemaining > 0 && (
                   <div className="inline-flex items-center px-5 py-2.5 bg-amber-100/50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/30 rounded-xl">
                     <Calendar className="w-4 h-4 text-amber-700 dark:text-amber-400 mr-3" />
                     <span className="text-xs font-bold text-amber-900 dark:text-amber-400 uppercase tracking-widest">
@@ -499,6 +560,9 @@ function SubscriptionContent() {
           )}
 
           <div className="space-y-8">
+            {/* Show Security & Billing at TOP if they are cancelled/expired/suspended (Urgent actions) */}
+            {(isCancelled || isExpired || isSuspended) && SecurityBillingSection}
+
             {/* 1. Current Subscription Card */}
             <div className="bg-white dark:bg-[#151517] rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 sm:p-10 border border-gray-100 dark:border-gray-800 relative overflow-hidden transition-colors">
               {/* Decorative top border */}
@@ -605,7 +669,7 @@ function SubscriptionContent() {
             </div>
 
             {/* 2. Change Plan Card - Only shown if they have an active or trial subscription and NOT managed */}
-            {!hasFreeSub && (isActive || isTrial) && (
+            {!hasFreeSub && (isActive || isTrial) && !isCancelled && (
               <div className="bg-white dark:bg-[#151517] rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 sm:p-10 border border-gray-100 dark:border-gray-800 relative overflow-hidden group hover:shadow-lg transition-all duration-300">
                  <div className="flex items-center mb-6">
                   <div className="w-12 h-12 bg-[#FAFAF7] dark:bg-[#0B0B0B] rounded-2xl flex items-center justify-center mr-5 border border-gray-100 dark:border-gray-800 shadow-sm group-hover:scale-105 transition-transform">
@@ -650,65 +714,8 @@ function SubscriptionContent() {
               </div>
             )}
 
-            {/* 3. Manage Subscription Card - Only shown if authorized, NOT managed, and has a subscription status (not pending payment) */}
-            {!hasFreeSub && isAuthorized && user?.subscription_status !== 'PENDING_PAYMENT' && (
-              <div className="bg-white dark:bg-[#151517] rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] p-8 sm:p-10 border border-gray-100 dark:border-gray-800 transition-colors">
-                <h2 className="text-xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-8 pb-4 border-b border-gray-50 dark:border-gray-800">Security & Billing</h2>
-
-                {(isActive || isTrial) && !isCancelled && !isSuspended && (
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
-                    <div className="max-w-xl">
-                      <h4 className="font-bold text-[#111827] dark:text-white mb-2">Need to pause?</h4>
-                      <p className="text-[#6B7280] dark:text-gray-400 text-sm leading-relaxed">
-                          If you cancel, your data stays safe and secure. You'll keep full access to all features until the end of your current billing term.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setCancelModalOpen(true)}
-                      className="px-6 py-4 border border-red-100 dark:border-red-900/30 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 dark:hover:border-red-900/50 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 whitespace-nowrap"
-                    >
-                      Cancel Plan
-                    </button>
-                  </div>
-                )}
-
-                {isSuspended && (
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
-                    <div className="max-w-xl">
-                      <h4 className="font-bold text-[#111827] dark:text-white mb-2">Restore Access</h4>
-                      <p className="text-[#6B7280] dark:text-gray-400 text-sm leading-relaxed">
-                        Reactivate your subscription to immediately restore access to your showcases and visitor data.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setReactivateModalOpen(true)}
-                      className="px-8 py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300"
-                    >
-                      Reactivate
-                    </button>
-                  </div>
-                )}
-
-                {(isCancelled || isExpired || isSuspended) && (
-                  <div className={`${isSuspended ? 'mt-12 pt-8 border-t border-gray-50 dark:border-gray-800' : ''} flex flex-col sm:flex-row sm:items-center justify-between gap-8`}>
-                    <div className="max-w-xl">
-                      <h4 className="font-bold text-[#111827] dark:text-white mb-2">{isSuspended ? 'Use Different Card' : 'Come back anytime'}</h4>
-                      <p className="text-[#6B7280] dark:text-gray-400 text-sm leading-relaxed">
-                        {isSuspended 
-                          ? 'To start fresh with a different card, we must first cancel your current failed agreement.'
-                          : 'Regain full access to the platform by starting a new subscription today. Your previous data is waiting for you.'}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => isSuspended ? setStartFreshModalOpen(true) : setResubscribeModalOpen(true)}
-                      className="px-8 py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-[#C9A24D]/30 hover:-translate-y-1 transition-all duration-300"
-                    >
-                      {isSuspended ? 'Start Fresh' : 'Resubscribe'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Show Security & Billing at BOTTOM for normal active/trial users */}
+            {!(isCancelled || isExpired || isSuspended) && SecurityBillingSection}
           </div>
         </div>
       </main>
@@ -735,7 +742,7 @@ function SubscriptionContent() {
         title="Downgrade to Basic?"
         message="You will lose access to automated Showcases and matching tools at the end of your current term."
         confirmText="Confirm Downgrade"
-        confirmButtonClass="bg-[#111827] hover:bg-gray-800"
+        confirmButtonClass="bg-[#111827] hover:bg-gray-800 text-white"
         isLoading={actionLoading}
       />
 
@@ -767,7 +774,7 @@ function SubscriptionContent() {
         title="Start Fresh?"
         message="This will cancel your current failed agreement and let you pick a new plan with a different card."
         confirmText="Cancel & Continue"
-        confirmButtonClass="bg-[#111827] hover:bg-gray-800"
+        confirmButtonClass="bg-[#111827] hover:bg-gray-800 text-white"
         isLoading={actionLoading}
       />
 

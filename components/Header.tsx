@@ -51,6 +51,8 @@ export default function Header({ mode = 'app' }: HeaderProps) {
 
   const hasPremiumAccess = user?.plan_tier === 'PREMIUM'
 
+  const isFullyExpired = !user?.is_admin && (user?.subscription_status === 'CANCELLED' || user?.subscription_status === 'EXPIRED') && !hasValidSubscription(user)
+
   const isActive = (path: string) => pathname === path
 
   const handleLogout = async () => {
@@ -170,7 +172,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                         isActive('/open-houses') 
                           ? 'text-[#111827] dark:text-white bg-gray-50 dark:bg-gray-800' 
                           : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
-                      }`}
+                      } ${isFullyExpired ? 'pointer-events-none opacity-50 grayscale' : ''}`}
                     >
                       <Home className={`w-4 h-4 mr-2 ${isActive('/open-houses') ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
                       <span>Open Houses</span>
@@ -187,7 +189,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                         isActive('/showcases') 
                           ? 'text-[#111827] dark:text-white bg-gray-50 dark:bg-gray-800' 
                           : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
-                      }`}
+                      } ${isFullyExpired ? 'pointer-events-none opacity-50 grayscale' : ''}`}
                     >
                       <Layout className={`w-4 h-4 mr-2 ${isActive('/showcases') ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
                       <span>Showcases</span>
@@ -307,7 +309,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                       isActive('/open-houses') 
                         ? 'bg-[#C9A24D]/10 text-[#C9A24D]' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }`}
+                    } ${isFullyExpired ? 'pointer-events-none opacity-50 grayscale' : ''}`}
                   >
                     <Home className="w-5 h-5" />
                     <span>Open Houses</span>
@@ -323,7 +325,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                       isActive('/showcases') 
                         ? 'bg-[#C9A24D]/10 text-[#C9A24D]' 
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }`}
+                    } ${isFullyExpired ? 'pointer-events-none opacity-50 grayscale' : ''}`}
                   >
                     <Layout className="w-5 h-5" />
                     <span>Showcases</span>
