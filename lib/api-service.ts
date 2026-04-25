@@ -326,7 +326,7 @@ class ApiService {
         body: JSON.stringify({ interestedInSimilar: interested }),
       }),
 
-    getPreferences: (id: string) => this.request<any>(`/collections/collection/${id}`),
+    getPreferences: (id: string) => this.request<any>(`/collections/${id}/preferences`),
 
     getProperties: (id: string) => this.request<any>(`/collections/${id}/properties`),
 
