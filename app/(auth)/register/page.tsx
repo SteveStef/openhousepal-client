@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import PayPalSubscriptionButton from '../../../components/PayPalSubscriptionButton'
 import { PayPalScriptProvider } from "@paypal/react-paypal-js"
 import EmailVerificationInput from '../../../components/EmailVerificationInput'
-import { sendVerificationCode } from '../../../lib/api'
+import api from '@/lib/api-service'
 import { PRICING_PLANS, TRIAL_PERIOD_DAYS } from '@/lib/pricing'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
@@ -120,37 +120,26 @@ export default function RegisterPage() {
     if (!bundleCode.trim()) return
     
     setIsVerifyingCode(true)
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const response = await fetch(`${apiUrl}/auth/verify-bundle-code`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: bundleCode.trim() })
-      })
+    const { success, data, error } = await api.auth.verifyBundleCode(bundleCode.trim())
 
-      const data = await response.json()
-      if (response.ok) {
-        setAppliedBundleCode(bundleCode.trim())
-        // Switch to the special plan automatically
-        const bundlePlan = {
-          id: data.plan_id,
-          name: 'Special Bundle Plan',
-          price: PRICING_PLANS.PREMIUM.priceString,
-          priceValue: PRICING_PLANS.PREMIUM.price,
-          tier: 'PREMIUM',
-          features: PRICING_PLANS.PREMIUM.features
-        }
-        setSelectedPlan(bundlePlan)
-        setRegistrationStep('payment')
-        showNotification('success', 'Bundle code applied! 1-year free trial unlocked.')
-      } else {
-        showNotification('error', data.detail || 'Invalid bundle code')
+    if (success && data) {
+      setAppliedBundleCode(bundleCode.trim())
+      // Switch to the special plan automatically
+      const bundlePlan = {
+        id: data.plan_id,
+        name: 'Special Bundle Plan',
+        price: PRICING_PLANS.PREMIUM.priceString,
+        priceValue: PRICING_PLANS.PREMIUM.price,
+        tier: 'PREMIUM',
+        features: PRICING_PLANS.PREMIUM.features
       }
-    } catch (err) {
-      showNotification('error', 'Failed to verify code. Please try again.')
-    } finally {
-      setIsVerifyingCode(false)
+      setSelectedPlan(bundlePlan)
+      setRegistrationStep('payment')
+      showNotification('success', 'Bundle code applied! 1-year free trial unlocked.')
+    } else {
+      showNotification('error', error || 'Invalid bundle code')
     }
+    setIsVerifyingCode(false)
   }
 
   // Clear notifications after 5 seconds
@@ -210,29 +199,25 @@ export default function RegisterPage() {
     // Send verification code
     setIsLoading(true)
 
-    try {
-      await sendVerificationCode({
-        email: formData.email,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        state: formData.state,
-        brokerage: formData.brokerage,
-        password: formData.password,
-        mlsId: formData.mlsId
-      })
+    const { success, error } = await api.auth.sendVerificationCode({
+      email: formData.email,
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      state: formData.state,
+      brokerage: formData.brokerage,
+      password: formData.password,
+      mls_id: formData.mlsId
+    })
 
-      // Code sent successfully - move to verification step
+    if (success) {
       setIsLoading(false)
       setRegistrationStep('verify')
       showNotification('success', 'Verification code sent to your email!')
-    } catch (err: any) {
-      console.error('Verification code error:', err)
-      const errorMessage = err.message || 'Failed to send verification code. Please try again.'
-
-      // Field-specific error catching
+    } else {
+      const errorMessage = error || 'Failed to send verification code. Please try again.'
       const newFieldErrors: {[key: string]: string} = {}
+      const lowerError = errorMessage.toLowerCase()
       
-      const lowerError = errorMessage.toLowerCase();
       if (lowerError.includes('email') && lowerError.includes('registered')) {
         newFieldErrors.email = errorMessage
       } else if (lowerError.includes('mls id')) {
@@ -245,9 +230,7 @@ export default function RegisterPage() {
       } else {
         showNotification('error', errorMessage)
       }
-
       setIsLoading(false)
-      return
     }
   }
 

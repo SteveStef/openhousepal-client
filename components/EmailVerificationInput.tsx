@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { verifyCode, resendVerificationCode } from '../lib/api'
+import api from '../lib/api-service'
+import { setToken } from '../lib/token'
 
 interface EmailVerificationInputProps {
   email: string
@@ -86,15 +87,11 @@ export default function EmailVerificationInput({
     setIsVerifying(true)
     setError('')
 
-    try {
-      const response = await verifyCode(email, fullCode)
+    const { success, data, error } = await api.auth.verifyCode(email, fullCode)
 
-      // Store token in cookie for immediate login
-      if (typeof document !== 'undefined' && response.access_token) {
-        const expires = new Date()
-        expires.setTime(expires.getTime() + (24 * 60 * 60 * 1000)) // 24 hours
-        document.cookie = `auth_token=${response.access_token}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`
-      }
+    if (success && data?.access_token) {
+      // Store token using centralized utility
+      setToken(data.access_token)
 
       // Success!
       setIsVerified(true)
@@ -104,9 +101,9 @@ export default function EmailVerificationInput({
       setTimeout(() => {
         onVerified()
       }, 1000)
-    } catch (err: any) {
+    } else {
       setIsVerifying(false)
-      setError(err.message || 'Invalid verification code')
+      setError(error || 'Invalid verification code')
       // Clear the code inputs on error
       setCode(['', '', '', '', '', ''])
       inputRefs.current[0]?.focus()
@@ -116,17 +113,17 @@ export default function EmailVerificationInput({
   const handleResend = async () => {
     setError('')
 
-    try {
-      await resendVerificationCode(email)
+    const { success, error } = await api.auth.resendVerificationCode(email)
 
+    if (success) {
       // Reset countdown
       setResendCountdown(60)
 
       // Clear current code
       setCode(['', '', '', '', '', ''])
       inputRefs.current[0]?.focus()
-    } catch (err: any) {
-      setError(err.message || 'Failed to resend code. Please try again.')
+    } else {
+      setError(error || 'Failed to resend code. Please try again.')
     }
   }
 

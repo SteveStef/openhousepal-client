@@ -174,7 +174,7 @@ export interface OpenHouseEvent {
 }
 
 // Legacy interface for backwards compatibility
-export interface OpenHouse {
+/*export interface OpenHouse {
   id: number;
   property: Property;
   agentId: number;
@@ -184,7 +184,7 @@ export interface OpenHouse {
   qrCode: string;
   dateTime: string;
   status: 'SCHEDULED' | 'ACTIVE' | 'COMPLETED';
-}
+}*/
 
 export interface Customer {
   id?: string; // Changed to string to match backend UUID
@@ -331,13 +331,36 @@ export interface Collection {
   isPublic?: boolean;
 }
 
-export interface Agent {
+export interface User {
+  id: string;
+  email: string;
+  is_admin?: boolean;
+  first_name?: string;
+  last_name?: string;
+  state?: string;
+  brokerage?: string;
+  mls_id?: string;
+  created_at: string;
+  updated_at?: string;
+  // PayPal subscription fields
+  subscription_id?: string;
+  subscription_status?: string;  // TRIAL, ACTIVE, SUSPENDED, CANCELLED, EXPIRED
+  broker_authorized?: boolean;
+  plan_id?: string;
+  plan_tier?: string;  // BASIC or PREMIUM
+  trial_ends_at?: string;
+  next_billing_date?: string;  // Grace period end for cancelled subscriptions
+  subscription_started_at?: string;
+  last_billing_date?: string;
+}
+
+/*export interface Agent {
   id: number;
   name: string;
   email: string;
   phone?: string;
   collections: Collection[];
-}
+}*/
 
 export interface ApiResponse<T> {
   success: boolean;

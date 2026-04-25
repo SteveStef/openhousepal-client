@@ -2,6 +2,8 @@
 
 import { PayPalButtons, usePayPalScriptReducer } from "@paypal/react-paypal-js";
 import { useState } from "react";
+import api from "../lib/api-service";
+import { setToken } from "../lib/token";
 
 interface RegistrationData {
   email: string;
@@ -32,16 +34,6 @@ export default function PayPalSubscriptionButton({
 }: PayPalSubscriptionButtonProps) {
   const [loading, setLoading] = useState(false);
   const [{ isPending }] = usePayPalScriptReducer();
-
-  const getToken = (): string | null => {
-    if (typeof document === 'undefined') return null;
-    const cookies = document.cookie.split(';');
-    for (let cookie of cookies) {
-      const [name, value] = cookie.trim().split('=');
-      if (name === 'auth_token') return value;
-    }
-    return null;
-  }
 
   return (
     <div className="w-full min-h-[150px] relative">
@@ -78,34 +70,21 @@ export default function PayPalSubscriptionButton({
           onApprove={async (data, actions) => {
             setLoading(true);
             try {
-              const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-              
               if (isCheckoutOnly) {
-                let url = `${apiUrl}/auth/link-subscription?subscription_id=${encodeURIComponent(data.subscriptionID || '')}&plan_id=${encodeURIComponent(planId)}`;
-                if (bundleCode) url += `&bundle_code=${encodeURIComponent(bundleCode)}`;
+                const { success, error } = await api.auth.linkSubscription(
+                  data.subscriptionID || '',
+                  planId,
+                  bundleCode
+                );
 
-                const response = await fetch(url, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${getToken()}`
-                  }
-                });
-
-                if (response.ok) {
+                if (success) {
                   onSuccess();
                 } else {
-                  const errorData = await response.json();
-                  onError(errorData.detail || 'Failed to link subscription.');
+                  onError(error || 'Failed to link subscription.');
                 }
               } else {
-                let url = `${apiUrl}/auth/signup-with-subscription?subscription_id=${encodeURIComponent(data.subscriptionID || '')}&plan_id=${encodeURIComponent(planId)}`;
-                if (bundleCode) url += `&bundle_code=${encodeURIComponent(bundleCode)}`;
-
-                const response = await fetch(url, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
+                const { success, data: result, error } = await api.auth.signupWithSubscription(
+                  {
                     email: registrationData.email,
                     password: registrationData.password,
                     first_name: registrationData.first_name,
@@ -113,20 +92,17 @@ export default function PayPalSubscriptionButton({
                     state: registrationData.state,
                     brokerage: registrationData.brokerage,
                     mls_id: registrationData.mls_id
-                  })
-                });
+                  },
+                  data.subscriptionID || '',
+                  planId,
+                  bundleCode
+                );
 
-                if (response.ok) {
-                  const result = await response.json();
-                  if (typeof document !== 'undefined' && result.access_token) {
-                    const expires = new Date();
-                    expires.setTime(expires.getTime() + (24 * 60 * 60 * 1000));
-                    document.cookie = `auth_token=${result.access_token}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
-                  }
+                if (success && result?.access_token) {
+                  setToken(result.access_token);
                   onSuccess();
                 } else {
-                  const errorData = await response.json();
-                  onError(errorData.detail || 'Failed to create account.');
+                  onError(error || 'Failed to create account.');
                 }
               }
             } catch (error) {

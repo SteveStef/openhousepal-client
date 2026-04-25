@@ -430,7 +430,7 @@ export async function sendVerificationCode(formData: {
     throw new Error(error.detail || 'Failed to send verification code')
   }
 
-  return response.json()
+  return response.json();
 }
 
 export async function verifyCode(email: string, code: string) {
