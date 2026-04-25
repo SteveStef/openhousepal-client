@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Collection, Property } from '@/types'
-import { propertyApi } from '@/lib/api'
+import api from '@/lib/api-service'
 import PropertyCard from './PropertyCard'
 import PropertyDetailsModal from './PropertyDetailsModal'
 import ChatAssistant from './ChatAssistant'
@@ -33,33 +33,25 @@ export default function CustomerCollectionView({
     setIsLoadingComments(true)
     setCommentsError(null)
 
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/collections/${collection.id}/properties/${propertyId}/comments`)
+    const { success, data, error } = await api.public.getPropertyComments(collection.id, propertyId)
 
-      if (response.ok) {
-        const data = await response.json()
-        
-        // Transform backend comments to frontend format
-        const transformedComments = (data || []).map((comment: any) => ({
-          ...comment,
-          createdAt: comment.created_at || comment.createdAt,
-          author: comment.author || comment.visitor_name || 'Anonymous'
-        }))
+    if (success && data) {
+      // Transform backend comments to frontend format
+      const transformedComments = (data || []).map((comment: any) => ({
+        ...comment,
+        createdAt: comment.created_at || comment.createdAt,
+        author: comment.author || comment.visitor_name || 'Anonymous'
+      }))
 
-        // Update selected property with fresh comments
-        setSelectedProperty(prev => prev ? {
-          ...prev,
-          comments: transformedComments
-        } : prev)
-      } else {
-        setCommentsError('Failed to load comments')
-      }
-    } catch (error) {
-      console.error('Error fetching property comments:', error)
-      setCommentsError('Failed to load comments')
-    } finally {
-      setIsLoadingComments(false)
+      // Update selected property with fresh comments
+      setSelectedProperty(prev => prev ? {
+        ...prev,
+        comments: transformedComments
+      } : prev)
+    } else {
+      setCommentsError(error || 'Failed to load comments')
     }
+    setIsLoadingComments(false)
   }
 
   const handlePropertyClick = async (property: Property) => {
@@ -81,27 +73,22 @@ export default function CustomerCollectionView({
     }
     
     // Fetch detailed property information in background
-    try {
-      const response = await propertyApi.cache(property.id as string)
+    const { success, data, error } = await api.properties.getById(property.id as string)
+    
+    if (success && data) {
+      const detailedProperty = data
       
-      if (response.success && response.data) {
-        const detailedProperty = response.data
-        
-        // Update property with detailed information merging flat data
-        const enhancedProperty = {
-          ...property,
-          ...detailedProperty
-        }
-        setSelectedProperty(enhancedProperty)
-      } else {
-        setDetailsError('Failed to load additional property details')
+      // Update property with detailed information merging flat data
+      const enhancedProperty = {
+        ...property,
+        ...detailedProperty
       }
-    } catch (error) {
+      setSelectedProperty(enhancedProperty)
+    } else {
       console.error('Error fetching property details:', error)
       setDetailsError('Failed to load additional property details')
-    } finally {
-      setIsLoadingDetails(false)
     }
+    setIsLoadingDetails(false)
   }
 
   const handleCloseModal = () => {

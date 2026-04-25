@@ -4,16 +4,7 @@ import { PayPalButtons, usePayPalScriptReducer } from "@paypal/react-paypal-js";
 import { useState } from "react";
 import api from "../lib/api-service";
 import { setToken } from "../lib/token";
-
-interface RegistrationData {
-  email: string;
-  password: string;
-  first_name: string;
-  last_name: string;
-  state: string;
-  brokerage: string;
-  mls_id?: string;
-}
+import { RegistrationData } from "@/types";
 
 interface PayPalSubscriptionButtonProps {
   planId: string;

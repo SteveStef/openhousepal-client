@@ -3,16 +3,16 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import api from '@/lib/api-service'
 import PayPalSubscriptionButton from '@/components/PayPalSubscriptionButton'
 import { PayPalScriptProvider } from "@paypal/react-paypal-js"
 import { PRICING_PLANS, TRIAL_PERIOD_DAYS } from '@/lib/pricing'
-import { hasValidSubscription } from '@/lib/auth'
+import { hasValidSubscription } from '@/lib/auth-helpers'
 import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
 import AuthGuard from '@/components/AuthGuard'
 import Toast from '@/components/Toast'
 import Footer from '@/components/Footer'
-import Image from 'next/image'
-import { CheckCircle2, Sparkles, CreditCard, Gift, ShieldCheck, ArrowLeft } from 'lucide-react'
+import { CheckCircle2, CreditCard, Gift, ShieldCheck, ArrowLeft } from 'lucide-react'
 
 // PayPal configuration
 const paypalOptions = {
@@ -71,35 +71,24 @@ function CheckoutContent() {
     if (!bundleCode.trim()) return
     
     setIsVerifyingCode(true)
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-      const response = await fetch(`${apiUrl}/auth/verify-bundle-code`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: bundleCode.trim() })
+    const { success, data, error } = await api.auth.verifyBundleCode(bundleCode.trim())
+
+    if (success && data) {
+      setAppliedBundleCode(bundleCode.trim())
+      setSelectedPlan({
+        id: data.plan_id,
+        name: PRICING_PLANS.PREMIUM.name,
+        price: PRICING_PLANS.PREMIUM.priceString,
+        priceValue: PRICING_PLANS.PREMIUM.price,
+        tier: 'PREMIUM',
+        features: [...PRICING_PLANS.PREMIUM.features]
       })
-      
-      const data = await response.json()
-      if (response.ok && data.valid) {
-        setAppliedBundleCode(bundleCode.trim())
-        setSelectedPlan({
-          id: data.plan_id,
-          name: PRICING_PLANS.PREMIUM.name,
-          price: PRICING_PLANS.PREMIUM.priceString,
-          priceValue: PRICING_PLANS.PREMIUM.price,
-          tier: 'PREMIUM',
-          features: [...PRICING_PLANS.PREMIUM.features]
-        })
-        setRegistrationStep('payment')
-        setNotification({ type: 'success', message: 'Promo code applied! Enjoy your special rate.' })
-      } else {
-        setNotification({ type: 'error', message: data.detail || 'Invalid promo code' })
-      }
-    } catch (err) {
-      setNotification({ type: 'error', message: 'Failed to verify code' })
-    } finally {
-      setIsVerifyingCode(false)
+      setRegistrationStep('payment')
+      setNotification({ type: 'success', message: 'Promo code applied! Enjoy your special rate.' })
+    } else {
+      setNotification({ type: 'error', message: error || 'Invalid promo code' })
     }
+    setIsVerifyingCode(false)
   }
 
   if (isAuthLoading) {

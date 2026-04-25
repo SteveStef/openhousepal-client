@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { collectionsApi } from '@/lib/api'
+import api from '@/lib/api-service'
 import { CheckCircle2, AlertCircle, Mail, Loader2 } from 'lucide-react'
 
 function UnsubscribeContent() {
@@ -22,18 +22,14 @@ function UnsubscribeContent() {
     if (!email) return
 
     setStatus('loading')
-    try {
-      const response = await collectionsApi.unsubscribe(email)
-      if (response.success) {
-        setStatus('success')
-        setMessage(`Successfully unsubscribed ${email}. You will no longer receive property update notifications.`)
-      } else {
-        setStatus('error')
-        setMessage(response.error || 'Failed to unsubscribe. Please try again later.')
-      }
-    } catch (err) {
+    const { success, error } = await api.public.unsubscribe(email)
+
+    if (success) {
+      setStatus('success')
+      setMessage(`Successfully unsubscribed ${email}. You will no longer receive property update notifications.`)
+    } else {
       setStatus('error')
-      setMessage('An unexpected error occurred. Please try again later.')
+      setMessage(error || 'Failed to unsubscribe. Please try again later.')
     }
   }
 

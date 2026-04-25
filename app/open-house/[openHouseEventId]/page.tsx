@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import OpenHouseSignInForm from '@/components/OpenHouseSignInForm'
 import { Property, SignInFormData } from '@/types'
+import api from '@/lib/api-service'
 
 const ComplianceFooter = () => (
   <div className="mt-12 text-center max-w-3xl mx-auto pb-4 px-4">
@@ -28,46 +29,16 @@ export default function OpenHouseSignInPage() {
   useEffect(() => {
     // Fetch property data from open house event by ID
     const fetchData = async () => {
-      try {
-        setIsLoading(true)
-        
-        // Fetch property data using the open house event ID from the URL
-        const propertyResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/open-house/property/${openHouseEventId}`)
-        
-        if (!propertyResponse.ok) {
-          throw new Error('Property not found')
-        }
-        
-        const responseData = await propertyResponse.json()
-        const propertyData = responseData.property
-        //console.log('Property data:', propertyData);
-        
-        // Transform the API response to match the Property interface
-        const transformedProperty: Property = {
-          id: propertyData.id,
-          ListingKey: propertyData.listingKey || '', // Fallback if listing key not in OH meta
-          FullStreetAddress: propertyData.address || '',
-          City: propertyData.city || '',
-          StateOrProvince: propertyData.state || '',
-          PostalCode: propertyData.zipCode || '',
-          ListPrice: propertyData.price || 0,
-          BedroomsTotal: propertyData.beds || 0,
-          BathroomsTotal: propertyData.baths || 0,
-          LivingArea: propertyData.squareFeet || 0,
-          LotSizeSquareFeet: propertyData.lotSize || 0,
-          PropertyType: propertyData.propertyType || '',
-          MlsStatus: propertyData.homeStatus || 'ACTIVE',
-          ListPictureURL: propertyData.imageSrc || ''
-        }
-        
-        setProperty(transformedProperty)
+      setIsLoading(true)
+      const { success, data, error } = await api.public.getOpenHouseProperty(openHouseEventId)
+      
+      if (success && data) {
+        setProperty(data)
         setError(null)
-      } catch (err) {
-        setError('Failed to load property information. Please try again.')
-        console.error('Error fetching data:', err)
-      } finally {
-        setIsLoading(false)
+      } else {
+        setError(error || 'Failed to load property information. Please try again.')
       }
+      setIsLoading(false)
     }
 
     if (openHouseEventId) {
@@ -80,33 +51,17 @@ export default function OpenHouseSignInPage() {
       setIsSubmitting(true)
       setError(null)
       
-      const url = `${process.env.NEXT_PUBLIC_API_URL}/open-house/submit`;
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          full_name: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          has_agent: formData.hasAgent,
-          open_house_event_id: openHouseEventId,
-          interested_in_similar: formData.interestedInSimilar,
-        }),
-      });
-
-      console.log('Form submitted:', {
-        ...formData,
-        openHouseEventId,
-        timestamp: new Date().toISOString()
+      const { success, error } = await api.public.submitSignIn({
+        full_name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        has_agent: formData.hasAgent,
+        open_house_event_id: openHouseEventId,
+        interested_in_similar: formData.interestedInSimilar,
       })
 
-      if (response.ok) {
-        const result = await response.json()
-      } else {
-        console.error('Failed to submit form, but showing success to user')
+      if (!success) {
+        console.error('Failed to submit form:', error)
       }
 
       // Always show success message to user (fail silently)

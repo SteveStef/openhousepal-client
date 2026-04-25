@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { hasValidSubscription } from '@/lib/auth'
+import { hasValidSubscription } from '@/lib/auth-helpers'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface SubscriptionGuardProps {

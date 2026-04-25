@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { useParams } from 'next/navigation'
 import { PropertyDetailResponse, TourRequest } from '@/types'
-import { api } from '@/lib/api'
+import api from '@/lib/api-service'
 import { 
   X, Send, 
   ChevronLeft, ChevronRight, Maximize2, Home, Info, User,
@@ -36,15 +36,15 @@ export default function PropertyPage() {
 
   async function handleTourSubmit(data: TourRequest) {
     try {
-      const response = await api.scheduleTour({
+      const { success, error } = await api.properties.scheduleTour({
         ...data,
         agentId: agentId as string
       })
 
-      if (response.success) {
+      if (success) {
         showToast('Tour request sent successfully!', 'success')
       } else {
-        showToast('Failed to send tour request: ' + response.error, 'error')
+        showToast('Failed to send tour request: ' + error, 'error')
       }
     } catch (err) {
       console.error('Error scheduling tour:', err)
@@ -56,14 +56,13 @@ export default function PropertyPage() {
     const fetchProperty = async () => {
       try {
         setLoading(true)
-        console.log("propertyId", propertyId);
-        const response = await api.getPropertyForAgent(propertyId as string, agentId as string)
+        const { success, data, error: apiError } = await api.properties.getPropertyForAgent(propertyId as string, agentId as string)
         
-        if (response.success && response.data) {
-          setProperty(response.data.property)
-          setAgentName(response.data.agentName)
+        if (success && data) {
+          setProperty(data.property)
+          setAgentName(data.agentName)
         } else {
-          setError(response.error || "Property not found")
+          setError(apiError || "Property not found")
         }
       } catch (err) {
         setError("An unexpected error occurred")
@@ -115,7 +114,7 @@ export default function PropertyPage() {
     
     setIsSubmitting(true)
     try {
-      const response = await api.sendMessageToAgent({
+      const { success, error } = await api.properties.sendMessageToAgent({
         agentId: agentId as string,
         propertyId: propertyId as string,
         propertyAddress: property.FullStreetAddress,
@@ -124,13 +123,13 @@ export default function PropertyPage() {
         message
       })
 
-      if (response.success) {
+      if (success) {
         setMessage('')
         setVisitorName('')
         setVisitorContact('')
         showToast('Message sent to agent!', 'success')
       } else {
-        showToast('Failed to send message: ' + response.error, 'error')
+        showToast('Failed to send message: ' + error, 'error')
       }
     } catch (err) {
       console.error('Error sending message:', err)

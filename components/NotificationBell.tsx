@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Bell } from 'lucide-react'
 import NotificationDropdown from './NotificationDropdown'
 import { Notification } from '@/types'
-import { notificationApi } from '@/lib/api'
+import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function NotificationBell() {
@@ -30,10 +30,10 @@ export default function NotificationBell() {
 
     try {
       setIsLoading(true)
-      const response = await notificationApi.getAll(true) // Only fetch unread
+      const { success, data } = await api.notifications.getAll(true) // Only fetch unread
 
-      if (response && response.success && response.data) {
-        setNotifications(response.data)
+      if (success && data) {
+        setNotifications(data)
         lastFetchedRef.current = now
       }
     } catch (error) {
@@ -98,10 +98,10 @@ export default function NotificationBell() {
       )
 
       // Call API to mark as read
-      const response = await notificationApi.markAsRead(id)
+      const { success, error } = await api.notifications.markAsRead(id)
 
-      if (!response.success) {
-        console.error('Failed to mark notification as read:', response.error)
+      if (!success) {
+        console.error('Failed to mark notification as read:', error)
         // Refetch to restore correct state
         fetchNotifications()
       }
@@ -118,10 +118,10 @@ export default function NotificationBell() {
       setNotifications([])
 
       // Call API to mark all as read
-      const response = await notificationApi.markAllAsRead()
+      const { success, error } = await api.notifications.markAllAsRead()
 
-      if (!response.success) {
-        console.error('Failed to mark all notifications as read:', response.error)
+      if (!success) {
+        console.error('Failed to mark all notifications as read:', error)
         // Refetch to restore correct state
         fetchNotifications()
       }

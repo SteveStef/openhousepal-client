@@ -1,13 +1,16 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
-import { User, getCurrentUser } from '@/lib/auth'
+import { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react'
+import { User } from '@/types'
+import api from '@/lib/api-service'
+import { getToken } from '@/lib/token'
 
 interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
   refreshUser: () => Promise<void>
+  logout: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -15,39 +18,56 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const hasFetchedRef = useRef(false)
+  const hasInitialCheckRef = useRef(false)
 
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
+    // Only attempt to fetch if we have a token
+    const token = getToken()
+    if (!token) {
+      setUser(null)
+      setIsLoading(false)
+      return
+    }
+
     try {
-      const userData = await getCurrentUser()
-      setUser(userData)
+      const { success, data } = await api.auth.me()
+      if (success && data) {
+        setUser(data)
+      } else {
+        setUser(null)
+      }
     } catch (error) {
       console.error('Failed to fetch user:', error)
       setUser(null)
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
-    // Only fetch user data once when the app first loads
-    // Prevents refetching on every navigation
-    if (!hasFetchedRef.current) {
-      hasFetchedRef.current = true
+    // Initial check on mount
+    if (!hasInitialCheckRef.current) {
+      hasInitialCheckRef.current = true
       fetchUser()
     }
-  }, [])
+  }, [fetchUser])
 
   const refreshUser = async () => {
     setIsLoading(true)
     await fetchUser()
   }
 
+  const logout = () => {
+    api.auth.logout()
+    setUser(null)
+  }
+
   const value = {
     user,
     isAuthenticated: !!user,
     isLoading,
-    refreshUser
+    refreshUser,
+    logout
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

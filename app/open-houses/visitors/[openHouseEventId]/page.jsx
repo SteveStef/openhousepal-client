@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Footer from '@/components/Footer'
-import { openHouseApi } from '@/lib/api'
+import api from '@/lib/api-service'
 
 export default function OpenHouseVisitorsPage() {
   const router = useRouter()
@@ -24,22 +24,16 @@ export default function OpenHouseVisitorsPage() {
   }, [openHouseEventId])
 
   const loadVisitors = async () => {
-    try {
-      setIsLoading(true)
-      setError('')
-      const response = await openHouseApi.getVisitors(openHouseEventId)
+    setIsLoading(true)
+    setError('')
+    const { success, data, error } = await api.openHouses.getVisitors(openHouseEventId)
 
-      if (response.success && response.data) {
-        setVisitors(response.data)
-      } else {
-        setError(response.error || 'Failed to load visitors')
-      }
-    } catch (err) {
-      console.error('Error loading visitors:', err)
-      setError('Failed to load visitors')
-    } finally {
-      setIsLoading(false)
+    if (success && data) {
+      setVisitors(data)
+    } else {
+      setError(error || 'Failed to load visitors')
     }
+    setIsLoading(false)
   }
 
   const formatDate = (dateString) => {
@@ -79,24 +73,18 @@ export default function OpenHouseVisitorsPage() {
   const handleSaveNoteFromModal = async () => {
     if (!selectedVisitorForNote) return
 
-    try {
-      // API call to persist the note
-      const response = await openHouseApi.updateVisitorNote(selectedVisitorForNote.id, currentNote)
-      
-      if (response.success) {
-        // Update local state on success
-        setVisitors(prev => prev.map(v => 
-          v.id === selectedVisitorForNote.id ? { ...v, notes: currentNote } : v
-        ))
-        setIsNoteModalOpen(false)
-        setSelectedVisitorForNote(null)
-        setCurrentNote('')
-      } else {
-        alert('Failed to save note: ' + response.error)
-      }
-    } catch (err) {
-      console.error('Error saving visitor note:', err)
-      alert('An error occurred while saving the note.')
+    const { success, error } = await api.openHouses.updateVisitorNote(selectedVisitorForNote.id, currentNote)
+    
+    if (success) {
+      // Update local state on success
+      setVisitors(prev => prev.map(v => 
+        v.id === selectedVisitorForNote.id ? { ...v, notes: currentNote } : v
+      ))
+      setIsNoteModalOpen(false)
+      setSelectedVisitorForNote(null)
+      setCurrentNote('')
+    } else {
+      alert('Failed to save note: ' + (error || 'Unknown error'))
     }
   }
 

@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { User, apiRequest } from '@/lib/auth'
+import api from '@/lib/api-service'
+import { User } from '@/types'
 import AuthGuard from '@/components/AuthGuard'
 import Toast from '@/components/Toast'
 import ConfirmationModal from '@/components/ConfirmationModal'
@@ -61,34 +62,24 @@ function AdminDashboardContent() {
 
   const fetchUsers = async () => {
     setIsLoading(true)
-    try {
-      const response = await apiRequest('/admin/users')
-      if (response.data) {
-        setUsers(response.data)
-      } else {
-        showToast('Failed to load users', 'error')
-      }
-    } catch (err) {
-      showToast('An error occurred while fetching users', 'error')
-    } finally {
-      setIsLoading(false)
+    const { success, data, error } = await api.admin.getUsers()
+    
+    if (success && data) {
+      setUsers(data)
+    } else {
+      showToast(error || 'Failed to load users', 'error')
     }
+    setIsLoading(false)
   }
 
   const toggleAuthorization = async (userId: string, currentStatus: boolean) => {
-    try {
-      const response = await apiRequest(`/admin/users/${userId}/authorize?authorized=${!currentStatus}`, {
-        method: 'PATCH'
-      })
-      
-      if (response.data?.success) {
-        setUsers(users.map(u => u.id === userId ? { ...u, broker_authorized: !currentStatus } : u))
-        showToast(`Agent ${!currentStatus ? 'authorized' : 'deauthorized'} successfully`, 'success')
-      } else {
-        showToast('Failed to update authorization', 'error')
-      }
-    } catch (err) {
-      showToast('An error occurred during update', 'error')
+    const { success, error } = await api.admin.toggleAuthorization(userId, currentStatus)
+    
+    if (success) {
+      setUsers(users.map(u => u.id === userId ? { ...u, broker_authorized: !currentStatus } : u))
+      showToast(`Agent ${!currentStatus ? 'authorized' : 'deauthorized'} successfully`, 'success')
+    } else {
+      showToast(error || 'Failed to update authorization', 'error')
     }
   }
 
@@ -102,27 +93,20 @@ function AdminDashboardContent() {
   const confirmUpdatePlan = async () => {
     if (!targetUser || !targetPlan) return
 
-      console.log(targetUser, targetPlan);
+    setIsUpdatingPlan(true)
+    const { success, error } = await api.admin.updatePlanTier(targetUser.id, targetPlan)
 
-      setIsUpdatingPlan(true)
-      try {
-        const response = await apiRequest(`/admin/users/${targetUser.id}/plan?plan_tier=${targetPlan}`, {
-          method: 'PATCH'
-        })
-
-        if (response.status === 200 || response.data?.success) {
-          setUsers(users.map(u => u.id === targetUser.id ? { ...u, plan_tier: targetPlan === 'FREE' ? undefined : targetPlan } : u))
-          showToast(`User plan updated to ${targetPlan}`, 'success')
-        } else {          showToast(response.error || 'Failed to update plan', 'error')
-        }
-      } catch (err) {
-        showToast('An error occurred during plan update', 'error')
-      } finally {
-        setIsUpdatingPlan(false)
-        setIsPlanModalOpen(false)
-        setTargetUser(null)
-        setTargetPlan(null)
-      }
+    if (success) {
+      setUsers(users.map(u => u.id === targetUser.id ? { ...u, plan_tier: targetPlan === 'FREE' ? undefined : targetPlan } : u))
+      showToast(`User plan updated to ${targetPlan}`, 'success')
+    } else {
+      showToast(error || 'Failed to update plan', 'error')
+    }
+    
+    setIsUpdatingPlan(false)
+    setIsPlanModalOpen(false)
+    setTargetUser(null)
+    setTargetPlan(null)
   }
 
   const showToast = (message: string, type: 'success' | 'error') => {

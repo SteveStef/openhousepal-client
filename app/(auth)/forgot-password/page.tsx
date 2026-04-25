@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { requestPasswordReset } from '../../../lib/auth'
+import api from '@/lib/api-service'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -48,24 +48,12 @@ export default function ForgotPasswordPage() {
     setIsLoading(true)
     showNotification('info', 'Sending reset link...')
 
-    try {
-      const result = await requestPasswordReset(email)
+    const { success, error: apiError } = await api.auth.requestPasswordReset(email)
 
-      if (result.status === 200) {
-        // Success
-        setEmailSent(true)
-        showNotification('success', 'If an account exists with this email, you will receive a password reset link shortly.')
-      } else {
-        // Always show the same message for security (don't reveal if email exists)
-        setEmailSent(true)
-        showNotification('success', 'If an account exists with this email, you will receive a password reset link shortly.')
-      }
-    } catch (error) {
-      console.error('Password reset request error:', error)
-      showNotification('error', 'Unable to connect to server. Please try again.')
-    } finally {
-      setIsLoading(false)
-    }
+    // For security, always show the same message
+    setEmailSent(true)
+    showNotification('success', 'If an account exists with this email, you will receive a password reset link shortly.')
+    setIsLoading(false)
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

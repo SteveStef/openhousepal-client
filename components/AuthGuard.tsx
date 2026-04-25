@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { handleAuthError } from '@/lib/auth'
+import { handleAuthError } from '@/lib/auth-helpers'
 
 interface AuthGuardProps {
   children: React.ReactNode

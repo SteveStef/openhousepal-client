@@ -6,7 +6,8 @@ import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { Home, Moon, Sun, Menu, X, LogOut, Settings, Layout, ShieldCheck } from 'lucide-react'
-import { logout, hasValidSubscription } from '@/lib/auth'
+import api from '@/lib/api-service'
+import { hasValidSubscription } from '@/lib/auth-helpers'
 import { useAuth } from '@/contexts/AuthContext'
 import NotificationBell from './NotificationBell'
 
@@ -44,7 +45,7 @@ function ThemeToggle() {
 }
 
 export default function Header({ mode = 'app' }: HeaderProps) {
-  const { user, isAuthenticated, isLoading: isCheckingAuth } = useAuth()
+  const { user, isAuthenticated, isLoading: isCheckingAuth, logout: contextLogout } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const pathname = usePathname()
@@ -58,7 +59,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
   const handleLogout = async () => {
     setIsLoggingOut(true)
     try {
-      await logout()
+      contextLogout()
     } catch (error) {
       console.error('Logout error:', error)
     } finally {

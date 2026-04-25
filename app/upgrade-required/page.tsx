@@ -6,7 +6,8 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { useAuth } from '@/contexts/AuthContext'
 import { CheckCircle2, Sparkles, ArrowLeft, Lock } from 'lucide-react'
-import { getCurrentUser, User } from '@/lib/auth'
+import { User } from '@/types'
+import api from '@/lib/api-service'
 import { PRICING_PLANS } from '@/lib/pricing'
 
 export default function UpgradeRequiredPage() {

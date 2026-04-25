@@ -4,7 +4,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { login } from '../../../lib/auth'
+import api from '@/lib/api-service'
+import { setToken } from '@/lib/token'
 import { useAuth } from '@/contexts/AuthContext'
 import { Suspense } from 'react'
 
@@ -103,37 +104,35 @@ function LoginContent() {
     setIsLoading(true)
     showNotification('info', 'Signing you in...')
     
-    try {
-      // Use auth utility for login
-      const result = await login(formData.email, formData.password)
+    const { success, data, error } = await api.auth.login({
+      email: formData.email,
+      password: formData.password
+    })
 
-      if (result.status === 200) {
-        // Success - update global auth state
-        await refreshUser()
-        
-        showNotification('success', 'Login successful! Redirecting...')
-        
-        // Get redirect path from URL params or default to /open-houses
-        const redirectPath = searchParams.get('redirect') || '/open-houses'
-        router.push(redirectPath)
+    if (success && data?.access_token) {
+      // Success - save token and update global auth state
+      setToken(data.access_token)
+      await refreshUser()
+      
+      showNotification('success', 'Login successful! Redirecting...')
+      
+      // Get redirect path from URL params or default to /open-houses
+      const redirectPath = searchParams.get('redirect') || '/open-houses'
+      router.push(redirectPath)
+    } else {
+      // Handle failure
+      const errorMessage = error || 'Login failed. Please try again.'
+      if (errorMessage.toLowerCase().includes('inactive')) {
+        showNotification('error', 'Your account has been deactivated. Please contact support.')
+      } else if (errorMessage.toLowerCase().includes('invalid')) {
+        setFieldErrors({ 
+          email: 'Invalid email or password',
+          password: 'Invalid email or password'
+        })
+        showNotification('error', 'Invalid email or password')
       } else {
-        // Handle specific API errors
-        if (result.status === 401) {
-          setFieldErrors({ 
-            email: 'Invalid email or password',
-            password: 'Invalid email or password'
-          })
-          showNotification('error', 'Invalid email or password')
-        } else if (result.status === 400 && result.error === 'Inactive user account') {
-          showNotification('error', 'Your account has been deactivated. Please contact support.')
-        } else {
-          showNotification('error', result.error || 'Login failed. Please try again.')
-        }
+        showNotification('error', errorMessage)
       }
-    } catch (error) {
-      console.error('Login error:', error)
-      showNotification('error', 'Unable to connect to server. Please try again.')
-    } finally {
       setIsLoading(false)
     }
   }

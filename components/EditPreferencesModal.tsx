@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Collection, CollectionPreferences } from '@/types'
-import { collectionPreferencesApi } from '@/lib/api'
+import api from '@/lib/api-service'
 import { X } from 'lucide-react'
 import MultiCityPlacesInput from './MultiCityPlacesInput'
 import MultiTownshipPlacesInput from './MultiTownshipPlacesInput'
@@ -170,9 +170,9 @@ export default function EditPreferencesModal({
             })
           } else {
             // Fetch preferences from API
-            const response = await collectionPreferencesApi.get(collection.id)
-            if (response.success && response.data) {
-              const prefs = response.data
+            const { success, data } = await api.collections.getPreferences(collection.id)
+            if (success && data) {
+              const prefs = data
               // Handle migration from single city to cities array
               let cities: string[] = []
               if (prefs.cities && Array.isArray(prefs.cities)) {

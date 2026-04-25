@@ -3,31 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { X, Calendar, Phone, Mail, User, MapPin } from 'lucide-react'
-
-export interface PropertyTour {
-  id: string
-  collection_id: string
-  property_id: string
-  visitor_name: string
-  visitor_email: string
-  visitor_phone: string
-  preferred_date: string
-  preferred_time: string
-  preferred_date_2?: string
-  preferred_time_2?: string
-  preferred_date_3?: string
-  preferred_time_3?: string
-  message?: string
-  is_completed: boolean
-  created_at: string
-  updated_at: string
-  property?: {
-    street_address?: string
-    city?: string
-    state?: string
-    imageUrl?: string
-  }
-}
+import { PropertyTour } from '@/types'
 
 interface ViewToursModalProps {
   isOpen: boolean

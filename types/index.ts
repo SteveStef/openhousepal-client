@@ -158,33 +158,83 @@ export interface PropertyDetailResponse extends Property {
   Stories?: number;
 }
 
-// New Open House Event interface matching backend schema
-export interface OpenHouseEvent {
+export interface PropertyImage {
+  url: string;
+  width: number;
+  height: number;
+  caption?: string;
+}
+
+export interface SearchPreferences {
+  minPrice: number;
+  maxPrice: number;
+  minBeds: number;
+  minBaths: number;
+  radius: number;
+}
+
+export type OpenHouseWizardStep = 'ADDRESS' | 'FEATURES' | 'PREFERENCES' | 'SIMILAR_PROPS' | 'COVER_IMAGE' | 'REVIEW';
+
+export interface OpenHouse {
   id: string;
-  open_house_event_id: string;
-  FullStreetAddress: string;
-  cover_image_url: string;
-  qr_code_url: string;
-  form_url: string;
+  openHouseEventId: string;
+  agentId?: string;
+  address: string;
+  property_data?: any; // New field for full MLS data object
+  createdAt: string;
+  qrCodeUrl: string;
+  coverImageUrl: string;
+  formUrl: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  livingArea?: number;
+  price?: number;
   BedroomsTotal?: number;
   BathroomsTotal?: number;
   LivingArea?: number;
   ListPrice?: number;
-  created_at: string;
+  city?: string;
+  notes?: string;
+  similarPropertyIds?: string[];
+  similarPropertiesSnapshot?: any[];
 }
 
-// Legacy interface for backwards compatibility
-/*export interface OpenHouse {
-  id: number;
-  property: Property;
-  agentId: number;
-  agentName: string;
-  agentPhone?: string;
-  agentEmail?: string;
-  qrCode: string;
-  dateTime: string;
-  status: 'SCHEDULED' | 'ACTIVE' | 'COMPLETED';
-}*/
+export interface PropertyTour {
+  id: string;
+  collection_id: string;
+  property_id: string;
+  preferred_date: string;
+  preferred_time: string;
+  preferred_date_2?: string;
+  preferred_time_2?: string;
+  preferred_date_3?: string;
+  preferred_time_3?: string;
+  message?: string;
+  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+  is_completed: boolean;
+  visitor_name?: string;
+  visitor_email?: string;
+  visitor_phone?: string;
+  created_at: string;
+  updated_at?: string;
+  // UI helper field
+  property?: {
+    street_address?: string;
+    city?: string;
+    state?: string;
+    imageUrl?: string;
+  };
+}
+
+export interface RegistrationData {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  state: string;
+  brokerage: string;
+  mls_id?: string;
+}
 
 export interface Customer {
   id?: string; // Changed to string to match backend UUID

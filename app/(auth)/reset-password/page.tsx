@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { resetPassword } from '../../../lib/auth'
+import api from '@/lib/api-service'
 
 function ResetPasswordForm() {
   const router = useRouter()
@@ -114,30 +114,17 @@ function ResetPasswordForm() {
     setIsLoading(true)
     showNotification('info', 'Resetting your password...')
 
-    try {
-      const result = await resetPassword(token, formData.password)
+    const { success, error } = await api.auth.resetPassword(formData.password, token)
 
-      if (result.status === 200) {
-        // Success
-        setResetSuccess(true)
-        showNotification('success', 'Password reset successful! Redirecting to login...')
-        setTimeout(() => {
-          router.push('/login')
-        }, 3000)
-      } else {
-        // Handle specific API errors
-        if (result.status === 400) {
-          showNotification('error', result.error || 'Invalid or expired reset token')
-        } else if (result.status === 404) {
-          showNotification('error', 'Reset token not found or has expired')
-        } else {
-          showNotification('error', result.error || 'Password reset failed. Please try again.')
-        }
-      }
-    } catch (error) {
-      console.error('Password reset error:', error)
-      showNotification('error', 'Unable to connect to server. Please try again.')
-    } finally {
+    if (success) {
+      // Success
+      setResetSuccess(true)
+      showNotification('success', 'Password reset successful! Redirecting to login...')
+      setTimeout(() => {
+        router.push('/login')
+      }, 3000)
+    } else {
+      showNotification('error', error || 'Password reset failed. Please try again.')
       setIsLoading(false)
     }
   }

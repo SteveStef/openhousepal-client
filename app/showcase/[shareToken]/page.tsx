@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { Collection, Property, Comment } from '@/types'
-import { getToken } from '@/lib/auth'
-import { propertyApi } from '@/lib/api'
+import { Collection, Property, Comment, TourRequest } from '@/types'
+import { getToken } from '@/lib/token'
+import api from '@/lib/api-service'
 import PropertyGrid from '@/components/PropertyGrid'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import ScheduleTourModal from '@/components/ScheduleTourModal'
-import { TourRequest } from '@/types'
 import { useToast } from '@/contexts/ToastContext'
 import MLSComplianceFooter from '@/components/MLSComplianceFooter'
 
@@ -40,22 +39,6 @@ export default function CustomerShowcasePage() {
 
   const shareToken = params.shareToken as string
 
-  // Simple API request helper for this page
-  const apiRequest = async (endpoint: string, options: any = {}) => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    })
-    
-    return {
-      status: response.status,
-      data: response.ok ? await response.json() : null
-    }
-  }
-
   // Check authentication status on component mount
   useEffect(() => {
     const checkAuthStatus = () => {
@@ -68,39 +51,20 @@ export default function CustomerShowcasePage() {
 
   useEffect(() => {
     const fetchCollection = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-        
-        // First get the showcase data to get visitor email
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/collections/shared/${shareToken}`)
-        
-        if (response.status === 404) {
-          setError('Collection not found or not available for sharing')
-          return
+      setIsLoading(true)
+      setError(null)
+      
+      const { success, data, error: apiError } = await api.public.getSharedShowcase(shareToken)
+      
+      if (success && data) {
+        setShowcase(data)
+        if (data.matchedProperties) {
+          setMatchedProperties(data.matchedProperties)
         }
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch showcase')
-        }
-        
-        const showcaseData = await response.json()
-        
-        // Backend will resolve visitor interactions based on showcase context
-        // No need to pass visitor_email in URL (security risk)
-        setShowcase(showcaseData)
-        
-        // Extract properties and set them in separate state
-        if (showcaseData.matchedProperties) {
-          setMatchedProperties(showcaseData.matchedProperties)
-        }
-        
-      } catch (err) {
-        setError('Failed to load showcase. Please try again.')
-        console.error('Error fetching showcase:', err)
-      } finally {
-        setIsLoading(false)
+      } else {
+        setError(apiError || 'Failed to load showcase')
       }
+      setIsLoading(false)
     }
 
     if (shareToken) {
@@ -187,18 +151,17 @@ export default function CustomerShowcasePage() {
   const handlePropertyLike = async (propertyId: string | number, liked: boolean) => {
     if (!showcase) return
 
-    // Optimistic UI update - update immediately for instant feedback
+    // Optimistic UI update
     const optimisticProperties = matchedProperties.map(property =>
       String(property.id) === String(propertyId) ? {
         ...property,
         liked: liked,
-        disliked: liked ? false : property.disliked  // Clear dislike if liking
+        disliked: liked ? false : property.disliked
       } : property
     )
 
     setMatchedProperties(optimisticProperties)
 
-    // Update selected property if it's the one being modified
     if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
       setSelectedProperty(prevProperty => ({
         ...prevProperty!,
@@ -207,82 +170,54 @@ export default function CustomerShowcasePage() {
       }))
     }
 
-    try {
-      const response = await apiRequest(`/collections/${showcase.id}/properties/${String(propertyId)}/interact`, {
-        method: 'POST',
-        body: JSON.stringify({
-          interaction_type: 'like',
-          value: liked
-        })
-      })
+    const { success, data, error } = await api.public.interactWithProperty(
+      showcase.id,
+      String(propertyId),
+      'like',
+      liked
+    )
 
-      if (response.status === 200) {
-        // Sync with server response
-        const updatedProperties = matchedProperties.map(property =>
-          String(property.id) === String(propertyId) ? {
-            ...property,
-            liked: response.data.interaction.liked,
-            disliked: response.data.interaction.disliked
-          } : property
-        )
-
-        setMatchedProperties(updatedProperties)
-
-        if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
-          setSelectedProperty(prevProperty => ({
-            ...prevProperty!,
-            liked: response.data.interaction.liked,
-            disliked: response.data.interaction.disliked
-          }))
-        }
-
-        // Show success toast
-        showToast(
-          liked ? 'Property added to your likes!' : 'Property removed from your likes',
-          'success'
-        )
-      }
-    } catch (error) {
-      console.error('Error updating property like status:', error)
-
-      // Rollback optimistic update on error
-      const revertedProperties = matchedProperties.map(property =>
+    if (success && data?.interaction) {
+      const updatedProperties = matchedProperties.map(property =>
         String(property.id) === String(propertyId) ? {
           ...property,
-          liked: !liked,
-          disliked: property.disliked
+          liked: data.interaction.liked,
+          disliked: data.interaction.disliked
         } : property
       )
 
-      setMatchedProperties(revertedProperties)
+      setMatchedProperties(updatedProperties)
 
       if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
         setSelectedProperty(prevProperty => ({
           ...prevProperty!,
-          liked: !liked,
-          disliked: prevProperty!.disliked
+          liked: data.interaction.liked,
+          disliked: data.interaction.disliked
         }))
       }
 
-      showToast('Failed to update like status. Please try again.', 'error')
+      showToast(liked ? 'Property added to your likes!' : 'Property removed from your likes', 'success')
+    } else {
+      // Rollback on error
+      setMatchedProperties(matchedProperties)
+      showToast(error || 'Failed to update like status', 'error')
     }
   }
 
   const handlePropertyDislike = async (propertyId: string | number, disliked: boolean) => {
     if (!showcase) return
 
-    // Optimistic UI update - update immediately for instant feedback
+    // Optimistic UI update
     const optimisticProperties = matchedProperties.map(property =>
       String(property.id) === String(propertyId) ? {
         ...property,
-        liked: disliked ? false : property.liked,  // Clear like if disliking
+        liked: disliked ? false : property.liked,
         disliked: disliked
       } : property
     )
 
     setMatchedProperties(optimisticProperties)
 
-    // Update selected property if it's the one being modified
     if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
       setSelectedProperty(prevProperty => ({
         ...prevProperty!,
@@ -291,87 +226,58 @@ export default function CustomerShowcasePage() {
       }))
     }
 
-    try {
-      const response = await apiRequest(`/collections/${showcase.id}/properties/${String(propertyId)}/interact`, {
-        method: 'POST',
-        body: JSON.stringify({
-          interaction_type: 'dislike',
-          value: disliked
-        })
-      })
+    const { success, data, error } = await api.public.interactWithProperty(
+      showcase.id,
+      String(propertyId),
+      'dislike',
+      disliked
+    )
 
-      if (response.status === 200) {
-        // Sync with server response
-        const updatedProperties = matchedProperties.map(property =>
-          String(property.id) === String(propertyId) ? {
-            ...property,
-            liked: response.data.interaction.liked,
-            disliked: response.data.interaction.disliked
-          } : property
-        )
-
-        setMatchedProperties(updatedProperties)
-
-        if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
-          setSelectedProperty(prevProperty => ({
-            ...prevProperty!,
-            liked: response.data.interaction.liked,
-            disliked: response.data.interaction.disliked
-          }))
-        }
-
-        // Show success toast
-        showToast(
-          disliked ? 'Property marked as not interested' : 'Property unmarked as not interested',
-          'success'
-        )
-      }
-    } catch (error) {
-      console.error('Error updating property dislike status:', error)
-
-      // Rollback optimistic update on error
-      const revertedProperties = matchedProperties.map(property =>
+    if (success && data?.interaction) {
+      const updatedProperties = matchedProperties.map(property =>
         String(property.id) === String(propertyId) ? {
           ...property,
-          liked: property.liked,
-          disliked: !disliked
+          liked: data.interaction.liked,
+          disliked: data.interaction.disliked
         } : property
       )
 
-      setMatchedProperties(revertedProperties)
+      setMatchedProperties(updatedProperties)
 
       if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
         setSelectedProperty(prevProperty => ({
           ...prevProperty!,
-          liked: prevProperty!.liked,
-          disliked: !disliked
+          liked: data.interaction.liked,
+          disliked: data.interaction.disliked
         }))
       }
 
-      showToast('Failed to update status. Please try again.', 'error')
+      showToast(disliked ? 'Property marked as not interested' : 'Property unmarked as not interested', 'success')
+    } else {
+      // Rollback
+      setMatchedProperties(matchedProperties)
+      showToast(error || 'Failed to update status', 'error')
     }
   }
 
   const handleAddComment = async (propertyId: string | number, comment: string) => {
     if (!showcase) return
 
+    const visitorName = `${showcase.customer.firstName} ${showcase.customer.lastName}`
     const newComment: Comment = {
-      id: Date.now(), // Simple ID generation for demo
-      author: `${showcase.customer.firstName} ${showcase.customer.lastName}`, // Customer name for shared view
+      id: Date.now(),
+      author: visitorName,
       content: comment,
       createdAt: new Date().toISOString()
     }
 
-    // Update local state immediately for better UX
-    const updatedProperties = matchedProperties.map(property =>
+    // Optimistic update
+    setMatchedProperties(prev => prev.map(property =>
       String(property.id) === String(propertyId) 
         ? { ...property, comments: [...(property.comments || []), newComment] }
         : property
-    )
-    
-    setMatchedProperties(updatedProperties)
+    ))
 
-    // Update the selected property in modal if it's the same property
     if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
       setSelectedProperty({
         ...selectedProperty,
@@ -379,101 +285,63 @@ export default function CustomerShowcasePage() {
       })
     }
     
-    // Make API call to persist the comment
-    try {
-      const response = await apiRequest(`/collections/${showcase.id}/properties/${String(propertyId)}/comments`, {
-        method: 'POST',
-        body: JSON.stringify({
-          content: comment,
-          visitor_name: `${showcase.customer.firstName} ${showcase.customer.lastName}`
-        })
-      })
+    const { success, data, error } = await api.public.addPropertyComment(
+      showcase.id,
+      String(propertyId),
+      comment,
+      visitorName
+    )
 
-      if (response.status === 200) {
-        const responseData = response.data
-        const backendComment = responseData.comment || responseData
-
-        // Transform backend response to frontend format (snake_case to camelCase)
-        const serverComment = {
-          ...backendComment,
-          createdAt: backendComment.created_at || backendComment.createdAt,
-          author: backendComment.author || backendComment.visitor_name || 'Anonymous'
-        }
-
-        // Replace optimistic comment with server response if different
-        if (serverComment && serverComment.id !== newComment.id) {
-          const replaceOptimisticComment = (comments: Comment[]) =>
-            comments.map(c => c.id === newComment.id ? serverComment : c)
-
-          setMatchedProperties(prev => prev.map(property =>
-            String(property.id) === String(propertyId)
-              ? { ...property, comments: replaceOptimisticComment(property.comments || []) }
-              : property
-          ))
-
-          if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
-            setSelectedProperty(prev => prev ? {
-              ...prev,
-              comments: replaceOptimisticComment(prev.comments || [])
-            } : prev)
-          }
-        }
-      } else {
-        throw new Error('Failed to post comment')
+    if (success && data) {
+      const backendComment = data.comment || data
+      const serverComment = {
+        ...backendComment,
+        createdAt: backendComment.created_at || backendComment.createdAt,
+        author: backendComment.author || backendComment.visitor_name || 'Anonymous'
       }
-    } catch (error) {
-      console.error('Error adding property comment:', error)
-      // Rollback optimistic update on error
-      const removeOptimisticComment = (comments: Comment[]) =>
-        comments.filter(c => c.id !== newComment.id)
+
+      const replaceComment = (comments: Comment[]) =>
+        comments.map(c => c.id === newComment.id ? serverComment : c)
 
       setMatchedProperties(prev => prev.map(property =>
         String(property.id) === String(propertyId)
-          ? { ...property, comments: removeOptimisticComment(property.comments || []) }
+          ? { ...property, comments: replaceComment(property.comments || []) }
           : property
       ))
 
       if (selectedProperty && String(selectedProperty.id) === String(propertyId)) {
-        setSelectedProperty(prev => prev ? {
-          ...prev,
-          comments: removeOptimisticComment(prev.comments || [])
-        } : prev)
+        setSelectedProperty(prev => prev ? { ...prev, comments: replaceComment(prev.comments || []) } : prev)
       }
+    } else {
+      // Rollback
+      setMatchedProperties(prev => prev.map(property =>
+        String(property.id) === String(propertyId)
+          ? { ...property, comments: (property.comments || []).filter(c => c.id !== newComment.id) }
+          : property
+      ))
+      showToast(error || 'Failed to post comment', 'error')
     }
   }
 
   const fetchPropertyComments = async (propertyId: number) => {
     if (!showcase) return
-
     setIsLoadingComments(true)
     setCommentsError(null)
 
-    try {
-      const response = await apiRequest(`/collections/${showcase.id}/properties/${String(propertyId)}/comments`)
+    const { success, data, error } = await api.public.getPropertyComments(showcase.id, String(propertyId))
 
-      if (response.status === 200) {
-        const data = response.data
-        // Transform backend comments to frontend format (snake_case to camelCase)
-        const transformedComments = (data || []).map((comment: any) => ({
-          ...comment,
-          createdAt: comment.created_at || comment.createdAt,
-          author: comment.author || comment.visitor_name || 'Anonymous'
-        }))
+    if (success && data) {
+      const transformedComments = data.map((comment: any) => ({
+        ...comment,
+        createdAt: comment.created_at || comment.createdAt,
+        author: comment.author || comment.visitor_name || 'Anonymous'
+      }))
 
-        // Update selected property with fresh comments
-        setSelectedProperty(prev => prev ? {
-          ...prev,
-          comments: transformedComments
-        } : prev)
-      } else {
-        setCommentsError('Failed to load comments')
-      }
-    } catch (error) {
-      console.error('Error fetching property comments:', error)
-      setCommentsError('Failed to load comments')
-    } finally {
-      setIsLoadingComments(false)
+      setSelectedProperty(prev => prev ? { ...prev, comments: transformedComments } : prev)
+    } else {
+      setCommentsError(error || 'Failed to load comments')
     }
+    setIsLoadingComments(false)
   }
 
   const handlePropertyClick = async (property: Property) => {
@@ -483,32 +351,22 @@ export default function CustomerShowcasePage() {
 
     // Track property view
     if (showcase?.id && property.id) {
-      try {
-        const response = await apiRequest(`/collections/${showcase.id}/properties/${String(property.id)}/view`, {
-          method: 'POST'
-        })
-
-        // Update local state after successful tracking
-        if (response.status === 200) {
-          // Update matchedProperties array
-          setMatchedProperties(prev => prev.map(p =>
-            String(p.id) === String(property.id) ? {
-              ...p,
-              viewed: true,
-              viewCount: (p.viewCount || 0) + 1
-            } : p
-          ))
-
-          // Update selectedProperty as well (since modal is already open)
-          setSelectedProperty(prev => prev ? {
-            ...prev,
+      const { success } = await api.public.trackPropertyView(showcase.id, String(property.id))
+      
+      if (success) {
+        setMatchedProperties(prev => prev.map(p =>
+          String(p.id) === String(property.id) ? {
+            ...p,
             viewed: true,
-            viewCount: (prev.viewCount || 0) + 1
-          } : prev)
-        }
-      } catch (error) {
-        console.error('Error tracking property view:', error)
-        // Don't block the UI if view tracking fails
+            viewCount: (p.viewCount || 0) + 1
+          } : p
+        ))
+
+        setSelectedProperty(prev => prev ? {
+          ...prev,
+          viewed: true,
+          viewCount: (prev.viewCount || 0) + 1
+        } : prev)
       }
     }
 
@@ -517,25 +375,17 @@ export default function CustomerShowcasePage() {
     setDetailsError(null)
 
     try {
-      // Fetch/cache detailed property information in background
-      const response = await propertyApi.cache(property.id as string)
+      const { success, data, error } = await api.properties.getById(property.id as string)
 
-      if (response.success && response.data) {
-        // ApiClient already unwraps the data
-        const detailedProperty = response.data
-        
-        // Update property with enhanced flat details
-        const enhancedProperty = {
-          ...property,
-          ...detailedProperty
-        }
-        setSelectedProperty(enhancedProperty)
+      if (success && data) {
+        setSelectedProperty(prev => prev ? { ...prev, ...data } : null)
+      } else {
+        setDetailsError(error || 'Failed to load details')
       }
-    } catch (error) {
-      console.error('Error fetching property details:', error)
+    } catch (err) {
+      console.error('Error fetching property details:', err)
       setDetailsError('Failed to load additional property details')
     } finally {
-      // Hide loading state when done
       setIsLoadingDetails(false)
     }
 
@@ -563,23 +413,9 @@ export default function CustomerShowcasePage() {
     }
 
     try {
-      const response = await apiRequest(`/collections/${showcase.id}/properties/${tourRequest.propertyId}/schedule-tour`, {
-        method: 'POST',
-        body: JSON.stringify({
-          preferred_date: tourRequest.preferredDate,
-          preferred_time: tourRequest.preferredTime,
-          preferred_date_2: tourRequest.preferredDate2,
-          preferred_time_2: tourRequest.preferredTime2,
-          preferred_date_3: tourRequest.preferredDate3,
-          preferred_time_3: tourRequest.preferredTime3,
-          message: tourRequest.message,
-          visitor_name: tourRequest.visitorName,
-          visitor_email: tourRequest.visitorContact?.includes('@') ? tourRequest.visitorContact : undefined,
-          visitor_phone: !tourRequest.visitorContact?.includes('@') ? tourRequest.visitorContact : undefined
-        })
-      })
+      const { success, error } = await api.public.scheduleTour(showcase.id, tourRequest)
 
-      if (response.status === 200) {
+      if (success) {
         // Build success message with all preferred times
         let successMessage = `Tour request submitted successfully!\n\nProperty: ${tourRequest.propertyAddress}\n\nPreferred Times:\n1. ${tourRequest.preferredDate} at ${tourRequest.preferredTime}`
         if (tourRequest.preferredDate2 && tourRequest.preferredTime2) {
@@ -604,7 +440,7 @@ export default function CustomerShowcasePage() {
         // Close the tour modal
         handleCloseTourModal()
       } else {
-        throw new Error('Failed to submit tour request')
+        showToast(error || 'Failed to submit tour request', 'error')
       }
 
     } catch (error) {
@@ -624,26 +460,18 @@ export default function CustomerShowcasePage() {
 
     const newNotifyVisitor = !showcase.notifyVisitor
 
-    try {
-      const response = await apiRequest(`/collections/shared/${shareToken}/notifications`, {
-        method: 'PATCH',
-        body: JSON.stringify({ notify_visitor: newNotifyVisitor })
-      })
+    const { success, error } = await api.public.toggleNotifications(shareToken, newNotifyVisitor)
 
-      if (response.status === 200) {
-        setShowcase(prev => prev ? { ...prev, notifyVisitor: newNotifyVisitor } : null)
-        showToast(
-          newNotifyVisitor 
-            ? 'Notifications enabled! You will be notified of new matches.' 
-            : 'Notifications disabled.',
-          'success'
-        )
-      } else {
-        showToast('Failed to update notification settings', 'error')
-      }
-    } catch (error) {
-      console.error('Error updating notification settings:', error)
-      showToast('Error updating notification settings', 'error')
+    if (success) {
+      setShowcase(prev => prev ? { ...prev, notifyVisitor: newNotifyVisitor } : null)
+      showToast(
+        newNotifyVisitor 
+          ? 'Notifications enabled! You will be notified of new matches.' 
+          : 'Notifications disabled.',
+        'success'
+      )
+    } else {
+      showToast(error || 'Failed to update notification settings', 'error')
     }
   }
 

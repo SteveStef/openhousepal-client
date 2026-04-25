@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import CityTag from './CityTag'
-import { api } from '@/lib/api'
+import api from '@/lib/api-service'
 
 interface MultiSchoolDistrictInputProps {
   schoolDistricts: string[]
@@ -53,10 +53,10 @@ export default function MultiSchoolDistrictInput({
 
       setIsLoading(true)
       try {
-        const response = await api.searchSchoolDistricts(query)
-        if (response.success && response.data) {
+        const { success, data } = await api.properties.searchSchoolDistricts(query)
+        if (success && data) {
           // Filter out already selected districts
-          const filtered = response.data.results.filter((sd: string) => !schoolDistricts.includes(sd))
+          const filtered = data.results.filter((sd: string) => !schoolDistricts.includes(sd))
           setSuggestions(filtered)
         }
       } catch (err) {

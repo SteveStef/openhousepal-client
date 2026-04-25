@@ -2,8 +2,8 @@
 
 import Image from 'next/image'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Property, PropertyDetailResponse } from '@/types'
-import { X, MessageCircle, Send, ThumbsUp, ThumbsDown, ChevronLeft, ChevronRight, Maximize2, Home, User, Ruler, Bed, Bath, Calendar, MapPin, Clock, ShieldCheck } from 'lucide-react'
+import { PropertyDetailResponse } from '@/types'
+import { X, MessageCircle, ThumbsUp, ThumbsDown, ChevronLeft, ChevronRight, Maximize2, Home, User, Ruler, Bed, Bath, Calendar, MapPin, Clock, ShieldCheck } from 'lucide-react'
 import { cleanAddress, formatMlsStatus, formatPropertyType, formatPropertyFeature, normalizeImageUrl } from '@/lib/utils'
 
 const formatDate = (dateString: string) => {

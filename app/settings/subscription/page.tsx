@@ -5,7 +5,8 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Footer from '@/components/Footer'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import ResubscribeModal from '@/components/ResubscribeModal'
-import { User, apiRequest } from '@/lib/auth'
+import api from '@/lib/api-service'
+import { User } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { Sparkles, AlertCircle, Calendar, CheckCircle2 } from 'lucide-react'
@@ -51,26 +52,18 @@ function SubscriptionContent() {
       if (subscriptionId) {
         console.log('📝 Completing new subscription:', subscriptionId)
 
-        try {
-          const response = await apiRequest('/subscriptions/complete-new', {
-            method: 'POST',
-            body: JSON.stringify({ subscription_id: subscriptionId })
-          })
+        const { success, data, error } = await api.paypal.completeNew(subscriptionId)
 
-          if (response.status === 200) {
-            showToast(response.data?.message || 'Subscription activated successfully!', 'success')
+        if (success) {
+          showToast(data?.message || 'Subscription activated successfully!', 'success')
 
-            // Reload user data to show new subscription
-            await refreshUser()
+          // Reload user data to show new subscription
+          await refreshUser()
 
-            // Clean up URL (remove query params)
-            router.replace(pathname)
-          } else {
-            showToast(response.error || 'Failed to complete subscription. Please contact support.', 'error')
-          }
-        } catch (error) {
-          console.error('Error completing subscription:', error)
-          showToast('Failed to complete subscription. Please contact support.', 'error')
+          // Clean up URL (remove query params)
+          router.replace(pathname)
+        } else {
+          showToast(error || 'Failed to complete subscription. Please contact support.', 'error')
         }
       }
     }
@@ -82,36 +75,28 @@ function SubscriptionContent() {
   const handleUpgrade = async () => {
     setActionLoading(true)
 
-    try {
-      const response = await apiRequest('/subscriptions/upgrade', { method: 'POST' })
+    const { success, data, error } = await api.paypal.upgrade()
 
-      if (response.status !== 200) {
-        showToast(response.error || 'Failed to start upgrade. Please try again.', 'error')
-        setActionLoading(false)
-        setUpgradeModalOpen(false)
-        return
-      }
+    if (!success) {
+      showToast(error || 'Failed to start upgrade. Please try again.', 'error')
+      setActionLoading(false)
+      setUpgradeModalOpen(false)
+      return
+    }
 
-      // Check if change was immediate or requires approval
-      if (response.data?.immediate) {
-        // Plan changed immediately - refresh to show new plan
-        showToast(response.data?.message || 'Plan upgraded successfully!', 'success')
-        setActionLoading(false)
-        setUpgradeModalOpen(false)
-        await refreshUser()
-        router.refresh()
-      } else if (response.data?.approval_url) {
-        // Redirect user to PayPal approval URL
-        window.location.href = response.data.approval_url
-      } else {
-        showToast('Unexpected response from server. Please try again.', 'error')
-        setActionLoading(false)
-        setUpgradeModalOpen(false)
-      }
-
-    } catch (error) {
-      console.error('Upgrade error:', error)
-      showToast('Failed to process upgrade. Please try again.', 'error')
+    // Check if change was immediate or requires approval
+    if (data?.immediate) {
+      // Plan changed immediately - refresh to show new plan
+      showToast(data?.message || 'Plan upgraded successfully!', 'success')
+      setActionLoading(false)
+      setUpgradeModalOpen(false)
+      await refreshUser()
+      router.refresh()
+    } else if (data?.approval_url) {
+      // Redirect user to PayPal approval URL
+      window.location.href = data.approval_url
+    } else {
+      showToast('Unexpected response from server. Please try again.', 'error')
       setActionLoading(false)
       setUpgradeModalOpen(false)
     }
@@ -120,36 +105,28 @@ function SubscriptionContent() {
   const handleDowngrade = async () => {
     setActionLoading(true)
 
-    try {
-      const response = await apiRequest('/subscriptions/downgrade', { method: 'POST' })
+    const { success, data, error } = await api.paypal.downgrade()
 
-      if (response.status !== 200) {
-        showToast(response.error || 'Failed to start downgrade. Please try again.', 'error')
-        setActionLoading(false)
-        setDowngradeModalOpen(false)
-        return
-      }
+    if (!success) {
+      showToast(error || 'Failed to start downgrade. Please try again.', 'error')
+      setActionLoading(false)
+      setDowngradeModalOpen(false)
+      return
+    }
 
-      // Check if change was immediate or requires approval
-      if (response.data?.immediate) {
-        // Plan changed immediately - refresh to show new plan
-        showToast(response.data?.message || 'Plan downgraded successfully!', 'success')
-        setActionLoading(false)
-        setDowngradeModalOpen(false)
-        await refreshUser()
-        router.refresh()
-      } else if (response.data?.approval_url) {
-        // Redirect user to PayPal approval URL
-        window.location.href = response.data.approval_url
-      } else {
-        showToast('Unexpected response from server. Please try again.', 'error')
-        setActionLoading(false)
-        setDowngradeModalOpen(false)
-      }
-
-    } catch (error) {
-      console.error('Downgrade error:', error)
-      showToast('Failed to process downgrade. Please try again.', 'error')
+    // Check if change was immediate or requires approval
+    if (data?.immediate) {
+      // Plan changed immediately - refresh to show new plan
+      showToast(data?.message || 'Plan downgraded successfully!', 'success')
+      setActionLoading(false)
+      setDowngradeModalOpen(false)
+      await refreshUser()
+      router.refresh()
+    } else if (data?.approval_url) {
+      // Redirect user to PayPal approval URL
+      window.location.href = data.approval_url
+    } else {
+      showToast('Unexpected response from server. Please try again.', 'error')
       setActionLoading(false)
       setDowngradeModalOpen(false)
     }
@@ -158,26 +135,17 @@ function SubscriptionContent() {
   const handleCancel = async () => {
     setActionLoading(true)
 
-    try {
-      const response = await apiRequest('/subscriptions/cancel', { method: 'POST' })
+    const { success, data, error } = await api.paypal.cancel()
 
-      if (response.status !== 200) {
-        showToast(response.error || 'Failed to cancel subscription. Please try again.', 'error')
-        setActionLoading(false)
-        setCancelModalOpen(false)
-        return
-      }
-
+    if (success) {
       // Refresh global state to reflect cancellation
       await refreshUser()
 
-      showToast(response.data?.message || 'Subscription cancelled. You will keep access until your billing period ends.', 'success')
+      showToast(data?.message || 'Subscription cancelled. You will keep access until your billing period ends.', 'success')
       setActionLoading(false)
       setCancelModalOpen(false)
-
-    } catch (error) {
-      console.error('Cancel error:', error)
-      showToast('Failed to cancel subscription. Please try again.', 'error')
+    } else {
+      showToast(error || 'Failed to cancel subscription. Please try again.', 'error')
       setActionLoading(false)
       setCancelModalOpen(false)
     }
@@ -186,26 +154,17 @@ function SubscriptionContent() {
   const handleReactivate = async () => {
     setActionLoading(true)
 
-    try {
-      const response = await apiRequest('/subscriptions/reactivate', { method: 'POST' })
+    const { success, error } = await api.paypal.reactivate()
 
-      if (response.status !== 200) {
-        showToast(response.error || 'Failed to reactivate subscription. Please try again.', 'error')
-        setActionLoading(false)
-        setReactivateModalOpen(false)
-        return
-      }
-
+    if (success) {
       // Refresh global state
       await refreshUser()
 
-      showToast(response.data?.message || 'Subscription reactivated successfully!', 'success')
+      showToast('Subscription reactivated successfully!', 'success')
       setActionLoading(false)
       setReactivateModalOpen(false)
-
-    } catch (error) {
-      console.error('Reactivate error:', error)
-      showToast('Failed to reactivate subscription. Please try again.', 'error')
+    } else {
+      showToast(error || 'Failed to reactivate subscription. Please try again.', 'error')
       setActionLoading(false)
       setReactivateModalOpen(false)
     }
@@ -213,70 +172,51 @@ function SubscriptionContent() {
 
   const handleStartFreshConfirm = async () => {
     setActionLoading(true)
-    try {
-      // Step 1: Cancel the existing suspended subscription
-      const response = await apiRequest('/subscriptions/cancel', { method: 'POST' })
-      
-      if (response.status !== 200) {
-        showToast(response.error || 'Failed to cancel existing agreement. Please try again.', 'error')
-        setActionLoading(false)
-        setStartFreshModalOpen(false)
-        return
-      }
-
-      // Step 2: Update local state to CANCELLED
-      if (user) {
-        const updatedUser = { ...user, subscription_status: 'CANCELLED' }
-        setUser(updatedUser)
-        // refreshUser() // Optional: could wait until full completion
-      }
-
-      // Step 3: Transition to resubscribe modal
-      setStartFreshModalOpen(false)
-      setActionLoading(false)
-      setTimeout(() => {
-        setResubscribeModalOpen(true)
-      }, 300)
-
-    } catch (error) {
-      console.error('Start fresh error:', error)
-      showToast('Something went wrong. Please try again.', 'error')
+    
+    // Step 1: Cancel the existing suspended subscription
+    const { success, error } = await api.paypal.cancel()
+    
+    if (!success) {
+      showToast(error || 'Failed to cancel existing agreement. Please try again.', 'error')
       setActionLoading(false)
       setStartFreshModalOpen(false)
+      return
     }
+
+    // Step 2: Update local state to CANCELLED
+    if (user) {
+      const updatedUser = { ...user, subscription_status: 'CANCELLED' }
+      setUser(updatedUser)
+    }
+
+    // Step 3: Transition to resubscribe modal
+    setStartFreshModalOpen(false)
+    setActionLoading(false)
+    setTimeout(() => {
+      setResubscribeModalOpen(true)
+    }, 300)
   }
 
   const handleResubscribe = async (planTier: 'BASIC' | 'PREMIUM') => {
     setActionLoading(true)
 
-    try {
-      const response = await apiRequest('/subscriptions/create-new', {
-        method: 'POST',
-        body: JSON.stringify({ plan_tier: planTier })
-      })
+    const { success, data, error } = await api.paypal.createNew(planTier)
 
-      if (response.status !== 200) {
-        showToast(response.error || 'Failed to create new subscription. Please try again.', 'error')
-        setActionLoading(false)
-        setResubscribeModalOpen(false)
-        return
-      }
+    if (!success) {
+      showToast(error || 'Failed to create new subscription. Please try again.', 'error')
+      setActionLoading(false)
+      setResubscribeModalOpen(false)
+      return
+    }
 
-      // Redirect to PayPal approval URL
-      if (response.data?.approval_url) {
-        showToast('Redirecting to PayPal to complete your subscription...', 'success')
-        setTimeout(() => {
-          window.location.href = response.data.approval_url
-        }, 1000)
-      } else {
-        showToast('Failed to get PayPal approval URL. Please try again.', 'error')
-        setActionLoading(false)
-        setResubscribeModalOpen(false)
-      }
-
-    } catch (error) {
-      console.error('Resubscribe error:', error)
-      showToast('Failed to create new subscription. Please try again.', 'error')
+    // Redirect to PayPal approval URL
+    if (data?.approval_url) {
+      showToast('Redirecting to PayPal to complete your subscription...', 'success')
+      setTimeout(() => {
+        window.location.href = data.approval_url
+      }, 1000)
+    } else {
+      showToast('Failed to get PayPal approval URL. Please try again.', 'error')
       setActionLoading(false)
       setResubscribeModalOpen(false)
     }
