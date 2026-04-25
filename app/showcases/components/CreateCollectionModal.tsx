@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, memo } from 'react'
-import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
+import { useState, useRef, memo } from 'react'
+import GooglePlacesAutocomplete, { GooglePlacesAutocompleteRef } from '@/components/GooglePlacesAutocomplete'
 import MultiCityPlacesInput from '@/components/MultiCityPlacesInput'
 import MultiTownshipPlacesInput from '@/components/MultiTownshipPlacesInput'
 import MultiSchoolDistrictInput from '@/components/MultiSchoolDistrictInput'
@@ -17,6 +17,7 @@ export const CreateCollectionModal = memo(function CreateCollectionModal({
   onClose,
   onSubmit
 }: CreateCollectionModalProps) {
+  const googleAutocompleteRef = useRef<GooglePlacesAutocompleteRef>(null)
   const [formData, setFormData] = useState({
     showcaseName: '',
     fullName: '',
@@ -106,6 +107,19 @@ export const CreateCollectionModal = memo(function CreateCollectionModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsSubmitting(true)
+
+    // Silent Resolution: If address search is used but coordinates are missing, try to resolve before submitting
+    let finalData = { ...formData }
+    if (isUsingAddressSearch() && (!formData.lat || !formData.long)) {
+      const resolved = await googleAutocompleteRef.current?.resolveAddress()
+      if (resolved) {
+        finalData.address = resolved.address
+        finalData.lat = resolved.lat
+        finalData.long = resolved.lng
+      }
+    }
+
     const locationValidation = validateLocationPreferences()
     const hasValidPropertyTypes = validatePropertyTypes()
     
@@ -114,12 +128,12 @@ export const CreateCollectionModal = memo(function CreateCollectionModal({
         location: locationValidation.isValid ? '' : locationValidation.error,
         propertyTypes: hasValidPropertyTypes ? '' : 'Please select at least one property type'
       })
+      setIsSubmitting(false)
       return
     }
     
-    setIsSubmitting(true)
     try {
-      await onSubmit(formData)
+      await onSubmit(finalData)
       onClose()
     } finally {
       setIsSubmitting(false)
@@ -205,6 +219,7 @@ export const CreateCollectionModal = memo(function CreateCollectionModal({
                 <h5 className="text-md font-black uppercase mb-6">Address-Based Search</h5>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <GooglePlacesAutocomplete 
+                    ref={googleAutocompleteRef}
                     value={formData.address} 
                     onChange={(addr) => handleInputChange('address', addr)} 
                     onCoordinatesChange={(lat, lng) => { 

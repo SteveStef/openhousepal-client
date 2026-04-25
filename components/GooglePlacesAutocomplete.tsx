@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react'
 import { Loader } from '@googlemaps/js-api-loader'
 import "../types"
 
@@ -14,6 +14,10 @@ interface GooglePlacesAutocompleteProps {
   required?: boolean
   id?: string
   name?: string
+}
+
+export interface GooglePlacesAutocompleteRef {
+  resolveAddress: () => Promise<{address: string, lat: number, lng: number} | null>;
 }
 
 // Helper function moved outside component to avoid recreation and dependency issues
@@ -68,7 +72,7 @@ const formatAddressWithoutCountry = (place: google.maps.places.PlaceResult): str
   return addressParts.join(', ')
 }
 
-export default function GooglePlacesAutocomplete({
+const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GooglePlacesAutocompleteProps>(({
   value,
   onChange,
   onCoordinatesChange,
@@ -78,7 +82,7 @@ export default function GooglePlacesAutocomplete({
   required = false,
   id = "address",
   name = "address"
-}: GooglePlacesAutocompleteProps) {
+}, ref) => {
   const inputRef = useRef<HTMLInputElement>(null)
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
@@ -93,6 +97,60 @@ export default function GooglePlacesAutocomplete({
     onChangeRef.current = onChange
     onCoordinatesChangeRef.current = onCoordinatesChange
   }, [onChange, onCoordinatesChange])
+
+  // Logic to resolve the best match for the current text
+  const resolveAddress = async (): Promise<{address: string, lat: number, lng: number} | null> => {
+    const currentValue = inputRef.current?.value.trim() || value.trim();
+    if (!currentValue) return null;
+
+    try {
+      const autocompleteService = new google.maps.places.AutocompleteService();
+      const predictions = await autocompleteService.getPlacePredictions({
+        input: currentValue,
+        types: ['address'],
+        componentRestrictions: { country: 'us' }
+      });
+
+      if (predictions.predictions && predictions.predictions.length > 0) {
+        const topMatch = predictions.predictions[0];
+        const placesService = new google.maps.places.PlacesService(document.createElement('div'));
+        
+        return new Promise((resolve) => {
+          placesService.getDetails({
+            placeId: topMatch.place_id,
+            fields: ['address_components', 'formatted_address', 'geometry']
+          }, (place, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK && place && place.geometry?.location) {
+              const formattedAddress = formatAddressWithoutCountry(place);
+              const lat = place.geometry.location.lat();
+              const lng = place.geometry.location.lng();
+              
+              // Sync local UI
+              onChangeRef.current(formattedAddress);
+              if (onCoordinatesChangeRef.current) {
+                onCoordinatesChangeRef.current(lat, lng);
+              }
+              if (inputRef.current) {
+                inputRef.current.value = formattedAddress;
+              }
+
+              resolve({ address: formattedAddress, lat, lng });
+            } else {
+              resolve(null);
+            }
+          });
+        });
+      }
+    } catch (err) {
+      console.error("Manual address resolution failed:", err);
+    }
+    return null;
+  };
+
+  // Expose resolveAddress to parent components
+  useImperativeHandle(ref, () => ({
+    resolveAddress
+  }));
 
   useEffect(() => {
     const initializeAutocomplete = async () => {
@@ -166,46 +224,8 @@ export default function GooglePlacesAutocomplete({
       if (!value) return
       
       e.preventDefault()
-
-      try {
-        const autocompleteService = new google.maps.places.AutocompleteService()
-        const predictions = await autocompleteService.getPlacePredictions({
-          input: value,
-          types: ['address'],
-          componentRestrictions: { country: 'us' }
-        })
-
-        if (predictions.predictions && predictions.predictions.length > 0) {
-          const topMatch = predictions.predictions[0]
-          const placesService = new google.maps.places.PlacesService(document.createElement('div'))
-          
-          placesService.getDetails({
-            placeId: topMatch.place_id,
-            fields: ['address_components', 'formatted_address', 'geometry']
-          }, (place, status) => {
-            if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-              const formattedAddress = formatAddressWithoutCountry(place)
-              
-              // Trigger parent updates
-              onChangeRef.current(formattedAddress)
-              
-              if (onCoordinatesChangeRef.current && place.geometry?.location) {
-                onCoordinatesChangeRef.current(
-                  place.geometry.location.lat(),
-                  place.geometry.location.lng()
-                )
-              }
-
-              // Update visual value
-              if (inputRef.current) {
-                inputRef.current.value = formattedAddress
-              }
-            }
-          })
-        }
-      } catch (err) {
-        console.error("Address auto-match failed:", err)
-      }
+      // Automatically resolve to first match on Enter
+      await resolveAddress()
     }
   }
 
@@ -251,4 +271,8 @@ export default function GooglePlacesAutocomplete({
       )}
     </div>
   )
-}
+})
+
+GooglePlacesAutocomplete.displayName = 'GooglePlacesAutocomplete'
+
+export default GooglePlacesAutocomplete

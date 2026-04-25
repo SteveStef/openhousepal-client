@@ -439,16 +439,10 @@ function ShowcaseContent() {
 
       const { success, data, error } = await api.collections.createManually(payload)
       if (success && data) {
-        const transformed = transformBackendCollection(data)
-        
-        // Prevent duplicate keys/items in the state
-        setCollections(prev => {
-          if (prev.some(c => c.id === transformed.id)) return prev;
-          return [transformed, ...prev];
-        })
-
         setIsCreateModalOpen(false)
         showToast('Showcase created successfully!', 'success')
+        // Trigger full refresh to get the latest list including property counts
+        await fetchCollections()
       } else {
         showToast(error || 'Failed to create showcase', 'error')
       }
