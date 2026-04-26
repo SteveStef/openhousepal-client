@@ -487,7 +487,7 @@ function ShowcaseContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col transition-colors duration-300">
+    <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B] flex flex-col transition-colors duration-300">
       {selectedCollection ? (
         <DetailView
           selectedCollection={selectedCollection}
