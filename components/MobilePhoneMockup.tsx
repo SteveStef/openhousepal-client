@@ -80,6 +80,8 @@ export default function MobilePhoneMockup() {
                       width={80}
                       height={80}
                       className="w-full h-full object-cover"
+                      loading="eager"
+                      priority
                     />
                   </div>
                   {/* Property Details */}

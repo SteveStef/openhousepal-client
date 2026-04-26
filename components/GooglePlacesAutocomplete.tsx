@@ -87,6 +87,17 @@ const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GoogleP
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
   const [error, setError] = useState<string>('')
+  
+  // Internal state to manage the display value to prevent "snap-back" issues
+  // between React's controlled state and Google's DOM manipulation
+  const [displayValue, setDisplayValue] = useState(value)
+
+  // Sync internal state with external value prop
+  useEffect(() => {
+    if (value !== displayValue) {
+      setDisplayValue(value)
+    }
+  }, [value])
 
   // Refs to hold the latest callback functions
   const onChangeRef = useRef(onChange)
@@ -100,7 +111,7 @@ const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GoogleP
 
   // Logic to resolve the best match for the current text
   const resolveAddress = async (): Promise<{address: string, lat: number, lng: number} | null> => {
-    const currentValue = inputRef.current?.value.trim() || value.trim();
+    const currentValue = inputRef.current?.value.trim() || displayValue.trim();
     if (!currentValue) return null;
 
     try {
@@ -126,6 +137,7 @@ const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GoogleP
               const lng = place.geometry.location.lng();
               
               // Sync local UI
+              setDisplayValue(formattedAddress);
               onChangeRef.current(formattedAddress);
               if (onCoordinatesChangeRef.current) {
                 onCoordinatesChangeRef.current(lat, lng);
@@ -183,7 +195,10 @@ const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GoogleP
             // Format the address
             const formattedAddress = formatAddressWithoutCountry(place)
 
-            // Send formatted address to parent using ref
+            // Update internal state immediately
+            setDisplayValue(formattedAddress)
+            
+            // Send formatted address to parent
             onChangeRef.current(formattedAddress)
 
             // Update input visually
@@ -191,7 +206,7 @@ const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GoogleP
               inputRef.current.value = formattedAddress
             }
 
-            // Send coordinates to parent using ref
+            // Send coordinates to parent
             if (onCoordinatesChangeRef.current && place.geometry?.location) {
               const lat = place.geometry.location.lat()
               const lng = place.geometry.location.lng()
@@ -215,7 +230,9 @@ const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GoogleP
   }, []) // Empty dependency array ensures this only runs once
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(e.target.value)
+    const newValue = e.target.value
+    setDisplayValue(newValue)
+    onChange(newValue)
   }
 
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -237,7 +254,7 @@ const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GoogleP
         name={name}
         type="text"
         required={required}
-        value={value}
+        value={displayValue}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
         disabled={disabled}

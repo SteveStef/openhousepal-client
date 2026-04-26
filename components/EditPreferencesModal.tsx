@@ -271,11 +271,45 @@ export default function EditPreferencesModal({
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase mb-2 ml-1">Min Year Built</label>
+                  <input 
+                    type="number" 
+                    min="1800"
+                    max={new Date().getFullYear()}
+                    value={formData.min_year_built || ''}
+                    onChange={(e) => setFormData({ ...formData, min_year_built: parseInt(e.target.value) || null })}
+                    className="block w-full px-4 py-3 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all font-bold"
+                    placeholder="Any"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase mb-2 ml-1">Max Year Built</label>
+                  <input 
+                    type="number" 
+                    min="1800"
+                    max={new Date().getFullYear()}
+                    value={formData.max_year_built || ''}
+                    onChange={(e) => setFormData({ ...formData, max_year_built: parseInt(e.target.value) || null })}
+                    className="block w-full px-4 py-3 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all font-bold"
+                    placeholder="Any"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-6">
                 <div className={`p-6 rounded-2xl border-2 transition-all ${isUsingAddressSearch() ? 'border-[#C9A24D] bg-[#FAFAF7] dark:bg-[#0B0B0B] shadow-md' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-[#151517]'}`}>
                   <div className="flex items-center justify-between mb-6">
                     <h5 className="text-md font-black text-[#0B0B0B] dark:text-white uppercase tracking-tight">Address-Based Search</h5>
-                    {isUsingAddressSearch() && <div className="px-3 py-1 bg-[#C9A24D] rounded-full text-[10px] font-black text-white uppercase tracking-widest">Active</div>}
+                    {isUsingAddressSearch() && (
+                      <button
+                        onClick={() => setFormData({ ...formData, address: '', lat: null, long: null, diameter: null })}
+                        className="px-3 py-1 text-[10px] font-black text-[#C9A24D] hover:text-[#111827] dark:hover:text-white uppercase tracking-widest transition-colors"
+                      >
+                        Clear
+                      </button>
+                    )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
@@ -318,7 +352,14 @@ export default function EditPreferencesModal({
                 <div className={`p-6 rounded-2xl border-2 transition-all ${isUsingAreaSearch() ? 'border-[#C9A24D] bg-[#FAFAF7] dark:bg-[#0B0B0B] shadow-md' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-[#151517]'}`}>
                   <div className="flex items-center justify-between mb-6">
                     <h5 className="text-md font-black text-[#0B0B0B] dark:text-white uppercase tracking-tight">Area-Based Search</h5>
-                    {isUsingAreaSearch() && <div className="px-3 py-1 bg-[#C9A24D] rounded-full text-[10px] font-black text-white uppercase tracking-widest">Active</div>}
+                    {isUsingAreaSearch() && (
+                      <button
+                        onClick={() => setFormData({ ...formData, cities: [], townships: [], school_districts: [] })}
+                        className="px-3 py-1 text-[10px] font-black text-[#C9A24D] hover:text-[#111827] dark:hover:text-white uppercase tracking-widest transition-colors"
+                      >
+                        Clear
+                      </button>
+                    )}
                   </div>
                   <div className="space-y-4">
                     <MultiCityPlacesInput 

@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, memo, useCallback } from 'react'
+import { useState, memo, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import { v4 as uuidv4 } from 'uuid'
-import GooglePlacesAutocomplete from '@/components/GooglePlacesAutocomplete'
+import GooglePlacesAutocomplete, { GooglePlacesAutocompleteRef } from '@/components/GooglePlacesAutocomplete'
 import { PropertyRecommendationCard } from '@/components/PropertyRecommendationCard'
 import api from '@/lib/api-service'
 import { 
@@ -30,6 +30,7 @@ export function CreateOpenHouseWizard({
   triggerPreview,
   formatAddress
 }: CreateOpenHouseWizardProps) {
+  const googleAutocompleteRef = useRef<GooglePlacesAutocompleteRef>(null)
   // Wizard State
   const [currentStep, setCurrentStep] = useState<OpenHouseWizardStep>('ADDRESS')
   
@@ -113,7 +114,18 @@ export function CreateOpenHouseWizard({
     setIsGenerating(true)
     setIsLoadingProperty(true)
 
-    const { success, data, error } = await api.properties.lookup(address)
+    // Silent Resolution: If coordinates are missing, try to resolve before lookup
+    let searchAddress = address
+    if (!coordinates) {
+      const resolved = await googleAutocompleteRef.current?.resolveAddress()
+      if (resolved) {
+        searchAddress = resolved.address
+        setAddress(resolved.address)
+        setCoordinates({ lat: resolved.lat, lng: resolved.lng })
+      }
+    }
+
+    const { success, data, error } = await api.properties.lookup(searchAddress)
     
     if (success && data) {
       setPropertyData(data)
@@ -279,6 +291,7 @@ export function CreateOpenHouseWizard({
                       </svg>
                     </div>
                     <GooglePlacesAutocomplete
+                      ref={googleAutocompleteRef}
                       id="address"
                       name="address"
                       required

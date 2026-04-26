@@ -30,6 +30,7 @@ export default function OpenHouseVisitorsPage() {
 
     if (success && data) {
       setVisitors(data)
+      console.log(data);
     } else {
       setError(error || 'Failed to load visitors')
     }
@@ -37,12 +38,17 @@ export default function OpenHouseVisitorsPage() {
   }
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return dateString
+
+    return date.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
     })
   }
 
