@@ -507,10 +507,11 @@ function ShowcaseContent() {
         max_year_built: collectionData.maxYearBuilt ? parseInt(collectionData.maxYearBuilt) : null,
         cities: collectionData.cities || [],
         townships: collectionData.townships || [],
-        address: collectionData.address,
+        school_districts: collectionData.schoolDistricts || [],
+        address: collectionData.address || '',
         lat: collectionData.lat,
         long: collectionData.long,
-        diameter: parseFloat(parseFloat(collectionData.diameter).toFixed(1)),
+        diameter: collectionData.diameter ? parseFloat(parseFloat(collectionData.diameter).toFixed(1)) : 0,
         
         // Property types
         is_town_house: collectionData.isTownHouse || false,

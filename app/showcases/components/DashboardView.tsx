@@ -5,6 +5,26 @@ import { Collection } from '@/types'
 import { Share2, Edit3, Trash2, Mail, Phone, Check } from 'lucide-react'
 
 // --- HELPERS ---
+const timeAgo = (dateString?: string) => {
+  if (!dateString) return null;
+  const now = new Date();
+  const past = new Date(dateString);
+  const diffInMs = now.getTime() - past.getTime();
+  
+  const seconds = Math.floor(diffInMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 60) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days}d ago`;
+  
+  return past.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
 const formatLocation = (name: string) => {
   if (!name) return "";
   return name
@@ -12,6 +32,24 @@ const formatLocation = (name: string) => {
     .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
+};
+
+const getAvatarColor = (name: string) => {
+  const colors = [
+    'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-900/50',
+    'bg-emerald-50 text-green-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-900/50',
+    'bg-violet-50 text-purple-700 border-violet-100 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-900/50',
+    'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-900/50',
+    'bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-900/50',
+    'bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-900/50',
+    'bg-cyan-50 text-cyan-700 border-cyan-100 dark:bg-cyan-900/30 dark:text-cyan-400 dark:border-cyan-900/50',
+  ];
+  
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
 };
 
 interface DashboardViewProps {
@@ -64,10 +102,26 @@ export const DashboardView = memo(function DashboardView({
       ].map(formatLocation)
 
       if (displayLocations.length === 0 && prefs?.address) {
-        const parts = prefs.address.split(',')
+        const address = prefs.address;
+        const parts = address.split(',');
         if (parts.length >= 2) {
-          const parsedCity = parts[1].trim()
-          if (parsedCity) displayLocations = [formatLocation(parsedCity)]
+          const cityPart = parts[parts.length - 2].trim();
+          if (cityPart) {
+            if (cityPart.length === 2 && parts.length >= 3) {
+              // We found a state code (e.g. "PA"), look at the segment before it
+              const potentialCity = parts[parts.length - 3].trim();
+              
+              // If the segment is long (contains street info), take the last word
+              if (potentialCity.split(' ').length > 2) {
+                const words = potentialCity.split(' ');
+                displayLocations = [formatLocation(words[words.length - 1])];
+              } else {
+                displayLocations = [formatLocation(potentialCity)];
+              }
+            } else {
+              displayLocations = [formatLocation(cityPart)];
+            }
+          }
         }
       }
       
@@ -129,7 +183,7 @@ export const DashboardView = memo(function DashboardView({
             </div>
             <button
               onClick={onCreateClick}
-              className="px-5 py-2.5 rounded-xl text-xs font-black transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-[0_0_20px_rgba(201,162,77,0.2)] hover:scale-[1.02] transform border-2 bg-[#111827] dark:bg-white text-white dark:text-[#111827] border-[#C9A24D]/20 hover:border-[#C9A24D] hover:bg-[#1a2333] dark:hover:bg-[#f0f0f0] self-start lg:self-center"
+              className="px-5 py-2.5 rounded-xl text-xs font-black transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-[0_0_20px_rgba(201,162,77,0.1)] border-2 bg-[#111827] dark:bg-[#1A1A1C] text-white border-[#C9A24D]/20 hover:border-[#C9A24D] hover:bg-[#1a2333] dark:hover:bg-[#252529] self-start lg:self-center"
             >
               <svg className="w-3.5 h-3.5 text-[#C9A24D] transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -219,7 +273,7 @@ export const DashboardView = memo(function DashboardView({
                     <th className="px-6 py-5 text-xs font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-[0.2em] min-w-[160px]">Budget</th>
                     <th className="px-6 py-5 text-xs font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-[0.2em]">Location</th>
                     <th className="px-2 py-5 text-xs font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-[0.2em] w-28">Listings</th>
-                    <th className="px-6 py-5 text-xs font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-[0.2em]">New</th>
+                    <th className="px-2 py-5 text-xs font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-[0.2em] w-32">New</th>
                     <th className="px-6 py-5 text-xs font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-[0.2em] text-right">Actions</th>
                   </tr>
                 </thead>
@@ -234,10 +288,33 @@ export const DashboardView = memo(function DashboardView({
                     ].map(formatLocation)
 
                     if (displayLocations.length === 0 && prefs?.address) {
-                      const parts = prefs.address.split(',')
+                      const address = prefs.address;
+                      // Handle formats like "612 Radnor Valley Drive Villanova, PA, 19085"
+                      // 1. Split by comma to separate the Street+City from State/Zip
+                      const parts = address.split(',');
                       if (parts.length >= 2) {
-                        const parsedCity = parts[1].trim()
-                        if (parsedCity) displayLocations = [formatLocation(parsedCity)]
+                        // The last part is usually State Zip (e.g. " PA 19085")
+                        // The second to last part is usually the City
+                        const cityPart = parts[parts.length - 2].trim();
+                        
+                        // Heuristic: If the city part looks like a 2-letter state (e.g. "PA"), 
+                        // we might need to go one more step back, but usually City is right before the first comma 
+                        // for simple "City, State Zip" or second to last for "Street, City, State Zip"
+                        
+                        if (cityPart) {
+                          // Simple check: if cityPart is just 2 letters, it's likely a state, take the part before it
+                          if (cityPart.length === 2 && parts.length >= 3) {
+                            const potentialCity = parts[parts.length - 3].trim();
+                            if (potentialCity.split(' ').length > 2) {
+                              const words = potentialCity.split(' ');
+                              displayLocations = [formatLocation(words[words.length - 1])];
+                            } else {
+                              displayLocations = [formatLocation(potentialCity)];
+                            }
+                          } else {
+                            displayLocations = [formatLocation(cityPart)];
+                          }
+                        }
                       }
                     }
                     
@@ -247,28 +324,30 @@ export const DashboardView = memo(function DashboardView({
                         onClick={() => onCollectionClick(collection)}
                         className="group hover:bg-[#FAFAF7] dark:hover:bg-[#1A1A1C] transition-colors cursor-pointer"
                       >
-                        <td className="px-6 py-6">
+                        <td className="px-6 py-6 border-l-2 border-transparent group-hover:border-l-[#C9A24D] transition-colors">
                           <div className="flex items-center space-x-4">
-                            <div className="w-10 h-10 bg-[#111827] dark:bg-white rounded-full flex items-center justify-center text-xs font-black text-white dark:text-[#111827]">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-black border ${getAvatarColor(collection.customer.firstName + collection.customer.lastName)}`}>
                               {collection.customer.firstName.charAt(0)}{collection.customer.lastName.charAt(0)}
                             </div>
                             <div>
                               <div className="text-base font-black text-[#0B0B0B] dark:text-white group-hover:text-[#C9A24D] transition-colors leading-tight">
-                                {collection.customer.firstName} {collection.customer.lastName}
+                                {collection.customer.firstName} {collection.customer.lastName.charAt(0)}.
                               </div>
-                              <div className="text-xs font-bold text-[#C9A24D] uppercase tracking-widest mt-0.5">
-                                #{index + 1}
-                              </div>
+                              {collection.stats.lastActivity && (
+                                <div className="text-[10px] font-bold text-gray-400 tracking-tight mt-0.5">
+                                  Active: {timeAgo(collection.stats.lastActivity)}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-6">
                           <div className="space-y-1.5">
-                            <div className="flex items-center text-xs font-bold text-[#6B7280] dark:text-gray-400">
+                            <div className="flex items-center text-[13px] font-bold text-[#6B7280] dark:text-gray-400">
                               <Mail size={14} className="mr-2 opacity-50" />
                               {collection.customer.email}
                             </div>
-                            <div className="flex items-center text-xs font-bold text-[#6B7280] dark:text-gray-400">
+                            <div className="flex items-center text-[13px] font-bold text-[#6B7280] dark:text-gray-400">
                               <Phone size={14} className="mr-2 opacity-50" />
                               {collection.customer.phone}
                             </div>
@@ -303,32 +382,44 @@ export const DashboardView = memo(function DashboardView({
                           </div>
                         </td>
                         <td className="px-2 py-6">
-                          <div className="flex items-baseline">
-                            <span className="text-base font-black text-[#0B0B0B] dark:text-white">
-                              {collection.stats.activeProperties}
-                            </span>
-                            <span className="ml-1 text-xs font-bold text-[#6B7280] dark:text-gray-500">
-                              / {collection.stats.totalProperties}
-                            </span>
-                          </div>
+                          {collection.stats.totalProperties > 0 ? (
+                            <div className="flex items-baseline">
+                              <span className="text-base font-black text-[#0B0B0B] dark:text-white">
+                                {collection.stats.activeProperties}
+                              </span>
+                              <span className="ml-1 text-xs font-bold text-[#6B7280] dark:text-gray-500">
+                                / {collection.stats.totalProperties}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-start">
+                              <span className="px-1.5 py-0.5 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 text-[8px] font-black uppercase tracking-widest rounded border border-amber-100 dark:border-amber-900/30">
+                                No Matches
+                              </span>
+                              <span className="text-[10px] font-bold text-gray-400 mt-1">Needs Update</span>
+                            </div>
+                          )}
                         </td>
-                        <td className="px-6 py-6">
+                        <td className="px-2 py-6">
                           <div className="flex items-center space-x-2">
                             {collection.stats.newProperties > 0 ? (
                               <>
-                                <span className="px-2 py-0.5 bg-[#C9A24D] text-white text-[10px] font-black rounded-full shadow-[0_0_10px_rgba(201,162,77,0.3)] animate-pulse whitespace-nowrap">
-                                  {collection.stats.newProperties} NEW
-                                </span>
+                                <div className="flex items-center space-x-1.5 px-2.5 py-1 bg-[#C9A24D]/10 dark:bg-[#C9A24D]/5 border border-[#C9A24D]/30 rounded-full group/badge transition-all hover:bg-[#C9A24D]/20 shadow-sm">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-[#C9A24D] animate-pulse shadow-[0_0_8px_rgba(201,162,77,0.6)]" />
+                                  <span className="text-[10px] font-black text-[#C9A24D] uppercase tracking-wider whitespace-nowrap">
+                                    {collection.stats.newProperties} NEW
+                                  </span>
+                                </div>
                                 <button
                                   onClick={(e) => { e.stopPropagation(); onDismissNew(collection.id); }}
-                                  className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-all"
+                                  className="p-1.5 text-gray-400 hover:text-[#C9A24D] hover:bg-[#C9A24D]/10 rounded-lg transition-all flex-shrink-0"
                                   title="Dismiss New Listings"
                                 >
                                   <Check size={14} />
                                 </button>
                               </>
                             ) : (
-                              <span className="text-xs font-bold text-gray-300 dark:text-gray-700">—</span>
+                              <span className="text-xs font-bold text-gray-300 dark:text-gray-700 ml-4">—</span>
                             )}
                           </div>
                         </td>
@@ -356,11 +447,21 @@ export const DashboardView = memo(function DashboardView({
                               <Trash2 size={18} />
                             </button>
                             <div className="w-px h-5 bg-gray-100 dark:bg-gray-800 mx-1"></div>
+                            
+                            {/* Toggle Switch */}
                             <button
                               onClick={(e) => { e.stopPropagation(); onStatusToggle(collection.id); }}
-                              className={`px-3 py-1 rounded-lg text-xs font-black uppercase tracking-widest border transition-all ${getStatusColor(collection.status)}`}
+                              className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                collection.status === 'ACTIVE' ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'
+                              }`}
+                              title={collection.status === 'ACTIVE' ? 'Deactivate Showcase' : 'Activate Showcase'}
                             >
-                              {collection.status === 'ACTIVE' ? 'Off' : 'On'}
+                              <span
+                                aria-hidden="true"
+                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                  collection.status === 'ACTIVE' ? 'translate-x-4' : 'translate-x-0'
+                                }`}
+                              />
                             </button>
                           </div>
                         </td>
