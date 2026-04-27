@@ -13,7 +13,7 @@ import {
   OpenHouseWizardStep,
   User
 } from '@/types'
-import { Bed, Bath, BoxSelect, DollarSign } from 'lucide-react'
+import { Bed, Bath, BoxSelect, DollarSign, Layout, QrCode, Sparkles, MapPin } from 'lucide-react'
 
 interface CreateOpenHouseWizardProps {
   currentUser: User | null;
@@ -267,28 +267,25 @@ export function CreateOpenHouseWizard({
   return (
     <div className="w-full">
       {currentStep === 'ADDRESS' ? (
-        <div className="space-y-8 sm:space-y-12 w-full">
-          <div className="bg-white dark:bg-[#151517] rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-5 sm:p-12 text-center relative overflow-hidden transition-colors w-full">
+        <div className="space-y-6 sm:space-y-8 w-full">
+          <div className="bg-white dark:bg-[#151517] rounded-2xl sm:rounded-3xl shadow-lg border border-gray-200/60 dark:border-gray-800 p-5 sm:p-8 text-center relative overflow-hidden transition-colors w-full">
             {/* Decorative Background Elements */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-[#C9A24D]/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[#C9A24D]/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#111827]/5 dark:bg-white/5 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none"></div>
 
             <div className="relative z-10 max-w-3xl mx-auto w-full">
-              <h1 className="text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-[#8b7355] to-gray-900 dark:from-white dark:via-[#C9A24D] dark:to-gray-200 tracking-tight mb-4 sm:mb-6 leading-tight py-2">
+              <h1 className="text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-[#8b7355] to-gray-900 dark:from-white dark:via-[#C9A24D] dark:to-gray-200 tracking-tight mb-2 sm:mb-4 leading-tight py-1">
                 Create Your Open House Kit
               </h1>
-              <p className="text-base sm:text-lg text-gray-500 dark:text-gray-400 mb-8 sm:mb-10 font-light">
+              <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mb-6 sm:mb-8 font-light">
                 Enter a property address to instantly generate a QR code, professional PDF flyer, and sign-in form.
               </p>
 
               <form onSubmit={generateQRCode} className="relative max-w-2xl mx-auto w-full">
                 <div className="flex flex-col sm:flex-row items-stretch gap-3 w-full">
                   <div className="relative flex-1 group w-full">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <svg className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400 group-focus-within:text-[#8b7355] dark:group-focus-within:text-[#C9A24D] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
+                      <MapPin size={20} />
                     </div>
                     <GooglePlacesAutocomplete
                       ref={googleAutocompleteRef}
@@ -299,20 +296,45 @@ export function CreateOpenHouseWizard({
                       onChange={setAddress}
                       onCoordinatesChange={(lat, lng) => setCoordinates({ lat, lng })}
                       placeholder="Enter property address..."
-                      className="block w-full pl-11 sm:pl-12 pr-4 py-3 sm:py-4 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-transparent focus:border-[#C9A24D] rounded-xl text-base text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-500 shadow-[0_2px_10px_rgba(0,0,0,0.05)] focus:shadow-[0_8px_30px_rgba(201,162,77,0.15)] focus:outline-none transition-all duration-300"
+                      className="block w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-[#0B0B0B] border-2 border-gray-100 dark:border-gray-800 focus:border-[#C9A24D] rounded-2xl text-base font-medium text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-500 shadow-sm focus:shadow-[0_0_20px_rgba(201,162,77,0.1)] focus:outline-none transition-all duration-300"
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={isGenerating || isLoadingProperty}
-                    className="px-6 py-2.5 sm:py-0 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-black text-xs uppercase tracking-widest hover:bg-[#8b7355] dark:hover:bg-[#C9A24D] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg flex items-center justify-center whitespace-nowrap"
+                    className="px-8 py-4 sm:py-0 bg-white dark:bg-[#1A1A1C] text-[#111827] dark:text-white border-2 border-gray-100 dark:border-[#C9A24D]/20 hover:border-[#C9A24D] rounded-2xl font-black text-xs uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-[0_0_20px_rgba(201,162,77,0.1)] flex items-center justify-center whitespace-nowrap min-w-[160px] group/btn"
                   >
                     {isGenerating || isLoadingProperty ? (
-                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
                     ) : (
-                      <span>Generate Kit</span>
+                      <div className="flex items-center">
+                        <span>Generate Kit</span>
+                        <Sparkles size={14} className="ml-2 text-[#C9A24D] group-hover/btn:scale-120 transition-transform" />
+                      </div>
                     )}
                   </button>
+                </div>
+                
+                {/* Kit Components Preview */}
+                <div className="mt-6 flex items-center justify-center space-x-6 sm:space-x-10">
+                  <div className="flex items-center space-x-2.5 group cursor-default">
+                    <div className="p-2 bg-white dark:bg-[#1A1A1C] border border-gray-100 dark:border-gray-800 rounded-lg text-gray-400 group-hover:text-[#C9A24D] group-hover:border-[#C9A24D]/30 transition-all">
+                      <Layout size={16} />
+                    </div>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">PDF Flyer</span>
+                  </div>
+                  <div className="flex items-center space-x-2.5 group cursor-default">
+                    <div className="p-2 bg-white dark:bg-[#1A1A1C] border border-gray-100 dark:border-gray-800 rounded-lg text-gray-400 group-hover:text-[#C9A24D] group-hover:border-[#C9A24D]/30 transition-all">
+                      <QrCode size={16} />
+                    </div>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">Digital Sign-in</span>
+                  </div>
+                  <div className="flex items-center space-x-2.5 group cursor-default">
+                    <div className="p-2 bg-white dark:bg-[#1A1A1C] border border-gray-100 dark:border-gray-800 rounded-lg text-gray-400 group-hover:text-[#C9A24D] group-hover:border-[#C9A24D]/30 transition-all">
+                      <Sparkles size={16} />
+                    </div>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">Active COMPS</span>
+                  </div>
                 </div>
                 {error && (
                   <div className="mt-3 text-center animate-fadeIn">

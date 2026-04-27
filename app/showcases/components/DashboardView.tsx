@@ -2,7 +2,7 @@
 
 import { useState, useMemo, memo } from 'react'
 import { Collection } from '@/types'
-import { Share2, Edit3, Trash2, Mail, Phone, Check } from 'lucide-react'
+import { Share2, Edit3, Trash2, Mail, Phone, Check, Users, Search, DollarSign, MapPin, Activity } from 'lucide-react'
 
 // --- HELPERS ---
 const timeAgo = (dateString?: string) => {
@@ -175,16 +175,30 @@ export const DashboardView = memo(function DashboardView({
     <div className="flex-1 p-6 pb-20 sm:pb-32">
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
-        <div className="bg-white dark:bg-[#151517] rounded-2xl border border-gray-100 dark:border-gray-800 p-4 sm:p-6 mb-6 shadow-sm">
+        <div className="bg-white dark:bg-[#151517] rounded-2xl border border-gray-100 dark:border-gray-800 p-4 sm:p-6 mb-6 shadow-sm relative overflow-hidden">
+          {/* Subtle Accent Bar */}
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#C9A24D]" />
+          
           <div className="flex flex-col lg:flex-row lg:items-center justify-between">
-            <div className="flex-1 mb-4 lg:mb-0">
-              <h1 className="text-2xl sm:text-3xl font-black text-[#0B0B0B] dark:text-white tracking-tight">Showcases</h1>
-              <p className="text-[#6B7280] dark:text-gray-400 font-medium text-sm">Manage customer property showcases and preferences</p>
+            <div className="flex items-center space-x-4 mb-4 lg:mb-0">
+              <div className="p-3 bg-[#C9A24D]/10 rounded-xl">
+                <Users size={24} className="text-[#C9A24D]" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-3">
+                  <h1 className="text-2xl sm:text-3xl font-black text-[#0B0B0B] dark:text-white tracking-tight">Showcases</h1>
+                  <span className="px-2.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-[#6B7280] dark:text-gray-400 text-xs font-black rounded-full border border-gray-200 dark:border-gray-700">
+                    {collections.length}
+                  </span>
+                </div>
+                <p className="text-[#6B7280] dark:text-gray-400 font-medium text-sm">Manage customer property showcases and preferences</p>
+              </div>
             </div>
             <button
               onClick={onCreateClick}
-              className="px-5 py-2.5 rounded-xl text-xs font-black transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-[0_0_20px_rgba(201,162,77,0.1)] border-2 bg-[#111827] dark:bg-[#1A1A1C] text-white border-[#C9A24D]/20 hover:border-[#C9A24D] hover:bg-[#1a2333] dark:hover:bg-[#252529] self-start lg:self-center"
+              className="px-5 py-2.5 rounded-xl text-xs font-black transition-all duration-300 flex items-center space-x-2 shadow-sm hover:shadow-md border-2 bg-white dark:bg-[#1A1A1C] text-[#111827] dark:text-white border-gray-100 dark:border-[#C9A24D]/20 hover:border-[#C9A24D] dark:hover:border-[#C9A24D] hover:bg-[#FAFAF7] dark:hover:bg-[#252529] self-start lg:self-center"
             >
+
               <svg className="w-3.5 h-3.5 text-[#C9A24D] transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
@@ -204,48 +218,72 @@ export const DashboardView = memo(function DashboardView({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Search */}
             <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
+                <Search size={14} />
+              </div>
               <input
                 type="text"
                 placeholder="Search Visitor..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-3 pr-4 py-2 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-[#C9A24D] transition-all text-xs"
+                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/5 transition-all text-xs font-medium"
               />
             </div>
 
             {/* Budget */}
-            <select
-              value={budgetFilter}
-              onChange={(e) => setBudgetFilter(e.target.value)}
-              className="w-full px-3 py-2 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:border-[#C9A24D] transition-all text-xs cursor-pointer font-bold"
-            >
-              <option value="ALL">All Budgets</option>
-              <option value="UNDER_500">Under $500K</option>
-              <option value="500_1000">$500K - $1M</option>
-              <option value="1000_1500">$1M - $1.5M</option>
-              <option value="1500_2500">$1.5M - $2.5M</option>
-              <option value="OVER_2500">$2.5M+</option>
-            </select>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
+                <DollarSign size={14} />
+              </div>
+              <select
+                value={budgetFilter}
+                onChange={(e) => setBudgetFilter(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/5 transition-all text-xs cursor-pointer font-bold appearance-none"
+              >
+                <option value="ALL">All Budgets</option>
+                <option value="UNDER_500">Under $500K</option>
+                <option value="500_1000">$500K - $1M</option>
+                <option value="1000_1500">$1M - $1.5M</option>
+                <option value="1500_2500">$1.5M - $2.5M</option>
+                <option value="OVER_2500">$2.5M+</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
 
             {/* Location */}
-            <input
-              type="text"
-              placeholder="Filter Location..."
-              value={locationFilter}
-              onChange={(e) => setLocationFilter(e.target.value)}
-              className="w-full px-3 py-2 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-[#C9A24D] transition-all text-xs"
-            />
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
+                <MapPin size={14} />
+              </div>
+              <input
+                type="text"
+                placeholder="Filter Location..."
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/5 transition-all text-xs font-medium"
+              />
+            </div>
 
             {/* Status */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="w-full px-3 py-2 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:border-[#C9A24D] transition-all text-xs cursor-pointer font-bold"
-            >
-              <option value="ALL">All Status</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
+                <Activity size={14} />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/5 transition-all text-xs cursor-pointer font-bold appearance-none"
+              >
+                <option value="ALL">All Status</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
           </div>
         </div>
 
