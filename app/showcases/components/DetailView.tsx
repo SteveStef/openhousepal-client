@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useState } from 'react'
-import { Calendar, Copy, Check } from 'lucide-react'
+import { Calendar, Copy, Check, ArrowUpDown, SlidersHorizontal, Mail, MapPin } from 'lucide-react'
 import PropertyGrid from '@/components/PropertyGrid'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import ViewToursModal from '@/components/ViewToursModal'
@@ -124,13 +124,22 @@ export const DetailView = memo(function DetailView({
           Back to Showcases
         </button>
 
-        <div className="bg-white/50 dark:bg-[#151517]/50 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-gray-800 p-4 sm:p-6 mb-6">
+        <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-4 sm:p-6 mb-6 relative overflow-hidden">
+          {/* Subtle Accent Bar */}
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#C9A24D]" />
+          
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight mb-1">Property Recommendations</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 font-light" title={selectedCollection.originalProperty.FullStreetAddress}>
-                Curated properties for {formatAddressForTitle(selectedCollection.originalProperty.FullStreetAddress)}
-              </p>
+              <div className="flex items-center space-x-3 mb-1">
+                <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">Property Recommendations</h1>
+                <span className="px-2 py-0.5 bg-[#C9A24D]/10 text-[#C9A24D] text-[10px] font-black uppercase tracking-widest rounded-full border border-[#C9A24D]/20">
+                  {matchedProperties.length} Matched
+                </span>
+              </div>
+              <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 font-light group" title={selectedCollection.originalProperty.FullStreetAddress}>
+                <MapPin size={14} className="mr-1.5 text-[#C9A24D]" />
+                <span>Curated for {formatAddressForTitle(selectedCollection.originalProperty.FullStreetAddress)}</span>
+              </div>
             </div>
 
             <div className="flex items-center gap-3 sm:gap-4">
@@ -202,26 +211,55 @@ export const DetailView = memo(function DetailView({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-            <div>
-              <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Sort by</label>
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#8b7355]/20 focus:border-[#8b7355] transition-all appearance-none cursor-pointer">
-                <option value="daysOnMarket">Days on Market</option>
-                <option value="price">Price</option>
-                <option value="beds">Bedrooms</option>
-                <option value="squareFeet">Square Feet</option>
-                <option value="lastUpdated">Last Updated</option>
-              </select>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-6 border-t border-gray-100 dark:border-gray-800">
+            <div className="md:col-span-5">
+              <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Sort Properties</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
+                  <ArrowUpDown size={14} />
+                </div>
+                <select 
+                  value={sortBy} 
+                  onChange={(e) => setSortBy(e.target.value)} 
+                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-sm font-medium focus:outline-none focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/5 transition-all appearance-none cursor-pointer"
+                >
+                  <option value="daysOnMarket">Days on Market</option>
+                  <option value="price">Price</option>
+                  <option value="beds">Bedrooms</option>
+                  <option value="squareFeet">Square Feet</option>
+                  <option value="lastUpdated">Last Updated</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Sort Order</label>
-              <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as any)} className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#8b7355]/20 focus:border-[#8b7355] transition-all appearance-none cursor-pointer">
-                <option value="asc">Low to High</option>
-                <option value="desc">High to Low</option>
-              </select>
+            <div className="md:col-span-4">
+              <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Direction</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
+                  <SlidersHorizontal size={14} />
+                </div>
+                <select 
+                  value={sortOrder} 
+                  onChange={(e) => setSortOrder(e.target.value as any)} 
+                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-sm font-medium focus:outline-none focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/5 transition-all appearance-none cursor-pointer"
+                >
+                  <option value="asc">Low to High</option>
+                  <option value="desc">High to Low</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </div>
             </div>
-            <div className="flex items-end">
-              <button onClick={() => { setSortBy('daysOnMarket'); setSortOrder('asc'); setActiveTab('all') }} className="w-full px-4 py-2.5 bg-white dark:bg-[#151517] text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50">Reset Filters</button>
+            <div className="md:col-span-3 flex items-end">
+              <button 
+                onClick={() => { setSortBy('daysOnMarket'); setSortOrder('asc'); setActiveTab('all') }} 
+                className="w-full py-2.5 bg-white dark:bg-[#151517] text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-[#1A1A1C] hover:text-[#111827] dark:hover:text-white transition-all shadow-sm"
+              >
+                Reset
+              </button>
             </div>
           </div>
         </div>
