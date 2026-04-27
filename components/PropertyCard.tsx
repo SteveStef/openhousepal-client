@@ -73,7 +73,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
   return (
     <div
       onClick={() => onPropertyClick?.(property)}
-      className={`bg-white dark:bg-[#151517] rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 transition-all duration-500 flex flex-col h-full shadow-[0_2px_8px_rgba(0,0,0,0.02)] will-change-transform group hover:border-[#C9A24D]/30 dark:hover:border-[#C9A24D]/30 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] cursor-pointer ${
+      className={`bg-white dark:bg-[#151517] rounded-2xl overflow-hidden border-2 border-gray-200 dark:border-gray-800 transition-all duration-500 flex flex-col h-full shadow-[0_2px_8px_rgba(0,0,0,0.02)] will-change-transform group hover:border-[#C9A24D] dark:hover:border-[#C9A24D] hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] cursor-pointer ${
         !available ? 'opacity-75' : ''
       }`}
     >

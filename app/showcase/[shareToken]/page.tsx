@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { ArrowUpDown, SlidersHorizontal, MapPin } from 'lucide-react'
 import { Collection, Property, Comment, TourRequest } from '@/types'
 import { getToken } from '@/lib/token'
 import api from '@/lib/api-service'
@@ -562,11 +563,24 @@ function ShowcaseContent() {
       <div className="flex-1 p-4 sm:p-6 pb-20">
         <div className="max-w-7xl mx-auto">
           {/* Customer Header */}
-          <div className="bg-white/50 dark:bg-[#151517]/50 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-gray-800 p-4 sm:p-6 mb-6">
+          <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-4 sm:p-6 mb-6 relative overflow-hidden transition-colors">
+            {/* Subtle Accent Bar */}
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#C9A24D]" />
+            
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <div>
-                <h1 className="text-xl sm:text-2xl font-black text-[#0B0B0B] dark:text-white mb-1 tracking-tight">{showcase.customer.firstName} {showcase.customer.lastName}'s Showcase</h1>
-                <p className="text-[#6B7280] dark:text-gray-400 text-sm font-light">Curated property recommendations</p>
+                <div className="flex items-center space-x-3 mb-1">
+                  <h1 className="text-xl sm:text-2xl font-black text-[#0B0B0B] dark:text-white tracking-tight">
+                    {showcase.customer.firstName} {showcase.customer.lastName}'s Showcase
+                  </h1>
+                  <span className="px-2.5 py-0.5 bg-[#C9A24D]/10 text-[#C9A24D] text-[10px] font-black uppercase tracking-widest rounded-full border border-[#C9A24D]/20">
+                    {matchedProperties.length} Matched
+                  </span>
+                </div>
+                <div className="flex items-center text-sm text-[#6B7280] dark:text-gray-400 font-light">
+                  <MapPin size={14} className="mr-1.5 text-[#C9A24D]" />
+                  <span>Curated property recommendations</span>
+                </div>
               </div>
               
               <div className="flex items-center space-x-4">
@@ -639,14 +653,17 @@ function ShowcaseContent() {
             </div>
 
             {/* Sorting Controls */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-              <div className="group">
-                <label className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-500 uppercase tracking-wider mb-1.5">Sort by</label>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-6 border-t border-gray-100 dark:border-gray-800">
+              <div className="md:col-span-5 group">
+                <label className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Sort Properties</label>
                 <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
+                    <ArrowUpDown size={14} />
+                  </div>
                   <select
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as 'price' | 'beds' | 'squareFeet' | 'daysOnMarket' | 'lastUpdated')}
-                    className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B]/50 border border-gray-200 dark:border-gray-800 rounded-xl text-[#0B0B0B] dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/20 focus:border-[#C9A24D] transition-all duration-300 appearance-none cursor-pointer hover:bg-gray-50 dark:hover:bg-[#151517]"
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-800 rounded-xl text-[#0B0B0B] dark:text-white text-sm font-medium focus:outline-none focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/5 transition-all appearance-none cursor-pointer"
                   >
                     <option value="daysOnMarket">Days on Market</option>
                     <option value="price">Price</option>
@@ -655,42 +672,41 @@ function ShowcaseContent() {
                     <option value="lastUpdated">Last Updated</option>
                   </select>
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[#6B7280] dark:text-gray-500">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                   </div>
                 </div>
               </div>
               
-              <div className="group">
-                <label className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-500 uppercase tracking-wider mb-1.5">Sort Order</label>
+              <div className="md:col-span-4 group">
+                <label className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Direction</label>
                 <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
+                    <SlidersHorizontal size={14} />
+                  </div>
                   <select
                     value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-                    className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B]/50 border border-gray-200 dark:border-gray-800 rounded-xl text-[#0B0B0B] dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/20 focus:border-[#C9A24D] transition-all duration-300 appearance-none cursor-pointer hover:bg-gray-50 dark:hover:bg-[#151517]"
+                    onChange={(e) => setSortOrder(e.target.value as any)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-800 rounded-xl text-[#0B0B0B] dark:text-white text-sm font-medium focus:outline-none focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/5 transition-all appearance-none cursor-pointer"
                   >
                     <option value="asc">Low to High</option>
                     <option value="desc">High to Low</option>
                   </select>
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[#6B7280] dark:text-gray-500">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                   </div>
                 </div>
               </div>
               
-              <div className="flex items-end">
+              <div className="md:col-span-3 flex items-end">
                 <button
                   onClick={() => {
                     setSortBy('daysOnMarket')
                     setSortOrder('asc')
                     setActiveTab('all')
                   }}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-[#151517] text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 rounded-xl text-sm font-medium transition-all duration-300 hover:shadow-sm"
+                  className="w-full py-2.5 bg-white dark:bg-[#151517] text-[#6B7280] dark:text-gray-400 border border-gray-200 dark:border-gray-800 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-[#1A1A1C] hover:text-[#111827] dark:hover:text-white transition-all shadow-sm"
                 >
-                  Reset Filters
+                  Reset
                 </button>
               </div>
             </div>
