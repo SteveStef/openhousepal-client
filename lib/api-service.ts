@@ -1,4 +1,4 @@
-import { ApiResponse, SignInFormData, User, OpenHouse, SearchPreferences, Notification, NotificationResponse } from '@/types';
+import { ApiResponse, User, OpenHouse, SearchPreferences, Notification, NotificationResponse } from '@/types';
 import { getToken, removeToken } from './token';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -326,8 +326,6 @@ class ApiService {
         body: JSON.stringify({ interestedInSimilar: interested }),
       }),
 
-    getPreferences: (id: string) => this.request<any>(`/collections/${id}/preferences`),
-
     getProperties: (id: string) => this.request<any>(`/collections/${id}/properties`),
 
     interact: (collectionId: string, propertyId: string, interactionType: 'like' | 'dislike', value: boolean) =>
@@ -363,6 +361,11 @@ class ApiService {
     delete: (collectionId: string) =>
       this.request(`/collections/${collectionId}`, {
         method: 'DELETE',
+      }),
+
+    dismiss: (collectionId: string) =>
+      this.request<{ success: boolean }>(`/collections/${collectionId}/dismiss`, {
+        method: 'PATCH',
       }),
 
     updateStatus: (collectionId: string, status: string) =>

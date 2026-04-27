@@ -1,13 +1,17 @@
-'use client'
-
 import './globals.css'
 import { Inter } from 'next/font/google'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/contexts/ToastContext'
 import { Providers } from './providers'
 import AppHeader from '@/components/AppHeader'
+import { Metadata } from 'next'
 
 const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: 'Open House Pal',
+  description: 'Open House Lead Generation',
+}
 
 export default function RootLayout({
   children,

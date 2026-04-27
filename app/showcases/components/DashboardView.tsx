@@ -2,7 +2,7 @@
 
 import { useState, useMemo, memo } from 'react'
 import { Collection } from '@/types'
-import { Share2, Edit3, Trash2, Mail, Phone } from 'lucide-react'
+import { Share2, Edit3, Trash2, Mail, Phone, Check } from 'lucide-react'
 
 // --- HELPERS ---
 const formatLocation = (name: string) => {
@@ -23,6 +23,7 @@ interface DashboardViewProps {
   onEditPreferences: (collection: Collection) => void;
   onDelete: (collection: Collection) => void;
   onStatusToggle: (collectionId: string) => void;
+  onDismissNew: (collectionId: string) => void;
   formatPriceRange: (priceRange: string) => string;
 }
 
@@ -35,6 +36,7 @@ export const DashboardView = memo(function DashboardView({
   onEditPreferences,
   onDelete,
   onStatusToggle,
+  onDismissNew,
   formatPriceRange
 }: DashboardViewProps) {
   const [searchTerm, setSearchTerm] = useState('')
@@ -95,6 +97,14 @@ export const DashboardView = memo(function DashboardView({
       }
 
       return matchesSearch && matchesStatus && matchesLocation && matchesBudget
+    })
+    .sort((a, b) => {
+      // Primary sort: New Properties (descending)
+      if (b.stats.newProperties !== a.stats.newProperties) {
+        return b.stats.newProperties - a.stats.newProperties;
+      }
+      // Secondary sort: Created Date (descending)
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     })
   }, [collections, searchTerm, statusFilter, locationFilter, budgetFilter])
 
@@ -208,12 +218,13 @@ export const DashboardView = memo(function DashboardView({
                     <th className="px-6 py-5 text-xs font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-[0.2em]">Contact</th>
                     <th className="px-6 py-5 text-xs font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-[0.2em] min-w-[160px]">Budget</th>
                     <th className="px-6 py-5 text-xs font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-[0.2em]">Location</th>
-                    <th className="px-6 py-5 text-xs font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-[0.2em]">Listings</th>
+                    <th className="px-2 py-5 text-xs font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-[0.2em] w-28">Listings</th>
+                    <th className="px-6 py-5 text-xs font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-[0.2em]">New</th>
                     <th className="px-6 py-5 text-xs font-black text-[#6B7280] dark:text-gray-400 uppercase tracking-[0.2em] text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {filteredCollections.map((collection) => {
+                  {filteredCollections.map((collection, index) => {
                     const prefs = collection.preferences as any
                     
                     let displayLocations: string[] = [
@@ -238,12 +249,15 @@ export const DashboardView = memo(function DashboardView({
                       >
                         <td className="px-6 py-6">
                           <div className="flex items-center space-x-4">
-                            <div className="w-10 h-10 bg-[#111827] dark:bg-white rounded-xl flex items-center justify-center text-xs font-black text-white dark:text-[#111827]">
+                            <div className="w-10 h-10 bg-[#111827] dark:bg-white rounded-full flex items-center justify-center text-xs font-black text-white dark:text-[#111827]">
                               {collection.customer.firstName.charAt(0)}{collection.customer.lastName.charAt(0)}
                             </div>
                             <div>
-                              <div className="text-base font-black text-[#0B0B0B] dark:text-white group-hover:text-[#C9A24D] transition-colors">
+                              <div className="text-base font-black text-[#0B0B0B] dark:text-white group-hover:text-[#C9A24D] transition-colors leading-tight">
                                 {collection.customer.firstName} {collection.customer.lastName}
+                              </div>
+                              <div className="text-xs font-bold text-[#C9A24D] uppercase tracking-widest mt-0.5">
+                                #{index + 1}
                               </div>
                             </div>
                           </div>
@@ -262,7 +276,9 @@ export const DashboardView = memo(function DashboardView({
                         </td>
                         <td className="px-6 py-6">
                           <span className="text-sm font-black text-[#C9A24D]">
-                            {(collection.preferences && 'priceRange' in collection.preferences) ? formatPriceRange(collection.preferences.priceRange) : 'N/A'}
+                            {(collection.preferences && 'priceRange' in collection.preferences && collection.preferences.priceRange !== 'Not specified') 
+                              ? formatPriceRange(collection.preferences.priceRange) 
+                              : 'Not Specified'}
                           </span>
                         </td>
                         <td className="px-6 py-6">
@@ -286,7 +302,7 @@ export const DashboardView = memo(function DashboardView({
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-6">
+                        <td className="px-2 py-6">
                           <div className="flex items-baseline">
                             <span className="text-base font-black text-[#0B0B0B] dark:text-white">
                               {collection.stats.activeProperties}
@@ -294,6 +310,26 @@ export const DashboardView = memo(function DashboardView({
                             <span className="ml-1 text-xs font-bold text-[#6B7280] dark:text-gray-500">
                               / {collection.stats.totalProperties}
                             </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-6">
+                          <div className="flex items-center space-x-2">
+                            {collection.stats.newProperties > 0 ? (
+                              <>
+                                <span className="px-2 py-0.5 bg-[#C9A24D] text-white text-[10px] font-black rounded-full shadow-[0_0_10px_rgba(201,162,77,0.3)] animate-pulse whitespace-nowrap">
+                                  {collection.stats.newProperties} NEW
+                                </span>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); onDismissNew(collection.id); }}
+                                  className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-all"
+                                  title="Dismiss New Listings"
+                                >
+                                  <Check size={14} />
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-xs font-bold text-gray-300 dark:text-gray-700">—</span>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-6 text-right">
@@ -308,7 +344,7 @@ export const DashboardView = memo(function DashboardView({
                             <button
                               onClick={(e) => { e.stopPropagation(); onShare(collection); }}
                               className="p-2 text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-all"
-                              title="Share"
+                              title="Share Showcase"
                             >
                               <Share2 size={18} />
                             </button>

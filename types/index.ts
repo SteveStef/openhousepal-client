@@ -372,9 +372,11 @@ export interface Collection {
   stats: {
     totalProperties: number;
     activeProperties: number;
+    newProperties: number;
     viewedProperties: number;
     likedProperties: number;
     lastActivity?: string;
+    lastAgentDismissedAt?: string;
   };
   shareToken?: string;
   sharedAt?: string;

@@ -79,7 +79,7 @@ function ShowcaseContent() {
   const [isLoadingTours, setIsLoadingTours] = useState(false)
   
   const fetchInProgressRef = useRef(false)
-  const isClosingModalRef = useRef(false)
+  const isInternalSyncRef = useRef(false)
 
   // Helper to transform backend collection to frontend type
   const transformBackendCollection = useCallback((backendCollection: any): Collection => {
@@ -141,11 +141,13 @@ function ShowcaseContent() {
         additionalComments: ''
       },
       stats: {
-        totalProperties: backendCollection.property_count || 0,
-        activeProperties: backendCollection.active_property_count || 0,
-        viewedProperties: 0,
-        likedProperties: 0,
-        lastActivity: backendCollection.updated_at
+        totalProperties: backendCollection.stats?.totalProperties || 0,
+        activeProperties: backendCollection.stats?.activeProperties || 0,
+        newProperties: backendCollection.stats?.newProperties || 0,
+        viewedProperties: backendCollection.stats?.viewedProperties || 0,
+        likedProperties: backendCollection.stats?.likedProperties || 0,
+        lastActivity: backendCollection.stats?.lastActivity || backendCollection.updated_at,
+        lastAgentDismissedAt: backendCollection.stats?.lastAgentDismissedAt
       },
       shareToken: backendCollection.share_token,
       sharedAt: backendCollection.created_at,
@@ -325,20 +327,90 @@ function ShowcaseContent() {
     setIsLoadingComments(false)
   }
 
-  const handlePropertyClick = async (property: Property) => {
+  const loadPropertyDetails = useCallback(async (property: Property) => {
+    // Track property view (if needed for agent, optional, but keeping consistent)
+    // api.collections.trackPropertyView(...)
+
+    setIsLoadingDetails(true)
+    setDetailsError(null)
+    try {
+      const { success, data, error } = await api.properties.getById(property.id as string)
+      if (success && data) {
+        setSelectedProperty(prev => prev ? { ...prev, ...data } : null)
+      } else {
+        setDetailsError(error || 'Failed to load details')
+      }
+    } catch (err) {
+      console.error('Error fetching property details:', err)
+      setDetailsError('Failed to load additional property details')
+    } finally {
+      setIsLoadingDetails(false)
+    }
+
+    fetchPropertyComments(String(property.id))
+  }, [selectedCollection?.id])
+
+  const handlePropertyClick = useCallback((property: Property) => {
+    // 1. Mark this as an internal update to prevent the useEffect from looping
+    isInternalSyncRef.current = true
+    
+    // 2. Update state instantly for immediate UI response
     setSelectedProperty(property)
     setIsModalOpen(true)
-    setIsLoadingDetails(true)
+    loadPropertyDetails(property)
+
+    // 3. Update URL in background without triggering router overhead
     if (selectedCollection) {
-      router.push(`?showcase=${selectedCollection.id}&property=${property.id}`, { scroll: false })
-      fetchPropertyComments(String(property.id))
+      const currentParams = new URLSearchParams(window.location.search)
+      currentParams.set('property', String(property.id))
+      window.history.pushState(null, '', `?${currentParams.toString()}`)
     }
-    const { success, data } = await api.properties.getById(property.id as string)
-    if (success && data) {
-      setSelectedProperty(prev => prev ? { ...prev, ...data } : null)
+
+    // Reset the ref after a short delay to allow searchParams to catch up
+    setTimeout(() => { isInternalSyncRef.current = false }, 100)
+  }, [selectedCollection?.id, loadPropertyDetails])
+
+  const handleCloseModal = useCallback(() => {
+    isInternalSyncRef.current = true
+    
+    // 1. Update state instantly
+    setIsModalOpen(false)
+    setSelectedProperty(null)
+
+    // 2. Update URL in background
+    const currentParams = new URLSearchParams(window.location.search)
+    if (currentParams.has('property')) {
+      currentParams.delete('property')
+      const newUrl = currentParams.toString() ? `?${currentParams.toString()}` : window.location.pathname
+      window.history.pushState(null, '', newUrl)
     }
-    setIsLoadingDetails(false)
-  }
+
+    setTimeout(() => { isInternalSyncRef.current = false }, 100)
+  }, [])
+
+  // Handle URL sync for property details (Refresh/Direct Link Support)
+  useEffect(() => {
+    // If we just updated the state manually, ignore this sync cycle
+    if (isInternalSyncRef.current) return
+
+    const propertyId = searchParams.get('property')
+    
+    // Only trigger if URL has a property that isn't currently selected
+    if (propertyId && matchedProperties.length > 0) {
+      if (!selectedProperty || String(selectedProperty.id) !== propertyId) {
+        const property = matchedProperties.find(p => String(p.id) === propertyId)
+        if (property) {
+          setSelectedProperty(property)
+          setIsModalOpen(true)
+          loadPropertyDetails(property)
+        }
+      }
+    } else if (!propertyId && isModalOpen) {
+      // Handle browser 'Back' button
+      setIsModalOpen(false)
+      setSelectedProperty(null)
+    }
+  }, [searchParams, matchedProperties, selectedProperty?.id, isModalOpen, loadPropertyDetails])
 
   const handleStatusToggle = async (collectionId: string) => {
     const collection = collections.find(c => c.id === collectionId)
@@ -385,6 +457,20 @@ function ShowcaseContent() {
       showToast(error || 'Failed to delete showcase', 'error')
     }
     setIsDeleting(false)
+  }
+
+  const handleDismissNew = async (collectionId: string) => {
+    const { success, error } = await api.collections.dismiss(collectionId)
+    if (success) {
+      setCollections(prev => prev.map(c => 
+        c.id === collectionId 
+          ? { ...c, stats: { ...c.stats, newProperties: 0, lastAgentDismissedAt: new Date().toISOString() } } 
+          : c
+      ))
+      showToast('New listings dismissed', 'success')
+    } else {
+      showToast(error || 'Failed to dismiss listings', 'error')
+    }
   }
 
   const handleSavePreferences = async (collectionId: string, preferences: any) => {
@@ -513,7 +599,7 @@ function ShowcaseContent() {
           onAddComment={handleAddComment}
           selectedProperty={selectedProperty}
           isModalOpen={isModalOpen}
-          onCloseModal={() => setIsModalOpen(false)}
+          onCloseModal={handleCloseModal}
           isLoadingDetails={isLoadingDetails}
           detailsError={detailsError}
           isLoadingComments={isLoadingComments}
@@ -533,11 +619,15 @@ function ShowcaseContent() {
             setSelectedCollection(c)
             // Use history.pushState for instant URL update without full router re-eval
             window.history.pushState(null, '', `?showcase=${c.id}`)
+            // Smooth scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' })
           }}
           onShare={(c) => { setSelectedCollectionForShare(c); setIsShareModalOpen(true); }}
+
           onEditPreferences={(c) => { setSelectedCollectionForEdit(c); setIsEditPreferencesModalOpen(true); }}
           onDelete={(c) => setDeleteModalState({ isOpen: true, collection: c })}
           onStatusToggle={handleStatusToggle}
+          onDismissNew={handleDismissNew}
           formatPriceRange={formatPriceRange}
         />
       )}

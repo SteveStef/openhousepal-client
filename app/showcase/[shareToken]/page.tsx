@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useState, useEffect, useCallback, Suspense, useRef } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Collection, Property, Comment, TourRequest } from '@/types'
 import { getToken } from '@/lib/token'
 import api from '@/lib/api-service'
@@ -12,7 +12,21 @@ import { useToast } from '@/contexts/ToastContext'
 import MLSComplianceFooter from '@/components/MLSComplianceFooter'
 
 export default function CustomerShowcasePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#111827] dark:border-white"></div>
+      </div>
+    }>
+      <ShowcaseContent />
+    </Suspense>
+  )
+}
+
+function ShowcaseContent() {
   const params = useParams()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const { showToast } = useToast()
   const [showcase, setShowcase] = useState<Collection | null>(null)
   const [matchedProperties, setMatchedProperties] = useState<Property[]>([])
@@ -36,6 +50,8 @@ export default function CustomerShowcasePage() {
   // Tour modal states
   const [selectedPropertyForTour, setSelectedPropertyForTour] = useState<Property | null>(null)
   const [isTourModalOpen, setIsTourModalOpen] = useState(false)
+  
+  const isInternalSyncRef = useRef(false)
 
   const shareToken = params.shareToken as string
 
@@ -55,6 +71,7 @@ export default function CustomerShowcasePage() {
       setError(null)
       
       const { success, data, error: apiError } = await api.public.getSharedShowcase(shareToken)
+      console.log(data)
       
       if (success && data) {
         setShowcase(data)
@@ -344,39 +361,22 @@ export default function CustomerShowcasePage() {
     setIsLoadingComments(false)
   }
 
-  const handlePropertyClick = async (property: Property) => {
-    // Open modal immediately with basic property data
-    setSelectedProperty(property)
-    setIsModalOpen(true)
-
+  // Handle the async parts of property viewing (tracking, fetching details)
+  const loadPropertyDetails = useCallback(async (property: Property) => {
     // Track property view
     if (showcase?.id && property.id) {
       const { success } = await api.public.trackPropertyView(showcase.id, String(property.id))
-      
       if (success) {
         setMatchedProperties(prev => prev.map(p =>
-          String(p.id) === String(property.id) ? {
-            ...p,
-            viewed: true,
-            viewCount: (p.viewCount || 0) + 1
-          } : p
+          String(p.id) === String(property.id) ? { ...p, viewed: true, viewCount: (p.viewCount || 0) + 1 } : p
         ))
-
-        setSelectedProperty(prev => prev ? {
-          ...prev,
-          viewed: true,
-          viewCount: (prev.viewCount || 0) + 1
-        } : prev)
       }
     }
 
-    // Show loading state for enhanced details
     setIsLoadingDetails(true)
     setDetailsError(null)
-
     try {
       const { success, data, error } = await api.properties.getById(property.id as string)
-
       if (success && data) {
         setSelectedProperty(prev => prev ? { ...prev, ...data } : null)
       } else {
@@ -389,17 +389,68 @@ export default function CustomerShowcasePage() {
       setIsLoadingDetails(false)
     }
 
-    // Fetch comments in parallel
     const propertyIdAsNumber = Number(property.id)
     if (property.id && !isNaN(propertyIdAsNumber)) {
       fetchPropertyComments(propertyIdAsNumber)
     }
-  }
+  }, [showcase?.id])
 
-  const handleCloseModal = () => {
+  const handlePropertyClick = useCallback((property: Property) => {
+    isInternalSyncRef.current = true
+
+    const currentParams = new URLSearchParams(window.location.search)
+    if (currentParams.get('property') !== String(property.id)) {
+      currentParams.set('property', String(property.id))
+      window.history.pushState(null, '', `?${currentParams.toString()}`)
+    }
+
+    // Set state immediately
+    setSelectedProperty(property)
+    setIsModalOpen(true)
+    loadPropertyDetails(property)
+
+    setTimeout(() => { isInternalSyncRef.current = false }, 100)
+  }, [loadPropertyDetails])
+
+  const handleCloseModal = useCallback(() => {
+    isInternalSyncRef.current = true
+
+    // Set state immediately
     setIsModalOpen(false)
     setSelectedProperty(null)
-  }
+
+    const currentParams = new URLSearchParams(window.location.search)
+    if (currentParams.has('property')) {
+      currentParams.delete('property')
+      const newUrl = currentParams.toString() ? `?${currentParams.toString()}` : window.location.pathname
+      window.history.pushState(null, '', newUrl)
+    }
+
+    setTimeout(() => { isInternalSyncRef.current = false }, 100)
+  }, [])
+
+  // Handle URL sync for property details (Single Source of Truth)
+  useEffect(() => {
+    if (isInternalSyncRef.current) return
+
+    const propertyId = searchParams.get('property')
+    
+    if (propertyId && matchedProperties.length > 0) {
+      const property = matchedProperties.find(p => String(p.id) === propertyId)
+      if (property) {
+        // If it's a new property selection, update state and load details
+        if (!selectedProperty || String(selectedProperty.id) !== propertyId) {
+          setSelectedProperty(property)
+          setIsModalOpen(true)
+          loadPropertyDetails(property)
+        }
+      }
+    } else if (!propertyId && isModalOpen) {
+      // If URL cleared, close the modal
+      setIsModalOpen(false)
+      setSelectedProperty(null)
+    }
+  }, [searchParams, matchedProperties, selectedProperty?.id, isModalOpen, loadPropertyDetails])
 
   const handleScheduleTourClick = (property: Property) => {
     setSelectedPropertyForTour(property)

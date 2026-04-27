@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { PropertyDetailResponse } from '@/types'
-import { X, MessageCircle, ThumbsUp, ThumbsDown, ChevronLeft, ChevronRight, Maximize2, Home, User, Ruler, Bed, Bath, Calendar, MapPin, Clock, ShieldCheck } from 'lucide-react'
+import { X, MessageCircle, ThumbsUp, ThumbsDown, ChevronLeft, ChevronRight, Maximize2, Home, User, Ruler, Bed, Bath, Calendar, MapPin, Clock, ShieldCheck, Copy, Check } from 'lucide-react'
 import { cleanAddress, formatMlsStatus, formatPropertyType, formatPropertyFeature, normalizeImageUrl } from '@/lib/utils'
 
 const formatDate = (dateString: string) => {
@@ -33,6 +33,7 @@ interface PropertyDetailsModalProps {
   onRetryDetails?: () => void
   isLoadingComments?: boolean
   commentsError?: string | null
+  shareUrl?: string | null
 }
 
 // Property Report Table Component
@@ -290,13 +291,27 @@ export default function PropertyDetailsModal({
   detailsError = null,
   onRetryDetails,
   isLoadingComments = false,
-  commentsError = null
+  commentsError = null,
+  shareUrl = null
 }: PropertyDetailsModalProps) {
   const [newComment, setNewComment] = useState('')
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isLightboxOpen, setIsLightboxOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
   const commentsContainerRef = useRef<HTMLDivElement>(null)
+
+  const handleCopyLink = async () => {
+    if (shareUrl) {
+      try {
+        await navigator.clipboard.writeText(shareUrl)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch (err) {
+        console.error('Failed to copy link:', err)
+      }
+    }
+  }
 
   // Enhanced photo handling for property data
   const getPropertyImages = useCallback(() => {
@@ -526,12 +541,27 @@ export default function PropertyDetailsModal({
                   <MapPin size={12} className="text-[#C9A24D]" />
                   <span className="truncate">{cleanAddress(property.FullStreetAddress)}</span>
                 </div>
-                <button
-                  onClick={onClose}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                >
-                  <X size={20} />
-                </button>
+                <div className="flex items-center space-x-3">
+                  {shareUrl && (
+                    <button
+                      onClick={handleCopyLink}
+                      className={`inline-flex items-center px-4 py-1.5 rounded-lg text-[10px] font-black transition-all duration-300 whitespace-nowrap uppercase tracking-widest border shadow-sm ${
+                        copied 
+                          ? 'bg-green-600 text-white border-green-600' 
+                          : 'bg-white dark:bg-[#151517] text-[#111827] dark:text-white border-gray-200 dark:border-gray-800 hover:border-[#C9A24D] dark:hover:border-[#C9A24D]'
+                      }`}
+                    >
+                      {copied ? <Check size={12} className="mr-2" /> : <Copy size={12} className="mr-2 text-[#C9A24D]" />}
+                      {copied ? 'Copied!' : 'Copy Share Link'}
+                    </button>
+                  )}
+                  <button
+                    onClick={onClose}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
             </div>
 

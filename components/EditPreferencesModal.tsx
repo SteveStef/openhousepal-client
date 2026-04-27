@@ -108,30 +108,11 @@ export default function EditPreferencesModal({
 
   useEffect(() => {
     if (isOpen && collection) {
-      // Use local collection data as immediate fallback
       if (collection.preferences) {
         setFormData(prev => ({ ...prev, ...collection.preferences }));
       }
-      fetchPreferences()
     }
   }, [isOpen, collection])
-
-  const fetchPreferences = async () => {
-    if (!collection) return
-    setIsLoadingPreferences(true)
-    try {
-      const { success, data } = await api.collections.getPreferences(collection.id)
-      if (success && data) {
-        // Backend returns preferences nested or direct, handle both
-        const prefs = data.preferences || data;
-        setFormData(prev => ({ ...prev, ...prefs }));
-      }
-    } catch (error) {
-      console.error('Error fetching preferences:', error)
-    } finally {
-      setIsLoadingPreferences(false)
-    }
-  }
 
   const handleSave = async () => {
     if (!collection) return

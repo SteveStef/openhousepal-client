@@ -1,7 +1,7 @@
 'use client'
 
-import { memo } from 'react'
-import { Calendar } from 'lucide-react'
+import { memo, useState } from 'react'
+import { Calendar, Copy, Check } from 'lucide-react'
 import PropertyGrid from '@/components/PropertyGrid'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import ViewToursModal from '@/components/ViewToursModal'
@@ -73,7 +73,24 @@ export const DetailView = memo(function DetailView({
   onUpdateTourCompletion,
   isLoadingTours
 }: DetailViewProps) {
-  
+  const [copied, setCopied] = useState(false)
+
+  const shareUrl = selectedCollection.shareToken 
+    ? `${window.location.origin}/showcase/${selectedCollection.shareToken}`
+    : null
+
+  const handleCopyLink = async () => {
+    if (shareUrl) {
+      try {
+        await navigator.clipboard.writeText(shareUrl)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch (err) {
+        console.error('Failed to copy link:', err)
+      }
+    }
+  }
+
   const filteredProperties = matchedProperties.filter(property => {
     if (activeTab === 'liked') return property.liked
     if (activeTab === 'disliked') return property.disliked
@@ -230,6 +247,7 @@ export const DetailView = memo(function DetailView({
           onRetryDetails={() => onPropertyClick(selectedProperty!)}
           isLoadingComments={isLoadingComments}
           commentsError={commentsError}
+          shareUrl={shareUrl ? `${shareUrl}?property=${selectedProperty?.id}` : null}
         />
 
         <ViewToursModal
