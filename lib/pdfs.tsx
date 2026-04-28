@@ -174,7 +174,7 @@ const formatAddress = (street: string, city: string): string => {
 };
 
 const PropertyPDFCard = ({ item, agentId }: { item: any; agentId?: string }) => {
-  const url = `${process.env.NEXT_PUBLIC_CLIENT_URL}/property/${agentId || 'agent'}/${item.ListingKey}`;
+  const url = `${process.env.NEXT_PUBLIC_CLIENT_URL || "https://openhousepal.com"}/property/${item.ListingKey || item.id}/${agentId || 'agent'}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(url)}`;
   const address = formatAddress(item.FullStreetAddress, item.City);
   

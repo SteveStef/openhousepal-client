@@ -59,8 +59,9 @@ export default function PropertyPage() {
         const { success, data, error: apiError } = await api.properties.getPropertyForAgent(propertyId as string, agentId as string)
         
         if (success && data) {
-          setProperty(data.property)
-          setAgentName(data.agentName)
+          // The data is flattened in the api-service, so 'data' is the property itself
+          setProperty(data)
+          setAgentName(data.agentName || '')
         } else {
           setError(apiError || "Property not found")
         }

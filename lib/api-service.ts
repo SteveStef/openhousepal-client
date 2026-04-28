@@ -190,7 +190,7 @@ class ApiService {
     }),
 
     getPropertyForAgent: async (propertyId: string, agentId: string) => {
-      const response = await this.request<{ property: any, agentName: string }>(`/api/properties/${propertyId}/agent/${agentId}`);
+      const response = await this.request<{ property: any, agentName: string }>(`/api/properties/agent/${agentId}/listing/${propertyId}`, {}, false);
       if (response.success && response.data?.property) {
         return { 
           ...response, 
