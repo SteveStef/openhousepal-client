@@ -31,7 +31,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const { success, data } = await api.auth.me()
-      console.log(data);
       if (success && data) {
         setUser(data)
       } else {

@@ -175,6 +175,9 @@ class ApiService {
       body: JSON.stringify({ address }),
     }),
 
+    // this is used for the OHP kit
+    address: async (address: string) => this.request<{ results: { address: string, lat: number, lng: number }[] }>(`/api/properties/address?query=${encodeURIComponent(address)}`),
+
     findSimilar: (params: SearchPreferences & { listingKey?: string, city?: string, state?: string, zipcode?: string, price?: number, bedrooms?: number, lat?: number, lng?: number }) => 
       this.request<{ properties: any[] }>('/api/properties/similar', {
         method: 'POST',

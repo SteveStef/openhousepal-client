@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, memo, useCallback, useRef } from 'react'
+import React, { useState, memo, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import { v4 as uuidv4 } from 'uuid'
-import GooglePlacesAutocomplete, { GooglePlacesAutocompleteRef } from '@/components/GooglePlacesAutocomplete'
 import { PropertyRecommendationCard } from '@/components/PropertyRecommendationCard'
 import api from '@/lib/api-service'
 import { 
@@ -30,17 +29,32 @@ export function CreateOpenHouseWizard({
   triggerPreview,
   formatAddress
 }: CreateOpenHouseWizardProps) {
-  const googleAutocompleteRef = useRef<GooglePlacesAutocompleteRef>(null)
   // Wizard State
   const [currentStep, setCurrentStep] = useState<OpenHouseWizardStep>('ADDRESS')
   
   // Data State
   const [address, setAddress] = useState('')
+  const [addressSuggestions, setAddressSuggestions] = useState<{ address: string, lat: number, lng: number }[]>([])
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false)
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
   const [coordinates, setCoordinates] = useState<{ lat: number, lng: number } | null>(null)
   const [propertyData, setPropertyData] = useState<any>(null)
   const [isLoadingProperty, setIsLoadingProperty] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState('')
+
+  const suggestionsRef = useRef<HTMLDivElement>(null)
+
+  // Handle clicking outside to close suggestions
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
+        setShowAddressSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   // Similar Properties State
   const [similarProperties, setSimilarProperties] = useState<any[]>([])
@@ -102,6 +116,27 @@ export function CreateOpenHouseWizard({
     }
   }
 
+  // Fetch internal address suggestions
+  React.useEffect(() => {
+    const fetchSuggestions = async () => {
+      const query = address.trim()
+      if (query.length < 3) {
+        setAddressSuggestions([])
+        return
+      }
+
+      setIsLoadingSuggestions(true)
+      const { success, data } = await api.properties.address(query)
+      if (success && data?.results) {
+        setAddressSuggestions(data.results)
+      }
+      setIsLoadingSuggestions(false)
+    }
+
+    const timeoutId = setTimeout(fetchSuggestions, 300)
+    return () => clearTimeout(timeoutId)
+  }, [address])
+
   const generateQRCode = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -114,15 +149,27 @@ export function CreateOpenHouseWizard({
     setIsGenerating(true)
     setIsLoadingProperty(true)
 
-    // Silent Resolution: If coordinates are missing, try to resolve before lookup
     let searchAddress = address
-    if (!coordinates) {
-      const resolved = await googleAutocompleteRef.current?.resolveAddress()
-      if (resolved) {
-        searchAddress = resolved.address
-        setAddress(resolved.address)
-        setCoordinates({ lat: resolved.lat, lng: resolved.lng })
-      }
+    let searchCoords = coordinates
+
+    // If no coordinates are set (user didn't click a suggestion), 
+    // try to use the first suggestion from our internal list
+    if (!searchCoords && addressSuggestions.length > 0) {
+      const topMatch = addressSuggestions[0]
+      searchAddress = topMatch.address
+      searchCoords = { lat: topMatch.lat, lng: topMatch.lng }
+      
+      // Update local state so UI stays in sync
+      setAddress(searchAddress)
+      setCoordinates(searchCoords)
+      setShowAddressSuggestions(false)
+    }
+
+    if (!searchAddress || !searchCoords) {
+      setError('Please select a valid property from the suggestions.')
+      setIsGenerating(false)
+      setIsLoadingProperty(false)
+      return
     }
 
     const { success, data, error } = await api.properties.lookup(searchAddress)
@@ -268,10 +315,12 @@ export function CreateOpenHouseWizard({
     <div className="w-full">
       {currentStep === 'ADDRESS' ? (
         <div className="space-y-6 sm:space-y-8 w-full">
-          <div className="bg-white dark:bg-[#151517] rounded-2xl sm:rounded-3xl shadow-lg border border-gray-200/60 dark:border-gray-800 p-5 sm:p-8 text-center relative overflow-hidden transition-colors w-full">
+          <div className="bg-white dark:bg-[#151517] rounded-2xl sm:rounded-3xl shadow-lg border border-gray-200/60 dark:border-gray-800 p-5 sm:p-8 text-center relative transition-colors w-full">
             {/* Decorative Background Elements */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-[#C9A24D]/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#111827]/5 dark:bg-white/5 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none"></div>
+            <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-2xl sm:rounded-3xl">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[#C9A24D]/5 rounded-full blur-3xl -mr-32 -mt-32"></div>
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#111827]/5 dark:bg-white/5 rounded-full blur-3xl -ml-32 -mb-32"></div>
+            </div>
 
             <div className="relative z-10 max-w-3xl mx-auto w-full">
               <h1 className="text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-[#8b7355] to-gray-900 dark:from-white dark:via-[#C9A24D] dark:to-gray-200 tracking-tight mb-2 sm:mb-4 leading-tight py-1">
@@ -287,17 +336,45 @@ export function CreateOpenHouseWizard({
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
                       <MapPin size={20} />
                     </div>
-                    <GooglePlacesAutocomplete
-                      ref={googleAutocompleteRef}
+                    <input
                       id="address"
                       name="address"
+                      type="text"
+                      autoComplete="off"
                       required
                       value={address}
-                      onChange={setAddress}
-                      onCoordinatesChange={(lat, lng) => setCoordinates({ lat, lng })}
+                      onChange={(e) => {
+                        setAddress(e.target.value)
+                        setShowAddressSuggestions(true)
+                      }}
+                      onFocus={() => setShowAddressSuggestions(true)}
                       placeholder="Enter property address..."
                       className="block w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-[#0B0B0B] border-2 border-gray-100 dark:border-gray-800 focus:border-[#C9A24D] rounded-2xl text-base font-medium text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-500 shadow-sm focus:shadow-[0_0_20px_rgba(201,162,77,0.1)] focus:outline-none transition-all duration-300"
                     />
+
+                    {/* Internal Address Suggestions Dropdown */}
+                    {showAddressSuggestions && addressSuggestions.length > 0 && (
+                      <div 
+                        ref={suggestionsRef}
+                        className="absolute z-[100] w-full mt-1 bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto animate-fadeIn"
+                      >
+                        {addressSuggestions.map((suggestion, index) => (
+                          <div
+                            key={index}
+                            onClick={() => {
+                              setAddress(suggestion.address)
+                              setCoordinates({ lat: suggestion.lat, lng: suggestion.lng })
+                              setShowAddressSuggestions(false)
+                            }}
+                            className="px-4 py-3 cursor-pointer text-sm transition-colors hover:bg-[#8b7355]/10 dark:hover:bg-[#C9A24D]/10 text-gray-700 dark:text-gray-300 hover:text-[#8b7355] dark:hover:text-[#C9A24D] border-b border-gray-50 dark:border-gray-800 last:border-0"
+                          >
+                            <div className="font-bold">
+                              {suggestion.address.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <button
                     type="submit"
