@@ -11,6 +11,7 @@ interface PropertyCardProps {
   beds: number;
   baths: number;
   sqft: number;
+  city: string;
   acres: number;
   yearBuilt: number;
   dom: number;
@@ -25,14 +26,11 @@ interface PropertyCardProps {
 export function PropertyRecommendationCard({
   image,
   streetAddress,
-  town,
+  city,
   price,
   beds,
   baths,
   sqft,
-  acres,
-  yearBuilt,
-  dom,
   id,
   agentId,
   qrLink,
@@ -40,17 +38,21 @@ export function PropertyRecommendationCard({
   isCompact = false,
   selected = false,
 }: PropertyCardProps) {
-  // Generic cleanup: Take the first two parts (Street, City) and apply Title Case
-  const parts = (streetAddress || 'Address Not Available').split(',');
-  const rawAddress = parts.length > 1 
-    ? `${parts[0].trim()}, ${parts[1].trim()}`
-    : parts[0].trim();
+  // Extract only the street address (first part before comma)
+  const streetOnly = (streetAddress || 'Address Not Available').split(',')[0].trim();
   
-  const cleanAddress = rawAddress
+  const cleanAddress = streetOnly
     .toLowerCase()
     .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
+
+  const cleanCity = (city || '')
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
 
   // Use the provided qrLink, or fallback to the auto-generated one based on the unique ID and Agent ID
   const destinationUrl = qrLink || `https://openhousepal.com/property/${id || 'listing'}/${agentId || 'agent'}`;
@@ -91,14 +93,19 @@ export function PropertyRecommendationCard({
       {/* Content */}
       <div className={`flex flex-1 flex-col ${isCompact ? 'p-4' : 'p-5'} print:bg-white print:p-3`}>
         
-        {/* Top: Address & Price */}
+        {/* Top: Address & Price/City Row */}
         <div className="mb-4 print:mb-2">
-          <h3 className={`font-black tracking-tight leading-tight text-[#111827] print:text-black ${isCompact ? 'text-base' : 'text-lg'} print:text-[11pt]`}>
+          <h3 className={`font-black tracking-tight leading-tight text-[#111827] print:text-black ${isCompact ? 'text-base' : 'text-lg'} print:text-[11pt] line-clamp-1`}>
             {cleanAddress}
           </h3>
-          <p className="text-sm font-black text-[#8b7355] mt-1 print:text-black print:text-[10pt]">
-            {price ? `$${price.toLocaleString()}` : 'Price not available'}
-          </p>
+          <div className="flex items-center justify-between mt-1.5">
+            <p className="text-sm font-black text-[#8b7355] print:text-black print:text-[10pt]">
+              {price ? `$${price.toLocaleString()}` : 'Price not available'}
+            </p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest print:text-black print:text-[8pt]">
+              {cleanCity}
+            </p>
+          </div>
         </div>
 
         {/* Bottom Row: Stats & QR Code */}

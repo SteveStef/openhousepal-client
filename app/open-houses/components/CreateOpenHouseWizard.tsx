@@ -216,6 +216,7 @@ export function CreateOpenHouseWizard({
     }
 
     const { success, data: responseData } = await api.properties.findSimilar(payload)
+    console.log("Here is the sim properties: ", responseData);
 
     if (success && responseData?.properties) {
       setSimilarProperties(responseData.properties)
@@ -696,6 +697,7 @@ const SimilarPropertiesSelectionView = memo(function SimilarPropertiesSelectionV
                         acres={property.LotSizeSquareFeet ? Number((property.LotSizeSquareFeet / 43560).toFixed(2)) : (property.acres || 0)}
                         yearBuilt={property.YearBuilt || property.yearBuilt || property.year_built}
                         dom={property.DaysOnMarket || property.daysOnMarket || property.dom}
+                        city={property.City}
                         hideQr={true}
                         isCompact={true}
                         selected={isSelected}
