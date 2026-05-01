@@ -471,6 +471,7 @@ export default function PropertyDetailsModal({
               src={normalizeImageUrl(images[currentImageIndex])}
               alt="Blurred background"
               fill
+              sizes="100vw"
               className="object-cover"
               unoptimized
             />

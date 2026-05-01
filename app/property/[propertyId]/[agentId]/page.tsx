@@ -164,7 +164,7 @@ export default function PropertyPage() {
     )
   }
 
-  const images = property.photos || [property.ListPictureURL || '/placeholder.jpg']
+  const images = (property.photos || [property.ListPictureURL || '/placeholder.jpg']).map(url => url.replace("http://", "https://"))
 
   return (
     <div className="flex-1 bg-[#FAFAF7] dark:bg-[#0B0B0B] transition-colors duration-300 min-h-screen">
@@ -178,6 +178,7 @@ export default function PropertyPage() {
                 src={images[currentImageIndex]}
                 alt="Blurred background"
                 fill
+                sizes="100vw"
                 className="object-cover"
                 unoptimized
               />
@@ -197,6 +198,7 @@ export default function PropertyPage() {
                 src={images[currentImageIndex]} 
                 alt={property.FullStreetAddress} 
                 fill 
+                sizes="(max-width: 1280px) 100vw, 1280px"
                 className="object-contain drop-shadow-2xl" 
                 priority 
                 unoptimized
@@ -231,6 +233,7 @@ export default function PropertyPage() {
               src={images[0] || '/placeholder.jpg'}
               alt="Main property view"
               fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 40vw"
               className="object-cover transition-transform duration-700 group-hover:scale-105"
               priority
               quality={90}
@@ -264,6 +267,7 @@ export default function PropertyPage() {
                       src={images[i]}
                       alt={`View ${i + 1}`}
                       fill
+                      sizes="(max-width: 1200px) 25vw, 20vw"
                       className="object-cover transition-transform duration-700 group-hover:scale-110"
                       quality={70}
                     />

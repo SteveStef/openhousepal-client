@@ -668,15 +668,32 @@ const SimilarPropertiesSelectionView = memo(function SimilarPropertiesSelectionV
   }
 
   return (
-    <div className="bg-white dark:bg-[#151517] rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-4 sm:p-12 transition-colors max-w-7xl mx-auto animate-fadeIn">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
-         <div>
-          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mb-1 sm:mb-2 tracking-tight">Select similar properties</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Choose listings for your supplemental flyer.</p>
+    <div className="bg-white dark:bg-[#151517] rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-4 sm:p-12 transition-colors max-w-7xl mx-auto animate-fadeIn relative overflow-hidden">
+      {/* Background Decoration */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-[#C9A24D]/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 sm:mb-10 gap-6 relative z-10">
+         <div className="flex items-start space-x-4">
+           <div className="hidden sm:flex shrink-0 w-12 h-12 bg-[#8b7355]/10 dark:bg-[#C9A24D]/10 rounded-2xl items-center justify-center text-[#8b7355] dark:text-[#C9A24D]">
+             <Sparkles size={24} />
+           </div>
+           <div>
+            <h2 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">Select Similar Properties</h2>
+            <div className="flex items-center space-x-2">
+              <span className="w-8 h-0.5 bg-[#C9A24D] rounded-full hidden sm:block"></span>
+              <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 font-medium">Choose active neighbors to feature in your supplemental flyer.</p>
+            </div>
+           </div>
          </div>
-         <div className="flex items-baseline sm:text-right">
-           <span className="text-3xl sm:text-4xl font-black text-[#8b7355] dark:text-[#C9A24D]">{selectedIds.length}</span>
-           <span className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-2">Selected</span>
+
+         <div className="flex items-center bg-gray-50 dark:bg-[#0B0B0B] px-6 py-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-inner group transition-all duration-300 hover:border-[#C9A24D]/30">
+           <div className="text-right mr-4">
+             <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-0.5">Properties</p>
+             <p className="text-xs font-bold text-gray-600 dark:text-gray-400">Selected</p>
+           </div>
+           <div className="w-12 h-12 bg-[#111827] dark:bg-white rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+             <span className="text-2xl font-black text-white dark:text-[#111827]">{selectedIds.length}</span>
+           </div>
          </div>
       </div>
 
@@ -742,7 +759,7 @@ const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selecte
         <div className="p-8 border-b border-gray-200/50 dark:border-gray-800 bg-white/50 dark:bg-[#0B0B0B]/50"><h3 className="text-2xl font-black text-[#0B0B0B] dark:text-white tracking-tight">Review & Save</h3><p className="text-[#6B7280] dark:text-gray-400 text-sm mt-2 font-medium">{formatAddress(address)}</p></div>
         <div className="p-8">
           <div className="flex items-center space-x-5 mb-8">
-            <div className="w-24 h-24 bg-white dark:bg-[#0B0B0B] rounded-2xl overflow-hidden relative shadow-inner border border-gray-100 dark:border-gray-800">{selectedImage && <Image src={selectedImage.url} alt="Selected cover" fill className="object-cover" />}</div>
+            <div className="w-24 h-24 bg-white dark:bg-[#0B0B0B] rounded-2xl overflow-hidden relative shadow-inner border border-gray-100 dark:border-gray-800">{selectedImage && <Image src={selectedImage.url} alt="Selected cover" fill sizes="96px" className="object-cover" />}</div>
             <div className="flex-1"><p className="text-base font-bold text-[#0B0B0B] dark:text-white">Kit Ready to Generate</p><p className="text-sm text-[#6B7280] dark:text-gray-400 mt-1 font-light leading-relaxed">Includes Sign-in Flyer {hasRecommendations && '& Active COMPS'}.</p></div>
           </div>
           <div className="bg-white/80 dark:bg-[#0B0B0B]/80 rounded-2xl p-6 mb-8 border border-gray-100 dark:border-gray-800 shadow-sm"><h4 className="text-sm font-bold text-[#C9A24D] uppercase tracking-wider mb-3">Your Kit Includes</h4>

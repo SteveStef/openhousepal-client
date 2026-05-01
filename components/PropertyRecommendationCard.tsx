@@ -144,6 +144,7 @@ export function PropertyRecommendationCard({
                   alt="Scan"
                   fill
                   priority
+                  sizes="(max-width: 640px) 40px, 48px"
                   className="object-contain p-0.5"
                   unoptimized
                 />
