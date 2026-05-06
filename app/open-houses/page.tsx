@@ -10,6 +10,7 @@ import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { ViewPDFsModal } from '@/components/ViewPDFsModal'
+import { EditSimilarPropertiesModal } from '@/components/EditSimilarPropertiesModal'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
 import { OpenHouse } from '@/types'
 
@@ -110,6 +111,10 @@ function OpenHouseContent() {
   const [isViewPDFsModalOpen, setIsViewPDFsModalOpen] = useState(false)
   const [openHouseForPDFs, setOpenHouseForPDFs] = useState<OpenHouse | null>(null)
   
+  // Edit Similar Properties Modal State
+  const [isEditSimilarModalOpen, setIsEditSimilarModalOpen] = useState(false)
+  const [openHouseToEditSimilar, setOpenHouseToEditSimilar] = useState<OpenHouse | null>(null)
+  
   // PDF Preview State
   const [isPDFPreviewOpen, setIsPDFPreviewOpen] = useState(false)
   const [pdfPreviewData, setPdfPreviewData] = useState<any>(null)
@@ -131,6 +136,12 @@ function OpenHouseContent() {
   const handleCloseViewPDFs = useCallback(() => {
     setIsViewPDFsModalOpen(false)
     setOpenHouseForPDFs(null)
+  }, [])
+
+  const handleOpenEditSimilar = useCallback((openHouse: OpenHouse) => {
+    setOpenHouseToEditSimilar(openHouse)
+    setIsEditSimilarModalOpen(true)
+    setIsViewPDFsModalOpen(false)
   }, [])
 
   const triggerPreview = useCallback(async (mode: 'flyer' | 'recommendations', id?: string, customData?: any) => {
@@ -315,6 +326,16 @@ function OpenHouseContent() {
           onClose={handleCloseViewPDFs}
           onViewFlyer={() => triggerPreview('flyer', openHouseForPDFs.id)}
           onViewRecommendations={() => triggerPreview('recommendations', openHouseForPDFs.id)}
+          onEditRecommendations={() => handleOpenEditSimilar(openHouseForPDFs)}
+        />
+      )}
+
+      {isEditSimilarModalOpen && openHouseToEditSimilar && (
+        <EditSimilarPropertiesModal
+          isOpen={isEditSimilarModalOpen}
+          onClose={() => setIsEditSimilarModalOpen(false)}
+          openHouse={openHouseToEditSimilar}
+          onSuccess={loadOpenHouseHistory}
         />
       )}
 

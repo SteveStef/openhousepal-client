@@ -495,7 +495,7 @@ export function CreateOpenHouseWizard({
 
 // --- SUB-COMPONENTS (Wizard Views) ---
 
-const FeatureSelectionView = memo(function FeatureSelectionView({ address, onNext, onBack }: { address: string, onNext: (features: any) => void, onBack: () => void }) {
+export const FeatureSelectionView = memo(function FeatureSelectionView({ address, onNext, onBack }: { address: string, onNext: (features: any) => void, onBack: () => void }) {
   const [features, setFeatures] = useState({ signinSheet: true, similarProperties: false })
 
   const toggleFeature = (key: 'similarProperties') => {
@@ -563,7 +563,7 @@ const FeatureSelectionView = memo(function FeatureSelectionView({ address, onNex
   )
 })
 
-const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesPreferencesView({ 
+export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesPreferencesView({ 
   preferences: initialPreferences, 
   address,
   onFindProperties, 
@@ -588,56 +588,58 @@ const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesPreferen
   }
 
   return (
-    <div className="bg-white dark:bg-[#151517] rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-5 sm:p-12 transition-colors max-w-4xl mx-auto animate-fadeIn">
-      <div className="text-center mb-8 sm:mb-12">
-        <h2 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white mb-3 sm:mb-4 tracking-tight">Refine Your Search</h2>
-        <p className="text-base sm:text-lg text-gray-500 dark:text-gray-400 font-light truncate px-4">Find properties similar to <span className="font-medium text-gray-900 dark:text-white">{address}</span></p>
+    <div className="bg-white dark:bg-[#151517] rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 transition-colors max-w-4xl mx-auto animate-fadeIn h-full flex flex-col overflow-hidden">
+      <div className="flex-1 overflow-y-auto p-5 sm:p-8 pb-0">
+        <div className="text-center mb-6 sm:mb-8">
+          <h2 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white mb-2 sm:mb-3 tracking-tight">Refine Your Search</h2>
+          <p className="text-base sm:text-lg text-gray-500 dark:text-gray-400 font-light truncate px-4">Find properties similar to <span className="font-medium text-gray-900 dark:text-white">{address}</span></p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4">
+          <div className="space-y-4 bg-[#faf9f7] dark:bg-[#1c1c1e] p-6 rounded-2xl border border-gray-100 dark:border-gray-800">
+            <h3 className="text-sm font-bold text-[#8b7355] dark:text-[#C9A24D] uppercase tracking-widest flex items-center"><DollarSign className="w-4 h-4 mr-2" /> Price Range</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Min Price</label>
+                <input type="text" name="minPrice" value={formatPriceForDisplay(prefs.minPrice)} onChange={handleChange} className="w-full px-4 py-3 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#C9A24D] transition-all" placeholder="0" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Max Price</label>
+                <input type="text" name="maxPrice" value={formatPriceForDisplay(prefs.maxPrice)} onChange={handleChange} className="w-full px-4 py-3 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#C9A24D] transition-all" placeholder="No Max" />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4 bg-[#faf9f7] dark:bg-[#1c1c1e] p-6 rounded-2xl border border-gray-100 dark:border-gray-800">
+            <h3 className="text-sm font-bold text-[#8b7355] dark:text-[#C9A24D] uppercase tracking-widest flex items-center"><BoxSelect className="w-4 h-4 mr-2" /> Property Details</h3>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-6">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Min Beds</label>
+                <select name="minBeds" value={prefs.minBeds} onChange={handleChange} className="w-full px-4 py-3 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#C9A24D] transition-all appearance-none">
+                  {[0, 1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}+ Beds</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Min Baths</label>
+                <select name="minBaths" value={prefs.minBaths} onChange={handleChange} className="w-full px-4 py-3 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#C9A24D] transition-all appearance-none">
+                  {[0, 1, 1.5, 2, 2.5, 3, 3.5, 4].map(n => <option key={n} value={n}>{n}+ Baths</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="md:col-span-2 space-y-4 bg-[#faf9f7] dark:bg-[#1c1c1e] p-6 rounded-2xl border border-gray-100 dark:border-gray-800">
+            <h3 className="text-sm font-bold text-[#8b7355] dark:text-[#C9A24D] uppercase tracking-widest flex items-center"><svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>Search Radius</h3>
+            <div className="flex items-center gap-6">
+              <input type="range" name="radius" min="1" max="20" step="1" value={prefs.radius} onChange={handleChange} className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#C9A24D]" />
+              <div className="bg-white dark:bg-[#0B0B0B] px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 min-w-[100px] text-center"><span className="text-lg font-black text-gray-900 dark:text-white">{prefs.radius}</span><span className="text-[10px] font-bold text-gray-500 uppercase ml-1">Miles</span></div>
+            </div>
+            <p className="text-[10px] text-gray-400 font-medium">Search area centered on the property coordinates captured from address entry.</p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 sm:mb-12">
-        <div className="space-y-4 bg-[#faf9f7] dark:bg-[#1c1c1e] p-6 rounded-2xl border border-gray-100 dark:border-gray-800">
-          <h3 className="text-sm font-bold text-[#8b7355] dark:text-[#C9A24D] uppercase tracking-widest flex items-center"><DollarSign className="w-4 h-4 mr-2" /> Price Range</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Min Price</label>
-              <input type="text" name="minPrice" value={formatPriceForDisplay(prefs.minPrice)} onChange={handleChange} className="w-full px-4 py-3 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#C9A24D] transition-all" placeholder="0" />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Max Price</label>
-              <input type="text" name="maxPrice" value={formatPriceForDisplay(prefs.maxPrice)} onChange={handleChange} className="w-full px-4 py-3 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#C9A24D] transition-all" placeholder="No Max" />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4 bg-[#faf9f7] dark:bg-[#1c1c1e] p-6 rounded-2xl border border-gray-100 dark:border-gray-800">
-          <h3 className="text-sm font-bold text-[#8b7355] dark:text-[#C9A24D] uppercase tracking-widest flex items-center"><BoxSelect className="w-4 h-4 mr-2" /> Property Details</h3>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-6">
-            <div>
-              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Min Beds</label>
-              <select name="minBeds" value={prefs.minBeds} onChange={handleChange} className="w-full px-4 py-3 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#C9A24D] transition-all appearance-none">
-                {[0, 1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}+ Beds</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Min Baths</label>
-              <select name="minBaths" value={prefs.minBaths} onChange={handleChange} className="w-full px-4 py-3 bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#C9A24D] transition-all appearance-none">
-                {[0, 1, 1.5, 2, 2.5, 3, 3.5, 4].map(n => <option key={n} value={n}>{n}+ Baths</option>)}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="md:col-span-2 space-y-4 bg-[#faf9f7] dark:bg-[#1c1c1e] p-6 rounded-2xl border border-gray-100 dark:border-gray-800">
-          <h3 className="text-sm font-bold text-[#8b7355] dark:text-[#C9A24D] uppercase tracking-widest flex items-center"><svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>Search Radius</h3>
-          <div className="flex items-center gap-6">
-            <input type="range" name="radius" min="1" max="20" step="1" value={prefs.radius} onChange={handleChange} className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#C9A24D]" />
-            <div className="bg-white dark:bg-[#0B0B0B] px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 min-w-[100px] text-center"><span className="text-lg font-black text-gray-900 dark:text-white">{prefs.radius}</span><span className="text-[10px] font-bold text-gray-500 uppercase ml-1">Miles</span></div>
-          </div>
-          <p className="text-[10px] text-gray-400 font-medium">Search area centered on the property coordinates captured from address entry.</p>
-        </div>
-      </div>
-
-      <div className="flex flex-col-reverse sm:flex-row justify-between items-center gap-3">
+      <div className="sticky bottom-0 bg-white dark:bg-[#151517] z-20 flex flex-col-reverse sm:flex-row justify-between items-center gap-3 py-3 px-5 sm:px-8 border-t border-gray-100 dark:border-gray-800">
         <button onClick={onBack} className="w-full sm:w-auto px-6 py-3.5 bg-white dark:bg-transparent text-gray-600 dark:text-gray-400 font-bold rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 text-sm">Back</button>
         <button onClick={() => onFindProperties(prefs)} className="w-full sm:w-auto px-10 py-3.5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] font-bold rounded-xl shadow-lg hover:shadow-xl hover:bg-[#8b7355] dark:hover:bg-[#C9A24D] hover:text-white transform hover:-translate-y-0.5 transition-all duration-300 active:scale-95 text-sm uppercase tracking-widest">Find Properties</button>
       </div>
@@ -645,8 +647,17 @@ const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesPreferen
   )
 })
 
-const SimilarPropertiesSelectionView = memo(function SimilarPropertiesSelectionView({ properties, isLoading, initialSelectedIds = [], onNext, onBack }: { properties: any[], isLoading: boolean, initialSelectedIds?: (string | number)[], onNext: (selectedIds: (string | number)[]) => void, onBack: () => void }) {
+export const SimilarPropertiesSelectionView = memo(function SimilarPropertiesSelectionView({ properties, isLoading, initialSelectedIds = [], onNext, onBack }: { properties: any[], isLoading: boolean, initialSelectedIds?: (string | number)[], onNext: (selectedIds: (string | number)[]) => void, onBack: () => void }) {
   const [selectedIds, setSelectedIds] = useState<(string | number)[]>(initialSelectedIds)
+
+  // Sync selectedIds with the current properties list when properties update
+  React.useEffect(() => {
+    if (properties.length > 0) {
+      const currentPropertyIds = properties.map(p => String(p.ListingKey || p.listingKey || p.id));
+      setSelectedIds(prev => prev.filter(id => currentPropertyIds.includes(String(id))));
+    }
+  }, [properties])
+
   const toggleProperty = (id: string | number) => {
     const stringId = String(id);
     setSelectedIds(prev => {
@@ -668,63 +679,65 @@ const SimilarPropertiesSelectionView = memo(function SimilarPropertiesSelectionV
   }
 
   return (
-    <div className="bg-white dark:bg-[#151517] rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-4 sm:p-12 transition-colors max-w-7xl mx-auto animate-fadeIn relative overflow-hidden">
+    <div className="bg-white dark:bg-[#151517] rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 transition-colors max-w-7xl mx-auto animate-fadeIn relative flex flex-col h-full overflow-hidden">
       {/* Background Decoration */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-[#C9A24D]/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 sm:mb-10 gap-6 relative z-10">
-         <div className="flex items-start space-x-4">
-           <div className="hidden sm:flex shrink-0 w-12 h-12 bg-[#8b7355]/10 dark:bg-[#C9A24D]/10 rounded-2xl items-center justify-center text-[#8b7355] dark:text-[#C9A24D]">
-             <Sparkles size={24} />
-           </div>
-           <div>
-            <h2 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">Select Similar Properties</h2>
-            <div className="flex items-center space-x-2">
-              <span className="w-8 h-0.5 bg-[#C9A24D] rounded-full hidden sm:block"></span>
-              <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 font-medium">Choose active neighbors to feature in your supplemental flyer.</p>
+      <div className="flex-1 overflow-hidden flex flex-col p-4 sm:p-8 pb-0">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-6 relative z-10">
+          <div className="flex items-start space-x-4">
+            <div className="hidden sm:flex shrink-0 w-12 h-12 bg-[#8b7355]/10 dark:bg-[#C9A24D]/10 rounded-2xl items-center justify-center text-[#8b7355] dark:text-[#C9A24D]">
+              <Sparkles size={24} />
             </div>
-           </div>
-         </div>
+            <div>
+              <h2 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">Select Similar Properties</h2>
+              <div className="flex items-center space-x-2">
+                <span className="w-8 h-0.5 bg-[#C9A24D] rounded-full hidden sm:block"></span>
+                <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 font-medium">Choose active neighbors to feature in your supplemental flyer.</p>
+              </div>
+            </div>
+          </div>
 
-         <div className="flex items-center bg-gray-50 dark:bg-[#0B0B0B] px-6 py-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-inner group transition-all duration-300 hover:border-[#C9A24D]/30">
-           <div className="text-right mr-4">
-             <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-0.5">Properties</p>
-             <p className="text-xs font-bold text-gray-600 dark:text-gray-400">Selected</p>
-           </div>
-           <div className="w-12 h-12 bg-[#111827] dark:bg-white rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-             <span className="text-2xl font-black text-white dark:text-[#111827]">{selectedIds.length}</span>
-           </div>
-         </div>
+          <div className="flex items-center bg-gray-50 dark:bg-[#0B0B0B] px-6 py-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-inner group transition-all duration-300 hover:border-[#C9A24D]/30">
+            <div className="text-right mr-4">
+              <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-0.5">Properties</p>
+              <p className="text-xs font-bold text-gray-600 dark:text-gray-400">Selected</p>
+            </div>
+            <div className="w-12 h-12 bg-[#111827] dark:bg-white rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <span className="text-2xl font-black text-white dark:text-[#111827]">{selectedIds.length}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto pr-1 flex-1">
+          {properties.map((property) => {
+            const propertyId = String(property.ListingKey || property.listingKey || property.id);
+            const isSelected = selectedIds.map(sid => String(sid)).includes(propertyId);
+            return (
+              <div key={propertyId} onClick={() => toggleProperty(propertyId)} className="relative cursor-pointer">
+                <PropertyRecommendationCard 
+                  image={property.ListPictureURL || property.imageUrl || property.imgSrc || property.image || "/placeholder.svg"}
+                  streetAddress={property.FullStreetAddress || property.address}
+                  town={property.City || property.city}
+                  price={property.ListPrice || property.price}
+                  beds={property.BedroomsTotal ?? property.bedrooms ?? property.beds ?? 0}
+                  baths={property.BathroomsTotal ?? property.bathrooms ?? property.baths ?? 0}
+                  sqft={property.LivingArea || property.sqft || 0}
+                  acres={property.LotSizeSquareFeet ? Number((property.LotSizeSquareFeet / 43560).toFixed(2)) : (property.acres || 0)}
+                  yearBuilt={property.YearBuilt || property.yearBuilt || property.year_built}
+                  dom={property.DaysOnMarket || property.daysOnMarket || property.dom}
+                  city={property.City}
+                  hideQr={true}
+                  isCompact={true}
+                  selected={isSelected}
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-8 sm:mb-12 max-h-[50vh] sm:max-h-[60vh] overflow-y-auto pr-1">
-                {properties.map((property) => {
-                  const propertyId = String(property.ListingKey || property.listingKey || property.id);
-                  const isSelected = selectedIds.map(sid => String(sid)).includes(propertyId);
-                  return (
-                    <div key={propertyId} onClick={() => toggleProperty(propertyId)} className="relative cursor-pointer">
-                      <PropertyRecommendationCard 
-                        image={property.ListPictureURL || property.imageUrl || property.imgSrc || property.image || "/placeholder.svg"}
-                        streetAddress={property.FullStreetAddress || property.address}
-                        town={property.City || property.city}
-                        price={property.ListPrice || property.price}
-                        beds={property.BedroomsTotal ?? property.bedrooms ?? property.beds ?? 0}
-                        baths={property.BathroomsTotal ?? property.bathrooms ?? property.baths ?? 0}
-                        sqft={property.LivingArea || property.sqft || 0}
-                        acres={property.LotSizeSquareFeet ? Number((property.LotSizeSquareFeet / 43560).toFixed(2)) : (property.acres || 0)}
-                        yearBuilt={property.YearBuilt || property.yearBuilt || property.year_built}
-                        dom={property.DaysOnMarket || property.daysOnMarket || property.dom}
-                        city={property.City}
-                        hideQr={true}
-                        isCompact={true}
-                        selected={isSelected}
-                      />
-                    </div>
-                  );
-                })}
-      </div>
-
-      <div className="flex flex-col-reverse sm:flex-row justify-between items-center gap-3 border-t border-gray-100 dark:border-gray-800 pt-6 sm:pt-8">
+      <div className="sticky bottom-0 bg-white dark:bg-[#151517] z-20 flex flex-col-reverse sm:flex-row justify-between items-center gap-3 border-t border-gray-100 dark:border-gray-800 py-3 px-4 sm:px-8">
         <button onClick={onBack} className="w-full sm:w-auto px-6 py-3.5 bg-white dark:bg-transparent text-gray-600 dark:text-gray-400 font-bold rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 text-sm">Back</button>
         <button onClick={() => onNext(selectedIds)} disabled={selectedIds.length === 0} className="w-full sm:w-auto px-8 py-3.5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] font-bold rounded-xl shadow-lg hover:shadow-xl hover:bg-[#8b7355] dark:hover:bg-[#C9A24D] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 text-sm">Continue ({selectedIds.length})</button>
       </div>

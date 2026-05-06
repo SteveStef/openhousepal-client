@@ -37,6 +37,7 @@ export const OpenHouseCard = memo(function OpenHouseCard({
           fill
           sizes="(max-width: 640px) 100vw, 300px"
           className="object-cover"
+          priority={index < 2}
         />
         {/* Subtle Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 sm:bg-gradient-to-tr sm:from-black/50 sm:via-transparent sm:to-transparent"></div>

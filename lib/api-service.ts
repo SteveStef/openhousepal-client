@@ -265,6 +265,11 @@ class ApiService {
       body: JSON.stringify({ notes }),
     }),
 
+    updateSnapshot: (id: string, snapshot: any[]) => this.request(`/api/open-houses/${id}/snapshot`, {
+      method: 'PATCH',
+      body: JSON.stringify({ similar_properties_snapshot: snapshot }),
+    }),
+
     getVisitors: (id: string) => this.request<any[]>(`/api/open-houses/${id}/visitors`),
 
     updateVisitorNote: (visitorId: string, notes: string) => this.request(`/api/visitors/${visitorId}/note`, {

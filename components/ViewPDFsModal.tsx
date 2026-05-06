@@ -15,6 +15,7 @@ interface ViewPDFsModalProps {
   onClose: () => void;
   onViewFlyer: () => void;
   onViewRecommendations: () => void;
+  onEditRecommendations?: () => void;
 }
 
 // --- HELPERS ---
@@ -59,7 +60,8 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
   openHouse, 
   onClose, 
   onViewFlyer, 
-  onViewRecommendations 
+  onViewRecommendations,
+  onEditRecommendations
 }: ViewPDFsModalProps) {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 print:hidden animate-fadeIn">
@@ -105,29 +107,43 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
 
           {/* Option 2: Property Recommendations */}
           {openHouse.similarPropertiesSnapshot && openHouse.similarPropertiesSnapshot.length > 0 && (
-            <button 
-              onClick={onViewRecommendations}
-              className="w-full group flex items-center p-5 bg-white dark:bg-[#1c1c1e] border border-gray-100 dark:border-gray-800 rounded-2xl transition-all duration-150 text-left relative active:scale-[0.98]"
-            >
-              <div className="w-14 h-14 bg-[#faf9f7] dark:bg-[#0B0B0B] rounded-xl flex items-center justify-center mr-5 border border-gray-100 dark:border-gray-800 transition-all duration-150 relative z-10 shadow-sm">
-                <svg className="w-7 h-7 text-[#8b7355] dark:text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-              </div>
-
-              <div className="relative z-10 flex-1">
-                <h4 className="text-lg font-bold text-gray-900 dark:text-white">Active COMPS</h4>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Similar Active Listings</p>
-              </div>
-
-              <div className="relative z-10 ml-4">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center border border-gray-100 dark:border-gray-800 group-hover:border-[#8b7355] dark:group-hover:border-[#C9A24D] transition-all duration-150">
-                  <svg className="w-4 h-4 text-gray-300 group-hover:text-[#8b7355] dark:group-hover:text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+            <div className="space-y-3">
+              <button 
+                onClick={onViewRecommendations}
+                className="w-full group flex items-center p-5 bg-white dark:bg-[#1c1c1e] border border-gray-100 dark:border-gray-800 rounded-2xl transition-all duration-150 text-left relative active:scale-[0.98]"
+              >
+                <div className="w-14 h-14 bg-[#faf9f7] dark:bg-[#0B0B0B] rounded-xl flex items-center justify-center mr-5 border border-gray-100 dark:border-gray-800 transition-all duration-150 relative z-10 shadow-sm">
+                  <svg className="w-7 h-7 text-[#8b7355] dark:text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
                 </div>
-              </div>
-            </button>
+
+                <div className="relative z-10 flex-1">
+                  <h4 className="text-lg font-bold text-gray-900 dark:text-white">Active COMPS</h4>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Similar Active Listings</p>
+                </div>
+
+                <div className="relative z-10 ml-4">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center border border-gray-100 dark:border-gray-800 group-hover:border-[#8b7355] dark:group-hover:border-[#C9A24D] transition-all duration-150">
+                    <svg className="w-4 h-4 text-gray-300 group-hover:text-[#8b7355] dark:group-hover:text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+              </button>
+
+              {onEditRecommendations && (
+                <button 
+                  onClick={onEditRecommendations}
+                  className="w-full flex items-center justify-center gap-2 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-[#8b7355] dark:hover:text-[#C9A24D] transition-colors"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Update Similar Listings
+                </button>
+              )}
+            </div>
           )}
         </div>
         

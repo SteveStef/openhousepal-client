@@ -194,6 +194,11 @@ export interface OpenHouse {
   LivingArea?: number;
   ListPrice?: number;
   city?: string;
+  state?: string;
+  zipcode?: string;
+  latitude?: number;
+  longitude?: number;
+  listing_key?: string;
   notes?: string;
   similarPropertyIds?: string[];
   similarPropertiesSnapshot?: any[];
