@@ -7,21 +7,19 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import api from '@/lib/api-service'
 import { setToken } from '@/lib/token'
 import { useAuth } from '@/contexts/AuthContext'
+import { useToast } from '@/contexts/ToastContext'
 import { Suspense } from 'react'
 
 function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { refreshUser } = useAuth()
+  const { showToast } = useToast()
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   })
   const [isLoading, setIsLoading] = useState(false)
-  const [notification, setNotification] = useState<{
-    type: 'success' | 'error' | 'info' | null
-    message: string
-  }>({ type: null, message: '' })
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({})
   const [showPassword, setShowPassword] = useState(false)
 
@@ -64,14 +62,6 @@ function LoginContent() {
     return () => clearInterval(timer)
   }, [])
 
-  // Clear notifications after 5 seconds
-  const showNotification = (type: 'success' | 'error' | 'info', message: string) => {
-    setNotification({ type, message })
-    setTimeout(() => {
-      setNotification({ type: null, message: '' })
-    }, 5000)
-  }
-
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {}
     
@@ -91,18 +81,16 @@ function LoginContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setFieldErrors({})
-    setNotification({ type: null, message: '' })
     
     // Validate form
     const validationErrors = validateForm()
     if (Object.keys(validationErrors).length > 0) {
       setFieldErrors(validationErrors)
-      showNotification('error', 'Please correct the errors below')
+      showToast('Please correct the errors below', 'error')
       return
     }
     
     setIsLoading(true)
-    showNotification('info', 'Signing you in...')
     
     const { success, data, error } = await api.auth.login({
       email: formData.email,
@@ -114,7 +102,7 @@ function LoginContent() {
       setToken(data.access_token)
       await refreshUser()
       
-      showNotification('success', 'Login successful! Redirecting...')
+      showToast('Login successful! Redirecting...', 'success')
       
       // Get redirect path from URL params or default to /open-houses
       const redirectPath = searchParams.get('redirect') || '/open-houses'
@@ -123,15 +111,15 @@ function LoginContent() {
       // Handle failure
       const errorMessage = error || 'Login failed. Please try again.'
       if (errorMessage.toLowerCase().includes('inactive')) {
-        showNotification('error', 'Your account has been deactivated. Please contact support.')
+        showToast('Your account has been deactivated. Please contact support.', 'error')
       } else if (errorMessage.toLowerCase().includes('invalid')) {
         setFieldErrors({ 
           email: 'Invalid email or password',
           password: 'Invalid email or password'
         })
-        showNotification('error', 'Invalid email or password')
+        showToast('Invalid email or password', 'error')
       } else {
-        showNotification('error', errorMessage)
+        showToast(errorMessage, 'error')
       }
       setIsLoading(false)
     }

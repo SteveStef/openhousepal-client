@@ -31,8 +31,13 @@ class ApiService {
       }
 
       if (response.status === 401) {
-        this.handleUnauthorized();
-        return { success: false, error: 'Session expired. Please log in again.' };
+        const isAuthPage = typeof window !== 'undefined' && 
+          (window.location.pathname.startsWith('/login') || window.location.pathname.startsWith('/register'));
+        
+        if (!isAuthPage) {
+          this.handleUnauthorized();
+          return { success: false, error: 'Session expired. Please log in again.' };
+        }
       }
 
       if (!response.ok) {
