@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import PayPalSubscriptionButton from '../../../components/PayPalSubscriptionButton'
 import { PayPalScriptProvider } from "@paypal/react-paypal-js"
 import EmailVerificationInput from '../../../components/EmailVerificationInput'
+import BrokerageAutocomplete from '../../../components/BrokerageAutocomplete'
 import api from '@/lib/api-service'
 import { PRICING_PLANS, TRIAL_PERIOD_DAYS } from '@/lib/pricing'
 import { useRouter } from 'next/navigation'
@@ -56,9 +57,10 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<{[key: string]: string}>({})
   const [notification, setNotification] = useState<{
-    type: 'success' | 'error' | 'info' | null
+    type: 'success' | 'error' | 'info' | null,
     message: string
   }>({ type: null, message: '' })
+  const [isBrokerageValid, setIsBrokerageValid] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({})
   const [showPassword, setShowPassword] = useState(false)
   
@@ -109,7 +111,7 @@ export default function RegisterPage() {
     }, 5000)
     return () => clearInterval(timer)
   }, [slides.length])
-  
+
   const [registrationStep, setRegistrationStep] = useState<'form' | 'verify' | 'pricing' | 'payment'>('form')
   const [selectedPlan, setSelectedPlan] = useState<SelectedPlan | null>(null)
   const [bundleCode, setBundleCode] = useState('')
@@ -156,7 +158,11 @@ export default function RegisterPage() {
     if (!formData.firstName.trim()) newErrors.firstName = 'First name is required'
     if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required'
     if (!formData.state.trim()) newErrors.state = 'State is required'
-    if (!formData.brokerage.trim()) newErrors.brokerage = 'Brokerage is required'
+    if (!formData.brokerage.trim()) {
+      newErrors.brokerage = 'Brokerage is required'
+    } else if (!isBrokerageValid) {
+      newErrors.brokerage = 'Please select a brokerage from the dropdown options'
+    }
     if (!formData.mlsId.trim()) newErrors.mlsId = 'MLS ID is required'
     
     // Email validation
@@ -631,18 +637,18 @@ export default function RegisterPage() {
                   <label htmlFor="brokerage" className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider mb-1 ml-1">
                     Brokerage
                   </label>
-                  <input
-                    id="brokerage"
-                    name="brokerage"
-                    type="text"
-                    required
+                  <BrokerageAutocomplete
                     value={formData.brokerage}
-                    onChange={handleChange}
-                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
-                      fieldErrors.brokerage 
-                        ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
-                        : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30'
-                    }`}
+                    onChange={(val) => {
+                      setFormData(prev => ({ ...prev, brokerage: val }))
+                      if (fieldErrors.brokerage) {
+                        setFieldErrors(prev => ({ ...prev, brokerage: '' }))
+                      }
+                    }}
+                    onValidationChange={(isValid) => {
+                      setIsBrokerageValid(isValid)
+                    }}
+                    error={!!fieldErrors.brokerage}
                     placeholder="Re/Max..."
                   />
                   {fieldErrors.brokerage && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.brokerage}</p>}
