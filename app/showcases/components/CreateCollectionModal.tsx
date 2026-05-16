@@ -2,9 +2,8 @@
 
 import { useState, useRef, memo } from 'react'
 import GooglePlacesAutocomplete, { GooglePlacesAutocompleteRef } from '@/components/GooglePlacesAutocomplete'
-import MultiCityPlacesInput from '@/components/MultiCityPlacesInput'
-import MultiTownshipPlacesInput from '@/components/MultiTownshipPlacesInput'
-import MultiSchoolDistrictInput from '@/components/MultiSchoolDistrictInput'
+import MultiSelectDatabaseInput from '@/components/MultiSelectDatabaseInput'
+import api from '@/lib/api-service'
 
 interface CreateCollectionModalProps {
   isOpen: boolean;
@@ -237,9 +236,27 @@ export const CreateCollectionModal = memo(function CreateCollectionModal({
               <div className={`p-6 rounded-2xl border transition-all ${isUsingAreaSearch() ? 'border-[#C9A24D] bg-[#FAFAF7] dark:bg-[#0B0B0B]' : 'border-gray-200 dark:border-gray-800'}`}>
                 <h5 className="text-md font-black uppercase mb-6">Area-Based Search</h5>
                 <div className="space-y-4">
-                  <MultiCityPlacesInput cities={formData.cities} onChange={(v) => handleInputChange('cities', v)} disabled={isUsingAddressSearch()} />
-                  <MultiTownshipPlacesInput townships={formData.townships} onChange={(v) => handleInputChange('townships', v)} disabled={isUsingAddressSearch()} />
-                  <MultiSchoolDistrictInput schoolDistricts={formData.schoolDistricts} onChange={(v) => handleInputChange('schoolDistricts', v)} disabled={isUsingAddressSearch()} />
+                  <MultiSelectDatabaseInput 
+                    values={formData.cities} 
+                    onChange={(v) => handleInputChange('cities', v)} 
+                    apiMethod={api.properties.cities}
+                    placeholder="Search cities..."
+                    disabled={isUsingAddressSearch()} 
+                  />
+                  <MultiSelectDatabaseInput 
+                    values={formData.townships} 
+                    onChange={(v) => handleInputChange('townships', v)} 
+                    apiMethod={api.properties.townships}
+                    placeholder="Search townships..."
+                    disabled={isUsingAddressSearch()} 
+                  />
+                  <MultiSelectDatabaseInput 
+                    values={formData.schoolDistricts} 
+                    onChange={(v) => handleInputChange('schoolDistricts', v)} 
+                    apiMethod={api.properties.searchSchoolDistricts}
+                    placeholder="Search school districts..."
+                    disabled={isUsingAddressSearch()} 
+                  />
                 </div>
               </div>
             </div>

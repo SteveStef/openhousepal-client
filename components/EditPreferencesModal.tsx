@@ -4,9 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Collection, CollectionPreferences } from '@/types'
 import api from '@/lib/api-service'
 import { X } from 'lucide-react'
-import MultiCityPlacesInput from './MultiCityPlacesInput'
-import MultiTownshipPlacesInput from './MultiTownshipPlacesInput'
-import MultiSchoolDistrictInput from './MultiSchoolDistrictInput'
+import MultiSelectDatabaseInput from './MultiSelectDatabaseInput'
 import GooglePlacesAutocomplete, { GooglePlacesAutocompleteRef } from './GooglePlacesAutocomplete'
 
 interface EditPreferencesModalProps {
@@ -343,19 +341,25 @@ export default function EditPreferencesModal({
                     )}
                   </div>
                   <div className="space-y-4">
-                    <MultiCityPlacesInput 
-                      cities={formData.cities || []} 
+                    <MultiSelectDatabaseInput 
+                      values={formData.cities || []} 
                       onChange={(cities) => setFormData({ ...formData, cities, address: '', lat: null, long: null, diameter: null })}
+                      apiMethod={api.properties.cities}
+                      placeholder="Search cities..."
                       disabled={isUsingAddressSearch()}
                     />
-                    <MultiTownshipPlacesInput 
-                      townships={formData.townships || []} 
+                    <MultiSelectDatabaseInput 
+                      values={formData.townships || []} 
                       onChange={(townships) => setFormData({ ...formData, townships, address: '', lat: null, long: null, diameter: null })}
+                      apiMethod={api.properties.townships}
+                      placeholder="Search townships..."
                       disabled={isUsingAddressSearch()}
                     />
-                    <MultiSchoolDistrictInput 
-                      schoolDistricts={formData.school_districts || []} 
+                    <MultiSelectDatabaseInput 
+                      values={formData.school_districts || []} 
                       onChange={(school_districts) => setFormData({ ...formData, school_districts, address: '', lat: null, long: null, diameter: null })}
+                      apiMethod={api.properties.searchSchoolDistricts}
+                      placeholder="Search school districts..."
                       disabled={isUsingAddressSearch()}
                     />
                   </div>

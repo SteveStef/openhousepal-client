@@ -2,25 +2,27 @@
 
 import { useState, useRef, useEffect } from 'react'
 import CityTag from './CityTag'
-import api from '@/lib/api-service'
+import { ApiResponse } from '@/types'
 
-interface MultiSchoolDistrictInputProps {
-  schoolDistricts: string[]
-  onChange: (districts: string[]) => void
+interface MultiSelectDatabaseInputProps {
+  values: string[]
+  onChange: (values: string[]) => void
+  apiMethod: (query: string) => Promise<ApiResponse<{ results: string[] }>>
   placeholder?: string
-  maxDistricts?: number
+  maxItems?: number
   className?: string
   disabled?: boolean
 }
 
-export default function MultiSchoolDistrictInput({
-  schoolDistricts,
+export default function MultiSelectDatabaseInput({
+  values,
   onChange,
-  placeholder = 'Type school district name...',
-  maxDistricts = 50,
+  apiMethod,
+  placeholder = 'Type to search...',
+  maxItems = 50,
   className = '',
   disabled = false
-}: MultiSchoolDistrictInputProps) {
+}: MultiSelectDatabaseInputProps) {
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -29,20 +31,20 @@ export default function MultiSchoolDistrictInput({
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
 
-  // Helper to convert "UPPERCASE NAME, ST" to "Title Case Name, ST"
+  // Helper to convert "UPPERCASE NAME, ST" to "Title Case Name, ST" for the UI tags
   const formatDisplayName = (name: string) => {
     if (!name) return ''
     const parts = name.split(',')
-    const districtName = parts[0].toLowerCase()
+    const mainName = parts[0].toLowerCase()
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')
     
     const state = parts[1] ? `, ${parts[1].trim().toUpperCase()}` : ''
-    return `${districtName}${state}`
+    return `${mainName}${state}`
   }
 
-  // Fetch suggestions from our internal API
+  // Fetch suggestions from the provided API method
   useEffect(() => {
     const fetchSuggestions = async () => {
       const query = inputValue.trim()
@@ -53,14 +55,14 @@ export default function MultiSchoolDistrictInput({
 
       setIsLoading(true)
       try {
-        const { success, data } = await api.properties.searchSchoolDistricts(query)
-        if (success && data) {
-          // Filter out already selected districts
-          const filtered = data.results.filter((sd: string) => !schoolDistricts.includes(sd))
+        const response = await apiMethod(query)
+        if (response.success && response.data) {
+          // Filter out already selected items
+          const filtered = response.data.results.filter((item: string) => !values.includes(item))
           setSuggestions(filtered)
         }
       } catch (err) {
-        console.error('Failed to fetch school districts:', err)
+        console.error('Failed to fetch suggestions:', err)
       } finally {
         setIsLoading(false)
       }
@@ -68,11 +70,11 @@ export default function MultiSchoolDistrictInput({
 
     const timeoutId = setTimeout(fetchSuggestions, 300) // Debounce
     return () => clearTimeout(timeoutId)
-  }, [inputValue, schoolDistricts])
+  }, [inputValue, values, apiMethod])
 
-  const addDistrict = (name: string) => {
-    if (!schoolDistricts.includes(name) && schoolDistricts.length < maxDistricts) {
-      onChange([...schoolDistricts, name])
+  const addItem = (name: string) => {
+    if (!values.includes(name) && values.length < maxItems) {
+      onChange([...values, name])
     }
     setInputValue('')
     setSuggestions([])
@@ -80,8 +82,8 @@ export default function MultiSchoolDistrictInput({
     setSelectedIndex(-1)
   }
 
-  const removeDistrict = (nameToRemove: string) => {
-    onChange(schoolDistricts.filter(sd => sd !== nameToRemove))
+  const removeItem = (nameToRemove: string) => {
+    onChange(values.filter(v => v !== nameToRemove))
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -94,14 +96,14 @@ export default function MultiSchoolDistrictInput({
     } else if (e.key === 'Enter') {
       e.preventDefault()
       if (selectedIndex >= 0) {
-        addDistrict(suggestions[selectedIndex])
+        addItem(suggestions[selectedIndex])
       } else if (suggestions.length > 0) {
-        addDistrict(suggestions[0])
+        addItem(suggestions[0])
       }
     } else if (e.key === 'Escape') {
       setShowSuggestions(false)
-    } else if (e.key === 'Backspace' && !inputValue && schoolDistricts.length > 0) {
-      removeDistrict(schoolDistricts[schoolDistricts.length - 1])
+    } else if (e.key === 'Backspace' && !inputValue && values.length > 0) {
+      removeItem(values[values.length - 1])
     }
   }
 
@@ -122,18 +124,18 @@ export default function MultiSchoolDistrictInput({
       <div
         onClick={() => inputRef.current?.focus()}
         className={`
-          min-h-[42px] w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg
+          min-h-[42px] w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl
           focus-within:outline-none focus-within:ring-2 focus-within:ring-[#8b7355] dark:focus-within:ring-[#C9A24D]/20 focus-within:border-[#8b7355] dark:focus-within:border-[#C9A24D]
           transition-all duration-300 cursor-text relative
           ${disabled ? 'bg-gray-100 dark:bg-gray-900 cursor-not-allowed' : 'bg-white dark:bg-[#0B0B0B] hover:border-gray-400 dark:hover:border-gray-600'}
         `}
       >
         <div className="flex flex-wrap gap-2 mb-1">
-          {schoolDistricts.map((sd, index) => (
+          {values.map((val, index) => (
             <CityTag
-              key={`${sd}-${index}`}
-              city={formatDisplayName(sd)}
-              onRemove={() => removeDistrict(sd)}
+              key={`${val}-${index}`}
+              city={formatDisplayName(val)}
+              onRemove={() => removeItem(val)}
             />
           ))}
         </div>
@@ -148,7 +150,7 @@ export default function MultiSchoolDistrictInput({
           }}
           onKeyDown={handleKeyDown}
           onFocus={() => setShowSuggestions(true)}
-          placeholder={schoolDistricts.length === 0 ? placeholder : 'Add another district...'}
+          placeholder={values.length === 0 ? placeholder : 'Add another...'}
           disabled={disabled}
           className="w-full border-none outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 min-w-[200px]"
         />
@@ -168,10 +170,13 @@ export default function MultiSchoolDistrictInput({
           {suggestions.map((name, index) => (
             <div
               key={name}
-              onClick={() => addDistrict(name)}
+              onMouseDown={(e) => {
+                e.preventDefault() // Prevent blur before selection
+                addItem(name)
+              }}
               onMouseEnter={() => setSelectedIndex(index)}
               className={`
-                px-4 py-3 cursor-pointer text-sm transition-colors
+                px-4 py-3 text-left cursor-pointer text-sm transition-colors
                 ${index === selectedIndex ? 'bg-[#8b7355]/10 dark:bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#C9A24D]' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1A1A1C]'}
               `}
             >

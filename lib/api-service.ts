@@ -184,6 +184,8 @@ class ApiService {
     address: async (address: string) => this.request<{ results: { address: string, lat: number, lng: number }[] }>(`/api/properties/address?query=${encodeURIComponent(address)}`),
     // this is for searching brokerages
     brokerages: async (brokerage: string) => this.request<{results: string[]}>(`/api/properties/brokerages?query=${brokerage}`),
+    cities: async (city: string) => this.request<{results: string[]}>(`/api/properties/cities?query=${city}`),
+    townships: async (township: string) => this.request<{results: string[]}>(`/api/properties/townships?query=${township}`),
 
     findSimilar: (params: SearchPreferences & { listingKey?: string, city?: string, state?: string, zipcode?: string, price?: number, bedrooms?: number, lat?: number, lng?: number }) => 
       this.request<{ properties: any[] }>('/api/properties/similar', {
