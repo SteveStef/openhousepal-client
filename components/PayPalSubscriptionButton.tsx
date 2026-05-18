@@ -3,25 +3,21 @@
 import { PayPalButtons, usePayPalScriptReducer } from "@paypal/react-paypal-js";
 import { useState } from "react";
 import api from "../lib/api-service";
-import { setToken } from "../lib/token";
-import { RegistrationData } from "@/types";
 
 interface PayPalSubscriptionButtonProps {
   planId: string;
   bundleCode?: string;
-  registrationData: RegistrationData;
-  isCheckoutOnly?: boolean;
   onSuccess: () => void;
   onError: (error: string) => void;
+  isCheckoutOnly?: boolean; // Kept for compatibility with checkout page
 }
 
 export default function PayPalSubscriptionButton({
   planId,
   bundleCode,
-  registrationData,
-  isCheckoutOnly = false,
   onSuccess,
-  onError
+  onError,
+  isCheckoutOnly = true
 }: PayPalSubscriptionButtonProps) {
   const [loading, setLoading] = useState(false);
   const [{ isPending }] = usePayPalScriptReducer();
@@ -61,40 +57,17 @@ export default function PayPalSubscriptionButton({
           onApprove={async (data, actions) => {
             setLoading(true);
             try {
-              if (isCheckoutOnly) {
-                const { success, error } = await api.auth.linkSubscription(
-                  data.subscriptionID || '',
-                  planId,
-                  bundleCode
-                );
+              // Now always links to an existing account
+              const { success, error } = await api.auth.linkSubscription(
+                data.subscriptionID || '',
+                planId,
+                bundleCode
+              );
 
-                if (success) {
-                  onSuccess();
-                } else {
-                  onError(error || 'Failed to link subscription.');
-                }
+              if (success) {
+                onSuccess();
               } else {
-                const { success, data: result, error } = await api.auth.signupWithSubscription(
-                  {
-                    email: registrationData.email,
-                    password: registrationData.password,
-                    first_name: registrationData.first_name,
-                    last_name: registrationData.last_name,
-                    state: registrationData.state,
-                    brokerage: registrationData.brokerage,
-                    mls_id: registrationData.mls_id
-                  },
-                  data.subscriptionID || '',
-                  planId,
-                  bundleCode
-                );
-
-                if (success && result?.access_token) {
-                  setToken(result.access_token);
-                  onSuccess();
-                } else {
-                  onError(error || 'Failed to create account.');
-                }
+                onError(error || 'Failed to link subscription.');
               }
             } catch (error) {
               console.error('Error in payment processing:', error);

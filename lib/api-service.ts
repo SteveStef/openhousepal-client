@@ -135,15 +135,6 @@ class ApiService {
       return this.request(url, { method: 'POST' });
     },
 
-    signupWithSubscription: (data: any, subscriptionId: string, planId: string, bundleCode?: string) => {
-      let url = `/auth/signup-with-subscription?subscription_id=${encodeURIComponent(subscriptionId)}&plan_id=${encodeURIComponent(planId)}`;
-      if (bundleCode) url += `&bundle_code=${encodeURIComponent(bundleCode)}`;
-      return this.request<{ access_token: string }>(url, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-    },
-
     logout: () => {
       removeToken();
       if (typeof window !== 'undefined') {

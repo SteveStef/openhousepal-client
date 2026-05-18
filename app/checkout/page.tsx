@@ -318,7 +318,6 @@ function CheckoutContent() {
                         <PayPalScriptProvider options={paypalOptions}>
                           <PayPalSubscriptionButton 
                             planId={selectedPlan?.id || ''}
-                            registrationData={{} as any}
                             isCheckoutOnly={true}
                             bundleCode={appliedBundleCode || undefined}
                             onSuccess={async () => {

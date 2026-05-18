@@ -231,16 +231,6 @@ export interface PropertyTour {
   };
 }
 
-export interface RegistrationData {
-  email: string;
-  password: string;
-  first_name: string;
-  last_name: string;
-  state: string;
-  brokerage: string;
-  mls_id?: string;
-}
-
 export interface Customer {
   id?: string; // Changed to string to match backend UUID
   firstName: string;

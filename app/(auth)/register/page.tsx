@@ -3,22 +3,12 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
-import PayPalSubscriptionButton from '../../../components/PayPalSubscriptionButton'
-import { PayPalScriptProvider } from "@paypal/react-paypal-js"
 import EmailVerificationInput from '../../../components/EmailVerificationInput'
 import BrokerageAutocomplete from '../../../components/BrokerageAutocomplete'
 import api from '@/lib/api-service'
-import { PRICING_PLANS, TRIAL_PERIOD_DAYS } from '@/lib/pricing'
+import { TRIAL_PERIOD_DAYS } from '@/lib/pricing'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-
-// PayPal configuration
-const paypalOptions = {
-  clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '',
-  vault: true,
-  intent: "subscription",
-  currency: "USD",
-}
 
 const US_STATES = [
   { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
@@ -96,15 +86,6 @@ export default function RegisterPage() {
     }
   ]
 
-  interface SelectedPlan {
-    id: string;
-    name: string;
-    price: string;
-    priceValue: number;
-    tier: string;
-    features: string[] | readonly string[];
-  }
-
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length)
@@ -112,37 +93,7 @@ export default function RegisterPage() {
     return () => clearInterval(timer)
   }, [slides.length])
 
-  const [registrationStep, setRegistrationStep] = useState<'form' | 'verify' | 'pricing' | 'payment'>('form')
-  const [selectedPlan, setSelectedPlan] = useState<SelectedPlan | null>(null)
-  const [bundleCode, setBundleCode] = useState('')
-  const [isVerifyingCode, setIsVerifyingCode] = useState(false)
-  const [appliedBundleCode, setAppliedBundleCode] = useState<string | null>(null)
-
-  const handleVerifyBundleCode = async () => {
-    if (!bundleCode.trim()) return
-    
-    setIsVerifyingCode(true)
-    const { success, data, error } = await api.auth.verifyBundleCode(bundleCode.trim())
-
-    if (success && data) {
-      setAppliedBundleCode(bundleCode.trim())
-      // Switch to the special plan automatically
-      const bundlePlan = {
-        id: data.plan_id,
-        name: 'Special Bundle Plan',
-        price: PRICING_PLANS.PREMIUM.priceString,
-        priceValue: PRICING_PLANS.PREMIUM.price,
-        tier: 'PREMIUM',
-        features: PRICING_PLANS.PREMIUM.features
-      }
-      setSelectedPlan(bundlePlan)
-      setRegistrationStep('payment')
-      showNotification('success', 'Bundle code applied! 1-year free trial unlocked.')
-    } else {
-      showNotification('error', error || 'Invalid bundle code')
-    }
-    setIsVerifyingCode(false)
-  }
+  const [registrationStep, setRegistrationStep] = useState<'form' | 'verify'>('form')
 
   // Clear notifications after 5 seconds
   const showNotification = (type: 'success' | 'error' | 'info', message: string) => {
@@ -347,143 +298,7 @@ export default function RegisterPage() {
             setNotification({ type: null, message: '' })
           }}
         />
-      ) : registrationStep === 'pricing' ? (
-        // Step 3: Pricing Selection
-        <div className="max-w-5xl w-full">
-          <div className="text-center mb-6">
-            <h2 className="text-4xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-3">Choose Your Plan</h2>
-            <p className="text-[#6B7280] dark:text-gray-400 text-base font-medium">Start with a {TRIAL_PERIOD_DAYS}-day free trial — cancel anytime.</p>
-            <button
-              onClick={() => setRegistrationStep('verify')}
-              className="text-xs font-bold text-[#C9A24D] hover:text-[#111827] dark:hover:text-white mt-4 transition-colors uppercase tracking-widest"
-            >
-              ← Back to verification
-            </button>
-          </div>
-
-          {/* Pricing Cards */}
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
-            {/* Basic Plan */}
-            <div className="bg-white dark:bg-[#151517] rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] flex flex-col hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] transition-all">
-              <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-[#0B0B0B] dark:text-white mb-4">{PRICING_PLANS.BASIC.name}</h3>
-                <div className="flex items-baseline justify-center">
-                  <span className="text-5xl font-black text-[#0B0B0B] dark:text-white tracking-tight">{PRICING_PLANS.BASIC.priceString}</span>
-                  <span className="text-[#6B7280] dark:text-gray-400 ml-2 font-bold">/mo</span>
-                </div>
-                <p className="text-xs font-bold text-[#6B7280] dark:text-gray-500 mt-2 uppercase tracking-wide">after {TRIAL_PERIOD_DAYS}-day free trial</p>
-              </div>
-
-              <ul className="space-y-3 mb-8 flex-grow">
-                {PRICING_PLANS.BASIC.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start text-gray-600 dark:text-gray-300 font-medium text-sm">
-                    <div className="w-5 h-5 bg-green-50 dark:bg-green-900/30 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                      <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <button
-                onClick={() => {
-                  setSelectedPlan({
-                    id: PRICING_PLANS.BASIC.paypalPlanId,
-                    name: PRICING_PLANS.BASIC.name,
-                    price: PRICING_PLANS.BASIC.priceString,
-                    priceValue: PRICING_PLANS.BASIC.price,
-                    tier: 'BASIC',
-                    features: [...PRICING_PLANS.BASIC.features]
-                  })
-                  setAppliedBundleCode(null)
-                  setRegistrationStep('payment')
-                }}
-                className="w-full py-4 px-4 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-bold hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] transition-all duration-200 hover:-translate-y-0.5 shadow-lg"
-              >
-                Select Basic Plan
-              </button>
-            </div>
-
-            {/* Premium Plan */}
-            <div className="bg-gradient-to-br from-[#111827] via-[#3a2f25] to-[#6b5840] rounded-3xl p-6 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] flex flex-col transform hover:scale-[1.02] transition-all relative overflow-hidden">
-              <div className="absolute top-6 right-6 bg-[#C9A24D] text-[#111827] text-[10px] font-black px-3 py-1 rounded-full shadow-sm uppercase tracking-wider">
-                POPULAR
-              </div>
-              
-              <div className="text-center mb-6 relative z-10">
-                <h3 className="text-2xl font-bold text-white mb-4">{PRICING_PLANS.PREMIUM.name}</h3>
-                <div className="flex items-baseline justify-center">
-                  <span className="text-5xl font-black text-white tracking-tight">{PRICING_PLANS.PREMIUM.priceString}</span>
-                  <span className="text-[#C9A24D] ml-2 font-bold">/mo</span>
-                </div>
-                <p className="text-xs font-bold text-gray-400 mt-2 uppercase tracking-wide">after {TRIAL_PERIOD_DAYS}-day free trial</p>
-              </div>
-
-              <ul className="space-y-3 mb-8 flex-grow relative z-10">
-                {PRICING_PLANS.PREMIUM.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start text-gray-200 font-medium text-sm">
-                    <div className="w-5 h-5 bg-white/10 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                      <svg className="w-3 h-3 text-[#C9A24D]" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <button
-                onClick={() => {
-                  setSelectedPlan({
-                    id: PRICING_PLANS.PREMIUM.paypalPlanId,
-                    name: PRICING_PLANS.PREMIUM.name,
-                    price: PRICING_PLANS.PREMIUM.priceString,
-                    priceValue: PRICING_PLANS.PREMIUM.price,
-                    tier: 'PREMIUM',
-                    features: [...PRICING_PLANS.PREMIUM.features]
-                  })
-                  setAppliedBundleCode(null)
-                  setRegistrationStep('payment')
-                }}
-                className="w-full py-4 px-4 bg-white text-[#111827] rounded-xl font-bold hover:bg-[#C9A24D] transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-white/10 relative z-10"
-              >
-                Select Premium Plan
-              </button>
-            </div>
-          </div>
-
-          {/* Promo Code Section */}
-          <div className="max-w-md mx-auto">
-            <div className="bg-white dark:bg-[#151517] rounded-3xl p-4 border border-gray-100 dark:border-gray-800 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] text-center transition-colors">
-              <h4 className="text-xs font-bold text-[#6B7280] dark:text-gray-400 mb-3 tracking-widest uppercase">Have a bundle code?</h4>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  value={bundleCode}
-                  onChange={(e) => setBundleCode(e.target.value.toUpperCase())}
-                  placeholder="ENTER CODE"
-                  className="flex-1 px-3 py-2 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-center font-mono font-bold focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all uppercase text-sm placeholder-gray-400 dark:placeholder-gray-600 text-[#111827] dark:text-white"
-                />
-                <button
-                  onClick={handleVerifyBundleCode}
-                  disabled={isVerifyingCode || !bundleCode.trim()}
-                  className="px-6 py-2 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-bold hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] transition-all disabled:opacity-50 text-sm uppercase tracking-wide"
-                >
-                  {isVerifyingCode ? '...' : 'Apply'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="text-center mt-6">
-            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-              All plans include a {TRIAL_PERIOD_DAYS}-day free trial • No credit card charged today • Cancel anytime
-            </p>
-          </div>
-        </div>
-      ) : registrationStep === 'form' ? (
+      ) : (
         // Step 1: Registration Form
         <div className="max-w-[640px] w-full">
           {/* Header */}
@@ -689,7 +504,7 @@ export default function RegisterPage() {
                     >
                       {showPassword ? (
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268-2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                         </svg>
                       ) : (
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -816,86 +631,6 @@ export default function RegisterPage() {
             </p>
           </div>
         </div>
-      ) : (
-        // Step 4: Payment Step - Wrapped with PayPal provider
-        <PayPalScriptProvider options={paypalOptions}>
-          <div className="max-w-[640px] w-full space-y-4">
-            <div className="text-center">
-              <h2 className="text-2xl font-black text-[#0B0B0B] dark:text-white mb-2 tracking-tight">Complete Payment Setup</h2>
-              <p className="text-[#6B7280] dark:text-gray-400 text-sm font-medium">You selected: <span className="font-bold text-[#C9A24D]">{selectedPlan?.name} - {appliedBundleCode ? PRICING_PLANS.PREMIUM.priceString : selectedPlan?.price}/month after trial</span></p>
-              <div className="flex gap-4 justify-center mt-4">
-                <button
-                  onClick={() => setRegistrationStep('pricing')}
-                  className="text-[10px] font-bold text-[#C9A24D] hover:text-[#111827] dark:hover:text-white uppercase tracking-wider transition-colors"
-                >
-                  ← Back to plans
-                </button>
-                <span className="text-gray-300 dark:text-gray-700 text-xs">|</span>
-                <button
-                  onClick={() => setRegistrationStep('form')}
-                  className="text-[10px] font-bold text-[#C9A24D] hover:text-[#111827] dark:hover:text-white uppercase tracking-wider transition-colors"
-                >
-                  ← Back to signup
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-[#FAFAF7] dark:bg-[#151517] rounded-2xl p-6 border border-gray-200/60 dark:border-gray-800 shadow-xl transition-colors">
-              <div className="mb-4 bg-white dark:bg-[#0B0B0B] rounded-xl p-4 border border-gray-200 dark:border-gray-800 shadow-sm transition-colors">
-                <h3 className="text-base font-black mb-3 text-[#0B0B0B] dark:text-white">{selectedPlan?.name} Features</h3>
-                <ul className="space-y-2 text-[#6B7280] dark:text-gray-400 mb-3 text-sm font-medium">
-                  {selectedPlan?.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-center">
-                      <svg className="w-4 h-4 text-green-500 dark:text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-3">
-                  <div className="flex justify-between items-center mb-1 text-sm font-medium">
-                    <span className="text-[#6B7280] dark:text-gray-400">{appliedBundleCode ? '1-year free trial' : `${TRIAL_PERIOD_DAYS}-day free trial`}</span>
-                    <span className="font-bold text-green-600 dark:text-green-400">$0.00</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm font-medium">
-                    <span className="text-[#6B7280] dark:text-gray-400">After trial</span>
-                    <span className="font-black text-[#0B0B0B] dark:text-white">{appliedBundleCode ? PRICING_PLANS.PREMIUM.priceString : selectedPlan?.price}/month</span>
-                  </div>
-                </div>
-              </div>
-
-              <PayPalSubscriptionButton
-                planId={selectedPlan?.id || ''}
-                bundleCode={appliedBundleCode || undefined}
-                registrationData={{
-                  email: formData.email,
-                  password: formData.password,
-                  first_name: formData.firstName,
-                  last_name: formData.lastName,
-                  state: formData.state,
-                  brokerage: formData.brokerage,
-                  mls_id: formData.mlsId
-                }}
-                onSuccess={async () => {
-                  showNotification('success', 'Account created successfully! Redirecting...')
-                  await refreshUser()
-                  setTimeout(() => router.push('/open-houses'), 2000)
-                }}
-                onError={(error) => {
-                  showNotification('error', error)
-                }}
-              />
-
-              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 text-center mt-4 uppercase tracking-wider">
-                You will not be charged until your {appliedBundleCode ? '1-year' : `${TRIAL_PERIOD_DAYS}-day`} trial ends
-              </p>
-              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 text-center mt-1 uppercase tracking-wider">
-                Secured with PayPal's buyer protection • Cancel anytime
-              </p>
-            </div>
-          </div>
-        </PayPalScriptProvider>
       )}
         </div>
       </div>
