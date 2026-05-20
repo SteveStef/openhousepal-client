@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, memo } from 'react'
+import { useState, memo, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { 
@@ -14,6 +14,7 @@ import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
 import Footer from '@/components/Footer'
+import api from "@/lib/api-service";
 import { cleanAddress, formatMlsStatus, formatPropertyFeature, normalizeImageUrl } from '@/lib/utils'
 
 // --- Dashboard Stat Card ---
@@ -139,6 +140,14 @@ const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property }: { 
 export default function OpenHouseDiscovery() {
   const { showToast } = useToast()
   const [address, setAddress] = useState('')
+
+  useEffect(() => {
+    async function getDiscoveryProperties() {
+      const response = await api.discovery.get();
+      console.log(response);
+    }
+    getDiscoveryProperties()
+  },[])
 
   const dummyListings = [
     {

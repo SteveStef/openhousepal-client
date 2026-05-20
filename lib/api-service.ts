@@ -245,6 +245,10 @@ class ApiService {
       }),
   };
 
+  public discovery = {
+    get: () => this.request(`/api/discovery`),
+  }
+
   /**
    * Open Houses Namespace
    */
