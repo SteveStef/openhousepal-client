@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useState, memo, useCallback, useRef } from 'react'
+import React, { useState, memo, useCallback, useRef, useEffect } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { v4 as uuidv4 } from 'uuid'
 import { PropertyRecommendationCard } from '@/components/PropertyRecommendationCard'
 import api from '@/lib/api-service'
@@ -12,7 +13,8 @@ import {
   OpenHouseWizardStep,
   User
 } from '@/types'
-import { Bed, Bath, BoxSelect, DollarSign, Layout, QrCode, Sparkles, MapPin } from 'lucide-react'
+import { Bed, Bath, BoxSelect, DollarSign, Layout, QrCode, Sparkles, MapPin, Search, Layers } from 'lucide-react'
+
 
 interface CreateOpenHouseWizardProps {
   currentUser: User | null;
@@ -393,26 +395,36 @@ export function CreateOpenHouseWizard({
                   </button>
                 </div>
                 
-                {/* Kit Components Preview */}
-                <div className="mt-6 flex items-center justify-center space-x-6 sm:space-x-10">
-                  <div className="flex items-center space-x-2.5 group cursor-default">
-                    <div className="p-2 bg-white dark:bg-[#1A1A1C] border border-gray-100 dark:border-gray-800 rounded-lg text-gray-400 group-hover:text-[#C9A24D] group-hover:border-[#C9A24D]/30 transition-all">
-                      <Layout size={16} />
+                {/* Quick Navigation Buttons */}
+                <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
+                  <Link 
+                    href="/discovery" 
+                    className="w-full group p-4 bg-white dark:bg-[#1A1A1C] border-2 border-gray-100 dark:border-gray-800 hover:border-[#C9A24D] rounded-2xl transition-all duration-300 text-left flex items-center space-x-4 shadow-sm hover:shadow-[0_0_20px_rgba(201,162,77,0.1)]"
+                  >
+                    <div className="p-3 bg-[#faf9f7] dark:bg-[#0B0B0B] rounded-xl text-gray-400 group-hover:text-[#C9A24D] transition-colors">
+                      <Search size={22} />
                     </div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">PDF Flyer</span>
-                  </div>
-                  <div className="flex items-center space-x-2.5 group cursor-default">
-                    <div className="p-2 bg-white dark:bg-[#1A1A1C] border border-gray-100 dark:border-gray-800 rounded-lg text-gray-400 group-hover:text-[#C9A24D] group-hover:border-[#C9A24D]/30 transition-all">
-                      <QrCode size={16} />
+                    <div className="flex-1">
+                      <div className="font-black text-gray-900 dark:text-white text-xs uppercase tracking-widest mb-0.5">Find Open Houses</div>
+                      <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider opacity-70">Discover brokerage listings</div>
                     </div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">Digital Sign-in</span>
-                  </div>
-                  <div className="flex items-center space-x-2.5 group cursor-default">
-                    <div className="p-2 bg-white dark:bg-[#1A1A1C] border border-gray-100 dark:border-gray-800 rounded-lg text-gray-400 group-hover:text-[#C9A24D] group-hover:border-[#C9A24D]/30 transition-all">
-                      <Sparkles size={16} />
+                  </Link>
+
+                  <button 
+                    disabled
+                    className="w-full p-4 bg-gray-50/50 dark:bg-[#1A1A1C]/30 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-2xl text-left flex items-center space-x-4 opacity-60 cursor-not-allowed group"
+                  >
+                    <div className="p-3 bg-gray-100/50 dark:bg-[#0B0B0B] rounded-xl text-gray-300">
+                      <Layers size={22} />
                     </div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">Active COMPS</span>
-                  </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <div className="font-black text-gray-400 dark:text-gray-500 text-xs uppercase tracking-widest mb-0.5">My Listings</div>
+                        <span className="text-[9px] font-black bg-gray-100 dark:bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded uppercase tracking-tighter">Soon</span>
+                      </div>
+                      <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider opacity-70">Manage hosts & view insights</div>
+                    </div>
+                  </button>
                 </div>
                 {error && (
                   <div className="mt-3 text-center animate-fadeIn">

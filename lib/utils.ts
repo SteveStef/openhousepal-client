@@ -1,7 +1,6 @@
 /**
  * Cleans up a property address string for display.
- * Extracts the most relevant parts (usually street and city) and applies Title Case.
- * Handles cases where the address might start with State/County info.
+ * Extracts the most relevant parts (usually street and city) and applies Title Case. Handles cases where the address might start with State/County info.
  */
 export const cleanAddress = (address: string, city?: string): string => {
   if (!address) return 'Address Not Available';

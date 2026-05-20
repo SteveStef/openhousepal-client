@@ -246,7 +246,11 @@ class ApiService {
   };
 
   public discovery = {
-    get: () => this.request(`/api/discovery`),
+    get: () => this.request<{ success: boolean; data: any[]; preferences: any }>('/api/discovery'),
+    patchPreferences: (preferences: any) => this.request<{ success: boolean; data: any[]; preferences: any }>('/api/discovery/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify(preferences),
+    }),
   }
 
   /**
