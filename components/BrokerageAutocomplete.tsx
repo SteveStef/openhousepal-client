@@ -66,7 +66,7 @@ export default function BrokerageAutocomplete({
           
           // Check if the current input is valid (matches a suggestion)
           const isValid = results.some(s => s.toLowerCase() === query.toLowerCase()) || 
-                         (lastSelectedRef.current && lastSelectedRef.current.toLowerCase() === query.toLowerCase())
+                         !!(lastSelectedRef.current && lastSelectedRef.current.toLowerCase() === query.toLowerCase())
           if (onValidationChange) onValidationChange(isValid)
         }
       } catch (err) {
@@ -148,7 +148,7 @@ export default function BrokerageAutocomplete({
           if (onValidationChange) onValidationChange(true)
         } else {
           // Not a match in current cache, but it might be valid if it matches the parent 'value'
-          const isValid = lastSelectedRef.current && lastSelectedRef.current.toLowerCase() === trimmedInput.toLowerCase()
+          const isValid = !!(lastSelectedRef.current && lastSelectedRef.current.toLowerCase() === trimmedInput.toLowerCase())
           if (onValidationChange) onValidationChange(isValid)
         }
       }
@@ -173,7 +173,7 @@ export default function BrokerageAutocomplete({
             
             // Proactively check if it's already a match
             const isValid = suggestionsCacheRef.current.some(s => s.toLowerCase() === newVal.toLowerCase().trim()) ||
-                           (lastSelectedRef.current && lastSelectedRef.current.toLowerCase() === newVal.toLowerCase().trim())
+                           !!(lastSelectedRef.current && lastSelectedRef.current.toLowerCase() === newVal.toLowerCase().trim())
             if (onValidationChange) onValidationChange(isValid)
           }}
           onKeyDown={handleKeyDown}

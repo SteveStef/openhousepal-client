@@ -520,7 +520,7 @@ export default function OpenHouseDiscovery() {
 
   return (
     <AuthGuard>
-      <SubscriptionGuard>
+      <SubscriptionGuard requiredPlan="BASIC">
         <BrokerAuthorizationGuard>
           <div className="min-h-screen bg-[#fafafb] dark:bg-[#0B0B0B] flex flex-col">
             <main className="flex-grow container mx-auto px-4 py-10 max-w-7xl text-[#111827] dark:text-[#F3F4F6]">
