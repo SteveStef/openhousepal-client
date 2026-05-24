@@ -534,27 +534,40 @@ export default function OpenHouseDiscovery() {
               </Link>
 
               {/* Header Section */}
-              <div className="mb-10">
-                <h1 className="text-4xl font-black text-[#111827] dark:text-white mb-2 tracking-tight">Open House Discovery</h1>
-                <p className="text-gray-500 dark:text-gray-400 font-medium">Find brokerage listings you may be able to host and request approval in one place.</p>
+              <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-8 h-8 rounded-xl bg-[#C9A24D]/10 flex items-center justify-center text-[#C9A24D]">
+                      <Search size={18} />
+                    </div>
+                    <h1 className="text-4xl font-black text-[#111827] dark:text-white tracking-tight">Open House Discovery</h1>
+                  </div>
+                  <p className="text-gray-500 dark:text-gray-400 font-medium max-w-2xl leading-relaxed">
+                    Find brokerage listings you may be able to host and request approval in one place. 
+                    Manage your outreach effortlessly.
+                  </p>
+                </div>
               </div>
 
               {/* Main Search/Listing Panel */}
-              <div className="bg-white dark:bg-[#151517] rounded-[2.5rem] border border-gray-100 dark:border-gray-800 p-2 shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-[#151517] rounded-[2.5rem] border border-gray-100 dark:border-gray-800 p-2 shadow-sm overflow-hidden mb-8">
                 
-                {/* Navy Search Bar */}
-                <div className="bg-[#172536] dark:bg-[#1A1A1C] rounded-[2rem] p-4 flex flex-col lg:flex-row items-center gap-4 text-white border border-white/5 dark:border-gray-800">
-                  <div className="flex items-center gap-3 w-full lg:w-auto px-4 border-r border-white/10 dark:border-gray-800">
-                    <MapPin size={18} className="text-[#C9A24D]" />
-                    <span className="text-sm font-bold uppercase tracking-widest">Listings</span>
+                {/* Unified Command Center Search Bar */}
+                <div className="bg-[#172536] dark:bg-[#1A1A1C] rounded-[2rem] p-3 flex flex-col lg:flex-row items-center gap-2 text-white border border-white/5 dark:border-gray-800 shadow-xl shadow-black/10">
+                  <div className="flex items-center gap-3 w-full lg:w-auto px-5 py-2">
+                    <div className="p-2 bg-white/5 rounded-xl">
+                      <Layers size={18} className="text-[#C9A24D]" />
+                    </div>
+                    <span className="text-sm font-black uppercase tracking-widest text-white/90">Listings</span>
                   </div>
                   
-                  <div className="flex items-center gap-3 flex-grow w-full px-4">
-                    <div className="relative flex items-center">
+                  <div className="flex flex-col md:flex-row items-center gap-4 flex-grow w-full px-2">
+                    {/* Distance Pill */}
+                    <div className="flex items-center bg-white/5 dark:bg-white/[0.03] border border-white/10 dark:border-white/5 rounded-2xl px-4 py-2 hover:bg-white/10 transition-colors group">
                       <input 
                         type="text"
                         inputMode="decimal"
-                        className="w-16 bg-white/10 dark:bg-gray-800 hover:bg-white/20 dark:hover:bg-gray-700 transition-all px-3 py-2 rounded-xl text-xs font-bold border border-white/10 dark:border-gray-700 outline-none focus:ring-1 focus:ring-[#C9A24D]/50"
+                        className="w-10 bg-transparent text-sm font-black text-[#C9A24D] outline-none placeholder:text-[#C9A24D]/50 text-center"
                         value={miles}
                         onChange={(e) => setMiles(e.target.value)}
                         onBlur={() => {
@@ -569,29 +582,48 @@ export default function OpenHouseDiscovery() {
                           }
                         }}
                       />
-                      <span className="ml-2 text-xs font-bold text-white/80 uppercase tracking-widest pointer-events-none">miles</span>
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1 pointer-events-none group-hover:text-white/60 transition-colors">miles</span>
                     </div>
-                    <span className="text-sm font-medium text-white/60">of</span>
-                    <div className="relative flex-grow">
-                      <GooglePlacesAutocomplete 
-                        ref={addressRef}
-                        value={address}
-                        onChange={setAddress}
-                        onCoordinatesChange={(lat, lng, addr) => {
-                          updateCriteria({ landmark_address: addr, latitude: lat, longitude: lng });
-                        }}
-                        placeholder="Enter address or landmark"
-                        className="w-full bg-transparent border-none outline-none text-sm placeholder:text-white/60 font-medium py-2 text-white shadow-none focus:ring-0"
-                      />
+
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] hidden md:block">of</span>
+
+                    {/* Address Search */}
+                    <div className="relative flex-1 md:ml-2 flex items-center min-w-0">
+                      <div className="flex-1 min-w-0">
+                        <GooglePlacesAutocomplete 
+                          ref={addressRef}
+                          value={address}
+                          onChange={setAddress}
+                          onCoordinatesChange={(lat, lng, addr) => {
+                            updateCriteria({ landmark_address: addr, latitude: lat, longitude: lng });
+                          }}
+                          placeholder="Enter address or landmark"
+                          className="w-full bg-transparent border-none outline-none text-sm placeholder:text-white/30 font-bold py-2 text-white shadow-none focus:ring-0 px-4"
+                        />
+                      </div>
+                      
+                      {(address || miles !== '10') && (
+                        <button 
+                          onClick={() => {
+                            setAddress('');
+                            setMiles('10');
+                            updateCriteria({ landmark_address: '', latitude: null, longitude: null, miles: 10 });
+                          }}
+                          className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-[#C9A24D] transition-all mr-2 group shrink-0"
+                          title="Clear search"
+                        >
+                          <X size={16} className="group-active:scale-90 transition-transform" />
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 w-full lg:w-auto px-4">
-                    <div className="w-px h-8 bg-white/10 dark:bg-gray-800 hidden lg:block"></div>
+
+                  <div className="flex items-center gap-4 w-full lg:w-auto px-2">
                     <button 
                       onClick={() => addressRef.current?.resolveAddress()}
-                      className="flex items-center justify-center gap-2 bg-[#C9A24D] text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-[#C9A24D]/20 hover:scale-[1.02] transition-all whitespace-nowrap"
+                      className="flex items-center justify-center gap-3 bg-[#C9A24D] text-white px-10 py-4 rounded-[1.25rem] text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-[#C9A24D]/30 hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap w-full lg:w-auto"
                     >
-                      <Search size={14} />
+                      <Search size={16} />
                       Find Properties
                     </button>
                   </div>
