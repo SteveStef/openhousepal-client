@@ -13,7 +13,7 @@ import {
   OpenHouseWizardStep,
   User
 } from '@/types'
-import { Bed, Bath, BoxSelect, DollarSign, Layout, QrCode, Sparkles, MapPin, Search, Layers } from 'lucide-react'
+import { Bed, Bath, BoxSelect, DollarSign, Layout, QrCode, Sparkles, MapPin, Search, Layers, ArrowRight } from 'lucide-react'
 
 
 interface CreateOpenHouseWizardProps {
@@ -399,14 +399,17 @@ export function CreateOpenHouseWizard({
                 <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
                   <Link 
                     href="/discovery" 
-                    className="w-full group p-4 bg-white dark:bg-[#1A1A1C] border-2 border-gray-100 dark:border-gray-800 hover:border-[#C9A24D] rounded-2xl transition-all duration-300 text-left flex items-center space-x-4 shadow-sm hover:shadow-[0_0_20px_rgba(201,162,77,0.1)]"
+                    className="w-full group p-4 bg-white dark:bg-[#1A1A1C] border-2 border-[#C9A24D]/30 dark:border-[#C9A24D]/20 hover:border-[#C9A24D] rounded-2xl transition-all duration-300 text-left flex items-center space-x-4 shadow-sm hover:shadow-[0_0_20px_rgba(201,162,77,0.15)] hover:scale-[1.01]"
                   >
-                    <div className="p-3 bg-[#faf9f7] dark:bg-[#0B0B0B] rounded-xl text-gray-400 group-hover:text-[#C9A24D] transition-colors">
-                      <Search size={22} />
+                    <div className="p-3 bg-[#C9A24D]/10 dark:bg-[#C9A24D]/20 rounded-xl text-[#C9A24D] group-hover:bg-[#C9A24D] group-hover:text-white transition-all duration-300">
+                      <Search size={22} strokeWidth={3} />
                     </div>
                     <div className="flex-1">
                       <div className="font-black text-gray-900 dark:text-white text-xs uppercase tracking-widest mb-0.5">Find Open Houses</div>
                       <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider opacity-70">Discover brokerage listings</div>
+                    </div>
+                    <div className="text-[#C9A24D] opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-[-10px] group-hover:translate-x-0 hidden sm:block">
+                      <ArrowRight size={20} strokeWidth={3} />
                     </div>
                   </Link>
 

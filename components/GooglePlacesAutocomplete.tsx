@@ -7,7 +7,7 @@ import "../types"
 interface GooglePlacesAutocompleteProps {
   value: string
   onChange: (address: string) => void
-  onCoordinatesChange?: (lat: number, lng: number) => void
+  onCoordinatesChange?: (lat: number, lng: number, address: string) => void
   placeholder?: string
   className?: string
   disabled?: boolean
@@ -140,7 +140,7 @@ const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GoogleP
               setDisplayValue(formattedAddress);
               onChangeRef.current(formattedAddress);
               if (onCoordinatesChangeRef.current) {
-                onCoordinatesChangeRef.current(lat, lng);
+                onCoordinatesChangeRef.current(lat, lng, formattedAddress);
               }
               if (inputRef.current) {
                 inputRef.current.value = formattedAddress;
@@ -210,7 +210,7 @@ const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GoogleP
             if (onCoordinatesChangeRef.current && place.geometry?.location) {
               const lat = place.geometry.location.lat()
               const lng = place.geometry.location.lng()
-              onCoordinatesChangeRef.current(lat, lng)
+              onCoordinatesChangeRef.current(lat, lng, formattedAddress)
             }
           })
         }

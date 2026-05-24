@@ -7,7 +7,7 @@ import {
   Search, Filter, ChevronDown, Home, Bed, Bath, 
   MapPin, Eye, Calendar, 
   CheckCircle2, ArrowLeft, MessageSquare, 
-  Info, Clock, User, Layers, SortDesc, Check,
+  Clock, User, Layers, SortDesc, Check,
   Copy, X, Mail
 } from 'lucide-react'
 import { useToast } from '@/contexts/ToastContext'
@@ -18,6 +18,7 @@ import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
 import Footer from '@/components/Footer'
 import api from "@/lib/api-service";
 import { normalizeImageUrl } from '@/lib/utils'
+import GooglePlacesAutocomplete, { GooglePlacesAutocompleteRef } from '@/components/GooglePlacesAutocomplete'
 
 const US_STATES = [
   'PA', 'NJ', 'DE', 'MD', 'DC', 'VA', 'NY'
@@ -276,6 +277,39 @@ export default function OpenHouseDiscovery() {
   const filterDropdownRef = useRef<HTMLDivElement>(null)
   const sortDropdownRef = useRef<HTMLDivElement>(null)
   const stateDropdownRef = useRef<HTMLDivElement>(null)
+  const addressRef = useRef<GooglePlacesAutocompleteRef>(null)
+
+  const handleDiscoveryResponse = (data: any) => {
+    if (!data) return;
+    setListings(data.data || []);
+    setPreferences(data.preferences);
+    
+    // Sync address and miles if they exist
+    if (data.preferences?.landmark_address) {
+      setAddress(data.preferences.landmark_address);
+    }
+    if (data.preferences?.miles) {
+      setMiles(data.preferences.miles.toString());
+    }
+
+    // Sync local numeric filters if present in preferences
+    if (data.preferences?.min_bedrooms !== undefined) {
+      const val = data.preferences.min_bedrooms;
+      setMinBeds(val === null || val === undefined ? '' : val);
+    }
+    if (data.preferences?.min_bathrooms !== undefined) {
+      const val = data.preferences.min_bathrooms;
+      setMinBaths(val === null || val === undefined ? '' : val);
+    }
+    if (data.preferences?.min_square_feet !== undefined) {
+      const val = data.preferences.min_square_feet;
+      setMinSqft(val === null || val === undefined ? '' : val);
+    }
+    if (data.preferences?.min_price !== undefined) {
+      const val = data.preferences.min_price;
+      setMinPrice(val === null || val === undefined ? '' : val);
+    }
+  };
 
   const updateCriteria = async (updates: any) => {
     if (!preferences) return;
@@ -286,8 +320,7 @@ export default function OpenHouseDiscovery() {
     try {
       const { success, data, error } = await api.discovery.patchPreferences(updates);
       if (success && data) {
-        setListings(data.data || []);
-        setPreferences(data.preferences);
+        handleDiscoveryResponse(data);
       } else if (error) {
         showToast(error, 'error');
       }
@@ -306,8 +339,7 @@ export default function OpenHouseDiscovery() {
     try {
       const { success, data, error } = await api.discovery.patchPreferences({ brokerages: updated });
       if (success && data) {
-        setListings(data.data || []);
-        setPreferences(data.preferences);
+        handleDiscoveryResponse(data);
       } else if (error) {
         showToast(error, 'error');
         setPreferences(preferences);
@@ -328,8 +360,7 @@ export default function OpenHouseDiscovery() {
     try {
       const { success, data, error } = await api.discovery.patchPreferences({ cities: updated });
       if (success && data) {
-        setListings(data.data || []);
-        setPreferences(data.preferences);
+        handleDiscoveryResponse(data);
       } else if (error) {
         showToast(error, 'error');
         setPreferences(preferences);
@@ -350,8 +381,7 @@ export default function OpenHouseDiscovery() {
     try {
       const { success, data, error } = await api.discovery.patchPreferences({ school_districts: updated });
       if (success && data) {
-        setListings(data.data || []);
-        setPreferences(data.preferences);
+        handleDiscoveryResponse(data);
       } else if (error) {
         showToast(error, 'error');
         setPreferences(preferences);
@@ -371,8 +401,7 @@ export default function OpenHouseDiscovery() {
     try {
       const { success, data, error } = await api.discovery.patchPreferences({ state });
       if (success && data) {
-        setListings(data.data || []);
-        setPreferences(data.preferences);
+        handleDiscoveryResponse(data);
       } else if (error) {
         showToast(error, 'error');
         setPreferences(preferences);
@@ -480,19 +509,7 @@ export default function OpenHouseDiscovery() {
       setIsLoading(true)
       const { success, data, error } = await api.discovery.get();
       if (success && data) {
-        setListings(data.data || [])
-        setPreferences(data.preferences)
-        if (data.preferences?.landmark_address) {
-          setAddress(data.preferences.landmark_address)
-        }
-        if (data.preferences?.miles) {
-          setMiles(data.preferences.miles.toString())
-        }
-        // Initialize local filters from preferences
-        if (data.preferences?.min_bedrooms) setMinBeds(data.preferences.min_bedrooms)
-        if (data.preferences?.min_bathrooms) setMinBaths(data.preferences.min_bathrooms)
-        if (data.preferences?.min_square_feet) setMinSqft(data.preferences.min_square_feet)
-        if (data.preferences?.min_price) setMinPrice(data.preferences.min_price)
+        handleDiscoveryResponse(data);
       } else if (error) {
         showToast(error, 'error')
       }
@@ -556,20 +573,24 @@ export default function OpenHouseDiscovery() {
                     </div>
                     <span className="text-sm font-medium text-white/60">of</span>
                     <div className="relative flex-grow">
-                      <input 
-                        type="text"
-                        placeholder="Enter address or landmark"
-                        className="w-full bg-transparent border-none outline-none text-sm placeholder:text-white/30 font-medium py-2"
+                      <GooglePlacesAutocomplete 
+                        ref={addressRef}
                         value={address}
-                        onChange={(e) => setAddress(e.target.value)}
+                        onChange={setAddress}
+                        onCoordinatesChange={(lat, lng, addr) => {
+                          updateCriteria({ landmark_address: addr, latitude: lat, longitude: lng });
+                        }}
+                        placeholder="Enter address or landmark"
+                        className="w-full bg-transparent border-none outline-none text-sm placeholder:text-white/60 font-medium py-2 text-white shadow-none focus:ring-0"
                       />
-                      <Info size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-white/30 cursor-pointer" />
                     </div>
                   </div>
-
                   <div className="flex items-center gap-4 w-full lg:w-auto px-4">
                     <div className="w-px h-8 bg-white/10 dark:bg-gray-800 hidden lg:block"></div>
-                    <button className="flex items-center justify-center gap-2 bg-[#C9A24D] text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-[#C9A24D]/20 hover:scale-[1.02] transition-all whitespace-nowrap">
+                    <button 
+                      onClick={() => addressRef.current?.resolveAddress()}
+                      className="flex items-center justify-center gap-2 bg-[#C9A24D] text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-[#C9A24D]/20 hover:scale-[1.02] transition-all whitespace-nowrap"
+                    >
                       <Search size={14} />
                       Find Properties
                     </button>
