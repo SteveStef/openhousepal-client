@@ -24,8 +24,10 @@ export function hasValidSubscription(user: User | null): boolean {
   }
   
   // Grace period check for cancelled subscriptions
-  if (user.subscription_status === 'CANCELLED' && user.next_billing_date) {
-    return new Date(user.next_billing_date) > new Date();
+  if (user.subscription_status === 'CANCELLED') {
+    const trialValid = user.trial_ends_at && new Date(user.trial_ends_at) > new Date();
+    const billingValid = user.next_billing_date && new Date(user.next_billing_date) > new Date();
+    return !!(trialValid || billingValid);
   }
   
   return false;

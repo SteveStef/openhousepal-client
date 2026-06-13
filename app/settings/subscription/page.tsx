@@ -286,13 +286,14 @@ function SubscriptionContent() {
     const now = new Date()
     let endDate: Date | null = null
 
-    // Check trial grace period first
-    if (user?.trial_ends_at) {
-      endDate = new Date(user.trial_ends_at)
-    }
-    // Then check paid grace period
-    else if (user?.next_billing_date) {
-      endDate = new Date(user.next_billing_date)
+    const trialEnd = user?.trial_ends_at ? new Date(user.trial_ends_at) : null
+    const billingEnd = user?.next_billing_date ? new Date(user.next_billing_date) : null
+
+    // Pick the furthest date out of trial or billing end
+    if (trialEnd && billingEnd) {
+      endDate = trialEnd > billingEnd ? trialEnd : billingEnd
+    } else {
+      endDate = trialEnd || billingEnd
     }
 
     if (!endDate) return null
