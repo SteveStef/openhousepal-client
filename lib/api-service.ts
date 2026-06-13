@@ -149,7 +149,7 @@ class ApiService {
 
     resetPassword: (password: string, token: string) => this.request('/auth/reset-password', {
       method: 'POST',
-      body: JSON.stringify({ password, token }),
+      body: JSON.stringify({ new_password: password, token }),
     }),
   };
 
