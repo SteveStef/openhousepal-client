@@ -2,8 +2,17 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { useState, useEffect } from 'react'
 
 export default function Footer() {
+  const [year, setYear] = useState<string>('')
+  const [dateStr, setDateStr] = useState<string>('')
+
+  useEffect(() => {
+    setYear(new Date().getFullYear().toString())
+    setDateStr(new Date().toLocaleDateString())
+  }, [])
+
   return (
     <footer className="bg-[#0B0B0B] text-white py-16 border-t border-white/5 mt-auto">
       <div className="max-w-7xl mx-auto px-6">
@@ -51,7 +60,7 @@ export default function Footer() {
           <div className="grid grid-cols-1 gap-6 text-[10px] uppercase tracking-widest leading-loose text-gray-500 font-medium">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-gray-400 mb-2">
               <span className="bg-white/5 px-2 py-1 rounded border border-white/10">
-                © {new Date().getFullYear()} Bright MLS • All Rights Reserved
+                © {year || ''} Bright MLS • All Rights Reserved
               </span>
               <span className="text-[#C9A24D] font-black">Information Deemed Reliable But Not Guaranteed</span>
             </div>
@@ -66,7 +75,7 @@ export default function Footer() {
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 text-gray-600">
               <p className="normal-case italic">
-                Data last updated: {new Date().toLocaleDateString()}
+                Data last updated: {dateStr || ''}
               </p>
               <p className="normal-case max-w-sm sm:text-right">
                 Some real estate firms do not participate in IDX and their listings do not appear on this website. 

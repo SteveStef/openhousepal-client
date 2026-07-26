@@ -38,6 +38,12 @@ interface PropertyDetailsModalProps {
 
 // Property Report Table Component
 function PropertyReport({ property }: { property: PropertyDetailResponse }) {
+  const [reportDateStr, setReportDateStr] = useState<string>('')
+
+  useEffect(() => {
+    setReportDateStr(new Date().toLocaleDateString())
+  }, [])
+
   
   const formatList = (items: any): string | null => {
     if (!items) return null;
@@ -188,7 +194,7 @@ function PropertyReport({ property }: { property: PropertyDetailResponse }) {
           </div>
           <div className="text-right hidden sm:block">
             <div className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider">Generated</div>
-            <div className="font-medium text-sm">{new Date().toLocaleDateString()}</div>
+            <div className="font-medium text-sm">{reportDateStr || ''}</div>
           </div>
         </div>
       </div>
@@ -299,7 +305,14 @@ export default function PropertyDetailsModal({
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isLightboxOpen, setIsLightboxOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [footerYear, setFooterYear] = useState<string>('')
+  const [footerDateStr, setFooterDateStr] = useState<string>('')
   const commentsContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setFooterYear(new Date().getFullYear().toString())
+    setFooterDateStr(new Date().toLocaleString())
+  }, [])
 
   const handleCopyLink = async () => {
     if (shareUrl) {
@@ -863,7 +876,7 @@ export default function PropertyDetailsModal({
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                       Last Updated: {property.updated_at 
                         ? new Date(property.updated_at).toLocaleString()
-                        : new Date().toLocaleString()}
+                        : footerDateStr || ''}
                     </p>
                   </div>
                   <div className="max-w-3xl mx-auto space-y-4">
@@ -872,7 +885,7 @@ export default function PropertyDetailsModal({
                       The data relating to real estate for sale on this website appears in part through the BRIGHT Internet Data Exchange program, a voluntary cooperative exchange of property listing data between licensed real estate brokerage firms in which participates, and is provided by BRIGHT through a licensing agreement.
                     </p>
                     <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] pt-4">
-                      © {new Date().getFullYear()} Bright MLS • All Rights Reserved
+                      © {footerYear || ''} Bright MLS • All Rights Reserved
                     </p>
                   </div>
                 </footer>

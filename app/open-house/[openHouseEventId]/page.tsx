@@ -6,14 +6,22 @@ import OpenHouseSignInForm from '@/components/OpenHouseSignInForm'
 import { Property, SignInFormData } from '@/types'
 import api from '@/lib/api-service'
 
-const ComplianceFooter = () => (
-  <div className="mt-12 text-center max-w-3xl mx-auto pb-4 px-4">
-    <p className="text-[10px] text-gray-400 font-medium leading-relaxed uppercase tracking-wider">
-      © BRIGHT, All Rights Reserved | Information Deemed Reliable But Not Guaranteed. Some properties which appear for sale may no longer be available. 
-      <span className="block sm:inline ml-0 sm:ml-1">Data last updated: {new Date().toLocaleDateString()}</span>
-    </p>
-  </div>
-)
+const ComplianceFooter = () => {
+  const [dateStr, setDateStr] = useState<string>('')
+
+  useEffect(() => {
+    setDateStr(new Date().toLocaleDateString())
+  }, [])
+
+  return (
+    <div className="mt-12 text-center max-w-3xl mx-auto pb-4 px-4">
+      <p className="text-[10px] text-gray-400 font-medium leading-relaxed uppercase tracking-wider">
+        © BRIGHT, All Rights Reserved | Information Deemed Reliable But Not Guaranteed. Some properties which appear for sale may no longer be available.
+        {dateStr && <span className="block sm:inline ml-0 sm:ml-1">Data last updated: {dateStr}</span>}
+      </p>
+    </div>
+  )
+}
 
 export default function OpenHouseSignInPage() {
   const router = useRouter()
@@ -180,12 +188,7 @@ export default function OpenHouseSignInPage() {
       </div>
 
       {/* Compliance Footer */}
-      <div className="mt-12 text-center max-w-3xl mx-auto pb-4">
-        <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium leading-relaxed uppercase tracking-wider">
-          © BRIGHT, All Rights Reserved | Information Deemed Reliable But Not Guaranteed. Some properties which appear for sale may no longer be available. 
-          <span className="block sm:inline ml-0 sm:ml-1">Data last updated: {new Date().toLocaleDateString()}</span>
-        </p>
-      </div>
+      <ComplianceFooter />
     </div>
   )
 }
