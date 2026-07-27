@@ -309,8 +309,8 @@ export default function HomePage() {
 
         <div className="grid md:grid-cols-2 gap-10 max-w-5xl mx-auto px-6 items-stretch">
           {/* Basic Plan */}
-          <div className={`bg-white dark:bg-[#151517] rounded-[2rem] p-6 sm:p-10 border border-gray-100 dark:border-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.05)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative transition-all hover:shadow-[0_30px_60px_rgba(0,0,0,0.08)] flex flex-col h-full`}>
-            <div className="text-center mb-10">
+          <div className={`bg-white dark:bg-[#151517] rounded-[2rem] p-6 sm:p-8 border border-gray-100 dark:border-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.05)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative transition-all hover:shadow-[0_30px_60px_rgba(0,0,0,0.08)] flex flex-col h-full`}>
+            <div className="text-center mb-8">
               <h4 className="text-xl font-bold text-[#0B0B0B] dark:text-white mb-4 uppercase tracking-wide">{PRICING_PLANS.BASIC.name}</h4>
               <div className="flex items-baseline justify-center mb-2">
                 <span className="text-5xl font-black text-[#0B0B0B] dark:text-white tracking-tight">{PRICING_PLANS.BASIC.priceString}</span>
@@ -319,7 +319,7 @@ export default function HomePage() {
               <p className="text-sm text-gray-400">after {TRIAL_PERIOD_DAYS}-day free trial</p>
             </div>
 
-            <ul className="space-y-4 mb-10 flex-grow">
+            <ul className="space-y-4 mb-8 flex-grow">
               {[
                 'Generated PDFs for Open Houses',
                 'Custom open house sign-in forms',
@@ -334,22 +334,28 @@ export default function HomePage() {
               ))}
             </ul>
 
-            <div className="border-t border-gray-100 dark:border-gray-800 pt-8 mt-auto mb-8">
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-6 mt-auto mb-8">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4">Missing Key Features</p>
-              <ul className="space-y-3">
-                {[
-                  'Automated follow-up emails',
-                  'Personalized Property Showcases',
-                  'Real-time alerts & analytics'
-                ].map((feature, index) => (
-                  <li key={index} className="flex items-center text-gray-400 text-sm">
-                    <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    {feature}
-                  </li>
-                ))}
-              </ul>
+              <div className="rounded-xl p-4 border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-white/5 space-y-3 text-gray-400">
+                <div className="flex items-center text-sm font-bold text-gray-500 dark:text-gray-300">
+                  <svg className="w-4 h-4 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Showcases
+                </div>
+                <ul className="space-y-2 pl-7">
+                  {[
+                    'Guest Activity Tracking',
+                    'Similar-Property Alerts',
+                    'Ongoing Guest Engagement'
+                  ].map((feature, index) => (
+                    <li key={index} className="flex items-center text-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-gray-600 mr-3 flex-shrink-0" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
 
             <Link
@@ -361,55 +367,53 @@ export default function HomePage() {
           </div>
 
           {/* Premium Plan */}
-          <div className={`bg-[#111827] rounded-[2rem] p-6 sm:p-10 shadow-[0_30px_80px_-20px_rgba(201,162,77,0.3)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative border border-gray-800 flex flex-col h-full overflow-hidden`}>
+          <div className={`bg-[#111827] rounded-[2rem] p-6 sm:p-8 shadow-[0_30px_80px_-20px_rgba(201,162,77,0.3)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative border border-gray-800 flex flex-col h-full overflow-hidden`}>
             {/* Gradient Background */}
             <div className="absolute inset-0 bg-gradient-to-br from-[#111827] via-[#2c241b] to-[#3d3226] z-0"></div>
             <div className="absolute top-0 right-0 w-64 h-64 bg-[#C9A24D]/20 rounded-full blur-[80px] z-0"></div>
             
             <div className="relative z-10 flex flex-col h-full">
-              <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start text-center sm:text-left gap-6 sm:gap-0 mb-10">
-                <div>
-                  <h4 className="text-xl font-bold text-white mb-2 uppercase tracking-wide">{PRICING_PLANS.PREMIUM.name}</h4>
-                  <div className="inline-block bg-[#C9A24D] text-[#111827] text-xs font-bold px-3 py-1 rounded-md">
-                    MOST POPULAR
-                  </div>
+              <div className="text-center mb-8">
+                <h4 className="text-xl font-bold text-[#C9A24D] mb-4 uppercase tracking-wide">{PRICING_PLANS.PREMIUM.name}</h4>
+                <div className="flex items-baseline justify-center mb-2">
+                  <span className="text-5xl font-black text-white tracking-tight">{PRICING_PLANS.PREMIUM.priceString}</span>
+                  <span className="text-gray-400 ml-2 font-medium">/mo</span>
                 </div>
-                <div className="sm:text-right">
-                  <div className="flex items-baseline justify-center sm:justify-end">
-                    <span className="text-5xl font-black text-white tracking-tight">{PRICING_PLANS.PREMIUM.priceString}</span>
-                    <span className="text-gray-400 ml-2 font-medium">/mo</span>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">after {TRIAL_PERIOD_DAYS}-day free trial</p>
-                </div>
+                <p className="text-sm text-gray-500">after {TRIAL_PERIOD_DAYS}-day free trial</p>
               </div>
 
-              <div className="space-y-6 mb-12 flex-grow">
-                <div className="bg-white/10 rounded-xl p-5 border border-white/10">
-                  <div className="flex items-center text-white font-bold mb-2">
+              <div className="space-y-5 mb-8 flex-grow">
+                <div className="bg-white/10 rounded-xl p-4 border border-white/10">
+                  <div className="flex items-center text-white text-base font-black">
                     <svg className="w-5 h-5 text-[#C9A24D] mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    Everything in Basic, plus:
+                    Includes everything in Basic
                   </div>
                 </div>
 
-                <ul className="space-y-6">
-                  {[
-                    'Automated follow-up emails',
-                    'Real-time property alerts',
-                    'Personalized property Showcases',
-                    'Visitor interaction tracking'
-                  ].map((feature, index) => (
-                    <li key={index} className="flex items-start text-gray-200 font-medium">
-                      <div className="w-5 h-5 bg-[#C9A24D]/30 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                        <svg className="w-3 h-3 text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
+                <div className="bg-white/10 rounded-xl p-4 border border-white/10 space-y-4">
+                  <div className="flex items-start text-white font-black text-lg">
+                    <div className="w-5 h-5 bg-[#C9A24D]/30 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                      <svg className="w-3 h-3 text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    Showcases
+                  </div>
+                  <ul className="space-y-3 pl-8">
+                    {[
+                      'Guest Activity Tracking',
+                      'Similar-Property Alerts',
+                      'Ongoing Guest Engagement'
+                    ].map((feature, index) => (
+                      <li key={index} className="flex items-start text-gray-200 font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#C9A24D] mr-3 mt-2 flex-shrink-0" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
 
               <div className="mt-auto">
@@ -419,7 +423,6 @@ export default function HomePage() {
                 >
                   Start Premium Trial
                 </Link>
-                <p className="text-center text-gray-500 text-xs mt-4">Secure billing powered by PayPal</p>
               </div>
             </div>
           </div>

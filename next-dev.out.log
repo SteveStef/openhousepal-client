@@ -1,0 +1,10 @@
+
+> open-house-pal-frontend@1.0.0 dev
+> next dev
+
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.1.190:3001
+- Environments: .env
+✓ Ready in 682ms
+[?25h

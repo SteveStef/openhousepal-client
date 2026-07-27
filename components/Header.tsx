@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { Home, Moon, Sun, Menu, X, LogOut, Settings, Layout, ShieldCheck } from 'lucide-react'
+import { Home, Moon, Sun, Menu, X, LogOut, Settings, Layout, ShieldCheck, Globe } from 'lucide-react'
 import api from '@/lib/api-service'
 import { hasValidSubscription } from '@/lib/auth-helpers'
 import { useAuth } from '@/contexts/AuthContext'
@@ -196,6 +196,22 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                       <span>Showcases</span>
                       {isActive('/showcases') && <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full"></div>}
                     </Link>
+
+                    <Link
+                      href={
+                        !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
+                        "/agent-hub"
+                      }
+                      className={`relative px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center group ${
+                        isActive('/agent-hub') 
+                          ? 'text-[#111827] dark:text-white bg-gray-50 dark:bg-gray-800' 
+                          : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
+                      } ${isFullyExpired ? 'pointer-events-none opacity-50 grayscale' : ''}`}
+                    >
+                      <Globe className={`w-4 h-4 mr-2 ${isActive('/agent-hub') ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
+                      <span>Agent Hub</span>
+                      {isActive('/agent-hub') && <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full"></div>}
+                    </Link>
                   </>
                 )}
 
@@ -330,6 +346,21 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                   >
                     <Layout className="w-5 h-5" />
                     <span>Showcases</span>
+                  </Link>
+
+                  <Link
+                    href={
+                      !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
+                      "/agent-hub"
+                    }
+                    className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
+                      isActive('/agent-hub') 
+                        ? 'bg-[#C9A24D]/10 text-[#C9A24D]' 
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    } ${isFullyExpired ? 'pointer-events-none opacity-50 grayscale' : ''}`}
+                  >
+                    <Globe className="w-5 h-5" />
+                    <span>Agent Hub</span>
                   </Link>
                 </>
               )}

@@ -351,6 +351,136 @@ input:-webkit-autofill:active {
   color-scheme: dark !important;
 }
 
+/* Agent Hub dark mode follows the main app palette. */
+.dark .agent-hub-admin [class*="bg-white"],
+.dark .agent-hub-public [class*="bg-white"] {
+  background-color: #151517 !important;
+}
+
+.dark .agent-hub-admin [class*="bg-[#fbfaf7]"],
+.dark .agent-hub-admin [class*="bg-[#faf9f7]"],
+.dark .agent-hub-admin [class*="bg-[#f7f5f1]"],
+.dark .agent-hub-admin [class*="bg-[#f2efe8]"],
+.dark .agent-hub-admin [class*="bg-gray-50"],
+.dark .agent-hub-admin [class*="bg-gray-100"],
+.dark .agent-hub-public [class*="bg-[#f7f5f1]"],
+.dark .agent-hub-public [class*="bg-[#fbf8f1]"],
+.dark .agent-hub-public [class*="bg-gray-50"],
+.dark .agent-hub-public [class*="bg-gray-100"] {
+  background-color: #0B0B0B !important;
+}
+
+.dark .agent-hub-admin [class*="border-gray-100"],
+.dark .agent-hub-admin [class*="border-gray-200"],
+.dark .agent-hub-admin [class*="border-[#e"],
+.dark .agent-hub-public [class*="border-gray-100"],
+.dark .agent-hub-public [class*="border-gray-200"],
+.dark .agent-hub-public [class*="border-[#e"] {
+  border-color: #1F2937 !important;
+}
+
+.dark .agent-hub-admin [class*="text-[#111827]"],
+.dark .agent-hub-admin [class*="text-[#101827]"],
+.dark .agent-hub-admin [class*="text-gray-700"],
+.dark .agent-hub-public [class*="text-[#111827]"],
+.dark .agent-hub-public [class*="text-[#101827]"],
+.dark .agent-hub-public [class*="text-gray-700"] {
+  color: #F3F4F6 !important;
+}
+
+.dark .agent-hub-admin [class*="text-gray-600"],
+.dark .agent-hub-admin [class*="text-gray-500"],
+.dark .agent-hub-admin [class*="text-gray-400"],
+.dark .agent-hub-admin [class*="text-[#778093]"],
+.dark .agent-hub-public [class*="text-gray-600"],
+.dark .agent-hub-public [class*="text-gray-500"],
+.dark .agent-hub-public [class*="text-gray-400"],
+.dark .agent-hub-public [class*="text-[#778093]"] {
+  color: #9CA3AF !important;
+}
+
+.dark .agent-hub-admin input,
+.dark .agent-hub-admin select {
+  background-color: #0B0B0B !important;
+  border-color: #374151 !important;
+  color: #F3F4F6 !important;
+}
+
+.dark .agent-hub-admin input:disabled {
+  background-color: #111827 !important;
+  color: #6B7280 !important;
+}
+
+.dark .agent-hub-admin button[class*="bg-[#111827]"],
+.dark .agent-hub-admin a[class*="bg-[#111827]"],
+.dark .agent-hub-public button[class*="bg-[#111827]"],
+.dark .agent-hub-public a[class*="bg-[#111827]"] {
+  background-color: #F3F4F6 !important;
+  color: #111827 !important;
+  border-color: #F3F4F6 !important;
+}
+
+.dark .agent-hub-admin button[class*="bg-[#111827]"] svg,
+.dark .agent-hub-admin a[class*="bg-[#111827]"] svg,
+.dark .agent-hub-public button[class*="bg-[#111827]"] svg,
+.dark .agent-hub-public a[class*="bg-[#111827]"] svg {
+  color: #111827 !important;
+}
+
+.dark .agent-hub-admin button:not([class*="bg-[#111827]"]):not([class*="bg-[#d2b16f]"]):not([class*="text-red"]),
+.dark .agent-hub-admin a:not([class*="bg-[#111827]"]):not([class*="bg-[#d2b16f]"]):not([class*="text-red"]),
+.dark .agent-hub-public button:not([class*="bg-[#111827]"]):not([class*="bg-[#d2b16f]"]):not([class*="text-red"]),
+.dark .agent-hub-public a:not([class*="bg-[#111827]"]):not([class*="bg-[#d2b16f]"]):not([class*="text-red"]) {
+  color: #F3F4F6;
+}
+
+.dark .agent-hub-admin [class*="text-red"],
+.dark .agent-hub-public [class*="text-red"] {
+  color: #F87171 !important;
+}
+
+.dark .agent-hub-admin [class*="border-red"],
+.dark .agent-hub-public [class*="border-red"] {
+  border-color: rgba(248, 113, 113, 0.45) !important;
+}
+
+.dark .agent-hub-admin [class*="bg-emerald-50"],
+.dark .agent-hub-public [class*="bg-emerald-50"] {
+  background-color: rgba(6, 78, 59, 0.35) !important;
+  color: #34D399 !important;
+  border-color: rgba(52, 211, 153, 0.45) !important;
+}
+
+.dark .agent-hub-admin [class*="text-emerald"],
+.dark .agent-hub-public [class*="text-emerald"] {
+  color: #34D399 !important;
+}
+
+.dark .agent-hub-admin [class*="border-emerald"],
+.dark .agent-hub-public [class*="border-emerald"] {
+  border-color: rgba(52, 211, 153, 0.45) !important;
+}
+
+.dark .agent-hub-admin [class*="bg-[#d2b16f]"],
+.dark .agent-hub-public [class*="bg-[#d2b16f]"] {
+  color: #111827 !important;
+}
+
+.dark .agent-hub-admin .agent-hub-tab-idle {
+  background-color: transparent !important;
+  color: #9CA3AF !important;
+}
+
+.dark .agent-hub-admin .agent-hub-tab-idle:hover {
+  background-color: #1F2937 !important;
+  color: #F3F4F6 !important;
+}
+
+.dark .agent-hub-admin .agent-hub-tab-active {
+  background-color: #F3F4F6 !important;
+  color: #111827 !important;
+}
+
 /* Property Recommendations Print Styles */
 @media print {
   @page {

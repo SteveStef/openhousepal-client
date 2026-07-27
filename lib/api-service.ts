@@ -460,6 +460,38 @@ class ApiService {
   };
 
   /**
+   * Agent Hub Namespace
+   */
+  public agentHub = {
+    getMine: () => this.request<{ id: string; slug: string; status: string } | null>('/agent-hub/me'),
+
+    getRecentSales: (reLicenseNumber?: string) => this.request<Array<{
+      id: string;
+      address: string;
+      city: string;
+      state: string;
+      price?: number;
+      status?: string;
+      image?: string;
+      sold_date?: string;
+    }>>(`/agent-hub/me/recent-sales?limit=24${reLicenseNumber ? `&re_license_number=${encodeURIComponent(reLicenseNumber)}` : ''}`),
+
+    getLinkPreview: (url: string) =>
+      this.request<{ title: string; image: string }>(`/agent-hub/link-preview?url=${encodeURIComponent(url)}`),
+
+    getYoutubeChannelVideos: (channelUrl: string) =>
+      this.request<{ channel_url: string; videos: Array<{ id: string; title: string; description?: string; image?: string; link: string }> }>(`/agent-hub/youtube/videos?channel_url=${encodeURIComponent(channelUrl)}`),
+
+    checkSlug: (slug: string) =>
+      this.request<{ slug: string; available: boolean; owned_by_current_user: boolean }>(`/agent-hub/slug/check?slug=${encodeURIComponent(slug)}`),
+
+    updateSlug: (slug: string) => this.request<{ id: string; slug: string; status: string }>('/agent-hub/me/slug', {
+      method: 'PUT',
+      body: JSON.stringify({ slug }),
+    }),
+  };
+
+  /**
    * Public / Visitor Namespace (Does NOT include JWT)
    */
   public public = {
