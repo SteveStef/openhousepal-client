@@ -3,10 +3,10 @@
 import React, { useState, memo, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { 
-  Search, Filter, ChevronDown, Home, Bed, Bath, 
-  MapPin, Eye, Calendar, 
-  CheckCircle2, ArrowLeft, MessageSquare, 
+import {
+  Search, Filter, ChevronDown, Home, Bed, Bath,
+  MapPin, Eye, Calendar, CalendarX, Inbox,
+  CheckCircle2, ArrowLeft, MessageSquare,
   Clock, User, Layers, SortDesc, Check,
   Copy, X, Mail
 } from 'lucide-react'
@@ -19,6 +19,8 @@ import Footer from '@/components/Footer'
 import api from "@/lib/api-service";
 import { normalizeImageUrl } from '@/lib/utils'
 import GooglePlacesAutocomplete, { GooglePlacesAutocompleteRef } from '@/components/GooglePlacesAutocomplete'
+import RequestToHostModal from '@/components/open-house-manager/RequestToHostModal'
+import MyRequestsPanel from '@/components/open-house-manager/MyRequestsPanel'
 
 const US_STATES = [
   'PA', 'NJ', 'DE', 'MD', 'DC', 'VA', 'NY'
@@ -241,6 +243,12 @@ export default function OpenHouseDiscovery() {
 
   // Modal State
   const [selectedPropertyForRequest, setSelectedPropertyForRequest] = useState<any>(null)
+  const [emailFallbackProperty, setEmailFallbackProperty] = useState<any>(null)
+  const [isMyRequestsOpen, setIsMyRequestsOpen] = useState(false)
+
+  // Open House Manager stats: my own outgoing requests + which browsed listings already have an open house
+  const [myRequests, setMyRequests] = useState<any[]>([])
+  const [listingStatuses, setListingStatuses] = useState<Record<string, string>>({})
 
   // Dropdown States
   const [showBrokerageDropdown, setShowBrokerageDropdown] = useState(false)
@@ -518,6 +526,26 @@ export default function OpenHouseDiscovery() {
     getDiscoveryProperties()
   }, [showToast])
 
+  const refreshMyRequests = async () => {
+    const { success, data } = await api.openHouseManager.getMyRequests()
+    if (success && data) setMyRequests(data)
+  }
+
+  useEffect(() => {
+    refreshMyRequests()
+  }, [])
+
+  useEffect(() => {
+    const listingKeys = (listings || []).map((p: any) => p.ListingKey).filter(Boolean)
+    if (listingKeys.length === 0) {
+      setListingStatuses({})
+      return
+    }
+    api.openHouseManager.getListingStatuses(listingKeys).then(({ success, data }) => {
+      if (success && data) setListingStatuses(data)
+    })
+  }, [listings])
+
   return (
     <AuthGuard>
       <SubscriptionGuard requiredPlan="BASIC">
@@ -547,6 +575,14 @@ export default function OpenHouseDiscovery() {
                     Manage your outreach effortlessly.
                   </p>
                 </div>
+              </div>
+
+              {/* Stat Cards */}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-8">
+                <StatCard title="Listings Available" value={listings.length} icon={Home} />
+                <StatCard title="No Open House" value={listings.filter((p: any) => listingStatuses[p.ListingKey] === 'needs_host').length} icon={CalendarX} />
+                <StatCard title="Pending Requests" value={myRequests.filter(r => r.status === 'pending').length} icon={Inbox} />
+                <StatCard title="Approved to Host" value={myRequests.filter(r => r.status === 'approved').length} icon={CheckCircle2} isHighlighted />
               </div>
 
               {/* Main Search/Listing Panel */}
@@ -1153,6 +1189,18 @@ export default function OpenHouseDiscovery() {
                     </div>
                   </div>
 
+                  <button
+                    onClick={() => setIsMyRequestsOpen(true)}
+                    className="relative flex items-center gap-2 px-4 py-2.5 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all border-[#C9A24D]/40 bg-[#FCF9F1] dark:bg-[#C9A24D]/10 text-[#C9A24D] hover:border-[#C9A24D]"
+                  >
+                    <Inbox size={12} /> My Requests
+                    {myRequests.filter(r => r.status === 'pending').length > 0 && (
+                      <span className="bg-[#C9A24D] text-white text-[8px] px-1.5 py-0.5 rounded-md leading-none">
+                        {myRequests.filter(r => r.status === 'pending').length}
+                      </span>
+                    )}
+                  </button>
+
                 </div>
 
                 {/* Listings Section */}
@@ -1187,13 +1235,30 @@ export default function OpenHouseDiscovery() {
           </div>
 
           {selectedPropertyForRequest && (
-            <EmailModal 
-              property={selectedPropertyForRequest} 
-              user={user} 
+            <RequestToHostModal
+              property={selectedPropertyForRequest}
               onClose={() => setSelectedPropertyForRequest(null)}
+              onSent={() => {
+                setSelectedPropertyForRequest(null)
+                refreshMyRequests()
+              }}
+              onFallbackToEmail={() => {
+                setEmailFallbackProperty(selectedPropertyForRequest)
+                setSelectedPropertyForRequest(null)
+              }}
+            />
+          )}
+
+          {emailFallbackProperty && (
+            <EmailModal
+              property={emailFallbackProperty}
+              user={user}
+              onClose={() => setEmailFallbackProperty(null)}
               showToast={showToast}
             />
           )}
+
+          <MyRequestsPanel isOpen={isMyRequestsOpen} onClose={() => setIsMyRequestsOpen(false)} />
         </BrokerAuthorizationGuard>
       </SubscriptionGuard>
     </AuthGuard>

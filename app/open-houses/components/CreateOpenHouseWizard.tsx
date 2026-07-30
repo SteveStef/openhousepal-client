@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { v4 as uuidv4 } from 'uuid'
 import { PropertyRecommendationCard } from '@/components/PropertyRecommendationCard'
 import api from '@/lib/api-service'
+import { buildBragSheetData, buildCheatSheetAgentData } from '@/lib/bragSheetData'
 import { 
   OpenHouse, 
   PropertyImage, 
@@ -20,7 +21,7 @@ interface CreateOpenHouseWizardProps {
   currentUser: User | null;
   onSuccess: () => Promise<void>;
   showToast: (message: string, type: 'success' | 'error') => void;
-  triggerPreview: (type: 'flyer' | 'recommendations', id?: string, customData?: any) => void;
+  triggerPreview: (type: 'flyer' | 'recommendations' | 'bragSheet' | 'cheatSheet', id?: string, customData?: any) => void;
   formatAddress: (address: string) => string;
 }
 
@@ -74,9 +75,12 @@ export function CreateOpenHouseWizard({
   const [qrCode, setQrCode] = useState('')
   const [generatedOpenHouseId, setGeneratedOpenHouseId] = useState('')
   const [selectedImage, setSelectedImage] = useState<PropertyImage | null>(null)
+  const [cheatSheetPhotos, setCheatSheetPhotos] = useState<string[]>([])
   const [selectedFeatures, setSelectedFeatures] = useState({
     signinSheet: true,
-    similarProperties: false
+    similarProperties: false,
+    bragSheet: false,
+    cheatSheet: false
   })
 
   // --- HELPERS ---
@@ -93,7 +97,7 @@ export function CreateOpenHouseWizard({
 
   // --- HANDLERS ---
 
-  const handleTriggerPreview = (mode: 'flyer' | 'recommendations') => {
+  const handleTriggerPreview = async (mode: 'flyer' | 'recommendations' | 'bragSheet' | 'cheatSheet') => {
     if (mode === 'flyer') {
       const flyerData = {
         address: formatStreetAndCity(address, propertyData?.city || propertyData?.City),
@@ -105,15 +109,62 @@ export function CreateOpenHouseWizard({
         openHouseUrl: `${window.location.origin}/open-house/${generatedOpenHouseId}`
       };
       triggerPreview('flyer', undefined, flyerData);
-    } else {
+    } else if (mode === 'recommendations') {
       const currentSimilarProps = similarProperties.filter(p => {
         const pId = String(p.ListingKey || p.listingKey || p.id);
         return selectedSimilarPropertyIds.map(sid => String(sid)).includes(pId);
       });
-      
+
       triggerPreview('recommendations', undefined, {
         address: formatStreetAndCity(address, propertyData?.city || propertyData?.City),
         properties: currentSimilarProps
+      });
+    } else if (mode === 'bragSheet') {
+      const { data, error: bragSheetError } = await buildBragSheetData(currentUser);
+      if (!data) {
+        showToast(bragSheetError || 'Unable to build your Brag Sheet right now.', 'error');
+        return;
+      }
+      triggerPreview('bragSheet', undefined, data);
+    } else if (mode === 'cheatSheet') {
+      const listingKey = propertyData?.ListingKey || propertyData?.listing_key;
+      const [amenitiesRes, cheatSheetAgent] = await Promise.all([
+        listingKey ? api.properties.getNearbyAmenities(listingKey) : Promise.resolve(null),
+        buildCheatSheetAgentData(currentUser),
+      ]);
+      triggerPreview('cheatSheet', undefined, {
+        property: {
+          address: propertyData?.FullStreetAddress || propertyData?.street_address || address,
+          city: propertyData?.city || propertyData?.City,
+          state: propertyData?.state || propertyData?.StateOrProvince,
+          price: propertyData?.ListPrice,
+          beds: propertyData?.BedroomsTotal,
+          baths: propertyData?.BathroomsTotal,
+          sqft: propertyData?.LivingArea,
+          aboveGradeSqft: propertyData?.AboveGradeFinishedArea,
+          belowGradeSqft: propertyData?.BelowGradeFinishedArea,
+          acres: propertyData?.LotSizeAcres,
+          township: propertyData?.MLSAreaMajor,
+          schoolDistrict: propertyData?.SchoolDistrictName,
+          elementarySchool: propertyData?.ElementarySchool,
+          middleSchool: propertyData?.MiddleOrJuniorSchool,
+          highSchool: propertyData?.HighSchool,
+          taxAnnualAmount: propertyData?.TaxAnnualAmount,
+          taxYear: propertyData?.TaxYear,
+          yearBuilt: propertyData?.YearBuilt || propertyData?.year_built,
+          waterSource: propertyData?.WaterSource || propertyData?.water_source,
+          sewer: propertyData?.Sewer || propertyData?.sewer,
+          heating: propertyData?.Heating || propertyData?.heating,
+          heatingFuel: propertyData?.HeatingFuel || propertyData?.heating_fuel,
+          cooling: propertyData?.Cooling || propertyData?.cooling,
+          hoaFee: propertyData?.AssociationFee || propertyData?.association_fee,
+          hoaFeeFrequency: propertyData?.AssociationFeeFrequency || propertyData?.association_fee_frequency,
+          hoaIncludes: propertyData?.AssociationFeeIncludes || propertyData?.association_fee_includes,
+          description: propertyData?.PublicRemarks || propertyData?.description,
+          photos: cheatSheetPhotos.length > 0 ? cheatSheetPhotos : (propertyData?.photos || []).slice(0, 3),
+        },
+        agent: cheatSheetAgent,
+        amenities: amenitiesRes?.success ? amenitiesRes.data : undefined,
       });
     }
   }
@@ -235,7 +286,7 @@ export function CreateOpenHouseWizard({
     return []
   }
 
-  const handleFeatureSelectionComplete = (features: { signinSheet: boolean; similarProperties: boolean }) => {
+  const handleFeatureSelectionComplete = (features: { signinSheet: boolean; similarProperties: boolean; bragSheet: boolean; cheatSheet: boolean }) => {
     setSelectedFeatures(features)
     if (features.similarProperties) {
       const price = propertyData?.ListPrice || 0
@@ -263,15 +314,20 @@ export function CreateOpenHouseWizard({
 
   const handleImageSelect = (image: PropertyImage) => {
     setSelectedImage(image)
-    
+
     const newEventId = uuidv4()
     setGeneratedOpenHouseId(newEventId)
-    
+
     const baseUrl = window.location.origin
     const formUrl = `${baseUrl}/open-house/${newEventId}`
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(formUrl)}&bgcolor=ffffff&color=1a1a1a`
     setQrCode(qrCodeUrl)
-    
+
+    setCurrentStep(selectedFeatures.cheatSheet ? 'CHEAT_SHEET_PHOTOS' : 'REVIEW')
+  }
+
+  const handleCheatSheetPhotosComplete = (photos: string[]) => {
+    setCheatSheetPhotos(photos)
     setCurrentStep('REVIEW')
   }
 
@@ -291,20 +347,22 @@ export function CreateOpenHouseWizard({
       property_data: propertyData,
       coverImageUrl: selectedImage.url,
       openHouseEventId: generatedOpenHouseId,
-      similarPropertiesSnapshot: selectedSnapshot
+      similarPropertiesSnapshot: selectedSnapshot,
+      cheatSheetPhotos: selectedFeatures.cheatSheet ? cheatSheetPhotos : undefined
     })
 
     if (success) {
       await onSuccess()
-      
+
       // Reset local state
       setAddress('')
       setPropertyData(null)
       setSelectedImage(null)
       setQrCode('')
       setGeneratedOpenHouseId('')
-      setSelectedFeatures({ signinSheet: true, similarProperties: false })
+      setSelectedFeatures({ signinSheet: true, similarProperties: false, bragSheet: false, cheatSheet: false })
       setSelectedSimilarPropertyIds([])
+      setCheatSheetPhotos([])
       setCurrentStep('ADDRESS')
       
       showToast('🎉 Open House created successfully!', 'success')
@@ -413,21 +471,21 @@ export function CreateOpenHouseWizard({
                     </div>
                   </Link>
 
-                  <button 
-                    disabled
-                    className="w-full p-4 bg-gray-50/50 dark:bg-[#1A1A1C]/30 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-2xl text-left flex items-center space-x-4 opacity-60 cursor-not-allowed group"
+                  <Link
+                    href="/open-houses/my-listings"
+                    className="w-full group p-4 bg-white dark:bg-[#1A1A1C] border-2 border-[#C9A24D]/30 dark:border-[#C9A24D]/20 hover:border-[#C9A24D] rounded-2xl transition-all duration-300 text-left flex items-center space-x-4 shadow-sm hover:shadow-[0_0_20px_rgba(201,162,77,0.15)] hover:scale-[1.01]"
                   >
-                    <div className="p-3 bg-gray-100/50 dark:bg-[#0B0B0B] rounded-xl text-gray-300">
-                      <Layers size={22} />
+                    <div className="p-3 bg-[#C9A24D]/10 dark:bg-[#C9A24D]/20 rounded-xl text-[#C9A24D] group-hover:bg-[#C9A24D] group-hover:text-white transition-all duration-300">
+                      <Layers size={22} strokeWidth={3} />
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <div className="font-black text-gray-400 dark:text-gray-500 text-xs uppercase tracking-widest mb-0.5">My Listings</div>
-                        <span className="text-[9px] font-black bg-gray-100 dark:bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded uppercase tracking-tighter">Soon</span>
-                      </div>
-                      <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider opacity-70">Manage hosts & view insights</div>
+                      <div className="font-black text-gray-900 dark:text-white text-xs uppercase tracking-widest mb-0.5">My Listings</div>
+                      <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider opacity-70">Manage hosts &amp; view insights</div>
                     </div>
-                  </button>
+                    <div className="text-[#C9A24D] opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-[-10px] group-hover:translate-x-0 hidden sm:block">
+                      <ArrowRight size={20} strokeWidth={3} />
+                    </div>
+                  </Link>
                 </div>
                 {error && (
                   <div className="mt-3 text-center animate-fadeIn">
@@ -488,6 +546,14 @@ export function CreateOpenHouseWizard({
             }
           }}
         />
+      ) : currentStep === 'CHEAT_SHEET_PHOTOS' ? (
+        <CheatSheetPhotoSelectionView
+          propertyData={propertyData}
+          address={address}
+          initialSelected={cheatSheetPhotos}
+          onNext={handleCheatSheetPhotosComplete}
+          onBack={() => setCurrentStep('COVER_IMAGE')}
+        />
       ) : null}
 
       {/* Review Step Dialog */}
@@ -497,10 +563,14 @@ export function CreateOpenHouseWizard({
           selectedImage={selectedImage}
           qrCode={qrCode}
           onSave={saveOpenHouse}
-          onCancel={() => setCurrentStep('COVER_IMAGE')}
+          onCancel={() => setCurrentStep(selectedFeatures.cheatSheet ? 'CHEAT_SHEET_PHOTOS' : 'COVER_IMAGE')}
           onPreviewFlyer={() => handleTriggerPreview('flyer')}
           onPreviewRecommendations={() => handleTriggerPreview('recommendations')}
+          onPreviewBragSheet={() => handleTriggerPreview('bragSheet')}
+          onPreviewCheatSheet={() => handleTriggerPreview('cheatSheet')}
           hasRecommendations={selectedFeatures.similarProperties}
+          hasBragSheet={selectedFeatures.bragSheet}
+          hasCheatSheet={selectedFeatures.cheatSheet}
           formatAddress={formatAddress}
         />
       )}
@@ -510,10 +580,40 @@ export function CreateOpenHouseWizard({
 
 // --- SUB-COMPONENTS (Wizard Views) ---
 
-export const FeatureSelectionView = memo(function FeatureSelectionView({ address, onNext, onBack }: { address: string, onNext: (features: any) => void, onBack: () => void }) {
-  const [features, setFeatures] = useState({ signinSheet: true, similarProperties: false })
+function FeatureToggleCard({ title, description, icon, selected, onClick }: { title: string, description: string, icon: React.ReactNode, selected: boolean, onClick: () => void }) {
+  return (
+    <div
+      onClick={onClick}
+      className={`cursor-pointer rounded-2xl p-6 sm:p-8 border-2 transition-all duration-300 flex flex-col items-center text-center gap-4 sm:gap-6 group relative overflow-hidden ${
+        selected
+          ? 'border-[#8b7355] bg-[#faf9f7] dark:bg-[#1c1c1e] shadow-lg scale-[1.02]'
+          : 'border-gray-100 dark:border-gray-800 hover:border-gray-200 dark:hover:border-gray-700 bg-white dark:bg-[#151517]'
+      }`}
+    >
+      <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center transition-colors duration-300 ${
+        selected
+          ? 'bg-[#8b7355] text-white shadow-lg shadow-[#8b7355]/30'
+          : 'bg-gray-100 dark:bg-gray-800 text-gray-400 group-hover:bg-gray-200 dark:group-hover:bg-gray-700'
+      }`}>
+        {icon}
+      </div>
+      <div>
+        <h3 className={`text-lg sm:text-xl font-bold mb-1 sm:mb-2 ${selected ? 'text-[#8b7355] dark:text-[#C9A24D]' : 'text-gray-900 dark:text-white'}`}>{title}</h3>
+        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{description}</p>
+      </div>
+      <div className={`absolute top-3 right-3 sm:top-4 sm:right-4 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
+        selected ? 'border-[#8b7355] bg-[#8b7355] text-white' : 'border-gray-200 dark:border-gray-700'
+      }`}>
+        {selected && <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+      </div>
+    </div>
+  )
+}
 
-  const toggleFeature = (key: 'similarProperties') => {
+export const FeatureSelectionView = memo(function FeatureSelectionView({ address, onNext, onBack }: { address: string, onNext: (features: any) => void, onBack: () => void }) {
+  const [features, setFeatures] = useState({ signinSheet: true, similarProperties: false, bragSheet: false, cheatSheet: false })
+
+  const toggleFeature = (key: 'similarProperties' | 'bragSheet' | 'cheatSheet') => {
     setFeatures(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
@@ -541,33 +641,29 @@ export const FeatureSelectionView = memo(function FeatureSelectionView({ address
           </div>
         </div>
 
-        <div
+        <FeatureToggleCard
+          title="Similar Listings"
+          description="Supplemental flyer showcasing active similar listings nearby."
+          selected={features.similarProperties}
           onClick={() => toggleFeature('similarProperties')}
-          className={`cursor-pointer rounded-2xl p-6 sm:p-8 border-2 transition-all duration-300 flex flex-col items-center text-center gap-4 sm:gap-6 group relative overflow-hidden ${
-            features.similarProperties 
-              ? 'border-[#8b7355] bg-[#faf9f7] dark:bg-[#1c1c1e] shadow-lg scale-[1.02]' 
-              : 'border-gray-100 dark:border-gray-800 hover:border-gray-200 dark:hover:border-gray-700 bg-white dark:bg-[#151517]'
-          }`}
-        >
-          <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center transition-colors duration-300 ${
-            features.similarProperties 
-              ? 'bg-[#8b7355] text-white shadow-lg shadow-[#8b7355]/30' 
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-400 group-hover:bg-gray-200 dark:group-hover:bg-gray-700'
-          }`}>
-            <svg className="w-8 h-8 sm:w-10 sm:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 v2M7 7h10" /></svg>
-          </div>
-          <div>
-            <h3 className={`text-lg sm:text-xl font-bold mb-1 sm:mb-2 ${features.similarProperties ? 'text-[#8b7355] dark:text-[#C9A24D]' : 'text-gray-900 dark:text-white'}`}>Similar Listings</h3>
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Supplemental flyer showcasing active similar listings nearby.</p>
-          </div>
-          <div className={`absolute top-3 right-3 sm:top-4 sm:right-4 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
-            features.similarProperties 
-              ? 'border-[#8b7355] bg-[#8b7355] text-white' 
-              : 'border-gray-200 dark:border-gray-700'
-          }`}>
-            {features.similarProperties && <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-          </div>
-        </div>
+          icon={<svg className="w-8 h-8 sm:w-10 sm:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>}
+        />
+
+        <FeatureToggleCard
+          title="Agent Brag Sheet"
+          description="Your bio, recent sales, and a QR code inviting guests to request their own Showcase."
+          selected={features.bragSheet}
+          onClick={() => toggleFeature('bragSheet')}
+          icon={<svg className="w-8 h-8 sm:w-10 sm:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>}
+        />
+
+        <FeatureToggleCard
+          title="Open House Cheat Sheet"
+          description="Property facts, description, and nearby schools, groceries, hospitals, and more."
+          selected={features.cheatSheet}
+          onClick={() => toggleFeature('cheatSheet')}
+          icon={<svg className="w-8 h-8 sm:w-10 sm:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 21c-4.4-3.4-8-6.5-8-10.5A5.5 5.5 0 0112 6a5.5 5.5 0 018 4.5c0 4-3.6 7.1-8 10.5z" /></svg>}
+        />
       </div>
 
       <div className="flex flex-col-reverse sm:flex-row justify-between items-center gap-3">
@@ -780,7 +876,60 @@ const ImageSelectionView = memo(function ImageSelectionView({ propertyData, addr
   )
 })
 
-const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selectedImage, qrCode, onSave, onCancel, onPreviewFlyer, onPreviewRecommendations, hasRecommendations, formatAddress }: any) {
+const MAX_CHEAT_SHEET_PHOTOS = 3
+
+const CheatSheetPhotoSelectionView = memo(function CheatSheetPhotoSelectionView({ propertyData, address, initialSelected, onNext, onBack }: any) {
+  const availableImages: string[] = propertyData?.photos && propertyData.photos.length > 0 ? propertyData.photos : [propertyData?.ListPictureURL].filter(Boolean)
+  const [selected, setSelected] = useState<string[]>(initialSelected && initialSelected.length > 0 ? initialSelected : availableImages.slice(0, MAX_CHEAT_SHEET_PHOTOS))
+
+  const toggleImage = (url: string) => {
+    setSelected(prev => {
+      if (prev.includes(url)) return prev.filter(u => u !== url)
+      if (prev.length >= MAX_CHEAT_SHEET_PHOTOS) return prev
+      return [...prev, url]
+    })
+  }
+
+  return (
+    <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-6 transition-colors animate-fadeIn">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Select Photos for the Open House Cheat Sheet</h2>
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">{address} &middot; Choose up to {MAX_CHEAT_SHEET_PHOTOS} photos, in the order you'd like them to appear.</p>
+        </div>
+        <button onClick={onBack} className="px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-white rounded-lg transition-colors duration-200 flex items-center"><svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>Back</button>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {availableImages.map((imageUrl: string, index: number) => {
+          const selectedIndex = selected.indexOf(imageUrl)
+          const isSelected = selectedIndex !== -1
+          return (
+            <div
+              key={index}
+              className={`relative aspect-square bg-gray-100 dark:bg-[#0B0B0B] rounded-xl overflow-hidden cursor-pointer transition-shadow duration-200 group ${isSelected ? 'ring-2 ring-[#8b7355] dark:ring-[#C9A24D]' : 'hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-600'}`}
+              onClick={() => toggleImage(imageUrl)}
+            >
+              <Image src={imageUrl} alt={`Property view ${index + 1}`} fill sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover" />
+              <div className={`absolute inset-0 transition-colors duration-200 ${isSelected ? 'bg-black/10' : 'bg-black/0 group-hover:bg-black/10'}`} />
+              {isSelected && (
+                <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-[#8b7355] dark:bg-[#C9A24D] text-white text-xs font-bold flex items-center justify-center shadow-lg">
+                  {selectedIndex + 1}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      <div className="sticky bottom-0 bg-white dark:bg-[#151517] z-20 flex flex-col-reverse sm:flex-row justify-between items-center gap-3 border-t border-gray-100 dark:border-gray-800 pt-4 mt-6">
+        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">{selected.length} of {MAX_CHEAT_SHEET_PHOTOS} selected</p>
+        <button onClick={() => onNext(selected)} disabled={selected.length === 0} className="w-full sm:w-auto px-8 py-3.5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] font-bold rounded-xl shadow-lg hover:shadow-xl hover:bg-[#8b7355] dark:hover:bg-[#C9A24D] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 text-sm">Continue</button>
+      </div>
+    </div>
+  )
+})
+
+const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selectedImage, qrCode, onSave, onCancel, onPreviewFlyer, onPreviewRecommendations, onPreviewBragSheet, onPreviewCheatSheet, hasRecommendations, hasBragSheet, hasCheatSheet, formatAddress }: any) {
+  const kitLabel = ['Sign-in Flyer', hasRecommendations && 'Active COMPS', hasBragSheet && 'Agent Brag Sheet', hasCheatSheet && 'Cheat Sheet'].filter(Boolean).join(', ')
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 print:hidden">
       <div className="bg-[#FAFAF7] dark:bg-[#151517] rounded-[2rem] shadow-2xl max-w-2xl w-full overflow-hidden border border-white/50 dark:border-gray-800">
@@ -788,12 +937,14 @@ const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selecte
         <div className="p-8">
           <div className="flex items-center space-x-5 mb-8">
             <div className="w-24 h-24 bg-white dark:bg-[#0B0B0B] rounded-2xl overflow-hidden relative shadow-inner border border-gray-100 dark:border-gray-800">{selectedImage && <Image src={selectedImage.url} alt="Selected cover" fill sizes="96px" className="object-cover" />}</div>
-            <div className="flex-1"><p className="text-base font-bold text-[#0B0B0B] dark:text-white">Kit Ready to Generate</p><p className="text-sm text-[#6B7280] dark:text-gray-400 mt-1 font-light leading-relaxed">Includes Sign-in Flyer {hasRecommendations && '& Active COMPS'}.</p></div>
+            <div className="flex-1"><p className="text-base font-bold text-[#0B0B0B] dark:text-white">Kit Ready to Generate</p><p className="text-sm text-[#6B7280] dark:text-gray-400 mt-1 font-light leading-relaxed">Includes {kitLabel}.</p></div>
           </div>
           <div className="bg-white/80 dark:bg-[#0B0B0B]/80 rounded-2xl p-6 mb-8 border border-gray-100 dark:border-gray-800 shadow-sm"><h4 className="text-sm font-bold text-[#C9A24D] uppercase tracking-wider mb-3">Your Kit Includes</h4>
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Sign-in Flyer</span></div><button onClick={onPreviewFlyer} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>
               {hasRecommendations && <div className="flex items-center justify-between p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Active COMPS</span></div><button onClick={onPreviewRecommendations} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>}
+              {hasBragSheet && <div className="flex items-center justify-between p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Agent Brag Sheet</span></div><button onClick={onPreviewBragSheet} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>}
+              {hasCheatSheet && <div className="flex items-center justify-between p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Open House Cheat Sheet</span></div><button onClick={onPreviewCheatSheet} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>}
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">

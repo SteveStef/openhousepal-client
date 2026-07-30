@@ -8,6 +8,7 @@ interface OpenHouse {
   address: string;
   cover_image_url?: string;
   similarPropertiesSnapshot?: any[];
+  listingKey?: string;
 }
 
 interface ViewPDFsModalProps {
@@ -16,6 +17,8 @@ interface ViewPDFsModalProps {
   onViewFlyer: () => void;
   onViewRecommendations: () => void;
   onEditRecommendations?: () => void;
+  onViewBragSheet: () => void;
+  onViewCheatSheet: () => void;
 }
 
 // --- HELPERS ---
@@ -56,12 +59,14 @@ const formatAddress = (address: string) => {
     .join(' ');
 };
 
-export const ViewPDFsModal = memo(function ViewPDFsModal({ 
-  openHouse, 
-  onClose, 
-  onViewFlyer, 
+export const ViewPDFsModal = memo(function ViewPDFsModal({
+  openHouse,
+  onClose,
+  onViewFlyer,
   onViewRecommendations,
-  onEditRecommendations
+  onEditRecommendations,
+  onViewBragSheet,
+  onViewCheatSheet,
 }: ViewPDFsModalProps) {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 print:hidden animate-fadeIn">
@@ -145,8 +150,56 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
               )}
             </div>
           )}
+
+          {/* Option 3: Agent Brag Sheet */}
+          <button
+            onClick={onViewBragSheet}
+            className="w-full group flex items-center p-5 bg-white dark:bg-[#1c1c1e] border border-gray-100 dark:border-gray-800 rounded-2xl transition-all duration-150 text-left relative active:scale-[0.98]"
+          >
+            <div className="w-14 h-14 bg-[#faf9f7] dark:bg-[#0B0B0B] rounded-xl flex items-center justify-center mr-5 border border-gray-100 dark:border-gray-800 transition-all duration-150 relative z-10 shadow-sm">
+              <svg className="w-7 h-7 text-[#8b7355] dark:text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <div className="relative z-10 flex-1">
+              <h4 className="text-lg font-bold text-gray-900 dark:text-white">Agent Brag Sheet</h4>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Bio, Recent Sales &amp; Showcase QR</p>
+            </div>
+            <div className="relative z-10 ml-4">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center border border-gray-100 dark:border-gray-800 group-hover:border-[#8b7355] dark:group-hover:border-[#C9A24D] transition-all duration-150">
+                <svg className="w-4 h-4 text-gray-300 group-hover:text-[#8b7355] dark:group-hover:text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </button>
+
+          {/* Option 4: Open House Cheat Sheet */}
+          {openHouse.listingKey && (
+            <button
+              onClick={onViewCheatSheet}
+              className="w-full group flex items-center p-5 bg-white dark:bg-[#1c1c1e] border border-gray-100 dark:border-gray-800 rounded-2xl transition-all duration-150 text-left relative active:scale-[0.98]"
+            >
+              <div className="w-14 h-14 bg-[#faf9f7] dark:bg-[#0B0B0B] rounded-xl flex items-center justify-center mr-5 border border-gray-100 dark:border-gray-800 transition-all duration-150 relative z-10 shadow-sm">
+                <svg className="w-7 h-7 text-[#8b7355] dark:text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 21c-4.4-3.4-8-6.5-8-10.5A5.5 5.5 0 0112 6a5.5 5.5 0 018 4.5c0 4-3.6 7.1-8 10.5z" />
+                </svg>
+              </div>
+              <div className="relative z-10 flex-1">
+                <h4 className="text-lg font-bold text-gray-900 dark:text-white">Cheat Sheet</h4>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Facts, Description &amp; Nearby</p>
+              </div>
+              <div className="relative z-10 ml-4">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center border border-gray-100 dark:border-gray-800 group-hover:border-[#8b7355] dark:group-hover:border-[#C9A24D] transition-all duration-150">
+                  <svg className="w-4 h-4 text-gray-300 group-hover:text-[#8b7355] dark:group-hover:text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </div>
+            </button>
+          )}
         </div>
-        
+
         <div className="px-8 pb-10 flex flex-col items-center">
           <button 
             onClick={onClose}

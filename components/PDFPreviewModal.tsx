@@ -3,14 +3,16 @@
 import React, { useMemo } from 'react';
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { X, Download } from 'lucide-react';
-import { OpenHouseFlyerDocument, SimilarPropertiesDocument } from '@/lib/pdfs';
+import { OpenHouseFlyerDocument, SimilarPropertiesDocument, AgentBragSheetDocument, OpenHouseCheatSheetDocument } from '@/lib/pdfs';
+
+const FILE_NAME_PREFIX: Record<string, string> = { flyer: 'Flyer', recommendations: 'COMPS', bragSheet: 'Brag-Sheet', cheatSheet: 'Cheat-Sheet' };
 
 interface PDFPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   data: any;
   title?: string;
-  type?: 'flyer' | 'recommendations';
+  type?: 'flyer' | 'recommendations' | 'bragSheet' | 'cheatSheet';
   agentId?: string;
   address?: string;
 }
@@ -30,15 +32,23 @@ export default function PDFPreviewModal({
     if (type === 'flyer') {
       return <OpenHouseFlyerDocument data={data} />;
     }
-    
+
+    if (type === 'bragSheet') {
+      return <AgentBragSheetDocument agent={data.agent} recentSales={data.recentSales} showcaseQrUrl={data.showcaseQrUrl} />;
+    }
+
+    if (type === 'cheatSheet') {
+      return <OpenHouseCheatSheetDocument property={data.property} agent={data.agent} amenities={data.amenities} />;
+    }
+
     // Recommendations case: data is the array of properties
     const properties = Array.isArray(data) ? data : (data.properties || []);
     return <SimilarPropertiesDocument properties={properties} agentId={agentId} address={address} />;
   }, [data, type, agentId, address]);
 
   const fileName = useMemo(() => {
-    const baseAddress = (address || data?.address || 'Document').split(',')[0].replace(/\s+/g, '-');
-    return `${type === 'flyer' ? 'Flyer' : 'COMPS'}-${baseAddress}.pdf`;
+    const baseAddress = (address || data?.address || data?.property?.address || 'Document').split(',')[0].replace(/\s+/g, '-');
+    return `${FILE_NAME_PREFIX[type] || 'Document'}-${baseAddress}.pdf`;
   }, [address, data?.address, type]);
 
   if (!isOpen) return null;

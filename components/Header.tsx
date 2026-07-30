@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
+import { motion } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
@@ -177,7 +178,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                     >
                       <Home className={`w-4 h-4 mr-2 ${isActive('/open-houses') ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
                       <span>Open Houses</span>
-                      {isActive('/open-houses') && <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full"></div>}
+                      {isActive('/open-houses') && <motion.div layoutId="headerNavUnderline" className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full" transition={{ type: 'spring', stiffness: 500, damping: 35 }} />}
                     </Link>
 
                     <Link 
@@ -194,7 +195,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                     >
                       <Layout className={`w-4 h-4 mr-2 ${isActive('/showcases') ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
                       <span>Showcases</span>
-                      {isActive('/showcases') && <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full"></div>}
+                      {isActive('/showcases') && <motion.div layoutId="headerNavUnderline" className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full" transition={{ type: 'spring', stiffness: 500, damping: 35 }} />}
                     </Link>
 
                     <Link
@@ -210,7 +211,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                     >
                       <Globe className={`w-4 h-4 mr-2 ${isActive('/agent-hub') ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
                       <span>Agent Hub</span>
-                      {isActive('/agent-hub') && <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full"></div>}
+                      {isActive('/agent-hub') && <motion.div layoutId="headerNavUnderline" className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full" transition={{ type: 'spring', stiffness: 500, damping: 35 }} />}
                     </Link>
                   </>
                 )}

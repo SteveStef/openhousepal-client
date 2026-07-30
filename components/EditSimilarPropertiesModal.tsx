@@ -40,7 +40,7 @@ export function EditSimilarPropertiesModal({
     setStep('SELECTION')
     
     const payload: any = {
-      listingKey: openHouse.listing_key,
+      listingKey: openHouse.listingKey,
       city: openHouse.city,
       state: openHouse.state,
       zipcode: openHouse.zipcode,

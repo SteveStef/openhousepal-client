@@ -173,7 +173,7 @@ export interface SearchPreferences {
   radius: number;
 }
 
-export type OpenHouseWizardStep = 'ADDRESS' | 'FEATURES' | 'PREFERENCES' | 'SIMILAR_PROPS' | 'COVER_IMAGE' | 'REVIEW';
+export type OpenHouseWizardStep = 'ADDRESS' | 'FEATURES' | 'PREFERENCES' | 'SIMILAR_PROPS' | 'COVER_IMAGE' | 'CHEAT_SHEET_PHOTOS' | 'REVIEW';
 
 export interface OpenHouse {
   id: string;
@@ -198,10 +198,222 @@ export interface OpenHouse {
   zipcode?: string;
   latitude?: number;
   longitude?: number;
-  listing_key?: string;
+  listingKey?: string;
   notes?: string;
   similarPropertyIds?: string[];
   similarPropertiesSnapshot?: any[];
+  cheatSheetPhotos?: string[];
+}
+
+export type OpenHouseStatus = 'needs_host' | 'scheduled';
+export type HostRequestStatus = 'pending' | 'approved' | 'declined' | 'countered';
+export type BroadcastStatus = 'open' | 'filled' | 'cancelled';
+
+export interface MyListingSummary {
+  open_scheduled: number;
+  needs_host: number;
+  avg_guests_per_open: number;
+  high_priority: number;
+}
+
+export interface MyListingItem {
+  listing_key: string;
+  image?: string | null;
+  days_on_market?: number | null;
+  address: string;
+  city?: string | null;
+  state?: string | null;
+  zipcode?: string | null;
+  price?: number | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  living_area?: number | null;
+  open_house_status: OpenHouseStatus;
+  avg_guests_per_open: number;
+  opens_hosted_count: number;
+  is_high_priority: boolean;
+  pending_request_count: number;
+  is_manual: boolean;
+}
+
+export interface MyListingsResponse {
+  summary: MyListingSummary;
+  listings: MyListingItem[];
+}
+
+export interface ManualListingPayload {
+  address: string;
+  city: string;
+  state: string;
+  zipcode?: string;
+  price?: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  living_area?: number;
+  image_url?: string;
+}
+
+export interface HostRequest {
+  id: string;
+  listing_key: string;
+  property_address?: string | null;
+  property_image?: string | null;
+  listing_owner_agent_id: string;
+  requesting_agent_id: string;
+  requesting_agent_name: string;
+  requesting_agent_brokerage?: string | null;
+  requesting_agent_email?: string | null;
+  requested_date: string;
+  requested_start_time: string;
+  requested_end_time: string;
+  message?: string | null;
+  status: HostRequestStatus;
+  created_at: string;
+  responded_at?: string | null;
+  counter_date?: string | null;
+  counter_start_time?: string | null;
+  counter_end_time?: string | null;
+  broadcast_id?: string | null;
+}
+
+export interface CreateHostRequestPayload {
+  listing_key: string;
+  requested_date: string;
+  requested_start_time: string;
+  requested_end_time: string;
+  message?: string;
+}
+
+export interface CreateHostRequestResult {
+  on_platform: boolean;
+  request?: HostRequest | null;
+}
+
+export interface CounterHostRequestPayload {
+  counter_date: string;
+  counter_start_time: string;
+  counter_end_time: string;
+}
+
+export interface AgentSearchResult {
+  id: string;
+  name: string;
+  brokerage?: string | null;
+  mls_id?: string | null;
+  email: string;
+}
+
+export interface TeamMember {
+  id: string;
+  agent_id: string;
+  name: string;
+  brokerage?: string | null;
+  mls_id?: string | null;
+  added_at: string;
+}
+
+export interface Broadcast {
+  id: string;
+  listing_key: string;
+  property_address?: string | null;
+  property_image?: string | null;
+  requested_date: string;
+  requested_start_time: string;
+  requested_end_time: string;
+  message?: string | null;
+  status: BroadcastStatus;
+  created_at: string;
+  interested_requests: HostRequest[];
+}
+
+export interface IncomingBroadcast {
+  id: string;
+  listing_key: string;
+  property_address?: string | null;
+  property_image?: string | null;
+  owner_agent_name: string;
+  owner_agent_brokerage?: string | null;
+  requested_date: string;
+  requested_start_time: string;
+  requested_end_time: string;
+  message?: string | null;
+  status: BroadcastStatus;
+  created_at: string;
+  my_response_status?: HostRequestStatus | null;
+}
+
+export interface CreateBroadcastPayload {
+  listing_key: string;
+  requested_date: string;
+  requested_start_time: string;
+  requested_end_time: string;
+  message?: string;
+}
+
+export interface NearbyPlace {
+  name: string;
+  address?: string | null;
+  distance_miles?: number | null;
+  place_type?: string | null;
+}
+
+export interface NearbyAmenitiesResponse {
+  schools: NearbyPlace[];
+  private_schools: NearbyPlace[];
+  grocery_stores: NearbyPlace[];
+  medical_care: NearbyPlace[];
+  parks: NearbyPlace[];
+  downtown_areas: NearbyPlace[];
+  airports: NearbyPlace[];
+  available: boolean;
+  cached_at?: string | null;
+}
+
+export interface ScheduledOpen {
+  id: string;
+  scheduled_date?: string | null;
+  scheduled_start_time?: string | null;
+  scheduled_end_time?: string | null;
+  hosting_agent_id: string;
+  hosting_agent_name: string;
+  hosting_agent_brokerage?: string | null;
+}
+
+export interface OpenHouseHistoryRow {
+  id: string;
+  event_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  hosting_agent_id: string;
+  hosting_agent_name: string;
+  hosting_agent_brokerage?: string | null;
+  total_guests: number;
+  unrepresented_guests: number;
+  requested_updates: number;
+}
+
+export interface OpenHouseKeyMetrics {
+  total_guests: number;
+  unrepresented_guests: number;
+  requested_updates: number;
+  total_opens_hosted: number;
+}
+
+export interface ListingHostNote {
+  notes?: string | null;
+  is_priority_override: boolean;
+  updated_at?: string | null;
+}
+
+export interface ListingDetail {
+  listing_key: string;
+  address?: string | null;
+  image?: string | null;
+  scheduled_opens: ScheduledOpen[];
+  pending_requests: HostRequest[];
+  history: OpenHouseHistoryRow[];
+  key_metrics: OpenHouseKeyMetrics;
+  notes: ListingHostNote;
 }
 
 export interface PropertyTour {
@@ -387,6 +599,9 @@ export interface User {
   state?: string;
   brokerage?: string;
   mls_id?: string;
+  photo_url?: string | null;
+  professional_title?: string | null;
+  market?: string | null;
   created_at: string;
   updated_at?: string;
   // PayPal subscription fields
@@ -420,7 +635,7 @@ export interface ApiResponse<T> {
 export interface NotificationResponse {
   id: string;
   agent_id: string;
-  type: 'OPEN_HOUSE_SIGN_IN' | 'TOUR_REQUEST' | 'PROPERTY_INTERACTION';
+  type: 'OPEN_HOUSE_SIGN_IN' | 'TOUR_REQUEST' | 'PROPERTY_INTERACTION' | 'FORM_SUBMISSION' | 'HOST_REQUEST_RECEIVED' | 'HOST_REQUEST_APPROVED' | 'HOST_REQUEST_DECLINED';
   reference_type: string;
   reference_id: string;
   title: string;
@@ -439,7 +654,7 @@ export interface NotificationResponse {
 // Frontend notification interface (camelCase for use in components)
 export interface Notification {
   id: string;
-  type: 'OPEN_HOUSE_SIGN_IN' | 'TOUR_REQUEST' | 'PROPERTY_INTERACTION';
+  type: 'OPEN_HOUSE_SIGN_IN' | 'TOUR_REQUEST' | 'PROPERTY_INTERACTION' | 'FORM_SUBMISSION' | 'HOST_REQUEST_RECEIVED' | 'HOST_REQUEST_APPROVED' | 'HOST_REQUEST_DECLINED';
   title: string;
   message: string;
   visitorName: string;
@@ -451,4 +666,133 @@ export interface Notification {
   isRead: boolean;
   readAt?: string;
   timestamp: string; // Maps to created_at
+}
+
+// ---- Agent Hub Forms ----
+
+export type FormQuestionType = 'short_text' | 'long_text' | 'email' | 'phone' | 'number' | 'select' | 'date' | 'time' | 'currency' | 'multi_select' | 'contact_group' | 'statement';
+
+export interface FormQuestionDependsOn {
+  question_id: string;
+  values: string[];
+}
+
+export interface ContactGroupField {
+  id: string;
+  type: FormQuestionType;
+  label: string;
+  required: boolean;
+}
+
+export interface FormQuestion {
+  id: string;
+  type: FormQuestionType;
+  label: string;
+  placeholder?: string | null;
+  required: boolean;
+  options?: string[] | null;
+  locked: boolean;
+  depends_on?: FormQuestionDependsOn | null;
+  section_title?: string | null;
+  unit?: string | null;
+  helper_text?: string | null;
+  fields?: ContactGroupField[] | null;
+}
+
+export type AgentFormType = 'buying' | 'selling' | 'home_value' | 'showing' | 'seller_onboarding' | 'buyer_onboarding' | 'how_can_i_help' | 'showcase_request' | 'custom';
+
+export interface LinkedProperty {
+  listing_key?: string | null;
+  address: string;
+  city?: string | null;
+  state?: string | null;
+  zipcode?: string | null;
+  price?: number | null;
+  original_price?: number | null;
+  beds?: number | null;
+  baths?: number | null;
+  sqft?: number | null;
+  acres?: number | null;
+  image_url?: string | null;
+  photos?: string[] | null;
+  status?: string | null;
+}
+
+// Authenticated agent-side form config (snake_case from API)
+export interface AgentFormConfig {
+  id: string;
+  form_type: AgentFormType;
+  slug: string;
+  title: string;
+  headline?: string | null;
+  subtitle?: string | null;
+  description?: string | null;
+  questions: FormQuestion[];
+  success_heading: string;
+  success_message?: string | null;
+  accent_color?: string | null;
+  show_branding: boolean;
+  dark_mode: boolean;
+  redirect_to_agent_hub: boolean;
+  property_photo_carousel: boolean;
+  branding_layout: 'top' | 'bottom' | 'split' | 'split_reverse' | 'integrated';
+  is_enabled: boolean;
+  order_index: number;
+  linked_property?: LinkedProperty | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+// Public visitor-facing form config (camelCase from API)
+export interface PublicFormConfig {
+  formId: string;
+  formType: AgentFormType;
+  slug: string;
+  title: string;
+  headline?: string | null;
+  subtitle?: string | null;
+  questions: FormQuestion[];
+  successHeading: string;
+  successMessage?: string | null;
+  accentColor?: string | null;
+  showBranding: boolean;
+  darkMode: boolean;
+  redirectToAgentHub: boolean;
+  propertyPhotoCarousel: boolean;
+  brandingLayout: 'top' | 'bottom' | 'split' | 'split_reverse' | 'integrated';
+  agentName: string;
+  agentBrokerage: string;
+  agentPhotoUrl?: string | null;
+  agentTitle?: string | null;
+  agentMarket?: string | null;
+  linkedProperty?: LinkedProperty | null;
+}
+
+// Lightweight public listing of an agent's forms (no auth), used to link "Buying"/"Selling"/etc. buttons to real forms
+export interface PublicFormSummary {
+  formId: string;
+  formType: AgentFormType;
+  slug: string;
+  title: string;
+}
+
+export interface FormSubmissionAnswer {
+  questionId: string;
+  label: string;
+  type: FormQuestionType;
+  value: unknown;
+  sectionTitle?: string | null;
+}
+
+export interface FormSubmissionListItem {
+  id: string;
+  form_id: string;
+  form_type: AgentFormType;
+  answers: FormSubmissionAnswer[];
+  contact_name?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  property_address?: string | null;
+  is_reviewed: boolean;
+  created_at: string;
 }

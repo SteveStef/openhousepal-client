@@ -31,28 +31,28 @@ export default function ConfirmationModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-[#111827]/40"
+        className="absolute inset-0 bg-[#111827]/40 dark:bg-black/60"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="relative bg-[#FAFAF7] rounded-[2rem] shadow-2xl max-w-lg w-full p-8 border border-white">
+      <div className="relative bg-[#FAFAF7] rounded-[2rem] shadow-2xl max-w-lg w-full p-8 border border-white dark:bg-[#151517] dark:border-gray-800">
         {/* Close button */}
         <button
           onClick={onClose}
           disabled={isLoading}
-          className="absolute top-6 right-6 text-gray-400 hover:text-[#111827] transition-colors disabled:opacity-50 p-2 hover:bg-white rounded-full shadow-sm"
+          className="absolute top-6 right-6 text-gray-400 hover:text-[#111827] transition-colors disabled:opacity-50 p-2 hover:bg-white rounded-full shadow-sm dark:hover:bg-gray-800 dark:hover:text-white"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Title */}
-        <h3 className="text-2xl font-black text-[#111827] mb-4 pr-8 tracking-tight">
+        <h3 className="text-2xl font-black text-[#111827] mb-4 pr-8 tracking-tight dark:text-white">
           {title}
         </h3>
 
         {/* Message */}
-        <p className="text-[#6B7280] mb-8 font-medium leading-relaxed text-base">
+        <p className="text-[#6B7280] mb-8 font-medium leading-relaxed text-base dark:text-gray-300">
           {message}
         </p>
 
@@ -61,7 +61,7 @@ export default function ConfirmationModal({
           <button
             onClick={onClose}
             disabled={isLoading}
-            className="flex-1 px-6 py-4 bg-white border border-gray-200 text-[#6B7280] rounded-2xl font-bold text-sm uppercase tracking-widest hover:bg-gray-50 hover:text-[#111827] hover:border-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            className="flex-1 px-6 py-4 bg-white border border-gray-200 text-[#6B7280] rounded-2xl font-bold text-sm uppercase tracking-widest hover:bg-gray-50 hover:text-[#111827] hover:border-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm dark:bg-[#0B0B0B] dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white dark:hover:border-gray-600"
           >
             {cancelText}
           </button>

@@ -13,6 +13,7 @@ import { ViewPDFsModal } from '@/components/ViewPDFsModal'
 import { EditSimilarPropertiesModal } from '@/components/EditSimilarPropertiesModal'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
 import { OpenHouse } from '@/types'
+import { buildBragSheetData, buildCheatSheetAgentData } from '@/lib/bragSheetData'
 
 // Components
 import { OpenHouseHistory } from './components/OpenHouseHistory'
@@ -118,7 +119,7 @@ function OpenHouseContent() {
   // PDF Preview State
   const [isPDFPreviewOpen, setIsPDFPreviewOpen] = useState(false)
   const [pdfPreviewData, setPdfPreviewData] = useState<any>(null)
-  const [pdfPreviewType, setPdfPreviewType] = useState<'flyer' | 'recommendations'>('flyer')
+  const [pdfPreviewType, setPdfPreviewType] = useState<'flyer' | 'recommendations' | 'bragSheet' | 'cheatSheet'>('flyer')
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState('')
   const [pdfPreviewAddress, setPdfPreviewAddress] = useState('')
   const [pdfPreviewAgentId, setPdfPreviewAgentId] = useState('')
@@ -144,7 +145,7 @@ function OpenHouseContent() {
     setIsViewPDFsModalOpen(false)
   }, [])
 
-  const triggerPreview = useCallback(async (mode: 'flyer' | 'recommendations', id?: string, customData?: any) => {
+  const triggerPreview = useCallback(async (mode: 'flyer' | 'recommendations' | 'bragSheet' | 'cheatSheet', id?: string, customData?: any) => {
     if (isPrintingRef.current) return;
     isPrintingRef.current = true;
     setIsGeneratingPDF(true);
@@ -153,13 +154,30 @@ function OpenHouseContent() {
     if (customData) {
       setPdfPreviewData(customData);
       setPdfPreviewType(mode);
-      setPdfPreviewTitle(mode === 'flyer' ? "Sign-In Flyer" : "Property Recommendations");
-      
+      setPdfPreviewTitle(mode === 'flyer' ? "Sign-In Flyer" : mode === 'bragSheet' ? "Agent Brag Sheet" : mode === 'cheatSheet' ? "Open House Cheat Sheet" : "Property Recommendations");
+
       if (mode === 'recommendations') {
         setPdfPreviewAddress(customData.address || '');
         setPdfPreviewAgentId(currentUser?.id || '');
       }
-      
+
+      setIsPDFPreviewOpen(true);
+      setIsGeneratingPDF(false);
+      isPrintingRef.current = false;
+      return;
+    }
+
+    if (mode === 'bragSheet') {
+      const { data, error } = await buildBragSheetData(currentUser);
+      if (!data) {
+        showToast(error || 'Unable to build your Brag Sheet right now.', 'error');
+        setIsGeneratingPDF(false);
+        isPrintingRef.current = false;
+        return;
+      }
+      setPdfPreviewData(data);
+      setPdfPreviewTitle("Agent Brag Sheet");
+      setPdfPreviewType('bragSheet');
       setIsPDFPreviewOpen(true);
       setIsGeneratingPDF(false);
       isPrintingRef.current = false;
@@ -167,7 +185,68 @@ function OpenHouseContent() {
     }
 
     const targetOH = id ? openHouses.find(oh => oh.id === id) : null;
-    
+
+    if (mode === 'cheatSheet') {
+      if (!targetOH?.listingKey) {
+        showToast("This listing isn't linked to an MLS record, so a Cheat Sheet can't be generated.", 'error');
+        setIsGeneratingPDF(false);
+        isPrintingRef.current = false;
+        return;
+      }
+      const [propertyRes, amenitiesRes, cheatSheetAgent] = await Promise.all([
+        api.properties.lookup({ listingKey: targetOH.listingKey }),
+        api.properties.getNearbyAmenities(targetOH.listingKey),
+        buildCheatSheetAgentData(currentUser),
+      ]);
+      if (!propertyRes.success || !propertyRes.data) {
+        showToast(propertyRes.error || 'Unable to load this listing right now.', 'error');
+        setIsGeneratingPDF(false);
+        isPrintingRef.current = false;
+        return;
+      }
+      const p = propertyRes.data;
+      setPdfPreviewData({
+        property: {
+          address: p.street_address || p.FullStreetAddress || targetOH.address,
+          city: p.city || p.City,
+          state: p.state || p.StateOrProvince,
+          price: p.price || p.ListPrice,
+          beds: p.bedrooms || p.BedroomsTotal,
+          baths: p.bathrooms || p.BathroomsTotal,
+          sqft: p.living_area || p.LivingArea,
+          aboveGradeSqft: p.above_grade_finished_area || p.AboveGradeFinishedArea,
+          belowGradeSqft: p.below_grade_finished_area || p.BelowGradeFinishedArea,
+          acres: p.lot_size_acres || p.LotSizeAcres,
+          township: p.township || p.MLSAreaMajor,
+          schoolDistrict: p.school_district_name || p.SchoolDistrictName,
+          elementarySchool: p.elementary_school || p.ElementarySchool,
+          middleSchool: p.middle_or_junior_school || p.MiddleOrJuniorSchool,
+          highSchool: p.high_school || p.HighSchool,
+          taxAnnualAmount: p.tax_annual_amount || p.TaxAnnualAmount,
+          taxYear: p.tax_year || p.TaxYear,
+          yearBuilt: p.year_built || p.YearBuilt,
+          waterSource: p.water_source || p.WaterSource,
+          sewer: p.sewer || p.Sewer,
+          heating: p.heating || p.Heating,
+          heatingFuel: p.heating_fuel || p.HeatingFuel,
+          cooling: p.cooling || p.Cooling,
+          hoaFee: p.association_fee || p.AssociationFee,
+          hoaFeeFrequency: p.association_fee_frequency || p.AssociationFeeFrequency,
+          hoaIncludes: p.association_fee_includes || p.AssociationFeeIncludes,
+          description: p.description || p.PublicRemarks,
+          photos: (targetOH.cheatSheetPhotos && targetOH.cheatSheetPhotos.length > 0) ? targetOH.cheatSheetPhotos : (p.photos || []).slice(0, 3),
+        },
+        agent: cheatSheetAgent,
+        amenities: amenitiesRes.success ? amenitiesRes.data : undefined,
+      });
+      setPdfPreviewTitle("Open House Cheat Sheet");
+      setPdfPreviewType('cheatSheet');
+      setIsPDFPreviewOpen(true);
+      setIsGeneratingPDF(false);
+      isPrintingRef.current = false;
+      return;
+    }
+
     if (targetOH) {
        if (mode === 'flyer') {
           const flyerData = {
@@ -193,12 +272,12 @@ function OpenHouseContent() {
        setIsGeneratingPDF(false);
        isPrintingRef.current = false;
     } else {
-      // If no ID is passed, this is coming from the Wizard (handled internally by Wizard now, 
+      // If no ID is passed, this is coming from the Wizard (handled internally by Wizard now,
       // but keeping compatibility for now if needed, though Wizard has its own triggerPreview)
       setIsGeneratingPDF(false);
       isPrintingRef.current = false;
     }
-  }, [openHouses, currentUser])
+  }, [openHouses, currentUser, showToast])
 
   const handleOpenOpenHouseNoteModal = useCallback((openHouse: OpenHouse) => {
     setSelectedOpenHouseForNote(openHouse)
@@ -327,6 +406,8 @@ function OpenHouseContent() {
           onViewFlyer={() => triggerPreview('flyer', openHouseForPDFs.id)}
           onViewRecommendations={() => triggerPreview('recommendations', openHouseForPDFs.id)}
           onEditRecommendations={() => handleOpenEditSimilar(openHouseForPDFs)}
+          onViewBragSheet={() => triggerPreview('bragSheet', openHouseForPDFs.id)}
+          onViewCheatSheet={() => triggerPreview('cheatSheet', openHouseForPDFs.id)}
         />
       )}
 

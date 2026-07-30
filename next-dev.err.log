@@ -1,9 +1,2969 @@
-⚠ Port 3000 is in use by process 39396, using available port 3001 instead.
-⨯ Another next dev server is already running.
+⚠ Fast Refresh had to perform a full reload when ./lib/api-service.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⨯ ./components/forms/FormRunner.tsx:497:17
+Expected '</', got 'ident'
+  [90m495 |[0m                   </button>
+  [90m496 |[0m                 </div>
+[31m[1m>[0m [90m497 |[0m               </motion.div>
+  [90m    |[0m                 [31m[1m^^^^^^[0m
+  [90m498 |[0m             )}
+  [90m499 |[0m
+  [90m500 |[0m             {isSuccess && (
 
-- Local:        http://localhost:3000
-- PID:          39396
-- Dir:          C:\Users\snazz\Desktop\L1\frontend
-- Log:          .next\dev\logs\next-development.log
+Parsing ecmascript source code failed
 
-Run taskkill /PID 39396 /F to stop it.
+Import traces:
+  Client Component Browser:
+    ./components/forms/FormRunner.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/forms/FormRunner.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./components/forms/FormRunner.tsx:497:17
+Expected '</', got 'ident'
+  [90m495 |[0m                   </button>
+  [90m496 |[0m                 </div>
+[31m[1m>[0m [90m497 |[0m               </motion.div>
+  [90m    |[0m                 [31m[1m^^^^^^[0m
+  [90m498 |[0m             )}
+  [90m499 |[0m
+  [90m500 |[0m             {isSuccess && (
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./components/forms/FormRunner.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/forms/FormRunner.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./components/forms/FormRunner.tsx:497:17
+Expected '</', got 'ident'
+  [90m495 |[0m                   </button>
+  [90m496 |[0m                 </div>
+[31m[1m>[0m [90m497 |[0m               </motion.div>
+  [90m    |[0m                 [31m[1m^^^^^^[0m
+  [90m498 |[0m             )}
+  [90m499 |[0m
+  [90m500 |[0m             {isSuccess && (
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./components/forms/FormRunner.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/forms/FormRunner.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./components/forms/FormRunner.tsx:497:17
+Expected '</', got 'ident'
+  [90m495 |[0m                   </button>
+  [90m496 |[0m                 </div>
+[31m[1m>[0m [90m497 |[0m               </motion.div>
+  [90m    |[0m                 [31m[1m^^^^^^[0m
+  [90m498 |[0m             )}
+  [90m499 |[0m
+  [90m500 |[0m             {isSuccess && (
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./components/forms/FormRunner.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/forms/FormRunner.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./components/forms/FormRunner.tsx:497:17
+Expected '</', got 'ident'
+  [90m495 |[0m                   </button>
+  [90m496 |[0m                 </div>
+[31m[1m>[0m [90m497 |[0m               </motion.div>
+  [90m    |[0m                 [31m[1m^^^^^^[0m
+  [90m498 |[0m             )}
+  [90m499 |[0m
+  [90m500 |[0m             {isSuccess && (
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./components/forms/FormRunner.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/forms/FormRunner.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./components/forms/FormRunner.tsx:497:17
+Expected '</', got 'ident'
+  [90m495 |[0m                   </button>
+  [90m496 |[0m                 </div>
+[31m[1m>[0m [90m497 |[0m               </motion.div>
+  [90m    |[0m                 [31m[1m^^^^^^[0m
+  [90m498 |[0m             )}
+  [90m499 |[0m
+  [90m500 |[0m             {isSuccess && (
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./components/forms/FormRunner.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/forms/FormRunner.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] Uncaught Error: ./components/forms/FormRunner.tsx:497:17
+Expected '</', got 'ident'
+  495 |                   </button>
+  496 |                 </div>
+> 497 |               </motion.div>
+      |                 ^^^^^^
+  498 |             )}
+  499 |
+  500 |             {isSuccess && (
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./components/forms/FormRunner.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/forms/FormRunner.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./components/forms/FormRunner.tsx:497:17)
+    at <unknown> (Error: (./components/forms/FormRunner.tsx:497:17)
+[browser] Uncaught Error: ./components/forms/FormRunner.tsx:497:17
+Expected '</', got 'ident'
+  495 |                   </button>
+  496 |                 </div>
+> 497 |               </motion.div>
+      |                 ^^^^^^
+  498 |             )}
+  499 |
+  500 |             {isSuccess && (
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./components/forms/FormRunner.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/forms/FormRunner.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./components/forms/FormRunner.tsx:497:17)
+    at <unknown> (Error: (./components/forms/FormRunner.tsx:497:17)
+⨯ ./app/agent-hub/page.tsx:2232:9
+Expression expected
+  [90m2230 |[0m             )}
+  [90m2231 |[0m           </section>
+[31m[1m>[0m [90m2232 |[0m         </div>
+  [90m     |[0m         [31m[1m^[0m
+  [90m2233 |[0m       </div>
+  [90m2234 |[0m
+  [90m2235 |[0m       <[33mFormResultsModal[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+
+./app/agent-hub/page.tsx:1980:14
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  [90m1978 |[0m                 })}
+  [90m1979 |[0m               </div>
+[31m[1m>[0m [90m1980 |[0m             )}
+  [90m     |[0m              [31m[1m^[0m
+  [90m1981 |[0m
+  [90m1982 |[0m             {activeTab === [32m'Share Forms'[0m && (
+  [90m1983 |[0m               <div className=[32m"rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"[0m>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+
+./app/agent-hub/page.tsx:2232:10
+Unterminated regexp literal
+  [90m2230 |[0m             )}
+  [90m2231 |[0m           </section>
+[31m[1m>[0m [90m2232 |[0m         </div>
+  [90m     |[0m          [31m[1m^^^^^[0m
+  [90m2233 |[0m       </div>
+  [90m2234 |[0m
+  [90m2235 |[0m       <[33mFormResultsModal[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:2232:9
+Expression expected
+  [90m2230 |[0m             )}
+  [90m2231 |[0m           </section>
+[31m[1m>[0m [90m2232 |[0m         </div>
+  [90m     |[0m         [31m[1m^[0m
+  [90m2233 |[0m       </div>
+  [90m2234 |[0m
+  [90m2235 |[0m       <[33mFormResultsModal[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+
+./app/agent-hub/page.tsx:1980:14
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  [90m1978 |[0m                 })}
+  [90m1979 |[0m               </div>
+[31m[1m>[0m [90m1980 |[0m             )}
+  [90m     |[0m              [31m[1m^[0m
+  [90m1981 |[0m
+  [90m1982 |[0m             {activeTab === [32m'Share Forms'[0m && (
+  [90m1983 |[0m               <div className=[32m"rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"[0m>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+
+./app/agent-hub/page.tsx:2232:10
+Unterminated regexp literal
+  [90m2230 |[0m             )}
+  [90m2231 |[0m           </section>
+[31m[1m>[0m [90m2232 |[0m         </div>
+  [90m     |[0m          [31m[1m^^^^^[0m
+  [90m2233 |[0m       </div>
+  [90m2234 |[0m
+  [90m2235 |[0m       <[33mFormResultsModal[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] ./app/agent-hub/page.tsx:2232:9
+Expression expected
+  2230 |             )}
+  2231 |           </section>
+> 2232 |         </div>
+       |         ^
+  2233 |       </div>
+  2234 |
+  2235 |       <FormResultsModal
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:1980:14
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  1978 |                 })}
+  1979 |               </div>
+> 1980 |             )}
+       |              ^
+  1981 |
+  1982 |             {activeTab === 'Share Forms' && (
+  1983 |               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:2232:10
+Unterminated regexp literal
+  2230 |             )}
+  2231 |           </section>
+> 2232 |         </div>
+       |          ^^^^^
+  2233 |       </div>
+  2234 |
+  2235 |       <FormResultsModal
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+⨯ ./app/agent-hub/page.tsx:2232:9
+Expression expected
+  [90m2230 |[0m             )}
+  [90m2231 |[0m           </section>
+[31m[1m>[0m [90m2232 |[0m         </div>
+  [90m     |[0m         [31m[1m^[0m
+  [90m2233 |[0m       </div>
+  [90m2234 |[0m
+  [90m2235 |[0m       <[33mFormResultsModal[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+
+./app/agent-hub/page.tsx:1980:14
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  [90m1978 |[0m                 })}
+  [90m1979 |[0m               </div>
+[31m[1m>[0m [90m1980 |[0m             )}
+  [90m     |[0m              [31m[1m^[0m
+  [90m1981 |[0m
+  [90m1982 |[0m             {activeTab === [32m'Share Forms'[0m && (
+  [90m1983 |[0m               <div className=[32m"rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"[0m>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+
+./app/agent-hub/page.tsx:2232:10
+Unterminated regexp literal
+  [90m2230 |[0m             )}
+  [90m2231 |[0m           </section>
+[31m[1m>[0m [90m2232 |[0m         </div>
+  [90m     |[0m          [31m[1m^^^^^[0m
+  [90m2233 |[0m       </div>
+  [90m2234 |[0m
+  [90m2235 |[0m       <[33mFormResultsModal[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:2232:9
+Expression expected
+  [90m2230 |[0m             )}
+  [90m2231 |[0m           </section>
+[31m[1m>[0m [90m2232 |[0m         </div>
+  [90m     |[0m         [31m[1m^[0m
+  [90m2233 |[0m       </div>
+  [90m2234 |[0m
+  [90m2235 |[0m       <[33mFormResultsModal[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+
+./app/agent-hub/page.tsx:1980:14
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  [90m1978 |[0m                 })}
+  [90m1979 |[0m               </div>
+[31m[1m>[0m [90m1980 |[0m             )}
+  [90m     |[0m              [31m[1m^[0m
+  [90m1981 |[0m
+  [90m1982 |[0m             {activeTab === [32m'Share Forms'[0m && (
+  [90m1983 |[0m               <div className=[32m"rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"[0m>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+
+./app/agent-hub/page.tsx:2232:10
+Unterminated regexp literal
+  [90m2230 |[0m             )}
+  [90m2231 |[0m           </section>
+[31m[1m>[0m [90m2232 |[0m         </div>
+  [90m     |[0m          [31m[1m^^^^^[0m
+  [90m2233 |[0m       </div>
+  [90m2234 |[0m
+  [90m2235 |[0m       <[33mFormResultsModal[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:2232:9
+Expression expected
+  [90m2230 |[0m             )}
+  [90m2231 |[0m           </section>
+[31m[1m>[0m [90m2232 |[0m         </div>
+  [90m     |[0m         [31m[1m^[0m
+  [90m2233 |[0m       </div>
+  [90m2234 |[0m
+  [90m2235 |[0m       <[33mFormResultsModal[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+
+./app/agent-hub/page.tsx:1980:14
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  [90m1978 |[0m                 })}
+  [90m1979 |[0m               </div>
+[31m[1m>[0m [90m1980 |[0m             )}
+  [90m     |[0m              [31m[1m^[0m
+  [90m1981 |[0m
+  [90m1982 |[0m             {activeTab === [32m'Share Forms'[0m && (
+  [90m1983 |[0m               <div className=[32m"rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"[0m>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+
+./app/agent-hub/page.tsx:2232:10
+Unterminated regexp literal
+  [90m2230 |[0m             )}
+  [90m2231 |[0m           </section>
+[31m[1m>[0m [90m2232 |[0m         </div>
+  [90m     |[0m          [31m[1m^^^^^[0m
+  [90m2233 |[0m       </div>
+  [90m2234 |[0m
+  [90m2235 |[0m       <[33mFormResultsModal[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:2232:9
+Expression expected
+  [90m2230 |[0m             )}
+  [90m2231 |[0m           </section>
+[31m[1m>[0m [90m2232 |[0m         </div>
+  [90m     |[0m         [31m[1m^[0m
+  [90m2233 |[0m       </div>
+  [90m2234 |[0m
+  [90m2235 |[0m       <[33mFormResultsModal[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+
+./app/agent-hub/page.tsx:1980:14
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  [90m1978 |[0m                 })}
+  [90m1979 |[0m               </div>
+[31m[1m>[0m [90m1980 |[0m             )}
+  [90m     |[0m              [31m[1m^[0m
+  [90m1981 |[0m
+  [90m1982 |[0m             {activeTab === [32m'Share Forms'[0m && (
+  [90m1983 |[0m               <div className=[32m"rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"[0m>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+
+./app/agent-hub/page.tsx:2232:10
+Unterminated regexp literal
+  [90m2230 |[0m             )}
+  [90m2231 |[0m           </section>
+[31m[1m>[0m [90m2232 |[0m         </div>
+  [90m     |[0m          [31m[1m^^^^^[0m
+  [90m2233 |[0m       </div>
+  [90m2234 |[0m
+  [90m2235 |[0m       <[33mFormResultsModal[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:2232:9
+Expression expected
+  2230 |             )}
+  2231 |           </section>
+> 2232 |         </div>
+       |         ^
+  2233 |       </div>
+  2234 |
+  2235 |       <FormResultsModal
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:2232:9)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:2232:9)
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:2232:9
+Expression expected
+  2230 |             )}
+  2231 |           </section>
+> 2232 |         </div>
+       |         ^
+  2233 |       </div>
+  2234 |
+  2235 |       <FormResultsModal
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:2232:9)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:2232:9)
+[browser] ./app/agent-hub/page.tsx:2232:9
+Expression expected
+  2230 |             )}
+  2231 |           </section>
+> 2232 |         </div>
+       |         ^
+  2233 |       </div>
+  2234 |
+  2235 |       <FormResultsModal
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:1980:14
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  1978 |                 })}
+  1979 |               </div>
+> 1980 |             )}
+       |              ^
+  1981 |
+  1982 |             {activeTab === 'Share Forms' && (
+  1983 |               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:2232:10
+Unterminated regexp literal
+  2230 |             )}
+  2231 |           </section>
+> 2232 |         </div>
+       |          ^^^^^
+  2233 |       </div>
+  2234 |
+  2235 |       <FormResultsModal
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:2232:9
+Expression expected
+  2230 |             )}
+  2231 |           </section>
+> 2232 |         </div>
+       |         ^
+  2233 |       </div>
+  2234 |
+  2235 |       <FormResultsModal
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:1980:14
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  1978 |                 })}
+  1979 |               </div>
+> 1980 |             )}
+       |              ^
+  1981 |
+  1982 |             {activeTab === 'Share Forms' && (
+  1983 |               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:2232:10
+Unterminated regexp literal
+  2230 |             )}
+  2231 |           </section>
+> 2232 |         </div>
+       |          ^^^^^
+  2233 |       </div>
+  2234 |
+  2235 |       <FormResultsModal
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:2232:9
+Expression expected
+  2230 |             )}
+  2231 |           </section>
+> 2232 |         </div>
+       |         ^
+  2233 |       </div>
+  2234 |
+  2235 |       <FormResultsModal
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:1980:14
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  1978 |                 })}
+  1979 |               </div>
+> 1980 |             )}
+       |              ^
+  1981 |
+  1982 |             {activeTab === 'Share Forms' && (
+  1983 |               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:2232:10
+Unterminated regexp literal
+  2230 |             )}
+  2231 |           </section>
+> 2232 |         </div>
+       |          ^^^^^
+  2233 |       </div>
+  2234 |
+  2235 |       <FormResultsModal
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:2232:9
+Expression expected
+  2230 |             )}
+  2231 |           </section>
+> 2232 |         </div>
+       |         ^
+  2233 |       </div>
+  2234 |
+  2235 |       <FormResultsModal
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:1980:14
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  1978 |                 })}
+  1979 |               </div>
+> 1980 |             )}
+       |              ^
+  1981 |
+  1982 |             {activeTab === 'Share Forms' && (
+  1983 |               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:2232:10
+Unterminated regexp literal
+  2230 |             )}
+  2231 |           </section>
+> 2232 |         </div>
+       |          ^^^^^
+  2233 |       </div>
+  2234 |
+  2235 |       <FormResultsModal
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:2232:9
+Expression expected
+  2230 |             )}
+  2231 |           </section>
+> 2232 |         </div>
+       |         ^
+  2233 |       </div>
+  2234 |
+  2235 |       <FormResultsModal
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:1980:14
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  1978 |                 })}
+  1979 |               </div>
+> 1980 |             )}
+       |              ^
+  1981 |
+  1982 |             {activeTab === 'Share Forms' && (
+  1983 |               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:2232:10
+Unterminated regexp literal
+  2230 |             )}
+  2231 |           </section>
+> 2232 |         </div>
+       |          ^^^^^
+  2233 |       </div>
+  2234 |
+  2235 |       <FormResultsModal
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+⨯ ./app/agent-hub/page.tsx:2001:20
+Expected '</', got 'ident'
+  [90m1999 |[0m               </div>
+  [90m2000 |[0m
+[31m[1m>[0m [90m2001 |[0m               <div className=[32m"min-w-0"[0m>
+  [90m     |[0m                    [31m[1m^^^^^^^^^[0m
+  [90m2002 |[0m                 <div className=[32m"sticky top-4 rounded-2xl border border-gray-200 bg-white...[0m
+  [90m2003 |[0m                   <div className=[32m"space-y-1"[0m>
+  [90m2004 |[0m                     <h2 className=[32m"text-xl font-black"[0m>[33mLive[0m preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] ./app/agent-hub/page.tsx:2001:20
+Expected '</', got 'ident'
+  1999 |               </div>
+  2000 |
+> 2001 |               <div className="min-w-0">
+       |                    ^^^^^^^^^
+  2002 |                 <div className="sticky top-4 rounded-2xl border border-gray-200 bg-white...
+  2003 |                   <div className="space-y-1">
+  2004 |                     <h2 className="text-xl font-black">Live preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:2001:20
+Expected '</', got 'ident'
+  1999 |               </div>
+  2000 |
+> 2001 |               <div className="min-w-0">
+       |                    ^^^^^^^^^
+  2002 |                 <div className="sticky top-4 rounded-2xl border border-gray-200 bg-white...
+  2003 |                   <div className="space-y-1">
+  2004 |                     <h2 className="text-xl font-black">Live preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+⨯ ./app/agent-hub/page.tsx:2001:20
+Expected '</', got 'ident'
+  [90m1999 |[0m               </div>
+  [90m2000 |[0m
+[31m[1m>[0m [90m2001 |[0m               <div className=[32m"min-w-0"[0m>
+  [90m     |[0m                    [31m[1m^^^^^^^^^[0m
+  [90m2002 |[0m                 <div className=[32m"sticky top-4 rounded-2xl border border-gray-200 bg-white...[0m
+  [90m2003 |[0m                   <div className=[32m"space-y-1"[0m>
+  [90m2004 |[0m                     <h2 className=[32m"text-xl font-black"[0m>[33mLive[0m preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:2001:20
+Expected '</', got 'ident'
+  [90m1999 |[0m               </div>
+  [90m2000 |[0m
+[31m[1m>[0m [90m2001 |[0m               <div className=[32m"min-w-0"[0m>
+  [90m     |[0m                    [31m[1m^^^^^^^^^[0m
+  [90m2002 |[0m                 <div className=[32m"sticky top-4 rounded-2xl border border-gray-200 bg-white...[0m
+  [90m2003 |[0m                   <div className=[32m"space-y-1"[0m>
+  [90m2004 |[0m                     <h2 className=[32m"text-xl font-black"[0m>[33mLive[0m preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:2001:20
+Expected '</', got 'ident'
+  [90m1999 |[0m               </div>
+  [90m2000 |[0m
+[31m[1m>[0m [90m2001 |[0m               <div className=[32m"min-w-0"[0m>
+  [90m     |[0m                    [31m[1m^^^^^^^^^[0m
+  [90m2002 |[0m                 <div className=[32m"sticky top-4 rounded-2xl border border-gray-200 bg-white...[0m
+  [90m2003 |[0m                   <div className=[32m"space-y-1"[0m>
+  [90m2004 |[0m                     <h2 className=[32m"text-xl font-black"[0m>[33mLive[0m preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:2001:20
+Expected '</', got 'ident'
+  [90m1999 |[0m               </div>
+  [90m2000 |[0m
+[31m[1m>[0m [90m2001 |[0m               <div className=[32m"min-w-0"[0m>
+  [90m     |[0m                    [31m[1m^^^^^^^^^[0m
+  [90m2002 |[0m                 <div className=[32m"sticky top-4 rounded-2xl border border-gray-200 bg-white...[0m
+  [90m2003 |[0m                   <div className=[32m"space-y-1"[0m>
+  [90m2004 |[0m                     <h2 className=[32m"text-xl font-black"[0m>[33mLive[0m preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:2001:20
+Expected '</', got 'ident'
+  [90m1999 |[0m               </div>
+  [90m2000 |[0m
+[31m[1m>[0m [90m2001 |[0m               <div className=[32m"min-w-0"[0m>
+  [90m     |[0m                    [31m[1m^^^^^^^^^[0m
+  [90m2002 |[0m                 <div className=[32m"sticky top-4 rounded-2xl border border-gray-200 bg-white...[0m
+  [90m2003 |[0m                   <div className=[32m"space-y-1"[0m>
+  [90m2004 |[0m                     <h2 className=[32m"text-xl font-black"[0m>[33mLive[0m preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:2001:20
+Expected '</', got 'ident'
+  1999 |               </div>
+  2000 |
+> 2001 |               <div className="min-w-0">
+       |                    ^^^^^^^^^
+  2002 |                 <div className="sticky top-4 rounded-2xl border border-gray-200 bg-white...
+  2003 |                   <div className="space-y-1">
+  2004 |                     <h2 className="text-xl font-black">Live preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:2001:20)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:2001:20)
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:2001:20
+Expected '</', got 'ident'
+  1999 |               </div>
+  2000 |
+> 2001 |               <div className="min-w-0">
+       |                    ^^^^^^^^^
+  2002 |                 <div className="sticky top-4 rounded-2xl border border-gray-200 bg-white...
+  2003 |                   <div className="space-y-1">
+  2004 |                     <h2 className="text-xl font-black">Live preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:2001:20)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:2001:20)
+[browser] ./app/agent-hub/page.tsx:2001:20
+Expected '</', got 'ident'
+  1999 |               </div>
+  2000 |
+> 2001 |               <div className="min-w-0">
+       |                    ^^^^^^^^^
+  2002 |                 <div className="sticky top-4 rounded-2xl border border-gray-200 bg-white...
+  2003 |                   <div className="space-y-1">
+  2004 |                     <h2 className="text-xl font-black">Live preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:2001:20
+Expected '</', got 'ident'
+  1999 |               </div>
+  2000 |
+> 2001 |               <div className="min-w-0">
+       |                    ^^^^^^^^^
+  2002 |                 <div className="sticky top-4 rounded-2xl border border-gray-200 bg-white...
+  2003 |                   <div className="space-y-1">
+  2004 |                     <h2 className="text-xl font-black">Live preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:2001:20
+Expected '</', got 'ident'
+  1999 |               </div>
+  2000 |
+> 2001 |               <div className="min-w-0">
+       |                    ^^^^^^^^^
+  2002 |                 <div className="sticky top-4 rounded-2xl border border-gray-200 bg-white...
+  2003 |                   <div className="space-y-1">
+  2004 |                     <h2 className="text-xl font-black">Live preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+⨯ ./app/agent-hub/page.tsx:2239:7
+Expression expected
+  [90m2237 |[0m       </div>
+  [90m2238 |[0m
+[31m[1m>[0m [90m2239 |[0m       <[33mFormResultsModal[0m
+  [90m     |[0m       [31m[1m^[0m
+  [90m2240 |[0m         isOpen={[33mBoolean[0m(resultsModalFormId)}
+  [90m2241 |[0m         onClose={() => setResultsModalFormId([32m''[0m)}
+  [90m2242 |[0m         form={agentForms.find(form => form.id === resultsModalFormId) || [36mnull[0m}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] ./app/agent-hub/page.tsx:2239:7
+Expression expected
+  2237 |       </div>
+  2238 |
+> 2239 |       <FormResultsModal
+       |       ^
+  2240 |         isOpen={Boolean(resultsModalFormId)}
+  2241 |         onClose={() => setResultsModalFormId('')}
+  2242 |         form={agentForms.find(form => form.id === resultsModalFormId) || null}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:2239:7
+Expression expected
+  2237 |       </div>
+  2238 |
+> 2239 |       <FormResultsModal
+       |       ^
+  2240 |         isOpen={Boolean(resultsModalFormId)}
+  2241 |         onClose={() => setResultsModalFormId('')}
+  2242 |         form={agentForms.find(form => form.id === resultsModalFormId) || null}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+⨯ ./app/agent-hub/page.tsx:2239:7
+Expression expected
+  [90m2237 |[0m       </div>
+  [90m2238 |[0m
+[31m[1m>[0m [90m2239 |[0m       <[33mFormResultsModal[0m
+  [90m     |[0m       [31m[1m^[0m
+  [90m2240 |[0m         isOpen={[33mBoolean[0m(resultsModalFormId)}
+  [90m2241 |[0m         onClose={() => setResultsModalFormId([32m''[0m)}
+  [90m2242 |[0m         form={agentForms.find(form => form.id === resultsModalFormId) || [36mnull[0m}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:2239:7
+Expression expected
+  [90m2237 |[0m       </div>
+  [90m2238 |[0m
+[31m[1m>[0m [90m2239 |[0m       <[33mFormResultsModal[0m
+  [90m     |[0m       [31m[1m^[0m
+  [90m2240 |[0m         isOpen={[33mBoolean[0m(resultsModalFormId)}
+  [90m2241 |[0m         onClose={() => setResultsModalFormId([32m''[0m)}
+  [90m2242 |[0m         form={agentForms.find(form => form.id === resultsModalFormId) || [36mnull[0m}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:2239:7
+Expression expected
+  [90m2237 |[0m       </div>
+  [90m2238 |[0m
+[31m[1m>[0m [90m2239 |[0m       <[33mFormResultsModal[0m
+  [90m     |[0m       [31m[1m^[0m
+  [90m2240 |[0m         isOpen={[33mBoolean[0m(resultsModalFormId)}
+  [90m2241 |[0m         onClose={() => setResultsModalFormId([32m''[0m)}
+  [90m2242 |[0m         form={agentForms.find(form => form.id === resultsModalFormId) || [36mnull[0m}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:2239:7
+Expression expected
+  [90m2237 |[0m       </div>
+  [90m2238 |[0m
+[31m[1m>[0m [90m2239 |[0m       <[33mFormResultsModal[0m
+  [90m     |[0m       [31m[1m^[0m
+  [90m2240 |[0m         isOpen={[33mBoolean[0m(resultsModalFormId)}
+  [90m2241 |[0m         onClose={() => setResultsModalFormId([32m''[0m)}
+  [90m2242 |[0m         form={agentForms.find(form => form.id === resultsModalFormId) || [36mnull[0m}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:2239:7
+Expression expected
+  [90m2237 |[0m       </div>
+  [90m2238 |[0m
+[31m[1m>[0m [90m2239 |[0m       <[33mFormResultsModal[0m
+  [90m     |[0m       [31m[1m^[0m
+  [90m2240 |[0m         isOpen={[33mBoolean[0m(resultsModalFormId)}
+  [90m2241 |[0m         onClose={() => setResultsModalFormId([32m''[0m)}
+  [90m2242 |[0m         form={agentForms.find(form => form.id === resultsModalFormId) || [36mnull[0m}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:2239:7
+Expression expected
+  2237 |       </div>
+  2238 |
+> 2239 |       <FormResultsModal
+       |       ^
+  2240 |         isOpen={Boolean(resultsModalFormId)}
+  2241 |         onClose={() => setResultsModalFormId('')}
+  2242 |         form={agentForms.find(form => form.id === resultsModalFormId) || null}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:2239:7)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:2239:7)
+[browser] ./app/agent-hub/page.tsx:2239:7
+Expression expected
+  2237 |       </div>
+  2238 |
+> 2239 |       <FormResultsModal
+       |       ^
+  2240 |         isOpen={Boolean(resultsModalFormId)}
+  2241 |         onClose={() => setResultsModalFormId('')}
+  2242 |         form={agentForms.find(form => form.id === resultsModalFormId) || null}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:2239:7
+Expression expected
+  2237 |       </div>
+  2238 |
+> 2239 |       <FormResultsModal
+       |       ^
+  2240 |         isOpen={Boolean(resultsModalFormId)}
+  2241 |         onClose={() => setResultsModalFormId('')}
+  2242 |         form={agentForms.find(form => form.id === resultsModalFormId) || null}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:2239:7
+Expression expected
+  2237 |       </div>
+  2238 |
+> 2239 |       <FormResultsModal
+       |       ^
+  2240 |         isOpen={Boolean(resultsModalFormId)}
+  2241 |         onClose={() => setResultsModalFormId('')}
+  2242 |         form={agentForms.find(form => form.id === resultsModalFormId) || null}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:2239:7)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:2239:7)
+[browser] ./app/agent-hub/page.tsx:2239:7
+Expression expected
+  2237 |       </div>
+  2238 |
+> 2239 |       <FormResultsModal
+       |       ^
+  2240 |         isOpen={Boolean(resultsModalFormId)}
+  2241 |         onClose={() => setResultsModalFormId('')}
+  2242 |         form={agentForms.find(form => form.id === resultsModalFormId) || null}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+⨯ ./app/agent-hub/page.tsx:1755:20
+Expected '</', got ')'
+  [90m1753 |[0m                       )}
+  [90m1754 |[0m                     </div>
+[31m[1m>[0m [90m1755 |[0m                   ))}
+  [90m     |[0m                    [31m[1m^[0m
+  [90m1756 |[0m                 </div>
+  [90m1757 |[0m                 <div className=[32m"sticky top-4 h-fit min-w-0 rounded-2xl border border-gra...[0m
+  [90m1758 |[0m                   <div className=[32m"space-y-1"[0m>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1755:20
+Expected '</', got ')'
+  [90m1753 |[0m                       )}
+  [90m1754 |[0m                     </div>
+[31m[1m>[0m [90m1755 |[0m                   ))}
+  [90m     |[0m                    [31m[1m^[0m
+  [90m1756 |[0m                 </div>
+  [90m1757 |[0m                 <div className=[32m"sticky top-4 h-fit min-w-0 rounded-2xl border border-gra...[0m
+  [90m1758 |[0m                   <div className=[32m"space-y-1"[0m>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1755:20
+Expected '</', got ')'
+  [90m1753 |[0m                       )}
+  [90m1754 |[0m                     </div>
+[31m[1m>[0m [90m1755 |[0m                   ))}
+  [90m     |[0m                    [31m[1m^[0m
+  [90m1756 |[0m                 </div>
+  [90m1757 |[0m                 <div className=[32m"sticky top-4 h-fit min-w-0 rounded-2xl border border-gra...[0m
+  [90m1758 |[0m                   <div className=[32m"space-y-1"[0m>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1755:20
+Expected '</', got ')'
+  [90m1753 |[0m                       )}
+  [90m1754 |[0m                     </div>
+[31m[1m>[0m [90m1755 |[0m                   ))}
+  [90m     |[0m                    [31m[1m^[0m
+  [90m1756 |[0m                 </div>
+  [90m1757 |[0m                 <div className=[32m"sticky top-4 h-fit min-w-0 rounded-2xl border border-gra...[0m
+  [90m1758 |[0m                   <div className=[32m"space-y-1"[0m>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1755:20
+Expected '</', got ')'
+  [90m1753 |[0m                       )}
+  [90m1754 |[0m                     </div>
+[31m[1m>[0m [90m1755 |[0m                   ))}
+  [90m     |[0m                    [31m[1m^[0m
+  [90m1756 |[0m                 </div>
+  [90m1757 |[0m                 <div className=[32m"sticky top-4 h-fit min-w-0 rounded-2xl border border-gra...[0m
+  [90m1758 |[0m                   <div className=[32m"space-y-1"[0m>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:1755:20
+Expected '</', got ')'
+  1753 |                       )}
+  1754 |                     </div>
+> 1755 |                   ))}
+       |                    ^
+  1756 |                 </div>
+  1757 |                 <div className="sticky top-4 h-fit min-w-0 rounded-2xl border border-gra...
+  1758 |                   <div className="space-y-1">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:1755:20)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:1755:20)
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:1755:20
+Expected '</', got ')'
+  1753 |                       )}
+  1754 |                     </div>
+> 1755 |                   ))}
+       |                    ^
+  1756 |                 </div>
+  1757 |                 <div className="sticky top-4 h-fit min-w-0 rounded-2xl border border-gra...
+  1758 |                   <div className="space-y-1">
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:1755:20)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:1755:20)
+⨯ ./app/agent-hub/page.tsx:1923:35
+Expected '</', got 'jsx text'
+  [90m1921 |[0m                             onSubmit={[36masync[0m () => ({ success: [36mtrue[0m })}
+  [90m1922 |[0m                           />
+[31m[1m>[0m [90m1923 |[0m                           </label>
+  [90m     |[0m                                   [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m1924 |[0m                           <div className=[32m"flex items-center justify-between gap-4 rounde...[0m
+  [90m     |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m1925 |[0m                             <div>
+  [90m1926 |[0m                               <p className=[32m"text-sm font-black"[0m>[33mShow[0m your photo &amp; na...
+  [90m1927 |[0m                               <p className=[32m"mt-0.5 text-xs text-gray-500"[0m>[33mDisplays[0m your ...
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1923:35
+Expected '</', got 'jsx text'
+  [90m1921 |[0m                             onSubmit={[36masync[0m () => ({ success: [36mtrue[0m })}
+  [90m1922 |[0m                           />
+[31m[1m>[0m [90m1923 |[0m                           </label>
+  [90m     |[0m                                   [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m1924 |[0m                           <div className=[32m"flex items-center justify-between gap-4 rounde...[0m
+  [90m     |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m1925 |[0m                             <div>
+  [90m1926 |[0m                               <p className=[32m"text-sm font-black"[0m>[33mShow[0m your photo &amp; na...
+  [90m1927 |[0m                               <p className=[32m"mt-0.5 text-xs text-gray-500"[0m>[33mDisplays[0m your ...
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1923:35
+Expected '</', got 'jsx text'
+  [90m1921 |[0m                             onSubmit={[36masync[0m () => ({ success: [36mtrue[0m })}
+  [90m1922 |[0m                           />
+[31m[1m>[0m [90m1923 |[0m                           </label>
+  [90m     |[0m                                   [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m1924 |[0m                           <div className=[32m"flex items-center justify-between gap-4 rounde...[0m
+  [90m     |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m1925 |[0m                             <div>
+  [90m1926 |[0m                               <p className=[32m"text-sm font-black"[0m>[33mShow[0m your photo &amp; na...
+  [90m1927 |[0m                               <p className=[32m"mt-0.5 text-xs text-gray-500"[0m>[33mDisplays[0m your ...
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1923:35
+Expected '</', got 'jsx text'
+  [90m1921 |[0m                             onSubmit={[36masync[0m () => ({ success: [36mtrue[0m })}
+  [90m1922 |[0m                           />
+[31m[1m>[0m [90m1923 |[0m                           </label>
+  [90m     |[0m                                   [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m1924 |[0m                           <div className=[32m"flex items-center justify-between gap-4 rounde...[0m
+  [90m     |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m1925 |[0m                             <div>
+  [90m1926 |[0m                               <p className=[32m"text-sm font-black"[0m>[33mShow[0m your photo &amp; na...
+  [90m1927 |[0m                               <p className=[32m"mt-0.5 text-xs text-gray-500"[0m>[33mDisplays[0m your ...
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1923:35
+Expected '</', got 'jsx text'
+  [90m1921 |[0m                             onSubmit={[36masync[0m () => ({ success: [36mtrue[0m })}
+  [90m1922 |[0m                           />
+[31m[1m>[0m [90m1923 |[0m                           </label>
+  [90m     |[0m                                   [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m1924 |[0m                           <div className=[32m"flex items-center justify-between gap-4 rounde...[0m
+  [90m     |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m1925 |[0m                             <div>
+  [90m1926 |[0m                               <p className=[32m"text-sm font-black"[0m>[33mShow[0m your photo &amp; na...
+  [90m1927 |[0m                               <p className=[32m"mt-0.5 text-xs text-gray-500"[0m>[33mDisplays[0m your ...
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1923:35
+Expected '</', got 'jsx text'
+  [90m1921 |[0m                             onSubmit={[36masync[0m () => ({ success: [36mtrue[0m })}
+  [90m1922 |[0m                           />
+[31m[1m>[0m [90m1923 |[0m                           </label>
+  [90m     |[0m                                   [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m1924 |[0m                           <div className=[32m"flex items-center justify-between gap-4 rounde...[0m
+  [90m     |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m1925 |[0m                             <div>
+  [90m1926 |[0m                               <p className=[32m"text-sm font-black"[0m>[33mShow[0m your photo &amp; na...
+  [90m1927 |[0m                               <p className=[32m"mt-0.5 text-xs text-gray-500"[0m>[33mDisplays[0m your ...
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1923:35
+Expected '</', got 'jsx text'
+  [90m1921 |[0m                             onSubmit={[36masync[0m () => ({ success: [36mtrue[0m })}
+  [90m1922 |[0m                           />
+[31m[1m>[0m [90m1923 |[0m                           </label>
+  [90m     |[0m                                   [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m1924 |[0m                           <div className=[32m"flex items-center justify-between gap-4 rounde...[0m
+  [90m     |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m1925 |[0m                             <div>
+  [90m1926 |[0m                               <p className=[32m"text-sm font-black"[0m>[33mShow[0m your photo &amp; na...
+  [90m1927 |[0m                               <p className=[32m"mt-0.5 text-xs text-gray-500"[0m>[33mDisplays[0m your ...
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:1923:35
+Expected '</', got 'jsx text'
+  1921 |                             onSubmit={async () => ({ success: true })}
+  1922 |                           />
+> 1923 |                           </label>
+       |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 1924 |                           <div className="flex items-center justify-between gap-4 rounde...
+       | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  1925 |                             <div>
+  1926 |                               <p className="text-sm font-black">Show your photo &amp; na...
+  1927 |                               <p className="mt-0.5 text-xs text-gray-500">Displays your ...
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:1923:35)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:1923:35)
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:1923:35
+Expected '</', got 'jsx text'
+  1921 |                             onSubmit={async () => ({ success: true })}
+  1922 |                           />
+> 1923 |                           </label>
+       |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 1924 |                           <div className="flex items-center justify-between gap-4 rounde...
+       | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  1925 |                             <div>
+  1926 |                               <p className="text-sm font-black">Show your photo &amp; na...
+  1927 |                               <p className="mt-0.5 text-xs text-gray-500">Displays your ...
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:1923:35)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:1923:35)
+⨯ ./app/agent-hub/page.tsx:1916:20
+Expected '</', got 'ident'
+  [90m1914 |[0m               </div>
+  [90m1915 |[0m
+[31m[1m>[0m [90m1916 |[0m               <div className=[32m"min-w-0"[0m>
+  [90m     |[0m                    [31m[1m^^^^^^^^^[0m
+  [90m1917 |[0m                 <div className=[32m"sticky top-4 rounded-2xl border border-gray-200 bg-white...[0m
+  [90m1918 |[0m                   <div className=[32m"space-y-1"[0m>
+  [90m1919 |[0m                     <h2 className=[32m"text-xl font-black dark:text-white"[0m>[33mLive[0m preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] ./app/agent-hub/page.tsx:1916:20
+Expected '</', got 'ident'
+  1914 |               </div>
+  1915 |
+> 1916 |               <div className="min-w-0">
+       |                    ^^^^^^^^^
+  1917 |                 <div className="sticky top-4 rounded-2xl border border-gray-200 bg-white...
+  1918 |                   <div className="space-y-1">
+  1919 |                     <h2 className="text-xl font-black dark:text-white">Live preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+⨯ ./app/agent-hub/page.tsx:1916:20
+Expected '</', got 'ident'
+  [90m1914 |[0m               </div>
+  [90m1915 |[0m
+[31m[1m>[0m [90m1916 |[0m               <div className=[32m"min-w-0"[0m>
+  [90m     |[0m                    [31m[1m^^^^^^^^^[0m
+  [90m1917 |[0m                 <div className=[32m"sticky top-4 rounded-2xl border border-gray-200 bg-white...[0m
+  [90m1918 |[0m                   <div className=[32m"space-y-1"[0m>
+  [90m1919 |[0m                     <h2 className=[32m"text-xl font-black dark:text-white"[0m>[33mLive[0m preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1916:20
+Expected '</', got 'ident'
+  [90m1914 |[0m               </div>
+  [90m1915 |[0m
+[31m[1m>[0m [90m1916 |[0m               <div className=[32m"min-w-0"[0m>
+  [90m     |[0m                    [31m[1m^^^^^^^^^[0m
+  [90m1917 |[0m                 <div className=[32m"sticky top-4 rounded-2xl border border-gray-200 bg-white...[0m
+  [90m1918 |[0m                   <div className=[32m"space-y-1"[0m>
+  [90m1919 |[0m                     <h2 className=[32m"text-xl font-black dark:text-white"[0m>[33mLive[0m preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1916:20
+Expected '</', got 'ident'
+  [90m1914 |[0m               </div>
+  [90m1915 |[0m
+[31m[1m>[0m [90m1916 |[0m               <div className=[32m"min-w-0"[0m>
+  [90m     |[0m                    [31m[1m^^^^^^^^^[0m
+  [90m1917 |[0m                 <div className=[32m"sticky top-4 rounded-2xl border border-gray-200 bg-white...[0m
+  [90m1918 |[0m                   <div className=[32m"space-y-1"[0m>
+  [90m1919 |[0m                     <h2 className=[32m"text-xl font-black dark:text-white"[0m>[33mLive[0m preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] ./app/agent-hub/page.tsx:1916:20
+Expected '</', got 'ident'
+  1914 |               </div>
+  1915 |
+> 1916 |               <div className="min-w-0">
+       |                    ^^^^^^^^^
+  1917 |                 <div className="sticky top-4 rounded-2xl border border-gray-200 bg-white...
+  1918 |                   <div className="space-y-1">
+  1919 |                     <h2 className="text-xl font-black dark:text-white">Live preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+⨯ ./app/agent-hub/page.tsx:1916:20
+Expected '</', got 'ident'
+  [90m1914 |[0m               </div>
+  [90m1915 |[0m
+[31m[1m>[0m [90m1916 |[0m               <div className=[32m"min-w-0"[0m>
+  [90m     |[0m                    [31m[1m^^^^^^^^^[0m
+  [90m1917 |[0m                 <div className=[32m"sticky top-4 rounded-2xl border border-gray-200 bg-white...[0m
+  [90m1918 |[0m                   <div className=[32m"space-y-1"[0m>
+  [90m1919 |[0m                     <h2 className=[32m"text-xl font-black dark:text-white"[0m>[33mLive[0m preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1916:20
+Expected '</', got 'ident'
+  [90m1914 |[0m               </div>
+  [90m1915 |[0m
+[31m[1m>[0m [90m1916 |[0m               <div className=[32m"min-w-0"[0m>
+  [90m     |[0m                    [31m[1m^^^^^^^^^[0m
+  [90m1917 |[0m                 <div className=[32m"sticky top-4 rounded-2xl border border-gray-200 bg-white...[0m
+  [90m1918 |[0m                   <div className=[32m"space-y-1"[0m>
+  [90m1919 |[0m                     <h2 className=[32m"text-xl font-black dark:text-white"[0m>[33mLive[0m preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1916:20
+Expected '</', got 'ident'
+  [90m1914 |[0m               </div>
+  [90m1915 |[0m
+[31m[1m>[0m [90m1916 |[0m               <div className=[32m"min-w-0"[0m>
+  [90m     |[0m                    [31m[1m^^^^^^^^^[0m
+  [90m1917 |[0m                 <div className=[32m"sticky top-4 rounded-2xl border border-gray-200 bg-white...[0m
+  [90m1918 |[0m                   <div className=[32m"space-y-1"[0m>
+  [90m1919 |[0m                     <h2 className=[32m"text-xl font-black dark:text-white"[0m>[33mLive[0m preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:1916:20
+Expected '</', got 'ident'
+  1914 |               </div>
+  1915 |
+> 1916 |               <div className="min-w-0">
+       |                    ^^^^^^^^^
+  1917 |                 <div className="sticky top-4 rounded-2xl border border-gray-200 bg-white...
+  1918 |                   <div className="space-y-1">
+  1919 |                     <h2 className="text-xl font-black dark:text-white">Live preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:1916:20)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:1916:20)
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:1916:20
+Expected '</', got 'ident'
+  1914 |               </div>
+  1915 |
+> 1916 |               <div className="min-w-0">
+       |                    ^^^^^^^^^
+  1917 |                 <div className="sticky top-4 rounded-2xl border border-gray-200 bg-white...
+  1918 |                   <div className="space-y-1">
+  1919 |                     <h2 className="text-xl font-black dark:text-white">Live preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:1916:20)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:1916:20)
+[browser] ./app/agent-hub/page.tsx:1916:20
+Expected '</', got 'ident'
+  1914 |               </div>
+  1915 |
+> 1916 |               <div className="min-w-0">
+       |                    ^^^^^^^^^
+  1917 |                 <div className="sticky top-4 rounded-2xl border border-gray-200 bg-white...
+  1918 |                   <div className="space-y-1">
+  1919 |                     <h2 className="text-xl font-black dark:text-white">Live preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:1916:20
+Expected '</', got 'ident'
+  1914 |               </div>
+  1915 |
+> 1916 |               <div className="min-w-0">
+       |                    ^^^^^^^^^
+  1917 |                 <div className="sticky top-4 rounded-2xl border border-gray-200 bg-white...
+  1918 |                   <div className="space-y-1">
+  1919 |                     <h2 className="text-xl font-black dark:text-white">Live preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:1916:20
+Expected '</', got 'ident'
+  1914 |               </div>
+  1915 |
+> 1916 |               <div className="min-w-0">
+       |                    ^^^^^^^^^
+  1917 |                 <div className="sticky top-4 rounded-2xl border border-gray-200 bg-white...
+  1918 |                   <div className="space-y-1">
+  1919 |                     <h2 className="text-xl font-black dark:text-white">Live preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:1916:20
+Expected '</', got 'ident'
+  1914 |               </div>
+  1915 |
+> 1916 |               <div className="min-w-0">
+       |                    ^^^^^^^^^
+  1917 |                 <div className="sticky top-4 rounded-2xl border border-gray-200 bg-white...
+  1918 |                   <div className="space-y-1">
+  1919 |                     <h2 className="text-xl font-black dark:text-white">Live preview</h2>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+⚠ Fast Refresh had to perform a full reload when ./lib/api-service.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload when ./lib/api-service.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+Error: Route "/AgentHub/[slug]/sales" used `params.slug`. `params` is a Promise and must be unwrapped with `await` or `React.use()` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at LegacyAgentHubSalesPage (app\AgentHub\[slug]\sales\page.tsx:4:23)
+  2 |
+  3 | export default function LegacyAgentHubSalesPage({ params }: { params: { slug: string } }) {
+> 4 |   redirect(`/${params.slug}/sales`)
+    |                       ^
+  5 | }
+  6 |
+⚠ Fast Refresh had to perform a full reload when ./lib/api-service.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload when ./lib/api-service.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[browser] Uncaught ReferenceError: motion is not defined
+    at <unknown> (app/agent-hub/page.tsx:1587:22)
+    at Array.map (<anonymous>)
+    at AgentHubContent (app/agent-hub/page.tsx:1580:67)
+    at AgentHubPage (app/agent-hub/page.tsx:747:11)
+  1585 |                 >
+  1586 |                   {activeNavGroup === group && (
+> 1587 |                     <motion.span
+       |                      ^
+  1588 |                       layoutId="agentHubMainNavPill"
+  1589 |                       className="absolute inset-0 rounded-xl bg-[#111827] dark:bg-white"
+  1590 |                       transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ./app/agent-hub/page.tsx:2286:21
+Expected '</', got 'jsx text'
+  [90m2284 |[0m               </div>
+  [90m2285 |[0m             )}
+[31m[1m>[0m [90m2286 |[0m           </section>
+  [90m     |[0m                     [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m2287 |[0m       </div>
+  [90m     |[0m [31m[1m^^^^^^[0m
+  [90m2288 |[0m
+  [90m2289 |[0m       <[33mFormResultsModal[0m
+  [90m2290 |[0m         isOpen={[33mBoolean[0m(resultsModalFormId)}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] ./app/agent-hub/page.tsx:2286:21
+Expected '</', got 'jsx text'
+  2284 |               </div>
+  2285 |             )}
+> 2286 |           </section>
+       |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 2287 |       </div>
+       | ^^^^^^
+  2288 |
+  2289 |       <FormResultsModal
+  2290 |         isOpen={Boolean(resultsModalFormId)}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+⨯ ./app/agent-hub/page.tsx:2286:21
+Expected '</', got 'jsx text'
+  [90m2284 |[0m               </div>
+  [90m2285 |[0m             )}
+[31m[1m>[0m [90m2286 |[0m           </section>
+  [90m     |[0m                     [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m2287 |[0m       </div>
+  [90m     |[0m [31m[1m^^^^^^[0m
+  [90m2288 |[0m
+  [90m2289 |[0m       <[33mFormResultsModal[0m
+  [90m2290 |[0m         isOpen={[33mBoolean[0m(resultsModalFormId)}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:2286:21
+Expected '</', got 'jsx text'
+  [90m2284 |[0m               </div>
+  [90m2285 |[0m             )}
+[31m[1m>[0m [90m2286 |[0m           </section>
+  [90m     |[0m                     [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m2287 |[0m       </div>
+  [90m     |[0m [31m[1m^^^^^^[0m
+  [90m2288 |[0m
+  [90m2289 |[0m       <[33mFormResultsModal[0m
+  [90m2290 |[0m         isOpen={[33mBoolean[0m(resultsModalFormId)}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:2286:21
+Expected '</', got 'jsx text'
+  [90m2284 |[0m               </div>
+  [90m2285 |[0m             )}
+[31m[1m>[0m [90m2286 |[0m           </section>
+  [90m     |[0m                     [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m2287 |[0m       </div>
+  [90m     |[0m [31m[1m^^^^^^[0m
+  [90m2288 |[0m
+  [90m2289 |[0m       <[33mFormResultsModal[0m
+  [90m2290 |[0m         isOpen={[33mBoolean[0m(resultsModalFormId)}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:2286:21
+Expected '</', got 'jsx text'
+  [90m2284 |[0m               </div>
+  [90m2285 |[0m             )}
+[31m[1m>[0m [90m2286 |[0m           </section>
+  [90m     |[0m                     [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[31m[1m>[0m [90m2287 |[0m       </div>
+  [90m     |[0m [31m[1m^^^^^^[0m
+  [90m2288 |[0m
+  [90m2289 |[0m       <[33mFormResultsModal[0m
+  [90m2290 |[0m         isOpen={[33mBoolean[0m(resultsModalFormId)}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:2286:21
+Expected '</', got 'jsx text'
+  2284 |               </div>
+  2285 |             )}
+> 2286 |           </section>
+       |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 2287 |       </div>
+       | ^^^^^^
+  2288 |
+  2289 |       <FormResultsModal
+  2290 |         isOpen={Boolean(resultsModalFormId)}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:2286:21)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:2286:21)
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:2286:21
+Expected '</', got 'jsx text'
+  2284 |               </div>
+  2285 |             )}
+> 2286 |           </section>
+       |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 2287 |       </div>
+       | ^^^^^^
+  2288 |
+  2289 |       <FormResultsModal
+  2290 |         isOpen={Boolean(resultsModalFormId)}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:2286:21)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:2286:21)
+[browser] ./app/agent-hub/page.tsx:2286:21
+Expected '</', got 'jsx text'
+  2284 |               </div>
+  2285 |             )}
+> 2286 |           </section>
+       |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 2287 |       </div>
+       | ^^^^^^
+  2288 |
+  2289 |       <FormResultsModal
+  2290 |         isOpen={Boolean(resultsModalFormId)}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+[browser] ./app/agent-hub/page.tsx:2286:21
+Expected '</', got 'jsx text'
+  2284 |               </div>
+  2285 |             )}
+> 2286 |           </section>
+       |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 2287 |       </div>
+       | ^^^^^^
+  2288 |
+  2289 |       <FormResultsModal
+  2290 |         isOpen={Boolean(resultsModalFormId)}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component] 
+⨯ ./app/agent-hub/page.tsx:1873:29
+Expected '</', got ':'
+  [90m1871 |[0m                               ))}
+  [90m1872 |[0m                             </div>
+[31m[1m>[0m [90m1873 |[0m                           ) : (
+  [90m     |[0m                             [31m[1m^[0m
+  [90m1874 |[0m                             <div className=[32m"grid gap-3 md:grid-cols-2"[0m>
+  [90m1875 |[0m                               {group.fields.map(([label, value]) => (
+  [90m1876 |[0m                                 <label key={label} className={[32m`block [0m${label === [32m'Profil...[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1873:29
+Expected '</', got ':'
+  [90m1871 |[0m                               ))}
+  [90m1872 |[0m                             </div>
+[31m[1m>[0m [90m1873 |[0m                           ) : (
+  [90m     |[0m                             [31m[1m^[0m
+  [90m1874 |[0m                             <div className=[32m"grid gap-3 md:grid-cols-2"[0m>
+  [90m1875 |[0m                               {group.fields.map(([label, value]) => (
+  [90m1876 |[0m                                 <label key={label} className={[32m`block [0m${label === [32m'Profil...[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1873:29
+Expected '</', got ':'
+  [90m1871 |[0m                               ))}
+  [90m1872 |[0m                             </div>
+[31m[1m>[0m [90m1873 |[0m                           ) : (
+  [90m     |[0m                             [31m[1m^[0m
+  [90m1874 |[0m                             <div className=[32m"grid gap-3 md:grid-cols-2"[0m>
+  [90m1875 |[0m                               {group.fields.map(([label, value]) => (
+  [90m1876 |[0m                                 <label key={label} className={[32m`block [0m${label === [32m'Profil...[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1873:29
+Expected '</', got ':'
+  [90m1871 |[0m                               ))}
+  [90m1872 |[0m                             </div>
+[31m[1m>[0m [90m1873 |[0m                           ) : (
+  [90m     |[0m                             [31m[1m^[0m
+  [90m1874 |[0m                             <div className=[32m"grid gap-3 md:grid-cols-2"[0m>
+  [90m1875 |[0m                               {group.fields.map(([label, value]) => (
+  [90m1876 |[0m                                 <label key={label} className={[32m`block [0m${label === [32m'Profil...[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1873:29
+Expected '</', got ':'
+  [90m1871 |[0m                               ))}
+  [90m1872 |[0m                             </div>
+[31m[1m>[0m [90m1873 |[0m                           ) : (
+  [90m     |[0m                             [31m[1m^[0m
+  [90m1874 |[0m                             <div className=[32m"grid gap-3 md:grid-cols-2"[0m>
+  [90m1875 |[0m                               {group.fields.map(([label, value]) => (
+  [90m1876 |[0m                                 <label key={label} className={[32m`block [0m${label === [32m'Profil...[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1873:29
+Expected '</', got ':'
+  [90m1871 |[0m                               ))}
+  [90m1872 |[0m                             </div>
+[31m[1m>[0m [90m1873 |[0m                           ) : (
+  [90m     |[0m                             [31m[1m^[0m
+  [90m1874 |[0m                             <div className=[32m"grid gap-3 md:grid-cols-2"[0m>
+  [90m1875 |[0m                               {group.fields.map(([label, value]) => (
+  [90m1876 |[0m                                 <label key={label} className={[32m`block [0m${label === [32m'Profil...[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:1873:29
+Expected '</', got ':'
+  1871 |                               ))}
+  1872 |                             </div>
+> 1873 |                           ) : (
+       |                             ^
+  1874 |                             <div className="grid gap-3 md:grid-cols-2">
+  1875 |                               {group.fields.map(([label, value]) => (
+  1876 |                                 <label key={label} className={`block ${label === 'Profil...
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:1873:29)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:1873:29)
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:1873:29
+Expected '</', got ':'
+  1871 |                               ))}
+  1872 |                             </div>
+> 1873 |                           ) : (
+       |                             ^
+  1874 |                             <div className="grid gap-3 md:grid-cols-2">
+  1875 |                               {group.fields.map(([label, value]) => (
+  1876 |                                 <label key={label} className={`block ${label === 'Profil...
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:1873:29)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:1873:29)
+⨯ ./app/agent-hub/page.tsx:1955:28
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  [90m1953 |[0m                               ))}
+  [90m1954 |[0m                             </div>
+[31m[1m>[0m [90m1955 |[0m                           )}
+  [90m     |[0m                            [31m[1m^[0m
+  [90m1956 |[0m                         </div>
+  [90m1957 |[0m                       )}
+  [90m1958 |[0m                     </div>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1955:28
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  [90m1953 |[0m                               ))}
+  [90m1954 |[0m                             </div>
+[31m[1m>[0m [90m1955 |[0m                           )}
+  [90m     |[0m                            [31m[1m^[0m
+  [90m1956 |[0m                         </div>
+  [90m1957 |[0m                       )}
+  [90m1958 |[0m                     </div>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1955:28
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  [90m1953 |[0m                               ))}
+  [90m1954 |[0m                             </div>
+[31m[1m>[0m [90m1955 |[0m                           )}
+  [90m     |[0m                            [31m[1m^[0m
+  [90m1956 |[0m                         </div>
+  [90m1957 |[0m                       )}
+  [90m1958 |[0m                     </div>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1955:28
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  [90m1953 |[0m                               ))}
+  [90m1954 |[0m                             </div>
+[31m[1m>[0m [90m1955 |[0m                           )}
+  [90m     |[0m                            [31m[1m^[0m
+  [90m1956 |[0m                         </div>
+  [90m1957 |[0m                       )}
+  [90m1958 |[0m                     </div>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1955:28
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  [90m1953 |[0m                               ))}
+  [90m1954 |[0m                             </div>
+[31m[1m>[0m [90m1955 |[0m                           )}
+  [90m     |[0m                            [31m[1m^[0m
+  [90m1956 |[0m                         </div>
+  [90m1957 |[0m                       )}
+  [90m1958 |[0m                     </div>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:1955:28
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  1953 |                               ))}
+  1954 |                             </div>
+> 1955 |                           )}
+       |                            ^
+  1956 |                         </div>
+  1957 |                       )}
+  1958 |                     </div>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:1955:28)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:1955:28)
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:1955:28
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  1953 |                               ))}
+  1954 |                             </div>
+> 1955 |                           )}
+       |                            ^
+  1956 |                         </div>
+  1957 |                       )}
+  1958 |                     </div>
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:1955:28)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:1955:28)
+⚠ Fast Refresh had to perform a full reload when ./lib/api-service.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload when ./lib/api-service.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⨯ ./app/agent-hub/page.tsx:1968:32
+Expected '</', got 'ident'
+  [90m1966 |[0m                               ))}
+  [90m1967 |[0m                           </div>
+[31m[1m>[0m [90m1968 |[0m                           <div className=[32m"mt-6 flex justify-end"[0m>
+  [90m     |[0m                                [31m[1m^^^^^^^^^[0m
+  [90m1969 |[0m                             <button
+  [90m1970 |[0m                               onClick={() => {
+  [90m1971 |[0m                                 handleSaveAgentHubChanges()
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1968:32
+Expected '</', got 'ident'
+  [90m1966 |[0m                               ))}
+  [90m1967 |[0m                           </div>
+[31m[1m>[0m [90m1968 |[0m                           <div className=[32m"mt-6 flex justify-end"[0m>
+  [90m     |[0m                                [31m[1m^^^^^^^^^[0m
+  [90m1969 |[0m                             <button
+  [90m1970 |[0m                               onClick={() => {
+  [90m1971 |[0m                                 handleSaveAgentHubChanges()
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+⨯ ./app/agent-hub/page.tsx:1968:32
+Expected '</', got 'ident'
+  [90m1966 |[0m                               ))}
+  [90m1967 |[0m                           </div>
+[31m[1m>[0m [90m1968 |[0m                           <div className=[32m"mt-6 flex justify-end"[0m>
+  [90m     |[0m                                [31m[1m^^^^^^^^^[0m
+  [90m1969 |[0m                             <button
+  [90m1970 |[0m                               onClick={() => {
+  [90m1971 |[0m                                 handleSaveAgentHubChanges()
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+[browser] Uncaught Error: ./app/agent-hub/page.tsx:1968:32
+Expected '</', got 'ident'
+  1966 |                               ))}
+  1967 |                           </div>
+> 1968 |                           <div className="mt-6 flex justify-end">
+       |                                ^^^^^^^^^
+  1969 |                             <button
+  1970 |                               onClick={() => {
+  1971 |                                 handleSaveAgentHubChanges()
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./app/agent-hub/page.tsx [Client Component Browser]
+    ./app/agent-hub/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/agent-hub/page.tsx [Client Component SSR]
+    ./app/agent-hub/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./app/agent-hub/page.tsx:1968:32)
+    at <unknown> (Error: (./app/agent-hub/page.tsx:1968:32)

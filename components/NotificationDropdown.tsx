@@ -1,7 +1,7 @@
 'use client'
 
 import { Notification } from '@/types'
-import { Calendar, Eye, Heart, X, Home } from 'lucide-react'
+import { Calendar, Eye, Heart, X, Home, FileText, Inbox, CheckCircle2, XCircle } from 'lucide-react'
 
 // Helper function to format timestamps
 const formatTimestamp = (timestamp: string): string => {
@@ -46,6 +46,14 @@ export default function NotificationDropdown({
         return <Calendar className="w-4 h-4" />
       case 'PROPERTY_INTERACTION':
         return <Heart className="w-4 h-4" />
+      case 'FORM_SUBMISSION':
+        return <FileText className="w-4 h-4" />
+      case 'HOST_REQUEST_RECEIVED':
+        return <Inbox className="w-4 h-4" />
+      case 'HOST_REQUEST_APPROVED':
+        return <CheckCircle2 className="w-4 h-4" />
+      case 'HOST_REQUEST_DECLINED':
+        return <XCircle className="w-4 h-4" />
       default:
         return <Eye className="w-4 h-4" />
     }
@@ -72,6 +80,34 @@ export default function NotificationDropdown({
           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
             {getTypeIcon(type)}
             <span className="ml-1">Property Activity</span>
+          </span>
+        )
+      case 'FORM_SUBMISSION':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#C9A24D]/15 dark:bg-[#C9A24D]/20 text-[#8b7355] dark:text-[#d7b974] border border-[#C9A24D]/30">
+            {getTypeIcon(type)}
+            <span className="ml-1">Form Submission</span>
+          </span>
+        )
+      case 'HOST_REQUEST_RECEIVED':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#C9A24D]/15 dark:bg-[#C9A24D]/20 text-[#8b7355] dark:text-[#d7b974] border border-[#C9A24D]/30">
+            {getTypeIcon(type)}
+            <span className="ml-1">Host Request</span>
+          </span>
+        )
+      case 'HOST_REQUEST_APPROVED':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border border-green-200 dark:border-green-800">
+            {getTypeIcon(type)}
+            <span className="ml-1">Request Approved</span>
+          </span>
+        )
+      case 'HOST_REQUEST_DECLINED':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+            {getTypeIcon(type)}
+            <span className="ml-1">Request Declined</span>
           </span>
         )
       default:

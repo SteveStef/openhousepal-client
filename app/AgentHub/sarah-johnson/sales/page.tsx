@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, Calendar, Home, MapPin, Phone, TrendingUp } from 'lucide-react'
+import api from '@/lib/api-service'
+import { PublicFormSummary } from '@/types'
 
 type AgentSale = { id: string; address: string; city: string; state: string; zipcode?: string; price?: number; status?: string; image?: string; sold_date?: string; visible?: boolean }
 
@@ -53,10 +55,27 @@ const formatCompactMoney = (value: number) => {
 export default function AgentHubSalesPage() {
   const pathname = usePathname()
   const agentHubBasePath = pathname.replace(/\/sales\/?$/, '') || '/AgentHub/sarah-johnson'
+  const agentSlug = agentHubBasePath.split('/').pop() || 'sarah-johnson'
   const [profile, setProfile] = useState(defaultProfile)
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('/home.jpg')
   const [sales, setSales] = useState<AgentSale[]>([])
   const [visitorDarkMode, setVisitorDarkMode] = useState(false)
+  const [publicForms, setPublicForms] = useState<PublicFormSummary[]>([])
+  const [hubStatus, setHubStatus] = useState<'loading' | 'found' | 'not-found'>('loading')
+
+  useEffect(() => {
+    let cancelled = false
+    api.public.checkAgentHub(agentSlug).then(response => {
+      if (!cancelled) setHubStatus(response.success ? 'found' : 'not-found')
+    })
+    return () => { cancelled = true }
+  }, [agentSlug])
+
+  useEffect(() => {
+    api.public.getPublicForms(agentSlug).then(response => {
+      if (response.success && response.data) setPublicForms(response.data)
+    })
+  }, [agentSlug])
 
   useEffect(() => {
     try {
@@ -92,6 +111,27 @@ export default function AgentHubSalesPage() {
     [sales]
   )
   const totalVolume = eligibleSales.reduce((sum, sale) => sum + (sale.price || 0), 0)
+  const buyingForm = publicForms.find(form => form.formType === 'buying')
+  const sellingForm = publicForms.find(form => form.formType === 'selling')
+
+  if (hubStatus === 'not-found') {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center bg-[#f7f5f1] px-6 text-center dark:bg-[#0B0B0B]">
+        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#8b7355] dark:text-[#d7b974]">OpenHousePal</p>
+        <h1 className="mt-3 font-serif text-3xl font-black text-[#111827] dark:text-white">This link isn&apos;t active</h1>
+        <p className="mt-2 max-w-sm text-sm font-medium text-[#5f6673] dark:text-gray-400">
+          We couldn&apos;t find an Agent Hub at this address. Double-check the link, or ask your agent for their current page.
+        </p>
+        <Link href="/" className="mt-6 inline-flex items-center justify-center rounded-full bg-[#111827] px-5 py-2.5 text-sm font-black text-white shadow-sm dark:bg-white dark:text-[#111827]">
+          Go to OpenHousePal
+        </Link>
+      </main>
+    )
+  }
+
+  if (hubStatus === 'loading') {
+    return <div className="min-h-screen bg-[#f7f5f1] dark:bg-[#0B0B0B]" />
+  }
 
   return (
     <div className={visitorDarkMode ? 'dark' : ''}>
@@ -105,7 +145,7 @@ export default function AgentHubSalesPage() {
       )}
       <section className="relative mx-auto max-w-5xl px-5 pb-12 pt-6">
         <Link href={agentHubBasePath} className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-black text-[#111827] shadow-sm dark:border-gray-700 dark:bg-[#151517] dark:text-white">
-          <ArrowLeft className="h-4 w-4" /> Back to Agent Hub
+          <ArrowLeft className="h-4 w-4" /> Back
         </Link>
 
         <header className="mt-6 overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-[#151517] dark:shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
@@ -170,14 +210,20 @@ export default function AgentHubSalesPage() {
         )}
 
         <section className="mt-8 grid gap-3 sm:grid-cols-3">
-          <a href="#" className="flex h-12 items-center justify-center gap-2 rounded-[14px] border border-gray-200 bg-white font-black text-[#111827] shadow-sm dark:border-gray-700 dark:bg-[#151517] dark:text-white">
-            <TrendingUp className="h-5 w-5" /> Selling
-          </a>
+          <Link
+            href={sellingForm ? `${agentHubBasePath}/${sellingForm.slug}` : '#'}
+            className={`flex h-12 items-center justify-center gap-2 rounded-[14px] border border-gray-200 bg-white font-black text-[#111827] shadow-sm dark:border-gray-700 dark:bg-[#151517] dark:text-white ${sellingForm ? '' : 'pointer-events-none opacity-50'}`}
+          >
+            <TrendingUp className="h-5 w-5" /> {sellingForm?.title || "I'm Selling"}
+          </Link>
           <a href="#" className="flex h-12 items-center justify-center gap-2 rounded-[14px] bg-[#d2b16f] font-black text-white shadow-lg shadow-[#d2b16f]/30">
             <Phone className="h-5 w-5" /> Contact Agent
           </a>
-          <Link href={agentHubBasePath} className="flex h-12 items-center justify-center gap-2 rounded-[14px] border border-gray-200 bg-white font-black text-[#111827] shadow-sm dark:border-gray-700 dark:bg-[#151517] dark:text-white">
-            <Home className="h-5 w-5" /> Buying
+          <Link
+            href={buyingForm ? `${agentHubBasePath}/${buyingForm.slug}` : '#'}
+            className={`flex h-12 items-center justify-center gap-2 rounded-[14px] border border-gray-200 bg-white font-black text-[#111827] shadow-sm dark:border-gray-700 dark:bg-[#151517] dark:text-white ${buyingForm ? '' : 'pointer-events-none opacity-50'}`}
+          >
+            <Home className="h-5 w-5" /> {buyingForm?.title || "I'm Buying"}
           </Link>
         </section>
       </section>

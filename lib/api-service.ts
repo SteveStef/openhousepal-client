@@ -1,16 +1,17 @@
-import { ApiResponse, User, OpenHouse, SearchPreferences, Notification, NotificationResponse } from '@/types';
+import { ApiResponse, User, OpenHouse, SearchPreferences, Notification, NotificationResponse, AgentFormConfig, PublicFormConfig, PublicFormSummary, FormSubmissionListItem, MyListingsResponse, MyListingItem, ManualListingPayload, HostRequest, CreateHostRequestPayload, CreateHostRequestResult, ListingDetail, ListingHostNote, CounterHostRequestPayload, AgentSearchResult, TeamMember, Broadcast, IncomingBroadcast, CreateBroadcastPayload, NearbyAmenitiesResponse } from '@/types';
 import { getToken, removeToken } from './token';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 class ApiService {
 
   private async request<T>(endpoint: string, options: RequestInit = {}, includeToken: boolean = true): Promise<ApiResponse<T>> {
     const url = `${API_BASE_URL}${endpoint}`;
     const token = includeToken ? getToken() : null;
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
 
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...options.headers,
     };
 
@@ -166,10 +167,13 @@ class ApiService {
     },
     getByQR: (qrCode: string) => this.request<any>(`/api/open-house/property/${qrCode}`),
     
-    lookup: (address: string) => this.request<any>('/api/properties/lookup', {
+    lookup: (query: string | { listingKey: string }) => this.request<any>('/api/properties/lookup', {
       method: 'POST',
-      body: JSON.stringify({ address }),
+      body: JSON.stringify(typeof query === 'string' ? { address: query } : { listing_key: query.listingKey }),
     }),
+
+    getNearbyAmenities: (listingKey: string) =>
+      this.request<NearbyAmenitiesResponse>(`/api/properties/${encodeURIComponent(listingKey)}/nearby-amenities`),
 
     // this is used for the OHP kit
     address: async (address: string) => this.request<{ results: { address: string, lat: number, lng: number }[] }>(`/api/properties/address?query=${encodeURIComponent(address)}`),
@@ -283,6 +287,98 @@ class ApiService {
     updateVisitorNote: (visitorId: string, notes: string) => this.request(`/api/visitors/${visitorId}/note`, {
       method: 'PUT',
       body: JSON.stringify({ notes }),
+    }),
+  };
+
+  /**
+   * Open House Manager Namespace (My Listings, host requests, per-listing insights/notes)
+   */
+  public openHouseManager = {
+    getMyListings: () => this.request<MyListingsResponse>('/api/open-house-manager/my-listings'),
+
+    getListingStatuses: (listingKeys: string[]) =>
+      this.request<Record<string, 'needs_host' | 'scheduled'>>(`/api/open-house-manager/listing-status?listing_keys=${encodeURIComponent(listingKeys.join(','))}`),
+
+    getHostRequests: (statusFilter: string = 'pending') =>
+      this.request<HostRequest[]>(`/api/open-house-manager/host-requests?status=${encodeURIComponent(statusFilter)}`),
+
+    getMyRequests: () => this.request<HostRequest[]>('/api/open-house-manager/my-requests'),
+
+    createRequest: (payload: CreateHostRequestPayload) => this.request<CreateHostRequestResult>('/api/open-house-manager/requests', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+    approveRequest: (requestId: string) => this.request<HostRequest>(`/api/open-house-manager/host-requests/${requestId}/approve`, {
+      method: 'POST',
+    }),
+
+    declineRequest: (requestId: string) => this.request<HostRequest>(`/api/open-house-manager/host-requests/${requestId}/decline`, {
+      method: 'POST',
+    }),
+
+    counterRequest: (requestId: string, payload: CounterHostRequestPayload) => this.request<HostRequest>(`/api/open-house-manager/host-requests/${requestId}/counter`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+    acceptCounter: (requestId: string) => this.request<HostRequest>(`/api/open-house-manager/host-requests/${requestId}/counter/accept`, {
+      method: 'POST',
+    }),
+
+    declineCounter: (requestId: string) => this.request<HostRequest>(`/api/open-house-manager/host-requests/${requestId}/counter/decline`, {
+      method: 'POST',
+    }),
+
+    searchAgents: (q: string) => this.request<AgentSearchResult[]>(`/api/open-house-manager/team/search-agents?q=${encodeURIComponent(q)}`),
+
+    getTeamMembers: () => this.request<TeamMember[]>('/api/open-house-manager/team/members'),
+
+    addTeamMember: (identifier: string) => this.request<TeamMember>('/api/open-house-manager/team/members', {
+      method: 'POST',
+      body: JSON.stringify({ identifier }),
+    }),
+
+    removeTeamMember: (memberId: string) => this.request<null>(`/api/open-house-manager/team/members/${encodeURIComponent(memberId)}`, {
+      method: 'DELETE',
+    }),
+
+    getMyBroadcasts: () => this.request<Broadcast[]>('/api/open-house-manager/team/broadcasts/mine'),
+
+    getIncomingBroadcasts: () => this.request<IncomingBroadcast[]>('/api/open-house-manager/team/broadcasts/incoming'),
+
+    createBroadcast: (payload: CreateBroadcastPayload) => this.request<Broadcast>('/api/open-house-manager/team/broadcasts', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+    respondToBroadcast: (broadcastId: string) => this.request<HostRequest>(`/api/open-house-manager/team/broadcasts/${broadcastId}/respond`, {
+      method: 'POST',
+    }),
+
+    cancelBroadcast: (broadcastId: string) => this.request<null>(`/api/open-house-manager/team/broadcasts/${broadcastId}`, {
+      method: 'DELETE',
+    }),
+
+    getListingDetail: (listingKey: string) => this.request<ListingDetail>(`/api/open-house-manager/listings/${encodeURIComponent(listingKey)}`),
+
+    saveListingNotes: (listingKey: string, payload: { notes?: string; is_priority_override?: boolean }) =>
+      this.request<ListingHostNote>(`/api/open-house-manager/listings/${encodeURIComponent(listingKey)}/notes`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }),
+
+    addManualListing: (payload: ManualListingPayload) => this.request<MyListingItem>('/api/open-house-manager/my-listings/manual', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+    removeManualListing: (listingKey: string) => this.request<null>(`/api/open-house-manager/my-listings/manual/${encodeURIComponent(listingKey)}`, {
+      method: 'DELETE',
+    }),
+
+    refreshListings: () => this.request<{ status: 'started' }>('/api/open-house-manager/refresh-listings', {
+      method: 'POST',
     }),
   };
 
@@ -463,7 +559,13 @@ class ApiService {
    * Agent Hub Namespace
    */
   public agentHub = {
-    getMine: () => this.request<{ id: string; slug: string; status: string } | null>('/agent-hub/me'),
+    getMine: () => this.request<{ id: string; slug: string; status: string; config?: Record<string, any> } | null>('/agent-hub/me'),
+
+    saveConfig: (config: Record<string, any>) =>
+      this.request<{ config: Record<string, any> }>('/agent-hub/me/config', {
+        method: 'PUT',
+        body: JSON.stringify({ config }),
+      }),
 
     getRecentSales: (reLicenseNumber?: string) => this.request<Array<{
       id: string;
@@ -482,6 +584,9 @@ class ApiService {
     getYoutubeChannelVideos: (channelUrl: string) =>
       this.request<{ channel_url: string; videos: Array<{ id: string; title: string; description?: string; image?: string; link: string }> }>(`/agent-hub/youtube/videos?channel_url=${encodeURIComponent(channelUrl)}`),
 
+    getYoutubePlaylistVideos: (playlistUrl: string) =>
+      this.request<{ playlist_url: string; videos: Array<{ id: string; title: string; description?: string; image?: string; link: string }> }>(`/agent-hub/youtube/playlist-videos?playlist_url=${encodeURIComponent(playlistUrl)}`),
+
     checkSlug: (slug: string) =>
       this.request<{ slug: string; available: boolean; owned_by_current_user: boolean }>(`/agent-hub/slug/check?slug=${encodeURIComponent(slug)}`),
 
@@ -489,6 +594,70 @@ class ApiService {
       method: 'PUT',
       body: JSON.stringify({ slug }),
     }),
+
+    updateProfile: (data: { title?: string; market?: string }) =>
+      this.request<{ title: string | null; market: string | null }>('/agent-hub/me/profile', {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+
+    uploadPhoto: (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      return this.request<{ photo_url: string }>('/agent-hub/me/photo', {
+        method: 'POST',
+        body: formData,
+      });
+    },
+
+    deletePhoto: () => this.request<{ photo_url: null }>('/agent-hub/me/photo', {
+      method: 'DELETE',
+    }),
+
+    getAnalytics: () => this.request<{ type: 'visit' | 'qr' | 'form'; timestamp: string }[]>('/agent-hub/me/analytics'),
+  };
+
+  /**
+   * Agent Hub Forms (Buying / Selling / What's My Home Worth) — authenticated
+   */
+  public forms = {
+    getMine: () => this.request<AgentFormConfig[]>('/agent-hub/forms/me'),
+
+    createForm: (title: string) =>
+      this.request<AgentFormConfig>('/agent-hub/forms', {
+        method: 'POST',
+        body: JSON.stringify({ title }),
+      }),
+
+    deleteForm: (formId: string) =>
+      this.request<null>(`/agent-hub/forms/${formId}`, { method: 'DELETE' }),
+
+    deleteSubmission: (submissionId: string) =>
+      this.request<null>(`/agent-hub/forms/submissions/${submissionId}`, { method: 'DELETE' }),
+
+    updateForm: (formId: string, data: Partial<Pick<AgentFormConfig, 'title' | 'headline' | 'subtitle' | 'description' | 'questions' | 'success_heading' | 'success_message' | 'accent_color' | 'show_branding' | 'dark_mode' | 'redirect_to_agent_hub' | 'property_photo_carousel' | 'branding_layout' | 'linked_property'>>) =>
+      this.request<AgentFormConfig>(`/agent-hub/forms/${formId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    checkSlug: (formId: string, slug: string) =>
+      this.request<{ slug: string; available: boolean }>(`/agent-hub/forms/${formId}/slug/check?slug=${encodeURIComponent(slug)}`),
+
+    updateSlug: (formId: string, slug: string) =>
+      this.request<AgentFormConfig>(`/agent-hub/forms/${formId}/slug`, {
+        method: 'PUT',
+        body: JSON.stringify({ slug }),
+      }),
+
+    getSubmissions: (formId: string) =>
+      this.request<FormSubmissionListItem[]>(`/agent-hub/forms/${formId}/submissions`),
+
+    markReviewed: (submissionId: string, isReviewed: boolean) =>
+      this.request<FormSubmissionListItem>(`/agent-hub/forms/submissions/${submissionId}/reviewed`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_reviewed: isReviewed }),
+      }),
   };
 
   /**
@@ -585,6 +754,28 @@ class ApiService {
     unsubscribe: (email: string) => this.request(`/collections/unsubscribe?email=${encodeURIComponent(email)}`, {
       method: 'POST',
     }, false),
+
+    checkAgentHub: (agentSlug: string) =>
+      this.request<{ slug: string; config?: Record<string, any> }>(`/agent-hub/public/${encodeURIComponent(agentSlug)}`, {}, false),
+
+    trackAgentHubEvent: (agentSlug: string, eventType: 'visit' | 'qr_scan') =>
+      this.request<null>(`/agent-hub/public/${encodeURIComponent(agentSlug)}/track`, {
+        method: 'POST',
+        body: JSON.stringify({ event_type: eventType }),
+      }, false),
+
+    getPublicForms: (agentSlug: string) =>
+      this.request<PublicFormSummary[]>(`/agent-hub/forms/public/${encodeURIComponent(agentSlug)}`, {}, false),
+
+    getPublicForm: (agentSlug: string, formSlug: string) =>
+      this.request<PublicFormConfig>(`/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}`, {}, false),
+
+    submitPublicForm: (agentSlug: string, formSlug: string, answers: { questionId: string; value: unknown }[]) =>
+      this.request<{ success: boolean; message: string; submissionId?: string }>(
+        `/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}/submit`,
+        { method: 'POST', body: JSON.stringify({ answers }) },
+        false,
+      ),
   };
 }
 
