@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import EmailVerificationInput from '../../../components/EmailVerificationInput'
 import BrokerageAutocomplete from '../../../components/BrokerageAutocomplete'
 import api from '@/lib/api-service'
+import { setToken } from '@/lib/token'
 import { TRIAL_PERIOD_DAYS } from '@/lib/pricing'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
@@ -156,7 +157,7 @@ export default function RegisterPage() {
     // Send verification code
     setIsLoading(true)
 
-    const { success, error } = await api.auth.sendVerificationCode({
+    const { success, error, data } = await api.auth.sendVerificationCode({
       email: formData.email,
       first_name: formData.firstName,
       last_name: formData.lastName,
@@ -168,8 +169,16 @@ export default function RegisterPage() {
 
     if (success) {
       setIsLoading(false)
-      setRegistrationStep('verify')
-      showNotification('success', 'Verification code sent to your email!')
+      if ((data as any)?.access_token) {
+        // Email verification bypassed — account created directly, token returned
+        setToken((data as any).access_token)
+        await refreshUser()
+        router.push('/broker-authorization')
+      } else {
+        // Normal flow: show verification code entry screen
+        setRegistrationStep('verify')
+        showNotification('success', 'Verification code sent to your email!')
+      }
     } else {
       const errorMessage = error || 'Failed to send verification code. Please try again.'
       const newFieldErrors: {[key: string]: string} = {}
