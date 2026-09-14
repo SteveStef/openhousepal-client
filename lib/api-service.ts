@@ -550,8 +550,9 @@ class ApiService {
         body: JSON.stringify({ notify_visitor: notifyVisitor }),
       }, false),
 
-    unsubscribe: (email: string) => this.request(`/collections/unsubscribe?email=${encodeURIComponent(email)}`, {
+    unsubscribe: (email: string) => this.request(`/collections/unsubscribe`, {
       method: 'POST',
+      body: JSON.stringify({ email }),
     }, false),
   };
 }
