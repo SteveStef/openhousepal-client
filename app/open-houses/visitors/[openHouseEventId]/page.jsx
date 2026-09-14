@@ -70,6 +70,31 @@ export default function OpenHouseVisitorsPage() {
     return colors[status] || 'bg-gray-100 text-gray-800 border-gray-200'
   }
 
+  const handleExportCSV = () => {
+    if (!visitors.length) return
+
+    const headers = ['Name', 'Email', 'Phone', 'Agent Status', 'Checked In']
+    const escape = (value) => `"${(value ?? '').toString().replace(/"/g, '""')}"`
+
+    const rows = visitors.map((visitor) => [
+      visitor.full_name,
+      visitor.email,
+      visitor.phone,
+      visitor.has_agent === 'YES' ? 'HAS AGENT' : 'NO AGENT',
+      formatDate(visitor.created_at),
+    ].map(escape).join(','))
+
+    const csv = [headers.map(escape).join(','), ...rows].join('\n')
+    // Prepend BOM so Excel opens UTF-8 correctly
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `visitors-${openHouseEventId}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   const handleOpenNoteModal = (visitor) => {
     setSelectedVisitorForNote(visitor)
     setCurrentNote(visitor.notes || '')
@@ -128,10 +153,23 @@ export default function OpenHouseVisitorsPage() {
                   </div>
                 </div>
                 {!isLoading && !error && (
-                  <div className="bg-gray-900 dark:bg-[#0B0B0B] text-white border border-gray-800 dark:border-gray-700 rounded-full px-5 py-2 self-start sm:self-auto shadow-lg shadow-gray-900/10">
-                    <span className="font-bold text-sm">
-                      {visitors.length} <span className="font-normal text-gray-300 dark:text-gray-400 ml-1">Total Visitors</span>
-                    </span>
+                  <div className="flex items-center gap-3 self-start sm:self-auto">
+                    {visitors.length > 0 && (
+                      <button
+                        onClick={handleExportCSV}
+                        className="inline-flex items-center gap-2 bg-white dark:bg-transparent border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600 rounded-full px-5 py-2 font-bold text-sm shadow-sm hover:shadow transition-all duration-200"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Export CSV
+                      </button>
+                    )}
+                    <div className="bg-gray-900 dark:bg-[#0B0B0B] text-white border border-gray-800 dark:border-gray-700 rounded-full px-5 py-2 shadow-lg shadow-gray-900/10">
+                      <span className="font-bold text-sm">
+                        {visitors.length} <span className="font-normal text-gray-300 dark:text-gray-400 ml-1">Total Visitors</span>
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
