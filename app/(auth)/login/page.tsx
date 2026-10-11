@@ -1,13 +1,18 @@
 'use client'
 
+import OhpLoader from '@/components/brand/OhpLoader'
+
+import AuthLuxeStyle, { AuthKicker, GoldPal } from '@/components/auth/AuthLuxeStyle'
 import Link from 'next/link'
-import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import api from '@/lib/api-service'
 import { setToken } from '@/lib/token'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
+import { AUTH_FEATURE_SLIDES } from '@/lib/authFeatureSlides'
+import PageBackgroundGrid from '@/components/PageBackgroundGrid'
+import { ShieldBadge } from '@/components/home/LineArtMotifs'
 import { Suspense } from 'react'
 
 function LoginContent() {
@@ -24,42 +29,23 @@ function LoginContent() {
   const [showPassword, setShowPassword] = useState(false)
 
   const [currentSlide, setCurrentSlide] = useState(0)
-  
-  const slides = [
-    {
-      title: "Instant Follow-up",
-      description: "Automated, personalized engagement sent within the golden hour of visitation.",
-      icon: (
-        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
-      )
-    },
-    {
-      title: "Smart Showcases",
-      description: "AI-driven property collections tailored dynamically to visitor preferences.",
-      icon: (
-        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-        </svg>
-      )
-    },
-    {
-      title: "Real-time Analytics",
-      description: "Deep insights into lead behavior, viewing patterns, and engagement metrics.",
-      icon: (
-        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      )
-    }
-  ]
+
+  // Shared with the create-account screen - see lib/authFeatureSlides.tsx.
+  const slides = AUTH_FEATURE_SLIDES
 
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length)
     }, 5000)
     return () => clearInterval(timer)
+  }, [slides.length])
+
+  // Drives the corner motif's one-time stroke draw-in (see components/home/LineArtMotifs.tsx) -
+  // a short delay after mount so it plays as a visible animation instead of appearing pre-drawn.
+  const [motifVisible, setMotifVisible] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setMotifVisible(true), 200)
+    return () => clearTimeout(t)
   }, [])
 
   const validateForm = () => {
@@ -104,8 +90,8 @@ function LoginContent() {
       
       showToast('Login successful! Redirecting...', 'success')
       
-      // Get redirect path from URL params or default to /open-houses
-      const redirectPath = searchParams.get('redirect') || '/open-houses'
+      // Get redirect path from URL params or default to /dash
+      const redirectPath = searchParams.get('redirect') || '/dash'
       router.push(redirectPath)
     } else {
       // Handle failure
@@ -144,35 +130,30 @@ function LoginContent() {
   return (
     <div className="h-screen flex flex-col lg:flex-row overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B]">
       {/* Left Section - Login Form (55%) */}
-      <div className="w-full lg:w-[55%] h-full relative flex items-center justify-center px-6 py-4 overflow-hidden transition-colors duration-300">
-        {/* Refined Background Gradient Orbs */}
-        <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#C9A24D]/5 rounded-full blur-[120px] pointer-events-none mix-blend-multiply dark:mix-blend-screen"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#111827]/5 dark:bg-[#C9A24D]/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply dark:mix-blend-screen"></div>
-        
+      <div className="w-full lg:w-[55%] h-full relative z-0 flex items-center justify-center px-6 py-4 overflow-hidden transition-colors duration-300">
+        <PageBackgroundGrid />
+        <AuthLuxeStyle />
+        <ShieldBadge
+          visible={motifVisible}
+          className="ohp-motif-float hidden lg:block absolute top-10 right-10 w-[170px] h-[170px] text-[#C9A24D] opacity-[0.2] dark:opacity-[0.26] -z-10"
+        />
+
         <div className="max-w-[480px] w-full relative z-10 flex flex-col items-center">
           {/* Mobile Logo */}
           <Link href="/" className="mb-4 lg:mb-12 flex flex-col items-center group">
-            <div className="relative overflow-hidden rounded-xl bg-white dark:bg-transparent p-1 shadow-sm mb-1">
-              <Image
-                src="/logo.png"
-                alt="OpenHousePal Logo"
-                width={100}
-                height={56}
-                className="h-10 sm:h-12 w-auto group-hover:scale-105 transition-transform duration-500"
-              />
-            </div>
-            <h1 className="text-lg font-black text-[#111827] dark:text-white tracking-tight leading-none">OpenHousePal</h1>
+            <h1 className="text-[28px] sm:text-[32px] text-[#111827] dark:text-white"><GoldPal animate /></h1>
           </Link>
 
           {/* Header */}
           <div className="mb-6 text-center w-full">
-            <h2 className="text-3xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-1">Welcome back</h2>
+            <AuthKicker>Sign in</AuthKicker>
+            <h2 className="mb-1 font-serif text-4xl font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Welcome <em className="ohp-home-em">back.</em></h2>
             <p className="text-[#6B7280] dark:text-gray-400 text-sm font-medium">Please enter your details to sign in.</p>
           </div>
 
           {/* Login Card */}
-          <div className="bg-white dark:bg-[#151517] rounded-3xl p-8 md:p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 transition-colors duration-300">
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="ohp-auth-card bg-white dark:bg-[#151517] rounded-3xl p-8 md:p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 transition-colors duration-300">
+            <form method="post" onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label htmlFor="email" className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                   Email address
@@ -281,7 +262,7 @@ function LoginContent() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-4 px-4 rounded-xl shadow-xl text-sm font-black uppercase tracking-widest text-white bg-[#111827] dark:bg-white dark:text-[#111827] hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111827] transform transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="ohp-auth-btn w-full flex justify-center py-4 px-4 rounded-xl shadow-xl text-sm font-black uppercase tracking-widest text-white bg-[#111827] dark:bg-white dark:text-[#111827] hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111827] transform transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <div className="flex items-center">
@@ -321,7 +302,8 @@ function LoginContent() {
       {/* Right Section - Explanation (45%) */}
       <div className="hidden lg:flex w-full lg:w-[45%] relative bg-[#151517] text-white overflow-hidden flex-col justify-center">
         {/* Rich Background Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#151517] via-[#3a2f25] to-[#8b7355] opacity-90"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.28),transparent_55%),linear-gradient(135deg,#0b0f0e_0%,#111827_55%,#2a2218_100%)]"></div>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#e8c97a] to-transparent opacity-80"></div>
         
         {/* Decorative Patterns */}
         <div className="absolute top-0 right-0 w-full h-full opacity-10" 
@@ -332,19 +314,19 @@ function LoginContent() {
 
         <div className="relative z-10 p-12 lg:p-16 flex flex-col justify-center h-full">
           <div className="max-w-xl mx-auto lg:mx-0">
-            <h3 className="text-4xl font-bold mb-2 tracking-tight">OpenHousePal</h3>
-            <p className="text-gray-300 text-lg mb-6 font-light">The ultimate lead generation toolkit for modern real estate agents.</p>
-            <div className="h-1 w-20 bg-gradient-to-r from-[#ffd700] to-[#8b7355] rounded-full mb-12"></div>
-            
-            <div className="relative h-48">
+            <h3 className="mb-2 text-4xl font-black uppercase tracking-tight"><GoldPal /></h3>
+            <p className="text-gray-300 text-lg mb-6 font-light whitespace-nowrap">The all-in-one platform for modern real estate agents.</p>
+            <div className="h-1 w-20 bg-gradient-to-r from-[#e8c97a] to-[#8b7355] rounded-full mb-12"></div>
+
+            <div className="relative h-56">
               {slides.map((slide, index) => (
                 <div
                   key={index}
                   className={`absolute top-0 left-0 w-full transition-all duration-700 transform ${
-                    index === currentSlide 
-                      ? 'opacity-100 translate-x-0' 
-                      : index < currentSlide 
-                        ? 'opacity-0 -translate-x-full' 
+                    index === currentSlide
+                      ? 'opacity-100 translate-x-0'
+                      : index < currentSlide
+                        ? 'opacity-0 -translate-x-full'
                         : 'opacity-0 translate-x-full'
                   }`}
                 >
@@ -353,7 +335,10 @@ function LoginContent() {
                       <div className="w-10 h-10 bg-gradient-to-br from-[#8b7355] to-[#6b5840] rounded-lg flex items-center justify-center shadow-lg flex-shrink-0">
                         {slide.icon}
                       </div>
-                      <h4 className="font-bold text-xl text-white">{slide.title}</h4>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-[#e8c97a]">{slide.kicker}</p>
+                        <h4 className="font-serif font-black text-xl text-white leading-tight">{slide.title}</h4>
+                      </div>
                     </div>
                     <p className="text-gray-300 text-base leading-relaxed font-light">{slide.description}</p>
                   </div>
@@ -369,7 +354,7 @@ function LoginContent() {
                   onClick={() => setCurrentSlide(index)}
                   className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
                     index === currentSlide 
-                      ? 'bg-[#ffd700] w-8' 
+                      ? 'bg-[#e8c97a] w-8' 
                       : 'bg-white/30 hover:bg-white/50'
                   }`}
                   aria-label={`Go to slide ${index + 1}`}
@@ -379,11 +364,11 @@ function LoginContent() {
 
             <div className="mt-16 pt-8 border-t border-white/10">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-2 h-2 rounded-full bg-[#ffd700] animate-pulse"></div>
+                <div className="w-2 h-2 rounded-full bg-[#e8c97a] animate-pulse"></div>
                 <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Now in early access</p>
               </div>
               <p className="text-sm text-gray-300/80 font-light leading-relaxed">
-                "We're on a mission to simplify real estate lead management. Join us in shaping the future of open houses."
+                "We're building the most advanced AI and productivity tools in real estate - the ones that actually save agents time, keep them prepared and organized, and help them close more deals. If you're serious about this business, this is the tech you should be running on."
               </p>
             </div>
           </div>
@@ -395,7 +380,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#FAFAF7]"><div className="animate-spin rounded-full h-8 w-8 border-2 border-[#C9A24D] border-t-transparent"></div></div>}>
+    <Suspense fallback={<OhpLoader />}>
       <LoginContent />
     </Suspense>
   )

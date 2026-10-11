@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "Open House Pal Frontend - Open House Lead Generation",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:plain": "next dev --webpack",
+    "warm": "node scripts/warm-dev.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -26,6 +28,8 @@
     "eslint": "^9.33.0",
     "eslint-config-next": "^15.4.6",
     "framer-motion": "^12.42.2",
+    "gsap": "^3.15.0",
+    "html2canvas": "^1.4.1",
     "lucide-react": "^0.539.0",
     "next": "^16.1.0",
     "next-themes": "^0.4.6",
@@ -42,6 +46,7 @@
     "minimatch": "^10.2.1"
   },
   "devDependencies": {
+    "@types/google.maps": "^3.65.5",
     "@types/qrcode": "^1.5.6"
   }
 }

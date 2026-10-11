@@ -1,25 +1,17 @@
 'use client'
 
-import Image from 'next/image'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react'
 import { PropertyDetailResponse } from '@/types'
-import { X, MessageCircle, ThumbsUp, ThumbsDown, ChevronLeft, ChevronRight, Maximize2, Home, User, Ruler, Bed, Bath, Calendar, MapPin, Clock, ShieldCheck, Copy, Check } from 'lucide-react'
-import { cleanAddress, formatMlsStatus, formatPropertyType, formatPropertyFeature, normalizeImageUrl } from '@/lib/utils'
-
-const formatDate = (dateString: string) => {
-  try {
-    if (!dateString) return 'Date unavailable'
-    const date = new Date(dateString)
-    if (isNaN(date.getTime())) return 'Date unavailable'
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  } catch (error) {
-    return 'Date unavailable'
-  }
-}
+import { ArrowLeft, CalendarCheck, CalendarDays, Check, Copy, Heart, Hourglass, Loader2, MapPin, MessageCircle, RefreshCw, Send, X } from 'lucide-react'
+import { normalizeImageUrl } from '@/lib/utils'
+import { tourState, tourWhen, type TourLike } from '@/components/TourStatusWindow'
+import PropertyMap from './PropertyMap'
+import {
+  AboutHome, BrightNotice, EveryDetail, LocationBlock, PriceHistory,
+  HERO_COLS, HeroShareActions, PropertyHero, PropertySurface, SectionDivider, SectionTitle, hasDetails, homeFromMls, pp, shortDate,
+} from '@/components/property/PropertyKit'
+import { copyText } from '@/lib/copyText'
 
 interface PropertyDetailsModalProps {
   property: PropertyDetailResponse | null
@@ -28,258 +20,43 @@ interface PropertyDetailsModalProps {
   onLike?: (propertyId: string, liked: boolean) => void
   onDislike?: (propertyId: string, disliked: boolean) => void
   onAddComment?: (propertyId: string, comment: string) => void
+  /** The buyer's "Schedule a tour" (public Showcase) - opens the tour window over this one. */
+  onScheduleTour?: (property: PropertyDetailResponse) => void
   isLoadingDetails?: boolean
   detailsError?: string | null
   onRetryDetails?: () => void
   isLoadingComments?: boolean
   commentsError?: string | null
   shareUrl?: string | null
+  // Overlay stacking - default matches the modal's own z-50. Only needs overriding when mounted
+  // inside another modal that already sits at a higher z-index (e.g. EditSimilarPropertiesModal's
+  // z-[110]), so this one isn't rendered behind it.
+  zIndex?: number
+  // False hides Like/Pass and the Comments panel - for browsing contexts like Discovery, where
+  // the viewer is another agent previewing a colleague's listing, not a buyer/visitor interacting
+  // with a showcase. Defaults to true so every existing showcase caller keeps its current behavior.
+  showVisitorActions?: boolean
+  /** The Showcase's agent - their photo and name brand the questions box and their replies. */
+  agent?: { name?: string | null; photoUrl?: string | null } | null
+  // Opened from a "Reply to Comment" alert (?comments=1): scroll to the thread, glow it, cursor in the reply box.
+  focusComments?: boolean
+  /** Who's reading: their own messages sit on the right, the other side's on the left. */
+  viewer?: 'client' | 'agent'
+  /** The buyer's latest showing request for this home - the tour button shows its status. */
+  tourRequest?: TourLike | null
 }
 
-// Property Report Table Component
-function PropertyReport({ property }: { property: PropertyDetailResponse }) {
-  
-  const formatList = (items: any): string | null => {
-    if (!items) return null;
-    if (Array.isArray(items)) {
-      if (items.length === 0) return null;
-      return items.join(", ");
-    }
-    return String(items);
-  };
+const GOLD = '#C9A24D'
+const INK = '#111827'
+const SPRING = { type: 'spring', stiffness: 420, damping: 36, mass: 0.9 } as const
 
-  const formatCurrency = (amount: number | null | undefined): string | null => {
-    if (!amount) return null;
-    return `$${amount.toLocaleString()}`;
-  };
-
-  const allReportData = [
-    // Listing Information
-    { property: "Listing Information", value: "", isHeader: true },
-    { property: "Status", value: formatMlsStatus(property.MlsStatus) },
-    { property: "Listing Date", value: formatDate(property.MLSListDate || '') },
-    { property: "Last Price Change", value: formatDate(property.PriceChangeTimestamp || '') },
-    { property: "Days on Market", value: property.DaysOnMarket },
-    { property: "Cumulative DOM", value: property.CumulativeDaysOnMarket },
-    { property: "Original List Price", value: formatCurrency(property.OriginalListPrice) },
-    { property: "Price Per Sq Ft", value: property.PricePerSquareFoot ? `$${property.PricePerSquareFoot.toFixed(2)}` : null },
-
-    // Building & Construction
-    { property: "BUILDING & CONSTRUCTION", value: "", isHeader: true },
-    { property: "Year Built", value: property.YearBuilt },
-    { property: "New Construction", value: property.NewConstructionYN ? "Yes" : (property.NewConstructionYN === false ? "No" : null) },
-    { property: "Architectural Style", value: formatList(property.ArchitecturalStyle) },
-    { property: "Construction Materials", value: formatList(property.ConstructionMaterials) },
-    { property: "Stories", value: property.Stories },
-    { property: "Basement", value: formatList(property.Basement) },
-    { property: "Square Footage", value: property.LivingArea ? `${property.LivingArea.toLocaleString()} sq ft` : null },
-    { property: "Above Grade SQFT", value: property.AboveGradeFinishedArea ? `${property.AboveGradeFinishedArea.toLocaleString()} sq ft` : null },
-    { property: "Below Grade SQFT", value: property.BelowGradeFinishedArea ? `${property.BelowGradeFinishedArea.toLocaleString()} sq ft` : null },
-    { property: "Lot Size", value: property.LotSizeSquareFeet ? `${property.LotSizeSquareFeet.toLocaleString()} sq ft` : null },
-    { property: "Lot Size (Acres)", value: property.LotSizeAcres ? `${property.LotSizeAcres} AC` : null },
-    { property: "Zoning", value: property.Zoning },
-
-    // Interior Features
-    { property: "INTERIOR FEATURES", value: "", isHeader: true },
-    { property: "Appliances", value: formatList(property.Appliances) },
-    { property: "Interior Features", value: formatList(property.InteriorFeatures) },
-    { property: "Flooring", value: formatList(property.Flooring) },
-    { property: "Window Features", value: formatList(property.WindowFeatures) },
-    { property: "Fireplace Features", value: formatList(property.FireplaceFeatures) },
-    { property: "Fireplaces", value: property.FireplacesTotal },
-
-    // HVAC & Systems
-    { property: "HVAC & SYSTEMS", value: "", isHeader: true },
-    { property: "Central Air", value: property.CentralAirYN ? "Yes" : (property.CentralAirYN === false ? "No" : null) },
-    { property: "Heating", value: formatList(property.Heating) },
-    { property: "Heating Fuel", value: formatList(property.HeatingFuel) },
-    { property: "Cooling", value: formatList(property.Cooling) },
-    { property: "Cooling Fuel", value: formatList(property.CoolingFuel) },
-    { property: "Water Source", value: formatList(property.WaterSource) },
-    { property: "Sewer", value: formatList(property.Sewer) },
-    { property: "Utilities", value: formatList(property.Utilities) },
-
-    // Parking & Access
-    { property: "PARKING & ACCESS", value: "", isHeader: true },
-    { property: "Garage Spaces", value: property.GarageSpaces ? `${property.GarageSpaces} spaces` : null },
-    { property: "Attached Garage", value: property.AttachedGarageYN ? "Yes" : (property.AttachedGarageYN === false ? "No" : null) },
-    { property: "Parking Features", value: formatList(property.ParkingFeatures) },
-    { property: "Accessibility Features", value: formatList(property.AccessibilityFeatures) },
-
-    // HOA & Fees
-    ...(property.AssociationYN || property.AssociationFee ? [
-      { property: "HOA & FEES", value: "", isHeader: true },
-      { property: "HOA Fee", value: formatCurrency(property.AssociationFee) },
-      { property: "Frequency", value: property.AssociationFeeFrequency },
-      { property: "HOA Fee 2", value: formatCurrency(property.AssociationFee2) },
-      { property: "Frequency 2", value: property.AssociationFee2Frequency },
-      { property: "HOA Includes", value: formatList(property.AssociationFeeIncludes) },
-      { property: "Amenities", value: formatList(property.AssociationAmenities) },
-    ] : []),
-
-    // Schools & District
-    { property: "SCHOOLS & DISTRICT", value: "", isHeader: true },
-    { property: "School District", value: property.SchoolDistrictName },
-    { property: "Elementary School", value: property.ElementarySchool },
-    { property: "Middle School", value: property.MiddleOrJuniorSchool },
-    { property: "High School", value: property.HighSchool },
-
-    // Location & Neighborhood
-    { property: "LOCATION & NEIGHBORHOOD", value: "", isHeader: true },
-    { property: "Incorporated City", value: property.IncorporatedCityName },
-    { property: "County", value: property.County },
-    { property: "Township", value: property.MLSAreaMajor },
-    { property: "Subdivision", value: property.SubdivisionName },
-    { property: "View", value: formatList(property.View) },
-    { property: "Waterfront", value: formatList(property.WaterfrontFeatures) },
-    { property: "Possession", value: formatList(property.Possession) },
-    { property: "Directions", value: property.Directions },
-
-    // Additional Features
-    { property: "ADDITIONAL FEATURES", value: "", isHeader: true },
-    { property: "Senior Community", value: property.SeniorCommunityYN ? "Yes" : (property.SeniorCommunityYN === false ? "No" : null) },
-    { property: "Pets Allowed", value: formatList(property.PetsAllowed) },
-    { property: "Exterior Features", value: formatList(property.ExteriorFeatures) },
-    { property: "Lot Features", value: formatList(property.LotFeatures) },
-
-    // Financial Details
-    { property: "FINANCIAL DETAILS", value: "", isHeader: true },
-    { property: "Annual Property Tax", value: formatCurrency(property.TaxAnnualAmount) },
-    { property: "Tax Assessment", value: formatCurrency(property.TaxAssessmentAmount) },
-    { property: "Assessment Year", value: property.AssessmentYear },
-    { property: "Tax ID", value: property.ListingTaxID },
-  ];
-
-  // Filter out rows with null or empty values, but keep headers
-  const reportData = allReportData.filter(row => row.isHeader || (row.value !== null && row.value !== undefined && row.value !== ''));
-
-  interface ReportSection {
-    header: string;
-    items: Array<{ property: string; value: any }>;
-  }
-
-  // Group data by sections and filter out empty sections
-  const sections: ReportSection[] = [];
-  let currentSection: ReportSection | null = null;
-
-  for (const row of reportData) {
-    if (row.isHeader) {
-      if (currentSection && currentSection.items.length > 0) {
-        sections.push(currentSection);
-      }
-      currentSection = { header: row.property, items: [] };
-    } else if (currentSection) {
-      currentSection.items.push({ property: row.property, value: row.value });
-    }
-  }
-
-  if (currentSection && currentSection.items.length > 0) {
-    sections.push(currentSection);
-  }
-
-  return (
-    <div className="bg-white dark:bg-[#0B0B0B] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
-      {/* Report Header */}
-      <div className="bg-gray-50 dark:bg-[#151517] px-8 py-6 text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-800">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold uppercase tracking-tight">Property Details Report</h2>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Comprehensive technical overview</p>
-          </div>
-          <div className="text-right hidden sm:block">
-            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider">Generated</div>
-            <div className="font-medium text-sm">{new Date().toLocaleDateString()}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Report Content - Grouped Sections */}
-      <div className="p-4 sm:p-8 space-y-10 bg-white dark:bg-[#0B0B0B]">
-        {sections.map((section, sectionIndex) => {
-          // Separate items into full-width and regular items based on comma count
-          const fullWidthItems = section.items.filter(item => {
-            const value = String(item.value);
-            const commaCount = (value.match(/,/g) || []).length;
-            return commaCount >= 3; // 3+ commas = 4+ items in list
-          });
-          const regularItems = section.items.filter(item => {
-            const value = String(item.value);
-            const commaCount = (value.match(/,/g) || []).length;
-            return commaCount < 3;
-          });
-
-          return (
-            <div
-              key={sectionIndex}
-              className="space-y-4"
-            >
-              {/* Subtle Section Header */}
-              <h3 className="text-xs font-black text-[#C9A24D] uppercase tracking-[0.2em] mb-4 pb-2 border-b border-gray-100 dark:border-gray-800">
-                {section.header}
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
-                {section.items.map((item, itemIdx) => (
-                    <div key={itemIdx} className={`flex justify-between items-start gap-4 py-1 border-b border-gray-50 dark:border-gray-800/50 last:border-0 ${
-                        String(item.value).length > 30 ? 'md:col-span-2' : ''
-                    }`}>
-                        <span className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-tight flex-shrink-0">
-                            {item.property}
-                        </span>
-                        <span className="text-sm font-semibold text-[#111827] dark:text-gray-200 text-right">
-                            {item.value}
-                        </span>
-                    </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// Description component with truncation
-function DescriptionSection({ description, details }: { description: string, details?: any }) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const maxLength = 700 // Adjusted to balance with comments sidebar
-
-  const shouldTruncate = description.length > maxLength
-  const displayText = isExpanded || !shouldTruncate 
-    ? description 
-    : description.slice(0, maxLength) + '...'
-
-  return (
-    <div className="py-2">
-      <div className="space-y-4">
-        <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base font-medium">{displayText}</p>
-        {shouldTruncate && (
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-[#C9A24D] hover:text-[#B38F3D] text-sm font-bold uppercase tracking-wider transition-colors duration-200"
-          >
-            {isExpanded ? 'Read Less' : 'Read Full Description'}
-          </button>
-        )}
-      </div>
-      
-      {/* Listing Agent Info Paragraph */}
-      {(details?.ListAgentFullName || details?.ListOfficeName) && (
-        <div className="mt-8 pt-8 border-t border-gray-100 dark:border-gray-800">
-          <p className="text-xs text-gray-400 dark:text-gray-500 leading-relaxed italic">
-            <span className="font-bold uppercase tracking-widest not-italic mr-2">Listing Source:</span>{' '}
-            {details.ListAgentFullName || 'Agent'}
-            {details.ListOfficeName && ` of ${details.ListOfficeName}`}
-            {details.ListOfficePhone && ` (${details.ListOfficePhone})`}.
-            {details.ListAgentEmail && ` Email: ${details.ListAgentEmail}.`}
-            {details.ListingId && ` (MLS# ${details.ListingId})`}
-          </p>        </div>
-      )}
-    </div>
-  )
-}
-
+// The Showcase detail window (also Discovery's "View Details", the open house wizard's preview and
+// the agent's own Showcase view). Built from the shared property design (components/property/
+// PropertyKit) so a home looks the same here as on the Listing Page and the IDX site. Its own
+// extras: the header with Back + Copy Share Link, the buyer's Love / Pass + Schedule a tour, and
+// their comment thread with the agent (a sticky panel beside the home), and the MLS notice.
+// Kept light so scrolling stays smooth: no backdrop blur behind the window (it re-blurred the
+// animating page underneath on every frame) and no sticky jump bar.
 export default function PropertyDetailsModal({
   property,
   isOpen,
@@ -287,601 +64,507 @@ export default function PropertyDetailsModal({
   onLike,
   onDislike,
   onAddComment,
+  onScheduleTour,
   isLoadingDetails = false,
   detailsError = null,
   onRetryDetails,
   isLoadingComments = false,
   commentsError = null,
-  shareUrl = null
+  shareUrl = null,
+  zIndex = 50,
+  showVisitorActions = true,
+  agent = null,
+  viewer = 'client',
+  tourRequest = null,
+  focusComments = false,
 }: PropertyDetailsModalProps) {
   const [newComment, setNewComment] = useState('')
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
-  const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  const [isLightboxOpen, setIsLightboxOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  // Phones: the sticky Love / Pass bar only rides along once the price panel's own buttons have
+  // scrolled away (never two sets on screen at once).
+  const [barOn, setBarOn] = useState(false)
   const commentsContainerRef = useRef<HTMLDivElement>(null)
+  const replyRef = useRef<HTMLTextAreaElement>(null)
+  const [commentsGlow, setCommentsGlow] = useState(false)
+  const focusedFor = useRef<string | null>(null)
+  const focusTimers = useRef<number[]>([])
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const home = useMemo(() => (property ? homeFromMls(property, { photo: u => (u === '/placeholder.jpg' ? u : normalizeImageUrl(u)) }) : null), [property])
 
   const handleCopyLink = async () => {
-    if (shareUrl) {
-      try {
-        await navigator.clipboard.writeText(shareUrl)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      } catch (err) {
-        console.error('Failed to copy link:', err)
-      }
+    if (!shareUrl) return
+    try {
+      await copyText(shareUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy link:', err)
     }
   }
 
-  // Enhanced photo handling for property data
-  const getPropertyImages = useCallback(() => {
-    const photos = (property as PropertyDetailResponse)?.photos;
-    if (photos && photos.length > 0) {
-      return photos.filter((url: string) => typeof url === 'string' && url.length > 0);
-    }
-    // Fallback to primary image
-    return [property?.ListPictureURL || '/placeholder.jpg'].filter(url => url !== undefined);
-  }, [property])
-  
-  const images = getPropertyImages()
+  // Each home opens at the top, not wherever the last one was scrolled to.
+  useEffect(() => { scrollRef.current?.scrollTo({ top: 0 }); setBarOn(false) }, [property?.id])
 
-  // Preload adjacent images for smoother navigation
-  useEffect(() => {
-    if (images.length <= 1) return;
-
-    const nextIndex = (currentImageIndex + 1) % images.length;
-    const prevIndex = (currentImageIndex - 1 + images.length) % images.length;
-
-    // Preload next image
-    const nextImg = new window.Image();
-    nextImg.src = images[nextIndex];
-
-    // Preload previous image
-    const prevImg = new window.Image();
-    prevImg.src = images[prevIndex];
-  }, [currentImageIndex, images]);
-
-  // Scroll to bottom of comments
-  const scrollToBottom = useCallback(() => {
-    if (commentsContainerRef.current) {
-      commentsContainerRef.current.scrollTop = commentsContainerRef.current.scrollHeight
-    }
-  }, [])
-
-  const nextImage = useCallback(() => {
-    if (images.length > 0) {
-      setCurrentImageIndex((prev) => (prev + 1) % images.length)
-    }
-  }, [images.length])
-
-  const prevImage = useCallback(() => {
-    if (images.length > 0) {
-      setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length)
-    }
-  }, [images.length])
-  
-  // Reset image index when property changes or images change
-  useEffect(() => {
-    if (currentImageIndex >= images.length && images.length > 0) {
-      setCurrentImageIndex(0)
-    }
-  }, [property?.id, images.length, currentImageIndex])
-
-  // Prevent background scroll when modal is open
-  useEffect(() => {
+  // Prevent background scroll when modal is open. Applied via useLayoutEffect (fires
+  // synchronously before the browser paints) rather than useEffect - otherwise the browser
+  // paints at least one frame of the modal's fading-in backdrop over a still-unlocked,
+  // still-scrolling background first, which reads as the background "scrolling" messily right
+  // as the modal opens (most visible if the agent was scrolled deep into a showcase's grid).
+  const scrollRestoreTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useLayoutEffect(() => {
     if (isOpen) {
-      // Save original styles
+      // Cancel any pending restore left over from a just-closed instance so a quick reopen
+      // doesn't get its lock pulled out from under it a moment later by a stale timer.
+      if (scrollRestoreTimeoutRef.current) {
+        clearTimeout(scrollRestoreTimeoutRef.current)
+        scrollRestoreTimeoutRef.current = null
+      }
       const scrollY = window.scrollY
       const originalBodyOverflow = document.body.style.overflow
       const originalBodyPosition = document.body.style.position
       const originalBodyTop = document.body.style.top
       const originalBodyWidth = document.body.style.width
       const originalHtmlOverflow = document.documentElement.style.overflow
-      
-      // Apply aggressive lock
       document.body.style.overflow = 'hidden'
       document.body.style.position = 'fixed'
       document.body.style.top = `-${scrollY}px`
       document.body.style.width = '100%'
       document.documentElement.style.overflow = 'hidden'
-      
       return () => {
-        // Restore original styles on cleanup
-        document.body.style.overflow = originalBodyOverflow
-        document.body.style.position = originalBodyPosition
-        document.body.style.top = originalBodyTop
-        document.body.style.width = originalBodyWidth
-        document.documentElement.style.overflow = originalHtmlOverflow
-        
-        // Restore scroll position
-        window.scrollTo(0, scrollY)
+        // Restore once the closing animation is done, not the instant isOpen flips false -
+        // restoring immediately jumps the page back while the window is still sliding out.
+        scrollRestoreTimeoutRef.current = setTimeout(() => {
+          document.body.style.overflow = originalBodyOverflow
+          document.body.style.position = originalBodyPosition
+          document.body.style.top = originalBodyTop
+          document.body.style.width = originalBodyWidth
+          document.documentElement.style.overflow = originalHtmlOverflow
+          window.scrollTo(0, scrollY)
+          scrollRestoreTimeoutRef.current = null
+        }, 260)
       }
     }
   }, [isOpen])
 
-  // Keyboard navigation
+  // Escape closes the window (the photo viewer catches its own Escape first).
   useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (!isOpen) return
-      
-      switch (e.key) {
-        case 'Escape':
-          if (isLightboxOpen) {
-            setIsLightboxOpen(false)
-          } else {
-            onClose()
-          }
-          break
-        case 'ArrowLeft':
-          if (isLightboxOpen) {
-            e.preventDefault()
-            prevImage()
-          }
-          break
-        case 'ArrowRight':
-          if (isLightboxOpen) {
-            e.preventDefault()
-            nextImage()
-          }
-          break
-      }
+    if (!isOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isOpen, onClose])
+
+  const comments = property?.comments || []
+  // A new comment slides into view at the bottom of the thread.
+  useEffect(() => {
+    const el = commentsContainerRef.current
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+  }, [comments.length])
+
+  // From a comment alert: once this home and its thread are in, bring the thread into view, glow it
+  // for a moment and put the cursor in the reply box - once per home.
+  useEffect(() => {
+    if (!isOpen || !focusComments || !property?.id || isLoadingComments || focusedFor.current === String(property.id)) return
+    focusedFor.current = String(property.id)
+    // Timers live in a ref: the thread finishing loading re-runs this effect, and a cleanup here
+    // would cancel them before they fire (the once-per-home guard then stops a second try).
+    const timers = focusTimers.current
+    timers.push(window.setTimeout(() => {
+      document.getElementById('sc-comments')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setCommentsGlow(true)
+      timers.push(window.setTimeout(() => setCommentsGlow(false), 2600))
+    }, 500))
+    // The reply box can re-render while the thread loads - keep putting the cursor there until it sticks.
+    let tries = 0
+    const focusReply = () => {
+      const el = replyRef.current
+      if (el && document.activeElement !== el) el.focus({ preventScroll: true })
+      if (++tries < 6 && document.activeElement !== el) timers.push(window.setTimeout(focusReply, 400))
     }
-    
-    window.addEventListener('keydown', handleKeyPress)
-    return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [isOpen, isLightboxOpen, onClose, prevImage, nextImage])
+    timers.push(window.setTimeout(focusReply, 700))
+  }, [isOpen, focusComments, property?.id, isLoadingComments])
+  useEffect(() => {
+    if (isOpen) return
+    focusTimers.current.forEach(window.clearTimeout)
+    focusTimers.current = []
+    focusedFor.current = null
+  }, [isOpen])
+  useEffect(() => () => focusTimers.current.forEach(window.clearTimeout), [])
 
-  if (!isOpen || !property) return null
-
-  const formatPrice = (price?: number) => {
-    return price ? price.toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0
-    }) : 'Price Available Upon Request'
-  }
+  if (!property || !home) return null
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newComment.trim() || !property.id) return
-
     setIsSubmittingComment(true)
     try {
-      if (property.id !== undefined) {
-        onAddComment?.(property.id, newComment.trim())
-      }
+      onAddComment?.(property.id, newComment.trim())
       setNewComment('')
-      setTimeout(() => scrollToBottom(), 100)
     } finally {
       setIsSubmittingComment(false)
     }
   }
 
-  const renderLightbox = () => {
-    if (!isLightboxOpen || images.length === 0) return null
-    return (
-      <div 
-        className="fixed inset-0 bg-black z-[70] flex items-center justify-center overflow-hidden"
-        onClick={() => setIsLightboxOpen(false)}
-      >
-        {/* Blurred Background Layer to fill empty space */}
-        <div className="absolute inset-0 z-0 opacity-40 scale-110 blur-2xl">
-          {images[currentImageIndex] && (
-            <Image
-              src={normalizeImageUrl(images[currentImageIndex])}
-              alt="Blurred background"
-              fill
-              sizes="100vw"
-              className="object-cover"
-              unoptimized
-            />
-          )}
-        </div>
+  const showDetails = isLoadingDetails || !!detailsError || hasDetails(home)
+  const toComments = () => document.getElementById('sc-comments')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  const tour = onScheduleTour ? () => onScheduleTour(property) : undefined
 
-        <button
-          onClick={() => setIsLightboxOpen(false)}
-          className="absolute top-6 right-6 text-white/70 hover:text-white p-3 transition-all z-[80] bg-black/20 rounded-full hover:bg-black/40 backdrop-blur-md"
-        >
-          <X size={32} />
-        </button>
-        
-        <div className="relative w-full h-full flex items-center justify-center z-10 p-4 sm:p-12">
-          <div className="relative w-full h-full max-w-6xl flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-            {images[currentImageIndex] && (
-              <Image
-                src={normalizeImageUrl(images[currentImageIndex])}
-                alt={`${property.FullStreetAddress} - Full Image`}
-                fill
-                sizes="100vw"
-                className="object-contain drop-shadow-2xl"
-                priority
-                unoptimized
-              />
-            )}
-          </div>
-          
-          {images.length > 1 && (
-            <>
-              <button
-                onClick={(e) => { e.stopPropagation(); prevImage(); }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-4 transition-all bg-black/10 hover:bg-black/20 rounded-full"
-              >
-                <ChevronLeft size={48} />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); nextImage(); }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-4 transition-all bg-black/10 hover:bg-black/20 rounded-full"
-              >
-                <ChevronRight size={48} />
-              </button>
-            </>
-          )}
-
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full text-white/80 text-sm font-black tracking-widest uppercase">
-            {currentImageIndex + 1} / {images.length}
-          </div>
-        </div>
-      </div>
-    )
-  }
-  
   return (
-    <>
-      {renderLightbox()}
-      <div className="fixed inset-0 bg-[#0B0B0B]/80 z-50 flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300 overscroll-none">
-        <div 
-          className="bg-white dark:bg-[#0B0B0B] w-full max-w-7xl h-full sm:h-[95vh] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300"
-          style={{ overscrollBehavior: 'contain' }}
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          key="sc-window"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0, transition: { duration: 0.2, delay: 0.04 } }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+          className="fixed inset-0 flex items-end justify-center overscroll-none bg-[#0B0B0B]/80 sm:items-center sm:p-6"
+          style={{ zIndex }}
+          onClick={onClose}
         >
-          
-          <div className="flex-1 overflow-y-auto scrollbar-hide bg-[#FAFAF7] dark:bg-[#0B0B0B]">
-            {/* Minimal Header with Close Button */}
-            <div className="sticky top-0 z-40 bg-white/95 dark:bg-[#0B0B0B]/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
-              <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
-                <div className="flex items-center space-x-2 text-[10px] font-black text-gray-400 uppercase tracking-widest overflow-hidden">
-                  <MapPin size={12} className="text-[#C9A24D]" />
-                  <span className="truncate">{cleanAddress(property.FullStreetAddress)}</span>
+          <motion.div
+            initial={{ opacity: 0, y: 48, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1, transition: SPRING }}
+            exit={{ opacity: 0, y: 36, scale: 0.98, transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }}
+            className="flex h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-t-[26px] shadow-2xl sm:h-[88vh] sm:rounded-[28px]"
+            style={{ overscrollBehavior: 'contain' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <PropertySurface surface="app" gold={GOLD} ink={INK} className="flex min-h-0 flex-1 flex-col bg-[var(--pp-bg)]">
+              {/* header */}
+              <div className="z-40 flex items-center justify-between gap-3 border-b border-[color:var(--pp-gold-line)] bg-[var(--pp-card)] px-4 py-3 sm:px-6">
+                <div className="flex min-w-0 items-center gap-2">
+                  <motion.button whileHover={{ x: -2 }} whileTap={{ scale: 0.9 }} onClick={onClose} className={`-ml-1 shrink-0 rounded-full p-2 transition-colors hover:bg-[var(--pp-gold-wash)] ${pp.muted}`} title="Back" aria-label="Back">
+                    <ArrowLeft size={20} />
+                  </motion.button>
+                  <div className="min-w-0 leading-tight">
+                    <p className={`truncate font-serif text-[15px] font-black sm:text-base ${pp.heading}`}>{home.street}</p>
+                    {home.place && <p className={`flex items-center gap-1 truncate text-[11px] font-semibold ${pp.muted}`}><MapPin className="h-3 w-3 shrink-0 text-[color:var(--pp-gold)]" />{home.place}</p>}
+                  </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  {shareUrl && (
-                    <button
-                      onClick={handleCopyLink}
-                      className={`inline-flex items-center px-4 py-1.5 rounded-lg text-[10px] font-black transition-all duration-300 whitespace-nowrap uppercase tracking-widest border shadow-sm ${
-                        copied 
-                          ? 'bg-green-600 text-white border-green-600' 
-                          : 'bg-white dark:bg-[#151517] text-[#111827] dark:text-white border-gray-200 dark:border-gray-800 hover:border-[#C9A24D] dark:hover:border-[#C9A24D]'
-                      }`}
-                    >
-                      {copied ? <Check size={12} className="mr-2" /> : <Copy size={12} className="mr-2 text-[#C9A24D]" />}
-                      {copied ? 'Copied!' : 'Copy Share Link'}
-                    </button>
-                  )}
-                  <button
-                    onClick={onClose}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                {shareUrl && (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleCopyLink}
+                    className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-4 py-2 text-[10px] font-black uppercase tracking-widest shadow-sm transition-colors ${copied ? 'border-emerald-600 bg-emerald-600 text-white' : `border-[color:var(--pp-gold-line)] bg-[var(--pp-card)] hover:border-[color:var(--pp-gold)] ${pp.heading}`}`}
                   >
-                    <X size={20} />
-                  </button>
-                </div>
+                    {copied ? <Check size={12} /> : <Copy size={12} className="text-[color:var(--pp-gold)]" />}
+                    {copied ? 'Copied!' : 'Copy Share Link'}
+                  </motion.button>
+                )}
               </div>
-            </div>
 
-            {/* Main Content */}
-            <div className="max-w-7xl mx-auto">
-              
-              {/* Modern Image Grid Layout */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 p-2 sm:p-4 bg-white dark:bg-[#0B0B0B] border-b border-gray-100 dark:border-gray-900">
-                {/* Main Large Image (Half Width) */}
-                <div 
-                  className="relative aspect-[3/2] sm:aspect-video lg:aspect-auto lg:h-full min-h-[250px] sm:min-h-[350px] lg:min-h-[450px] rounded-2xl sm:rounded-l-3xl overflow-hidden group cursor-pointer shadow-sm"
-                  onClick={() => {
-                    setCurrentImageIndex(0);
-                    setIsLightboxOpen(true);
-                  }}
-                >
-                  <Image
-                    src={normalizeImageUrl(images[0]) || '/placeholder.jpg'}
-                    alt="Main property view"
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 50vw"
-                    className="object-cover transition-transform duration-700 group-hover:scale-105"
-                    quality={90}
-                    priority
+              <div ref={scrollRef} onScroll={e => { const on = e.currentTarget.scrollTop > 640; if (on !== barOn) setBarOn(on) }} className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
+                <div className="px-4 pb-10 pt-4 sm:px-7 sm:pt-6">
+                  {/* The photos take the whole top; the buyer's Love / Pass, tour and comments ride beside the rest. */}
+                  <PropertyHero
+                    home={home}
+                    actions={showVisitorActions ? (
+                      <div className="space-y-2">
+                        <TakeButtons tone="light" liked={!!property.liked} disliked={!!property.disliked}
+                          onLike={() => onLike?.(property.id!, !property.liked)} onPass={() => onDislike?.(property.id!, !property.disliked)} />
+                        {viewer === 'agent' && <HeroShareActions home={home} url={shareUrl} row />}
+                        {tour && <TourButton scheduled={!!property.hasTourScheduled} request={tourRequest} onClick={tour} className="w-full" />}
+                      </div>
+                    ) : undefined}
                   />
-                  <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  
-                  {/* Photo Counter Badge */}
-                  <div className="absolute top-4 right-4 bg-black/60 backdrop-blur px-3 py-1.5 rounded-full text-[10px] font-black text-white uppercase tracking-widest border border-white/10">
-                    1 / {images.length}
-                  </div>
+                  {/* Same columns as the hero, so the questions box sits exactly under the price panel. */}
+                  <div className={`mt-9 grid gap-x-6 gap-y-5 ${showVisitorActions ? HERO_COLS : ''}`}>
+                    <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+                      <Reveal root={scrollRef} id="sc-overview">
+                        <SectionTitle kicker="Overview" title="About this home" />
+                        <AboutHome home={home} />
+                      </Reveal>
 
-                  <button className="absolute bottom-6 right-6 bg-white/90 dark:bg-black/60 backdrop-blur px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl flex items-center space-x-2 group-hover:bg-[#C9A24D] group-hover:text-white transition-all">
-                    <Maximize2 size={12} />
-                    <span>View all photos</span>
-                  </button>
-                </div>
+                      {showDetails && (
+                        <Reveal root={scrollRef} id="sc-details">
+                          <SectionDivider />
+                          {isLoadingDetails ? (
+                            <p className={`flex items-center gap-2 text-sm font-bold ${pp.muted}`}><Loader2 className="h-4 w-4 animate-spin text-[color:var(--pp-gold)]" /> Loading the full listing details...</p>
+                          ) : detailsError ? (
+                            <div className={`flex flex-wrap items-center justify-between gap-3 p-5 ${pp.card}`}>
+                              <p className={`text-sm font-semibold ${pp.muted}`}>The full listing details didn&apos;t load.</p>
+                              {onRetryDetails && (
+                                <button type="button" onClick={onRetryDetails} className="inline-flex items-center gap-1.5 rounded-full bg-[var(--pp-ink)] px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white"><RefreshCw className="h-3.5 w-3.5" /> Try again</button>
+                              )}
+                            </div>
+                          ) : (
+                            <>
+                              <SectionTitle kicker="Details" title="Every detail" sub="Straight from the listing record." />
+                              <EveryDetail home={home} />
+                            </>
+                          )}
+                        </Reveal>
+                      )}
 
-                {/* Grid of 4 Smaller Images */}
-                <div className="hidden lg:grid grid-cols-2 grid-rows-2 gap-2 h-full min-h-[450px]">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div 
-                      key={i} 
-                      className={`relative overflow-hidden cursor-pointer group shadow-sm ${i === 2 ? 'rounded-tr-3xl' : i === 4 ? 'rounded-br-3xl' : ''}`}
-                      onClick={() => {
-                        if (images[i]) {
-                          setCurrentImageIndex(i);
-                          setIsLightboxOpen(true);
-                        }
-                      }}
-                    >
-                      {images[i] ? (
-                        <>
-                          <Image
-                            src={normalizeImageUrl(images[i])}
-                            alt={`View ${i + 1}`}
-                            fill
-                            sizes="(max-width: 1024px) 25vw, 15vw"
-                            className="object-cover transition-transform duration-700 group-hover:scale-110"
-                            quality={90}
-                          />
-                          <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </>
-                      ) : (
-                        <div className="w-full h-full bg-gray-50 dark:bg-[#151517] flex items-center justify-center">
-                          <Home className="text-gray-300 dark:text-gray-800" size={24} />
-                        </div>
+                      {home.price != null && (
+                        <Reveal root={scrollRef} id="sc-price">
+                          <SectionDivider />
+                          <SectionTitle kicker="Price" title="Price history" />
+                          <div className="mt-6"><PriceHistory home={home} /></div>
+                        </Reveal>
+                      )}
+
+                      {home.lat != null && home.lng != null && (
+                        <Reveal root={scrollRef} id="sc-location">
+                          <SectionDivider />
+                          <SectionTitle kicker="Location" title="On the map" sub={home.fullAddress || undefined} />
+                          <LocationBlock home={home} mapClassName="h-[300px]" map={<PropertyMap latitude={home.lat} longitude={home.lng} address={property.FullStreetAddress} />} />
+                        </Reveal>
                       )}
                     </div>
-                  ))}
-                </div>
-              </div>
 
-              {/* Primary Property Info (Address, Price, Status) */}
-              <div className="px-6 sm:px-12 pt-8 sm:pt-10 pb-4 bg-white dark:bg-[#0B0B0B]">
-                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-                  <div className="space-y-4 order-2 lg:order-1">
-                    <div className="flex items-center space-x-3">
-                      <span className={`px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.15em] rounded-full shadow-sm ${
-                        property.MlsStatus?.includes('ACTIVE') 
-                          ? 'bg-green-500 text-white' 
-                          : 'bg-gray-800 text-white'
-                      }`}>
-                        {formatMlsStatus(property.MlsStatus)}
-                      </span>
-                      <div className="h-1 w-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
-                      <span className="text-[8px] font-black text-gray-400 uppercase tracking-[0.15em]">
-                        {formatPropertyType(property.PropertyType)} • Built in {property.YearBuilt || 'N/A'}
-                      </span>
-                    </div>
-                    
-                    <div>
-                      <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-tight mb-1.5">
-                        {cleanAddress(property.FullStreetAddress)}
-                      </h1>
-                      <div className="flex items-center text-sm sm:text-base lg:text-lg font-bold text-gray-500 dark:text-gray-400">
-                        <MapPin size={14} className="mr-2 text-[#C9A24D] shrink-0" />
-                        <span className="truncate">{property.City}, {property.StateOrProvince} {property.PostalCode}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="lg:text-right order-1 lg:order-2 pt-2 lg:pt-0">
-                    <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#111827] dark:text-white tracking-tighter leading-none">
-                      {formatPrice(property.ListPrice)}
-                    </div>
-                    <div className="text-[9px] font-black text-[#C9A24D] uppercase tracking-[0.2em] mt-2 ml-0.5 lg:ml-0">Current Market Price</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="px-6 sm:px-12 py-10 space-y-12">
-                
-                {/* Important Facts / Specs Bar */}
-                <section>
-                  <div className="bg-white dark:bg-[#151517] p-6 sm:p-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap lg:items-center gap-x-8 gap-y-6 lg:gap-x-10 lg:gap-y-4">
-                        <div className="flex items-center space-x-3">
-                          <Bed className="text-[#C9A24D]" size={18} />
-                          <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{formatPropertyFeature(property.BedroomsTotal)}</span>
-                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Beds</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center space-x-3">
-                          <Bath className="text-[#C9A24D]" size={18} />
-                          <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{formatPropertyFeature(property.BathroomsTotal)}</span>
-                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Baths</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center space-x-3">
-                          <Ruler className="text-[#C9A24D]" size={18} />
-                          <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{formatPropertyFeature(property.LivingArea, true)}</span>
-                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Sq Ft</span>
-                          </div>
-                        </div>
-
-                        {property.PricePerSquareFoot && (
-                          <div className="flex items-center space-x-3">
-                            <span className="text-[#C9A24D] font-bold text-lg">$</span>
-                            <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                              <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.PricePerSquareFoot.toFixed(0)}</span>
-                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">/ Sq Ft</span>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex items-center space-x-3">
-                          <Calendar className="text-[#C9A24D]" size={18} />
-                          <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{property.YearBuilt || '-'}</span>
-                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Built</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center space-x-3">
-                          <ShieldCheck className="text-[#C9A24D]" size={18} />
-                          <div className="flex flex-col sm:flex-row sm:items-baseline sm:space-x-2">
-                            <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">
-                              {property.AssociationYN || (property.AssociationFee && property.AssociationFee > 0) ? 'Yes' : 'No'}
-                            </span>
-                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">HOA</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-center sm:justify-start space-x-3 pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-gray-100 dark:border-gray-800 lg:pl-8 h-auto lg:h-10">
-                        <button
-                          onClick={() => onLike?.(property.id!, !property.liked)}
-                          className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl transition-all border font-black text-[9px] uppercase tracking-widest ${
-                            property.liked
-                              ? 'bg-green-500 border-green-500 text-white shadow-lg shadow-green-500/20'
-                              : 'bg-white dark:bg-[#0B0B0B] border-gray-200 dark:border-gray-800 text-gray-400 hover:text-green-500 hover:border-green-200 shadow-sm'
-                          }`}
+                    {/* The buyer's side: love it or pass, book a tour, and talk to the agent about it. */}
+                    {showVisitorActions && (
+                      <aside className="lg:col-start-2 lg:row-start-1">
+                        <motion.div
+                          initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} transition={{ ...SPRING, delay: 0.12 }}
+                          className="space-y-4 lg:sticky lg:top-2"
                         >
-                          <ThumbsUp size={14} fill={property.liked ? "currentColor" : "none"} />
-                          <span className="hidden sm:inline">Like</span>
-                        </button>
-                        <button
-                          onClick={() => onDislike?.(property.id!, !property.disliked)}
-                          className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl transition-all border font-black text-[9px] uppercase tracking-widest ${
-                            property.disliked
-                              ? 'bg-gray-900 dark:bg-white border-gray-900 dark:border-white text-white dark:text-gray-900 shadow-lg'
-                              : 'bg-white dark:bg-[#0B0B0B] border-gray-200 dark:border-gray-800 text-gray-400 hover:text-red-500 hover:border-red-200 shadow-sm'
-                          }`}
-                        >
-                          <ThumbsDown size={14} fill={property.disliked ? "currentColor" : "none"} />
-                          <span className="hidden sm:inline">Pass</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                {/* Description & Comments */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-                  <div className="lg:col-span-2">
-                    <div className="bg-white dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-800 rounded-3xl p-8 sm:p-10 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] h-full">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                        <h3 className="text-xs font-black text-[#C9A24D] uppercase tracking-[0.3em]">Property Description</h3>
-                        
-                        <div className="flex flex-wrap gap-4 text-[10px] font-black uppercase tracking-wider text-gray-400">
-                          {property.MLSAreaMajor && (
-                            <div className="flex items-center px-3 py-1.5 bg-gray-50 dark:bg-[#151517] rounded-lg border border-gray-100 dark:border-gray-800">
-                              <span className="text-[#C9A24D] mr-2">Township:</span>
-                              <span className="text-gray-900 dark:text-gray-200">{property.MLSAreaMajor}</span>
-                            </div>
-                          )}
-                          {property.SchoolDistrictName && (
-                            <div className="flex items-center px-3 py-1.5 bg-gray-50 dark:bg-[#151517] rounded-lg border border-gray-100 dark:border-gray-800">
-                              <span className="text-[#C9A24D] mr-2">District:</span>
-                              <span className="text-gray-900 dark:text-gray-200">{property.SchoolDistrictName}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {property.PublicRemarks ? (
-                        <DescriptionSection 
-                          description={property.PublicRemarks} 
-                          details={property}
-                        />
-                      ) : (
-                        <p className="text-gray-400 italic">No description available for this listing.</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Comments Sidebar */}
-                  <div className="lg:col-span-1">
-                    <div className="bg-white dark:bg-[#151517] rounded-3xl p-8 border border-gray-200 dark:border-gray-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] h-full">
-                      <div className="flex items-center justify-between mb-8">
-                        <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight leading-none">COMMENTS</h3>
-                        <div className="bg-[#C9A24D] text-white text-[10px] font-black px-2 py-1 rounded-md">
-                          {property.comments?.length || 0}
-                        </div>
-                      </div>
-
-                      <div ref={commentsContainerRef} className="space-y-6 mb-8 max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">
-                        {property.comments && property.comments.length > 0 ? (
-                          property.comments.map((comment) => (
-                            <div key={comment.id} className="pb-4 border-b border-gray-100 dark:border-gray-800 last:border-0 last:pb-0">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-[11px] font-black text-gray-900 dark:text-white uppercase tracking-wider">{comment.author}</span>
-                                <span className="text-[9px] font-bold text-gray-400">{formatDate(comment.createdAt)}</span>
+                          <div id="sc-comments" className={`relative isolate overflow-hidden rounded-[26px] bg-[var(--pp-ink)] p-5 text-white shadow-[0_34px_70px_-40px_rgba(0,0,0,.85)] ring-1 transition-shadow duration-700 ${commentsGlow ? 'ring-2 ring-[color:var(--pp-gold)] shadow-[0_0_0_6px_rgba(201,162,77,.25),0_34px_70px_-40px_rgba(0,0,0,.85)]' : 'ring-white/10'}`}>
+                            <span aria-hidden className="pp-panel-edge pointer-events-none absolute inset-x-0 top-0 h-px" />
+                            <span aria-hidden className="pointer-events-none absolute -right-16 -top-16 -z-10 h-48 w-48 rounded-full bg-[var(--pp-gold)] opacity-25 blur-3xl" />
+                            {[['14%', '18%', 0], ['86%', '30%', 1.8]].map(([l, t, d], k) => (
+                              <span key={k} aria-hidden className="pp-panel-spark pointer-events-none absolute" style={{ left: l as string, top: t as string, animationDelay: `${d}s` }} />
+                            ))}
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex min-w-0 items-center gap-3">
+                                <AgentAvatar agent={agent} size={48} />
+                                <div className="min-w-0">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[color:var(--pp-gold)]">{viewer === 'agent' ? 'You' : 'Your agent'}</p>
+                                  <p className="truncate font-serif text-lg font-black leading-tight">{agent?.name || 'Ask your agent'}</p>
+                                </div>
                               </div>
-                              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed font-medium">
-                                {comment.content}
-                              </p>
+                              {comments.length > 0 && (
+                                <motion.span key={comments.length} initial={{ scale: 0.6 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 600, damping: 18 }}
+                                  className="grid h-7 min-w-7 shrink-0 place-items-center rounded-full bg-[var(--pp-gold)] px-2 text-[11px] font-black text-[color:var(--pp-ink)]">{comments.length}</motion.span>
+                              )}
                             </div>
-                          ))
-                        ) : (
-                          <div className="text-center py-12">
-                            <MessageCircle className="mx-auto text-gray-300 dark:text-gray-800 mb-4" size={40} />
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">No comments yet</p>
+                            <h3 className="mt-4 font-serif text-[1.35rem] font-black leading-tight">{viewer === 'agent' ? 'Questions on this home' : 'Curious about this home?'}</h3>
+                            <p className="mt-0.5 text-xs font-semibold text-white/50">{viewer === 'agent' ? 'Reply here - they see it under this home in their Showcase.' : <>Ask anything - {agent?.name ? `${agent.name.split(' ')[0]} answers` : 'the answer lands'} right here.</>}</p>
+                            <div ref={commentsContainerRef} className="scrollbar-hide -mx-1.5 mt-3 max-h-[300px] space-y-2.5 overflow-y-auto px-1.5 pb-2 pt-1.5">
+                              {isLoadingComments && !comments.length ? (
+                                <p className="flex items-center gap-2 py-4 text-xs font-bold text-white/50"><Loader2 className="h-4 w-4 animate-spin" /> Loading...</p>
+                              ) : comments.length > 0 ? (
+                                <AnimatePresence initial={false}>
+                                  {comments.map(comment => {
+                                    // Saved with the comment: did the agent write it?
+                                    const fromAgent = !!comment.isAgent
+                                    const right = viewer === 'agent' ? fromAgent : !fromAgent
+                                    return (
+                                      <motion.div
+                                        key={comment.id}
+                                        layout="position"
+                                        initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        transition={{ type: 'spring', stiffness: 500, damping: 34 }}
+                                        className={`flex items-end gap-2 ${right ? 'flex-row-reverse' : ''}`}
+                                      >
+                                        {!right && (fromAgent
+                                          ? <AgentAvatar agent={agent} size={28} />
+                                          : <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/15 text-[10px] font-black text-white">{String(comment.author || '?').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join('')}</span>)}
+                                        <div className={`min-w-0 max-w-[85%] px-3.5 py-2.5 ${fromAgent ? 'bg-[color:color-mix(in_srgb,var(--pp-gold)_15%,transparent)] ring-1 ring-[color:color-mix(in_srgb,var(--pp-gold)_25%,transparent)]' : 'bg-white/[0.08] ring-1 ring-white/[0.06]'} ${right ? 'rounded-2xl rounded-br-md' : 'rounded-2xl rounded-bl-md'}`}>
+                                          <div className="mb-0.5 flex items-center justify-between gap-3">
+                                            <span className={`truncate text-[11px] font-black ${fromAgent ? 'text-[color:var(--pp-gold)]' : 'text-white/80'}`}>{right ? 'You' : fromAgent ? (agent?.name || comment.author) : comment.author}</span>
+                                            <span className="shrink-0 text-[10px] font-bold text-white/40">{shortDate(comment.createdAt)}</span>
+                                          </div>
+                                          <p className="text-sm font-medium leading-relaxed text-white/85">{comment.content}</p>
+                                        </div>
+                                      </motion.div>
+                                    )
+                                  })}
+                                </AnimatePresence>
+                              ) : (
+                                <div className="scrollbar-hide flex gap-1.5 overflow-x-auto [scrollbar-width:none]">
+                                  {([['Any offers yet?', 'Any offers yet?'], ['Send disclosure', "Could you please send the seller's disclosure?"], ['CMA request', 'Hey, could you make a CMA for this one?']] as const).map(([q, text], k) => (
+                                    <motion.button key={q} type="button" onClick={() => setNewComment(text)}
+                                      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + k * 0.07 }}
+                                      whileHover={{ y: -1 }} whileTap={{ scale: 0.95 }}
+                                      className="shrink-0 whitespace-nowrap rounded-full border border-white/15 px-3 py-1.5 text-[11px] font-bold text-white/75 transition-colors hover:border-[color:var(--pp-gold)] hover:text-white">
+                                      {q}
+                                    </motion.button>
+                                  ))}
+                                </div>
+                              )}
+                              {commentsError && <p className="text-xs font-semibold text-rose-300">{commentsError}</p>}
+                            </div>
+                            <form onSubmit={handleSubmitComment} className="mt-4">
+                              <div className="relative">
+                                <textarea
+                                  ref={replyRef}
+                                  value={newComment}
+                                  onChange={(e) => setNewComment(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmitComment(e as any) } }}
+                                  placeholder={viewer === 'agent' ? 'Write your reply...' : 'Type your question...'}
+                                  className="block w-full resize-none rounded-2xl border border-white/12 bg-white/[0.06] py-3 pl-4 pr-14 text-sm font-medium text-white outline-none transition placeholder:text-white/35 focus:border-[color:var(--pp-gold)] focus:ring-4 focus:ring-white/10"
+                                  rows={2}
+                                  disabled={isSubmittingComment}
+                                />
+                                <motion.button
+                                  type="submit"
+                                  aria-label="Send"
+                                  disabled={!newComment.trim() || isSubmittingComment}
+                                  whileTap={{ scale: 0.88 }}
+                                  animate={{ scale: newComment.trim() ? 1 : 0.9, opacity: newComment.trim() ? 1 : 0.45 }}
+                                  className="absolute bottom-3 right-3 grid h-9 w-9 place-items-center rounded-full bg-[var(--pp-gold)] text-[color:var(--pp-ink)] shadow-md"
+                                >
+                                  {isSubmittingComment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                </motion.button>
+                              </div>
+                            </form>
                           </div>
-                        )}
-                      </div>
-
-                      <form onSubmit={handleSubmitComment} className="space-y-4">
-                        <textarea
-                          value={newComment}
-                          onChange={(e) => setNewComment(e.target.value)}
-                          placeholder="Type your message to the agent..."
-                          className="w-full px-4 py-4 bg-gray-50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all resize-none"
-                          rows={3}
-                          disabled={isSubmittingComment}
-                        />
-                        <button
-                          type="submit"
-                          disabled={!newComment.trim() || isSubmittingComment}
-                          className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black py-4 rounded-2xl transition-all hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:text-white uppercase tracking-widest text-[10px] disabled:opacity-50 shadow-md"
-                        >
-                          {isSubmittingComment ? 'Sending...' : 'Send Message'}
-                        </button>
-                      </form>
-                    </div>
+                        </motion.div>
+                      </aside>
+                    )}
                   </div>
+
+                  <BrightNotice home={home} updatedAt={property.updated_at} className="mt-12" />
                 </div>
 
-                {/* Technical Report Section */}
-                <section className="pt-8">
-                  {!isLoadingDetails && !detailsError && (
-                    <PropertyReport 
-                      property={property as PropertyDetailResponse} 
-                    />
-                  )}
-                </section>
-
-                {/* Enhanced Compliance Footer */}
-                <footer className="border-t border-gray-100 dark:border-gray-800 pt-12 pb-20 text-center space-y-4">
-                  <div className="inline-block px-4 py-2 bg-gray-50 dark:bg-[#151517] rounded-full border border-gray-100 dark:border-gray-800">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                      Last Updated: {property.updated_at 
-                        ? new Date(property.updated_at).toLocaleString()
-                        : new Date().toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="max-w-3xl mx-auto space-y-4">
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Information Deemed Reliable But Not Guaranteed.</p>
-                    <p className="text-[10px] text-gray-400 dark:text-gray-600 leading-relaxed px-4">
-                      The data relating to real estate for sale on this website appears in part through the BRIGHT Internet Data Exchange program, a voluntary cooperative exchange of property listing data between licensed real estate brokerage firms in which participates, and is provided by BRIGHT through a licensing agreement.
-                    </p>
-                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] pt-4">
-                      © {new Date().getFullYear()} Bright MLS • All Rights Reserved
-                    </p>
-                  </div>
-                </footer>
-
+                {/* Phones: Love / Pass / tour / message ride along once you've scrolled past the price panel. */}
+                <AnimatePresence>
+                {showVisitorActions && barOn && (
+                  <motion.div
+                    key="phone-bar"
+                    initial={{ y: 90, opacity: 0 }} animate={{ y: 0, opacity: 1, transition: SPRING }} exit={{ y: 90, opacity: 0, transition: { duration: 0.2 } }}
+                    className="sticky bottom-3 z-30 mx-3 mb-3 flex items-center gap-2 rounded-2xl bg-[var(--pp-ink)] p-2 shadow-[0_20px_40px_-12px_rgba(0,0,0,.55)] ring-1 ring-white/10 lg:hidden"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <TakeButtons compact liked={!!property.liked} disliked={!!property.disliked}
+                        onLike={() => onLike?.(property.id!, !property.liked)} onPass={() => onDislike?.(property.id!, !property.disliked)} />
+                    </div>
+                    {tour && (
+                      <motion.button whileTap={{ scale: 0.9 }} onClick={tour} aria-label="Schedule a tour"
+                        className={`grid h-[42px] w-12 place-items-center rounded-xl ${tourState(tourRequest) === 'confirmed' ? 'bg-emerald-500 text-white' : tourState(tourRequest) === 'pending' || property.hasTourScheduled ? 'bg-amber-400 text-[#111827]' : 'bg-white/10 text-white'}`}>
+                        {tourState(tourRequest) === 'confirmed' ? <CalendarCheck size={17} /> : tourState(tourRequest) === 'pending' || property.hasTourScheduled ? <Hourglass size={17} /> : <CalendarDays size={17} />}
+                      </motion.button>
+                    )}
+                    <motion.button whileTap={{ scale: 0.9 }} onClick={toComments} aria-label="Message your agent" className="relative grid h-[42px] w-12 place-items-center rounded-xl bg-[var(--pp-gold)] text-[color:var(--pp-ink)]">
+                      <MessageCircle size={17} />
+                      {comments.length > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-white px-1.5 text-[9px] font-black text-[#111827]">{comments.length}</span>}
+                    </motion.button>
+                  </motion.div>
+                )}
+                </AnimatePresence>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
+            </PropertySurface>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+/** The agent's photo (gold ring, green "here" dot), or their initials. */
+function AgentAvatar({ agent, size }: { agent: PropertyDetailsModalProps['agent']; size: number }) {
+  const initials = String(agent?.name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join('')
+  return (
+    <span className="relative shrink-0" style={{ width: size, height: size }}>
+      {agent?.photoUrl
+        ? <img src={agent.photoUrl} alt={agent.name || 'Your agent'} className="h-full w-full rounded-full object-cover ring-2 ring-[color:var(--pp-gold)] ring-offset-2 ring-offset-[color:var(--pp-ink)]" />
+        : <span className="grid h-full w-full place-items-center rounded-full bg-[var(--pp-gold)] font-black text-[color:var(--pp-ink)]" style={{ fontSize: size * 0.36 }}>{initials || <MessageCircle className="h-1/2 w-1/2" />}</span>}
+      {size > 32 && <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-400 ring-2 ring-[color:var(--pp-ink)]" />}
+    </span>
+  )
+}
+
+/** A section that rises in the first time it scrolls into the window. */
+function Reveal({ root, id, className = '', children }: { root: RefObject<HTMLElement | null>; id: string; className?: string; children: ReactNode }) {
+  return (
+    <motion.section
+      id={id}
+      className={`scroll-mt-20 ${className}`}
+      initial={{ opacity: 0, y: 22 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, root: root as RefObject<Element>, margin: '0px 0px -60px 0px' }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+    >
+      {children}
+    </motion.section>
+  )
+}
+
+/** Love / Pass as one segmented control: the chosen side lights up (a sliding pill - green for
+ *  Love, red for Pass) and its icon pops. `tone` = the surface it sits on. */
+export function TakeButtons({ liked, disliked, onLike, onPass, compact = false, tone = 'dark' }: {
+  liked: boolean; disliked: boolean; onLike: () => void; onPass: () => void; compact?: boolean; tone?: 'dark' | 'light'
+}) {
+  const h = compact ? 'h-[42px]' : 'h-11'
+  const light = tone === 'light'
+  const base = `relative isolate flex flex-1 items-center justify-center gap-1.5 overflow-hidden rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors ${h}`
+  const love = liked ? 'text-white' : light ? 'border border-emerald-500/35 bg-emerald-500/[0.07] text-emerald-700 hover:border-emerald-500 dark:text-emerald-400' : 'text-white/80 hover:text-emerald-300'
+  const pass = disliked ? 'text-white' : light ? 'border border-rose-500/35 bg-rose-500/[0.07] text-rose-600 hover:border-rose-500 dark:text-rose-400' : 'text-white/80 hover:text-rose-300'
+  return (
+    <div className={`flex items-stretch ${light ? 'gap-2' : 'gap-0 rounded-xl bg-white/[0.07] ring-1 ring-white/10'}`}>
+      <motion.button type="button" whileTap={{ scale: 0.94 }} whileHover={light ? { y: -1 } : undefined} onClick={onLike} aria-pressed={liked} className={`${base} ${love}`}>
+        <AnimatePresence>{liked && <motion.span key="fill" className="absolute inset-0 -z-10 rounded-xl bg-emerald-500" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ type: 'spring', stiffness: 520, damping: 30 }} />}</AnimatePresence>
+        <motion.span key={liked ? 'on' : 'off'} initial={liked ? { scale: 0.4 } : false} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 700, damping: 12 }} className="relative">
+          <Heart size={15} fill={liked ? 'currentColor' : 'none'} />
+          {liked && <Burst color="bg-emerald-200" />}
+        </motion.span>
+        {liked ? 'Loved' : 'Love it'}
+      </motion.button>
+      {!light && <span aria-hidden className="my-2.5 w-px bg-white/15" />}
+      <motion.button type="button" whileTap={{ scale: 0.94 }} whileHover={light ? { y: -1 } : undefined} onClick={onPass} aria-pressed={disliked} className={`${base} ${pass}`}>
+        <AnimatePresence>{disliked && <motion.span key="fill" className="absolute inset-0 -z-10 rounded-xl bg-rose-500" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ type: 'spring', stiffness: 520, damping: 30 }} />}</AnimatePresence>
+        <motion.span key={disliked ? 'on' : 'off'} initial={disliked ? { rotate: -90, scale: 0.5 } : false} animate={{ rotate: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 600, damping: 16 }}>
+          <X size={15} strokeWidth={3} />
+        </motion.span>
+        {disliked ? 'Passed' : 'Pass'}
+      </motion.button>
+    </div>
+  )
+}
+
+// Six little sparks flying out of the heart when a home is loved.
+function Burst({ color = 'bg-emerald-200' }: { color?: string }) {
+  return (
+    <span aria-hidden className="pointer-events-none absolute left-1/2 top-1/2">
+      {Array.from({ length: 6 }).map((_, i) => {
+        const a = (i / 6) * Math.PI * 2
+        return (
+          <motion.span key={i} className={`absolute h-1 w-1 rounded-full ${color}`}
+            initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+            animate={{ x: Math.cos(a) * 16, y: Math.sin(a) * 16, opacity: 0, scale: 0.4 }}
+            transition={{ duration: 0.55, ease: 'easeOut' }} />
+        )
+      })}
+    </span>
+  )
+}
+
+/** "Schedule a tour" - then "Pending approval · requested Sat, Oct 4 · 2:00 PM" (amber) until the
+ *  agent confirms, then "Tour confirmed · <the time>" (green). Tapping it after a request opens the
+ *  request's details (the page decides - see onScheduleTour). */
+export function TourButton({ scheduled, request = null, onClick, className = '' }: { scheduled: boolean; request?: TourLike | null; onClick: () => void; className?: string }) {
+  const state = tourState(request) === 'none' && scheduled ? 'pending' : tourState(request)
+  const look = state === 'confirmed' || state === 'done' ? 'bg-emerald-500 text-white' : state === 'pending' ? 'bg-amber-400 text-[#111827]' : 'bg-[var(--pp-gold)] text-[color:var(--pp-ink)]'
+  const sub = state === 'pending' ? (request ? `Requested ${tourWhen(request.preferred_date, request.preferred_time)}` : 'Waiting for your agent')
+    : state === 'confirmed' ? tourWhen(request?.confirmed_date, request?.confirmed_time) : ''
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      whileHover={{ y: -1 }}
+      whileTap={{ scale: 0.97 }}
+      className={`pp-sheen inline-flex min-h-11 items-center justify-center gap-2.5 overflow-hidden rounded-2xl px-4 py-2 shadow-lg transition-colors ${look} ${className}`}
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span key={state} className="inline-flex items-center gap-2.5"
+          initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -10, opacity: 0 }} transition={{ duration: 0.18 }}>
+          {state === 'pending'
+            ? <motion.span animate={{ rotate: [0, 180, 180, 360] }} transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }} className="inline-flex"><Hourglass className="h-4 w-4" /></motion.span>
+            : state === 'none' ? <CalendarDays className="h-4 w-4" /> : <CalendarCheck className="h-4 w-4" />}
+          <span className="flex flex-col items-start leading-tight">
+            <span className="text-[11px] font-black uppercase tracking-widest">
+              {state === 'pending' ? 'Pending approval' : state === 'confirmed' ? 'Tour confirmed' : state === 'done' ? 'Toured' : 'Schedule a tour'}
+            </span>
+            {sub && <span className="text-[11px] font-bold normal-case tracking-normal opacity-80">{sub}</span>}
+          </span>
+        </motion.span>
+      </AnimatePresence>
+    </motion.button>
   )
 }

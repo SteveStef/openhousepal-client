@@ -1,12 +1,16 @@
 'use client'
 
+import OhpLoader from '@/components/brand/OhpLoader'
+
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import api from '@/lib/api-service'
 import PayPalSubscriptionButton from '@/components/PayPalSubscriptionButton'
 import { PayPalScriptProvider } from "@paypal/react-paypal-js"
-import { PRICING_PLANS, TRIAL_PERIOD_DAYS } from '@/lib/pricing'
+import { PRICING_PLANS, TRIAL_PERIOD_DAYS, type PlanTierId } from '@/lib/pricing'
+import type { CheckoutCode } from '@/types'
+import { PricingTierCard } from '@/components/pricing/PricingCards'
 import { hasValidSubscription } from '@/lib/auth-helpers'
 import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
 import AuthGuard from '@/components/AuthGuard'
@@ -38,7 +42,12 @@ interface SelectedPlan {
   price: string;
   priceValue: number;
   tier: string;
-  features: string[] | readonly string[];
+}
+
+// One place to turn a tier id into the SelectedPlan shape the payment step needs.
+function planToSelected(tier: PlanTierId): SelectedPlan {
+  const p = PRICING_PLANS[tier]
+  return { id: p.paypalPlanId, name: p.name, price: p.priceString, priceValue: p.price, tier }
 }
 
 function CheckoutContent() {
@@ -46,27 +55,65 @@ function CheckoutContent() {
   const { user, refreshUser, isLoading: isAuthLoading } = useAuth()
   
   const [registrationStep, setRegistrationStep] = useState<'pricing' | 'payment'>('pricing')
+  const [checkoutAudience, setCheckoutAudience] = useState<'bright' | 'no_mls'>('bright')
   const [selectedPlan, setSelectedPlan] = useState<SelectedPlan | null>(null)
   const [bundleCode, setBundleCode] = useState('')
   const [isVerifyingCode, setIsVerifyingCode] = useState(false)
-  const [appliedBundleCode, setAppliedBundleCode] = useState<string | null>(null)
+  const [appliedCode, setAppliedCode] = useState<CheckoutCode | null>(null)
+  const [isActivating, setIsActivating] = useState(false)
+  // A 'billed by us' code: no PayPal at all, we invoice the agent ourselves.
+  const billedByUs = appliedCode?.kind === 'billed_by_us'
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' })
+
+  // Agents outside Bright MLS (no MLS ID) can only use the No-MLS plans. Everyone else starts on
+  // the side of the plan card they clicked before signing up (remembered by the sign-up page).
+  const inBright = !!user?.mls_id
+  useEffect(() => {
+    if (!user) return
+    if (!user.mls_id) { setCheckoutAudience('no_mls'); return }
+    try {
+      const plan = localStorage.getItem('ohp_signup_plan')
+      if (plan === 'no_mls' || plan === 'pro_no_mls') setCheckoutAudience('no_mls')
+    } catch {}
+  }, [user])
 
   useEffect(() => {
     if (isAuthLoading || !user) return
 
-    // If user is already paid and has a valid subscription, send them to open-houses
+    // If user is already paid and has a valid subscription, send them to their Dash (where the welcome email points too)
     if (hasValidSubscription(user)) {
-      router.push('/open-houses')
+      router.push('/dash')
       return
     }
 
     // If they had a subscription that is now cancelled/expired, send them to settings
     // This prevents them from getting another free trial through the checkout page
-    if (user.subscription_status === 'CANCELLED' || user.subscription_status === 'EXPIRED') {
+    if (user.subscription_status === 'CANCELLED' || user.subscription_status === 'EXPIRED' || user.subscription_status === 'SUSPENDED' || user.subscription_id) {
       router.push('/settings/subscription')
     }
   }, [user, isAuthLoading, router])
+  // What PayPal will actually do for the picked plan (trial length, price, setup fee) - the
+  // order summary shows this instead of assuming every plan has the same free trial.
+  const [terms, setTerms] = useState<{ trial_days: number; price: number | null; setup_fee: number } | null>(null)
+  useEffect(() => {
+    setTerms(null)
+    const id = selectedPlan?.id
+    if (!id || id.startsWith('P-DEFAULT') || billedByUs) return
+    let live = true
+    api.paypal.planTerms(id).then(({ success, data }) => { if (live && success && data) setTerms(data) })
+    return () => { live = false }
+  }, [selectedPlan?.id, billedByUs])
+
+  // Picking a plan swaps the page to the payment step - bring it into view (the plan cards are
+  // long, so the button that was tapped is often far down the page).
+  useEffect(() => {
+    if (registrationStep === 'payment') window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [registrationStep])
+
+  // IDX never has a free trial; the others fall back to the standard trial until PayPal answers.
+  const trialDays = billedByUs ? 0 : terms ? terms.trial_days : (selectedPlan?.tier === 'IDX' || appliedCode ? 0 : TRIAL_PERIOD_DAYS)
+  const hasTrial = trialDays > 0
+
   const handleVerifyBundleCode = async () => {
     if (!bundleCode.trim()) return
     
@@ -74,28 +121,34 @@ function CheckoutContent() {
     const { success, data, error } = await api.auth.verifyBundleCode(bundleCode.trim())
 
     if (success && data) {
-      setAppliedBundleCode(bundleCode.trim())
-      setSelectedPlan({
-        id: data.plan_id,
-        name: PRICING_PLANS.PREMIUM.name,
-        price: PRICING_PLANS.PREMIUM.priceString,
-        priceValue: PRICING_PLANS.PREMIUM.price,
-        tier: 'PREMIUM',
-        features: [...PRICING_PLANS.PREMIUM.features]
-      })
+      const tier = (data.plan_tier in PRICING_PLANS ? data.plan_tier : 'PREMIUM') as PlanTierId
+      setAppliedCode(data)
+      setSelectedPlan({ ...planToSelected(tier), id: data.plan_id || '', name: data.plan_name || PRICING_PLANS[tier].name })
       setRegistrationStep('payment')
-      setNotification({ type: 'success', message: 'Promo code applied! Enjoy your special rate.' })
+      setNotification({ type: 'success', message: data.message || 'Code applied!' })
     } else {
-      setNotification({ type: 'error', message: error || 'Invalid promo code' })
+      setNotification({ type: 'error', message: error || "That code isn't valid" })
     }
     setIsVerifyingCode(false)
   }
 
+  const activateWithCode = async () => {
+    if (!appliedCode) return
+    setIsActivating(true)
+    const { success, error } = await api.auth.redeemCode(appliedCode.code)
+    if (success) {
+      await refreshUser()
+      router.push('/dash')
+      return
+    }
+    setNotification({ type: 'error', message: error || "Couldn't switch your account on" })
+    setIsActivating(false)
+  }
+  const cycleWord = (c?: string | null) => (c === 'yearly' ? 'yr' : c === 'quarterly' ? 'qtr' : 'mo')
+
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-[#C9A24D]/20 border-t-[#C9A24D] rounded-full animate-spin"></div>
-      </div>
+      <OhpLoader />
     )
   }
 
@@ -117,106 +170,61 @@ function CheckoutContent() {
               Finalize <span className="text-[#C9A24D]">Account</span>
             </h1>
             <p className="text-xl text-[#6B7280] dark:text-gray-400 font-light max-w-2xl mx-auto leading-relaxed">
-              Your credentials have been verified. Select your plan below to activate your <span className="text-[#111827] dark:text-white font-medium italic underline decoration-[#C9A24D]/30 underline-offset-4">{TRIAL_PERIOD_DAYS}-day free trial</span> and start automating your lead workflow.
+              Pick your plan to switch your account on. {inBright ? 'Every plan except IDX starts' : 'Both plans start'} with a <span className="text-[#111827] dark:text-white font-medium italic underline decoration-[#C9A24D]/30 underline-offset-4">{TRIAL_PERIOD_DAYS}-day free trial</span>.
             </p>
           </div>
 
           {registrationStep === 'pricing' ? (
             <>
-              {/* Pricing Cards */}
-              <div className="grid md:grid-cols-2 gap-8 mb-16 items-start">
-                {/* Basic Plan */}
-                <div className="bg-white dark:bg-[#151517] rounded-[2rem] p-10 border border-gray-100 dark:border-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.05)] relative group hover:shadow-[0_30px_60px_rgba(0,0,0,0.08)] transition-all duration-300">
-                  <div className="text-center mb-8">
-                    <h2 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Essential Access</h2>
-                    <h3 className="text-3xl font-black text-[#0B0B0B] dark:text-white mb-4">{PRICING_PLANS.BASIC.name}</h3>
-                    <div className="flex items-baseline justify-center">
-                      <span className="text-4xl font-black text-[#0B0B0B] dark:text-white tracking-tight">{PRICING_PLANS.BASIC.priceString}</span>
-                      <span className="text-[#6B7280] dark:text-gray-500 ml-2 font-medium">/mo</span>
-                    </div>
-                    <p className="text-[10px] font-black text-[#C9A24D] mt-4 uppercase tracking-[0.2em]">After {TRIAL_PERIOD_DAYS}-Day Free Trial</p>
-                  </div>
-                  
-                  <div className="space-y-4 mb-10">
-                    {PRICING_PLANS.BASIC.features.map((feature, idx) => (
-                      <div key={idx} className="flex items-center text-gray-700 dark:text-gray-300 font-medium text-sm">
-                        <CheckCircle2 className="w-5 h-5 text-green-500 dark:text-green-400 mr-3 flex-shrink-0" />
-                        {feature}
-                      </div>
-                    ))}
-                  </div>
-
+              {/* Audience Toggle - only for Bright agents (they may pick either side) */}
+              {!inBright && (
+                <p className="mb-10 text-center text-sm font-medium text-[#6B7280] dark:text-gray-400">
+                  Your account isn&apos;t connected to Bright MLS, so these are your plans.
+                </p>
+              )}
+              <div className={`flex justify-center mb-10 ${inBright ? '' : 'hidden'}`}>
+                <div className="inline-flex items-center gap-1 rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151517] p-1 shadow-sm">
                   <button
-                    onClick={() => {
-                      setSelectedPlan({
-                        id: PRICING_PLANS.BASIC.paypalPlanId,
-                        name: PRICING_PLANS.BASIC.name,
-                        price: PRICING_PLANS.BASIC.priceString,
-                        priceValue: PRICING_PLANS.BASIC.price,
-                        tier: 'BASIC',
-                        features: [...PRICING_PLANS.BASIC.features]
-                      })
-                      setRegistrationStep('payment')
-                    }}
-                    className="w-full py-5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] dark:hover:text-white transition-all shadow-xl active:scale-95"
+                    onClick={() => setCheckoutAudience('bright')}
+                    className={`px-5 py-2.5 rounded-full text-sm font-bold transition-colors ${checkoutAudience === 'bright' ? 'bg-[#111827] text-white dark:bg-[#C9A24D] dark:text-[#111827]' : 'text-gray-500 dark:text-gray-400 hover:text-[#0B0B0B] dark:hover:text-white'}`}
                   >
-                    Select Basic Plan
+                    Bright MLS Agent
+                  </button>
+                  <button
+                    onClick={() => setCheckoutAudience('no_mls')}
+                    className={`px-5 py-2.5 rounded-full text-sm font-bold transition-colors ${checkoutAudience === 'no_mls' ? 'bg-[#111827] text-white dark:bg-[#C9A24D] dark:text-[#111827]' : 'text-gray-500 dark:text-gray-400 hover:text-[#0B0B0B] dark:hover:text-white'}`}
+                  >
+                    Non-Bright MLS
                   </button>
                 </div>
-
-                {/* Premium Plan */}
-                <div className="bg-[#111827] dark:bg-[#1A1A1C] rounded-[2rem] p-10 shadow-[0_30px_80px_-20px_rgba(201,162,77,0.3)] border border-gray-800 dark:border-gray-700 relative overflow-hidden transform md:-translate-y-4 transition-all duration-300">
-                  {/* Gradient Effects */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#111827] via-[#2c241b] to-[#3d3226] dark:from-[#1A1A1C] dark:via-[#2c241b] dark:to-[#3d3226] z-0"></div>
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-[#C9A24D]/20 rounded-full blur-[80px] z-0"></div>
-                  
-                  <div className="relative z-10">
-                    <div className="absolute top-0 right-0">
-                       <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#C9A24D] text-[#111827] text-[10px] font-black uppercase tracking-widest">
-                        Recommended
-                       </span>
-                    </div>
-
-                    <div className="text-center mb-8">
-                      <h2 className="text-sm font-bold text-[#C9A24D] uppercase tracking-widest mb-2">Most Powerful</h2>
-                      <h3 className="text-3xl font-black text-white mb-4">Premium</h3>
-                      <div className="flex items-baseline justify-center">
-                        <span className="text-5xl font-black text-white tracking-tight">{PRICING_PLANS.PREMIUM.priceString}</span>
-                        <span className="text-gray-400 dark:text-gray-500 ml-2 font-medium">/mo</span>
-                      </div>
-                      <p className="text-[10px] font-black text-[#C9A24D] mt-4 uppercase tracking-[0.2em]">After {TRIAL_PERIOD_DAYS}-Day Free Trial</p>
-                    </div>
-
-                    <div className="space-y-4 mb-10">
-                      {PRICING_PLANS.PREMIUM.features.map((feature, idx) => (
-                        <div key={idx} className="flex items-center text-white font-medium text-sm">
-                          <div className="w-5 h-5 bg-[#C9A24D] rounded-full flex items-center justify-center mr-3 flex-shrink-0 text-[#111827]">
-                            <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={3} />
-                          </div>
-                          {feature}
-                        </div>
-                      ))}
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setSelectedPlan({
-                          id: PRICING_PLANS.PREMIUM.paypalPlanId,
-                          name: PRICING_PLANS.PREMIUM.name,
-                          price: PRICING_PLANS.PREMIUM.priceString,
-                          priceValue: PRICING_PLANS.PREMIUM.price,
-                          tier: 'PREMIUM',
-                          features: [...PRICING_PLANS.PREMIUM.features]
-                        })
-                        setRegistrationStep('payment')
-                      }}
-                      className="w-full py-5 bg-gradient-to-r from-[#C9A24D] to-[#b38e3e] text-[#111827] rounded-2xl font-black uppercase tracking-widest text-xs hover:shadow-lg hover:shadow-[#C9A24D]/30 transition-all duration-300 transform active:scale-95"
-                    >
-                      Select Premium Plan
-                    </button>
-                  </div>
-                </div>
               </div>
+
+              {/* One set of canonical plan cards - the exact same components the homepage,
+                  /upgrade-required, Settings, and the resubscribe modal render. onCtaClick
+                  drives the local pricing -> payment step instead of navigating. */}
+              {checkoutAudience === 'bright' ? (
+              <div className="grid md:grid-cols-3 gap-8 mb-16 items-start">
+                {(['BASIC', 'PREMIUM', 'IDX'] as const).map((tier) => (
+                  <PricingTierCard
+                    key={tier}
+                    tier={tier}
+                    ctaLabel={`Select ${PRICING_PLANS[tier].name}`}
+                    onCtaClick={() => { setSelectedPlan(planToSelected(tier)); setRegistrationStep('payment') }}
+                  />
+                ))}
+              </div>
+              ) : (
+              <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto mb-16 items-start">
+                {(['NO_MLS', 'PRO_NO_MLS'] as const).map((tier) => (
+                  <PricingTierCard
+                    key={tier}
+                    tier={tier}
+                    ctaLabel={`Select ${PRICING_PLANS[tier].name}`}
+                    onCtaClick={() => { setSelectedPlan(planToSelected(tier)); setRegistrationStep('payment') }}
+                  />
+                ))}
+              </div>
+              )}
 
               {/* Promo Code Entry */}
               <div className="max-w-md mx-auto bg-white dark:bg-[#151517] p-8 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
@@ -224,7 +232,7 @@ function CheckoutContent() {
                   <div className="p-2 bg-gray-50 dark:bg-[#0B0B0B] rounded-xl text-gray-400">
                     <Gift size={18} />
                   </div>
-                  <h4 className="font-black text-[#111827] dark:text-white uppercase tracking-widest text-[10px]">Promo Code</h4>
+                  <h4 className="font-black text-[#111827] dark:text-white uppercase tracking-widest text-[10px]">Have a team or promo code?</h4>
                 </div>
                 <div className="flex gap-3">
                   <input
@@ -256,21 +264,32 @@ function CheckoutContent() {
                   <div className="mb-8">
                     <h3 className="text-[10px] font-black text-[#C9A24D] uppercase tracking-[0.3em] mb-2">Order Summary</h3>
                     <div className="text-2xl font-black text-[#111827] dark:text-white uppercase tracking-tight">{selectedPlan?.name}</div>
+                    {appliedCode && (
+                      <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#C9A24D]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]">
+                        <Gift className="h-3 w-3" /> {appliedCode.code}{appliedCode.label ? ` · ${appliedCode.label}` : ''}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-4 mb-8">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-[#6B7280] dark:text-gray-500 font-bold uppercase tracking-wider">Setup Fee</span>
-                      <span className="text-[#111827] dark:text-white font-black">$0.00</span>
+                      <span className="text-[#111827] dark:text-white font-black">
+                        {billedByUs ? '$0.00' : terms ? (terms.setup_fee > 0 ? `$${terms.setup_fee.toFixed(2)} one-time` : '$0.00') : (selectedPlan?.tier === 'IDX' || appliedCode ? 'Shown on PayPal' : '$0.00')}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-[#6B7280] dark:text-gray-500 font-bold uppercase tracking-wider">Trial Duration</span>
-                      <span className="text-[#111827] dark:text-white font-black">{TRIAL_PERIOD_DAYS} Days</span>
+                      <span className="text-[#6B7280] dark:text-gray-500 font-bold uppercase tracking-wider">Free Trial</span>
+                      <span className="text-[#111827] dark:text-white font-black">{hasTrial ? `${trialDays} Days` : 'None'}</span>
                     </div>
                     <div className="pt-4 border-t border-gray-50 dark:border-gray-800 flex justify-between items-baseline">
-                      <span className="text-[#111827] dark:text-white font-black text-xs uppercase tracking-widest">Post-Trial Price</span>
+                      <span className="text-[#111827] dark:text-white font-black text-xs uppercase tracking-widest">{billedByUs ? 'Your Price' : hasTrial ? 'Post-Trial Price' : 'Monthly Price'}</span>
                       <div className="text-right">
-                        <div className="text-2xl font-black text-[#C9A24D] tracking-tighter">{appliedBundleCode ? 'Special Rate' : selectedPlan?.price}<span className="text-[10px] ml-1">/mo</span></div>
+                        {billedByUs ? (
+                          <div className="text-2xl font-black text-[#C9A24D] tracking-tighter">{appliedCode?.custom_price != null ? `$${appliedCode.custom_price.toFixed(2)}` : 'As agreed'}{appliedCode?.custom_price != null && <span className="text-[10px] ml-1">/{cycleWord(appliedCode.billing_cycle)}</span>}</div>
+                        ) : (
+                          <div className="text-2xl font-black text-[#C9A24D] tracking-tighter">{terms?.price ? `$${terms.price.toFixed(2)}` : appliedCode ? 'Special Rate' : selectedPlan?.price}<span className="text-[10px] ml-1">/mo</span></div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -278,13 +297,13 @@ function CheckoutContent() {
                   <div className="p-4 bg-[#FAFAF7] dark:bg-[#0B0B0B] rounded-2xl border border-gray-100 dark:border-gray-800">
                     <div className="flex items-center gap-3 text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-widest leading-relaxed">
                       <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                      No commitment. Cancel anytime before trial ends.
+                      {billedByUs ? "We'll send your invoices directly - no PayPal needed." : hasTrial ? 'No commitment. Cancel anytime before trial ends.' : 'No commitment. Cancel anytime in Settings > Billing.'}
                     </div>
                   </div>
                 </div>
 
                 <button
-                  onClick={() => setRegistrationStep('pricing')}
+                  onClick={() => { setRegistrationStep('pricing'); setAppliedCode(null); setBundleCode('') }}
                   className="flex items-center gap-2 px-6 text-[10px] font-black text-[#6B7280] hover:text-[#111827] dark:hover:text-white uppercase tracking-[0.3em] transition-colors group"
                 >
                   <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
@@ -311,22 +330,44 @@ function CheckoutContent() {
                       </div>
                     </div>
                     
-                    <div className="bg-[#FAFAF7] dark:bg-black/20 rounded-[2rem] p-8 mb-8 border border-gray-100 dark:border-white/5 backdrop-blur-sm">
-                      <p className="text-center text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-[0.3em] mb-8">Pay securely with PayPal</p>
+                    <div className="bg-[#FAFAF7] dark:bg-black/20 rounded-[2rem] p-8 mb-8 border border-gray-100 dark:border-white/5 ">
+                      <p className="text-center text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-[0.3em] mb-8">{billedByUs ? 'Billed directly by OpenHousePal' : 'Pay securely with PayPal'}</p>
                       
                       <div className="rounded-xl overflow-hidden shadow-sm">
+                        {billedByUs ? (
+                          <div className="text-center">
+                            <p className="mb-6 text-sm font-medium leading-relaxed text-[#6B7280] dark:text-gray-400">
+                              Your code switches your account on right away. There&apos;s nothing to pay here - we&apos;ll send your invoices directly.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={activateWithCode}
+                              disabled={isActivating}
+                              className="w-full rounded-2xl bg-[#111827] py-4 text-[11px] font-black uppercase tracking-[0.2em] text-white transition hover:bg-[#C9A24D] disabled:opacity-60 dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D] dark:hover:text-white"
+                            >
+                              {isActivating ? 'Switching on...' : 'Switch on my account'}
+                            </button>
+                          </div>
+                        ) : !selectedPlan?.id || selectedPlan.id.startsWith('P-DEFAULT') ? (
+                          // The plan's PayPal ID isn't configured on this server - say so plainly
+                          // instead of letting PayPal fail with a vague error.
+                          <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-center text-sm font-semibold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-300">
+                            The {selectedPlan?.name} plan isn&apos;t available to sign up for just yet. Please pick another plan or email support.
+                          </div>
+                        ) : (
                         <PayPalScriptProvider options={paypalOptions}>
                           <PayPalSubscriptionButton 
                             planId={selectedPlan?.id || ''}
                             isCheckoutOnly={true}
-                            bundleCode={appliedBundleCode || undefined}
+                            bundleCode={appliedCode?.code}
                             onSuccess={async () => {
                               await refreshUser()
-                              router.push('/open-houses')
+                              router.push('/dash')
                             }}
                             onError={(err) => setNotification({ type: 'error', message: err })}
                           />
                         </PayPalScriptProvider>
+                        )}
                       </div>
                     </div>
 

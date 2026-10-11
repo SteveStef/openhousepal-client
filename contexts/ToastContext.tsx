@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
 import Toast from '@/components/Toast'
 
 type ToastType = 'success' | 'error'
@@ -17,6 +17,14 @@ interface ToastContextType {
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
+
+const TOAST_EVENT = 'ohp-toast'
+
+/** Show a toast from anywhere - plain helpers and small editors that don't hold the hook (e.g. an
+ * upload that failed). Picked up by the ToastProvider below. */
+export function notify(message: string, type: ToastType = 'error') {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(TOAST_EVENT, { detail: { message, type } }))
+}
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ToastState>({
@@ -36,6 +44,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const hideToast = useCallback(() => {
     setToast((prev) => ({ ...prev, isVisible: false }))
   }, [])
+
+  useEffect(() => {
+    const onNotify = (e: Event) => {
+      const { message, type } = (e as CustomEvent<{ message: string; type: ToastType }>).detail || {}
+      if (message) showToast(message, type || 'error')
+    }
+    window.addEventListener(TOAST_EVENT, onNotify)
+    return () => window.removeEventListener(TOAST_EVENT, onNotify)
+  }, [showToast])
 
   return (
     <ToastContext.Provider value={{ showToast, hideToast }}>

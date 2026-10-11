@@ -1,23 +1,36 @@
 'use client'
 
 import { memo, useState } from 'react'
-import { Calendar, Copy, Check, ArrowUpDown, SlidersHorizontal, Mail, MapPin } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { useAuth } from '@/contexts/AuthContext'
+import api, { resolveMediaUrl } from '@/lib/api-service'
+import { Calendar, Copy, Check, ArrowUpDown, Mail, MapPin, MessageSquareText, Phone, User, SlidersHorizontal, X } from 'lucide-react'
 import PropertyGrid from '@/components/PropertyGrid'
+import ShowcaseRadiusContextLine from '@/components/ShowcaseRadiusContextLine'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
-import ViewToursModal from '@/components/ViewToursModal'
-import { Collection, Property, Comment, PropertyTour } from '@/types'
+import QuickCommentModal from '@/components/QuickCommentModal'
+import EditShowcaseCriteriaModal from '@/components/EditShowcaseCriteriaModal'
+import { Collection, Property, Comment, Site, SiteDomain } from '@/types'
+import { isPropertyAvailableStatus } from '@/lib/utils'
+import { openHousePalPublicUrl, websitePublicUrl } from '@/lib/publicResourceLinks'
+import { computeMatchScore } from '@/lib/matchScore'
+import { copyText } from '@/lib/copyText'
 
 interface DetailViewProps {
   selectedCollection: Collection;
   matchedProperties: Property[];
-  activeTab: 'all' | 'liked' | 'disliked';
-  setActiveTab: (tab: 'all' | 'liked' | 'disliked') => void;
-  tabCounts: { all: number, liked: number, disliked: number };
+  activeTab: 'all' | 'liked' | 'disliked' | 'sold_removed';
+  setActiveTab: (tab: 'all' | 'liked' | 'disliked' | 'sold_removed') => void;
+  tabCounts: { all: number, liked: number, disliked: number, soldRemoved: number };
   sortBy: string;
   setSortBy: (sort: any) => void;
   sortOrder: 'asc' | 'desc';
   setSortOrder: (order: 'asc' | 'desc') => void;
   onBack: () => void;
+  onEditShowcase: () => void;
+  /** The quick "Comparing to" / "how far" windows (the same ones the buyer gets) - saves just those fields. */
+  onQuickSave: (preferences: Partial<import('@/types').CollectionPreferences>) => Promise<{ added: number; removed: number } | void>;
+  onDismissRefineRequest: () => void;
   onStatusToggle: (id: string) => void;
   onNotificationToggle: (id: string, type: 'visitor' | 'agent') => void;
   onViewTours: () => void;
@@ -28,18 +41,26 @@ interface DetailViewProps {
   onAddComment: (id: string | number, comment: string) => void;
   // Modal States
   selectedProperty: Property | null;
+  // ?comments=1 - opened from a "Reply to Comment" alert (see PropertyDetailsModal)
+  focusComments?: boolean;
   isModalOpen: boolean;
   onCloseModal: () => void;
   isLoadingDetails: boolean;
   detailsError: string | null;
   isLoadingComments: boolean;
   commentsError: string | null;
-  // Tour Modal
-  isToursModalOpen: boolean;
-  onCloseToursModal: () => void;
-  collectionTours: PropertyTour[];
-  onUpdateTourCompletion: (id: string, completed: boolean) => Promise<void>;
-  isLoadingTours: boolean;
+  // Quick Comment Modal
+  onCommentClick: (property: Property) => void;
+  quickCommentProperty: Property | null;
+  isQuickCommentOpen: boolean;
+  onCloseQuickComment: () => void;
+  isLoadingQuickComments: boolean;
+  // Deep-linked from a "new match" alert (?focus=first) - see PropertyGrid's own doc comment.
+  highlightFirstProperty?: boolean;
+  // IDX site + domains, so the share link defaults to the agent's own branded domain when they
+  // have a published site, same as the Showcases list page's share icon.
+  idxSite?: Site | null;
+  idxDomains?: SiteDomain[];
 }
 
 export const DetailView = memo(function DetailView({
@@ -53,6 +74,9 @@ export const DetailView = memo(function DetailView({
   sortOrder,
   setSortOrder,
   onBack,
+  onEditShowcase,
+  onQuickSave,
+  onDismissRefineRequest,
   onStatusToggle,
   onNotificationToggle,
   onViewTours,
@@ -61,28 +85,40 @@ export const DetailView = memo(function DetailView({
   onPropertyClick,
   onAddComment,
   selectedProperty,
+  focusComments = false,
   isModalOpen,
   onCloseModal,
   isLoadingDetails,
   detailsError,
   isLoadingComments,
   commentsError,
-  isToursModalOpen,
-  onCloseToursModal,
-  collectionTours,
-  onUpdateTourCompletion,
-  isLoadingTours
+  onCommentClick,
+  quickCommentProperty,
+  isQuickCommentOpen,
+  onCloseQuickComment,
+  isLoadingQuickComments,
+  highlightFirstProperty,
+  idxSite,
+  idxDomains
 }: DetailViewProps) {
+  // The agent's own photo + name brand the questions box in the home window.
+  const { user } = useAuth()
   const [copied, setCopied] = useState(false)
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+  // Which quick window is open over the Showcase: what the matches compare to, or how far to look.
+  const [quickFocus, setQuickFocus] = useState<'compare' | 'radius' | null>(null)
+  const [quickKey, setQuickKey] = useState<'compare' | 'radius'>('compare')
+  const openQuick = (f: 'compare' | 'radius') => { setQuickKey(f); setQuickFocus(f) }
 
-  const shareUrl = selectedCollection.shareToken 
-    ? `${window.location.origin}/showcase/${selectedCollection.shareToken}`
+  // The agent's own IDX site link when they have a published one, otherwise the OpenHousePal link.
+  const shareUrl = selectedCollection.shareToken
+    ? websitePublicUrl(idxSite, idxDomains, `/showcase/${selectedCollection.shareToken}`) || openHousePalPublicUrl(`/showcase/${selectedCollection.shareToken}`)
     : null
 
   const handleCopyLink = async () => {
     if (shareUrl) {
       try {
-        await navigator.clipboard.writeText(shareUrl)
+        await copyText(shareUrl)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
       } catch (err) {
@@ -91,176 +127,355 @@ export const DetailView = memo(function DetailView({
     }
   }
 
+  const handleCopyField = async (field: string, value: string) => {
+    if (!value) return
+    try {
+      await copyText(value)
+      setCopiedField(field)
+      setTimeout(() => setCopiedField(current => (current === field ? null : current)), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
+
+  const pricePerSqft = (property: Property) =>
+    property.LivingArea ? (property.ListPrice || 0) / property.LivingArea : 0
+
+  const compareProperty = (selectedCollection.preferences as any)?.show_match_score !== false
+    ? selectedCollection.originalProperty || undefined
+    : undefined
+  const radiusSearchPreferences = selectedCollection.preferences && 'diameter' in selectedCollection.preferences && selectedCollection.preferences.address && selectedCollection.preferences.diameter
+    ? selectedCollection.preferences
+    : null
+  const customerFullName = [selectedCollection.customer.firstName, selectedCollection.customer.lastName].filter(Boolean).join(' ')
+  const customerInitials = [selectedCollection.customer.firstName?.[0], selectedCollection.customer.lastName?.[0]]
+    .filter(Boolean)
+    .join('')
+    .toUpperCase()
+
   const filteredProperties = matchedProperties.filter(property => {
+    const available = isPropertyAvailableStatus(property.MlsStatus)
+    // Sold/removed listings (anything besides Active/Coming Soon) can't be bought anymore, so
+    // they live exclusively in their own tab instead of cluttering Matches/Liked/Disliked.
+    if (activeTab === 'sold_removed') return !available
+    if (!available) return false
     if (activeTab === 'liked') return property.liked
     if (activeTab === 'disliked') return property.disliked
-    return true
+    // Matches tab: everything else - disliked properties only live in their own tab now.
+    return !property.disliked
   }).sort((a, b) => {
     let comparison = 0
     if (sortBy === 'price') comparison = (a.ListPrice || 0) - (b.ListPrice || 0)
+    else if (sortBy === 'pricePerSqft') comparison = pricePerSqft(a) - pricePerSqft(b)
     else if (sortBy === 'beds') comparison = (a.BedroomsTotal || 0) - (b.BedroomsTotal || 0)
+    else if (sortBy === 'baths') comparison = (a.BathroomsTotal || 0) - (b.BathroomsTotal || 0)
     else if (sortBy === 'squareFeet') comparison = (a.LivingArea || 0) - (b.LivingArea || 0)
+    else if (sortBy === 'acres') comparison = (a.LotSizeAcres || 0) - (b.LotSizeAcres || 0)
+    else if (sortBy === 'yearBuilt') comparison = (a.YearBuilt || 0) - (b.YearBuilt || 0)
     else if (sortBy === 'daysOnMarket') comparison = (a.DaysOnMarket || 0) - (b.DaysOnMarket || 0)
-    else if (sortBy === 'lastUpdated') comparison = new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()
+    else if (sortBy === 'lastUpdated') comparison = new Date(a.updated_at || 0).getTime() - new Date(b.updated_at || 0).getTime()
+    // Inverted (b - a, not a - b) so the default ascending toggle state - the same one every
+    // other field here starts in - shows the highest score first without the agent also having
+    // to flip the direction arrow the moment they pick "Best Match".
+    else if (sortBy === 'bestMatch' && compareProperty) comparison = computeMatchScore(b, compareProperty, matchedProperties) - computeMatchScore(a, compareProperty, matchedProperties)
     return sortOrder === 'asc' ? comparison : -comparison
   })
 
-  const formatAddressForTitle = (address: string) => {
-    const parts = address.split(',');
-    const rawAddress = parts.length > 1 ? `${parts[0].trim()}, ${parts[1].trim()}` : parts[0].trim();
+  const formatAddressForTitle = (property: Property) => {
+    // Street address + city only - no state/zip.
+    const rawAddress = [property.FullStreetAddress, property.City].filter(Boolean).join(', ');
     return rawAddress.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   }
 
+  // Same card the visitor sees on their own showcase (photo + address/city/specs, no baths) -
+  // clicking it opens the same preferences editor Edit Showcase does (ShowcaseMapEditor, which
+  // already has its own compare-property picker), so this is a real shortcut, not just a mirror.
+  const compareInfoNode = compareProperty ? (
+    <motion.button
+      type="button"
+      onClick={() => openQuick('compare')}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.97 }}
+      title="Click to change what these matches are compared to"
+      className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-[#FAFAF7] py-1.5 pl-1.5 pr-4 text-left transition-colors hover:border-[#C9A24D]/60 hover:bg-[#C9A24D]/5 hover:shadow-[0_14px_30px_-20px_rgba(201,162,77,.8)] dark:border-gray-800 dark:bg-[#0B0B0B]"
+    >
+      {compareProperty.ListPictureURL && (
+        <img src={compareProperty.ListPictureURL} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover" />
+      )}
+      <div className="min-w-0 text-xs leading-tight">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[#C9A24D]">Comparing to</p>
+        <p className="mt-0.5 font-black text-[#0B0B0B] dark:text-white truncate">{compareProperty.FullStreetAddress}</p>
+        {compareProperty.City && (
+          <p className="text-[#6B7280] dark:text-gray-400 font-semibold truncate">{compareProperty.City}</p>
+        )}
+        <p className="mt-0.5 text-gray-400 dark:text-gray-500 font-semibold truncate">
+          {[
+            compareProperty.BedroomsTotal != null && `${compareProperty.BedroomsTotal} bd`,
+            compareProperty.LivingArea != null && `${compareProperty.LivingArea.toLocaleString()} sqft`,
+            compareProperty.ListPrice != null && `$${compareProperty.ListPrice.toLocaleString()}`,
+          ].filter(Boolean).join(' · ')}
+        </p>
+      </div>
+    </motion.button>
+  ) : null
+  const radiusContextNode = activeTab === 'all' && radiusSearchPreferences ? (
+    <ShowcaseRadiusContextLine address={radiusSearchPreferences.address} radiusMiles={radiusSearchPreferences.diameter} onClick={() => openQuick('radius')} />
+  ) : null
+  const matchedPropertiesHeaderInfoNode = compareInfoNode || radiusContextNode ? (
+    <div className="flex max-w-full flex-wrap items-center justify-center gap-2">
+      {compareInfoNode}
+      {radiusContextNode}
+    </div>
+  ) : null
+
+  const TABS = [
+    { key: 'all', label: 'Matches', count: tabCounts.all },
+    { key: 'liked', label: 'Liked', count: tabCounts.liked },
+    { key: 'disliked', label: 'Disliked', count: tabCounts.disliked },
+    { key: 'sold_removed', label: 'Sold/Removed', count: tabCounts.soldRemoved }
+  ] as const
+
+  const activeTabLabel = TABS.find(t => t.key === activeTab)?.label || 'Matches'
+
   return (
-    <div className="flex-1 p-4 pb-20 sm:p-6 sm:pb-32">
+    <div className="flex-1 px-4 pt-3 pb-20 sm:px-6 sm:pt-4 sm:pb-32">
       <div className="max-w-7xl mx-auto">
-        <button
-          onClick={onBack}
-          className="group mb-6 flex items-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 font-medium"
-        >
-          <div className="w-8 h-8 rounded-full bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-800 flex items-center justify-center mr-3 group-hover:border-gray-300 dark:group-hover:border-gray-700 group-hover:shadow-sm transition-all">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
-          </div>
-          Back to Showcases
-        </button>
+        <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 mb-6 relative overflow-hidden">
+          {/* Subtle Accent Bar - top edge only, not a left rail */}
+          <div className="absolute left-0 right-0 top-0 h-1 bg-[#C9A24D]" />
 
-        <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-4 sm:p-6 mb-6 relative overflow-hidden">
-          {/* Subtle Accent Bar */}
-          <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#C9A24D]" />
-          
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-            <div>
-              <div className="flex items-center space-x-3 mb-1">
-                <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">Property Recommendations</h1>
-                <span className="px-2 py-0.5 bg-[#C9A24D]/10 text-[#C9A24D] text-[10px] font-black uppercase tracking-widest rounded-full border border-[#C9A24D]/20">
-                  {matchedProperties.length} Matched
+          <div className="px-4 pt-3 pb-3 sm:px-6 sm:pt-4 sm:pb-4">
+            <div className="-mt-2 mb-3 overflow-x-auto pb-3 pt-2 pr-1 border-b border-gray-200 dark:border-gray-800 text-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex min-w-full flex-wrap items-center justify-between gap-2 sm:min-w-0 sm:flex-1 sm:flex-nowrap sm:gap-3">
+                <div className="flex min-w-0 shrink items-center gap-1.5 sm:gap-3">
+                  <button
+                    onClick={onBack}
+                    title="Back to Showcases"
+                    className="group inline-flex shrink-0 items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors font-black pr-2 border-r border-gray-200 dark:border-gray-800 sm:pr-3"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-800 flex items-center justify-center group-hover:border-gray-300 dark:group-hover:border-gray-700 transition-all">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+                    </div>
+                  </button>
+                  <span className="inline-flex min-w-0 shrink-0 items-center gap-1 font-black text-gray-900 dark:text-white sm:max-w-none sm:shrink sm:gap-1.5" title={customerFullName}>
+                    <User size={14} className="shrink-0 text-[#C9A24D]" />
+                  <span className="sm:hidden">{customerInitials || customerFullName}</span>
+                  <span className="hidden truncate sm:inline">{customerFullName}</span>
                 </span>
-              </div>
-              <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 font-light group" title={selectedCollection.originalProperty.FullStreetAddress}>
-                <MapPin size={14} className="mr-1.5 text-[#C9A24D]" />
-                <span>Curated for {formatAddressForTitle(selectedCollection.originalProperty.FullStreetAddress)}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 sm:gap-4">
-              <button
-                onClick={onViewTours}
-                className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold text-white bg-gradient-to-br from-[#151517] via-[#3a2f25] to-[#8b7355] dark:from-white dark:via-gray-200 dark:to-gray-400 dark:text-[#111827] shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 whitespace-nowrap group"
-              >
-                <Calendar size={16} className="mr-2 group-hover:scale-110 transition-transform" />
-                <span className="hidden sm:inline">View Tours</span>
-                <span className="sm:hidden">Tours</span>
-              </button>
-              <button
-                onClick={() => onStatusToggle(selectedCollection.id)}
-                className={`inline-flex items-center px-3 py-2 rounded-xl text-xs font-bold border transition-all duration-300 hover:shadow-md whitespace-nowrap uppercase tracking-wide ${
-                  selectedCollection.status === 'ACTIVE'
-                    ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-900 hover:bg-green-100 dark:hover:bg-green-900/30'
-                    : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-              >
-                <div className={`w-2 h-2 rounded-full mr-2 ${selectedCollection.status === 'ACTIVE' ? 'bg-green-500 animate-pulse' : 'bg-gray-400 dark:bg-gray-500'}`} />
-                {selectedCollection.status === 'ACTIVE' ? 'Turn Off' : 'Turn On'}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
-            <div className="flex flex-wrap gap-2">
-              {[
-                { key: 'all', label: 'All Properties', count: tabCounts.all },
-                { key: 'liked', label: 'Liked', count: tabCounts.liked },
-                { key: 'disliked', label: 'Disliked', count: tabCounts.disliked }
-              ].map((tab) => (
+                {selectedCollection.customer.email && (
+                  <>
+                  <button
+                    onClick={() => handleCopyField('email', selectedCollection.customer.email)}
+                    className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 text-gray-500 transition-colors hover:border-[#C9A24D]/40 hover:text-[#C9A24D] dark:border-gray-800 dark:bg-white/5 dark:text-gray-400 sm:hidden"
+                    title={`Copy ${selectedCollection.customer.email}`}
+                    aria-label="Copy email"
+                  >
+                    <Mail size={13} className="text-[#C9A24D]" />
+                    {copiedField === 'email' ? <Check size={12} /> : <Copy size={12} />}
+                  </button>
+                  <span className="hidden items-center gap-1.5 text-gray-500 dark:text-gray-400 font-medium sm:inline-flex">
+                    <Mail size={14} className="text-[#C9A24D]" />
+                    {selectedCollection.customer.email}
+                    <button
+                      onClick={() => handleCopyField('email', selectedCollection.customer.email)}
+                      className="p-0.5 text-gray-300 dark:text-gray-600 hover:text-[#C9A24D] transition-colors"
+                      title="Copy email"
+                    >
+                      {copiedField === 'email' ? <Check size={13} /> : <Copy size={13} />}
+                    </button>
+                  </span>
+                  </>
+                )}
+                {selectedCollection.customer.phone && (
+                  <>
+                  <button
+                    onClick={() => handleCopyField('phone', selectedCollection.customer.phone)}
+                    className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 text-gray-500 transition-colors hover:border-[#C9A24D]/40 hover:text-[#C9A24D] dark:border-gray-800 dark:bg-white/5 dark:text-gray-400 sm:hidden"
+                    title={`Copy ${selectedCollection.customer.phone}`}
+                    aria-label="Copy phone"
+                  >
+                    <Phone size={13} className="text-[#C9A24D]" />
+                    {copiedField === 'phone' ? <Check size={12} /> : <Copy size={12} />}
+                  </button>
+                  <span className="hidden items-center gap-1.5 text-gray-500 dark:text-gray-400 font-medium sm:inline-flex">
+                    <Phone size={14} className="text-[#C9A24D]" />
+                    {selectedCollection.customer.phone}
+                    <button
+                      onClick={() => handleCopyField('phone', selectedCollection.customer.phone)}
+                      className="p-0.5 text-gray-300 dark:text-gray-600 hover:text-[#C9A24D] transition-colors"
+                      title="Copy phone"
+                    >
+                      {copiedField === 'phone' ? <Check size={13} /> : <Copy size={13} />}
+                    </button>
+                  </span>
+                  </>
+                )}
+                </div>
+                <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
                 <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key as any)}
-                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center space-x-2 border ${
-                    activeTab === tab.key
-                      ? 'bg-[#151517] dark:bg-white text-white dark:text-[#111827] border-[#151517] dark:border-white shadow-md'
-                      : 'bg-white dark:bg-[#151517] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
+                  onClick={onViewTours}
+                  title="View tours"
+                  className="relative inline-flex h-7 items-center justify-center gap-1 rounded-full bg-[#151517] px-2.5 text-[9px] font-black uppercase tracking-widest text-white shadow-sm transition-all hover:shadow-md dark:bg-white dark:text-[#111827]"
+                >
+                  <Calendar size={12} />
+                  <span className="hidden min-[430px]:inline">Tours</span>
+                  {!!selectedCollection.stats.tourRequestedCount && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-black border-2 border-white dark:border-[#151517]">
+                      {selectedCollection.stats.tourRequestedCount}
+                    </span>
+                  )}
+                </button>
+                <div className="flex shrink-0 items-center gap-1 text-xs bg-gray-50/50 dark:bg-white/5 py-1 px-1.5 rounded-lg border border-gray-200 dark:border-gray-800/50 sm:gap-1.5 sm:px-2">
+                  <span className="text-[8px] font-black uppercase tracking-wide text-gray-500 dark:text-gray-400 whitespace-nowrap min-[430px]:text-[9px]">Emails</span>
+                  <span className="h-3.5 w-px bg-gray-200 dark:bg-gray-700" />
+                  <div className="flex items-center gap-1">
+                    <span className={`text-[9px] font-bold min-[430px]:text-[10px] ${selectedCollection.isBlacklisted ? 'text-gray-400 dark:text-gray-600' : 'text-gray-500 dark:text-gray-400'}`}>
+                      <span className="min-[430px]:hidden">V</span>
+                      <span className="hidden min-[430px]:inline">Visitor</span>
+                    </span>
+                    <button
+                      onClick={() => !selectedCollection.isBlacklisted && onNotificationToggle(selectedCollection.id, 'visitor')}
+                      disabled={selectedCollection.isBlacklisted}
+                      title={selectedCollection.isBlacklisted ? 'This visitor unsubscribed from update emails' : (selectedCollection.notifyVisitor ? 'Click to disable their update emails' : 'Click to enable their update emails')}
+                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent shadow-inner transition-colors duration-200 ease-in-out focus:outline-none ${selectedCollection.isBlacklisted ? 'bg-gray-200 dark:bg-gray-800 cursor-not-allowed' : (selectedCollection.notifyVisitor ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-gray-700')}`}
+                    >
+                      <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${(selectedCollection.notifyVisitor && !selectedCollection.isBlacklisted) ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1 border-l border-gray-200 dark:border-gray-800 pl-1.5">
+                    <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400 min-[430px]:text-[10px]">
+                      <span className="min-[430px]:hidden">A</span>
+                      <span className="hidden min-[430px]:inline">Agent</span>
+                    </span>
+                    <button
+                      onClick={() => onNotificationToggle(selectedCollection.id, 'agent')}
+                      title={selectedCollection.notifyAgent ? 'Click to stop getting emailed about this showcase' : 'Click to get emailed about this showcase'}
+                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent shadow-inner transition-colors duration-200 ease-in-out focus:outline-none ${selectedCollection.notifyAgent ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-gray-700'}`}
+                    >
+                      <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${selectedCollection.notifyAgent ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+                </div>
+                </div>
+              </div>
+            </div>
+
+            {selectedCollection.refineRequestMessage && (
+              <div className="mb-4 flex items-start gap-3 rounded-2xl border border-[#C9A24D]/30 bg-[#C9A24D]/10 p-4">
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C9A24D]/20 text-[#8b7355] dark:text-[#e8cf8a]">
+                  <MessageSquareText size={16} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8cf8a]">
+                    {selectedCollection.customer.firstName} asked you to refine their search
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-[#0B0B0B] dark:text-white">&ldquo;{selectedCollection.refineRequestMessage}&rdquo;</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    onClick={onEditShowcase}
+                    className="rounded-full border border-[#C9A24D]/40 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] transition hover:bg-[#C9A24D]/15 dark:border-[#C9A24D]/30 dark:bg-transparent dark:text-[#e8cf8a]"
+                  >
+                    Edit Search
+                  </button>
+                  <button
+                    onClick={onDismissRefineRequest}
+                    title="Dismiss"
+                    className="rounded-full p-1.5 text-[#8b7355] hover:bg-[#C9A24D]/15 dark:text-[#e8cf8a]"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* One tight row: title block (left, subtitle shows what this is curated from) and
+                the remaining agent controls (right) - Edit Showcase and View Tours. Turn On/Off
+                and the dual Visitor/Agent alert toggles moved up onto the contact-info row above.
+                The reference property and Sort both moved down onto the "Matched Properties" row
+                (see PropertyGrid's compareInfo/sortControl below), and the status tabs are now a
+                bar built into the bottom edge of this card, exactly like the visitor's showcase
+                page. */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight truncate">
+                    {selectedCollection.customer.firstName} {selectedCollection.customer.lastName}'s Showcase
+                  </h1>
+                </div>
+                {selectedCollection.originalProperty && (
+                  <div className="mt-0.5 flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 truncate" title={selectedCollection.originalProperty.FullStreetAddress}>
+                    <MapPin size={12} className="mr-1 shrink-0 text-[#C9A24D]" />
+                    <span className="truncate">Curated from {formatAddressForTitle(selectedCollection.originalProperty)}</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  onClick={onEditShowcase}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#C9A24D]/30 bg-[#C9A24D]/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] transition-all hover:border-[#C9A24D] hover:bg-[#C9A24D]/15 dark:text-[#e8cf8a] sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs"
+                >
+                  <SlidersHorizontal size={13} className="sm:h-3.5 sm:w-3.5" />
+                  Edit
+                </button>
+                <button
+                  onClick={() => onStatusToggle(selectedCollection.id)}
+                  className={`inline-flex shrink-0 items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black border transition-all hover:shadow-md whitespace-nowrap uppercase tracking-widest sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs ${
+                    selectedCollection.status === 'ACTIVE'
+                      ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-900 hover:bg-green-100 dark:hover:bg-green-900/30'
+                      : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
-                  <span>{tab.label}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] ${activeTab === tab.key ? 'bg-white/20 dark:bg-black/10 text-white dark:text-[#111827]' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>{tab.count}</span>
+                  <div className={`w-1.5 h-1.5 rounded-full ${selectedCollection.status === 'ACTIVE' ? 'bg-green-500 animate-pulse' : 'bg-gray-400 dark:bg-gray-500'}`} />
+                  {selectedCollection.status === 'ACTIVE' ? 'Turn Off' : 'Turn On'}
                 </button>
-              ))}
+              </div>
             </div>
 
-            <div className="flex items-center space-x-6 text-sm bg-gray-50/50 dark:bg-white/5 p-2 px-4 rounded-2xl border border-gray-100 dark:border-gray-800/50">
-              <span className="text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap hidden lg:inline">Email Alerts:</span>
-              <div className="flex items-center space-x-2">
-                <span className={`text-xs font-semibold ${selectedCollection.isBlacklisted ? 'text-gray-400 dark:text-gray-600' : 'text-gray-500 dark:text-gray-400'}`}>Visitor</span>
-                <button
-                  onClick={() => !selectedCollection.isBlacklisted && onNotificationToggle(selectedCollection.id, 'visitor')}
-                  disabled={selectedCollection.isBlacklisted}
-                  className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${selectedCollection.isBlacklisted ? 'bg-gray-200 dark:bg-gray-800 cursor-not-allowed' : (selectedCollection.notifyVisitor ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700')}`}
-                >
-                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${(selectedCollection.notifyVisitor && !selectedCollection.isBlacklisted) ? 'translate-x-4' : 'translate-x-0'}`} />
-                </button>
-              </div>
-              <div className="flex items-center space-x-2 border-l border-gray-200 dark:border-gray-800 pl-6">
-                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Agent</span>
-                <button
-                  onClick={() => onNotificationToggle(selectedCollection.id, 'agent')}
-                  className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${selectedCollection.notifyAgent ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}
-                >
-                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${selectedCollection.notifyAgent ? 'translate-x-4' : 'translate-x-0'}`} />
-                </button>
-              </div>
-            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-6 border-t border-gray-100 dark:border-gray-800">
-            <div className="md:col-span-5">
-              <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Sort Properties</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
-                  <ArrowUpDown size={14} />
-                </div>
-                <select 
-                  value={sortBy} 
-                  onChange={(e) => setSortBy(e.target.value)} 
-                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-sm font-medium focus:outline-none focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/5 transition-all appearance-none cursor-pointer"
-                >
-                  <option value="daysOnMarket">Days on Market</option>
-                  <option value="price">Price</option>
-                  <option value="beds">Bedrooms</option>
-                  <option value="squareFeet">Square Feet</option>
-                  <option value="lastUpdated">Last Updated</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                </div>
-              </div>
-            </div>
-            <div className="md:col-span-4">
-              <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Direction</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
-                  <SlidersHorizontal size={14} />
-                </div>
-                <select 
-                  value={sortOrder} 
-                  onChange={(e) => setSortOrder(e.target.value as any)} 
-                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-sm font-medium focus:outline-none focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/5 transition-all appearance-none cursor-pointer"
-                >
-                  <option value="asc">Low to High</option>
-                  <option value="desc">High to Low</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                </div>
-              </div>
-            </div>
-            <div className="md:col-span-3 flex items-end">
-              <button 
-                onClick={() => { setSortBy('daysOnMarket'); setSortOrder('asc'); setActiveTab('all') }} 
-                className="w-full py-2.5 bg-white dark:bg-[#151517] text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-[#1A1A1C] hover:text-[#111827] dark:hover:text-white transition-all shadow-sm"
+          {/* Property Status Tabs - full-width bar built into the bottom edge of the card,
+              identical to the visitor's showcase page. Every tab gets the gold top line while
+              active, not just Matches - drawn with an inset box-shadow (not a border-collapse
+              -mt-px overlap trick) so it can never depend on pixel-rounding across grid columns. */}
+          <div className="-mx-px -mb-px grid grid-cols-4 divide-x divide-gray-200 border-t border-gray-200 bg-gray-50/70 dark:divide-gray-800 dark:border-gray-800 dark:bg-white/[0.03]">
+            {TABS.map((tab) => (
+              <motion.button
+                key={tab.key}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => setActiveTab(tab.key as any)}
+                className={`relative flex min-w-0 items-center justify-center gap-1.5 py-2.5 text-[11px] sm:text-sm font-bold transition-colors duration-200 ${
+                  activeTab === tab.key
+                    ? 'text-[#0B0B0B] dark:text-white'
+                    : 'text-[#6B7280] hover:bg-white/60 dark:text-gray-400 dark:hover:bg-white/5'
+                }`}
               >
-                Reset
-              </button>
-            </div>
+                {activeTab === tab.key && (
+                  <motion.span layoutId="agent-showcase-tab" className="absolute inset-0 bg-white shadow-[inset_0_3px_0_0_#C9A24D] dark:bg-[#151517]" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />
+                )}
+                <span className="relative truncate">{tab.label}</span>
+                <motion.span key={tab.count} initial={{ scale: 0.6, opacity: 0.4 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 600, damping: 18 }}
+                  className={`relative shrink-0 px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] ${
+                  activeTab === tab.key
+                    ? 'bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8cf8a]'
+                    : 'bg-gray-100 dark:bg-gray-800 text-[#6B7280] dark:text-gray-400'
+                }`}>
+                  {tab.count}
+                </motion.span>
+              </motion.button>
+            ))}
+          </div>
+        </div>
+
+        {/* Professional Separator */}
+        <div className="relative mb-4">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200 dark:border-gray-800"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-[#faf9f7] dark:bg-[#0B0B0B] px-4 text-gray-500 dark:text-gray-500 font-medium uppercase tracking-widest text-xs">
+              {activeTabLabel}
+            </span>
           </div>
         </div>
 
@@ -270,10 +485,66 @@ export const DetailView = memo(function DetailView({
           onLike={onPropertyLike}
           onDislike={onPropertyDislike}
           onPropertyClick={onPropertyClick}
+          onCommentClick={onCommentClick}
+          // Opens the same View Tours modal as the header button - there's no per-property
+          // "agent creates a tour" flow (tours are visitor-initiated requests, see PropertyTour),
+          // so this just gets the agent straight to reviewing/confirming requests for this
+          // showcase instead of making them hunt for the header button.
+          onScheduleTour={() => onViewTours()}
+          tourButtonVariant="requests"
+          cropMlsBadge
+          highlightFirst={highlightFirstProperty}
           showDetailedViewCount={true}
+          destination={radiusSearchPreferences ? { address: radiusSearchPreferences.address, lat: radiusSearchPreferences.lat, lng: radiusSearchPreferences.long } : undefined}
+          animationKey={activeTab}
+          compareProperty={
+            (selectedCollection.preferences as any)?.show_match_score !== false
+              ? selectedCollection.originalProperty || undefined
+              : undefined
+          }
+          compareInfo={matchedPropertiesHeaderInfoNode}
+          sortControl={
+            <div className="flex items-center gap-2">
+              <div className="relative group w-44">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
+                  <ArrowUpDown size={14} />
+                </div>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-800 rounded-full text-gray-900 dark:text-white text-xs font-bold focus:outline-none focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/5 transition-all appearance-none cursor-pointer shadow-sm"
+                >
+                  {!!compareProperty && <option value="bestMatch">Best Match</option>}
+                  <option value="daysOnMarket">Days on Market</option>
+                  <option value="lastUpdated">Last Updated</option>
+                  <option value="price">Price</option>
+                  <option value="pricePerSqft">Price per Sq Ft</option>
+                  <option value="squareFeet">Square Feet</option>
+                  <option value="acres">Lot Size (Acres)</option>
+                  <option value="beds">Bedrooms</option>
+                  <option value="baths">Bathrooms</option>
+                  <option value="yearBuilt">Year Built</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                title={sortOrder === 'asc' ? 'Low to high' : 'High to low'}
+                aria-label={sortOrder === 'asc' ? 'Sort ascending, click for descending' : 'Sort descending, click for ascending'}
+                className="shrink-0 p-2 bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-800 rounded-full text-gray-500 dark:text-gray-400 hover:text-[#C9A24D] hover:border-[#C9A24D]/40 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/5 transition-all shadow-sm"
+              >
+                <svg className={`w-3.5 h-3.5 transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" /></svg>
+              </button>
+            </div>
+          }
         />
 
         <PropertyDetailsModal
+          viewer="agent"
+          agent={{ name: [user?.first_name, user?.last_name].filter(Boolean).join(' '), photoUrl: user?.photo_url ? resolveMediaUrl(user.photo_url) : null }}
           property={selectedProperty}
           isOpen={isModalOpen}
           onClose={onCloseModal}
@@ -286,14 +557,40 @@ export const DetailView = memo(function DetailView({
           isLoadingComments={isLoadingComments}
           commentsError={commentsError}
           shareUrl={shareUrl ? `${shareUrl}?property=${selectedProperty?.id}` : null}
+          focusComments={focusComments}
         />
 
-        <ViewToursModal
-          isOpen={isToursModalOpen}
-          onClose={onCloseToursModal}
-          tours={collectionTours}
-          onUpdateCompletion={onUpdateTourCompletion}
-          isLoading={isLoadingTours}
+        <EditShowcaseCriteriaModal
+          audience="agent"
+          focus={quickKey}
+          preferences={selectedCollection.preferences && 'diameter' in selectedCollection.preferences ? selectedCollection.preferences : null}
+          isOpen={quickFocus !== null}
+          onClose={() => setQuickFocus(null)}
+          onSave={onQuickSave}
+          currentCompareProperty={compareProperty?.FullStreetAddress
+            ? { listingKey: compareProperty.ListingKey, address: compareProperty.FullStreetAddress, city: compareProperty.City, image: compareProperty.ListPictureURL }
+            : null}
+          hasExplicitCompareOverride={!!(selectedCollection.preferences as any)?.compare_property_listing_key}
+          onRefineFurther={() => { setQuickFocus(null); window.setTimeout(onEditShowcase, 180) }}
+          preview={async (prefs) => {
+            const { id: _id, collection_id: _c, created_at: _a, updated_at: _u, ...saved } = (selectedCollection.preferences || {}) as any
+            const { success, data } = await api.collections.previewMatches({ ...saved, ...prefs })
+            if (!success || !data) return null
+            return {
+              count: data.count,
+              points: (data.properties || [])
+                .filter((p: any) => p.Latitude != null && p.Longitude != null)
+                .map((p: any) => ({ id: String(p.ListingKey || p.id), lat: p.Latitude, lng: p.Longitude })),
+            }
+          }}
+        />
+
+        <QuickCommentModal
+          property={quickCommentProperty}
+          isOpen={isQuickCommentOpen}
+          onClose={onCloseQuickComment}
+          onAddComment={onAddComment}
+          isLoading={isLoadingQuickComments}
         />
       </div>
     </div>

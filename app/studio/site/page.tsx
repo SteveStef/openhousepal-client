@@ -1,5 +1,6 @@
 'use client'
 
+import { LeaveReviewButton, orderReviews, ProfileRatingChip, ProfileReviewButton, ReviewsBigCarousel, ReviewsDeskCard, ReviewsSummary, ReviewsTwoUp, type HubReviewsData } from '@/components/agent-hub/HubReviews'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -10,34 +11,52 @@ import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import api, { API_BASE_URL, resolveMediaUrl } from '@/lib/api-service'
-import QRCode from 'qrcode'
 import FormResultsModal from '@/components/forms/FormResultsModal'
 import FormStatsModal from '@/components/forms/FormStatsModal'
 import FormBuilderModal from '@/components/forms/FormBuilderModal'
+import FormQrCode from '@/components/forms/FormQrCode'
+import FormTypeArt, { hasFormTypeArt } from '@/components/forms/FormTypeArt'
+import InboxWindow, { InboxButton } from '@/components/ui/InboxWindow'
+import FormCampaignsModal from '@/components/forms/FormCampaignsModal'
+import { refreshFormsActionCount } from '@/hooks/useFormsActionCount'
+import { ShowcaseFormBadge, ShowcaseFormInfoBlock } from '@/components/forms/ShowcaseFormInfo'
 import PropertyLinkPicker from '@/components/forms/PropertyLinkPicker'
 import { OpenHouseFormRequestsPanel } from '@/components/OpenHouseFormRequestsPanel'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import WarningConfirmModal from '@/components/WarningConfirmModal'
 import RecentSalesCarousel from '@/components/agent-hub/RecentSalesCarousel'
+import ListingHeroCarousel from '@/components/agent-hub/ListingHeroCarousel'
 import HubItemCarousel from '@/components/agent-hub/HubItemCarousel'
 import BlogCard from '@/components/studio/blogs/BlogCard'
-import RecentSalesPanel from '@/components/agent-hub/RecentSalesPanel'
+import RecentSalesPanel, { SettingToggleRow } from '@/components/agent-hub/RecentSalesPanel'
+import { scrollRowByCard } from '@/lib/rowScroll'
+import { HUB_ICON, HUB_ICON_TILE, HUB_TOGGLE_OFF, HUB_TOGGLE_ON, HubCollapse, HubPanelMemory, hubCardClass, useHubPanelOpen } from '@/components/agent-hub/HubPanelChrome'
 import MyListingsPanel from '@/components/agent-hub/MyListingsPanel'
+import { HUB_MOBILE_HEADERS, HUB_THEMES, HubLuxeDecor, HubLuxeIntro, HubLuxeStyles, HubSplitHeader, HubAgentPhoto, isHubPhotoSet, LUXE_BLOG_CARD, LUXE_HOME_CARD, LUXE_VIDEO_CARD, LuxeBlogCardBody, LuxeHomeCardBody, LuxeVideoCardBody, type HubMobileHeaderId, type HubThemeId, hubLuxeMetalClass } from '@/components/agent-hub/HubLuxeTheme'
+import { HUB_CLASSIC_ACCENTS, HUB_CLASSIC_DEFAULT_ACCENT, HubClassicStyles, hubAccentOf, hubAccentStyle, hubClassicClass } from '@/components/agent-hub/HubClassicTheme'
+import { pinnedFirst } from '@/lib/hubPins'
+import LuxeUpgradePitch from '@/components/ui/LuxeUpgradePitch'
+import { LUXE_METALS, LUXE_METAL_ORDER, metalOf, type LuxeMetal } from '@/lib/luxeMetals'
 import SocialLinksEditor, { SocialLink, defaultSocialLinks, getSocialBrandClass } from '@/components/agent-hub/SocialLinksEditor'
 import DraggableAvatarPhoto from '@/components/agent-hub/DraggableAvatarPhoto'
+import ContactCardPanel, { ContactCardFields, ContactCardPreview, defaultContactCardFields, mergeContactCardFields } from '@/components/agent-hub/ContactCardPanel'
 import { AgentSale, formatSaleStatus, getEligibleListings, getEligibleSales, getSaleLocation, getSaleStatusClass, getSaleSummary, getStreetOnly } from '@/lib/agentSales'
 import { openHousePalPublicUrl, websitePublicBaseUrl, websitePublicUrl, websitePublicHostname } from '@/lib/publicResourceLinks'
 import { AgentFormConfig, BlogListItem, FormQuestion, FormQuestionType, FormSubmissionListItem, LinkedProperty, Site, SiteDomain, StatSummary } from '@/types'
 import StatCard from '@/components/stats/StatCard'
 import PageHeader from '@/components/PageHeader'
+import { LuxeTabs } from '@/components/ui/LuxeHero'
+import { hasMlsAccess, hasShowcaseAccess } from '@/lib/navAccess'
 import {
   ArrowDown,
+  ArrowRight,
   ArrowUp,
   BookOpen,
   Calendar,
   Check,
   ClipboardList as ClipboardListIcon,
   Copy,
+  CopyPlus,
   Download,
   FileText,
   Globe,
@@ -64,6 +83,7 @@ import {
   Trash2,
   User,
   Video,
+  Newspaper,
   HelpCircle,
   X,
   ChevronDown,
@@ -72,8 +92,10 @@ import {
   DollarSign,
   TrendingUp,
   Loader2,
+  Lock,
   Pencil,
   LayoutGrid,
+  PenLine,
   AlertTriangle,
   Eye,
   EyeOff,
@@ -83,19 +105,38 @@ import {
   Zap,
   BarChart3,
   HandCoins,
+  IdCard,
+  Moon,
+  Sun,
+  Palette,
   type LucideIcon,
 } from 'lucide-react'
+import { OhpWordmark } from '@/components/brand/OhpBrand'
+import { copyText } from '@/lib/copyText'
 
 type HubStatus = 'Draft' | 'Published' | 'Unpublished'
 type PreviewSize = 'mobile' | 'tablet' | 'desktop'
-type HubItem = { id: string; title: string; description?: string; image?: string; link?: string }
+type HubItem = { id: string; title: string; description?: string; image?: string; link?: string; pinned?: boolean }
 type SavedSocialLink = { id: string; label: string; url: string; enabled: boolean }
+// One on/off row (Layout -> Reviews, Profile -> Star Rating).
+function HubSwitchRow({ on, onClick, title, sub, testId }: { on: boolean; onClick: () => void; title: string; sub: string; testId?: string }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} onClick={onClick} data-testid={testId}
+      className="flex w-full items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 text-left dark:border-gray-700 dark:bg-[#0B0B0B]">
+      <span><span className="block text-sm font-black text-[#111827] dark:text-white">{title}</span><span className="block text-xs font-semibold text-gray-500 dark:text-gray-400">{sub}</span></span>
+      <span className={`relative h-5 w-9 shrink-0 rounded-full ${on ? HUB_TOGGLE_ON : HUB_TOGGLE_OFF}`}><span className={`absolute top-1 h-3 w-3 rounded-full bg-white transition ${on ? 'left-5' : 'left-1'}`} /></span>
+    </button>
+  )
+}
+
 type SavedAgentHubData = {
-  profile: { name: string; title: string; brokerage: string; market: string; licenseNumber: string; about?: string }
+  profile: { name: string; title: string; brokerage: string; market: string; licenseNumber: string; about?: string; team?: string }
   contact: { call: string; text: string; email: string }
   socialLinks: SavedSocialLink[]
+  contactCard?: { fields: ContactCardFields }
   recentSales?: AgentSale[]
   myListings?: AgentSale[]
+  salesMinPrice?: number
   showSalesStats?: boolean
   salesCarousel?: boolean
   listingsCarousel?: boolean
@@ -107,6 +148,10 @@ type SavedAgentHubData = {
   videosAutoScroll?: boolean
   toursAutoScroll?: boolean
   blogsAutoScroll?: boolean
+  reviewsCarousel?: boolean
+  reviewsAutoScroll?: boolean
+  reviewsOnProfile?: boolean
+  reviewsProfileButton?: boolean
   visitorDarkMode?: boolean
   videoLinks?: HubItem[]
   videoChannelUrl?: string
@@ -116,17 +161,27 @@ type SavedAgentHubData = {
   profilePhotoUrl: string
   profilePhotoPosition?: { x: number; y: number }
   layoutSections: typeof sections
+  /** The agent dragged the sections into their own order - until then My Listings leads. */
+  layoutCustomized?: boolean
   visibleSectionIds: string[]
   savedAt: string
 }
 const sections = [
-  { id: 'sales', label: 'Recent Sales', status: 'Complete', visible: true, count: '6 selected' },
   { id: 'listings', label: 'My Listings', status: 'Complete', visible: true, count: '0 listings' },
+  { id: 'sales', label: 'Recent Sales', status: 'Complete', visible: true, count: '6 selected' },
   { id: 'videos', label: 'Videos', status: 'Complete', visible: true, count: '3 videos' },
   { id: 'tours', label: 'House Tours', status: 'Complete', visible: true, count: '0 tours' },
   { id: 'blogs', label: 'Blogs', status: 'Complete', visible: true, count: '4 posts' },
+  // Shown when reviews are switched on for the hub (Reviews page) and there's at least one. On a
+  // computer they sit under About Me; this order is where they go on phones.
+  { id: 'reviews', label: 'Reviews', status: 'Complete', visible: true, count: '' },
 ]
 
+// Same rule as the public page: My Listings leads until the agent reorders the sections by hand.
+const listingsFirst = <T extends { id: string }>(list: T[]) => {
+  const i = list.findIndex(s => s.id === 'listings')
+  return i <= 0 ? list : [list[i], ...list.slice(0, i), ...list.slice(i + 1)]
+}
 const normalizeLayoutSections = (savedSections: typeof sections) => {
   const savedById = new Map(savedSections.map(section => [section.id, section]))
   const result = savedSections
@@ -259,34 +314,14 @@ const sectionHasContent = (id: string, recentSales: AgentSale[], videoLinks: Hub
   return true
 }
 
-const EDITOR_SECTION_THEME: Record<string, { subtitle: string; wash: string; iconChip: string; ring: string; border: string; shadow: string; topBorder: string }> = {
-  Profile: {
-    subtitle: 'Your name, photo, and how you\'re introduced to visitors',
-    wash: 'from-[#C9A24D]/12 via-white to-white dark:from-[#C9A24D]/10 dark:via-[#151517] dark:to-[#151517]',
-    iconChip: 'bg-gradient-to-br from-[#C9A24D]/30 to-[#C9A24D]/10 text-[#8b7355]',
-    ring: 'ring-[#C9A24D]/30',
-    border: 'border-[#C9A24D]/50',
-    shadow: 'shadow-[0_18px_44px_-18px_rgba(201,162,77,0.45)]',
-    topBorder: 'border-[#C9A24D]/20',
-  },
-  Contact: {
-    subtitle: 'Where visitors can call, text, or email you directly',
-    wash: 'from-teal-500/10 via-white to-white dark:from-teal-500/10 dark:via-[#151517] dark:to-[#151517]',
-    iconChip: 'bg-gradient-to-br from-teal-500/30 to-teal-500/10 text-teal-700 dark:text-teal-400',
-    ring: 'ring-teal-500/30',
-    border: 'border-teal-400/50',
-    shadow: 'shadow-[0_18px_44px_-18px_rgba(20,184,166,0.45)]',
-    topBorder: 'border-teal-400/20',
-  },
-  'Social Links': {
-    subtitle: 'Connect the accounts you want visitors to find',
-    wash: 'from-violet-500/10 via-white to-white dark:from-violet-500/10 dark:via-[#151517] dark:to-[#151517]',
-    iconChip: 'bg-gradient-to-br from-violet-500/30 to-violet-500/10 text-violet-700 dark:text-violet-400',
-    ring: 'ring-violet-500/30',
-    border: 'border-violet-400/50',
-    shadow: 'shadow-[0_18px_44px_-18px_rgba(139,92,246,0.45)]',
-    topBorder: 'border-violet-400/20',
-  },
+// Subtitle per Editor-tab card. The per-section wash/icon-chip/ring/glow colors that used to live
+// here are gone - every card now uses the shared neutral HubPanelChrome look (explicit ask: no
+// colors or glows, one clean OpenHousePal style).
+const EDITOR_SECTION_THEME: Record<string, { subtitle: string }> = {
+  Profile: { subtitle: "Your name, photo, and how you're introduced to visitors" },
+  Contact: { subtitle: 'Where visitors can call, text, or email you directly' },
+  'Social Links': { subtitle: 'Connect the accounts you want visitors to find' },
+  'Contact Card': { subtitle: 'What people get when they tap Save Contact' },
 }
 
 const editorGroups = [
@@ -295,12 +330,13 @@ const editorGroups = [
     icon: User,
     fields: [
       ['Profile photo', 'Change Photo'],
-      ['Brokerage name', ''],
+      ['RE License number', ''],
       ['Agent name', ''],
       ['Professional title', ''],
+      ['Brokerage name', ''],
+      ['Team name', ''],
       ['Market or service area', ''],
       ['About me', ''],
-      ['RE License number', ''],
     ],
   },
   {
@@ -322,6 +358,11 @@ const editorGroups = [
       ['YouTube', ''],
       ['Personal website', ''],
     ],
+  },
+  {
+    title: 'Contact Card',
+    icon: IdCard,
+    fields: [],
   },
 ]
 
@@ -359,24 +400,12 @@ function CarouselRow({ children, step = 180, showArrows = false, shellClass = 'r
   const rowRef = useRef<HTMLDivElement>(null)
   const [paused, setPaused] = useState(false)
 
-  const scrollForwardOrReset = () => {
-    const row = rowRef.current
-    if (!row) return
-    const atEnd = row.scrollLeft + row.clientWidth >= row.scrollWidth - 4
-    if (atEnd) {
-      row.scrollTo({ left: 0, behavior: 'smooth' })
-    } else {
-      row.scrollBy({ left: step, behavior: 'smooth' })
-    }
-  }
-
-  const scrollPrevious = () => {
-    rowRef.current?.scrollBy({ left: -step, behavior: 'smooth' })
-  }
-
-  const scrollNext = () => {
-    rowRef.current?.scrollBy({ left: step, behavior: 'smooth' })
-  }
+  // Card-aligned (see lib/rowScroll.ts) - `step` is no longer used for distance, every move lands
+  // the next card's left edge exactly at the row start instead of leaving half a card showing.
+  void step
+  const scrollForwardOrReset = () => scrollRowByCard(rowRef.current, 1, true)
+  const scrollPrevious = () => scrollRowByCard(rowRef.current, -1)
+  const scrollNext = () => scrollRowByCard(rowRef.current, 1)
 
   // Desktop/tablet row uses a horizontal shelf (not the single-slide fade carousel), so "auto
   // scroll" here means gently nudging it forward on a timer and looping back to the start once
@@ -400,7 +429,7 @@ function CarouselRow({ children, step = 180, showArrows = false, shellClass = 'r
       <button
         type="button"
         onClick={scrollPrevious}
-        className={`absolute left-1 top-1/2 h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/85 text-[#111827] shadow-sm backdrop-blur ${showArrows ? 'hidden lg:flex' : 'hidden'}`}
+        className={`absolute left-1 top-1/2 h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/85 text-[#111827] shadow-sm ${showArrows ? 'hidden lg:flex' : 'hidden'}`}
         aria-label="Previous"
       >
         <ChevronRight className="h-4 w-4 rotate-180" />
@@ -408,11 +437,52 @@ function CarouselRow({ children, step = 180, showArrows = false, shellClass = 'r
       <button
         type="button"
         onClick={scrollNext}
-        className={`absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/85 text-[#111827] shadow-sm backdrop-blur ${showArrows ? 'hidden lg:flex' : 'hidden'}`}
+        className={`absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/85 text-[#111827] shadow-sm ${showArrows ? 'hidden lg:flex' : 'hidden'}`}
         aria-label="Next"
       >
         <ChevronRight className="h-4 w-4" />
       </button>
+    </div>
+  )
+}
+
+// Scales a fixed-design-width replica down to fit whatever container it's dropped into, instead
+// of re-deriving smaller ad-hoc font sizes/paddings that never quite match the real page's actual
+// proportions ("some sections a bit crushed" - explicit ask: "fit to scale so it previews exactly
+// how the site really looks"). Measures the *container's* live width (ResizeObserver, since the
+// editor's preview panel width varies - full editor column vs. the narrow sticky sidebar) and
+// applies a single CSS transform: scale() to the inner node, which is laid out at its true design
+// width so every element keeps its real, true-to-production proportions relative to each other.
+// The outer wrapper's height is set to the scaled content height so it collapses to fit instead of
+// leaving a tall blank gap (transform doesn't affect layout flow) or clipping overflow.
+function ScaleFit({ designWidth, children }: { designWidth: number; children: React.ReactNode }) {
+  const outerRef = useRef<HTMLDivElement>(null)
+  const innerRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+  const [height, setHeight] = useState<number | undefined>(undefined)
+
+  useEffect(() => {
+    const outer = outerRef.current
+    const inner = innerRef.current
+    if (!outer || !inner) return
+    const update = () => {
+      const containerWidth = outer.clientWidth
+      const nextScale = containerWidth > 0 ? Math.min(1, containerWidth / designWidth) : 1
+      setScale(nextScale)
+      setHeight(inner.scrollHeight * nextScale)
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(outer)
+    ro.observe(inner)
+    return () => ro.disconnect()
+  }, [designWidth])
+
+  return (
+    <div ref={outerRef} style={{ width: '100%', height, overflow: 'hidden' }}>
+      <div ref={innerRef} style={{ width: designWidth, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+        {children}
+      </div>
     </div>
   )
 }
@@ -434,6 +504,11 @@ function PublicPreview({
   listingsCarousel,
   listingsAutoScroll,
   visitorDarkMode,
+  hubTheme = 'classic',
+  hubLuxeMetal = 'gold',
+  hubAccent = HUB_CLASSIC_DEFAULT_ACCENT,
+  mobileHeader = 'centered',
+  introNonce = 0,
   videoLinks,
   videoChannelUrl,
   videosCarousel,
@@ -447,6 +522,11 @@ function PublicPreview({
   blogsAutoScroll,
   agentForms,
   agentHubPublicPath,
+  reviewsData = null,
+  reviewsCarousel = true,
+  reviewsAutoScroll = true,
+  reviewsOnProfile = true,
+  reviewsProfileButton = true,
 }: {
   size: PreviewSize
   compact?: boolean
@@ -464,6 +544,11 @@ function PublicPreview({
   listingsCarousel: boolean
   listingsAutoScroll: boolean
   visitorDarkMode: boolean
+  hubTheme?: HubThemeId
+  hubLuxeMetal?: LuxeMetal
+  hubAccent?: string
+  mobileHeader?: HubMobileHeaderId
+  introNonce?: number
   videoLinks: HubItem[]
   videoChannelUrl: string
   videosCarousel: boolean
@@ -477,11 +562,32 @@ function PublicPreview({
   blogsAutoScroll: boolean
   agentForms: AgentFormConfig[]
   agentHubPublicPath: string
+  reviewsData?: HubReviewsData | null
+  reviewsCarousel?: boolean
+  reviewsAutoScroll?: boolean
+  reviewsOnProfile?: boolean
+  reviewsProfileButton?: boolean
 }) {
   const width = compact ? 'w-full max-w-full' : size === 'mobile' ? 'max-w-[360px]' : size === 'tablet' ? 'max-w-[620px]' : 'max-w-4xl'
+  const luxe = hubTheme === 'luxe'
+  // Luxe's entry replays in the preview each time Luxe is picked.
+  const [introOn, setIntroOn] = useState(false)
+  useEffect(() => { if (introNonce > 0 && luxe) setIntroOn(true) }, [introNonce, luxe])
+  const luxeIntro = luxe && introOn ? <HubLuxeIntro contained name={profile.name} kicker={[profile.title, profile.brokerage].filter(Boolean).join(' · ')} photoUrl={profilePhotoUrl} photoPosition={profilePhotoPosition} onDone={() => setIntroOn(false)} /> : null
   const shellPadding = compact ? 'px-4 pb-4 pt-4' : 'px-6 pb-6 pt-5'
   const enabledSocialLinks = socialLinks.filter(link => link.enabled && link.url.trim())
-  const visibleLayoutSections = layoutSections.filter(section => section.visible && sectionHasContent(section.id, recentSales, videoLinks, houseTourLinks, houseTourUrl, blogCards, myListings))
+  const reviewsList = reviewsData ? orderReviews(reviewsData.reviews) : []
+  const reviewsOn = Boolean(reviewsData?.show_on_hub && reviewsList.length > 0)
+  const reviewHref = `${agentHubPublicPath}/review`
+  // Profile card extras - phones only (the computer view has the reviews card under the buttons).
+  const profileRating = reviewsOn && reviewsOnProfile && reviewsData ? <ProfileRatingChip data={reviewsData} href="#" /> : null
+  const profileReviewBtn = reviewsOn && reviewsProfileButton ? <ProfileReviewButton href={reviewHref} newTab /> : null
+  const splitRatingChip = reviewsOn && reviewsOnProfile && reviewsData
+    ? <ProfileRatingChip data={reviewsData} href="#" reviewHref={reviewsProfileButton ? reviewHref : undefined} newTab />
+    : profileReviewBtn
+  const visibleLayoutSections = layoutSections.filter(section => section.id === 'reviews'
+    ? reviewsOn
+    : section.visible && sectionHasContent(section.id, recentSales, videoLinks, houseTourLinks, houseTourUrl, blogCards, myListings))
   // Ref, not state - nothing renders off this value directly, only the scheduler below reads it.
   const activeAutoScrollIdRef = useRef<string | null>(null)
   const [autoScrollStep, setAutoScrollStep] = useState<{ id: string; nonce: number } | null>(null)
@@ -489,11 +595,12 @@ function PublicPreview({
   const autoScrollSequence = visibleLayoutSections
     .map(section => section.id)
     .filter(id => {
-      if (id === 'sales') return salesAutoScroll && !(salesCarousel && size === 'mobile') && getEligibleSales(recentSales).filter(sale => sale.visible).length >= 2
+      if (id === 'sales') return luxe && salesAutoScroll && !(salesCarousel && size === 'mobile') && getEligibleSales(recentSales).filter(sale => sale.visible).length >= 2
       if (id === 'listings') return listingsAutoScroll && !(listingsCarousel && size === 'mobile') && getEligibleListings(myListings).filter(listing => listing.visible).length >= 2
       if (id === 'videos') return videosAutoScroll && !(videosCarousel && size === 'mobile') && videoLinks.filter(item => item.link?.trim()).length >= 2
       if (id === 'tours') return toursAutoScroll && !(toursCarousel && size === 'mobile') && houseTourLinks.filter(item => item.link?.trim()).length >= 2
       if (id === 'blogs') return blogsAutoScroll && !(blogsCarousel && size === 'mobile') && blogCards.filter(item => item.title.trim()).length >= 2
+      if (id === 'reviews') return reviewsAutoScroll && size !== 'desktop' && !(reviewsCarousel && size === 'mobile') && reviewsList.length >= 2
       return false
     })
   const enabledContacts: [string, LucideIcon][] = [
@@ -506,9 +613,9 @@ function PublicPreview({
   // The preview's "phone frame" is narrower than a real device viewport, so on higher
   // icon counts it needs to shrink more aggressively than the real site to still fit
   // everything on one line - it must never wrap to a second row.
-  const iconBoxSize = totalIconCount <= 4 ? (isCompactPreview ? 'h-10 w-10' : 'h-12 w-12') : totalIconCount <= 6 ? (isCompactPreview ? 'h-9 w-9' : 'h-11 w-11') : totalIconCount <= 8 ? (isCompactPreview ? 'h-7 w-7' : 'h-10 w-10') : (isCompactPreview ? 'h-6 w-6' : 'h-9 w-9')
-  const iconGlyphSize = totalIconCount <= 4 ? (isCompactPreview ? 'h-4 w-4' : 'h-5 w-5') : totalIconCount <= 6 ? (isCompactPreview ? 'h-4 w-4' : 'h-[18px] w-[18px]') : totalIconCount <= 8 ? (isCompactPreview ? 'h-3.5 w-3.5' : 'h-4 w-4') : (isCompactPreview ? 'h-3 w-3' : 'h-[14px] w-[14px]')
-  const iconGap = totalIconCount <= 4 ? 'gap-3' : totalIconCount <= 6 ? (isCompactPreview ? 'gap-1.5' : 'gap-2.5') : totalIconCount <= 8 ? (isCompactPreview ? 'gap-1' : 'gap-2') : 'gap-1'
+  const iconBoxSize = totalIconCount <= 4 ? (isCompactPreview ? 'h-10 w-10' : 'h-12 w-12') : totalIconCount <= 6 ? (isCompactPreview ? 'h-9 w-9' : 'h-10 w-10') : totalIconCount <= 8 ? (isCompactPreview ? 'h-7 w-7' : 'h-9 w-9') : (isCompactPreview ? 'h-6 w-6' : 'h-8 w-8')
+  const iconGlyphSize = totalIconCount <= 4 ? (isCompactPreview ? 'h-4 w-4' : 'h-5 w-5') : totalIconCount <= 6 ? (isCompactPreview ? 'h-4 w-4' : 'h-4 w-4') : totalIconCount <= 8 ? (isCompactPreview ? 'h-3.5 w-3.5' : 'h-[15px] w-[15px]') : (isCompactPreview ? 'h-3 w-3' : 'h-[13px] w-[13px]')
+  const iconGap = totalIconCount <= 4 ? 'gap-3' : totalIconCount <= 6 ? (isCompactPreview ? 'gap-1.5' : 'gap-2') : totalIconCount <= 8 ? (isCompactPreview ? 'gap-1' : 'gap-1.5') : 'gap-1'
   const saleSummary = getSaleSummary(recentSales)
   const buyingForm = agentForms.find(form => form.form_type === 'buying')
   const sellingForm = agentForms.find(form => form.form_type === 'selling')
@@ -575,10 +682,14 @@ function PublicPreview({
             <span className="text-[11px] font-black uppercase text-[#caa65e] dark:text-[#d7b974]">View All &rsaquo;</span>
           </div>
           {salesCarousel && size === 'mobile' ? (
-            <RecentSalesCarousel sales={getEligibleSales(recentSales).filter(sale => sale.visible).slice(0, 8)} compact />
+            <RecentSalesCarousel sales={getEligibleSales(recentSales).filter(sale => sale.visible).slice(0, 8)} compact luxe={luxe} />
           ) : (
             <CarouselRow step={170} showArrows={size === 'desktop'} shellClass={compact ? 'relative' : size === 'desktop' ? 'agent-hub-shelf-window relative px-5 lg:px-10' : 'relative px-5'} rowClassName={size === 'desktop' ? 'agent-hub-desktop-trio' : ''} scrollPulse={autoScrollStep?.id === id ? autoScrollStep.nonce : 0}>
-              {getEligibleSales(recentSales).filter(sale => sale.visible).slice(0, 6).map((sale) => (
+              {getEligibleSales(recentSales).filter(sale => sale.visible).slice(0, 6).map((sale) => luxe ? (
+                <div key={sale.id} className={LUXE_HOME_CARD}>
+                  <LuxeHomeCardBody image={sale.image} price={sale.price ? `$${sale.price.toLocaleString()}` : 'Price'} location={getSaleLocation(sale)} status={formatSaleStatus(sale.status)} statusClass={getSaleStatusClass(sale.status)} />
+                </div>
+              ) : (
                 <div key={sale.id} className="relative h-[118px] w-[210px] shrink-0 overflow-hidden rounded-[14px] bg-cover bg-center lg:h-[148px]" style={{ backgroundImage: `url(${sale.image || '/placeholder.jpg'})` }}>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent" />
                   <span className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${getSaleStatusClass(sale.status)}`}>{formatSaleStatus(sale.status)}</span>
@@ -599,10 +710,14 @@ function PublicPreview({
             <span className="text-[11px] font-black uppercase text-[#caa65e] dark:text-[#d7b974]">View All &rsaquo;</span>
           </div>
           {listingsCarousel && size === 'mobile' ? (
-            <RecentSalesCarousel sales={getEligibleListings(myListings).filter(listing => listing.visible).slice(0, 8)} compact />
+            <ListingHeroCarousel listings={getEligibleListings(myListings).filter(listing => listing.visible).slice(0, 8)} luxe={luxe} />
           ) : (
             <CarouselRow step={170} showArrows={size === 'desktop'} shellClass={compact ? 'relative' : size === 'desktop' ? 'agent-hub-shelf-window relative px-5 lg:px-10' : 'relative px-5'} rowClassName={size === 'desktop' ? 'agent-hub-desktop-trio' : ''} scrollPulse={autoScrollStep?.id === id ? autoScrollStep.nonce : 0}>
-              {getEligibleListings(myListings).filter(listing => listing.visible).slice(0, 6).map((listing) => (
+              {getEligibleListings(myListings).filter(listing => listing.visible).slice(0, 6).map((listing) => luxe ? (
+                <div key={listing.id} className={LUXE_HOME_CARD}>
+                  <LuxeHomeCardBody image={listing.image} price={listing.price ? `$${listing.price.toLocaleString()}` : 'Price'} location={getSaleLocation(listing)} status={formatSaleStatus(listing.status)} statusClass={getSaleStatusClass(listing.status)} cta="View home" />
+                </div>
+              ) : (
                 <div key={listing.id} className="relative h-[118px] w-[210px] shrink-0 overflow-hidden rounded-[14px] bg-cover bg-center lg:h-[148px]" style={{ backgroundImage: `url(${listing.image || '/placeholder.jpg'})` }}>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent" />
                   <span className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${getSaleStatusClass(listing.status)}`}>{formatSaleStatus(listing.status)}</span>
@@ -630,7 +745,7 @@ function PublicPreview({
               showDots={false}
               renderSlide={(item) => (
                 <a href={item.link?.startsWith('http') ? item.link : `https://${item.link}`} target="_blank" rel="noreferrer" className="relative block h-full w-full overflow-hidden rounded-[18px] bg-cover bg-center" style={{ backgroundImage: `url(${getYoutubeThumbnail(item.link || '') || '/placeholder.jpg'})` }}>
-                  <span className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/45 bg-black/30 text-white shadow-sm backdrop-blur-[1px]">
+                  <span className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/45 bg-black/30 text-white shadow-sm ">
                     <Play className="ml-1 h-6 w-6 fill-white/80 text-white/90" />
                   </span>
                 </a>
@@ -638,10 +753,14 @@ function PublicPreview({
             />
           ) : (
             <CarouselRow step={162} showArrows={size === 'desktop'} shellClass={compact ? 'relative' : size === 'desktop' ? 'agent-hub-shelf-window relative px-5 lg:px-10' : 'relative px-5'} rowClassName={size === 'desktop' ? 'agent-hub-desktop-trio' : ''} scrollPulse={autoScrollStep?.id === id ? autoScrollStep.nonce : 0}>
-              {eligibleVideos.map((item) => (
+              {eligibleVideos.map((item) => luxe ? (
+                <a key={item.id} href={item.link?.startsWith('http') ? item.link : `https://${item.link}`} target="_blank" rel="noreferrer" className={LUXE_VIDEO_CARD}>
+                  <LuxeVideoCardBody thumb={getYoutubeThumbnail(item.link || '')} title={item.title || 'YouTube Video'} kicker="Watch" />
+                </a>
+              ) : (
                 <a key={item.id} href={item.link?.startsWith('http') ? item.link : `https://${item.link}`} target="_blank" rel="noreferrer" className="w-[162px] shrink-0">
                   <div className="relative h-[102px] overflow-hidden rounded-[14px] bg-cover bg-center lg:h-[132px]" style={{ backgroundImage: `url(${getYoutubeThumbnail(item.link || '') || '/placeholder.jpg'})` }}>
-                    <span className="absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/45 bg-black/20 text-white shadow-sm backdrop-blur-[1px]">
+                    <span className="absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/45 bg-black/20 text-white shadow-sm ">
                       <Play className="ml-0.5 h-4 w-4 fill-white/70 text-white/80" />
                     </span>
                   </div>
@@ -669,7 +788,7 @@ function PublicPreview({
               showDots={false}
               renderSlide={(item) => (
                 <a href={item.link?.startsWith('http') ? item.link : `https://${item.link}`} target="_blank" rel="noreferrer" className="relative block h-full w-full overflow-hidden rounded-[18px] bg-cover bg-center" style={{ backgroundImage: `url(${getYoutubeThumbnail(item.link || '') || '/placeholder.jpg'})` }}>
-                  <span className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/45 bg-black/30 text-white shadow-sm backdrop-blur-[1px]">
+                  <span className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/45 bg-black/30 text-white shadow-sm ">
                     <Play className="ml-1 h-6 w-6 fill-white/80 text-white/90" />
                   </span>
                 </a>
@@ -677,10 +796,14 @@ function PublicPreview({
             />
           ) : (
             <CarouselRow step={180} showArrows={size === 'desktop'} shellClass={compact ? 'relative' : size === 'desktop' ? 'agent-hub-shelf-window relative px-5 lg:px-10' : 'relative px-5'} rowClassName={size === 'desktop' ? 'agent-hub-desktop-trio' : ''} scrollPulse={autoScrollStep?.id === id ? autoScrollStep.nonce : 0}>
-              {eligibleTours.map((item) => (
+              {eligibleTours.map((item) => luxe ? (
+                <a key={item.id} href={item.link?.startsWith('http') ? item.link : `https://${item.link}`} target="_blank" rel="noreferrer" className={LUXE_VIDEO_CARD}>
+                  <LuxeVideoCardBody thumb={getYoutubeThumbnail(item.link || '')} title={item.title || 'House Tour'} kicker="Tour" />
+                </a>
+              ) : (
                 <a key={item.id} href={item.link?.startsWith('http') ? item.link : `https://${item.link}`} target="_blank" rel="noreferrer" className="w-[180px] shrink-0">
                   <div className="relative h-[112px] overflow-hidden rounded-[14px] bg-cover bg-center lg:h-[140px]" style={{ backgroundImage: `url(${getYoutubeThumbnail(item.link || '') || '/placeholder.jpg'})` }}>
-                    <span className="absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/45 bg-black/20 text-white shadow-sm backdrop-blur-[1px]">
+                    <span className="absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/45 bg-black/20 text-white shadow-sm ">
                       <Play className="ml-0.5 h-4 w-4 fill-white/70 text-white/80" />
                     </span>
                   </div>
@@ -688,6 +811,28 @@ function PublicPreview({
                 </a>
               ))}
             </CarouselRow>
+          )}
+        </div>
+      )
+    }
+
+    if (id === 'reviews') {
+      // Computers: a short card under Schedule a Showing in the side column (ReviewsDeskCard), not in this column.
+      if (!reviewsData || !reviewsOn || size === 'desktop') return null
+      const header = (
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="border-l-4 border-[#d2b16f] pl-2 font-serif text-[22px] font-black text-[#111827] dark:text-white">Reviews</h3>
+          <LeaveReviewButton href={reviewHref} size="sm" newTab />
+        </div>
+      )
+      return (
+        <div key={id} className="mt-4">
+          {header}
+          <ReviewsSummary data={reviewsData} className="-mt-1 mb-3" />
+          {reviewsCarousel && size === 'mobile' ? (
+            <ReviewsBigCarousel reviews={reviewsList} luxe={luxe} autoScroll={reviewsAutoScroll} height={compact ? 210 : 240} />
+          ) : (
+            <ReviewsTwoUp reviews={reviewsList} luxe={luxe} scrollPulse={autoScrollStep?.id === id ? autoScrollStep.nonce : 0} />
           )}
         </div>
       )
@@ -709,8 +854,8 @@ function PublicPreview({
               dotsTone="dark"
               showDots={false}
               renderSlide={(item) => (
-                <a href={item.link ? (item.link.startsWith('http') ? item.link : `https://${item.link}`) : '#'} target={item.link ? '_blank' : undefined} rel={item.link ? 'noreferrer' : undefined} className={`flex h-full w-full flex-col overflow-hidden rounded-[18px] bg-white shadow-sm dark:bg-[#151517] ${item.link ? '' : 'pointer-events-none'}`}>
-                  <div className="flex-1 bg-cover bg-center" style={{ backgroundImage: `url(${item.image || '/placeholder.jpg'})` }} />
+                <a href={item.link ? (item.link.startsWith('http') ? item.link : `https://${item.link}`) : '#'} target={item.link ? '_blank' : undefined} rel={item.link ? 'noreferrer' : undefined} className={`flex h-full w-full flex-col overflow-hidden rounded-[18px] bg-white dark:bg-[#151517] ${item.link ? '' : 'pointer-events-none'}`}>
+                  <div className="flex-1 bg-cover bg-center" style={{ backgroundImage: item.image ? `url(${item.image})` : 'radial-gradient(120% 120% at 100% 0%, rgba(201,162,77,.45), transparent 55%), linear-gradient(135deg, #111827, #2a2218)' }} />
                   <div className="bg-white p-4 pb-6 dark:bg-[#1A1A1C]">
                     <p className="text-[10px] font-black uppercase tracking-wide text-[#d0ad65] dark:text-[#d7b974]">{item.description || 'Blog'}</p>
                     <h4 className="mt-1 line-clamp-2 text-sm font-black leading-4 text-[#111827] dark:text-white">{item.title}</h4>
@@ -720,9 +865,13 @@ function PublicPreview({
             />
           ) : (
             <CarouselRow step={198} showArrows={size === 'desktop'} shellClass={compact ? 'relative' : size === 'desktop' ? 'agent-hub-shelf-window relative px-5 lg:px-10' : 'relative px-5'} rowClassName={size === 'desktop' ? 'agent-hub-desktop-trio' : ''} scrollPulse={autoScrollStep?.id === id ? autoScrollStep.nonce : 0}>
-              {eligibleBlogs.map((item) => (
+              {eligibleBlogs.map((item) => luxe ? (
+                <a key={item.id} href={item.link ? (item.link.startsWith('http') ? item.link : `https://${item.link}`) : '#'} target={item.link ? '_blank' : undefined} rel={item.link ? 'noreferrer' : undefined} className={`${LUXE_BLOG_CARD} ${item.link ? '' : 'pointer-events-none'}`}>
+                  <LuxeBlogCardBody image={item.image} category={item.description || 'Blog'} title={item.title} />
+                </a>
+              ) : (
                 <a key={item.id} href={item.link ? (item.link.startsWith('http') ? item.link : `https://${item.link}`) : '#'} target={item.link ? '_blank' : undefined} rel={item.link ? 'noreferrer' : undefined} className={`w-[198px] shrink-0 overflow-hidden rounded-[14px] bg-white shadow-sm dark:bg-[#151517] dark:shadow-none ${item.link ? '' : 'pointer-events-none'}`}>
-                  <div className="h-[92px] bg-cover bg-center" style={{ backgroundImage: `url(${item.image || '/placeholder.jpg'})` }} />
+                  <div className="h-[92px] bg-cover bg-center" style={{ backgroundImage: item.image ? `url(${item.image})` : 'radial-gradient(120% 120% at 100% 0%, rgba(201,162,77,.45), transparent 55%), linear-gradient(135deg, #111827, #2a2218)' }} />
                   <div className="bg-white p-3 dark:bg-[#1A1A1C]">
                     <p className="text-[10px] font-black uppercase tracking-wide text-[#d0ad65] dark:text-[#d7b974]">{item.description || 'Blog'}</p>
                     <h4 className="mt-1 line-clamp-2 text-sm font-black leading-4 text-[#111827] dark:text-white">{item.title}</h4>
@@ -738,9 +887,136 @@ function PublicPreview({
     return null
   }
 
+  // Desktop preview: a true-to-scale replica of the real two-column public page (aside profile
+  // card sticky on the left, content shelves on the right - see app/[slug]/page.tsx's own
+  // `lg:grid-cols-[360px_1fr]` layout), not the single stacked column below squeezed into a
+  // narrower box. Laid out at the real page's actual design width (1152px, matching its own
+  // `max-w-6xl`) using the exact same classes/breakpoint tiers as production, then scaled down as
+  // a whole via ScaleFit to fit whatever width the editor panel actually gives it - proportional
+  // shrinking instead of ad hoc smaller fonts/paddings that don't match the real site's proportions
+  // (explicit ask: "fit to scale so it previews exactly how the site really looks").
+  if (size === 'desktop' && !compact) {
+    const desktopIconBoxSize = totalIconCount <= 4 ? 'h-12 w-12' : totalIconCount <= 6 ? 'h-10 w-10' : totalIconCount <= 8 ? 'h-9 w-9' : 'h-8 w-8'
+    const desktopIconGlyphSize = totalIconCount <= 4 ? 'h-5 w-5' : totalIconCount <= 6 ? 'h-4 w-4' : totalIconCount <= 8 ? 'h-[15px] w-[15px]' : 'h-[13px] w-[13px]'
+    const desktopIconGap = totalIconCount <= 4 ? 'gap-3' : totalIconCount <= 6 ? 'gap-2' : totalIconCount <= 8 ? 'gap-1.5' : 'gap-1'
+    return (
+      <div className={visitorDarkMode ? 'dark' : ''}>
+        <ScaleFit designWidth={1152}>
+          <div
+            className={`relative mx-auto grid gap-8 overflow-hidden rounded-[28px] border border-gray-200 bg-[#f7f5f1] px-8 pb-10 pt-6 shadow-xl dark:border-gray-800 dark:bg-[#0B0B0B] lg:grid-cols-[360px_1fr] ${hubTheme === 'luxe' ? `hub-luxe ${hubLuxeMetalClass(hubLuxeMetal)}` : hubClassicClass(hubTheme, hubAccent)}`}
+            style={{ width: 1152, ...(hubTheme === 'luxe' ? {} : hubAccentStyle(hubAccent)) }}
+          >
+            {hubTheme === 'luxe' ? <><HubLuxeStyles /><HubLuxeDecor /></> : <HubClassicStyles />}
+            {luxeIntro}
+            {visitorDarkMode && (
+              <div className="pointer-events-none absolute inset-0">
+                <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-white/5 to-transparent" />
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.02)_0%,rgba(255,255,255,0.01)_18%,transparent_100%)]" />
+                <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:56px_56px] opacity-10" />
+              </div>
+            )}
+            <aside className="h-fit lg:sticky lg:top-6">
+              {mobileHeader === 'split' ? (
+                <HubSplitHeader
+                  large
+                  profile={profile}
+                  photoUrl={profilePhotoUrl}
+                  photoPosition={profilePhotoPosition}
+                  stats={showSalesStats ? [['Sold', saleSummary.totalSold.toString()], ['Volume', formatCompactMoney(saleSummary.totalVolume)], ['Avg', formatCompactMoney(saleSummary.avgPrice)]] : null}
+                  photoBadge={splitRatingChip}
+                />
+              ) : (
+              <div className="rounded-[28px] border border-gray-200 bg-[#fbfaf7] px-7 py-7 text-center shadow-sm dark:border-gray-800 dark:bg-[#151517]">
+                <div className="mx-auto h-[92px] w-[92px] rounded-full border-2 border-[#cdaa64] bg-white p-1 shadow-sm dark:bg-[#0B0B0B]">
+                  <HubAgentPhoto url={profilePhotoUrl} position={profilePhotoPosition} name={profile.name} className="rounded-full" />
+                </div>
+                <div className="-mt-5 inline-flex rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-wide shadow-sm dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-[#d7b974]">{profile.brokerage}</div>
+                <h2 className="mt-4 font-serif text-[30px] font-black leading-none text-[#111827] dark:text-white">{profile.name}</h2>
+                <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-[#8b7355] dark:text-[#d7b974]">{profile.title}</p>
+                {profile.market && <p className="mt-3 flex items-center justify-center gap-1 text-sm text-[#778093] dark:text-gray-300"><MapPin className="h-4 w-4 text-[#d0ad65]" /> {profile.market}</p>}
+                {renderSalesStats()}
+              </div>
+              )}
+
+              <section className={`mt-6 flex w-full flex-wrap items-center justify-center ${desktopIconGap}`}>
+                {enabledContacts.map(([label, Icon]) => (
+                  <div key={label} aria-label={label} className="shrink-0">
+                    <span className={`mx-auto flex ${desktopIconBoxSize} items-center justify-center rounded-full bg-[#111827] text-white dark:bg-[#1A1A1C] dark:ring-1 dark:ring-white/10`}><Icon className={desktopIconGlyphSize} /></span>
+                  </div>
+                ))}
+                {enabledContacts.length > 0 && enabledSocialLinks.length > 0 && (
+                  <span className="mx-1.5 h-8 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
+                )}
+                {enabledSocialLinks.map(({ id, icon: Icon, label }) => (
+                  <span key={id} aria-label={label} className={`flex ${desktopIconBoxSize} shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-[#151517]`}>
+                    <Icon className={`${desktopIconGlyphSize} ${getSocialBrandClass(id)}`} />
+                  </span>
+                ))}
+              </section>
+
+              <div className="hub-btn-save mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-[14px] border border-[#111827] bg-white text-base font-black text-[#111827] shadow-sm dark:border-white dark:bg-transparent dark:text-white">
+                <IdCard className="h-5 w-5" /> Save Contact
+              </div>
+
+              <div className="mt-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <Link
+                    href={buyingForm ? `${agentHubPublicPath}/${buyingForm.slug}` : '#'}
+                    target="_blank"
+                    className={`hub-btn-buy flex h-12 items-center justify-center gap-2 rounded-[14px] border border-gray-200 bg-white text-base font-black dark:border-gray-700 dark:bg-[#151517] dark:text-white ${buyingForm ? '' : 'pointer-events-none opacity-50'}`}
+                  >
+                    <Home className="h-5 w-5" /> {buyingForm?.title || "I'm Buying"}
+                  </Link>
+                  <Link
+                    href={sellingForm ? `${agentHubPublicPath}/${sellingForm.slug}` : '#'}
+                    target="_blank"
+                    className={`hub-btn-sell flex h-12 items-center justify-center gap-2 rounded-[14px] border border-gray-200 bg-white text-base font-black dark:border-gray-700 dark:bg-[#151517] dark:text-white ${sellingForm ? '' : 'pointer-events-none opacity-50'}`}
+                  >
+                    <TrendingUp className="h-5 w-5" /> {sellingForm?.title || "I'm Selling"}
+                  </Link>
+                </div>
+                <Link
+                  href={homeValueForm ? `${agentHubPublicPath}/${homeValueForm.slug}` : '#'}
+                  target="_blank"
+                  className={`hub-btn-worth mt-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] border border-[#d7b974] bg-white px-4 py-3 text-center text-base font-black leading-tight dark:border-[#d7b974]/60 dark:bg-[#151517] dark:text-white ${homeValueForm ? '' : 'pointer-events-none opacity-50'}`}
+                >
+                  <DollarSign className="h-5 w-5 shrink-0 text-[#caa65e]" /> <span>{homeValueForm?.title || "What's My Home Worth?"}</span> <span className="shrink-0 text-[#9aa2af]">&rsaquo;</span>
+                </Link>
+                <Link
+                  href={showingForm ? `${agentHubPublicPath}/${showingForm.slug}` : '#'}
+                  target="_blank"
+                  className={`hub-btn-show mt-4 flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#d2b16f] text-base font-black text-[#111827] shadow-lg shadow-[#d2b16f]/30 dark:text-white ${showingForm ? '' : 'pointer-events-none opacity-50'}`}
+                >
+                  <span className="hub-show-tile inline-flex"><Calendar className="h-5 w-5" /></span> <span className="hub-show-label">{showingForm?.title || 'Schedule a Showing'}</span><span aria-hidden className="hub-show-go hidden">&rarr;</span>
+                </Link>
+                {reviewsOn && reviewsData && <ReviewsDeskCard data={reviewsData} reviews={reviewsList} luxe={luxe} reviewHref={reviewHref} newTab className="mt-4" />}
+              </div>
+
+              {profile.about?.trim() && (
+                <section className="mt-6 rounded-[18px] border border-[#d8c08a]/50 bg-white/75 p-5 text-left shadow-sm dark:border-[#d8c08a]/25 dark:bg-[#151517]">
+                  <h2 className="border-l-4 border-[#d2b16f] pl-2 font-serif text-xl font-black text-[#111827] dark:text-white">About Me</h2>
+                  <p className="mt-3 text-sm font-medium leading-6 text-[#5f6673] dark:text-gray-300">{profile.about}</p>
+                </section>
+              )}
+            </aside>
+
+            <div className="min-w-0 [&>section:first-child]:!mt-0 [&>div:first-child>section]:!mt-0">
+              {visibleLayoutSections.map(section => renderSection(section.id))}
+              <footer className="mt-6 border-t border-gray-200 py-5 text-center text-xs font-semibold text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                Powered by <span className="inline-flex align-[-0.15em] text-[#111827] dark:text-white"><OhpWordmark className="text-[1.15em]" /></span>
+              </footer>
+            </div>
+          </div>
+        </ScaleFit>
+      </div>
+    )
+  }
+
   return (
     <div className={visitorDarkMode ? 'dark' : ''}>
-    <div className={`${width} ${compact ? 'mx-0' : 'mx-auto'} relative overflow-hidden rounded-[28px] border border-gray-200 bg-[#f7f5f1] dark:border-gray-800 dark:bg-[#0B0B0B] ${shellPadding} shadow-xl`}>
+    <div className={`${width} ${compact ? 'mx-0' : 'mx-auto'} relative overflow-hidden rounded-[28px] border border-gray-200 bg-[#f7f5f1] dark:border-gray-800 dark:bg-[#0B0B0B] ${shellPadding} shadow-xl ${hubTheme === 'luxe' ? `hub-luxe ${hubLuxeMetalClass(hubLuxeMetal)}` : hubClassicClass(hubTheme, hubAccent)}`} style={hubTheme === 'luxe' ? undefined : hubAccentStyle(hubAccent)}>
+      {hubTheme === 'luxe' ? <><HubLuxeStyles /><HubLuxeDecor /></> : <HubClassicStyles />}
+      {luxeIntro}
       {visitorDarkMode && (
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-white/5 to-transparent" />
@@ -748,16 +1024,28 @@ function PublicPreview({
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:56px_56px] opacity-10" />
         </div>
       )}
+      {mobileHeader === 'split' ? (
+        <HubSplitHeader
+          profile={profile}
+          photoUrl={profilePhotoUrl}
+          photoPosition={profilePhotoPosition}
+          stats={showSalesStats ? [['Sold', saleSummary.totalSold.toString()], ['Volume', formatCompactMoney(saleSummary.totalVolume)], ['Avg', formatCompactMoney(saleSummary.avgPrice)]] : null}
+          photoBadge={splitRatingChip}
+        />
+      ) : (
       <div className="relative text-center">
+        {size !== 'desktop' && profileRating && <div className="absolute left-0 top-0">{profileRating}</div>}
+        {size !== 'desktop' && profileReviewBtn && <div className="absolute right-0 top-0">{profileReviewBtn}</div>}
         <div className="mx-auto h-[92px] w-[92px] rounded-full border-2 border-[#cdaa64] bg-white p-1 shadow-sm dark:bg-[#0B0B0B]">
-          <div className="h-full w-full rounded-full bg-cover" style={{ backgroundImage: `url(${profilePhotoUrl})`, backgroundPosition: `${profilePhotoPosition?.x ?? 50}% ${profilePhotoPosition?.y ?? 50}%` }} />
+          <HubAgentPhoto url={profilePhotoUrl} position={profilePhotoPosition} name={profile.name} className="rounded-full" />
         </div>
         <div className="-mt-5 inline-flex rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-wide shadow-sm dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-[#d7b974]">{profile.brokerage}</div>
         <h2 className="mt-4 font-serif text-[30px] font-black leading-none text-[#111827] dark:text-white">{profile.name}</h2>
         <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-[#8b7355] dark:text-[#d7b974]">{profile.title}</p>
-        <p className="mt-3 flex items-center justify-center gap-1 text-sm text-[#778093] dark:text-gray-300"><MapPin className="h-4 w-4 text-[#d0ad65]" /> {profile.market}</p>
+        {profile.market && <p className="mt-3 flex items-center justify-center gap-1 text-sm text-[#778093] dark:text-gray-300"><MapPin className="h-4 w-4 text-[#d0ad65]" /> {profile.market}</p>}
         {size !== 'desktop' && renderSalesStats()}
       </div>
+      )}
       <div className={`${isCompactPreview ? 'mt-3' : 'mt-6'} flex w-full flex-nowrap items-center justify-center ${iconGap}`}>
         {enabledContacts.map(([label, Icon]) => (
           <div key={label} aria-label={label} className="shrink-0">
@@ -773,19 +1061,24 @@ function PublicPreview({
           </span>
         ))}
       </div>
+      {/* Save Contact - the same real vCard download button the public Agent Hub shows (see
+          app/[slug]/page.tsx), previously missing from this in-editor preview entirely. */}
+      <div className={`hub-btn-save ${isCompactPreview ? 'mt-3' : 'mt-6'} flex h-11 w-full items-center justify-center gap-2 rounded-[14px] border border-[#111827] bg-white text-sm font-black text-[#111827] shadow-sm dark:border-white dark:bg-transparent dark:text-white lg:h-12 lg:text-base`}>
+        <IdCard className="h-4 w-4 lg:h-5 lg:w-5" /> Save Contact
+      </div>
       <div className="mt-6">
         <div className="grid grid-cols-2 gap-3">
           <Link
             href={buyingForm ? `${agentHubPublicPath}/${buyingForm.slug}` : '#'}
             target="_blank"
-            className={`flex h-12 items-center justify-center gap-2 rounded-[14px] border border-gray-200 bg-white font-black dark:border-gray-700 dark:bg-[#151517] dark:text-white ${buyingForm ? '' : 'pointer-events-none opacity-50'}`}
+            className={`hub-btn-buy flex h-12 items-center justify-center gap-2 rounded-[14px] border border-gray-200 bg-white font-black dark:border-gray-700 dark:bg-[#151517] dark:text-white ${buyingForm ? '' : 'pointer-events-none opacity-50'}`}
           >
             <Home className="h-5 w-5" /> {buyingForm?.title || "I'm Buying"}
           </Link>
           <Link
             href={sellingForm ? `${agentHubPublicPath}/${sellingForm.slug}` : '#'}
             target="_blank"
-            className={`flex h-12 items-center justify-center gap-2 rounded-[14px] border border-gray-200 bg-white font-black dark:border-gray-700 dark:bg-[#151517] dark:text-white ${sellingForm ? '' : 'pointer-events-none opacity-50'}`}
+            className={`hub-btn-sell flex h-12 items-center justify-center gap-2 rounded-[14px] border border-gray-200 bg-white font-black dark:border-gray-700 dark:bg-[#151517] dark:text-white ${sellingForm ? '' : 'pointer-events-none opacity-50'}`}
           >
             <TrendingUp className="h-5 w-5" /> {sellingForm?.title || "I'm Selling"}
           </Link>
@@ -793,16 +1086,16 @@ function PublicPreview({
         <Link
           href={homeValueForm ? `${agentHubPublicPath}/${homeValueForm.slug}` : '#'}
           target="_blank"
-          className={`mt-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] border border-[#d7b974] bg-white px-4 py-3 text-center font-black leading-tight dark:border-[#d7b974]/60 dark:bg-[#151517] dark:text-white ${homeValueForm ? '' : 'pointer-events-none opacity-50'}`}
+          className={`hub-btn-worth mt-4 flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[14px] border border-[#d7b974] bg-white px-4 py-3 text-center font-black leading-tight dark:border-[#d7b974]/60 dark:bg-[#151517] dark:text-white ${homeValueForm ? '' : 'pointer-events-none opacity-50'}`}
         >
           <DollarSign className="h-5 w-5 shrink-0 text-[#caa65e]" /> <span>{homeValueForm?.title || "What's My Home Worth?"}</span> <span className="shrink-0 text-[#9aa2af]">&rsaquo;</span>
         </Link>
         <Link
           href={showingForm ? `${agentHubPublicPath}/${showingForm.slug}` : '#'}
           target="_blank"
-          className={`mt-4 flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#d2b16f] font-black text-[#111827] shadow-lg shadow-[#d2b16f]/30 dark:text-white ${showingForm ? '' : 'pointer-events-none opacity-50'}`}
+          className={`hub-btn-show mt-4 flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#d2b16f] font-black text-[#111827] shadow-lg shadow-[#d2b16f]/30 dark:text-white ${showingForm ? '' : 'pointer-events-none opacity-50'}`}
         >
-          <Calendar className="h-5 w-5" /> {showingForm?.title || 'Schedule a Showing'}
+          <span className="hub-show-tile inline-flex"><Calendar className="h-5 w-5" /></span> <span className="hub-show-label">{showingForm?.title || 'Schedule a Showing'}</span><span aria-hidden className="hub-show-go hidden">&rarr;</span>
         </Link>
       </div>
       {size === 'desktop' && (profile.about?.trim() || showSalesStats) && (
@@ -828,16 +1121,26 @@ function PublicPreview({
       <div className="[&>section:first-child]:!mt-2 [&>div:first-child>section]:!mt-2">
         {visibleLayoutSections.map(section => renderSection(section.id))}
       </div>
+      {/* Same "Powered by OpenHousePal" footer every real visitor sees at the bottom of the page
+          (app/[slug]/page.tsx) - previously missing from this preview entirely. */}
+      <footer className="mt-6 border-t border-gray-200 py-5 text-center text-xs font-semibold text-gray-500 dark:border-gray-700 dark:text-gray-400">
+        Powered by <span className="inline-flex align-[-0.15em] text-[#111827] dark:text-white"><OhpWordmark className="text-[1.15em]" /></span>
+      </footer>
     </div>
     </div>
   )
 }
 
 export default function AgentHubPage() {
+  // This single page shell serves both /studio/site (Agent Hub editor - PRO_NO_MLS/PREMIUM/IDX
+  // only) and /studio/forms (Forms - universal, every active tier) via internal tabs, so the
+  // capability gate has to branch on route rather than applying one rule to the whole page.
+  const pathname = usePathname()
+  const isFormsRoute = pathname === '/studio/forms'
   return (
     <AuthGuard>
       <BrokerAuthorizationGuard>
-        <SubscriptionGuard requiredPlan="BASIC">
+        <SubscriptionGuard requireAgentHubAccess={!isFormsRoute}>
           <Suspense fallback={null}>
             <AgentHubContent />
           </Suspense>
@@ -858,18 +1161,29 @@ function AgentHubContent() {
   const [saveStatus, setSaveStatus] = useState('Unsaved Changes')
   const hasUnsavedChanges = saveStatus !== 'Saved'
   const [lastSavedHub, setLastSavedHub] = useState<SavedAgentHubData | null>(null)
+  // Guards against a real data-loss race: the Recent Sales / My Listings panels each
+  // auto-fetch-and-save on mount whenever their slice of local state is still empty (normal on a
+  // fresh browser/session with no localStorage draft, before the backend config below has loaded).
+  // Without this flag, that auto-save would fire handleSaveAgentHubChanges while profile/contact/
+  // etc. are still at their blank initial defaults, and the full-replace PUT would wipe the
+  // agent's real saved config. Sections stay stale-safe until the backend config fetch settles.
+  const [agentHubDataReady, setAgentHubDataReady] = useState(false)
   const [editorSectionStatus, setEditorSectionStatus] = useState<Record<string, 'Complete' | 'Incomplete'>>({
     Profile: 'Incomplete',
     Contact: 'Incomplete',
     'Social Links': 'Incomplete',
   })
-  const [activeTab, setActiveTab] = useState(() => formsTabFromParam(searchParams.get('tab')) || (isFormsRoute ? 'My Forms' : 'Editor'))
+  const [activeTab, setActiveTab] = useState(() => formsTabFromParam(searchParams.get('tab')) || (isFormsRoute ? 'My Forms' : ({
+    profile: 'Profile', contact: 'Contact', listings: 'Listings & Sales', sales: 'Listings & Sales', media: 'Media', videos: 'Media', tours: 'Media', blogs: 'Media', layout: 'Layout', link: 'Link', url: 'Link',
+  } as Record<string, string>)[searchParams.get('tab') || ''] || 'Profile'))
   const [previewSize, setPreviewSize] = useState<PreviewSize>('mobile')
   const [openEditorSection, setOpenEditorSection] = useState('')
   const [layoutSections, setLayoutSections] = useState(sections)
   const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null)
+  // Set the first time the agent drags a section; until then My Listings leads (see listingsFirst).
+  const layoutCustomizedRef = useRef(false)
   const [isLayoutSectionsOpen, setIsLayoutSectionsOpen] = useState(false)
-  const [profilePhotoUrl, setProfilePhotoUrl] = useState('/home.jpg')
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
   const [profilePhotoPosition, setProfilePhotoPosition] = useState({ x: 50, y: 50 })
   const [profile, setProfile] = useState({
     name: '',
@@ -878,6 +1192,7 @@ function AgentHubContent() {
     market: '',
     licenseNumber: '',
     about: '',
+    team: '',
   })
   const [contact, setContact] = useState({
     call: '',
@@ -894,6 +1209,7 @@ function AgentHubContent() {
   const hasExplicitSalesStatsRef = useRef(false)
   const hasAppliedSalesStatsDefaultRef = useRef(false)
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>(defaultSocialLinks)
+  const [contactCard, setContactCard] = useState<ContactCardFields>(defaultContactCardFields)
   const [recentSales, setRecentSales] = useState<AgentSale[]>(() => {
     if (typeof window === 'undefined') return []
     try {
@@ -926,6 +1242,7 @@ function AgentHubContent() {
   // sales-volume effect below, which turns it on automatically once the agent has enough sold
   // volume to make bragging about it worthwhile.
   const [showSalesStats, setShowSalesStats] = useState(false)
+  const [salesMinPrice, setSalesMinPrice] = useState(0)
   const [salesCarousel, setSalesCarousel] = useState(true)
   const [listingsCarousel, setListingsCarousel] = useState(true)
   const [videosCarousel, setVideosCarousel] = useState(false)
@@ -936,6 +1253,31 @@ function AgentHubContent() {
   const [videosAutoScroll, setVideosAutoScroll] = useState(false)
   const [toursAutoScroll, setToursAutoScroll] = useState(false)
   const [blogsAutoScroll, setBlogsAutoScroll] = useState(false)
+  const [reviewsCarousel, setReviewsCarousel] = useState(true)
+  const [reviewsAutoScroll, setReviewsAutoScroll] = useState(true)
+  const [reviewsOnProfile, setReviewsOnProfile] = useState(true)
+  const [reviewsProfileButton, setReviewsProfileButton] = useState(true)
+  // Published reviews + "show on hub" / "4 stars and up" (Reviews page) - the Layout panel's
+  // switches and the preview use these. `reviews` holds every published one; the preview gets
+  // only what the public page would show (shownReviewsData).
+  const [reviewsData, setReviewsData] = useState<HubReviewsData | null>(null)
+  useEffect(() => {
+    api.agentHub.listReviews().then(r => {
+      if (!r.success || !r.data) return
+      setReviewsData({
+        show_on_hub: r.data.settings.show_on_hub,
+        min_rating: r.data.settings.min_rating ?? 1,
+        summary: r.data.summary,
+        reviews: r.data.reviews.filter(x => x.status === 'published').map(x => ({ id: x.id, reviewer_name: x.reviewer_name, rating: x.rating, body: x.body, created_at: x.created_at, source: x.source })),
+      })
+    })
+  }, [])
+  const shownReviewsData = useMemo<HubReviewsData | null>(() => {
+    if (!reviewsData) return null
+    const shown = reviewsData.reviews.filter(rv => rv.rating >= (reviewsData.min_rating ?? 1))
+    const average = shown.length ? Math.round((shown.reduce((sum, rv) => sum + rv.rating, 0) / shown.length) * 100) / 100 : null
+    return { ...reviewsData, reviews: shown, summary: { count: shown.length, average } }
+  }, [reviewsData])
   const [visitorDarkMode, setVisitorDarkMode] = useState(false)
   const [videoLinks, setVideoLinks] = useState<HubItem[]>([{ id: 'video-1', title: 'YouTube Video', link: '' }])
   const [videoChannelUrl, setVideoChannelUrl] = useState('')
@@ -975,6 +1317,11 @@ function AgentHubContent() {
   const [formSubmissionsByFormId, setFormSubmissionsByFormId] = useState<Record<string, FormSubmissionListItem[]>>({})
   const [submissionsLoadingByFormId, setSubmissionsLoadingByFormId] = useState<Record<string, boolean>>({})
   const [resultsModalFormId, setResultsModalFormId] = useState<string>('')
+  // Set when the window opens onto one person (their chip, or a form's only new response).
+  const [resultsFocusId, setResultsFocusId] = useState<string>('')
+  // Header "Responses" mailbox - every form response, newest first.
+  const [formsInboxOpen, setFormsInboxOpen] = useState(false)
+  const [campaignsModalFormId, setCampaignsModalFormId] = useState<string>('')
   const [statsModalFormId, setStatsModalFormId] = useState<string>('')
   const [formEditorOpenId, setFormEditorOpenId] = useState('')
   const [isBuilderOpen, setIsBuilderOpen] = useState(false)
@@ -1031,8 +1378,6 @@ function AgentHubContent() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFormsRoute, searchParams])
-  const qrDownloadFns = useRef<Record<string, () => void>>({})
-
   const visibleSectionIds = useMemo(() => layoutSections.filter(section => section.visible).map(section => section.id), [layoutSections])
 
   useEffect(() => {
@@ -1052,7 +1397,102 @@ function AgentHubContent() {
     }))
   }, [user])
 
+  // Linked YouTube channel refreshes itself daily (backend agent_hub_video_sync) unless turned off.
+  const [hubTheme, setHubTheme] = useState<HubThemeId>('classic')
+  // Luxe is IDX only: any other plan can preview it (the live preview switches, with the upgrade
+  // pitch under the picker) but the saved theme - and what visitors see - stays Classic.
+  const hubLuxeAllowed = user?.plan_tier === 'IDX'
+  const [luxePeek, setLuxePeek] = useState(false)
+  const [hubIntroNonce, setHubIntroNonce] = useState(0)
+  const shownHubTheme: HubThemeId = luxePeek ? 'luxe' : hubTheme === 'luxe' && !hubLuxeAllowed ? 'classic' : hubTheme
+  const handleHubTheme = async (next: HubThemeId) => {
+    if (next === 'luxe') setHubIntroNonce(n => n + 1)
+    if (next === 'luxe' && !hubLuxeAllowed) { setLuxePeek(true); return }
+    setLuxePeek(false)
+    if (next === shownHubTheme && next === hubTheme) return
+    const prev = hubTheme
+    setHubTheme(next)
+    const latest = await api.agentHub.getMine()
+    const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
+    const res = await api.agentHub.saveConfig({ ...config, hubTheme: next } as any)
+    if (!res.success) setHubTheme(prev)
+  }
+  // Luxe finish - gold (default), silver or bronze. Same Luxe look, the metal swapped everywhere.
+  const [hubLuxeMetal, setHubLuxeMetal] = useState<LuxeMetal>('gold')
+  const handleHubLuxeMetal = async (next: LuxeMetal) => {
+    const prev = hubLuxeMetal
+    setHubLuxeMetal(next)
+    if (!hubLuxeAllowed) return
+    const latest = await api.agentHub.getMine()
+    const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
+    const res = await api.agentHub.saveConfig({ ...config, hubLuxeMetal: next } as any)
+    if (!res.success) setHubLuxeMetal(prev)
+  }
+  // Classic accent colour - every plan (the Luxe metals are Luxe's own).
+  const [hubAccent, setHubAccent] = useState<string>(HUB_CLASSIC_DEFAULT_ACCENT)
+  const handleHubAccent = async (next: string) => {
+    const prev = hubAccent
+    setHubAccent(next)
+    const latest = await api.agentHub.getMine()
+    const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
+    const res = await api.agentHub.saveConfig({ ...config, hubAccent: next } as any)
+    if (!res.success) setHubAccent(prev)
+  }
+  // Visitor dark mode - saved the moment it's switched, like the theme (it used to wait for Save,
+  // tucked under the license number, so switching it seemed to do nothing).
+  const handleVisitorDarkMode = async (next: boolean) => {
+    const prev = visitorDarkMode
+    setVisitorDarkMode(next)
+    try { localStorage.setItem('agentHubVisitorDarkMode', JSON.stringify(next)) } catch { /* private mode */ }
+    const latest = await api.agentHub.getMine()
+    const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
+    const res = await api.agentHub.saveConfig({ ...config, visitorDarkMode: next } as any)
+    if (!res.success) {
+      setVisitorDarkMode(prev)
+      try { localStorage.setItem('agentHubVisitorDarkMode', JSON.stringify(prev)) } catch { /* private mode */ }
+    }
+  }
+  // Profile header layout (phones and desktop). Every plan.
+  const [mobileHeader, setMobileHeader] = useState<HubMobileHeaderId>('centered')
+  const handleMobileHeader = async (next: HubMobileHeaderId) => {
+    const prev = mobileHeader
+    setMobileHeader(next)
+    const latest = await api.agentHub.getMine()
+    const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
+    const res = await api.agentHub.saveConfig({ ...config, mobileHeader: next } as any)
+    if (!res.success) setMobileHeader(prev)
+  }
+  const [videoAutoSync, setVideoAutoSync] = useState(true)
+  const [videoSyncedAt, setVideoSyncedAt] = useState<string | null>(null)
+  const handleToggleVideoAutoSync = async (next: boolean) => {
+    setVideoAutoSync(next)
+    const latest = await api.agentHub.getMine()
+    const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
+    const res = await api.agentHub.saveConfig({ ...config, videoAutoSync: next } as any)
+    if (!res.success) setVideoAutoSync(!next)
+  }
+
+  const saveStatusRef = useRef(saveStatus)
+  saveStatusRef.current = saveStatus
+  useEffect(() => {
+    if (!agentHubDataReady) return
+    const onFocus = async () => {
+      if (saveStatusRef.current !== 'Saved') return
+      const response = await api.agentHub.getMine()
+      if (response.success && response.data?.config && saveStatusRef.current === 'Saved') applySavedHubData(response.data.config)
+    }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentHubDataReady])
+
   const applySavedHubData = (parsed: any) => {
+    setVideoAutoSync(parsed.videoAutoSync !== false)
+    setHubTheme(parsed.hubTheme === 'luxe' ? 'luxe' : 'classic')
+    setHubLuxeMetal(metalOf(parsed.hubLuxeMetal))
+    setHubAccent(hubAccentOf(parsed.hubAccent))
+    setMobileHeader(parsed.mobileHeader === 'split' ? 'split' : 'centered')
+    setVideoSyncedAt(typeof parsed.videoSyncedAt === 'string' ? parsed.videoSyncedAt : null)
     if (parsed.profile || parsed.contact) {
       setProfile({
         name: parsed.profile?.name || '',
@@ -1061,21 +1501,25 @@ function AgentHubContent() {
         market: parsed.profile?.market || '',
         licenseNumber: parsed.profile?.licenseNumber || parsed.contact?.licenseNumber || '',
         about: parsed.profile?.about || '',
+        team: parsed.profile?.team || '',
       })
     }
     if (parsed.contact) setContact({ call: '', text: '', email: '', ...parsed.contact })
-    if (parsed.profilePhotoUrl) setProfilePhotoUrl(parsed.profilePhotoUrl)
+    if (isHubPhotoSet(parsed.profilePhotoUrl)) setProfilePhotoUrl(parsed.profilePhotoUrl)
     if (parsed.profilePhotoPosition?.x !== undefined) setProfilePhotoPosition({ x: Number(parsed.profilePhotoPosition.x) || 50, y: Number(parsed.profilePhotoPosition.y) || 50 })
-    if (Array.isArray(parsed.layoutSections)) setLayoutSections(normalizeLayoutSections(parsed.layoutSections))
+    layoutCustomizedRef.current = parsed.layoutCustomized === true
+    if (Array.isArray(parsed.layoutSections)) setLayoutSections(layoutCustomizedRef.current ? normalizeLayoutSections(parsed.layoutSections) : listingsFirst(normalizeLayoutSections(parsed.layoutSections)))
     if (Array.isArray(parsed.socialLinks)) {
       setSocialLinks(current => current.map(link => {
         const saved = parsed.socialLinks.find((item: SavedSocialLink) => item.id === link.id)
         return saved ? { ...link, url: saved.url, enabled: saved.enabled } : link
       }))
     }
+    if (parsed.contactCard?.fields) setContactCard(mergeContactCardFields(parsed.contactCard.fields))
     if (Array.isArray(parsed.recentSales)) setRecentSales(getEligibleSales(parsed.recentSales))
     if (Array.isArray(parsed.myListings)) setMyListings(getEligibleListings(parsed.myListings))
     if (typeof parsed.showSalesStats === 'boolean') { setShowSalesStats(parsed.showSalesStats); hasExplicitSalesStatsRef.current = true }
+    if (typeof parsed.salesMinPrice === 'number') setSalesMinPrice(parsed.salesMinPrice)
     if (typeof parsed.salesCarousel === 'boolean') setSalesCarousel(parsed.salesCarousel)
     if (typeof parsed.listingsCarousel === 'boolean') setListingsCarousel(parsed.listingsCarousel)
     if (typeof parsed.videosCarousel === 'boolean') setVideosCarousel(parsed.videosCarousel)
@@ -1086,11 +1530,15 @@ function AgentHubContent() {
     if (typeof parsed.videosAutoScroll === 'boolean') setVideosAutoScroll(parsed.videosAutoScroll)
     if (typeof parsed.toursAutoScroll === 'boolean') setToursAutoScroll(parsed.toursAutoScroll)
     if (typeof parsed.blogsAutoScroll === 'boolean') setBlogsAutoScroll(parsed.blogsAutoScroll)
+    if (typeof parsed.reviewsCarousel === 'boolean') setReviewsCarousel(parsed.reviewsCarousel)
+    if (typeof parsed.reviewsAutoScroll === 'boolean') setReviewsAutoScroll(parsed.reviewsAutoScroll)
+    if (typeof parsed.reviewsOnProfile === 'boolean') setReviewsOnProfile(parsed.reviewsOnProfile)
+    if (typeof parsed.reviewsProfileButton === 'boolean') setReviewsProfileButton(parsed.reviewsProfileButton)
     if (typeof parsed.visitorDarkMode === 'boolean') setVisitorDarkMode(parsed.visitorDarkMode)
-    if (Array.isArray(parsed.videoLinks)) setVideoLinks(parsed.videoLinks)
+    if (Array.isArray(parsed.videoLinks)) setVideoLinks(pinnedFirst(parsed.videoLinks))
     if (typeof parsed.videoChannelUrl === 'string') setVideoChannelUrl(parsed.videoChannelUrl)
     if (typeof parsed.houseTourUrl === 'string') setHouseTourUrl(parsed.houseTourUrl)
-    if (Array.isArray(parsed.houseTourLinks)) setHouseTourLinks(parsed.houseTourLinks)
+    if (Array.isArray(parsed.houseTourLinks)) setHouseTourLinks(pinnedFirst(parsed.houseTourLinks))
     if (Array.isArray(parsed.blogCards)) setBlogCards(parsed.blogCards)
     setLastSavedHub(parsed)
     const isAutoPublished = Boolean(
@@ -1142,20 +1590,31 @@ function AgentHubContent() {
 
     const syncBackendConfig = async () => {
       const response = await api.agentHub.getMine()
-      if (cancelled || !response.success || !response.data) return
+      if (cancelled) return
+      if (!response.success || !response.data) {
+        // Couldn't confirm what's really saved (e.g. 403 on a tier without Agent Hub access, or a
+        // network error) - don't flip to "ready", since that would greenlight the auto-save race
+        // below into overwriting real data with an empty/incomplete guess.
+        return
+      }
 
       const config = response.data.config
       if (config && Object.keys(config).length > 0) {
         applySavedHubData(config)
+        setAgentHubDataReady(true)
         return
       }
 
       const savedHub = localStorage.getItem('agentHubSavedData')
-      if (!savedHub) return
+      if (!savedHub) {
+        setAgentHubDataReady(true)
+        return
+      }
       try {
         const parsed = JSON.parse(savedHub)
         await api.agentHub.saveConfig(parsed)
       } catch {}
+      if (!cancelled) setAgentHubDataReady(true)
     }
 
     syncBackendConfig()
@@ -1289,7 +1748,11 @@ function AgentHubContent() {
 
   useEffect(() => {
     const formIdParam = searchParams.get('formId')
-    if (formIdParam) setResultsModalFormId(formIdParam)
+    if (!formIdParam) return
+    // ?view=unfinished (from a lead added out of an unfinished form) opens that form's
+    // Results -> Unfinished list instead of the submissions modal.
+    if (searchParams.get('view') === 'unfinished') setCampaignsModalFormId(formIdParam)
+    else setResultsModalFormId(formIdParam)
   }, [searchParams])
 
   useEffect(() => {
@@ -1299,14 +1762,52 @@ function AgentHubContent() {
   }, [user?.photo_url])
 
   const agentHubPublicPath = `/${agentHubSlug || 'sarah-johnson'}`
+  // Links follow one rule: openhousepal.com, or the agent's own connected domain when they have
+  // one (then the hub is <domain>/hub and forms <domain>/forms/<slug>) - see lib/ownDomainLinks.
+  const ownDomainBase = websitePublicBaseUrl(idxSite, idxDomains)
+  const agentHubShareUrl = ownDomainBase ? `${ownDomainBase}/hub` : openHousePalPublicUrl(agentHubPublicPath)
+  const contactCardSource = {
+    displayName: profile.name,
+    jobTitle: profile.title,
+    company: profile.brokerage,
+    team: profile.team || '',
+    mobilePhone: contact.call,
+    email: contact.email,
+    website: socialLinks.find(link => link.id === 'website' && link.enabled)?.url || '',
+    instagram: socialLinks.find(link => link.id === 'instagram' && link.enabled)?.url || '',
+    facebook: socialLinks.find(link => link.id === 'facebook' && link.enabled)?.url || '',
+    youtube: socialLinks.find(link => link.id === 'youtube' && link.enabled)?.url || '',
+    agentHubUrl: agentHubShareUrl,
+    headshotUrl: profilePhotoUrl,
+  }
+  // The live preview pane shows the saved contact card while the agent is working on it, and goes
+  // back to the hub as soon as they touch anything else in the editor.
+  const [sidePreview, setSidePreview] = useState<'hub' | 'contact'>('hub')
+  useEffect(() => {
+    const onDown = (e: Event) => {
+      const t = e.target as HTMLElement | null
+      if (!t?.closest) return
+      if (t.closest('[data-contact-card-editor]')) setSidePreview('contact')
+      else if (!t.closest('[data-hub-side-preview]')) setSidePreview('hub')
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    document.addEventListener('focusin', onDown, true)
+    return () => { document.removeEventListener('pointerdown', onDown, true); document.removeEventListener('focusin', onDown, true) }
+  }, [])
   const visibleMyBlogs = [...myBlogs.filter(b => b.agent_hub_visible)].sort((a, b) => (b.agent_hub_featured ? 1 : 0) - (a.agent_hub_featured ? 1 : 0))
   const effectiveBlogCards: HubItem[] = visibleMyBlogs.length > 0
-    ? visibleMyBlogs.map(b => ({ id: b.id, title: b.title, description: b.category || 'Blog', image: resolveMediaUrl(b.cover_image_url), link: `${agentHubPublicPath}/blogs/${b.slug}` }))
+    ? visibleMyBlogs.map(b => ({ id: b.id, title: b.title, description: b.category || 'Blog', image: resolveMediaUrl(b.cover_image_url || b.preview_image_url), link: `${agentHubPublicPath}/blogs/${b.slug}` }))
     : blogCards
   const agentHubPublicUrl = openHousePalPublicUrl(agentHubPublicPath)
   const agentHubWebsiteUrl = websitePublicUrl(idxSite, idxDomains, '/hub')
   const isFormsTabGroup = ['My Forms', 'Share Forms', 'Forms Results'].includes(activeTab)
-  const AGENT_HUB_SUBTABS = ['Editor', 'Layout']
+  // The Agent Hub editor's categories - each tab opens straight to its own panels.
+  const AGENT_HUB_SUBTABS = ['Profile', 'Contact', 'Listings & Sales', 'Media', 'Layout', 'Link']
+  const AGENT_HUB_TAB_ICON: Record<string, LucideIcon> = {
+    Profile: User, Contact: Phone, 'Listings & Sales': Home, Media: Video, Blogs: Newspaper, Layout: LayoutGrid, Link: LinkIcon,
+  }
+  // Which content panels (Layout section ids) each content tab holds.
+  const HUB_TAB_SECTIONS: Record<string, string[]> = { 'Listings & Sales': ['listings', 'sales'], Media: ['videos', 'tours', 'blogs'] }
   const activeNavGroup: 'Agent Hub' | 'Forms' = isFormsTabGroup ? 'Forms' : 'Agent Hub'
   const ONBOARDING_FORM_TYPES = new Set(['seller_onboarding', 'buyer_onboarding'])
   // Forms reached via a printed QR code (currently just showcase_request - "Setup My Own
@@ -1319,9 +1820,20 @@ function AgentHubContent() {
   const onboardingForms = agentForms.filter(form => ONBOARDING_FORM_TYPES.has(form.form_type))
   const contentLockedForms = agentForms.filter(form => URL_LOCKED_FORM_TYPES.has(form.form_type))
   const customForms = agentForms.filter(form => form.form_type === 'custom')
+  // Forms with responses not reviewed yet - the Forms header's "New" shortcuts.
+  const newResultForms = agentForms
+    .map(form => ({ form, count: (formSubmissionsByFormId[form.id] || []).filter(submission => !submission.is_reviewed).length }))
+    .filter(entry => entry.count > 0)
+  // ...one chip per person, newest first - a tap opens straight onto their answers.
+  const newResultPeople = agentForms
+    .flatMap(form => (formSubmissionsByFormId[form.id] || []).filter(submission => !submission.is_reviewed).map(submission => ({ form, submission })))
+    .sort((a, b) => new Date(b.submission.created_at).getTime() - new Date(a.submission.created_at).getTime())
+  const openResults = (formId: string, submissionId = '') => { setResultsFocusId(submissionId); setResultsModalFormId(formId) }
+  const qrDownloadFns = useRef<Record<string, () => void>>({})
 
   // Copy link / Download QR are fire-and-forget with no other state change, so without this the
   // click looks like it did nothing - flash a checkmark on the clicked form's button briefly.
+  // Only the untouched aesthetics-only card below still needs this.
   const [justClickedFormAction, setJustClickedFormAction] = useState<string>('')
   const flashFormAction = (key: string) => {
     setJustClickedFormAction(key)
@@ -1330,231 +1842,370 @@ function AgentHubContent() {
 
   const renderFormCard = (form: AgentFormConfig, options?: { big?: boolean }) => {
     const meta = FORM_TYPE_META[form.form_type] || FORM_TYPE_META.custom
-    const MetaIcon = meta.icon
     const big = options?.big
-    const slugDraft = getFormSlugDraft(form)
-    const status = formSlugStatus[form.id] || 'idle'
-    const message = formSlugMessage[form.id] || 'Check availability before saving.'
     const openHousePalFormUrl = `${agentHubPublicUrl}/${form.slug}`
     const isShowcaseRequest = form.form_type === 'showcase_request'
-    const websiteBaseUrl = websitePublicBaseUrl(idxSite, idxDomains)
     const websiteFormUrl = websitePublicUrl(idxSite, idxDomains, isShowcaseRequest ? '/create-showcase' : `/forms/${form.slug}`)
-    const websiteDraftUrl = websiteBaseUrl && !isShowcaseRequest ? `${websiteBaseUrl}/forms/${slugDraft || form.slug}` : websiteFormUrl
     // The real hostname (custom domain if one's set, else the default {slug}.openhousepal.com
-    // subdomain) - unlike websiteFormUrl/websiteDraftUrl, this is never the local-dev
-    // /ohp-site-render/... proxy path, so it's what to show as a clean label.
+    // subdomain) - unlike websiteFormUrl, this is never the local-dev /ohp-site-render/... proxy
+    // path, so it's what to show as a clean label.
     const websiteHostname = websitePublicHostname(idxSite, idxDomains)
-    const qrUrl = isShowcaseRequest && websiteFormUrl ? websiteFormUrl : openHousePalFormUrl
-    const isEditingSlug = editingSlugFormId === form.id
+    // The QR code follows the agent's own domain when they have one.
+    const qrUrl = websiteFormUrl || openHousePalFormUrl
     const submissions = formSubmissionsByFormId[form.id] || []
     const pendingSubmissions = submissions.filter(submission => !submission.is_reviewed).length
     const isAestheticsOnly = URL_LOCKED_FORM_TYPES.has(form.form_type)
-    const openEditor = () => {
-      if (isAestheticsOnly) { setThemeEditFormId(form.id); return }
-      setFormEditorOpenId(form.id)
-      setIsBuilderOpen(true)
+    // Forms Campaigns scope - mirrors CAMPAIGN_ELIGIBLE_FORM_TYPES in forms_routes.py.
+    const isCampaignEligible = form.form_type !== 'custom' && !ONBOARDING_FORM_TYPES.has(form.form_type) && !isAestheticsOnly
+    // Premade forms wear their own animated medallion; custom forms keep showing their QR code.
+    // The Download QR buttons still need the code, so it's drawn off-screen at print size.
+    const registerQr = (fn: () => void) => { qrDownloadFns.current[form.id] = fn }
+    const formMedia = hasFormTypeArt(form.form_type) ? (
+      <>
+        <FormTypeArt formType={form.form_type} size={big ? 62 : 56} />
+        <span className="hidden"><FormQrCode bare url={qrUrl} size={600} onDownloadReady={registerQr} /></span>
+      </>
+    ) : <FormQrCode url={qrUrl} size={48} onDownloadReady={registerQr} />
+
+    // Aesthetics-only (currently just Showcase Request) is left exactly as it's always been -
+    // its own QR-driven automation, not part of the simplified click-through card below.
+    if (isAestheticsOnly) {
+      return (
+        <div
+          key={form.id}
+          className="group relative flex h-full flex-col overflow-hidden rounded-[22px] border border-[#C9A24D]/20 bg-gradient-to-b from-white to-[#fdfbf6] shadow-[0_18px_40px_-30px_rgba(139,115,85,.9)] transition duration-300 hover:-translate-y-1 hover:border-[#C9A24D]/55 hover:shadow-[0_28px_50px_-28px_rgba(139,115,85,1)] dark:border-white/[0.08] dark:from-[#17171a] dark:to-[#121214]"
+        >
+          <div
+            className="absolute inset-x-0 top-0 h-[3px] [background:linear-gradient(90deg,transparent,var(--form-accent),transparent)] dark:[background:linear-gradient(90deg,transparent,var(--form-accent-dark),transparent)]"
+            style={{ '--form-accent': form.accent_color || '#816937', '--form-accent-dark': form.accent_color || '#d7b974' } as React.CSSProperties}
+          />
+          <span aria-hidden className="pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full bg-[#C9A24D]/10 opacity-60 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
+          {pendingSubmissions > 0 && (
+            <span className="absolute right-3 top-3 z-10 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white shadow-sm">
+              {pendingSubmissions > 9 ? '9+' : pendingSubmissions}
+            </span>
+          )}
+          <div className={`flex items-center gap-3 ${big ? 'p-5' : 'p-4'}`}>
+            {formMedia}
+            <button onClick={() => setThemeEditFormId(form.id)} className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left">
+              <div className="min-w-0">
+                <p className="truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white">{form.title}</p>
+                <p className={`mt-1 text-xs font-medium leading-snug text-gray-500 dark:text-gray-400 ${big ? '' : 'line-clamp-2'}`}>{form.description || meta.description}</p>
+                <p className="mt-2 inline-flex items-center rounded-full bg-[#C9A24D]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#8b7355] dark:bg-[#C9A24D]/15 dark:text-[#e8cf8a]">{form.questions.length} questions</p>
+                <ShowcaseFormBadge formType={form.form_type} />
+              </div>
+            </button>
+            <div className="flex shrink-0 items-center gap-1">
+              <button onClick={() => handleDuplicateForm(form)} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Duplicate" aria-label="Duplicate form">
+                <Copy className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className={`flex gap-2 px-4 pb-4 ${big ? 'px-5 pb-5' : ''}`}>
+            <button
+              onClick={() => setThemeEditFormId(form.id)}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#C9A24D]/50 bg-[#C9A24D]/10 px-3 py-2 text-xs font-black text-[#8b7355] transition active:scale-95 hover:border-[#C9A24D] hover:bg-[#C9A24D]/15 dark:border-[#C9A24D]/40 dark:bg-[#C9A24D]/10 dark:text-[#e8cf8a]"
+            >
+              <Pencil className="h-3.5 w-3.5" /> Edit Theme
+            </button>
+            <button
+              onClick={() => { qrDownloadFns.current[form.id]?.(); flashFormAction(`${form.id}-qr`) }}
+              className={`shrink-0 rounded-lg px-3 py-2 text-xs font-black transition active:scale-95 ${
+                justClickedFormAction === `${form.id}-qr`
+                  ? 'bg-emerald-500 text-white dark:bg-emerald-400 dark:text-[#111827]'
+                  : 'bg-[#111827] text-white hover:bg-black dark:bg-white dark:text-[#111827] dark:hover:bg-gray-200'
+              }`}
+              aria-label="Download QR code"
+              title="Download QR code"
+            >
+              {justClickedFormAction === `${form.id}-qr` ? <Check className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              onClick={() => setStatsModalFormId(form.id)}
+              className="shrink-0 rounded-lg bg-[#111827] px-3 py-2 text-xs font-black text-white transition active:scale-95 hover:bg-black dark:bg-white dark:text-[#111827] dark:hover:bg-gray-200"
+              aria-label="View stats"
+              title="View stats"
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          <div className={`space-y-2 border-t border-gray-100 px-4 py-3 text-xs dark:border-gray-800 ${big ? 'px-5' : ''}`}>
+            <div className="flex items-center justify-between gap-3">
+              <p className="min-w-0 truncate text-[10px] font-black uppercase tracking-widest text-gray-400">OpenHousePal Showcase Creator Link</p>
+              <div className="flex shrink-0 items-center gap-1">
+                <button onClick={() => { window.open(openHousePalFormUrl, '_blank', 'noopener,noreferrer') }} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Open OpenHousePal link" aria-label="Open OpenHousePal link">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={() => { copyText(openHousePalFormUrl); flashFormAction(`${form.id}-ohp-row-copy`) }} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Copy OpenHousePal link" aria-label="Copy OpenHousePal link">
+                  {justClickedFormAction === `${form.id}-ohp-row-copy` ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
+            {websiteFormUrl && (
+              <div className="flex items-center justify-between gap-3">
+                <p className="min-w-0 truncate text-[10px] font-black uppercase tracking-widest text-gray-400">
+                  {websiteHostname || 'Website'} Showcase Creator Link
+                </p>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button onClick={() => { window.open(websiteFormUrl, '_blank', 'noopener,noreferrer') }} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Open website link" aria-label="Open website link">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </button>
+                  <button onClick={() => { copyText(websiteFormUrl); flashFormAction(`${form.id}-website-row-copy`) }} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Copy website link" aria-label="Copy website link">
+                    {justClickedFormAction === `${form.id}-website-row-copy` ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => { const fresh = submissions.filter(submission => !submission.is_reviewed); openResults(form.id, fresh.length === 1 ? fresh[0].id : '') }}
+            className="mt-auto flex w-full items-center justify-between gap-2 border-t border-gray-300 bg-[#fbfaf7] px-4 py-2.5 text-left text-xs font-black text-gray-700 transition hover:border-[#C9A24D]/50 hover:bg-[#f4f1e8] dark:border-gray-800 dark:bg-white/5 dark:text-gray-300 dark:hover:border-[#C9A24D]/50 dark:hover:bg-white/10"
+          >
+            <span className="flex min-w-0 items-center gap-1.5">
+              <Mail className="h-3.5 w-3.5 shrink-0 text-[#8b7355]" />
+              <span className="truncate">
+                {pendingSubmissions === 0
+                  ? 'No new responses yet'
+                  : `${pendingSubmissions} new response${pendingSubmissions === 1 ? '' : 's'} · latest ${new Date((submissions.find(submission => !submission.is_reviewed) || submissions[0]).created_at).toLocaleDateString()}`}
+              </span>
+            </span>
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+          </button>
+        </div>
+      )
     }
+
+    // Custom and Onboarding forms can't have Campaigns, so there's no detail page worth sending
+    // them to - everything stays right on the card, exactly as it's always been.
+    if (!isCampaignEligible) {
+      const slugDraft = getFormSlugDraft(form)
+      const status = formSlugStatus[form.id] || 'idle'
+      const message = formSlugMessage[form.id] || 'Check availability before saving.'
+      const websiteBaseUrl = websitePublicBaseUrl(idxSite, idxDomains)
+      const websiteDraftUrl = websiteBaseUrl ? `${websiteBaseUrl}/forms/${slugDraft || form.slug}` : websiteFormUrl
+      const isEditingSlug = editingSlugFormId === form.id
+      const openEditor = () => { setFormEditorOpenId(form.id); setIsBuilderOpen(true) }
+      return (
+        <div
+          key={form.id}
+          className="group relative flex h-full flex-col overflow-hidden rounded-[22px] border border-[#C9A24D]/20 bg-gradient-to-b from-white to-[#fdfbf6] shadow-[0_18px_40px_-30px_rgba(139,115,85,.9)] transition duration-300 hover:-translate-y-1 hover:border-[#C9A24D]/55 hover:shadow-[0_28px_50px_-28px_rgba(139,115,85,1)] dark:border-white/[0.08] dark:from-[#17171a] dark:to-[#121214]"
+        >
+          <div
+            className="absolute inset-x-0 top-0 h-[3px] [background:linear-gradient(90deg,transparent,var(--form-accent),transparent)] dark:[background:linear-gradient(90deg,transparent,var(--form-accent-dark),transparent)]"
+            style={{ '--form-accent': form.accent_color || '#816937', '--form-accent-dark': form.accent_color || '#d7b974' } as React.CSSProperties}
+          />
+          <span aria-hidden className="pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full bg-[#C9A24D]/10 opacity-60 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
+          <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
+            {form.form_type === 'custom' && (
+              <button onClick={() => setDeleteFormTarget(form)} className="rounded-lg bg-white/90 p-1.5 text-gray-400 shadow-sm hover:bg-red-50 hover:text-red-600 dark:bg-[#151517]/90" aria-label="Delete form">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+            {pendingSubmissions > 0 && (
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white shadow-sm">
+                {pendingSubmissions > 9 ? '9+' : pendingSubmissions}
+              </span>
+            )}
+          </div>
+          <div className={`flex items-center gap-3 ${big ? 'p-5' : 'p-4'}`}>
+            {formMedia}
+            <button onClick={openEditor} className="flex min-w-0 flex-1 items-center gap-3 pr-7 text-left">
+              <div className="min-w-0">
+                <p className="truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white">{form.title}</p>
+                <p className={`mt-1 text-xs font-medium leading-snug text-gray-500 dark:text-gray-400 ${big ? '' : 'line-clamp-2'}`}>{form.description || meta.description}</p>
+                <p className="mt-2 inline-flex items-center rounded-full bg-[#C9A24D]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#8b7355] dark:bg-[#C9A24D]/15 dark:text-[#e8cf8a]">{form.questions.length} questions</p>
+                <ShowcaseFormBadge formType={form.form_type} />
+              </div>
+            </button>
+          </div>
+
+          <div className={`flex gap-2 px-4 pb-4 ${big ? 'px-5 pb-5' : ''}`}>
+            <button
+              onClick={openEditor}
+              className="flex-1 rounded-lg border border-gray-300 bg-[#fbfaf7] px-3 py-2 text-xs font-black text-gray-600 transition active:scale-95 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-gray-300 dark:hover:border-[#C9A24D] dark:hover:text-[#e8cf8a]"
+            >
+              <Pencil className="mr-1.5 inline h-3.5 w-3.5" /> Edit
+            </button>
+            <button
+              onClick={() => setEditingSlugFormId(isEditingSlug ? '' : form.id)}
+              className={`flex-1 rounded-lg border px-3 py-2 text-xs font-black transition active:scale-95 ${
+                isEditingSlug
+                  ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355] dark:border-[#C9A24D] dark:bg-[#C9A24D]/10 dark:text-[#e8cf8a]'
+                  : 'border-gray-300 bg-[#fbfaf7] text-gray-600 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-gray-300 dark:hover:border-[#C9A24D] dark:hover:text-[#e8cf8a]'
+              }`}
+            >
+              <LinkIcon className="mr-1.5 inline h-3.5 w-3.5" /> {isEditingSlug ? 'Close' : 'Edit URL'}
+            </button>
+            <button
+              onClick={() => handleDuplicateForm(form)}
+              className="shrink-0 rounded-lg border border-[#C9A24D]/50 bg-[#C9A24D]/10 px-3 py-2 text-xs font-black text-[#8b7355] transition active:scale-95 hover:border-[#C9A24D] hover:bg-[#C9A24D]/15 dark:border-[#C9A24D]/40 dark:bg-[#C9A24D]/10 dark:text-[#e8cf8a]"
+              title="Duplicate this form into an editable copy"
+              aria-label="Duplicate this form into an editable copy"
+            >
+              <CopyPlus className="mr-1.5 inline h-3.5 w-3.5" /> Duplicate
+            </button>
+            <button
+              onClick={() => { qrDownloadFns.current[form.id]?.(); flashFormAction(`${form.id}-qr`) }}
+              className={`shrink-0 rounded-lg px-3 py-2 text-xs font-black transition active:scale-95 ${
+                justClickedFormAction === `${form.id}-qr`
+                  ? 'bg-emerald-500 text-white dark:bg-emerald-400 dark:text-[#111827]'
+                  : 'bg-[#111827] text-white hover:bg-black dark:bg-white dark:text-[#111827] dark:hover:bg-gray-200'
+              }`}
+              aria-label="Download QR code"
+              title="Download QR code"
+            >
+              {justClickedFormAction === `${form.id}-qr` ? <Check className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              onClick={() => setStatsModalFormId(form.id)}
+              className="shrink-0 rounded-lg bg-[#111827] px-3 py-2 text-xs font-black text-white transition active:scale-95 hover:bg-black dark:bg-white dark:text-[#111827] dark:hover:bg-gray-200"
+              aria-label="View stats"
+              title="View stats"
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          <div className={`space-y-2 border-t border-gray-100 px-4 py-3 text-xs dark:border-gray-800 ${big ? 'px-5' : ''}`}>
+            <div className={`-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-1 transition-colors duration-500 ${justClickedFormAction === `${form.id}-ohp-row-copy` ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}`}>
+              <p className="min-w-0 truncate text-[10px] font-black uppercase tracking-widest text-gray-400">OpenHousePal Link</p>
+              <div className="flex shrink-0 items-center gap-1">
+                <button onClick={() => { window.open(openHousePalFormUrl, '_blank', 'noopener,noreferrer') }} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Open OpenHousePal link" aria-label="Open OpenHousePal link">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={() => { copyText(openHousePalFormUrl); flashFormAction(`${form.id}-ohp-row-copy`) }} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Copy OpenHousePal link" aria-label="Copy OpenHousePal link">
+                  {justClickedFormAction === `${form.id}-ohp-row-copy` ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
+            {websiteFormUrl && (
+              <div className={`-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-1 transition-colors duration-500 ${justClickedFormAction === `${form.id}-website-row-copy` ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}`}>
+                <p className="min-w-0 truncate text-[10px] font-black uppercase tracking-widest text-gray-400">
+                  {websiteHostname || 'Website'} Link
+                </p>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button onClick={() => { window.open(websiteFormUrl, '_blank', 'noopener,noreferrer') }} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Open website link" aria-label="Open website link">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </button>
+                  <button onClick={() => { copyText(websiteFormUrl); flashFormAction(`${form.id}-website-row-copy`) }} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Copy website link" aria-label="Copy website link">
+                    {justClickedFormAction === `${form.id}-website-row-copy` ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => { const fresh = submissions.filter(submission => !submission.is_reviewed); openResults(form.id, fresh.length === 1 ? fresh[0].id : '') }}
+            className="mt-auto flex w-full items-center justify-between gap-2 border-t border-gray-300 bg-[#fbfaf7] px-4 py-2.5 text-left text-xs font-black text-gray-700 transition hover:border-[#C9A24D]/50 hover:bg-[#f4f1e8] dark:border-gray-800 dark:bg-white/5 dark:text-gray-300 dark:hover:border-[#C9A24D]/50 dark:hover:bg-white/10"
+          >
+            <span className="flex min-w-0 items-center gap-1.5">
+              <Mail className="h-3.5 w-3.5 shrink-0 text-[#8b7355]" />
+              <span className="truncate">
+                {pendingSubmissions === 0
+                  ? 'No new responses yet'
+                  : `${pendingSubmissions} new response${pendingSubmissions === 1 ? '' : 's'} · latest ${new Date((submissions.find(submission => !submission.is_reviewed) || submissions[0]).created_at).toLocaleDateString()}`}
+              </span>
+            </span>
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+          </button>
+
+          {isEditingSlug && (
+            <div className={`space-y-2 border-t border-gray-100 px-4 pb-4 pt-3 dark:border-gray-800 ${big ? 'px-5 pb-5' : ''}`}>
+              <div className="flex min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white focus-within:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B]">
+                <span className="flex max-w-[75%] shrink-0 items-center truncate border-r border-gray-200 bg-gray-50 px-2 py-2 text-[10px] font-black text-gray-500 dark:border-gray-700 dark:bg-[#151517] dark:text-gray-400">{agentHubPublicUrl}/</span>
+                <input
+                  className="min-w-0 flex-1 bg-transparent px-2 py-2 text-xs font-semibold outline-none dark:text-white"
+                  value={slugDraft}
+                  onChange={(event) => {
+                    // Cleaned as they type - spaces become hyphens, symbols drop - so the box shows the
+                    // exact link that will be saved (Check/Save clean it the same way).
+                    setFormSlugDrafts(current => ({ ...current, [form.id]: event.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-{2,}/g, '-') }))
+                    setFormSlugStatus(current => ({ ...current, [form.id]: 'idle' }))
+                    setFormSlugMessage(current => ({ ...current, [form.id]: 'Check availability before saving.' }))
+                  }}
+                />
+              </div>
+              {websiteDraftUrl && (
+                <div className="rounded-lg border border-gray-100 bg-[#fbfaf7] px-3 py-2 dark:border-gray-800 dark:bg-white/5">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Website Link will use the same ending</p>
+                  {/* Same text-[10px] as the OpenHousePal prefix above it, and wraps (rather than
+                      truncating with an ellipsis) so the full URL is readable even for the longer
+                      local-dev /ohp-site-render/... proxy path. */}
+                  <p className="mt-1 break-all text-[10px] font-semibold text-gray-600 dark:text-gray-300">{websiteDraftUrl}</p>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button onClick={() => handleCheckFormSlug(form)} disabled={status === 'checking'} className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-black dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white">
+                  {status === 'checking' ? 'Checking...' : 'Check'}
+                </button>
+                <button onClick={() => setPendingFormSlugSave(form)} disabled={status === 'checking' || status === 'taken'} className="flex-1 rounded-lg bg-[#111827] px-3 py-2 text-xs font-black text-white disabled:opacity-50 dark:bg-white dark:text-[#111827]">
+                  Save
+                </button>
+              </div>
+              <p className={`text-xs font-bold ${
+                status === 'available' || status === 'saved'
+                  ? 'text-emerald-700 dark:text-emerald-400'
+                  : status === 'taken' || status === 'error'
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-gray-500 dark:text-gray-400'
+              }`}>
+                {message}
+              </p>
+            </div>
+          )}
+        </div>
+      )
+    }
+
     return (
       <div
         key={form.id}
-        className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_2px_10px_-4px_rgba(0,0,0,0.06)] transition hover:border-[#C9A24D]/60 hover:shadow-[0_8px_24px_-6px_rgba(0,0,0,0.1)] dark:border-gray-800 dark:bg-[#151517]"
+        className="group relative flex h-full flex-col overflow-hidden rounded-[22px] border border-[#C9A24D]/20 bg-gradient-to-b from-white to-[#fdfbf6] shadow-[0_18px_40px_-30px_rgba(139,115,85,.9)] transition duration-300 hover:-translate-y-1 hover:border-[#C9A24D]/55 hover:shadow-[0_28px_50px_-28px_rgba(139,115,85,1)] dark:border-white/[0.08] dark:from-[#17171a] dark:to-[#121214]"
       >
         {/* Dedicated strip (not a border) so its color isn't in a specificity contest with the
             border-gray-200/dark:border-gray-800 classes above - a plain background-color always wins. */}
         <div
-          className="absolute inset-y-0 left-0 w-1 [background-color:var(--form-accent)] dark:[background-color:var(--form-accent-dark)]"
+          className="absolute inset-x-0 top-0 h-[3px] [background:linear-gradient(90deg,transparent,var(--form-accent),transparent)] dark:[background:linear-gradient(90deg,transparent,var(--form-accent-dark),transparent)]"
           style={{ '--form-accent': form.accent_color || '#816937', '--form-accent-dark': form.accent_color || '#d7b974' } as React.CSSProperties}
         />
+        <span aria-hidden className="pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full bg-[#C9A24D]/10 opacity-60 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
         {pendingSubmissions > 0 && (
           <span className="absolute right-3 top-3 z-10 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white shadow-sm">
             {pendingSubmissions > 9 ? '9+' : pendingSubmissions}
           </span>
         )}
-        <div className={`flex items-center gap-3 ${big ? 'p-5' : 'p-4'}`}>
-          <FormQrCode url={qrUrl} size={44} onDownloadReady={(fn) => { qrDownloadFns.current[form.id] = fn }} />
-          <button onClick={openEditor} className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="truncate text-sm font-black tracking-tight dark:text-white">{form.title}</p>
-                {form.form_type === 'custom' && (
-                  <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-gray-500 dark:bg-gray-800 dark:text-gray-400">Custom</span>
-                )}
-              </div>
-              <p className={`mt-1 text-xs font-medium leading-snug text-gray-500 dark:text-gray-400 ${big ? '' : 'line-clamp-2'}`}>{form.description || meta.description}</p>
-              <p className="mt-1 truncate text-xs font-semibold text-gray-400 dark:text-gray-500">{form.questions.length} questions</p>
-            </div>
-          </button>
-          {form.form_type === 'custom' && (
-            <button onClick={() => setDeleteFormTarget(form)} className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600" aria-label="Delete form">
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-
-        <div className={`flex gap-2 px-4 pb-4 ${big ? 'px-5 pb-5' : ''}`}>
-          {isAestheticsOnly ? (
-            <>
-              <button
-                onClick={openEditor}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#C9A24D]/50 bg-[#C9A24D]/10 px-3 py-2 text-xs font-black text-[#8b7355] transition active:scale-95 hover:border-[#C9A24D] hover:bg-[#C9A24D]/15 dark:border-[#C9A24D]/40 dark:bg-[#C9A24D]/10 dark:text-[#e8cf8a]"
-              >
-                <Pencil className="h-3.5 w-3.5" /> Edit Theme
-              </button>
-              <button
-                onClick={() => { qrDownloadFns.current[form.id]?.(); flashFormAction(`${form.id}-qr`) }}
-                className={`shrink-0 rounded-lg px-3 py-2 text-xs font-black transition active:scale-95 ${
-                  justClickedFormAction === `${form.id}-qr`
-                    ? 'bg-emerald-500 text-white dark:bg-emerald-400 dark:text-[#111827]'
-                    : 'bg-[#111827] text-white hover:bg-black dark:bg-white dark:text-[#111827] dark:hover:bg-gray-200'
-                }`}
-                aria-label="Download QR code"
-                title="Download QR code"
-              >
-                {justClickedFormAction === `${form.id}-qr` ? <Check className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
-              </button>
-              <button
-                onClick={() => setStatsModalFormId(form.id)}
-                className="shrink-0 rounded-lg bg-[#111827] px-3 py-2 text-xs font-black text-white transition active:scale-95 hover:bg-black dark:bg-white dark:text-[#111827] dark:hover:bg-gray-200"
-                aria-label="View stats"
-                title="View stats"
-              >
-                <BarChart3 className="h-3.5 w-3.5" />
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={openEditor}
-                className="flex-1 rounded-lg border border-gray-300 bg-[#fbfaf7] px-3 py-2 text-xs font-black text-gray-600 transition active:scale-95 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-gray-300 dark:hover:border-[#C9A24D] dark:hover:text-[#e8cf8a]"
-              >
-                <Pencil className="mr-1.5 inline h-3.5 w-3.5" /> Edit Form
-              </button>
-              <button
-                onClick={() => setEditingSlugFormId(isEditingSlug ? '' : form.id)}
-                className={`flex-1 rounded-lg border px-3 py-2 text-xs font-black transition active:scale-95 ${
-                  isEditingSlug
-                    ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355] dark:border-[#C9A24D] dark:bg-[#C9A24D]/10 dark:text-[#e8cf8a]'
-                    : 'border-gray-300 bg-[#fbfaf7] text-gray-600 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-gray-300 dark:hover:border-[#C9A24D] dark:hover:text-[#e8cf8a]'
-                }`}
-              >
-                <LinkIcon className="mr-1.5 inline h-3.5 w-3.5" /> {isEditingSlug ? 'Close' : 'Edit URL'}
-              </button>
-              <button
-                onClick={() => { qrDownloadFns.current[form.id]?.(); flashFormAction(`${form.id}-qr`) }}
-                className={`shrink-0 rounded-lg px-3 py-2 text-xs font-black transition active:scale-95 ${
-                  justClickedFormAction === `${form.id}-qr`
-                    ? 'bg-emerald-500 text-white dark:bg-emerald-400 dark:text-[#111827]'
-                    : 'bg-[#111827] text-white hover:bg-black dark:bg-white dark:text-[#111827] dark:hover:bg-gray-200'
-                }`}
-                aria-label="Download QR code"
-                title="Download QR code"
-              >
-                {justClickedFormAction === `${form.id}-qr` ? <Check className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
-              </button>
-              <button
-                onClick={() => setStatsModalFormId(form.id)}
-                className="shrink-0 rounded-lg bg-[#111827] px-3 py-2 text-xs font-black text-white transition active:scale-95 hover:bg-black dark:bg-white dark:text-[#111827] dark:hover:bg-gray-200"
-                aria-label="View stats"
-                title="View stats"
-              >
-                <BarChart3 className="h-3.5 w-3.5" />
-              </button>
-            </>
-          )}
-        </div>
-
-        <div className={`space-y-2 border-t border-gray-100 px-4 py-3 text-xs dark:border-gray-800 ${big ? 'px-5' : ''}`}>
-          <div className="flex items-center justify-between gap-3">
-            <p className="min-w-0 truncate text-[10px] font-black uppercase tracking-widest text-gray-400">{isShowcaseRequest ? 'OpenHousePal Showcase Creator Link' : 'OpenHousePal Link'}</p>
-            <div className="flex shrink-0 items-center gap-1">
-              <button onClick={() => { window.open(openHousePalFormUrl, '_blank', 'noopener,noreferrer') }} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Open OpenHousePal link" aria-label="Open OpenHousePal link">
-                <ExternalLink className="h-3.5 w-3.5" />
-              </button>
-              <button onClick={() => { navigator.clipboard?.writeText(openHousePalFormUrl); flashFormAction(`${form.id}-ohp-row-copy`) }} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Copy OpenHousePal link" aria-label="Copy OpenHousePal link">
-                {justClickedFormAction === `${form.id}-ohp-row-copy` ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-              </button>
-            </div>
-          </div>
-          {websiteFormUrl && (
-            <div className="flex items-center justify-between gap-3">
-              <p className="min-w-0 truncate text-[10px] font-black uppercase tracking-widest text-gray-400">
-                {websiteHostname || 'Website'} {isShowcaseRequest ? 'Showcase Creator Link' : 'Link'}
+        {/* Just the form and what it's for - everything else (Edit, Duplicate, Campaigns, Stats,
+            Results, and the link/Share info) lives on its detail page now, one click away. Custom
+            and Onboarding forms never reach here - they're not Campaign-eligible, so they keep
+            everything on the card itself (the branch above). */}
+        <button onClick={() => setCampaignsModalFormId(form.id)} className={`flex flex-1 items-center gap-3 text-left ${big ? 'p-5' : 'p-4'}`}>
+          {formMedia}
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white">{form.title}</p>
+            <p className={`mt-1 text-xs font-medium leading-snug text-gray-500 dark:text-gray-400 ${big ? '' : 'line-clamp-2'}`}>{form.description || meta.description}</p>
+            <p className="mt-2 inline-flex items-center rounded-full bg-[#C9A24D]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#8b7355] dark:bg-[#C9A24D]/15 dark:text-[#e8cf8a]">{form.questions.length} questions</p>
+            <ShowcaseFormBadge formType={form.form_type} />
+            {form.additional_campaign_count > 0 && (
+              <p className="mt-0.5 truncate text-[11px] font-bold text-[#8b7355] dark:text-[#e8cf8a]">
+                General + {form.additional_campaign_count} more campaign{form.additional_campaign_count === 1 ? '' : 's'}
               </p>
-              <div className="flex shrink-0 items-center gap-1">
-                <button onClick={() => { window.open(websiteFormUrl, '_blank', 'noopener,noreferrer') }} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Open website link" aria-label="Open website link">
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </button>
-                <button onClick={() => { navigator.clipboard?.writeText(websiteFormUrl); flashFormAction(`${form.id}-website-row-copy`) }} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Copy website link" aria-label="Copy website link">
-                  {justClickedFormAction === `${form.id}-website-row-copy` ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <button
-          onClick={() => setResultsModalFormId(form.id)}
-          className="mt-auto flex w-full items-center justify-between gap-2 border-t border-gray-300 bg-[#fbfaf7] px-4 py-2.5 text-left text-xs font-black text-gray-700 transition hover:border-[#C9A24D]/50 hover:bg-[#f4f1e8] dark:border-gray-800 dark:bg-white/5 dark:text-gray-300 dark:hover:border-[#C9A24D]/50 dark:hover:bg-white/10"
-        >
-          <span className="flex min-w-0 items-center gap-1.5">
-            <Mail className="h-3.5 w-3.5 shrink-0 text-[#8b7355]" />
-            <span className="truncate">
-              {pendingSubmissions === 0
-                ? 'No new responses yet'
-                : `${pendingSubmissions} new response${pendingSubmissions === 1 ? '' : 's'} · latest ${new Date((submissions.find(submission => !submission.is_reviewed) || submissions[0]).created_at).toLocaleDateString()}`}
-            </span>
-          </span>
-          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-        </button>
-
-        {isEditingSlug && (
-          <div className={`space-y-2 border-t border-gray-100 px-4 pb-4 pt-3 dark:border-gray-800 ${big ? 'px-5 pb-5' : ''}`}>
-            <div className="flex min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white focus-within:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B]">
-              <span className="flex max-w-[75%] shrink-0 items-center truncate border-r border-gray-200 bg-gray-50 px-2 py-2 text-[10px] font-black text-gray-500 dark:border-gray-700 dark:bg-[#151517] dark:text-gray-400">{agentHubPublicUrl}/</span>
-              <input
-                className="min-w-0 flex-1 bg-transparent px-2 py-2 text-xs font-semibold outline-none dark:text-white"
-                value={slugDraft}
-                onChange={(event) => {
-                  setFormSlugDrafts(current => ({ ...current, [form.id]: event.target.value.toLowerCase() }))
-                  setFormSlugStatus(current => ({ ...current, [form.id]: 'idle' }))
-                  setFormSlugMessage(current => ({ ...current, [form.id]: 'Check availability before saving.' }))
-                }}
-              />
-            </div>
-            {websiteDraftUrl && (
-              <div className="rounded-lg border border-gray-100 bg-[#fbfaf7] px-3 py-2 dark:border-gray-800 dark:bg-white/5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Website Link will use the same ending</p>
-                {/* Same text-[10px] as the OpenHousePal prefix above it, and wraps (rather than
-                    truncating with an ellipsis) so the full URL is readable even for the longer
-                    local-dev /ohp-site-render/... proxy path. */}
-                <p className="mt-1 break-all text-[10px] font-semibold text-gray-600 dark:text-gray-300">{websiteDraftUrl}</p>
-              </div>
             )}
-            <div className="flex gap-2">
-              <button onClick={() => handleCheckFormSlug(form)} disabled={status === 'checking'} className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-black dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white">
-                {status === 'checking' ? 'Checking...' : 'Check'}
-              </button>
-              <button onClick={() => setPendingFormSlugSave(form)} disabled={status === 'checking' || status === 'taken'} className="flex-1 rounded-lg bg-[#111827] px-3 py-2 text-xs font-black text-white disabled:opacity-50 dark:bg-white dark:text-[#111827]">
-                Save
-              </button>
-            </div>
-            <p className={`text-xs font-bold ${
-              status === 'available' || status === 'saved'
-                ? 'text-emerald-700 dark:text-emerald-400'
-                : status === 'taken' || status === 'error'
-                  ? 'text-red-600 dark:text-red-400'
-                  : 'text-gray-500 dark:text-gray-400'
-            }`}>
-              {message}
-            </p>
           </div>
-        )}
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#C9A24D]/25 text-[#8b7355] transition group-hover:translate-x-0.5 group-hover:border-[#C9A24D] group-hover:bg-[#C9A24D] group-hover:text-white dark:text-[#e8cf8a]">
+            <ChevronRight className="h-4 w-4" />
+          </span>
+        </button>
       </div>
     )
   }
 
   const moveDraggedSection = (targetId: string) => {
     if (!draggedSectionId || draggedSectionId === targetId) return
+    layoutCustomizedRef.current = true
 
     setLayoutSections(current => {
       const dragged = current.find(section => section.id === draggedSectionId)
@@ -1578,7 +2229,20 @@ function AgentHubContent() {
     setSaveStatus('Unsaved Changes')
   }
 
-  const handleSaveAgentHubChanges = async (overrides?: Partial<Pick<SavedAgentHubData, 'recentSales' | 'myListings' | 'showSalesStats' | 'salesCarousel' | 'listingsCarousel' | 'videosCarousel' | 'toursCarousel' | 'blogsCarousel' | 'salesAutoScroll' | 'listingsAutoScroll' | 'videosAutoScroll' | 'toursAutoScroll' | 'blogsAutoScroll' | 'videoLinks' | 'videoChannelUrl' | 'houseTourLinks' | 'houseTourUrl' | 'blogCards' | 'layoutSections' | 'visibleSectionIds'>>) => {
+  const updateContactCardField = (key: string, updates: Partial<ContactCardFields[string]>) => {
+    setContactCard(current => ({ ...current, [key]: { ...current[key], ...updates } }))
+    setSaveStatus('Unsaved Changes')
+  }
+
+  const handleSaveAgentHubChanges = async (overrides?: Partial<Pick<SavedAgentHubData, 'recentSales' | 'myListings' | 'showSalesStats' | 'salesMinPrice' | 'salesCarousel' | 'listingsCarousel' | 'videosCarousel' | 'toursCarousel' | 'blogsCarousel' | 'salesAutoScroll' | 'listingsAutoScroll' | 'videosAutoScroll' | 'toursAutoScroll' | 'blogsAutoScroll' | 'reviewsCarousel' | 'reviewsAutoScroll' | 'reviewsOnProfile' | 'reviewsProfileButton' | 'videoLinks' | 'videoChannelUrl' | 'houseTourLinks' | 'houseTourUrl' | 'blogCards' | 'layoutSections' | 'visibleSectionIds'>>) => {
+    // This function always sends the FULL current in-memory state as the new config (the backend
+    // does a full replace, not a merge - see PUT /agent-hub/me/config). If it ran before the real
+    // saved config has finished loading from the backend, profile/contact/etc. would still be at
+    // their blank initial defaults and this would permanently wipe the agent's real data. The
+    // Recent Sales and My Listings panels both auto-fetch-and-call-this on mount whenever their
+    // slice of state is empty (the normal case before that load completes), so refuse to save
+    // until agentHubDataReady confirms the real config is in state.
+    if (!agentHubDataReady) return
     const savedSocialLinks: SavedSocialLink[] = socialLinks.map(({ id, label, url, enabled }) => ({
       id,
       label,
@@ -1594,6 +2258,7 @@ function AgentHubContent() {
       listing.image?.startsWith('data:') ? { ...listing, image: undefined } : listing
     )
     const showSalesStatsToSave = overrides?.showSalesStats ?? showSalesStats
+    const salesMinPriceToSave = overrides?.salesMinPrice ?? salesMinPrice
     const salesCarouselToSave = overrides?.salesCarousel ?? salesCarousel
     const listingsCarouselToSave = overrides?.listingsCarousel ?? listingsCarousel
     const videosCarouselToSave = overrides?.videosCarousel ?? videosCarousel
@@ -1604,6 +2269,10 @@ function AgentHubContent() {
     const videosAutoScrollToSave = overrides?.videosAutoScroll ?? videosAutoScroll
     const toursAutoScrollToSave = overrides?.toursAutoScroll ?? toursAutoScroll
     const blogsAutoScrollToSave = overrides?.blogsAutoScroll ?? blogsAutoScroll
+    const reviewsCarouselToSave = overrides?.reviewsCarousel ?? reviewsCarousel
+    const reviewsAutoScrollToSave = overrides?.reviewsAutoScroll ?? reviewsAutoScroll
+    const reviewsOnProfileToSave = overrides?.reviewsOnProfile ?? reviewsOnProfile
+    const reviewsProfileButtonToSave = overrides?.reviewsProfileButton ?? reviewsProfileButton
     const videosToSave = overrides?.videoLinks || videoLinks
     const videoChannelUrlToSave = overrides?.videoChannelUrl ?? videoChannelUrl
     const houseToursToSave = overrides?.houseTourLinks || houseTourLinks
@@ -1616,9 +2285,11 @@ function AgentHubContent() {
       profile,
       contact,
       socialLinks: savedSocialLinks,
+      contactCard: { fields: contactCard },
       recentSales: salesToSave,
       myListings: listingsToSave,
       showSalesStats: showSalesStatsToSave,
+      salesMinPrice: salesMinPriceToSave,
       salesCarousel: salesCarouselToSave,
       listingsCarousel: listingsCarouselToSave,
       videosCarousel: videosCarouselToSave,
@@ -1629,6 +2300,10 @@ function AgentHubContent() {
       videosAutoScroll: videosAutoScrollToSave,
       toursAutoScroll: toursAutoScrollToSave,
       blogsAutoScroll: blogsAutoScrollToSave,
+      reviewsCarousel: reviewsCarouselToSave,
+      reviewsAutoScroll: reviewsAutoScrollToSave,
+      reviewsOnProfile: reviewsOnProfileToSave,
+      reviewsProfileButton: reviewsProfileButtonToSave,
       visitorDarkMode,
       videoLinks: videosToSave,
       videoChannelUrl: videoChannelUrlToSave,
@@ -1638,6 +2313,7 @@ function AgentHubContent() {
       profilePhotoUrl,
       profilePhotoPosition,
       layoutSections: layoutSectionsToSave,
+      layoutCustomized: layoutCustomizedRef.current,
       visibleSectionIds: visibleSectionIdsToSave,
       savedAt: new Date().toISOString(),
     }
@@ -1648,7 +2324,13 @@ function AgentHubContent() {
     }
 
     api.agentHub.updateProfile({ title: profile.title, market: profile.market, name: profile.name, brokerage: profile.brokerage }).catch(() => {})
-    const configSaveResult = await api.agentHub.saveConfig(savedHub).catch(() => ({ success: false as const, error: 'Network error' }))
+    // Merge onto the latest saved copy: Settings edits the same Agent Hub config, and keys this
+    // editor doesn't manage (the hub's theme, video auto-update, ...) must never be wiped by a save here.
+    const latest = await api.agentHub.getMine().catch(() => null)
+    const baseConfig = (latest && latest.success && latest.data?.config) ? latest.data.config as Record<string, unknown> : {}
+    // profile is merged, not replaced - Settings keeps fields this editor doesn't have (team).
+    const baseProfile = (baseConfig.profile && typeof baseConfig.profile === 'object') ? baseConfig.profile as Record<string, unknown> : {}
+    const configSaveResult = await api.agentHub.saveConfig({ ...baseConfig, ...savedHub, profile: { ...baseProfile, ...savedHub.profile } } as SavedAgentHubData).catch(() => ({ success: false as const, error: 'Network error' }))
     if (!configSaveResult.success) {
       // Don't mark this saved (and don't touch localStorage as if it were) - the editor would
       // otherwise show "Saved" with a full Recent Sales list that never actually reached the
@@ -1698,7 +2380,7 @@ function AgentHubContent() {
   const handleCancelAgentHubChanges = () => {
     if (!lastSavedHub) return
 
-    setProfile({ ...lastSavedHub.profile, about: lastSavedHub.profile.about || '', licenseNumber: lastSavedHub.profile.licenseNumber || '' })
+    setProfile({ ...lastSavedHub.profile, about: lastSavedHub.profile.about || '', licenseNumber: lastSavedHub.profile.licenseNumber || '', team: lastSavedHub.profile.team || '' })
     setContact(lastSavedHub.contact)
     setProfilePhotoUrl(lastSavedHub.profilePhotoUrl)
     setProfilePhotoPosition(lastSavedHub.profilePhotoPosition || { x: 50, y: 50 })
@@ -1706,13 +2388,13 @@ function AgentHubContent() {
     setRecentSales(lastSavedHub.recentSales || [])
     setMyListings(lastSavedHub.myListings || [])
     setShowSalesStats(lastSavedHub.showSalesStats ?? true)
-    setSalesCarousel(lastSavedHub.salesCarousel ?? false)
-    setListingsCarousel(lastSavedHub.listingsCarousel ?? false)
+    setSalesCarousel(lastSavedHub.salesCarousel ?? true)
+    setListingsCarousel(lastSavedHub.listingsCarousel ?? true)
     setVideosCarousel(lastSavedHub.videosCarousel ?? false)
     setToursCarousel(lastSavedHub.toursCarousel ?? false)
     setBlogsCarousel(lastSavedHub.blogsCarousel ?? false)
-    setSalesAutoScroll(lastSavedHub.salesAutoScroll ?? false)
-    setListingsAutoScroll(lastSavedHub.listingsAutoScroll ?? false)
+    setSalesAutoScroll(lastSavedHub.salesAutoScroll ?? true)
+    setListingsAutoScroll(lastSavedHub.listingsAutoScroll ?? true)
     setVideosAutoScroll(lastSavedHub.videosAutoScroll ?? false)
     setToursAutoScroll(lastSavedHub.toursAutoScroll ?? false)
     setBlogsAutoScroll(lastSavedHub.blogsAutoScroll ?? false)
@@ -1765,7 +2447,26 @@ function AgentHubContent() {
     setSaveStatus('Saved')
   }
 
+  const toggleReviewsOnHub = async () => {
+    if (!reviewsData) return
+    const on = !reviewsData.show_on_hub
+    setReviewsData({ ...reviewsData, show_on_hub: on })
+    const r = await api.agentHub.updateReviewSettings({ show_on_hub: on })
+    if (!r.success) setReviewsData(d => d ? { ...d, show_on_hub: !on } : d)
+  }
+
+  // 4 and 5 stars only, everywhere public (Agent Hub + IDX website) - the same switch as Studio -> Reviews.
+  const toggleReviewsMinRating = async () => {
+    if (!reviewsData) return
+    const next = (reviewsData.min_rating ?? 1) >= 4 ? 1 : 4
+    const prev = reviewsData.min_rating ?? 1
+    setReviewsData({ ...reviewsData, min_rating: next })
+    const r = await api.agentHub.updateReviewSettings({ min_rating: next })
+    if (!r.success) setReviewsData(d => d ? { ...d, min_rating: prev } : d)
+  }
+
   const toggleSectionVisibility = (id: string) => {
+    if (id === 'reviews') { toggleReviewsOnHub(); return }
     const next = layoutSections.map(section => section.id === id ? { ...section, visible: !section.visible } : section)
     setLayoutSections(next)
     setSaveStatus('Unsaved Changes')
@@ -1790,6 +2491,7 @@ function AgentHubContent() {
       'Market or service area': 'market',
       'About me': 'about',
       'RE License number': 'licenseNumber',
+      'Team name': 'team',
     }
     const key = fieldMap[label]
     if (!key) return
@@ -1823,6 +2525,7 @@ function AgentHubContent() {
       'Market or service area': 'market',
       'About me': 'about',
       'RE License number': 'licenseNumber',
+      'Team name': 'team',
     }
     const key = fieldMap[label]
     return key ? profile[key] : fallback
@@ -1839,6 +2542,7 @@ function AgentHubContent() {
   }
 
   const getEditorSectionStatus = (title: string) => {
+    if (title === 'Contact Card') return 'Complete'
     return editorSectionStatus[title] || 'Incomplete'
   }
 
@@ -1890,21 +2594,21 @@ function AgentHubContent() {
   }
 
   const handleCopyPublicUrl = async () => {
-    await navigator.clipboard?.writeText(agentHubPublicUrl)
+    await copyText(agentHubShareUrl)
     setSlugMessage('Public URL copied.')
   }
 
   const handleOpenPublicPage = () => {
-    window.open(agentHubPublicUrl, '_blank', 'noopener,noreferrer')
+    window.open(agentHubShareUrl, '_blank', 'noopener,noreferrer')
   }
 
   const handleSharePublicUrl = async () => {
-    const shareUrl = agentHubPublicUrl
+    const shareUrl = agentHubShareUrl
     if (navigator.share) {
       await navigator.share({ title: `${profile.name || 'Agent'} Agent Hub`, url: shareUrl })
       return
     }
-    await navigator.clipboard?.writeText(shareUrl)
+    await copyText(shareUrl)
     setSlugMessage('Public URL copied for sharing.')
   }
 
@@ -2162,6 +2866,17 @@ function AgentHubContent() {
     setCreatingForm(false)
   }
 
+  const handleDuplicateForm = async (form: AgentFormConfig) => {
+    const response = await api.forms.duplicate(form.id)
+    if (response.success && response.data) {
+      setAgentForms(current => [...current, response.data!].sort((a, b) => a.order_index - b.order_index))
+      lastSavedFormsRef.current[response.data.id] = response.data
+      showToast(form.form_type === 'custom' ? 'Form duplicated' : 'Copy created in Custom Forms', 'success')
+    } else {
+      showToast(response.error || 'Unable to duplicate this form. Please try again.', 'error')
+    }
+  }
+
   const handleConfirmDeleteForm = async () => {
     if (!deleteFormTarget) return
     setDeletingForm(true)
@@ -2219,26 +2934,64 @@ function AgentHubContent() {
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
               <PageHeader
                 icon={FileText}
-                title="Forms"
+                kicker="Forms"
+                title={<>Capture every lead, <em>your way.</em></>}
                 subtitle="Create and share lead-capture forms, then track responses and open house requests right here."
+                subtitleClassName="xl:max-w-none xl:whitespace-nowrap"
                 backHref="/studio"
-                backLabel="Studio"
-                badge={openHouseRequestActionCount > 0 && (
-                  <button
-                    onClick={() => document.getElementById('forms-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                    className="flex items-center gap-1 rounded-full bg-red-500 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-sm"
-                  >
-                    ! Needs Action
-                  </button>
-                )}
+                backLabel="Tools"
+                asideClassName="w-full lg:w-auto lg:-mt-5"
+                tabs={
+                  // New results, as one-tap shortcuts: a form's chip opens its responses; the
+                  // Cheat Sheet one jumps to the Open House Requests section.
+                  <div className="flex min-h-[36px] items-center gap-2 overflow-x-auto px-1 [scrollbar-width:none]">
+                    <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]">
+                      <span className="relative flex h-2 w-2">
+                        {newResultForms.length + (openHouseRequestActionCount > 0 ? 1 : 0) > 0 && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-70" />}
+                        <span className={`relative inline-flex h-2 w-2 rounded-full ${newResultForms.length + (openHouseRequestActionCount > 0 ? 1 : 0) > 0 ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                      </span>
+                      New
+                    </span>
+                    {openHouseRequestActionCount > 0 && (
+                      <button
+                        onClick={() => document.getElementById('forms-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                        className="group inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-1.5 text-xs font-black text-[#111827] shadow-sm transition hover:-translate-y-0.5 hover:border-red-400 hover:shadow-md dark:border-red-500/30 dark:bg-white/[0.06] dark:text-white"
+                      >
+                        <Zap className="h-3.5 w-3.5 text-[#C9A24D]" /> Cheat Sheet request
+                        <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] text-white">{openHouseRequestActionCount > 9 ? '9+' : openHouseRequestActionCount}</span>
+                        <ArrowRight className="h-3 w-3 text-gray-400 transition-transform group-hover:translate-x-0.5" />
+                      </button>
+                    )}
+                    {newResultPeople.map(({ form, submission }) => (
+                      <button
+                        key={submission.id}
+                        onClick={() => openResults(form.id, submission.id)}
+                        className="group inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#C9A24D]/40 bg-white px-3 py-1.5 text-xs font-black text-[#111827] shadow-sm transition hover:-translate-y-0.5 hover:border-[#C9A24D] hover:shadow-md dark:border-white/10 dark:bg-white/[0.06] dark:text-white"
+                        title={`Open ${submission.contact_name || 'this'} response to ${form.title || 'your form'}`}
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                        {submission.contact_name || 'New response'}
+                        <span className="font-semibold text-gray-400">· {form.title || 'Form'}</span>
+                        <ArrowRight className="h-3 w-3 text-gray-400 transition-transform group-hover:translate-x-0.5" />
+                      </button>
+                    ))}
+                    {newResultForms.length === 0 && openHouseRequestActionCount === 0 && (
+                      <span className="text-xs font-semibold text-gray-500 dark:text-white/50">All caught up - new form leads and Cheat Sheet requests show up here.</span>
+                    )}
+                  </div>
+                }
                 actions={
-                  statSummary && (
-                    <div className="grid grid-cols-3 gap-2 sm:min-w-[340px] lg:min-w-[400px]">
-                      <StatCard metric="form_views" label="Form Views" shortLabel="Views" icon={ClipboardListIcon} entry={statSummary.form_views} />
-                      <StatCard metric="form_fills" label="Forms Filled" shortLabel="Filled" icon={ClipboardListIcon} entry={statSummary.form_fills} />
-                      <StatCard metric="form_completion" label="Completion Rate" shortLabel="Rate" icon={ClipboardListIcon} entry={statSummary.form_completion} isPercent />
-                    </div>
-                  )
+                  <div className="flex w-full items-stretch gap-2">
+                    {statSummary && (
+                      <div className="grid flex-1 grid-cols-3 gap-2 sm:min-w-[340px] lg:min-w-[400px]">
+                        <StatCard metric="form_views" label="Form Views" shortLabel="Views" icon={ClipboardListIcon} entry={statSummary.form_views} />
+                        <StatCard metric="form_fills" label="Forms Filled" shortLabel="Filled" icon={ClipboardListIcon} entry={statSummary.form_fills} />
+                        <StatCard metric="form_completion" label="Completion Rate" shortLabel="Rate" icon={ClipboardListIcon} entry={statSummary.form_completion} isPercent />
+                      </div>
+                    )}
+                    <InboxButton label="Inbox" count={newResultPeople.length + openHouseRequestActionCount} onClick={() => setFormsInboxOpen(true)}
+                      title="Every form response and Cheat Sheet request, newest first" />
+                  </div>
                 }
               />
             </motion.div>
@@ -2256,7 +3009,10 @@ function AgentHubContent() {
             {(() => {
               const openHouseRequestsBlock = (
                 <div id="forms-results" key="forms-results" className="scroll-mt-6 space-y-4">
-                  {contentLockedForms.length > 0 && (
+                  {/* The "Setup My Own Showcase" form only works on Showcase plans (its public link
+                      refuses otherwise - a guest would never get the Showcase it promises). Basic
+                      sees it as a locked upsell; the No-MLS track has no Showcases, so it's hidden. */}
+                  {contentLockedForms.length > 0 && hasShowcaseAccess(user?.plan_tier) && (
                     <div className="w-full overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-gradient-to-br from-[#C9A24D]/[0.07] via-white to-white p-5 dark:from-[#C9A24D]/10 dark:via-[#151517] dark:to-[#151517] sm:p-6">
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C9A24D]/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8cf8a]">
                         <Sparkles className="h-3 w-3" /> Automated
@@ -2265,9 +3021,26 @@ function AgentHubContent() {
                       {contentLockedForms.map(form => renderFormCard(form, { big: true }))}
                     </div>
                   )}
+                  {contentLockedForms.length > 0 && user?.plan_tier === 'BASIC' && (
+                    <Link
+                      href="/upgrade-required?feature=Showcases&tier=PREMIUM"
+                      className="group flex w-full items-center gap-4 overflow-hidden rounded-3xl border border-dashed border-[#C9A24D]/40 bg-[#C9A24D]/[0.04] p-5 transition-colors hover:border-[#C9A24D] sm:p-6"
+                    >
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-400 dark:bg-gray-800">
+                        <Lock className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8cf8a]">Premium</p>
+                        <h3 className="text-base font-black tracking-tight text-[#111827] dark:text-white">Showcase Request</h3>
+                        <p className="mt-0.5 text-xs font-medium leading-relaxed text-gray-500 dark:text-gray-400">A QR code guests scan to build their own personalized Showcase of matching homes, with instant alerts. Upgrade to Premium to turn it on.</p>
+                      </div>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#C9A24D]" />
+                    </Link>
+                  )}
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="w-full overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-gradient-to-br from-[#C9A24D]/[0.07] via-white to-white p-5 dark:from-[#C9A24D]/10 dark:via-[#151517] dark:to-[#151517] sm:p-6">
+                  <div className="grid items-start gap-4 sm:grid-cols-2">
+                    {/* Cheat Sheets only exist on MLS plans, so their request inbox does too. */}
+                    <div className={`w-full overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-gradient-to-br from-[#C9A24D]/[0.07] via-white to-white p-5 dark:from-[#C9A24D]/10 dark:via-[#151517] dark:to-[#151517] sm:p-6 ${hasMlsAccess(user?.plan_tier) ? '' : 'hidden'}`}>
                       <div className="mb-1 flex items-center gap-2">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C9A24D]/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8cf8a]">
                           <Zap className="h-3 w-3" /> From Cheat Sheets
@@ -2332,19 +3105,31 @@ function AgentHubContent() {
               ) : (
                 <div key="forms-grids" className="space-y-6">
                   <div>
-                    <h3 className="mb-3 text-xs font-black uppercase tracking-widest text-gray-400">Premade Forms</h3>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="mb-4 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+                      <div>
+                        <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.28em] text-[#8b7355] dark:text-[#e8c97a]"><Sparkles className="h-3 w-3" /> Ready to share</p>
+                        <h3 className="mt-1 font-serif text-2xl font-black tracking-tight text-[#111827] dark:text-white">Premade forms</h3>
+                      </div>
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Built for every situation - share the link or QR and every answer lands in Results.</p>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                       {premadeForms.map(form => renderFormCard(form))}
                     </div>
                     {onboardingForms.length > 0 && (
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
                         {onboardingForms.map(form => renderFormCard(form, { big: true }))}
                       </div>
                     )}
                   </div>
                   <div>
-                    <h3 className="mb-3 text-xs font-black uppercase tracking-widest text-gray-400">Custom Forms</h3>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="mb-4 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+                      <div>
+                        <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.28em] text-[#8b7355] dark:text-[#e8c97a]"><PenLine className="h-3 w-3" /> Yours</p>
+                        <h3 className="mt-1 font-serif text-2xl font-black tracking-tight text-[#111827] dark:text-white">Custom forms</h3>
+                      </div>
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Your own questions, your own link and QR code.</p>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                       {customForms.map(form => renderFormCard(form))}
                       {/* Always present (not just when there are zero custom forms yet) - this is
                           the one place to create a new custom form, now that the header's own
@@ -2352,27 +3137,24 @@ function AgentHubContent() {
                       <button
                         onClick={handleCreateForm}
                         disabled={creatingForm}
-                        className="flex min-h-[196px] w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-300 bg-[#fbfaf7] text-center transition hover:border-[#C9A24D] hover:bg-[#C9A24D]/5 disabled:opacity-60 dark:border-gray-700 dark:bg-[#0B0B0B] dark:hover:border-[#C9A24D]"
+                        className="group flex min-h-[196px] w-full flex-col items-center justify-center gap-2 rounded-[22px] border-2 border-dashed border-[#C9A24D]/35 bg-gradient-to-b from-[#fffdf8] to-[#fbf6ec] text-center transition duration-300 hover:-translate-y-1 hover:border-[#C9A24D] hover:shadow-[0_24px_44px_-30px_rgba(139,115,85,.9)] disabled:opacity-60 dark:border-white/15 dark:from-[#151517] dark:to-[#121214] dark:hover:border-[#C9A24D]"
                       >
-                        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8cf8a]">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-md ring-1 ring-[#C9A24D]/35 transition group-hover:rotate-90">
                           {creatingForm ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
                         </span>
-                        <span className="text-sm font-black text-gray-700 dark:text-gray-200">New Custom Form</span>
+                        <span className="font-serif text-base font-black text-[#111827] dark:text-white">New custom form</span>
+                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Start from scratch - any questions you like</span>
                       </button>
                     </div>
                   </div>
                 </div>
               )
 
-              // Nothing to act on - the requests section isn't urgent, so it sinks below the
-              // forms grids instead of sitting first on the page.
+              // Always the same order: premade forms, then your own, then the automated ones. New
+              // results don't reshuffle the page - the header's "New" bar links straight to them.
               return (
                 <div id="my-forms" className="scroll-mt-6 space-y-6">
-                  {openHouseRequestActionCount > 0 ? (
-                    <>{openHouseRequestsBlock}{formsBlock}</>
-                  ) : (
-                    <>{formsBlock}{openHouseRequestsBlock}</>
-                  )}
+                  {formsBlock}{openHouseRequestsBlock}
                 </div>
               )
             })()}
@@ -2385,37 +3167,28 @@ function AgentHubContent() {
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
                 <PageHeader
                   icon={Globe}
-                  title="Agent Hub"
-                  subtitle="Manage & customize your public agent hub."
+                  kicker="Agent Hub"
+                  title={<>One link, <em>all of you.</em></>}
+                  subtitle="Your profile, listings, sales and stories - one page that's always current."
                   backHref="/studio"
-                  backLabel="Studio"
-                  actions={statSummary && (
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <StatCard metric="agent_hub_visits" label="Views" icon={Eye} entry={statSummary.agent_hub_visits} />
-                      <StatCard metric="agent_hub_interactions" label="Interacted" icon={MousePointerClick} entry={statSummary.agent_hub_interactions} />
+                  backLabel="Tools"
+                  noMargin
+                  badge={statSummary && (
+                    <div className="flex flex-nowrap items-center gap-1.5">
+                      <StatCard chip metric="agent_hub_visits" label="Views" icon={Eye} entry={statSummary.agent_hub_visits} />
+                      <StatCard chip metric="agent_hub_interactions" label="Interacted" icon={MousePointerClick} entry={statSummary.agent_hub_interactions} />
                     </div>
                   )}
+                  tabs={
+                    <LuxeTabs
+                      label="Agent Hub sections"
+                      active={activeTab as string}
+                      onChange={(t) => setActiveTab(t as typeof activeTab)}
+                      items={AGENT_HUB_SUBTABS.map(t => ({ id: t, label: t, icon: AGENT_HUB_TAB_ICON[t] || PenLine }))}
+                    />
+                  }
                 />
               </motion.div>
-
-              <div className="mt-4 grid grid-cols-2 gap-1 rounded-full border border-gray-200 bg-white/70 p-1 dark:border-gray-700 dark:bg-white/5">
-                {AGENT_HUB_SUBTABS.map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`relative flex w-full items-center justify-center whitespace-nowrap rounded-full px-2 py-2 text-center text-[11px] font-black uppercase transition-colors ${activeTab === tab ? 'text-[#8b7355] dark:text-[#e8cf8a]' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'}`}
-                  >
-                    {activeTab === tab && (
-                      <motion.span
-                        layoutId="agentHubSubNavPill"
-                        className="absolute inset-0 rounded-full bg-[#C9A24D]/15"
-                        transition={{ type: 'spring', stiffness: 500, damping: 42 }}
-                      />
-                    )}
-                    <span className="relative z-10">{tab}</span>
-                  </button>
-                ))}
-              </div>
 
               <AnimatePresence mode="wait">
               <motion.section
@@ -2426,35 +3199,243 @@ function AgentHubContent() {
                 transition={{ type: 'spring', stiffness: 420, damping: 38, mass: 0.9 }}
                 className="mt-6 space-y-6"
               >
+            <HubPanelMemory.Provider value="agentHubEditor">
             {activeTab === 'Layout' && (
               <div className="space-y-6">
-                <div className="overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-[#fbfaf3] shadow-sm dark:border-gray-800 dark:from-[#151517] dark:to-[#111113]">
-                    <button
-                      type="button"
-                      onClick={() => setIsLayoutSectionsOpen(current => !current)}
-                      className="relative flex w-full items-center justify-between gap-3 p-5 text-left"
-                      aria-label={`${isLayoutSectionsOpen ? 'Collapse' : 'Expand'} Agent Hub Layout`}
-                    >
-                      <div className="relative flex items-center gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#111827] text-[#C9A24D] shadow-sm dark:bg-white dark:text-[#8b7355]">
-                          <LayoutGrid className="h-5 w-5" />
+                <HubFold id="layout-theme">{(open, toggle) => (
+<div className={hubCardClass(open)}>
+                  <HubPanelHead icon={Sparkles} kicker="Look" title="Agent Hub theme" subtitle="Same layout and sections - pick how it's dressed. Changes go live right away." open={open} onToggle={toggle} />
+<HubCollapse open={open}>
+                  <div className="grid gap-3 p-5 sm:grid-cols-2">
+                    {HUB_THEMES.map(t => {
+                      const on = shownHubTheme === t.id
+                      const luxe = t.id === 'luxe'
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => handleHubTheme(t.id)}
+                          className={`group relative overflow-hidden rounded-2xl border-2 p-2.5 text-left transition-all duration-300 ${on ? 'border-[#C9A24D] shadow-[0_18px_36px_-24px_rgba(201,162,77,.9)]' : 'border-gray-200 hover:-translate-y-0.5 hover:border-[#C9A24D]/60 dark:border-white/10'}`}
+                        >
+                          {/* mini hub swatch */}
+                          <div className="relative h-24 overflow-hidden rounded-xl" style={{ background: luxe ? 'radial-gradient(120% 90% at 100% 0%, rgba(201,162,77,.32), transparent 55%), linear-gradient(160deg,#fffdf8,#fbf6ec 45%,#f4ead7)' : '#f7f5f1' }}>
+                            {luxe && <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#e8c97a] to-transparent" />}
+                            <div className={`absolute left-3 top-3 h-[72px] w-[58px] rounded-lg border ${luxe ? 'border-[#C9A24D]/50 bg-gradient-to-br from-[#fffdf8] to-[#f4ead7]' : 'border-gray-200 bg-[#fbfaf7]'}`}>
+                              <span className={`mx-auto mt-2 block h-5 w-5 rounded-full border ${luxe ? 'border-[#C9A24D] shadow-[0_0_0_2px_rgba(201,162,77,.18)]' : 'border-[#cdaa64]'} bg-gray-300`} />
+                              <span className={`mx-auto mt-1.5 block h-1.5 w-9 rounded-full ${luxe ? 'bg-gradient-to-r from-[#111827] via-[#C9A24D] to-[#111827]' : 'bg-[#111827]'}`} />
+                              <span className={`mx-auto mt-2 block h-2.5 w-11 rounded ${luxe ? 'bg-gradient-to-r from-[#111827] to-[#2a2218]' : 'border border-[#111827] bg-white'}`} />
+                              <span className={`mx-auto mt-1 block h-2.5 w-11 rounded ${luxe ? 'bg-gradient-to-r from-[#b8913f] to-[#e8c97a]' : 'bg-[#d2b16f]'}`} />
+                            </div>
+                            <div className="absolute left-[78px] right-3 top-4 space-y-2">
+                              <span className={`flex items-center gap-1.5`}>{luxe && <span className="h-px w-3 bg-[#C9A24D]" />}<span className={`h-1.5 w-12 rounded-full ${luxe ? 'bg-[#8b7355]' : 'border-l-2 border-[#d2b16f] bg-[#111827]'}`} /></span>
+                              <span className="grid grid-cols-3 gap-1">{[0, 1, 2].map(k => <span key={k} className={`h-8 rounded ${luxe ? 'bg-gradient-to-br from-[#111827] to-[#2a2218] ring-1 ring-[#C9A24D]/40' : 'bg-gray-300'}`} />)}</span>
+                            </div>
+                          </div>
+                          <div className="mt-2.5 flex items-center gap-2 px-1">
+                            <p className="font-serif text-base font-black text-[#111827] dark:text-white">{t.label}</p>
+                            {luxe && <span className="rounded-full bg-[#111827] px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#e8c97a]">{hubLuxeAllowed ? 'IDX' : 'IDX · Preview'}</span>}
+                            {on && <Check className="ml-auto h-4 w-4 text-[#C9A24D]" />}
+                          </div>
+                          <p className="px-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400">{t.blurb}</p>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <AnimatePresence initial={false}>
+                    {shownHubTheme === 'luxe' && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                        <div className="px-5 pb-5">
+                          <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-gray-400">Luxe finish <span className="normal-case tracking-normal">- same Luxe look, your metal</span></p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {LUXE_METAL_ORDER.map(m => {
+                              const mp = LUXE_METALS[m]
+                              const active = hubLuxeMetal === m
+                              return (
+                                <motion.button key={m} type="button" whileTap={{ scale: 0.95 }} onClick={() => handleHubLuxeMetal(m)}
+                                  className={`group relative flex items-center gap-2 overflow-hidden rounded-xl border px-3 py-2.5 text-left transition hover:-translate-y-0.5 ${active ? 'shadow-[0_10px_24px_-14px_rgba(0,0,0,.45)]' : 'border-gray-200 dark:border-white/10'}`}
+                                  style={active ? { borderColor: mp.base } : undefined}>
+                                  <span className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full ring-1 ring-black/10" style={{ background: `linear-gradient(135deg, ${mp.deep}, ${mp.base} 40%, ${mp.pale} 55%, ${mp.light} 70%, ${mp.deep})` }}>
+                                    <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/70 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                                  </span>
+                                  <span className="text-xs font-black text-[#111827] dark:text-white">{mp.label}</span>
+                                  {active && <motion.span layoutId="hub-metal-check" className="ml-auto flex h-4 w-4 items-center justify-center rounded-full text-white" style={{ background: mp.base }}><Check className="h-2.5 w-2.5" strokeWidth={3.5} /></motion.span>}
+                                </motion.button>
+                              )
+                            })}
+                          </div>
                         </div>
-                        <div>
-                          <h2 className="text-lg font-black tracking-tight dark:text-white">Agent Hub Layout</h2>
-                          <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Drag sections into the order visitors should see them on your public page, and use the toggle to show or hide each one.</p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <AnimatePresence initial={false}>
+                    {shownHubTheme === 'classic' && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                        <div className="px-5 pb-5">
+                          <p className="mb-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400"><Palette className="h-3.5 w-3.5" /> Classic color <span className="normal-case tracking-normal">- your buttons, headings and accents</span></p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {HUB_CLASSIC_ACCENTS.map(a => {
+                              const active = hubAccent.toLowerCase() === a.color.toLowerCase()
+                              return (
+                                <button
+                                  key={a.color}
+                                  type="button"
+                                  onClick={() => handleHubAccent(a.color)}
+                                  className={`relative h-8 w-8 shrink-0 rounded-full border-2 ring-1 ring-inset ring-black/10 transition hover:-translate-y-0.5 active:scale-95 ${active ? 'border-gray-900 dark:border-white' : 'border-transparent'}`}
+                                  style={{ backgroundColor: a.color }}
+                                  title={a.label}
+                                  aria-label={`${a.label}${active ? ' (selected)' : ''}`}
+                                >
+                                  {active && <Check className="absolute inset-0 m-auto h-3.5 w-3.5" strokeWidth={3.5} style={{ color: (hubAccentStyle(a.color) as Record<string, string>)['--hub-accent-ink'] }} />}
+                                </button>
+                              )
+                            })}
+                            <span className="ml-1 text-xs font-bold text-gray-500 dark:text-gray-400">{HUB_CLASSIC_ACCENTS.find(a => a.color.toLowerCase() === hubAccent.toLowerCase())?.label}</span>
+                          </div>
                         </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  {luxePeek && (
+                    <div className="px-5 pb-5">
+                      <LuxeUpgradePitch feature="Agent Hub Luxe" text="The live preview shows your hub in Luxe. Upgrade to IDX to publish it - visitors see Classic until then." />
+                    </div>
+                  )}
+                </HubCollapse>
+</div>
+)}</HubFold>
+                <HubFold id="layout-dark">{(open, toggle) => (
+<div className={hubCardClass(open)}>
+                  <HubPanelHead icon={visitorDarkMode ? Moon : Sun} kicker="Look" title="Light or dark" subtitle="What visitors see on your Agent Hub and Sales page. Changes go live right away." open={open} onToggle={toggle} />
+<HubCollapse open={open}>
+                  <div className="grid grid-cols-2 gap-3 p-5">
+                    {([false, true] as const).map(dark => {
+                      const on = visitorDarkMode === dark
+                      return (
+                        <button
+                          key={dark ? 'dark' : 'light'}
+                          type="button"
+                          onClick={() => handleVisitorDarkMode(dark)}
+                          aria-pressed={on}
+                          className={`group relative overflow-hidden rounded-2xl border-2 p-2.5 text-left transition-all duration-300 ${on ? 'border-[#C9A24D] shadow-[0_18px_36px_-24px_rgba(201,162,77,.9)]' : 'border-gray-200 hover:-translate-y-0.5 hover:border-[#C9A24D]/60 dark:border-white/10'}`}
+                        >
+                          <div className={`flex h-20 items-center justify-center gap-2 rounded-xl ${dark ? 'bg-[#0B0B0B]' : 'bg-[#f7f5f1]'}`}>
+                            <span className={`h-12 w-10 rounded-lg border ${dark ? 'border-white/10 bg-[#151517]' : 'border-gray-200 bg-white'}`}>
+                              <span className="mx-auto mt-1.5 block h-3.5 w-3.5 rounded-full border border-[#cdaa64] bg-gray-400" />
+                              <span className={`mx-auto mt-1.5 block h-1 w-6 rounded-full ${dark ? 'bg-white' : 'bg-[#111827]'}`} />
+                              <span className="mx-auto mt-1.5 block h-1.5 w-7 rounded" style={{ background: shownHubTheme === 'luxe' ? 'linear-gradient(90deg,#a8803a,#e8c97a)' : hubAccent }} />
+                            </span>
+                            <span className="space-y-1.5">
+                              <span className={`block h-6 w-14 rounded ${dark ? 'bg-white/10' : 'bg-gray-300'}`} />
+                              <span className={`block h-1.5 w-10 rounded-full ${dark ? 'bg-white/30' : 'bg-gray-400'}`} />
+                            </span>
+                          </div>
+                          <div className="mt-2.5 flex items-center gap-2 px-1">
+                            {dark ? <Moon className="h-4 w-4 text-gray-500" /> : <Sun className="h-4 w-4 text-gray-500" />}
+                            <p className="font-serif text-base font-black text-[#111827] dark:text-white">{dark ? 'Dark' : 'Light'}</p>
+                            {on && <Check className="ml-auto h-4 w-4 text-[#C9A24D]" />}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </HubCollapse>
+</div>
+)}</HubFold>
+                <HubFold id="layout-header">{(open, toggle) => (
+<div className={hubCardClass(open)}>
+                  <HubPanelHead icon={Smartphone} kicker="Look" title="Profile header" subtitle="How the top of your hub reads - on phones and on desktop." open={open} onToggle={toggle} />
+<HubCollapse open={open}>
+                  <div className="grid gap-3 p-5 sm:grid-cols-2">
+                    {HUB_MOBILE_HEADERS.map(h => {
+                      const on = mobileHeader === h.id
+                      const split = h.id === 'split'
+                      return (
+                        <button
+                          key={h.id}
+                          type="button"
+                          onClick={() => handleMobileHeader(h.id)}
+                          className={`group relative overflow-hidden rounded-2xl border-2 p-2.5 text-left transition-all duration-300 ${on ? 'border-[#C9A24D] shadow-[0_18px_36px_-24px_rgba(201,162,77,.9)]' : 'border-gray-200 hover:-translate-y-0.5 hover:border-[#C9A24D]/60 dark:border-white/10'}`}
+                        >
+                          <div className="flex h-24 items-center justify-center rounded-xl bg-[#f2efe8] dark:bg-white/[0.04]">
+                            <div className="w-[132px] rounded-lg border border-gray-200 bg-[#fbfaf7] p-2 shadow-sm dark:border-white/10 dark:bg-[#151517]">
+                              {split ? (
+                                <>
+                                  <div className="flex items-center gap-2">
+                                    <div className="min-w-0 flex-1 space-y-1">
+                                      <span className="block h-1 w-8 rounded-full bg-[#C9A24D]/70" />
+                                      <span className="block h-2 w-16 rounded bg-[#111827] dark:bg-white" />
+                                      <span className="block h-1 w-10 rounded-full bg-[#8b7355]/60" />
+                                      <span className="block h-1 w-12 rounded-full bg-gray-300 dark:bg-white/20" />
+                                    </div>
+                                    <span className="h-11 w-9 shrink-0 rounded-md border-2 border-[#cdaa64] bg-gray-300" />
+                                  </div>
+                                  <div className="mt-1.5 grid grid-cols-3 gap-1 border-t border-[#d8c08a]/50 pt-1.5">{[0, 1, 2].map(k => <span key={k} className="mx-auto block h-1.5 w-6 rounded bg-[#111827]/70 dark:bg-white/60" />)}</div>
+                                </>
+                              ) : (
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className="h-6 w-6 rounded-full border-2 border-[#cdaa64] bg-gray-300" />
+                                  <span className="block h-2 w-16 rounded bg-[#111827] dark:bg-white" />
+                                  <span className="block h-1 w-10 rounded-full bg-[#8b7355]/60" />
+                                  <div className="mt-0.5 grid w-full grid-cols-3 gap-1">{[0, 1, 2].map(k => <span key={k} className="h-3 rounded border border-gray-200 bg-white dark:border-white/10 dark:bg-white/5" />)}</div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="mt-2.5 flex items-center gap-2 px-1">
+                            <p className="font-serif text-base font-black text-[#111827] dark:text-white">{h.label}</p>
+                            {on && <Check className="ml-auto h-4 w-4 text-[#C9A24D]" />}
+                          </div>
+                          <p className="px-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400">{h.blurb}</p>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </HubCollapse>
+</div>
+)}</HubFold>
+                <HubFold id="layout-reviews">{(open, toggle) => (
+<div className={hubCardClass(open)}>
+                    <HubPanelHead icon={Star} kicker="Social proof" title="Reviews" subtitle="Your star rating and client reviews. Phones: where you put them in the order below. Computers: one short card under Schedule a Showing." open={open} onToggle={toggle} />
+<HubCollapse open={open}>
+                    <div className="space-y-4 border-t border-gray-100 p-5 dark:border-gray-800" data-testid="hub-reviews-settings">
+                      <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">
+                        {reviewsData ? (reviewsData.summary.count ? <><b>{reviewsData.summary.count}</b> review{reviewsData.summary.count === 1 ? '' : 's'}{reviewsData.summary.average != null ? <> · <b>{reviewsData.summary.average.toFixed(1)}</b> stars</> : null}</> : 'No reviews yet.') : 'Loading…'}
+                        {' '}<Link href="/studio/reviews" className="font-black text-[#8b7355] underline-offset-2 hover:underline dark:text-[#e8c97a]">Add, import or hide reviews →</Link>
+                      </p>
+                      <HubSwitchRow testId="hub-reviews-show" on={Boolean(reviewsData?.show_on_hub)} onClick={toggleReviewsOnHub}
+                        title="Show reviews on my Agent Hub" sub="Off hides the Reviews section, the computer card and the profile-card rating" />
+                      <HubSwitchRow testId="hub-reviews-min4" on={(reviewsData?.min_rating ?? 1) >= 4} onClick={toggleReviewsMinRating}
+                        title="Only show 4 and 5 star reviews" sub="Also on your IDX website. Your star rating counts only the reviews shown" />
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {([[true, 'One big card', 'Same size as Recent Sales, one review at a time'], [false, 'Two cards', 'Two whole cards side by side, swipe for more']] as const).map(([big, title, sub]) => (
+                          <button key={String(big)} type="button" onClick={() => { setReviewsCarousel(big); handleSaveAgentHubChanges({ reviewsCarousel: big }) }}
+                            className={`rounded-2xl border p-3.5 text-left transition ${reviewsCarousel === big ? 'border-[#C9A24D] bg-[#C9A24D]/10' : 'border-gray-200 bg-white hover:border-[#C9A24D]/60 dark:border-gray-700 dark:bg-[#0B0B0B]'}`}>
+                            <p className="text-sm font-black text-[#111827] dark:text-white">On phones: {title}</p>
+                            <p className="mt-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400">{sub}</p>
+                          </button>
+                        ))}
                       </div>
-                      <span className="rounded-xl border border-gray-200 p-3 text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                        <ChevronDown className={`h-5 w-5 transition ${isLayoutSectionsOpen ? 'rotate-180' : ''}`} />
-                      </span>
-                    </button>
+                      <button type="button" role="switch" aria-checked={reviewsAutoScroll} onClick={() => { setReviewsAutoScroll(!reviewsAutoScroll); handleSaveAgentHubChanges({ reviewsAutoScroll: !reviewsAutoScroll }) }}
+                        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 text-left dark:border-gray-700 dark:bg-[#0B0B0B]">
+                        <span><span className="block text-sm font-black text-[#111827] dark:text-white">Move on their own (phones)</span><span className="block text-xs font-semibold text-gray-500 dark:text-gray-400">Reviews take turns every few seconds (the computer card always does)</span></span>
+                        <span className={`relative h-5 w-9 shrink-0 rounded-full ${reviewsAutoScroll ? HUB_TOGGLE_ON : HUB_TOGGLE_OFF}`}><span className={`absolute top-1 h-3 w-3 rounded-full bg-white transition ${reviewsAutoScroll ? 'left-5' : 'left-1'}`} /></span>
+                      </button>
+                    </div>
+</HubCollapse>
+</div>
+)}</HubFold>
+                <HubFold id="layout-order">{(open, toggle) => (
+<div className={hubCardClass(open)}>
+                    <HubPanelHead icon={LayoutGrid} kicker="Page order" title="Agent Hub Layout" subtitle="Drag sections into the order visitors see them, and switch each one on or off." open={open} onToggle={toggle} />
+<HubCollapse open={open}>
 
-                    {isLayoutSectionsOpen && (
+                    <div>
                       <div className="space-y-3 border-t border-gray-100 p-5 dark:border-gray-800">
                         {layoutSections.map((section, index) => (
                           (() => {
-                            const hasContent = sectionHasContent(section.id, recentSales, videoLinks, houseTourLinks, houseTourUrl, effectiveBlogCards, myListings)
-                            const isShowing = section.visible && hasContent
+                            const isReviews = section.id === 'reviews'
+                            const hasContent = isReviews ? (shownReviewsData?.reviews.length ?? 0) > 0 : sectionHasContent(section.id, recentSales, videoLinks, houseTourLinks, houseTourUrl, effectiveBlogCards, myListings)
+                            const isShowing = isReviews ? Boolean(reviewsData?.show_on_hub) && hasContent : section.visible && hasContent
                             return (
                           <div
                             key={section.id}
@@ -2470,15 +3451,17 @@ function AgentHubContent() {
                             }}
                             className={`flex cursor-grab flex-row items-center gap-3 rounded-2xl border p-4 shadow-sm transition active:cursor-grabbing sm:flex-wrap ${
                               draggedSectionId === section.id
-                                ? 'border-[#C9A24D] bg-[#C9A24D]/10 shadow-md'
-                                : 'border-gray-200 bg-white hover:border-[#C9A24D]/60 hover:shadow-md dark:border-gray-700 dark:bg-[#0B0B0B]'
+                                ? 'border-gray-400 bg-gray-50 shadow-md dark:border-gray-600 dark:bg-[#151517]'
+                                : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md dark:border-gray-700 dark:bg-[#0B0B0B]'
                             }`}
                           >
                             <div className="flex min-w-0 flex-1 items-center gap-3">
                               <GripVertical className="h-5 w-5 shrink-0 text-gray-400" />
                               <div className="min-w-0 flex-1">
                                 <p className="font-black dark:text-white">{index + 1}. {section.label}</p>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">{hasContent ? (isShowing ? 'Showing on public page' : 'Hidden from public page') : 'Empty - toggled off until content is added'}</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">{isReviews && !hasContent
+                                  ? <>No reviews yet - <Link href="/studio/reviews" className="font-black text-[#8b7355] underline-offset-2 hover:underline dark:text-[#e8c97a]">add or import them</Link></>
+                                  : hasContent ? (isShowing ? (isReviews ? 'Showing - under Schedule a Showing on computers' : 'Showing on public page') : 'Hidden from public page') : 'Empty - toggled off until content is added'}</p>
                               </div>
                             </div>
                             <button
@@ -2486,14 +3469,14 @@ function AgentHubContent() {
                               disabled={!hasContent}
                               className={`flex w-auto shrink-0 items-center justify-center gap-2 rounded-full border px-3 py-2 text-xs font-black transition ${
                                 isShowing
-                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/10 dark:text-emerald-400'
+                                  ? 'border-gray-200 bg-white text-[#111827] dark:border-gray-700 dark:bg-[#151517] dark:text-white'
                                   : 'border-gray-200 bg-gray-100 text-gray-500 disabled:opacity-70 dark:border-gray-700 dark:bg-[#151517] dark:text-gray-400'
                               }`}
-                              aria-label={`${section.visible ? 'Hide' : 'Show'} ${section.label}`}
+                              aria-label={`${isShowing ? 'Hide' : 'Show'} ${section.label}`}
                               title={`${section.visible ? 'Hide' : 'Show'} ${section.label}`}
                             >
                               <span>{isShowing ? 'On' : 'Off'}</span>
-                              <span className={`relative h-5 w-9 shrink-0 rounded-full ${isShowing ? 'bg-emerald-500 dark:bg-emerald-400 dark:shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-gray-300 dark:bg-gray-700'}`}>
+                              <span className={`relative h-5 w-9 shrink-0 rounded-full ${isShowing ? HUB_TOGGLE_ON : HUB_TOGGLE_OFF}`}>
                                 <span className={`absolute top-1 h-3 w-3 rounded-full bg-white transition ${isShowing ? 'left-5' : 'left-1'}`} />
                               </span>
                             </button>
@@ -2502,14 +3485,19 @@ function AgentHubContent() {
                           })()
                         ))}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  </HubCollapse>
+</div>
+)}</HubFold>
+                </div>
+            )}
 
-                  <div className="space-y-4">
-                    {layoutSections.map(section => {
-                      if (section.id === 'sales') return <RecentSalesPanel key={section.id} reLicenseNumber={profile.licenseNumber} agentSales={recentSales} setAgentSales={setRecentSales} showStats={showSalesStats} setShowStats={setShowSalesStats} carousel={salesCarousel} setCarousel={setSalesCarousel} autoScroll={salesAutoScroll} setAutoScroll={setSalesAutoScroll} onChange={() => setSaveStatus('Unsaved Changes')} onSave={handleSaveAgentHubChanges} />
-                      if (section.id === 'listings') return <MyListingsPanel key={section.id} listings={myListings} setListings={setMyListings} carousel={listingsCarousel} setCarousel={setListingsCarousel} autoScroll={listingsAutoScroll} setAutoScroll={setListingsAutoScroll} onChange={() => setSaveStatus('Unsaved Changes')} onSave={handleSaveAgentHubChanges} />
-                      if (section.id === 'videos') return <VideoLinksPanel key={section.id} items={videoLinks} setItems={setVideoLinks} channelUrl={videoChannelUrl} setChannelUrl={setVideoChannelUrl} carousel={videosCarousel} setCarousel={setVideosCarousel} autoScroll={videosAutoScroll} setAutoScroll={setVideosAutoScroll} onChange={() => setSaveStatus('Unsaved Changes')} onSave={handleSaveAgentHubChanges} />
+            {HUB_TAB_SECTIONS[activeTab] && (
+                  <div className="space-y-5">
+                    {layoutSections.filter(section => HUB_TAB_SECTIONS[activeTab].includes(section.id)).map(section => {
+                      if (section.id === 'sales') return <RecentSalesPanel key={section.id} ready={agentHubDataReady} reLicenseNumber={profile.licenseNumber} agentSales={recentSales} setAgentSales={setRecentSales} showStats={showSalesStats} setShowStats={setShowSalesStats} carousel={salesCarousel} setCarousel={setSalesCarousel} autoScroll={salesAutoScroll} setAutoScroll={setSalesAutoScroll} minPrice={salesMinPrice} setMinPrice={setSalesMinPrice} onChange={() => setSaveStatus('Unsaved Changes')} onSave={handleSaveAgentHubChanges} />
+                      if (section.id === 'listings') return <MyListingsPanel key={section.id} ready={agentHubDataReady} listings={myListings} setListings={setMyListings} carousel={listingsCarousel} setCarousel={setListingsCarousel} autoScroll={listingsAutoScroll} setAutoScroll={setListingsAutoScroll} onChange={() => setSaveStatus('Unsaved Changes')} onSave={handleSaveAgentHubChanges} />
+                      if (section.id === 'videos') return <VideoLinksPanel key={section.id} autoSync={videoAutoSync} syncedAt={videoSyncedAt} onToggleAutoSync={handleToggleVideoAutoSync} items={videoLinks} setItems={setVideoLinks} channelUrl={videoChannelUrl} setChannelUrl={setVideoChannelUrl} carousel={videosCarousel} setCarousel={setVideosCarousel} autoScroll={videosAutoScroll} setAutoScroll={setVideosAutoScroll} onChange={() => setSaveStatus('Unsaved Changes')} onSave={handleSaveAgentHubChanges} />
                       if (section.id === 'tours') return <HouseToursPanel key={section.id} items={houseTourLinks} setItems={setHouseTourLinks} houseTourUrl={houseTourUrl} setHouseTourUrl={setHouseTourUrl} carousel={toursCarousel} setCarousel={setToursCarousel} autoScroll={toursAutoScroll} setAutoScroll={setToursAutoScroll} onSave={handleSaveAgentHubChanges} />
                       if (section.id === 'blogs') return (
                         <BlogCardsPanel
@@ -2531,85 +3519,81 @@ function AgentHubContent() {
                       return null
                     })}
                   </div>
-                </div>
             )}
 
-            {activeTab === 'Editor' && (
+            {(activeTab === 'Profile' || activeTab === 'Contact' || activeTab === 'Link') && (
               <div className="space-y-5">
-                  {editorGroups.map(group => {
-                    const isSectionOpen = openEditorSection === group.title
+                  {editorGroups.filter(group => (activeTab === 'Profile' ? group.title === 'Profile' : activeTab === 'Contact' && group.title !== 'Profile')).map(group => {
                     const theme = EDITOR_SECTION_THEME[group.title]
                     return (
-                    <div key={group.title} className={`overflow-hidden rounded-[1.75rem] border bg-white transition-all duration-300 dark:bg-[#151517] ${isSectionOpen ? `${theme.border} ${theme.shadow}` : 'border-gray-200 shadow-sm hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-800'}`}>
-                      <div className={`flex w-full items-center justify-between gap-3 bg-gradient-to-br p-5 text-left transition ${theme.wash}`}>
-                        <button
-                          onClick={() => setOpenEditorSection(isSectionOpen ? '' : group.title)}
-                          className="flex min-w-0 flex-1 items-center gap-4 text-left"
-                        >
-                          <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-inner ring-1 ${theme.iconChip} ${theme.ring}`}>
-                            <group.icon className="h-6 w-6" />
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-black tracking-tight dark:text-white">{group.title}</h3>
-                            <p className="mt-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400">{theme.subtitle}</p>
-                            <div className="mt-1.5 flex flex-wrap gap-2">
-                              <StatusPill status={getEditorSectionStatus(group.title)} />
-                            </div>
-                          </div>
-                        </button>
-                        <div className="flex shrink-0 items-center gap-2">
-                          {isSectionOpen && (
-                            <button
-                              onClick={() => handleSaveAgentHubChanges()}
-                              title="Save changes"
-                              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#111827] px-3.5 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827] dark:hover:bg-gray-200"
-                            >
-                              <Save className="h-3.5 w-3.5" /> Save
-                            </button>
-                          )}
+                    <HubFold key={group.title} id={`group-${group.title}`} alwaysOpen={group.title === 'Profile'}>{(open, toggle) => (
+<div className={hubCardClass(open)}>
+                      <HubPanelHead
+                        icon={group.icon}
+                        kicker={group.title === 'Profile' ? 'About you' : group.title === 'Contact' ? 'Reach me' : group.title === 'Social Links' ? 'Follow along' : 'Save Contact'}
+                        title={group.title}
+                        subtitle={theme.subtitle}
+                        status={<StatusPill status={getEditorSectionStatus(group.title)} />}
+                        action={
                           <button
-                            onClick={() => setOpenEditorSection(isSectionOpen ? '' : group.title)}
-                            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border bg-white px-4 py-2.5 text-xs font-black uppercase tracking-wide shadow-sm transition dark:bg-[#0B0B0B] dark:text-white ${isSectionOpen ? theme.border : 'border-gray-200 dark:border-gray-700'}`}
+                            onClick={() => handleSaveAgentHubChanges()}
+                            title="Save changes"
+                            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#111827] px-4 py-2.5 text-xs font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-black dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827]"
                           >
-                            {isSectionOpen ? 'Close' : 'Edit'}
-                            <ChevronDown className={`h-3.5 w-3.5 text-gray-400 transition ${isSectionOpen ? 'rotate-180' : ''}`} />
+                            <Save className="h-3.5 w-3.5" /> Save
                           </button>
-                        </div>
-                      </div>
-                      {openEditorSection === group.title && (
-                        <div className={`border-t bg-gradient-to-b p-5 dark:from-transparent ${theme.topBorder} from-[#fbfaf7]/50 to-transparent dark:border-gray-800`}>
+                        } open={open} onToggle={toggle} />
+<HubCollapse open={open}>
+                      <div>
+                        <div className="border-t border-gray-100 p-5 dark:border-gray-800">
                           {group.title === 'Social Links' && (
                             <SocialLinksEditor socialLinks={socialLinks} onChange={updateSocialLink} />
                           )}
-                          {group.title !== 'Social Links' && (
+                          {group.title === 'Contact Card' && (
+                            <div data-contact-card-editor>
+                              <ContactCardPanel fields={contactCard} onChange={updateContactCardField} source={contactCardSource} showPreview={false} />
+                            </div>
+                          )}
+                          {group.title !== 'Social Links' && group.title !== 'Contact Card' && (
                           <div className="grid gap-3 md:grid-cols-2">
                               {group.fields.map(([label, value]) => (
-                                <label key={label} className={`block ${label === 'Profile photo' ? 'md:col-span-2' : ''} ${label === 'About me' || label === 'RE License number' ? 'flex flex-col' : ''}`}>
+                                (() => { const FieldWrap = label === 'Profile photo' ? 'div' : 'label'; return (<FieldWrap key={label} className={`block ${label === 'About me' || label === 'Market or service area' ? 'md:col-span-2' : ''} ${label === 'Profile photo' || label === 'RE License number' ? 'flex flex-col' : ''}`}>
                                   <span className="flex items-center gap-1 text-xs font-black uppercase tracking-widest text-gray-400">
                                     {label}
-                                    {((group.title === 'Contact') || (group.title === 'Profile' && label !== 'About me')) && <span className="text-red-500">*</span>}
+                                    {((group.title === 'Contact') || (group.title === 'Profile' && label !== 'About me' && label !== 'Team name')) && <span className="text-red-500">*</span>}
                                     {label === 'RE License number' && (
                                       <span className="group relative inline-flex">
                                         <Info className="h-3.5 w-3.5 cursor-help text-gray-400" />
-                                        <span className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-48 -translate-x-1/2 rounded-lg bg-[#111827] px-3 py-2 text-center text-xs font-bold normal-case tracking-normal text-white shadow-lg group-hover:block">
-                                          This isn't shared publicly.
+                                        <span className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-56 -translate-x-1/2 rounded-lg bg-[#111827] px-3 py-2 text-center text-xs font-bold normal-case tracking-normal text-white shadow-lg group-hover:block">
+                                          This isn't shared publicly. Locked to match your MLS ID - contact support in Settings to change it.
                                         </span>
                                       </span>
                                     )}
                                   </span>
-                                  {label === 'Profile photo' ? (
-                                    <div className="mt-2 flex items-center gap-4 rounded-xl border border-gray-200 bg-[#fbfaf7] p-3 dark:border-gray-700 dark:bg-[#0B0B0B]">
+                                  {label === 'RE License number' ? (
+                                    <div className="mt-2 flex w-full flex-1 flex-col justify-center gap-1.5 rounded-xl border border-gray-200 bg-[#fbfaf7] px-4 py-3 dark:border-gray-700 dark:bg-[#0B0B0B]">
+                                      <span className="flex items-center justify-between gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
+                                        {getProfileFieldValue(label, value) ? <span>{getProfileFieldValue(label, value)}</span> : <Link href="/setup?step=license" className="font-black text-[#8b6a2b] underline-offset-2 hover:underline dark:text-[#e8c97a]">Not set - add it</Link>}
+                                        <Lock className="h-3.5 w-3.5 shrink-0 text-gray-300 dark:text-gray-600" />
+                                      </span>
+                                      <span className="text-xs font-semibold leading-snug text-gray-400 dark:text-gray-500">Private - never shown on your hub. It's how your closed sales are matched to you.</span>
+                                    </div>
+                                  ) : label === 'Profile photo' ? (
+                                    <div className="mt-2 flex flex-1 items-center gap-4 rounded-xl border border-gray-200 bg-[#fbfaf7] p-3 dark:border-gray-700 dark:bg-[#0B0B0B]">
                                       <DraggableAvatarPhoto url={profilePhotoUrl} position={profilePhotoPosition} onPositionChange={(pos) => { setProfilePhotoPosition(pos); setSaveStatus('Unsaved Changes') }} size={64} uploading={photoUploading} />
                                       <div className="min-w-0 flex-1">
                                         <p className="text-sm font-bold text-gray-700 dark:text-gray-300">Current profile photo</p>
                                         <p className="text-xs font-semibold text-gray-400">Drag the circle to reposition if it looks off-centered.</p>
-                                        <input
-                                          type="file"
-                                          accept="image/jpeg"
-                                          disabled={photoUploading}
-                                          onChange={(event) => handleProfilePhotoChange(event.target.files?.[0])}
-                                          className="mt-2 block w-full text-sm font-semibold file:mr-3 file:rounded-lg file:border-0 file:bg-[#111827] file:px-3 file:py-2 file:text-sm file:font-black file:text-white disabled:opacity-50 dark:text-gray-300 dark:file:bg-white dark:file:text-[#111827]"
-                                        />
+                                        <label className={`mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#111827] px-4 py-2 text-xs font-black text-white shadow-sm transition hover:-translate-y-0.5 dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827] ${photoUploading ? 'pointer-events-none opacity-50' : ''}`}>
+                                          <ImageIcon className="h-3.5 w-3.5 text-[#e8c97a] dark:text-[#111827]" /> Upload a new photo
+                                          <input
+                                            type="file"
+                                            accept="image/jpeg"
+                                            disabled={photoUploading}
+                                            onChange={(event) => handleProfilePhotoChange(event.target.files?.[0])}
+                                            className="sr-only"
+                                          />
+                                        </label>
                                         {photoUploading && <p className="mt-2 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading...</p>}
                                         {photoError && <p className="mt-2 text-xs font-bold text-red-600">{photoError}</p>}
                                       </div>
@@ -2619,68 +3603,70 @@ function AgentHubContent() {
                                       value={getProfileFieldValue(label, value)}
                                       onChange={(event) => updateProfileField(label, event.target.value)}
                                       placeholder="Add a short, helpful introduction for your public Agent Hub"
-                                      rows={5}
+                                      rows={4}
                                       className="mt-2 w-full flex-1 resize-none rounded-xl border border-gray-200 bg-[#fbfaf7] px-4 py-3 text-sm font-semibold leading-6 outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white"
                                     />
                                   ) : (
                                     <input
                                       value={group.title === 'Profile' ? getProfileFieldValue(label, value) : getContactFieldValue(label, value)}
                                       onChange={(event) => group.title === 'Profile' ? updateProfileField(label, event.target.value) : updateContactField(label, event.target.value)}
-                                      placeholder={group.title === 'Profile' && (label === 'Agent name' || label === 'Brokerage name') ? 'Filled from your account when available' : 'Add details'}
-                                      required={group.title === 'Contact' || (group.title === 'Profile' && label !== 'About me')}
+                                      placeholder={group.title === 'Profile' && (label === 'Agent name' || label === 'Brokerage name') ? 'Filled from your account when available' : label === 'Team name' ? 'Only if you are on a team' : 'Add details'}
+                                      required={group.title === 'Contact' || (group.title === 'Profile' && label !== 'About me' && label !== 'Team name')}
                                       className="mt-2 w-full rounded-xl border border-gray-200 bg-[#fbfaf7] px-4 py-3 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white"
                                     />
                                   )}
-                                  {label === 'RE License number' && (
-                                    <div className="mt-3 rounded-xl border border-gray-200 bg-[#fbfaf7] p-4 dark:border-gray-700 dark:bg-[#0B0B0B]">
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div className="min-w-0">
-                                          <label className="flex items-center gap-1 text-xs font-black uppercase tracking-widest text-gray-400">
-                                            Visitor dark mode
-                                            <span className="group relative inline-flex">
-                                              <Info className="h-3.5 w-3.5 cursor-help text-gray-400" />
-                                              <span className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-52 -translate-x-1/2 rounded-lg bg-[#111827] px-3 py-2 text-center text-xs font-bold normal-case tracking-normal text-white shadow-lg group-hover:block">
-                                                Makes the Agent Hub and sales page dark mode for that agent&apos;s visitors.
-                                              </span>
-                                            </span>
-                                          </label>
-                                          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Applies to the public hub and sales page for visitors.</p>
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setVisitorDarkMode(current => !current)
-                                            setSaveStatus('Unsaved Changes')
-                                          }}
-                                          className={`relative h-7 w-12 shrink-0 rounded-full transition ${visitorDarkMode ? 'bg-[#111827] dark:bg-white' : 'bg-gray-300 dark:bg-gray-700'}`}
-                                          aria-label={visitorDarkMode ? 'Turn off visitor dark mode' : 'Turn on visitor dark mode'}
-                                          title={visitorDarkMode ? 'Turn off visitor dark mode' : 'Turn on visitor dark mode'}
-                                        >
-                                          <span className={`absolute top-1 h-5 w-5 rounded-full transition ${visitorDarkMode ? 'left-6 bg-white dark:bg-[#111827]' : 'left-1 bg-white'}`} />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  )}
-                                </label>
+                                </FieldWrap>) })()
                               ))}
                           </div>
                           )}
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    </HubCollapse>
+</div>
+)}</HubFold>
                     )
                   })}
 
-                  <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-[#fbfaf3] p-5 shadow-sm dark:border-gray-800 dark:from-[#151517] dark:to-[#111113]">
+                  {activeTab === 'Profile' && (
+                    <HubFold id="profile-rating">{(open, toggle) => (
+<div className={hubCardClass(open)}>
+                      <HubPanelHead icon={Star} kicker="Social proof" title="Star Rating" subtitle="Your rating and a review pencil on your profile card - in the top corners (centered header, phones) or right under your photo (side-by-side header)." open={open} onToggle={toggle} />
+<HubCollapse open={open}>
+                      <div className="space-y-3 border-t border-gray-100 p-5 dark:border-gray-800" data-testid="hub-profile-rating-settings">
+                        {!(reviewsData?.show_on_hub && (shownReviewsData?.reviews.length ?? 0) > 0) && (
+                          <p className="rounded-xl bg-[#C9A24D]/10 px-3 py-2 text-xs font-semibold text-[#8b7355] dark:text-[#e8c97a]">
+                            {reviewsData?.show_on_hub ? 'Shows once you have a review.' : 'Reviews are off - switch them on in Layout → Reviews.'}
+                          </p>
+                        )}
+                        <HubSwitchRow testId="hub-profile-rating-toggle" on={reviewsOnProfile} onClick={() => { setReviewsOnProfile(!reviewsOnProfile); handleSaveAgentHubChanges({ reviewsOnProfile: !reviewsOnProfile }) }}
+                          title="Star rating on my profile card" sub="★ 4.9 (31) - tapping it jumps to your reviews" />
+                        <HubSwitchRow testId="hub-profile-review-toggle" on={reviewsProfileButton} onClick={() => { setReviewsProfileButton(!reviewsProfileButton); handleSaveAgentHubChanges({ reviewsProfileButton: !reviewsProfileButton }) }}
+                          title="Review button on my profile card" sub="Clients can leave you a review in one tap" />
+                      </div>
+</HubCollapse>
+</div>
+)}</HubFold>
+                  )}
+                  {activeTab === 'Link' && (
+                  <HubFold id="link">{(open, toggle) => (
+                  <div className="relative overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-gradient-to-br from-white to-[#fbf6ec] p-5 shadow-[0_18px_40px_-34px_rgba(139,115,85,.7)] dark:border-white/[0.08] dark:from-[#151517] dark:to-[#111113]">
+                    <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-[#C9A24D]/15 blur-3xl" />
                     <div className="relative flex items-center gap-3">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#111827] text-[#C9A24D] shadow-sm dark:bg-white dark:text-[#8b7355]">
+                      <button type="button" onClick={toggle} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                      <div className={HUB_ICON_TILE}>
                         <LinkIcon className="h-5 w-5" />
                       </div>
                       <div>
-                        <h2 className="text-lg font-black tracking-tight dark:text-white">Public URL</h2>
+                        <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#8b7355] dark:text-[#e8c97a]">Your link</p>
+                        <h2 className="font-serif text-xl font-black tracking-tight text-[#111827] dark:text-white">Public URL</h2>
                         <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Letters, numbers, and hyphens only. No spaces or unsupported symbols.</p>
                       </div>
+                      </button>
+                      <button type="button" onClick={toggle} className="shrink-0 rounded-xl border border-gray-200 bg-white p-3 text-gray-500 dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-gray-400" aria-label={`${open ? 'Collapse' : 'Expand'} Public URL`}>
+                        <ChevronDown className={`h-5 w-5 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
+                      </button>
                     </div>
+                    <HubCollapse open={open}>
 
                     <div className="relative mt-5">
                       <label className="text-sm font-black text-gray-700 dark:text-gray-300">Custom URL ending</label>
@@ -2743,16 +3729,20 @@ function AgentHubContent() {
                             <button onClick={() => window.open(agentHubWebsiteUrl, '_blank', 'noopener,noreferrer')} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Open website link" aria-label="Open website link">
                               <ExternalLink className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => { navigator.clipboard?.writeText(agentHubWebsiteUrl); setSlugMessage('Website URL copied.') }} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Copy website link" aria-label="Copy website link">
+                            <button onClick={() => { copyText(agentHubWebsiteUrl); setSlugMessage('Website URL copied.') }} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Copy website link" aria-label="Copy website link">
                               <Copy className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         </div>
                       )}
                     </div>
+                    </HubCollapse>
                   </div>
+                  )}</HubFold>
+                  )}
                 </div>
             )}
+            </HubPanelMemory.Provider>
 
             {activeTab === 'Preview' && (
               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -2787,7 +3777,7 @@ function AgentHubContent() {
                   </div>
                 </div>
                 <div className="mt-6 overflow-auto rounded-2xl bg-[#f2efe8] p-4">
-                  <PublicPreview size={previewSize} socialLinks={socialLinks} contact={contact} profilePhotoUrl={profilePhotoUrl} profilePhotoPosition={profilePhotoPosition} layoutSections={layoutSections} profile={profile} recentSales={recentSales} showSalesStats={showSalesStats} salesCarousel={salesCarousel} salesAutoScroll={salesAutoScroll} myListings={myListings} listingsCarousel={listingsCarousel} listingsAutoScroll={listingsAutoScroll} visitorDarkMode={visitorDarkMode} videosCarousel={videosCarousel} videosAutoScroll={videosAutoScroll} toursCarousel={toursCarousel} toursAutoScroll={toursAutoScroll} blogsCarousel={blogsCarousel} blogsAutoScroll={blogsAutoScroll} videoLinks={videoLinks} videoChannelUrl={videoChannelUrl} houseTourLinks={houseTourLinks} houseTourUrl={houseTourUrl} blogCards={effectiveBlogCards} agentForms={agentForms} agentHubPublicPath={agentHubPublicPath} />
+                  <PublicPreview size={previewSize} socialLinks={socialLinks} contact={contact} profilePhotoUrl={profilePhotoUrl} profilePhotoPosition={profilePhotoPosition} layoutSections={layoutSections} profile={profile} recentSales={recentSales} showSalesStats={showSalesStats} salesCarousel={salesCarousel} salesAutoScroll={salesAutoScroll} myListings={myListings} listingsCarousel={listingsCarousel} listingsAutoScroll={listingsAutoScroll} visitorDarkMode={visitorDarkMode} hubTheme={shownHubTheme} hubLuxeMetal={hubLuxeMetal} hubAccent={hubAccent} mobileHeader={mobileHeader} introNonce={hubIntroNonce} videosCarousel={videosCarousel} videosAutoScroll={videosAutoScroll} toursCarousel={toursCarousel} toursAutoScroll={toursAutoScroll} blogsCarousel={blogsCarousel} blogsAutoScroll={blogsAutoScroll} videoLinks={videoLinks} videoChannelUrl={videoChannelUrl} houseTourLinks={houseTourLinks} houseTourUrl={houseTourUrl} blogCards={effectiveBlogCards} agentForms={agentForms} agentHubPublicPath={agentHubPublicPath} reviewsData={shownReviewsData} reviewsCarousel={reviewsCarousel} reviewsAutoScroll={reviewsAutoScroll} reviewsOnProfile={reviewsOnProfile} reviewsProfileButton={reviewsProfileButton} />
                 </div>
               </div>
             )}
@@ -2795,24 +3785,88 @@ function AgentHubContent() {
               </AnimatePresence>
             </div>
 
-            <div className="sticky top-4 h-fit min-w-0 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
-              <div className="space-y-1">
-                <h2 className="text-xl font-black dark:text-white">Live public preview</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Updates as you edit profile, contact, and social links.</p>
+            {/* isolate: creates its own stacking context so nothing inside PublicPreview's own
+                mocked-up nav bar/overlays (which can carry a high z-index to sit above ITS OWN
+                scrolling preview content) can ever escape this box and paint over real page chrome
+                outside it - explicit ask: "the dropdown from tools always overlap anything on page
+                and have priority" but on the IDX/Site editor page the preview was winning instead. */}
+            <div data-hub-side-preview className="sticky top-4 z-0 isolate flex h-[min(820px,calc(100vh-2rem))] min-w-0 flex-col overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-white p-5 shadow-[0_26px_50px_-36px_rgba(139,115,85,.75)] dark:border-white/[0.08] dark:bg-[#151517]">
+              <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/70 to-transparent" />
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.28em] text-[#8b7355] dark:text-[#e8c97a]">
+                    <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" /><span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" /></span>
+                    Live preview
+                  </p>
+                  <h2 className="mt-1 font-serif text-xl font-black text-[#111827] dark:text-white">{sidePreview === 'contact' ? 'Your Contact Card' : 'Your Agent Hub'}</h2>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">{sidePreview === 'contact' ? 'What visitors save when they tap Save Contact.' : 'Updates as you edit - exactly what visitors see.'}</p>
+                </div>
+                <button onClick={handleOpenPublicPage} title="Open your public page" className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#C9A24D]/40 bg-[#fbf6ec] px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] transition hover:-translate-y-0.5 hover:border-[#C9A24D] dark:bg-white/[0.06] dark:text-[#e8c97a]">
+                  Open <ExternalLink className="h-3 w-3" />
+                </button>
               </div>
-              <div className="mt-4 overflow-hidden">
-                <PublicPreview size="mobile" compact socialLinks={socialLinks} contact={contact} profilePhotoUrl={profilePhotoUrl} profilePhotoPosition={profilePhotoPosition} layoutSections={layoutSections} profile={profile} recentSales={recentSales} showSalesStats={showSalesStats} salesCarousel={salesCarousel} salesAutoScroll={salesAutoScroll} myListings={myListings} listingsCarousel={listingsCarousel} listingsAutoScroll={listingsAutoScroll} visitorDarkMode={visitorDarkMode} videosCarousel={videosCarousel} videosAutoScroll={videosAutoScroll} toursCarousel={toursCarousel} toursAutoScroll={toursAutoScroll} blogsCarousel={blogsCarousel} blogsAutoScroll={blogsAutoScroll} videoLinks={videoLinks} videoChannelUrl={videoChannelUrl} houseTourLinks={houseTourLinks} houseTourUrl={houseTourUrl} blogCards={effectiveBlogCards} agentForms={agentForms} agentHubPublicPath={agentHubPublicPath} />
+              <div className="relative mt-3 flex rounded-full border border-[#C9A24D]/30 bg-[#fbf6ec] p-0.5 text-[10px] font-black uppercase tracking-widest dark:border-white/10 dark:bg-white/[0.04]">
+                {([['hub', 'Agent Hub'], ['contact', 'Contact Card']] as const).map(([id, label]) => (
+                  <button key={id} type="button" onClick={() => setSidePreview(id)} className={`relative flex-1 rounded-full px-3 py-1.5 transition-colors ${sidePreview === id ? 'text-white dark:text-[#111827]' : 'text-[#8b7355] hover:text-[#111827] dark:text-[#e8c97a]'}`}>
+                    {sidePreview === id && <motion.span layoutId="hub-side-preview-pill" className="absolute inset-0 rounded-full bg-[#111827] dark:bg-[#e8c97a]" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
+                    <span className="relative">{label}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="relative mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-[28px] [scrollbar-width:thin] [scrollbar-color:rgba(201,162,77,.45)_transparent]">
+                <AnimatePresence mode="wait" initial={false}>
+                  {sidePreview === 'contact' ? (
+                    <motion.div key="contact" initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="mx-auto max-w-[340px] py-2">
+                      <ContactCardPreview fields={contactCard} source={contactCardSource} />
+                    </motion.div>
+                  ) : (
+                    <motion.div key="hub" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
+                      <PublicPreview size="mobile" compact socialLinks={socialLinks} contact={contact} profilePhotoUrl={profilePhotoUrl} profilePhotoPosition={profilePhotoPosition} layoutSections={layoutSections} profile={profile} recentSales={recentSales} showSalesStats={showSalesStats} salesCarousel={salesCarousel} salesAutoScroll={salesAutoScroll} myListings={myListings} listingsCarousel={listingsCarousel} listingsAutoScroll={listingsAutoScroll} visitorDarkMode={visitorDarkMode} hubTheme={shownHubTheme} hubLuxeMetal={hubLuxeMetal} hubAccent={hubAccent} mobileHeader={mobileHeader} introNonce={hubIntroNonce} videosCarousel={videosCarousel} videosAutoScroll={videosAutoScroll} toursCarousel={toursCarousel} toursAutoScroll={toursAutoScroll} blogsCarousel={blogsCarousel} blogsAutoScroll={blogsAutoScroll} videoLinks={videoLinks} videoChannelUrl={videoChannelUrl} houseTourLinks={houseTourLinks} houseTourUrl={houseTourUrl} blogCards={effectiveBlogCards} agentForms={agentForms} agentHubPublicPath={agentHubPublicPath} reviewsData={shownReviewsData} reviewsCarousel={reviewsCarousel} reviewsAutoScroll={reviewsAutoScroll} reviewsOnProfile={reviewsOnProfile} reviewsProfileButton={reviewsProfileButton} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </div>
         )}
       </div>
 
+      <InboxWindow
+        isOpen={formsInboxOpen}
+        onClose={() => setFormsInboxOpen(false)}
+        title="Forms Inbox"
+        subtitle="Every response to your forms - newest first"
+        empty="No responses yet - they'll land here the moment someone fills out a form."
+        items={agentForms
+          .flatMap(form => (formSubmissionsByFormId[form.id] || []).map(submission => ({ form, submission })))
+          .sort((a, b) => new Date(b.submission.created_at).getTime() - new Date(a.submission.created_at).getTime())
+          .slice(0, 80)
+          .map(({ form, submission }) => ({
+            id: submission.id,
+            title: `${submission.contact_name || 'Anonymous'} · ${form.title || 'Form'}`,
+            subtitle: submission.property_address || submission.contact_email || submission.contact_phone || null,
+            at: submission.created_at,
+            unread: !submission.is_reviewed,
+            icon: FileText,
+            onOpen: () => { setFormsInboxOpen(false); openResults(form.id, submission.id) },
+          }))}
+        footer={openHouseRequestActionCount > 0 ? (
+          <button
+            onClick={() => { setFormsInboxOpen(false); setTimeout(() => document.getElementById('forms-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120) }}
+            className="flex w-full items-center justify-between rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-700 transition hover:border-red-300 dark:border-red-900/40 dark:bg-red-900/15 dark:text-red-300"
+          >
+            <span className="flex items-center gap-1.5"><Zap className="h-3.5 w-3.5" /> {openHouseRequestActionCount} Cheat Sheet request{openHouseRequestActionCount === 1 ? '' : 's'} waiting on you</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        ) : undefined}
+      />
+
       <FormResultsModal
         isOpen={Boolean(resultsModalFormId)}
-        onClose={() => setResultsModalFormId('')}
+        onClose={() => { setResultsModalFormId(''); setResultsFocusId('') }}
         form={agentForms.find(form => form.id === resultsModalFormId) || null}
         submissions={formSubmissionsByFormId[resultsModalFormId] || []}
+        initialSubmissionId={resultsFocusId || (searchParams.get('formId') === resultsModalFormId ? searchParams.get('submission') || undefined : undefined)}
         isLoading={Boolean(submissionsLoadingByFormId[resultsModalFormId])}
         onToggleReviewed={async (submissionId, isReviewed) => {
           // Update in place instead of refetching the whole list - a full refetch flips the
@@ -2830,6 +3884,7 @@ function AgentHubContent() {
               [formId]: (current[formId] || []).map(submission => submission.id === submissionId ? { ...submission, is_reviewed: !isReviewed } : submission),
             }))
           }
+          refreshFormsActionCount()
         }}
         onDeleteSubmission={(submission) => setDeleteSubmissionTarget(submission)}
       />
@@ -2842,7 +3897,39 @@ function AgentHubContent() {
         />
       )}
 
+      <AnimatePresence>
+      {campaignsModalFormId && (() => {
+        const campaignsModalForm = agentForms.find(form => form.id === campaignsModalFormId)
+        if (!campaignsModalForm) return null
+        return (
+          <FormCampaignsModal
+            key={`campaigns-${campaignsModalForm.id}`}
+            form={campaignsModalForm}
+            initialView={searchParams.get('view') === 'unfinished' && searchParams.get('formId') === campaignsModalForm.id ? 'unfinished' : undefined}
+            onClose={() => setCampaignsModalFormId('')}
+            onReviewedChange={(submissionId, isReviewed) => {
+              // Keep this page's copy in step, so the card's red count drops the moment it's
+              // marked - not on the next reload.
+              setFormSubmissionsByFormId(current => ({
+                ...current,
+                [campaignsModalForm.id]: (current[campaignsModalForm.id] || []).map(submission => submission.id === submissionId ? { ...submission, is_reviewed: isReviewed } : submission),
+              }))
+            }}
+            onEdit={() => {
+              setCampaignsModalFormId('')
+              setFormEditorOpenId(campaignsModalForm.id)
+              setIsBuilderOpen(true)
+            }}
+            onDuplicate={() => { setCampaignsModalFormId(''); handleDuplicateForm(campaignsModalForm) }}
+          />
+        )
+      })()}
+      </AnimatePresence>
+
+      <AnimatePresence>
+      {isBuilderOpen && (
       <FormBuilderModal
+        key="form-builder"
         isOpen={isBuilderOpen}
         form={agentForms.find(form => form.id === formEditorOpenId) || null}
         onClose={handleRequestCloseFormBuilder}
@@ -2872,6 +3959,8 @@ function AgentHubContent() {
           agentMarket: profile.market,
         }}
       />
+      )}
+      </AnimatePresence>
 
       <WarningConfirmModal
         isOpen={Boolean(pendingDiscardFormId)}
@@ -2934,9 +4023,10 @@ function AgentHubContent() {
         if (!themeEditForm) return null
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-[#151517]">
+            <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-[#151517]">
               <p className="text-lg font-black tracking-tight text-[#111827] dark:text-white">{themeEditForm.title} Theme</p>
               <p className="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400">Its questions are locked so the automation behind it always works, but you can still change its color and dark mode.</p>
+              <div className="mt-4"><ShowcaseFormInfoBlock formType={themeEditForm.form_type} compact /></div>
 
               <label className="mt-5 block">
                 <span className="text-xs font-black uppercase tracking-widest text-gray-400">Accent color</span>
@@ -3042,54 +4132,7 @@ function AgentHubContent() {
   )
 }
 
-function FormQrCode({ url, size = 168, onDownloadReady }: { url: string; size?: number; onDownloadReady?: (fn: () => void) => void }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const compact = size < 100
-
-  useEffect(() => {
-    if (!canvasRef.current) return
-    const qrUrl = `${url}${url.includes('?') ? '&' : '?'}src=qr`
-    QRCode.toCanvas(canvasRef.current, qrUrl, { width: size, margin: 1, color: { dark: '#111827', light: '#ffffff' } }).catch(() => {})
-  }, [url, size])
-
-  const handleDownload = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    canvas.toBlob((blob) => {
-      if (!blob) return
-      const objectUrl = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = objectUrl
-      link.download = 'form-qr-code.png'
-      link.click()
-      URL.revokeObjectURL(objectUrl)
-    })
-  }
-
-  useEffect(() => {
-    onDownloadReady?.(handleDownload)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onDownloadReady])
-
-  if (compact) {
-    return (
-      <div className="shrink-0 rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-white">
-        <canvas ref={canvasRef} className="rounded" />
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border border-gray-200 bg-[#fbfaf7] p-4">
-      <canvas ref={canvasRef} className="rounded-lg" />
-      <button onClick={handleDownload} className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-black">
-        <Download className="h-4 w-4" /> Download QR
-      </button>
-    </div>
-  )
-}
-
-function VideoLinksPanel({ items, setItems, channelUrl, setChannelUrl, carousel, setCarousel, autoScroll, setAutoScroll, onChange, onSave }: { items: HubItem[]; setItems: React.Dispatch<React.SetStateAction<HubItem[]>>; channelUrl: string; setChannelUrl: React.Dispatch<React.SetStateAction<string>>; carousel: boolean; setCarousel: React.Dispatch<React.SetStateAction<boolean>>; autoScroll: boolean; setAutoScroll: React.Dispatch<React.SetStateAction<boolean>>; onChange: () => void; onSave: (overrides?: Partial<Pick<SavedAgentHubData, 'videoLinks' | 'videoChannelUrl' | 'videosCarousel' | 'videosAutoScroll'>>) => void }) {
+function VideoLinksPanel({ items, setItems, channelUrl, setChannelUrl, carousel, setCarousel, autoScroll, setAutoScroll, onChange, onSave, autoSync = true, syncedAt, onToggleAutoSync }: { autoSync?: boolean; syncedAt?: string | null; onToggleAutoSync?: (next: boolean) => void; items: HubItem[]; setItems: React.Dispatch<React.SetStateAction<HubItem[]>>; channelUrl: string; setChannelUrl: React.Dispatch<React.SetStateAction<string>>; carousel: boolean; setCarousel: React.Dispatch<React.SetStateAction<boolean>>; autoScroll: boolean; setAutoScroll: React.Dispatch<React.SetStateAction<boolean>>; onChange: () => void; onSave: (overrides?: Partial<Pick<SavedAgentHubData, 'videoLinks' | 'videoChannelUrl' | 'videosCarousel' | 'videosAutoScroll'>>) => void }) {
   const [isLoadingChannel, setIsLoadingChannel] = useState(false)
   const [channelMessage, setChannelMessage] = useState('')
   const [draftChannelUrl, setDraftChannelUrl] = useState(channelUrl)
@@ -3122,7 +4165,15 @@ function VideoLinksPanel({ items, setItems, channelUrl, setChannelUrl, carousel,
 
   const finishDraggingItem = () => {
     setDraggedItemId(null)
-    onSave({ videoLinks: items, videoChannelUrl: channelUrl })
+    const ordered = pinnedFirst(items)
+    setItems(ordered)
+    onSave({ videoLinks: ordered, videoChannelUrl: channelUrl })
+  }
+
+  const togglePinned = (id: string) => {
+    const nextItems = pinnedFirst(items.map(item => item.id === id ? { ...item, pinned: !item.pinned } : item))
+    setItems(nextItems)
+    onSave({ videoLinks: nextItems, videoChannelUrl: channelUrl })
   }
 
   useEffect(() => {
@@ -3172,8 +4223,11 @@ function VideoLinksPanel({ items, setItems, channelUrl, setChannelUrl, carousel,
     setChannelMessage('')
     const response = await api.agentHub.getYoutubeChannelVideos(draftChannelUrl)
     if (response.success && response.data?.videos?.length) {
-      setItems(response.data.videos)
-      onSave({ videoLinks: response.data.videos, videoChannelUrl: draftChannelUrl })
+      // Favourites stay on top; the channel's newest uploads fill in after them.
+      const pins = items.filter(item => item.pinned)
+      const loaded = [...pins, ...response.data.videos.filter((v: HubItem) => !pins.some(p => p.link === v.link))]
+      setItems(loaded)
+      onSave({ videoLinks: loaded, videoChannelUrl: draftChannelUrl })
       setSavedChannelUrl(draftChannelUrl)
       setChannelLoaded(true)
       setChannelMessage(`Loaded ${response.data.videos.length} recent videos.`)
@@ -3190,11 +4244,8 @@ function VideoLinksPanel({ items, setItems, channelUrl, setChannelUrl, carousel,
       action="Add Video"
       count={`${items.filter(item => item.link?.trim()).length} videos`}
       icon={Video}
-      accent="bg-gradient-to-br from-rose-500/30 to-rose-500/10 text-rose-700 dark:text-rose-400"
-      wash="from-rose-500/10 via-white to-white dark:from-rose-500/10 dark:via-[#151517] dark:to-[#151517]"
-      ring="ring-rose-500/30"
-      openBorder="border-rose-400/50"
-      openShadow="shadow-[0_18px_44px_-18px_rgba(244,63,94,0.45)]"
+      noun="video"
+      settingsIntro="Choose how your videos appear on your public Agent Hub."
       onAdd={addVideo}
       summary="Connect a YouTube channel and paste individual YouTube links."
       carousel={carousel}
@@ -3202,7 +4253,7 @@ function VideoLinksPanel({ items, setItems, channelUrl, setChannelUrl, carousel,
       autoScroll={autoScroll}
       onToggleAutoScroll={() => { setAutoScroll(current => !current); onSave({ videosAutoScroll: !autoScroll, videoLinks: items, videoChannelUrl: channelUrl }); onChange() }}
     >
-      <div className={`rounded-2xl border bg-white p-4 shadow-sm ${channelIsSaved ? 'border-emerald-200' : 'border-red-100'}`}>
+      <div className={`rounded-2xl border bg-white p-4 shadow-sm border-gray-200 dark:border-gray-700`}>
         <label className="block">
           <span className="text-xs font-black uppercase tracking-widest text-gray-400">YouTube channel link</span>
           <input value={draftChannelUrl} onChange={event => setDraftChannelUrl(event.target.value)} placeholder="https://www.youtube.com/@example" className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#C9A24D]" />
@@ -3216,6 +4267,16 @@ function VideoLinksPanel({ items, setItems, channelUrl, setChannelUrl, carousel,
           </button>
         </div>
         {channelMessage && <p className="mt-3 text-sm font-bold text-gray-600">{channelMessage}</p>}
+        {onToggleAutoSync && (
+          <div className="mt-3">
+            <SettingToggleRow
+              label="Auto-update from channel"
+              hint={`New uploads from your channel appear here on their own, checked once a day, after your starred favorites. Videos you add by hand stay.${autoSync && syncedAt ? ` Last checked ${new Date(syncedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.` : ''}`}
+              checked={autoSync}
+              onChange={onToggleAutoSync}
+            />
+          </div>
+        )}
       </div>
       <div className="pt-2 text-xs font-black uppercase tracking-widest text-gray-400">Video links</div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -3244,10 +4305,14 @@ function VideoLinksPanel({ items, setItems, channelUrl, setChannelUrl, carousel,
                 <span className="shrink-0 text-[11px] font-black uppercase tracking-widest text-gray-400">Link:</span>
                 <input value={item.link || ''} onChange={event => updateVideoLink(item.id, event.target.value)} onPaste={event => { const pasted = event.clipboardData.getData('text'); if (pasted) setTimeout(() => updateVideoLink(item.id, pasted), 0) }} placeholder="https://youtube.com/watch?v=..." className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-[#C9A24D]" />
               </div>
-              <button onClick={() => deleteVideo(item.id)} className="w-full rounded-xl border border-red-200 bg-white py-2 text-sm font-black text-red-600">
-                <Trash2 className="inline h-4 w-4" /> Delete
-              </button>
+              <div className="flex gap-2">
+                <PinButton pinned={!!item.pinned} onClick={() => togglePinned(item.id)} />
+                <button onClick={() => deleteVideo(item.id)} className="flex-1 rounded-xl border border-red-200 bg-white py-2 text-sm font-black text-red-600">
+                  <Trash2 className="inline h-4 w-4" /> Delete
+                </button>
+              </div>
             </div>
+            {item.pinned && <span className="pointer-events-none absolute right-2 top-10 inline-flex items-center gap-1 rounded-full bg-[#111827]/85 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-[#e8c97a]"><Star className="h-3 w-3 fill-current" /> Always first</span>}
           </motion.div>
           )
         })}
@@ -3256,8 +4321,23 @@ function VideoLinksPanel({ items, setItems, channelUrl, setChannelUrl, carousel,
   )
 }
 
+// Star a video or house tour: it always shows first on the Agent Hub (and the IDX Media page).
+function PinButton({ pinned, onClick }: { pinned: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={pinned ? 'Remove from favorites' : 'Favorite - always show first'}
+      aria-label={pinned ? 'Remove from favorites' : 'Favorite - always show first'}
+      aria-pressed={pinned}
+      className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition ${pinned ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355]' : 'border-gray-200 bg-white text-gray-500 hover:border-[#C9A24D]/60 dark:border-gray-700 dark:bg-[#151517]'}`}
+    >
+      <Star className={`h-3.5 w-3.5 ${pinned ? 'fill-current' : ''}`} /> Favorite
+    </button>
+  )
+}
+
 function HouseToursPanel({ items, setItems, houseTourUrl, setHouseTourUrl, carousel, setCarousel, autoScroll, setAutoScroll, onSave }: { items: HubItem[]; setItems: React.Dispatch<React.SetStateAction<HubItem[]>>; houseTourUrl: string; setHouseTourUrl: React.Dispatch<React.SetStateAction<string>>; carousel: boolean; setCarousel: React.Dispatch<React.SetStateAction<boolean>>; autoScroll: boolean; setAutoScroll: React.Dispatch<React.SetStateAction<boolean>>; onSave: (overrides?: Partial<Pick<SavedAgentHubData, 'houseTourLinks' | 'houseTourUrl' | 'toursCarousel' | 'toursAutoScroll'>>) => void }) {
-  const [isOpen, setIsOpen] = useState(false)
   const [draftHouseTourUrl, setDraftHouseTourUrl] = useState(houseTourUrl)
   const [savedHouseTourUrl, setSavedHouseTourUrl] = useState(houseTourUrl)
   const houseTourIsSaved = Boolean(draftHouseTourUrl.trim()) && draftHouseTourUrl.trim() === savedHouseTourUrl.trim()
@@ -3305,13 +4385,18 @@ function HouseToursPanel({ items, setItems, houseTourUrl, setHouseTourUrl, carou
 
   const finishDraggingItem = () => {
     setDraggedItemId(null)
-    onSave({ houseTourLinks: items, houseTourUrl })
+    const ordered = pinnedFirst(items)
+    setItems(ordered)
+    onSave({ houseTourLinks: ordered, houseTourUrl })
+  }
+
+  const togglePinned = (id: string) => {
+    saveItems(pinnedFirst(items.map(item => item.id === id ? { ...item, pinned: !item.pinned } : item)))
   }
 
   const addTour = () => {
     const newId = `tour-${Date.now()}`
     saveItems([...items, { id: newId, title: 'House Tour', link: '' }])
-    setIsOpen(true)
     setNewestItemId(newId)
   }
 
@@ -3337,10 +4422,12 @@ function HouseToursPanel({ items, setItems, houseTourUrl, setHouseTourUrl, carou
     setPlaylistMessage('')
     const response = await api.agentHub.getYoutubePlaylistVideos(draftHouseTourUrl)
     if (response.success && response.data?.videos?.length) {
-      setItems(response.data.videos)
+      const pins = items.filter(item => item.pinned)
+      const loaded = [...pins, ...response.data.videos.filter((v: HubItem) => !pins.some(p => p.link === v.link))]
+      setItems(loaded)
       setHouseTourUrl(draftHouseTourUrl)
       setSavedHouseTourUrl(draftHouseTourUrl)
-      onSave({ houseTourLinks: response.data.videos, houseTourUrl: draftHouseTourUrl })
+      onSave({ houseTourLinks: loaded, houseTourUrl: draftHouseTourUrl })
       setPlaylistMessage(`Loaded ${response.data.videos.length} recent tours.`)
     } else {
       setPlaylistMessage(response.error || 'Could not load videos from this playlist.')
@@ -3349,65 +4436,21 @@ function HouseToursPanel({ items, setItems, houseTourUrl, setHouseTourUrl, carou
   }
 
   return (
-    <section className={`overflow-hidden rounded-[1.75rem] border bg-white transition-all duration-300 dark:bg-[#151517] ${isOpen ? 'border-sky-400/50 shadow-[0_18px_44px_-18px_rgba(14,165,233,0.45)]' : 'border-gray-200 shadow-sm hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-800'}`}>
-      <div className="grid w-full grid-cols-[1fr_auto] items-start gap-4 bg-gradient-to-br from-sky-500/10 via-white to-white p-5 dark:from-sky-500/10 dark:via-[#151517] dark:to-[#151517]">
-        <button onClick={() => setIsOpen(!isOpen)} className="flex min-w-0 flex-1 items-start gap-4 text-left">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500/30 to-sky-500/10 text-sky-700 shadow-inner ring-1 ring-sky-500/30 dark:text-sky-400">
-            <Play className="h-6 w-6" />
-          </span>
-          <div className="min-w-0">
-            <h3 className="text-xl font-black dark:text-white">House Tours</h3>
-            <p className="mt-2 text-sm font-semibold text-gray-500 dark:text-gray-400">Paste individual YouTube tour links.</p>
-          </div>
-        </button>
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-black text-gray-600 dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-gray-300">{visibleItems.length} tours</span>
-          {isOpen && (
-            <button onClick={addTour} className="hidden items-center gap-2 rounded-xl bg-[#111827] px-4 py-3 text-sm font-black text-white dark:bg-white dark:text-[#111827] sm:inline-flex">
-              <Plus className="h-4 w-4" /> Add Tour
-            </button>
-          )}
-          <button onClick={() => setIsOpen(!isOpen)} className="rounded-xl border border-gray-200 bg-white p-3 text-gray-500 dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-gray-400" aria-label={`${isOpen ? 'Collapse' : 'Expand'} House Tours`}>
-            <ChevronDown className={`h-5 w-5 transition ${isOpen ? 'rotate-180' : ''}`} />
-          </button>
-        </div>
-      </div>
-      {isOpen && (
-        <div className="space-y-3 border-t border-gray-100 bg-[#fbfaf7] p-5">
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-            <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
-              <button type="button" className="text-gray-400" title="Auto-swipes through one large tour at a time instead of a scrolling row. Mobile view only.">
-                <Info className="h-4 w-4" />
-              </button>
-              <span className="text-xs font-black uppercase tracking-widest text-gray-500">Carousel view</span>
-              <button
-                onClick={() => { setCarousel(current => !current); onSave({ toursCarousel: !carousel, houseTourLinks: items, houseTourUrl }) }}
-                className={`relative h-6 w-11 rounded-full transition ${carousel ? 'bg-emerald-500 dark:bg-emerald-400 dark:shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-gray-300 dark:bg-gray-600'}`}
-                aria-label={carousel ? 'Turn off carousel view' : 'Turn on carousel view'}
-                title={carousel ? 'Turn off carousel view' : 'Turn on carousel view'}
-              >
-                <span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition ${carousel ? 'left-6' : 'left-1'}`} />
-              </button>
-            </div>
-            <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
-              <button type="button" className="text-gray-400" title="Auto scrolls through sales, my videos, tours and blogs if at least 5 are linked.">
-                <Info className="h-4 w-4" />
-              </button>
-              <span className="text-xs font-black uppercase tracking-widest text-gray-500">Auto scroll</span>
-              <button
-                onClick={() => { setAutoScroll(current => !current); onSave({ toursAutoScroll: !autoScroll, houseTourLinks: items, houseTourUrl }) }}
-                className={`relative h-6 w-11 rounded-full transition ${autoScroll ? 'bg-emerald-500 dark:bg-emerald-400 dark:shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-gray-300 dark:bg-gray-600'}`}
-                aria-label={autoScroll ? 'Turn off auto scroll' : 'Turn on auto scroll'}
-                title={autoScroll ? 'Turn off auto scroll' : 'Turn on auto scroll'}
-              >
-                <span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition ${autoScroll ? 'left-6' : 'left-1'}`} />
-              </button>
-            </div>
-            <button onClick={addTour} className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-4 py-3 text-sm font-black text-white sm:hidden">
-              <Plus className="h-4 w-4" /> Add Tour
-            </button>
-          </div>
-          <div className={`rounded-2xl border bg-white p-4 shadow-sm ${houseTourIsSaved ? 'border-emerald-200' : 'border-[#C9A24D]/30'}`}>
+    <EditableContentPanel
+      title="House Tours"
+      action="Add Tour"
+      count={`${visibleItems.length} tours`}
+      icon={Play}
+      noun="tour"
+      settingsIntro="Choose how your house tours appear on your public Agent Hub."
+      onAdd={addTour}
+      summary="Paste individual YouTube tour links."
+      carousel={carousel}
+      onToggleCarousel={() => { setCarousel(current => !current); onSave({ toursCarousel: !carousel, houseTourLinks: items, houseTourUrl }) }}
+      autoScroll={autoScroll}
+      onToggleAutoScroll={() => { setAutoScroll(current => !current); onSave({ toursAutoScroll: !autoScroll, houseTourLinks: items, houseTourUrl }) }}
+    >
+          <div className={`rounded-2xl border bg-white p-4 shadow-sm border-gray-200 dark:border-gray-700`}>
             <label className="block">
               <span className="text-xs font-black uppercase tracking-widest text-gray-400">Home Tour Playlist Link</span>
               <input
@@ -3454,17 +4497,19 @@ function HouseToursPanel({ items, setItems, houseTourUrl, setHouseTourUrl, carou
                     <span className="shrink-0 text-[11px] font-black uppercase tracking-widest text-gray-400">Link:</span>
                     <input value={item.link || ''} onChange={event => updateTourLink(item.id, event.target.value)} placeholder="https://youtube.com/watch?v=..." className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-[#C9A24D]" />
                   </div>
-                  <button onClick={() => deleteTour(item.id)} className="w-full rounded-xl border border-red-200 bg-white py-2 text-sm font-black text-red-600">
-                    <Trash2 className="inline h-4 w-4" /> Delete
-                  </button>
+                  <div className="flex gap-2">
+                    <PinButton pinned={!!item.pinned} onClick={() => togglePinned(item.id)} />
+                    <button onClick={() => deleteTour(item.id)} className="flex-1 rounded-xl border border-red-200 bg-white py-2 text-sm font-black text-red-600">
+                      <Trash2 className="inline h-4 w-4" /> Delete
+                    </button>
+                  </div>
                 </div>
+                {item.pinned && <span className="pointer-events-none absolute right-2 top-10 inline-flex items-center gap-1 rounded-full bg-[#111827]/85 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-[#e8c97a]"><Star className="h-3 w-3 fill-current" /> Always first</span>}
               </motion.div>
               )
             })}
           </div>
-        </div>
-      )}
-    </section>
+    </EditableContentPanel>
   )
 }
 
@@ -3557,11 +4602,8 @@ function BlogCardsPanel({ items, setItems, carousel, setCarousel, autoScroll, se
       action="Add Blog"
       count={`${totalCount} blog${totalCount === 1 ? '' : 's'}`}
       icon={BookOpen}
-      accent="bg-gradient-to-br from-[#C9A24D]/30 to-[#C9A24D]/10 text-[#8b7355]"
-      wash="from-[#C9A24D]/12 via-white to-white dark:from-[#C9A24D]/10 dark:via-[#151517] dark:to-[#151517]"
-      ring="ring-[#C9A24D]/30"
-      openBorder="border-[#C9A24D]/50"
-      openShadow="shadow-[0_18px_44px_-18px_rgba(201,162,77,0.45)]"
+      noun="article"
+      settingsIntro="Choose how your blogs appear on your public Agent Hub."
       onAdd={addBlog}
       summary="Articles you publish in Studio show up here automatically. You can also paste a manual blog link below."
       carousel={carousel}
@@ -3574,9 +4616,11 @@ function BlogCardsPanel({ items, setItems, carousel, setCarousel, autoScroll, se
         <div className="space-y-2">
           <p className="px-1 text-[10px] font-black uppercase tracking-widest text-gray-400">From Studio · auto-synced</p>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {studioBlogs.map(blog => (
-              <div key={blog.id} className={blog.agent_hub_visible ? '' : 'opacity-60'}>
-                <BlogCard title={blog.title} subtitle={blog.subtitle} category={blog.category} publishedAt={blog.published_at} viewCount={blog.view_count} />
+            {[...studioBlogs].sort((a, b) => (b.agent_hub_featured ? 1 : 0) - (a.agent_hub_featured ? 1 : 0)).map(blog => (
+              // A column: the card fills what's left of the row height, the buttons sit under it (the
+              // card used to take the whole cell, pushing its buttons under the next row's cards).
+              <div key={blog.id} className={`flex flex-col ${blog.agent_hub_visible ? '' : 'opacity-60'}`}>
+                <div className="flex-1"><BlogCard title={blog.title} subtitle={blog.subtitle} category={blog.category} publishedAt={blog.published_at} viewCount={blog.view_count} /></div>
                 <div className="mt-2 flex items-center gap-2">
                   <button
                     onClick={() => onToggleStudioBlogVisible(blog.id)}
@@ -3584,13 +4628,7 @@ function BlogCardsPanel({ items, setItems, carousel, setCarousel, autoScroll, se
                   >
                     {blog.agent_hub_visible ? <><EyeOff className="h-3.5 w-3.5" /> Hide</> : <><Eye className="h-3.5 w-3.5" /> Show</>}
                   </button>
-                  <button
-                    onClick={() => onToggleStudioBlogFeatured(blog.id)}
-                    title={blog.agent_hub_featured ? 'Remove featured' : 'Mark featured'}
-                    className={`rounded-xl border px-3 py-2 ${blog.agent_hub_featured ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355]' : 'border-gray-200 bg-white text-gray-400 dark:border-gray-700 dark:bg-[#151517]'}`}
-                  >
-                    <Star className={`h-3.5 w-3.5 ${blog.agent_hub_featured ? 'fill-current' : ''}`} />
-                  </button>
+                  <PinButton pinned={!!blog.agent_hub_featured} onClick={() => onToggleStudioBlogFeatured(blog.id)} />
                 </div>
                 <Link href={`/studio/blogs/${blog.id}`} className="mt-1.5 block text-center text-[11px] font-black text-[#8b7355] hover:underline dark:text-[#d7b974]">Manage in Studio</Link>
               </div>
@@ -3624,7 +4662,7 @@ function BlogCardsPanel({ items, setItems, carousel, setCarousel, autoScroll, se
               <span className="text-[10px] font-black uppercase tracking-widest">Drag to reorder</span>
             </div>
             <div className="p-4">
-              <div className="aspect-video w-full rounded-xl bg-cover bg-center" style={{ backgroundImage: `url(${item.image || '/placeholder.jpg'})` }} />
+              <div className="aspect-video w-full rounded-xl bg-cover bg-center" style={{ backgroundImage: item.image ? `url(${item.image})` : 'radial-gradient(120% 120% at 100% 0%, rgba(201,162,77,.45), transparent 55%), linear-gradient(135deg, #111827, #2a2218)' }} />
               <div className="mt-3 space-y-3">
                 <input value={item.title} onChange={event => updateItem(item.id, { title: event.target.value })} placeholder="Blog title" className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#C9A24D]" />
                 <input value={item.link || ''} onChange={event => updateItem(item.id, { link: event.target.value })} onBlur={event => loadBlogPreview(item.id, event.target.value)} placeholder="Paste blog link" className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#C9A24D]" />
@@ -3645,69 +4683,59 @@ function BlogCardsPanel({ items, setItems, carousel, setCarousel, autoScroll, se
   )
 }
 
-function EditableContentPanel({ title, action, count, icon: Icon, accent, wash, ring, openBorder, openShadow, summary, onAdd, carousel, onToggleCarousel, autoScroll, onToggleAutoScroll, children }: { title: string; action?: string; count?: string; icon: React.ComponentType<{ className?: string }>; accent: string; wash: string; ring: string; openBorder: string; openShadow: string; summary: string; onAdd?: () => void; carousel?: boolean; onToggleCarousel?: () => void; autoScroll?: boolean; onToggleAutoScroll?: () => void; children: React.ReactNode }) {
-  const [isOpen, setIsOpen] = useState(false)
+function EditableContentPanel({ title, action, count, icon: Icon, summary, settingsIntro, noun, onAdd, carousel, onToggleCarousel, autoScroll, onToggleAutoScroll, children }: { title: string; action?: string; count?: string; icon: React.ComponentType<{ className?: string }>; summary: string; settingsIntro?: string; noun: string; onAdd?: () => void; carousel?: boolean; onToggleCarousel?: () => void; autoScroll?: boolean; onToggleAutoScroll?: () => void; children: React.ReactNode }) {
+  const [isOpen, setIsOpen] = useHubPanelOpen(`content-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`)
 
   return (
-    <section className={`overflow-hidden rounded-[1.75rem] border bg-white transition-all duration-300 dark:bg-[#151517] ${isOpen ? `${openBorder} ${openShadow}` : 'border-gray-200 shadow-sm hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-800'}`}>
-      <div className={`grid w-full grid-cols-[1fr_auto] items-start gap-4 bg-gradient-to-br p-5 ${wash}`}>
-        <button onClick={() => setIsOpen(!isOpen)} className="flex min-w-0 flex-1 items-start gap-4 text-left">
-          <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-inner ring-1 ${accent} ${ring}`}><Icon className="h-6 w-6" /></span>
+    <section className={hubCardClass(isOpen)}>
+      <div className="group grid w-full grid-cols-[1fr_auto] items-center gap-4 p-5">
+        <button onClick={() => setIsOpen(!isOpen)} className="flex min-w-0 flex-1 items-center gap-4 text-left">
+          <span className={HUB_ICON_TILE}><Icon className={HUB_ICON} /></span>
           <div className="min-w-0">
-            <h3 className="text-xl font-black dark:text-white">{title}</h3>
-            <p className="mt-2 text-sm font-semibold text-gray-500 dark:text-gray-400">{summary}</p>
+            <h3 className="font-serif text-xl font-black text-[#111827] dark:text-white">{title}</h3>
+            <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">{summary}</p>
           </div>
         </button>
         <div className="flex shrink-0 items-center gap-2">
           {count && <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-black text-gray-600 dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-gray-300">{count}</span>}
           {isOpen && action && onAdd && <button onClick={onAdd} className="hidden items-center gap-2 rounded-xl bg-[#111827] px-4 py-3 text-sm font-black text-white dark:bg-white dark:text-[#111827] sm:inline-flex"><Plus className="h-4 w-4" /> {action}</button>}
           <button onClick={() => setIsOpen(!isOpen)} className="rounded-xl border border-gray-200 bg-white p-3 text-gray-500 dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-gray-400" aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${title}`}>
-            <ChevronDown className={`h-5 w-5 transition ${isOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`h-5 w-5 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
           </button>
         </div>
       </div>
-      {isOpen && (
+      <HubCollapse open={isOpen}>
         <div className="space-y-3 border-t border-gray-100 bg-[#fbfaf7] p-5 dark:border-gray-800 dark:bg-[#0B0B0B]">
-          {(onToggleCarousel || onToggleAutoScroll || (action && onAdd)) && (
-            <div className="grid grid-cols-3 gap-1 sm:flex sm:flex-wrap sm:gap-2">
-              {onToggleCarousel && (
-                <div className="flex items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-1.5 py-1.5 dark:border-gray-700 dark:bg-[#151517] sm:justify-start sm:gap-2 sm:rounded-xl sm:px-3 sm:py-2">
-                  <button type="button" className="hidden shrink-0 text-gray-400 dark:text-gray-300 sm:inline-flex" title="Auto-swipes through one large item at a time instead of a scrolling row. Mobile view only.">
-                    <Info className="h-4 w-4" />
-                  </button>
-                  <span className="truncate text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-300 sm:text-xs"><span className="sm:hidden">Carousel</span><span className="hidden sm:inline">Carousel view</span></span>
-                  <button
-                    onClick={onToggleCarousel}
-                    className={`relative h-5 w-9 shrink-0 rounded-full transition sm:h-6 sm:w-11 ${carousel ? 'bg-emerald-500 dark:bg-emerald-400 dark:shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-gray-300 dark:bg-gray-600'}`}
-                    aria-label={carousel ? 'Turn off carousel view' : 'Turn on carousel view'}
-                    title={carousel ? 'Turn off carousel view' : 'Turn on carousel view'}
-                  >
-                    <span className={`absolute top-1 h-3 w-3 rounded-full bg-white transition sm:h-4 sm:w-4 ${carousel ? 'left-5 sm:left-6' : 'left-1'}`} />
-                  </button>
-                </div>
-              )}
-              {onToggleAutoScroll && (
-                <div className="flex items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-1.5 py-1.5 dark:border-gray-700 dark:bg-[#151517] sm:justify-start sm:gap-2 sm:rounded-xl sm:px-3 sm:py-2">
-                  <button type="button" className="hidden shrink-0 text-gray-400 dark:text-gray-300 sm:inline-flex" title="Auto scrolls through sales, my videos, tours and blogs if at least 5 are linked.">
-                    <Info className="h-4 w-4" />
-                  </button>
-                  <span className="truncate text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-300 sm:text-xs">Auto Scroll</span>
-                  <button
-                    onClick={onToggleAutoScroll}
-                    className={`relative h-5 w-9 shrink-0 rounded-full transition sm:h-6 sm:w-11 ${autoScroll ? 'bg-emerald-500 dark:bg-emerald-400 dark:shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-gray-300 dark:bg-gray-600'}`}
-                    aria-label={autoScroll ? 'Turn off auto scroll' : 'Turn on auto scroll'}
-                    title={autoScroll ? 'Turn off auto scroll' : 'Turn on auto scroll'}
-                  >
-                    <span className={`absolute top-1 h-3 w-3 rounded-full bg-white transition sm:h-4 sm:w-4 ${autoScroll ? 'left-5 sm:left-6' : 'left-1'}`} />
-                  </button>
-                </div>
-              )}
-              {action && onAdd && <button onClick={onAdd} className="col-span-1 inline-flex items-center justify-center gap-1 rounded-lg bg-[#111827] px-1.5 py-1.5 text-[10px] font-black text-white dark:bg-white dark:text-[#111827] sm:hidden"><Plus className="h-3.5 w-3.5" /> {action}</button>}
+          {/* Same settings box + labeled toggle rows as Recent Sales (explicit ask: Videos/House
+              Tours/Blogs should present these settings "the same way" - a sentence of context and
+              a plain-language hint under each toggle, not a strip of tiny unlabeled chips). */}
+          {(onToggleCarousel || onToggleAutoScroll) && (
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+              {settingsIntro && <p className="text-sm font-semibold text-gray-500 dark:text-gray-300">{settingsIntro}</p>}
+              <div className="mt-3 space-y-2">
+                {onToggleCarousel && (
+                  <SettingToggleRow
+                    label="Carousel view"
+                    hint={`On mobile, auto-swipes through one large ${noun} at a time instead of a scrolling row.`}
+                    checked={!!carousel}
+                    onChange={() => onToggleCarousel()}
+                  />
+                )}
+                {onToggleAutoScroll && (
+                  <SettingToggleRow
+                    label="Auto scroll"
+                    hint="Scrolls this row on its own, taking turns with your other sections, when the page sits idle."
+                    checked={!!autoScroll}
+                    onChange={() => onToggleAutoScroll()}
+                  />
+                )}
+              </div>
             </div>
           )}
+          {action && onAdd && <button onClick={onAdd} className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#111827] px-4 py-3 text-sm font-black text-white dark:bg-white dark:text-[#111827] sm:hidden"><Plus className="h-4 w-4" /> {action}</button>}
           {children}
         </div>
-      )}
+      </HubCollapse>
     </section>
   )
 }
@@ -3852,6 +4880,44 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
         </div>
         {children}
       </div>
+    </div>
+  )
+}
+
+// The header every Agent Hub editor panel opens with - gold kicker, serif title, the panel's status
+// and its Save button. Static (no Edit/Close) - each tab shows its panels already open.
+// One editor panel that folds: starts closed the first time, then remembers how the agent left
+// it (useHubPanelOpen). `alwaysOpen` panels (Profile) never fold.
+function HubFold({ id, alwaysOpen = false, children }: { id: string; alwaysOpen?: boolean; children: (open: boolean, toggle?: () => void) => React.ReactNode }) {
+  const [stored, setStored] = useHubPanelOpen(id)
+  if (alwaysOpen) return <>{children(true)}</>
+  return <>{children(stored, () => setStored(!stored))}</>
+}
+
+function HubPanelHead({ icon: Icon, kicker, title, subtitle, status, action, open = true, onToggle }: { icon: LucideIcon; kicker: string; title: string; subtitle?: string; status?: React.ReactNode; action?: React.ReactNode; open?: boolean; onToggle?: () => void }) {
+  const text = (
+    <>
+      <span className={`${HUB_ICON_TILE} max-sm:hidden`}><Icon className={HUB_ICON} /></span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#8b7355] dark:text-[#e8c97a]">{kicker}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="font-serif text-xl font-black tracking-tight text-[#111827] dark:text-white">{title}</h3>
+          {status}
+        </div>
+        {subtitle && <p className="mt-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400">{subtitle}</p>}
+      </div>
+    </>
+  )
+  return (
+    <div className={`group relative flex flex-wrap items-center gap-4 overflow-hidden bg-gradient-to-r from-[#fffdf8] via-white to-white p-5 dark:from-[#1a1712] dark:via-[#151517] dark:to-[#151517] ${open ? 'border-b border-[#C9A24D]/15 dark:border-white/[0.06]' : ''}`}>
+      <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/60 to-transparent" />
+      {onToggle ? <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-4 text-left">{text}</button> : text}
+      {open && action}
+      {onToggle && (
+        <button type="button" onClick={onToggle} className="rounded-xl border border-gray-200 bg-white p-3 text-gray-500 dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-gray-400" aria-label={`${open ? 'Collapse' : 'Expand'} ${title}`}>
+          <ChevronDown className={`h-5 w-5 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
+        </button>
+      )}
     </div>
   )
 }

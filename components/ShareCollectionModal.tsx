@@ -1,41 +1,48 @@
 'use client'
 
+import MotionModal from '@/components/ui/MotionModal'
+import { useLastValue } from '@/components/ui/windowMotion'
 import { useState } from 'react'
 import { Collection } from '@/types'
 import { X, Copy, Share2, Check, RefreshCw, Globe, ShieldCheck } from 'lucide-react'
+import { openHousePalPublicUrl } from '@/lib/publicResourceLinks'
+import { copyText } from '@/lib/copyText'
 
 interface ShareCollectionModalProps {
   collection: Collection | null
   isOpen: boolean
   onClose: () => void
+  openHousePalUrl?: string | null
+  websiteUrl?: string | null
   onGenerateShareLink?: (collectionId: string) => void
-  onRegenerateShareLink?: (collectionId: string) => void
   onUpdateShareSettings?: (collectionId: string, isPublic: boolean) => void
 }
 
 export default function ShareCollectionModal({
-  collection,
+  collection: collectionProp,
   isOpen,
   onClose,
+  openHousePalUrl,
+  websiteUrl,
   onGenerateShareLink,
-  onRegenerateShareLink,
   onUpdateShareSettings
 }: ShareCollectionModalProps) {
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<'ohp' | 'website' | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
 
-  if (!isOpen || !collection) return null
+  const collection = useLastValue(collectionProp)
+  if (!collection) return null
 
-  const shareUrl = collection.shareToken 
-    ? `${window.location.origin}/showcase/${collection.shareToken}`
+  const shareUrl = collection.shareToken
+    ? openHousePalUrl || openHousePalPublicUrl(`/showcase/${collection.shareToken}`)
     : null
 
-  const handleCopyLink = async () => {
-    if (shareUrl) {
+  const handleCopyLink = async (url: string, key: 'ohp' | 'website') => {
+    if (url) {
       try {
-        await navigator.clipboard.writeText(shareUrl)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+        await copyText(url)
+        setCopied(key)
+        setTimeout(() => setCopied(current => (current === key ? null : current)), 2000)
       } catch (err) {
         console.error('Failed to copy link:', err)
       }
@@ -51,21 +58,12 @@ export default function ShareCollectionModal({
     }
   }
 
-  const handleRegenerateLink = async () => {
-    setIsGenerating(true)
-    try {
-      onRegenerateShareLink?.(collection.id)
-    } finally {
-      setIsGenerating(false)
-    }
-  }
-
   const handleTogglePublic = () => {
     onUpdateShareSettings?.(collection.id, !collection.isPublic)
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 transition-all duration-300">
+    <MotionModal open={isOpen && !!collectionProp} className="bg-black/60">
       <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col transition-colors">
         {/* Header */}
         <div className="flex items-center justify-between p-6 sm:p-8 border-b border-gray-50 dark:border-gray-800 bg-white dark:bg-[#151517]">
@@ -125,39 +123,61 @@ export default function ShareCollectionModal({
           {/* Share Link Input */}
           {collection.isPublic && (
             <div className="space-y-4">
-              <h3 className="text-sm font-black text-[#0B0B0B] dark:text-white uppercase tracking-[0.2em] ml-1">Secure Share Link</h3>
+              <h3 className="text-sm font-black text-[#0B0B0B] dark:text-white uppercase tracking-[0.2em] ml-1">Secure Share Links</h3>
               
               {shareUrl ? (
                 <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row items-stretch gap-3">
-                    <div className="flex-1 bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3.5 shadow-sm group hover:border-[#C9A24D]/30 dark:hover:border-[#C9A24D]/30 transition-all">
-                      <p className="text-[#111827] dark:text-white text-[13px] font-mono break-all">{shareUrl}</p>
+                  <div className="space-y-3">
+                    <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:flex-row sm:items-center">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#6B7280] dark:text-gray-400">OpenHousePal Link</p>
+                        <p className="mt-1 break-all font-mono text-[13px] text-[#111827] dark:text-white">{shareUrl}</p>
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          onClick={() => window.open(shareUrl, '_blank', 'noopener,noreferrer')}
+                          className="rounded-xl border border-gray-200 px-4 py-3 text-xs font-black uppercase tracking-widest text-[#111827] transition hover:border-[#C9A24D] dark:border-gray-700 dark:text-white"
+                        >
+                          Open
+                        </button>
+                        <button
+                          onClick={() => handleCopyLink(shareUrl, 'ohp')}
+                          className={`rounded-xl px-5 py-3 text-xs font-black uppercase tracking-widest transition-all duration-300 ${
+                            copied === 'ohp'
+                              ? 'bg-green-600 text-white'
+                              : 'bg-[#111827] text-white hover:bg-[#C9A24D] dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D]'
+                          }`}
+                        >
+                          {copied === 'ohp' ? <Check size={16} /> : <Copy size={16} />}
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={handleCopyLink}
-                      className={`px-6 py-3.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg ${
-                        copied
-                          ? 'bg-green-600 text-white'
-                          : 'bg-[#111827] dark:bg-white text-white dark:text-[#111827] hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:scale-[1.02]'
-                      }`}
-                    >
-                      {copied ? <Check size={16} /> : <Copy size={16} />}
-                      <span>{copied ? 'Copied!' : 'Copy Link'}</span>
-                    </button>
-                  </div>
-                  
-                  <div className="flex items-center justify-between px-1">
-                    <p className="text-xs text-[#6B7280] dark:text-gray-400 font-medium italic">
-                      Share this link via text or email to engage your client.
-                    </p>
-                    <button 
-                      onClick={handleRegenerateLink}
-                      disabled={isGenerating}
-                      className="text-[10px] font-black text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white uppercase tracking-widest transition-colors flex items-center"
-                    >
-                      <RefreshCw size={10} className={`mr-1.5 ${isGenerating ? 'animate-spin' : ''}`} />
-                      Regenerate Link
-                    </button>
+                    {websiteUrl && (
+                      <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:flex-row sm:items-center">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#6B7280] dark:text-gray-400">Website Link</p>
+                          <p className="mt-1 break-all font-mono text-[13px] text-[#111827] dark:text-white">{websiteUrl}</p>
+                        </div>
+                        <div className="flex shrink-0 gap-2">
+                          <button
+                            onClick={() => window.open(websiteUrl, '_blank', 'noopener,noreferrer')}
+                            className="rounded-xl border border-gray-200 px-4 py-3 text-xs font-black uppercase tracking-widest text-[#111827] transition hover:border-[#C9A24D] dark:border-gray-700 dark:text-white"
+                          >
+                            Open
+                          </button>
+                          <button
+                            onClick={() => handleCopyLink(websiteUrl, 'website')}
+                            className={`rounded-xl px-5 py-3 text-xs font-black uppercase tracking-widest transition-all duration-300 ${
+                              copied === 'website'
+                                ? 'bg-green-600 text-white'
+                                : 'bg-[#C9A24D] text-[#111827] hover:bg-[#d7b974]'
+                            }`}
+                          >
+                            {copied === 'website' ? <Check size={16} /> : <Copy size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -213,6 +233,6 @@ export default function ShareCollectionModal({
           </button>
         </div>
       </div>
-    </div>
+    </MotionModal>
   )
 }

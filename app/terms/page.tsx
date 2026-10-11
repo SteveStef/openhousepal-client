@@ -1,19 +1,33 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import Footer from '@/components/Footer'
+import LegalDoc from '@/components/legal/LegalDoc'
+import { ScrollText } from 'lucide-react'
+import PageBackgroundGrid from '@/components/PageBackgroundGrid'
+import { KeyMotif } from '@/components/home/LineArtMotifs'
 
 export default function TermsPage() {
+  // Drives the corner motif's one-time stroke draw-in (see components/home/LineArtMotifs.tsx) -
+  // a short delay after mount so it plays as a visible animation instead of appearing pre-drawn.
+  const [motifVisible, setMotifVisible] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setMotifVisible(true), 200)
+    return () => clearTimeout(t)
+  }, [])
+
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] dark:from-[#0B0B0B] dark:via-[#111111] dark:to-[#0B0B0B] transition-colors duration-300">
-      
+    <div className="min-h-screen flex flex-col relative z-0 bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] dark:from-[#0B0B0B] dark:via-[#111111] dark:to-[#0B0B0B] transition-colors duration-300">
+      <PageBackgroundGrid />
+      <KeyMotif
+        visible={motifVisible}
+        className="hidden lg:block absolute top-10 right-10 w-[180px] h-[180px] text-[#C9A24D] opacity-[0.2] dark:opacity-[0.26] -z-10"
+      />
 
       {/* Content */}
       <div className="flex-1">
-        <div className="max-w-4xl mx-auto px-6 py-12">
-          <div className="bg-white dark:bg-[#151517] rounded-2xl p-8 md:p-12 shadow-lg border border-gray-200 dark:border-gray-800 transition-colors duration-300">
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Terms of Service</h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-8">Last Updated: November 2, 2025</p>
+          <LegalDoc kicker="Legal" icon={ScrollText} title={<>Terms of <em>Service.</em></>} updated="September 17, 2026">
 
             <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-600 p-4 mb-8">
               <p className="text-sm text-yellow-800 dark:text-yellow-200">
@@ -32,7 +46,7 @@ export default function TermsPage() {
               <section>
                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">2. Description of Service</h2>
                 <p>
-                  OpenHousePal provides a subscription-based platform for real estate professionals to create QR code-enabled sign-in forms for open houses and generate automated property showcases for potential buyers. The Service includes both Basic and Premium subscription tiers with varying features.
+                  OpenHousePal provides a subscription-based platform for real estate professionals. The Service includes, among other features: QR code-enabled open house sign-in forms and automated follow-up; automated property showcase pages; AI-assisted comparative market analysis (CMA) and valuation tools; an AI-assisted design studio for marketing materials, including AI photo and video editing; an AI writing assistant and Fair Housing compliance checker; lead capture and management, including optional email-forwarding and CRM-integration tools; a client review and testimonial system; task and follow-up scheduling with optional calendar sync; and an optional IDX-connected agent website. The Service is offered under multiple subscription tiers with varying feature access, described on our pricing page.
                 </p>
               </section>
 
@@ -93,6 +107,8 @@ export default function TermsPage() {
                   <li>Use any automated system to access the Service in a manner that sends more requests than a human could reasonably produce</li>
                   <li>Attempt to gain unauthorized access to any portion of the Service</li>
                   <li>Use the Service to collect personal information about visitors without their consent</li>
+                  <li>Use AI features to generate content that is discriminatory, misleading, defamatory, or that violates the Fair Housing Act or other applicable law</li>
+                  <li>Present AI-generated valuations, images, or video as unaltered, licensed-appraisal, or human-authored content where disclosure of AI involvement is required by law, MLS rule, or professional standards</li>
                 </ul>
               </section>
 
@@ -109,8 +125,22 @@ export default function TermsPage() {
                   All property information, images, and data provided through the Service are sourced from third-party providers, including but not limited to Multiple Listing Services (MLS) via IDX programs. You acknowledge that you do not own any of this property content and your use of it is strictly limited to the functionality provided by the Service for professional real estate purposes.
                 </p>
                 <p className="mt-4">
-                  Users do not upload their own property content to the platform. All rights to the software, platform architecture, data structures, and generated showcases remain exclusively with OpenHousePal and its data providers.
+                  You may upload your own property photos and other marketing content to use certain features (such as Design Studio and AI-assisted editing). You retain ownership of content you upload, and you grant OpenHousePal a limited, non-exclusive license to host, process, and display that content solely to provide the Service to you. All rights to the software, platform architecture, data structures, and generated showcases remain exclusively with OpenHousePal and its data providers.
                 </p>
+              </section>
+
+              <section>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">8.5 AI-Generated Content Disclaimer</h2>
+                <p>
+                  The Service includes features that use artificial intelligence (including third-party AI models) to generate or assist with content, such as CMA valuations, property and comp analysis, listing descriptions, marketing copy, Fair Housing compliance flags, and photo/video edits. You acknowledge and agree that:
+                </p>
+                <ul className="list-disc pl-6 space-y-2 mt-2">
+                  <li>AI-generated output may be inaccurate, incomplete, or unsuitable for a given property or client, and is provided as a drafting aid only</li>
+                  <li>AI-generated valuations are not a licensed appraisal and must not be represented to clients as one</li>
+                  <li>The compliance checker is an automated screening aid, not legal advice, and does not guarantee compliance with the Fair Housing Act or any other law</li>
+                  <li>You are solely responsible for reviewing, editing, and verifying all AI-generated content, including for accuracy and Fair Housing compliance, before sharing it with clients, the public, or an MLS</li>
+                  <li>AI-edited photos and videos (including virtual staging) must be clearly and conspicuously labeled as altered or virtually staged wherever required by MLS rules, applicable law, or professional standards</li>
+                </ul>
               </section>
 
               <section>
@@ -136,6 +166,34 @@ export default function TermsPage() {
                 </p>
                 <p className="mt-4">
                   All listing information is provided by third parties and is subject to change without notice. You acknowledge and agree that you are solely responsible for ensuring that your use of the Service, including the display, distribution, and use of MLS or IDX content, complies with all applicable MLS rules, broker requirements, licensing agreements, and federal, state, and local laws.
+                </p>
+              </section>
+
+              <section>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">9.6 Optional Third-Party Integrations</h2>
+                <p>
+                  The Service allows you to optionally connect third-party accounts and services, including Google Calendar, CRM platforms (such as Follow Up Boss), email-forwarding for lead capture, and Google Business review import. By connecting any such integration, you represent that you are authorized to do so and agree that:
+                </p>
+                <ul className="list-disc pl-6 space-y-2 mt-2">
+                  <li>Your use of the connected third-party service is also governed by that provider's own terms of service and privacy policy</li>
+                  <li>We are not responsible for the availability, accuracy, or conduct of any third-party service you connect</li>
+                  <li>You are responsible for the accuracy of any data you configure to be sent to a connected service, and for revoking access (via Settings or the third party's own account controls) if you no longer want the integration active</li>
+                  <li>We may suspend or discontinue support for a given integration if the third-party provider changes or discontinues its API</li>
+                </ul>
+              </section>
+
+              <section>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">9.7 Client Reviews</h2>
+                <p>
+                  If you use the Service's review and testimonial features, you agree to:
+                </p>
+                <ul className="list-disc pl-6 space-y-2 mt-2">
+                  <li>Only solicit reviews from clients you have actually represented or worked with, and never fabricate, purchase, or misattribute reviews</li>
+                  <li>Comply with the FTC's endorsement guidelines and the review policies of any third-party platform (such as Google or Zillow) you direct clients to</li>
+                  <li>Not offer clients compensation or incentives conditioned on leaving a positive review</li>
+                </ul>
+                <p className="mt-4">
+                  We display reviews as submitted and do not verify their accuracy. We may remove reviews that violate these Terms or a linked platform's policies.
                 </p>
               </section>
 
@@ -333,8 +391,7 @@ export default function TermsPage() {
                 </Link>
               </div>
             </div>
-          </div>
-        </div>
+          </LegalDoc>
       </div>
 
       <Footer />

@@ -1,32 +1,43 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-import { ArrowLeft, Search, Inbox, Loader2, Layers, CalendarCheck, AlertCircle, Users, Star, ArrowUpDown, Home, RefreshCw, Plus, UsersRound } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { motion } from 'framer-motion'
+import { Search, Inbox, Loader2, Layers, CalendarCheck, AlertCircle, Building2, Users, Star, SortDesc, Check, Home, RefreshCw, UsersRound } from 'lucide-react'
 import Footer from '@/components/Footer'
 import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
+import LuxeHero, { LuxeStats } from '@/components/ui/LuxeHero'
 import api from '@/lib/api-service'
 import { MyListingsResponse } from '@/types'
 import { useToast } from '@/contexts/ToastContext'
 import ListingCard from '@/components/open-house-manager/ListingCard'
+import { WeekendCell, WeekendCalendarOpen } from '@/components/open-house-manager/WeekendCalendarCards'
 import SummaryMetricCard from '@/components/open-house-manager/SummaryMetricCard'
 import EmptyState from '@/components/open-house-manager/EmptyState'
 import HostRequestsPanel from '@/components/open-house-manager/HostRequestsPanel'
 import ManageHostsModal from '@/components/open-house-manager/ManageHostsModal'
 import OpenHouseInsightsModal from '@/components/open-house-manager/OpenHouseInsightsModal'
-import AddManualListingModal from '@/components/open-house-manager/AddManualListingModal'
 import OpenHouseTeamPanel from '@/components/open-house-manager/OpenHouseTeamPanel'
 import WarningConfirmModal from '@/components/WarningConfirmModal'
+import { useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
 
-type SortOption = 'days_on_market' | 'price' | 'needs_host_first'
+type SortOption = 'dom_high' | 'dom_low' | 'price_high' | 'price_low'
+
+const SORT_OPTIONS: { label: string; value: SortOption }[] = [
+  { label: 'Days on Market: High to Low', value: 'dom_high' },
+  { label: 'Days on Market: Low to High', value: 'dom_low' },
+  { label: 'Price: High to Low', value: 'price_high' },
+  { label: 'Price: Low to High', value: 'price_low' },
+]
 
 export default function MyListingsPage() {
   return (
     <AuthGuard>
       <BrokerAuthorizationGuard>
-        <SubscriptionGuard requiredPlan="BASIC">
+        <SubscriptionGuard requireMlsAccess>
           <MyListingsContent />
         </SubscriptionGuard>
       </BrokerAuthorizationGuard>
@@ -36,47 +47,116 @@ export default function MyListingsPage() {
 
 function MyListingsContent() {
   const { showToast } = useToast()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { listingAgentUnseenUpdates } = useOpenHouseActionCounts()
   const [data, setData] = useState<MyListingsResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [search, setSearch] = useState('')
-  const [sortBy, setSortBy] = useState<SortOption>('needs_host_first')
+  const [sortBy, setSortBy] = useState<SortOption>('dom_high')
   const [isHostRequestsOpen, setIsHostRequestsOpen] = useState(false)
   const [isTeamPanelOpen, setIsTeamPanelOpen] = useState(false)
   const [manageHostsKey, setManageHostsKey] = useState<string | null>(null)
+  const [manageHostsPrefillDate, setManageHostsPrefillDate] = useState<string | null>(null)
+  const [manageHostsFocusNotes, setManageHostsFocusNotes] = useState(false)
   const [insightsKey, setInsightsKey] = useState<string | null>(null)
-  const [isAddListingOpen, setIsAddListingOpen] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [removeTargetKey, setRemoveTargetKey] = useState<string | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
+  const [showSortDropdown, setShowSortDropdown] = useState(false)
+  const [sortMenuPos, setSortMenuPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const sortDropdownRef = useRef<HTMLDivElement>(null)
 
-  const load = useCallback(async () => {
-    setIsLoading(true)
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+        setShowSortDropdown(false)
+      }
+    }
+    document.addEventListener('mouseup', handleClickOutside)
+    return () => document.removeEventListener('mouseup', handleClickOutside)
+  }, [])
+
+  // Portaled to <body> (see render site for why) - position tracks the trigger button, right-
+  // aligned to it same as the old inline version. Closes on scroll rather than re-tracking, since
+  // a scrolling background while picking a sort order isn't a real use case.
+  useEffect(() => {
+    if (!showSortDropdown) return
+    const updatePosition = () => {
+      const rect = sortDropdownRef.current?.getBoundingClientRect()
+      if (rect) setSortMenuPos({ top: rect.bottom + 8, left: Math.max(8, rect.right - 224), width: 224 })
+    }
+    updatePosition()
+    const close = () => setShowSortDropdown(false)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', updatePosition)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', updatePosition)
+    }
+  }, [showSortDropdown])
+
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setIsLoading(true)
     setLoadError('')
     const { success, data, error } = await api.openHouseManager.getMyListings()
     if (success && data) setData(data)
-    else setLoadError(error || 'Unable to load your listings right now.')
-    setIsLoading(false)
+    else if (!opts?.silent) setLoadError(error || 'Unable to load your listings right now.')
+    if (!opts?.silent) setIsLoading(false)
   }, [])
 
   useEffect(() => {
     load()
+    // A kit can get built (or a request approved/negotiated) from a completely different page
+    // (the wizard on /open-houses, a notification deep link, another tab) - refetch on refocus so
+    // counts here don't go stale until a manual refresh/reload, matching the same pattern
+    // useOpenHouseActionCounts already uses for its own badges. Silent - swapping the whole grid
+    // out for the big loading spinner on every window refocus (e.g. clicking back into the tab)
+    // was blowing away in-progress clicks and scroll position, forcing a second click.
+    const handleFocus = () => load({ silent: true })
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
   }, [load])
+
+  // Listings come straight from our own database (the global Bright MLS sync refreshes that DB
+  // every 5 minutes on its own cron - see scheduled_property_sync). Re-pull silently on the same
+  // cadence so an agent who leaves this tab open still sees new/updated/sold listings without
+  // touching the Refresh button, matching how Showcases and Discovery stay live.
+  useEffect(() => {
+    const interval = setInterval(() => load({ silent: true }), 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [load])
+
+  // Deep links from notifications land here with either a specific listing (opens Manage Hosts
+  // directly for it, most precise) or a panel name (opens the panel that actually shows that
+  // notification's context) - see the link= values in open_house_manager_service.py.
+  useEffect(() => {
+    const listingKeyParam = searchParams.get('listingKey')
+    if (listingKeyParam) setManageHostsKey(listingKeyParam)
+
+    const panel = searchParams.get('panel')
+    if (panel === 'host-requests') setIsHostRequestsOpen(true)
+    // "My Requests" (sent requests, team invites, broadcast opportunities) lives only on
+    // Discovery now - that's where a hosting agent actually deals with this, not here. Old
+    // notifications minted before that move can still carry this link, so redirect rather than
+    // leaving them dead.
+    else if (panel === 'my-requests') router.replace('/discovery?myRequests=1')
+    else if (panel === 'team') setIsTeamPanelOpen(true)
+  }, [searchParams, router])
 
   const handleRefreshListings = async () => {
     setIsRefreshing(true)
-    const { success, error } = await api.openHouseManager.refreshListings()
-    if (!success) {
-      setIsRefreshing(false)
-      showToast(error || 'Unable to start a refresh right now.', 'error')
-      return
-    }
-    // No toast here on purpose - the spinning button icon is the only loading signal. Reload
-    // quietly once the sync has had time to run, then stop the spinner.
+    // Re-pull from our own database immediately - that's the source of truth this page reads, and
+    // it's already kept current by the every-5-minute Bright MLS sync. We still nudge that sync in
+    // the background (best effort - ignore the cooldown 429 and any error, the button is not the
+    // thing keeping listings fresh), then quietly reload once more in case it pulled something new.
+    await load({ silent: true })
+    api.openHouseManager.refreshListings().catch(() => {})
     setTimeout(async () => {
-      await load()
+      await load({ silent: true })
       setIsRefreshing(false)
-    }, 15000)
+    }, 12000)
   }
 
   const handleConfirmRemoveListing = async () => {
@@ -93,6 +173,26 @@ function MyListingsContent() {
     load()
   }
 
+  // Clicking a weekend cell on a listing card jumps straight into Manage Hosts already primed for
+  // that date - an empty cell prefills a direct request, a filled one jumps to Host Notes (the
+  // thing worth checking before you commit that date to someone else).
+  const handleCalendarCellClick = (listingKey: string, cell: WeekendCell, open?: WeekendCalendarOpen) => {
+    setManageHostsKey(listingKey)
+    if (open) {
+      setManageHostsFocusNotes(true)
+      setManageHostsPrefillDate(null)
+    } else {
+      setManageHostsPrefillDate(cell.date)
+      setManageHostsFocusNotes(false)
+    }
+  }
+
+  const closeManageHosts = () => {
+    setManageHostsKey(null)
+    setManageHostsPrefillDate(null)
+    setManageHostsFocusNotes(false)
+  }
+
   const totalPending = useMemo(() => (data?.listings || []).reduce((sum, l) => sum + l.pending_request_count, 0), [data])
   const removeTargetListing = useMemo(() => (data?.listings || []).find(l => l.listing_key === removeTargetKey) || null, [data, removeTargetKey])
 
@@ -103,78 +203,135 @@ function MyListingsContent() {
       ? listings.filter(l => `${l.address} ${l.city || ''} ${l.state || ''} ${l.zipcode || ''}`.toLowerCase().includes(term))
       : listings
     const sorted = [...filtered]
-    if (sortBy === 'days_on_market') {
+    if (sortBy === 'dom_high') {
       sorted.sort((a, b) => (b.days_on_market || 0) - (a.days_on_market || 0))
-    } else if (sortBy === 'price') {
+    } else if (sortBy === 'dom_low') {
+      sorted.sort((a, b) => (a.days_on_market || 0) - (b.days_on_market || 0))
+    } else if (sortBy === 'price_high') {
       sorted.sort((a, b) => (b.price || 0) - (a.price || 0))
     } else {
-      sorted.sort((a, b) => {
-        if (a.open_house_status === b.open_house_status) return (b.days_on_market || 0) - (a.days_on_market || 0)
-        return a.open_house_status === 'needs_host' ? -1 : 1
-      })
+      sorted.sort((a, b) => (a.price || 0) - (b.price || 0))
     }
     return sorted
   }, [data, search, sortBy])
 
   return (
     <div className="min-h-screen bg-[#fafafb] dark:bg-[#0B0B0B] flex flex-col">
-      <main className="flex-grow container mx-auto px-4 py-10 max-w-7xl text-[#111827] dark:text-[#F3F4F6]">
-        <Link href="/open-houses" className="inline-flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-[#111827] dark:hover:text-white transition-colors mb-8 group">
-          <div className="p-1.5 rounded-full bg-white dark:bg-[#151517] border border-gray-100 dark:border-gray-800 group-hover:border-gray-200 dark:group-hover:border-gray-700 shadow-sm transition-all">
-            <ArrowLeft size={14} />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-widest">Back to Open Houses</span>
-        </Link>
-
-        <div className="mb-8 flex flex-row items-start md:items-end justify-between gap-4 md:gap-6">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 sm:gap-3 mb-2">
-              <div className="w-8 h-8 shrink-0 rounded-xl bg-[#C9A24D]/10 flex items-center justify-center text-[#C9A24D]">
-                <Layers size={18} />
-              </div>
-              <h1 className="text-2xl sm:text-4xl font-black text-[#111827] dark:text-white tracking-tight">Your Listings</h1>
-              {data && (
-                <span className="hidden sm:inline-block rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                  {data.listings.length} Listings
-                </span>
-              )}
+      <main className="flex-grow container mx-auto px-4 py-4 sm:py-6 max-w-7xl text-[#111827] dark:text-[#F3F4F6]">
+        {/* Header + Stats + Actions + Search, all one section instead of floating pieces */}
+        {/* Header - the shared luxe header: same stats on the right, the three actions built into
+            its bottom bar; search + sort sit in their own card right under it. */}
+        <LuxeHero
+          compact
+          className="mb-4"
+          kicker="Manager"
+          icon={Building2}
+          backHref="/open-houses"
+          backLabel="Open Houses"
+          title={<>Every open, <em>covered.</em></>}
+          subtitle="Coordinate opens - find hosts, approve requests, and track results in one place."
+          asideClassName="w-full lg:w-[620px] lg:-mt-[18px]"
+          aside={data && (
+            <LuxeStats
+              large
+              stats={[
+                { label: 'Scheduled', value: data.summary.open_scheduled, icon: CalendarCheck },
+                { label: 'Needs host', value: data.summary.needs_host, icon: AlertCircle, urgent: data.summary.needs_host > 0 },
+                { label: 'Avg guests', value: data.summary.avg_guests_per_open, icon: Users },
+                { label: 'Priority', value: data.summary.high_priority, icon: Star, alert: data.summary.high_priority > 0, title: 'A listing is flagged high priority once one of its open houses has actually drawn a guest - it\'s proven to convert, so it\'s worth getting re-hosted.' },
+              ]}
+            />
+          )}
+          tabs={data ? (
+<div className="-mx-2 -my-2 grid grid-cols-3 divide-x divide-[#C9A24D]/20 dark:divide-white/[0.07] sm:-mx-4">
+              <button
+                onClick={handleRefreshListings}
+                disabled={isRefreshing}
+                className="flex items-center justify-center gap-2 py-3.5 text-[11px] sm:text-xs font-black uppercase tracking-widest text-[#111827] dark:text-white transition hover:bg-white/60 dark:hover:bg-white/[0.05] disabled:opacity-50"
+              >
+                {isRefreshing ? <Loader2 size={14} className="animate-spin text-[#C9A24D]" /> : <RefreshCw size={14} className="text-[#C9A24D]" />} Refresh Listings
+              </button>
+              <button
+                onClick={() => setIsTeamPanelOpen(true)}
+                className="flex items-center justify-center gap-2 py-3.5 text-[11px] sm:text-xs font-black uppercase tracking-widest text-[#111827] dark:text-white transition hover:bg-white/60 dark:hover:bg-white/[0.05]"
+              >
+                <UsersRound size={14} className="text-[#C9A24D]" /> My Team
+              </button>
+              <button
+                onClick={() => setIsHostRequestsOpen(true)}
+                className="relative flex items-center justify-center gap-2 py-3.5 text-[11px] sm:text-xs font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8cf8a] bg-[#C9A24D]/10 transition hover:bg-[#C9A24D]/20 sm:rounded-br-3xl"
+              >
+                <Inbox size={14} /> Host Requests
+                {(totalPending + listingAgentUnseenUpdates) > 0 && (
+                  <span className="absolute right-3 top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-red-300 shadow-lg shadow-red-500/50 dark:ring-red-500/50">
+                    {totalPending + listingAgentUnseenUpdates}
+                  </span>
+                )}
+              </button>
             </div>
-            <p className="hidden sm:block text-gray-500 dark:text-gray-400 font-medium max-w-2xl leading-relaxed">
-              Coordinate open houses across your listings - find hosts, approve requests, and track results in one place.
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-            <button
-              onClick={() => setIsAddListingOpen(true)}
-              className="hidden md:inline-flex items-center gap-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-5 py-3 text-xs font-black uppercase tracking-widest text-[#111827] dark:text-white transition hover:border-[#C9A24D] hover:text-[#8b7355]"
-            >
-              <Plus size={15} /> Add Property
-            </button>
-            <button
-              onClick={handleRefreshListings}
-              disabled={isRefreshing}
-              className="hidden md:inline-flex items-center gap-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-5 py-3 text-xs font-black uppercase tracking-widest text-[#111827] dark:text-white transition hover:border-[#C9A24D] hover:text-[#8b7355] disabled:opacity-50"
-            >
-              {isRefreshing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />} Refresh Listings
-            </button>
-            <button
-              onClick={() => setIsTeamPanelOpen(true)}
-              className="hidden md:inline-flex items-center gap-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-5 py-3 text-xs font-black uppercase tracking-widest text-[#111827] dark:text-white transition hover:border-[#C9A24D] hover:text-[#8b7355]"
-            >
-              <UsersRound size={15} /> My Team
-            </button>
-            <button
-              onClick={() => setIsHostRequestsOpen(true)}
-              className="relative inline-flex items-center gap-1.5 sm:gap-2 rounded-2xl bg-[#111827] dark:bg-white px-3 py-2.5 sm:px-5 sm:py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest text-white dark:text-[#111827] transition hover:bg-black dark:hover:bg-gray-200"
-            >
-              <Inbox size={14} className="sm:w-[15px] sm:h-[15px]" /> Host Requests
-              {totalPending > 0 && (
-                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#C9A24D] px-1 text-[10px] font-black text-white">
-                  {totalPending}
-                </span>
-              )}
-            </button>
-          </div>
+          ) : undefined}
+        />
+
+        <div className="mb-6 overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#151517] shadow-sm empty:hidden">
+          {/* Search + Sort - only meaningful once there's something to search */}
+          {data && data.listings.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center gap-3 p-4 sm:p-5">
+              <div className="relative w-full flex-1 sm:max-w-md">
+                <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search your listings..."
+                  className="w-full rounded-2xl border border-gray-100 dark:border-gray-800 bg-[#fafafb] dark:bg-[#0B0B0B] py-3 pl-10 pr-4 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:text-white"
+                />
+              </div>
+              <div className="relative w-full sm:w-auto shrink-0 sm:ml-auto" ref={sortDropdownRef}>
+                <button
+                  onClick={() => setShowSortDropdown(v => !v)}
+                  className={`flex w-full sm:w-auto items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-xs font-black uppercase tracking-widest transition ${
+                    showSortDropdown
+                      ? 'border-[#C9A24D] bg-[#FCF9F1] dark:bg-[#C9A24D]/10 text-[#C9A24D]'
+                      : 'border-gray-100 dark:border-gray-800 bg-[#fafafb] dark:bg-[#0B0B0B] text-[#111827] dark:text-white hover:border-[#C9A24D]/50'
+                  }`}
+                >
+                  <SortDesc size={14} />
+                  {SORT_OPTIONS.find(opt => opt.value === sortBy)?.label}
+                </button>
+                {/* Portaled to body, not rendered inline - the header card this lives in clips
+                    overflow (to keep the flat action-button grid's square corners from poking
+                    past its own rounded corners), which was silently clipping this panel away
+                    the moment it tried to render below the button. */}
+                {showSortDropdown && sortMenuPos && createPortal(
+                  <div
+                    style={{ position: 'fixed', top: sortMenuPos.top, left: sortMenuPos.left, width: sortMenuPos.width }}
+                    className="z-[100] overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1A1A1C] shadow-xl"
+                  >
+                    <div className="p-2">
+                      {SORT_OPTIONS.map(option => (
+                        <button
+                          key={option.value}
+                          onClick={() => { setSortBy(option.value); setShowSortDropdown(false) }}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition-colors ${
+                            sortBy === option.value
+                              ? 'bg-[#FCF9F1] dark:bg-[#C9A24D]/10 text-[#C9A24D]'
+                              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'
+                          }`}
+                        >
+                          {option.label}
+                          {sortBy === option.value && <Check size={10} strokeWidth={4} />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>,
+                  document.body
+                )}
+              </div>
+              {/* how many listings - right-most on the search row, the sort sits to its left */}
+              <span className="shrink-0 rounded-full border border-[#C9A24D]/30 bg-[#C9A24D]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]">
+                {data.listings.length} {data.listings.length === 1 ? 'Listing' : 'Listings'}
+              </span>
+            </div>
+          )}
         </div>
 
         {isLoading ? (
@@ -184,66 +341,7 @@ function MyListingsContent() {
         ) : !data || data.listings.length === 0 ? (
           <EmptyState icon={Home} title="No active listings found" description="Listings where you're the MLS listing agent will show up here automatically once synced." />
         ) : (
-          <>
-            <div className="mb-6 grid grid-cols-4 gap-1.5 sm:gap-3">
-              <SummaryMetricCard icon={CalendarCheck} label="Open Scheduled" value={data.summary.open_scheduled} />
-              <SummaryMetricCard icon={AlertCircle} label="Needs Host" value={data.summary.needs_host} />
-              <SummaryMetricCard icon={Users} label="Avg Guests/Open" value={data.summary.avg_guests_per_open} />
-              <SummaryMetricCard
-                icon={Star}
-                label="High Priority"
-                value={data.summary.high_priority}
-                highlight={data.summary.high_priority > 0}
-                infoText="A listing is flagged high priority once one of its open houses has actually drawn a guest - it's proven to convert, so it's worth getting re-hosted."
-              />
-            </div>
-
-            <div className="mb-3 sm:mb-6 flex flex-col sm:flex-row items-center gap-3">
-              <div className="relative flex-1 w-full">
-                <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search your listings..."
-                  className="w-full rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#151517] py-3 pl-10 pr-4 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:text-white"
-                />
-              </div>
-              <div className="relative flex w-full sm:w-auto items-center gap-2 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#151517] px-4 py-3">
-                <ArrowUpDown size={14} className="text-gray-400" />
-                <select
-                  value={sortBy}
-                  onChange={e => setSortBy(e.target.value as SortOption)}
-                  className="bg-transparent text-xs font-black uppercase tracking-widest text-[#111827] dark:text-white outline-none"
-                >
-                  <option value="needs_host_first">Needs Host First</option>
-                  <option value="days_on_market">Days on Market</option>
-                  <option value="price">Price</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="mb-6 flex md:hidden flex-wrap items-center justify-center gap-3">
-              <button
-                onClick={() => setIsAddListingOpen(true)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-[#111827] dark:text-white transition hover:border-[#C9A24D] hover:text-[#8b7355]"
-              >
-                <Plus size={14} /> Add Property
-              </button>
-              <button
-                onClick={handleRefreshListings}
-                disabled={isRefreshing}
-                className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-[#111827] dark:text-white transition hover:border-[#C9A24D] hover:text-[#8b7355] disabled:opacity-50"
-              >
-                {isRefreshing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Refresh
-              </button>
-              <button
-                onClick={() => setIsTeamPanelOpen(true)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-[#111827] dark:text-white transition hover:border-[#C9A24D] hover:text-[#8b7355]"
-              >
-                <UsersRound size={14} /> My Team
-              </button>
-            </div>
-
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             {filteredListings.length === 0 ? (
               <EmptyState icon={Search} title="No listings match your search" description="Try a different address, city, or ZIP code." />
             ) : (
@@ -255,11 +353,12 @@ function MyListingsContent() {
                     onViewInsights={setInsightsKey}
                     onManageHosts={setManageHostsKey}
                     onRequestRemove={setRemoveTargetKey}
+                    onCalendarCellClick={handleCalendarCellClick}
                   />
                 ))}
               </div>
             )}
-          </>
+          </motion.div>
         )}
       </main>
       <Footer />
@@ -277,17 +376,14 @@ function MyListingsContent() {
       />
       <ManageHostsModal
         listingKey={manageHostsKey}
-        onClose={() => setManageHostsKey(null)}
+        onClose={closeManageHosts}
         onActionComplete={load}
+        prefillDirectDate={manageHostsPrefillDate}
+        focusHostNotes={manageHostsFocusNotes}
       />
       <OpenHouseInsightsModal
         listingKey={insightsKey}
         onClose={() => setInsightsKey(null)}
-      />
-      <AddManualListingModal
-        isOpen={isAddListingOpen}
-        onClose={() => setIsAddListingOpen(false)}
-        onAdded={load}
       />
       <WarningConfirmModal
         isOpen={!!removeTargetKey}

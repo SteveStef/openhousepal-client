@@ -1,8 +1,11 @@
 'use client'
 
+import AuthLuxeStyle, { AuthKicker, GoldPal } from '@/components/auth/AuthLuxeStyle'
 import Link from 'next/link'
-import Image from 'next/image'
 import { useState, useEffect } from 'react'
+import { AUTH_FEATURE_SLIDES } from '@/lib/authFeatureSlides'
+import PageBackgroundGrid from '@/components/PageBackgroundGrid'
+import { QrBadge } from '@/components/home/LineArtMotifs'
 import EmailVerificationInput from '../../../components/EmailVerificationInput'
 import BrokerageAutocomplete from '../../../components/BrokerageAutocomplete'
 import api from '@/lib/api-service'
@@ -38,6 +41,7 @@ export default function RegisterPage() {
     lastName: '',
     email: '',
     mlsId: '',
+    licenseNumber: '',
     state: '',
     brokerage: '',
     password: '',
@@ -56,35 +60,8 @@ export default function RegisterPage() {
   
   const [currentSlide, setCurrentSlide] = useState(0)
 
-  const slides = [
-    {
-      title: "Instant Follow-up",
-      description: "Automated, personalized engagement sent within the golden hour of visitation.",
-      icon: (
-        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
-      )
-    },
-    {
-      title: "Smart Showcases",
-      description: "AI-driven property collections tailored dynamically to visitor preferences.",
-      icon: (
-        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-        </svg>
-      )
-    },
-    {
-      title: "Real-time Analytics",
-      description: "Deep insights into lead behavior, viewing patterns, and engagement metrics.",
-      icon: (
-        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      )
-    }
-  ]
+  // Shared with the sign-in screen - see lib/authFeatureSlides.tsx.
+  const slides = AUTH_FEATURE_SLIDES
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -93,7 +70,30 @@ export default function RegisterPage() {
     return () => clearInterval(timer)
   }, [slides.length])
 
+  // Drives the corner motif's one-time stroke draw-in (see components/home/LineArtMotifs.tsx) -
+  // a short delay after mount so it plays as a visible animation instead of appearing pre-drawn.
+  const [motifVisible, setMotifVisible] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setMotifVisible(true), 200)
+    return () => clearTimeout(t)
+  }, [])
+
   const [registrationStep, setRegistrationStep] = useState<'form' | 'verify'>('form')
+
+  // Bright MLS agents vs everyone else. Agents outside Bright give a license number instead of an
+  // MLS ID, type their brokerage, skip the Bright approval step and see the No-MLS plans.
+  // Arriving from a No-MLS plan card (?plan=no_mls / pro_no_mls) starts on that side.
+  const [audience, setAudience] = useState<'bright' | 'other'>('bright')
+  const isBright = audience === 'bright'
+  useEffect(() => {
+    const plan = new URLSearchParams(window.location.search).get('plan') || ''
+    if (plan) { try { localStorage.setItem('ohp_signup_plan', plan) } catch {} }
+    if (plan === 'no_mls' || plan === 'pro_no_mls') setAudience('other')
+  }, [])
+  const switchAudience = (a: 'bright' | 'other') => {
+    setAudience(a)
+    setFieldErrors(prev => ({ ...prev, mlsId: '', licenseNumber: '', brokerage: '' }))
+  }
 
   // Clear notifications after 5 seconds
   const showNotification = (type: 'success' | 'error' | 'info', message: string) => {
@@ -111,10 +111,11 @@ export default function RegisterPage() {
     if (!formData.state.trim()) newErrors.state = 'State is required'
     if (!formData.brokerage.trim()) {
       newErrors.brokerage = 'Brokerage is required'
-    } else if (!isBrokerageValid) {
+    } else if (isBright && !isBrokerageValid) {
       newErrors.brokerage = 'Please select a brokerage from the dropdown options'
     }
-    if (!formData.mlsId.trim()) newErrors.mlsId = 'MLS ID is required'
+    if (isBright && !formData.mlsId.trim()) newErrors.mlsId = 'MLS ID is required'
+    if (!isBright && !formData.licenseNumber.trim()) newErrors.licenseNumber = 'License number is required'
     
     // Email validation
     if (!formData.email.trim()) {
@@ -163,7 +164,8 @@ export default function RegisterPage() {
       state: formData.state,
       brokerage: formData.brokerage,
       password: formData.password,
-      mls_id: formData.mlsId
+      is_bright: isBright,
+      ...(isBright ? { mls_id: formData.mlsId } : { license_number: formData.licenseNumber.trim() }),
     })
 
     if (success) {
@@ -179,6 +181,8 @@ export default function RegisterPage() {
         newFieldErrors.email = errorMessage
       } else if (lowerError.includes('mls id')) {
         newFieldErrors.mlsId = errorMessage
+      } else if (lowerError.includes('license')) {
+        newFieldErrors.licenseNumber = errorMessage
       }
 
       if (Object.keys(newFieldErrors).length > 0) {
@@ -218,27 +222,19 @@ export default function RegisterPage() {
   return (
     <div className="h-screen flex flex-col lg:flex-row overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B]">
       {/* Left Section - Form (55%) */}
-      <div className="w-full lg:w-[55%] h-full relative flex flex-col overflow-hidden transition-colors duration-300">
-        {/* Refined Background Gradient Orbs - Clipped */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#C9A24D]/5 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#111827]/5 dark:bg-[#C9A24D]/5 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-screen"></div>
-        </div>
+      <div className="w-full lg:w-[55%] h-full relative z-0 flex flex-col overflow-hidden transition-colors duration-300">
+        <PageBackgroundGrid />
+        <AuthLuxeStyle />
+        <QrBadge
+          visible={motifVisible}
+          className="ohp-motif-float hidden lg:block absolute top-10 right-10 w-[170px] h-[170px] text-[#C9A24D] opacity-[0.2] dark:opacity-[0.26] -z-10"
+        />
 
         {/* Content Container */}
         <div className="relative z-10 w-full h-full overflow-hidden flex flex-col items-center justify-center px-6 py-4">
           {/* Logo - Compact for no-scroll mobile layout */}
           <Link href="/" className="mb-4 lg:mb-12 flex flex-col items-center group">
-            <div className="relative overflow-hidden rounded-xl bg-white dark:bg-transparent p-1 shadow-sm mb-1">
-              <Image
-                src="/logo.png"
-                alt="OpenHousePal Logo"
-                width={100}
-                height={56}
-                className="h-10 sm:h-12 w-auto group-hover:scale-105 transition-transform duration-500"
-              />
-            </div>
-            <h1 className="text-lg font-black text-[#111827] dark:text-white tracking-tight leading-none">OpenHousePal</h1>
+            <h1 className="text-[28px] sm:text-[32px] text-[#111827] dark:text-white"><GoldPal animate /></h1>
           </Link>
 
           {/* Notification Toast */}
@@ -291,7 +287,8 @@ export default function RegisterPage() {
             // Backend now creates user and returns token during verify-code
             // Refresh local auth state to reflect the new account
             await refreshUser()
-            router.push('/broker-authorization')
+            // Outside Bright there's no data feed to approve - straight to picking a plan.
+            router.push(isBright ? '/broker-authorization' : '/checkout')
           }}
           onBack={() => {
             setRegistrationStep('form')
@@ -303,13 +300,29 @@ export default function RegisterPage() {
         <div className="max-w-[640px] w-full">
           {/* Header */}
           <div className="mb-4 text-center">
-            <h2 className="text-3xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-2">Create Account</h2>
+            <AuthKicker>Start free</AuthKicker>
+            <h2 className="mb-2 font-serif text-4xl font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Create <em className="ohp-home-em">Account.</em></h2>
             <p className="text-[#6B7280] dark:text-gray-400 text-sm font-medium">Start your {TRIAL_PERIOD_DAYS}-day free trial today.</p>
           </div>
 
           {/* Registration Form */}
-          <div className="bg-white dark:bg-[#151517] rounded-3xl p-6 md:p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 transition-colors">
-            <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="ohp-auth-card bg-white dark:bg-[#151517] rounded-3xl p-6 md:p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 transition-colors">
+            <form method="post" onSubmit={handleSubmit} className="space-y-3">
+              <div className="flex justify-center pb-1">
+                <div role="tablist" aria-label="Which MLS are you in?" className="inline-flex items-center gap-1 rounded-full border border-gray-200 dark:border-gray-800 bg-[#FAFAF7] dark:bg-[#0B0B0B] p-1">
+                  {([['bright', 'Bright MLS agent'], ['other', 'Not in Bright MLS']] as const).map(([id, label]) => (
+                    <button key={id} type="button" role="tab" aria-selected={audience === id} onClick={() => switchAudience(id)}
+                      className={`rounded-full px-4 py-2 text-xs font-bold transition-colors ${audience === id ? 'bg-[#111827] text-white dark:bg-[#C9A24D] dark:text-[#111827]' : 'text-gray-500 hover:text-[#0B0B0B] dark:text-gray-400 dark:hover:text-white'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {!isBright && (
+                <p className="-mt-1 text-center text-[11px] font-medium leading-snug text-[#6B7280] dark:text-gray-400">
+                  No MLS data needed - you&apos;ll get the No-MLS plans and can start right away.
+                </p>
+              )}
               {/* Name Fields */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -355,7 +368,7 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* Email and MLS ID */}
+              {/* Email and MLS ID (or license number) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-1">
                   <label htmlFor="email" className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider mb-1 ml-1">
@@ -385,6 +398,7 @@ export default function RegisterPage() {
                   {fieldErrors.email && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.email}</p>}
                 </div>
 
+                {isBright ? (
                 <div>
                   <label htmlFor="mlsId" className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider mb-1 ml-1">
                     MLS ID
@@ -411,6 +425,30 @@ export default function RegisterPage() {
                   />
                   {fieldErrors.mlsId && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.mlsId}</p>}
                 </div>
+                ) : (
+                <div>
+                  <label htmlFor="licenseNumber" className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider mb-1 ml-1">
+                    License number
+                  </label>
+                  <input
+                    id="licenseNumber"
+                    name="licenseNumber"
+                    type="text"
+                    required
+                    maxLength={40}
+                    autoComplete="off"
+                    value={formData.licenseNumber}
+                    onChange={handleChange}
+                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
+                      fieldErrors.licenseNumber
+                        ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30'
+                    }`}
+                    placeholder="e.g. RS123456"
+                  />
+                  {fieldErrors.licenseNumber && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.licenseNumber}</p>}
+                </div>
+                )}
               </div>
 
               {/* State and Brokerage Fields */}
@@ -452,6 +490,7 @@ export default function RegisterPage() {
                   <label htmlFor="brokerage" className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider mb-1 ml-1">
                     Brokerage
                   </label>
+                  {isBright ? (
                   <BrokerageAutocomplete
                     value={formData.brokerage}
                     onChange={(val) => {
@@ -466,6 +505,23 @@ export default function RegisterPage() {
                     error={!!fieldErrors.brokerage}
                     placeholder="Re/Max..."
                   />
+                  ) : (
+                  <input
+                    id="brokerage"
+                    name="brokerage"
+                    type="text"
+                    required
+                    maxLength={120}
+                    value={formData.brokerage}
+                    onChange={handleChange}
+                    className={`block w-full px-3 py-2.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border focus:bg-white dark:focus:bg-[#111827] rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 font-medium text-sm ${
+                      fieldErrors.brokerage
+                        ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30'
+                    }`}
+                    placeholder="Your brokerage"
+                  />
+                  )}
                   {fieldErrors.brokerage && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.brokerage}</p>}
                 </div>
               </div>
@@ -596,7 +652,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-xl text-sm font-black uppercase tracking-widest text-white bg-[#111827] dark:bg-white dark:text-[#111827] hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111827] transform transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+                className="ohp-auth-btn w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-xl text-sm font-black uppercase tracking-widest text-white bg-[#111827] dark:bg-white dark:text-[#111827] hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111827] transform transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {isLoading ? (
                   <div className="flex items-center">
@@ -638,7 +694,8 @@ export default function RegisterPage() {
       {/* Right Section - Explanation (45%) */}
       <div className="hidden lg:flex w-full lg:w-[45%] relative bg-[#151517] text-white overflow-hidden flex-col justify-center">
         {/* Rich Background Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#151517] via-[#3a2f25] to-[#8b7355] opacity-90"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.28),transparent_55%),linear-gradient(135deg,#0b0f0e_0%,#111827_55%,#2a2218_100%)]"></div>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#e8c97a] to-transparent opacity-80"></div>
         
         {/* Decorative Patterns */}
         <div className="absolute top-0 right-0 w-full h-full opacity-10" 
@@ -649,11 +706,11 @@ export default function RegisterPage() {
 
         <div className="relative z-10 p-12 lg:p-16 flex flex-col justify-center h-full">
           <div className="max-w-xl mx-auto lg:mx-0">
-            <h3 className="text-4xl font-bold mb-2 tracking-tight">OpenHousePal</h3>
-            <p className="text-gray-300 text-lg mb-6 font-light">The ultimate lead generation toolkit for modern real estate agents.</p>
-            <div className="h-1 w-20 bg-gradient-to-r from-[#ffd700] to-[#8b7355] rounded-full mb-12"></div>
+            <h3 className="mb-2 text-4xl font-black uppercase tracking-tight"><GoldPal /></h3>
+            <p className="text-gray-300 text-lg mb-6 font-light whitespace-nowrap">The all-in-one platform for modern real estate agents.</p>
+            <div className="h-1 w-20 bg-gradient-to-r from-[#e8c97a] to-[#8b7355] rounded-full mb-12"></div>
             
-            <div className="relative h-48">
+            <div className="relative h-56">
               {slides.map((slide, index) => (
                 <div
                   key={index}
@@ -670,7 +727,10 @@ export default function RegisterPage() {
                       <div className="w-10 h-10 bg-gradient-to-br from-[#8b7355] to-[#6b5840] rounded-lg flex items-center justify-center shadow-lg flex-shrink-0">
                         {slide.icon}
                       </div>
-                      <h4 className="font-bold text-xl text-white">{slide.title}</h4>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-[#e8c97a]">{slide.kicker}</p>
+                        <h4 className="font-serif font-black text-xl text-white leading-tight">{slide.title}</h4>
+                      </div>
                     </div>
                     <p className="text-gray-300 text-base leading-relaxed font-light">{slide.description}</p>
                   </div>
@@ -686,7 +746,7 @@ export default function RegisterPage() {
                   onClick={() => setCurrentSlide(index)}
                   className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
                     index === currentSlide 
-                      ? 'bg-[#ffd700] w-8' 
+                      ? 'bg-[#e8c97a] w-8' 
                       : 'bg-white/30 hover:bg-white/50'
                   }`}
                   aria-label={`Go to slide ${index + 1}`}
@@ -696,11 +756,11 @@ export default function RegisterPage() {
 
             <div className="mt-16 pt-8 border-t border-white/10">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-2 h-2 rounded-full bg-[#ffd700] animate-pulse"></div>
+                <div className="w-2 h-2 rounded-full bg-[#e8c97a] animate-pulse"></div>
                 <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Now in early access</p>
               </div>
               <p className="text-sm text-gray-300/80 font-light leading-relaxed">
-                "We're on a mission to simplify real estate lead management. Join us in shaping the future of open houses."
+                "We're building the most advanced AI and productivity tools in real estate - the ones that actually save agents time, keep them prepared and organized, and help them close more deals. If you're serious about this business, this is the tech you should be running on."
               </p>
             </div>
           </div>

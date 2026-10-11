@@ -14,8 +14,12 @@ export default function ScrollableSection({ maxHeightClass, viewHref, viewLabel 
   viewLabel?: string
   children: React.ReactNode
 }) {
+  // px/py on the scroll container is not cosmetic: it clips its own overflow, so an edge row that
+  // lifts on hover (hover:-translate-y-*) or carries an outside ring / glow (the red "needs
+  // attention" lead card) would get its top/side shaved off against the clip edge. The padding +
+  // scroll-py gives that lift and glow room to render inside the scroll box.
   return (
-    <div className={`min-w-0 space-y-2 overflow-y-auto pr-1 ${maxHeightClass}`}>
+    <div className={`min-w-0 space-y-2 overflow-y-auto px-1.5 py-2 scroll-py-2 ${maxHeightClass}`}>
       {children}
       <Link
         href={viewHref}

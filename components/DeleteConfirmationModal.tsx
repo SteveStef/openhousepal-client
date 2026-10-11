@@ -1,5 +1,7 @@
 'use client'
 
+import MotionModal from '@/components/ui/MotionModal'
+import { useLastValue } from '@/components/ui/windowMotion'
 import { Collection } from '@/types'
 import { X, AlertTriangle } from 'lucide-react'
 
@@ -9,19 +11,23 @@ interface DeleteConfirmationModalProps {
   onClose: () => void
   onConfirm: () => void
   isDeleting?: boolean
+  // Open follow-ups that only exist because of this Showcase - they go with it.
+  alsoRemoves?: string[] | null
 }
 
 export default function DeleteConfirmationModal({
-  collection,
+  collection: collectionProp,
   isOpen,
   onClose,
   onConfirm,
-  isDeleting = false
+  isDeleting = false,
+  alsoRemoves = null
 }: DeleteConfirmationModalProps) {
-  if (!isOpen || !collection) return null
+  const collection = useLastValue(collectionProp)
+  if (!collection) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <MotionModal open={isOpen && !!collectionProp}>
       <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-2xl border border-gray-200/60 dark:border-gray-800 max-w-md w-full transition-colors">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200/60 dark:border-gray-800">
@@ -30,7 +36,7 @@ export default function DeleteConfirmationModal({
               <AlertTriangle size={20} className="text-amber-600 dark:text-amber-500" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Delete Collection</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Delete Showcase</h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">This action cannot be undone</p>
             </div>
           </div>
@@ -78,12 +84,23 @@ export default function DeleteConfirmationModal({
             {/* Warning Message */}
             <div className="text-center space-y-2">
               <p className="text-gray-900 dark:text-white font-medium">
-                Are you sure you want to delete this collection?
+                Are you sure you want to delete this Showcase?
               </p>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                All associated data including property interactions, comments, and preferences will be permanently removed.
+                Its homes, likes, comments and search will be permanently removed. {collection.customer.firstName} stays in your Leads.
               </p>
             </div>
+            {!!alsoRemoves?.length && (
+              <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-900/10 p-3 text-sm text-amber-900 dark:text-amber-300">
+                <p className="font-semibold">
+                  This also removes {alsoRemoves.length === 1 ? '1 open follow-up' : `${alsoRemoves.length} open follow-ups`} about their Showcase:
+                </p>
+                <ul className="mt-1 list-disc pl-5 text-[13px]">
+                  {alsoRemoves.map((t, i) => <li key={i}>{t}</li>)}
+                </ul>
+                <p className="mt-1 text-[12px] text-amber-800/80 dark:text-amber-400/80">Their other follow-ups stay.</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -109,11 +126,11 @@ export default function DeleteConfirmationModal({
                 <span>Deleting...</span>
               </>
             ) : (
-              <span>Delete Collection</span>
+              <span>Delete Showcase</span>
             )}
           </button>
         </div>
       </div>
-    </div>
+    </MotionModal>
   )
 }

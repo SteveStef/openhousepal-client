@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, Calendar, Home, MapPin, Phone, TrendingUp } from 'lucide-react'
 import api from '@/lib/api-service'
 import { PublicFormSummary } from '@/types'
+import { OhpWordmark } from '@/components/brand/OhpBrand'
 
 type AgentSale = { id: string; address: string; city: string; state: string; zipcode?: string; price?: number; status?: string; image?: string; sold_date?: string; visible?: boolean }
 
@@ -117,7 +118,7 @@ export default function AgentHubSalesPage() {
   if (hubStatus === 'not-found') {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-[#f7f5f1] px-6 text-center dark:bg-[#0B0B0B]">
-        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#8b7355] dark:text-[#d7b974]">OpenHousePal</p>
+        <OhpWordmark className="text-xl text-[#111827] dark:text-white" />
         <h1 className="mt-3 font-serif text-3xl font-black text-[#111827] dark:text-white">This link isn&apos;t active</h1>
         <p className="mt-2 max-w-sm text-sm font-medium text-[#5f6673] dark:text-gray-400">
           We couldn&apos;t find an Agent Hub at this address. Double-check the link, or ask your agent for their current page.

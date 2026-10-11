@@ -35,7 +35,7 @@ export default function NotFound() {
         </div>
 
         <p className="text-[#6B7280] dark:text-gray-400 text-lg mb-10 font-medium leading-relaxed">
-          I think you're lost. Let's get you back to where the leads are.
+          This page doesn't exist or has moved.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">

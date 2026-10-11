@@ -1,5 +1,7 @@
 'use client'
 
+import OhpLoader from '@/components/brand/OhpLoader'
+
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter, usePathname } from 'next/navigation'
 import { ReactNode, useEffect } from 'react'
@@ -37,14 +39,7 @@ export default function BrokerAuthorizationGuard({ children }: BrokerAuthorizati
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center p-4 transition-colors duration-300">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-[#C9A24D]/20 border-t-[#C9A24D] rounded-full animate-spin"></div>
-          <p className="text-sm font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest animate-pulse">
-            Verifying access...
-          </p>
-        </div>
-      </div>
+      <OhpLoader />
     )
   }
 

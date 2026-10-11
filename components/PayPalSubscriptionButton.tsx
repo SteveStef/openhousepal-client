@@ -20,7 +20,47 @@ export default function PayPalSubscriptionButton({
   isCheckoutOnly = true
 }: PayPalSubscriptionButtonProps) {
   const [loading, setLoading] = useState(false);
+  // An approved PayPal subscription we couldn't attach to the account yet (bad connection,
+  // server hiccup). Retrying re-links THIS one - never start a second subscription.
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const [{ isPending }] = usePayPalScriptReducer();
+
+  const link = async (subscriptionId: string) => {
+    setLoading(true);
+    try {
+      const { success, error } = await api.auth.linkSubscription(subscriptionId, planId, bundleCode);
+      if (success) {
+        setPendingId(null);
+        onSuccess();
+      } else {
+        setPendingId(subscriptionId);
+        onError(error || 'Failed to link subscription.');
+      }
+    } catch (error) {
+      console.error('Error in payment processing:', error);
+      setPendingId(subscriptionId);
+      onError('Your PayPal approval went through, but we could not finish setting up your account. Tap "Finish activation" to try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (pendingId) {
+    return (
+      <div className="w-full min-h-[150px] flex flex-col items-center justify-center gap-3 text-center">
+        <p className="text-sm text-gray-600 dark:text-gray-300">PayPal approved your subscription. One last step to switch your account on.</p>
+        <button
+          type="button"
+          onClick={() => link(pendingId)}
+          disabled={loading}
+          className="w-full rounded-xl bg-[#111827] px-6 py-4 text-sm font-black uppercase tracking-widest text-white transition hover:bg-[#C9A24D] disabled:opacity-60 dark:bg-[#C9A24D] dark:text-[#111827]"
+        >
+          {loading ? 'Finishing...' : 'Finish activation'}
+        </button>
+        <p className="text-xs text-gray-400">You won't be charged twice. Still stuck? Email support and mention PayPal ID {pendingId}.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full min-h-[150px] relative">
@@ -54,27 +94,8 @@ export default function PayPalSubscriptionButton({
               throw error;
             }
           }}
-          onApprove={async (data, actions) => {
-            setLoading(true);
-            try {
-              // Now always links to an existing account
-              const { success, error } = await api.auth.linkSubscription(
-                data.subscriptionID || '',
-                planId,
-                bundleCode
-              );
-
-              if (success) {
-                onSuccess();
-              } else {
-                onError(error || 'Failed to link subscription.');
-              }
-            } catch (error) {
-              console.error('Error in payment processing:', error);
-              onError('Failed to process payment. Please try again.');
-            } finally {
-              setLoading(false);
-            }
+          onApprove={async (data) => {
+            await link(data.subscriptionID || '');
           }}
           onCancel={() => {
             onError('Payment setup was cancelled. Please complete payment to continue.');

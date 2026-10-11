@@ -1,18 +1,31 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
-import Header from '@/components/Header'
+import { Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Footer from '@/components/Footer'
 import { useAuth } from '@/contexts/AuthContext'
-import { CheckCircle2, Sparkles, ArrowLeft, Lock } from 'lucide-react'
-import { User } from '@/types'
-import api from '@/lib/api-service'
-import { PRICING_PLANS } from '@/lib/pricing'
+import { ArrowLeft, Lock } from 'lucide-react'
+import { PRICING_PLANS, type PlanTierId } from '@/lib/pricing'
+import { PricingTierCard } from '@/components/pricing/PricingCards'
+import { IdxDomainNotice } from '@/components/IdxDomainNotice'
+import MissedShowcasesBanner from '@/components/MissedShowcasesBanner'
 
-export default function UpgradeRequiredPage() {
+const VALID_TIERS: PlanTierId[] = ['NO_MLS', 'PRO_NO_MLS', 'BASIC', 'PREMIUM', 'IDX']
+
+function UpgradeRequiredContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, isLoading } = useAuth()
+
+  const requestedTier = searchParams.get('tier') as PlanTierId | null
+  const askedTier: PlanTierId = requestedTier && VALID_TIERS.includes(requestedTier) ? requestedTier : 'PREMIUM'
+  // Accounts outside Bright MLS can't move onto a Bright plan - their way up is No-MLS Premium.
+  const targetTier: PlanTierId = user && !user.mls_id && !['NO_MLS', 'PRO_NO_MLS'].includes(askedTier) ? 'PRO_NO_MLS' : askedTier
+  const featureLabel = searchParams.get('feature') || 'This feature'
+  const targetPlan = PRICING_PLANS[targetTier]
+
+  const currentTier = (user?.plan_tier && VALID_TIERS.includes(user.plan_tier as PlanTierId)) ? (user.plan_tier as PlanTierId) : null
+  const currentPlan = currentTier ? PRICING_PLANS[currentTier] : null
 
   const handleUpgrade = () => {
     router.push('/settings/subscription')
@@ -30,197 +43,67 @@ export default function UpgradeRequiredPage() {
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/pinstripe-light.png')] opacity-[0.03] dark:opacity-[0.01] mix-blend-overlay"></div>
       </div>
 
-
-
       <main className="flex-1 relative z-10 flex flex-col items-center justify-center px-6 py-20">
         <div className="max-w-5xl w-full">
-          {/* Header Section */}
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-[#C9A24D]/10 text-[#C9A24D] mb-8 shadow-sm border border-[#C9A24D]/20 transform rotate-3 hover:rotate-6 transition-transform duration-300">
-              <Lock className="w-10 h-10" strokeWidth={1.5} />
+          {/* Header Section - a real pitch (glowing icon, gradient headline) rather than a plain
+              label, but still well short of the original's full-height centered stack. */}
+          <div className="text-center mb-10 max-w-2xl mx-auto">
+            <div className="relative mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#C9A24D]/10 text-[#C9A24D] shadow-sm border border-[#C9A24D]/20">
+              <div className="absolute -inset-2.5 -z-10 rounded-3xl bg-[#C9A24D]/25 blur-xl animate-glow-pulse" />
+              <Lock className="w-8 h-8" strokeWidth={1.5} />
             </div>
-            <h1 className="text-5xl font-black text-[#0B0B0B] dark:text-white mb-6 tracking-tight">
-              Premium Feature
+            <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.3em] text-[#C9A24D]">Unlock More</span>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-3 leading-tight">
+              <span className="text-transparent bg-clip-text bg-gradient-to-br from-[#111827] via-[#3a2f25] to-[#C9A24D] dark:from-white dark:via-[#e5e7eb] dark:to-[#C9A24D]">{targetPlan.name} Plan</span>
             </h1>
-            <p className="text-xl text-[#6B7280] dark:text-gray-400 font-light max-w-2xl mx-auto leading-relaxed">
-              Unlock the full power of OpenHousePal. Upgrade to Premium to create unlimited <span className="text-[#111827] dark:text-white font-medium">Property Showcases</span> and automate your visitor follow-ups.
+            <p className="text-base text-[#6B7280] dark:text-gray-400 font-light leading-relaxed">
+              <span className="text-[#111827] dark:text-white font-medium">{featureLabel}</span> is included on the <span className="text-[#111827] dark:text-white font-medium">{targetPlan.name}</span> plan. Upgrade to {targetPlan.name} to unlock it, along with everything else at that tier.
             </p>
           </div>
 
-          {/* Pricing Cards */}
-          <div className="grid md:grid-cols-2 gap-8 mb-16 items-start">
-            {/* Basic Plan (Current) */}
-            <div className="bg-white dark:bg-[#151517] rounded-[2rem] p-10 border border-gray-100 dark:border-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.05)] relative group hover:shadow-[0_30px_60px_rgba(0,0,0,0.08)] transition-all duration-300">
-              <div className="text-center mb-8">
-                <h2 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Current Plan</h2>
-                <h3 className="text-3xl font-black text-[#0B0B0B] dark:text-white mb-4">Basic</h3>
-                <div className="flex items-baseline justify-center">
-                  <span className="text-4xl font-black text-[#0B0B0B] dark:text-white tracking-tight">{PRICING_PLANS.BASIC.priceString}</span>
-                  <span className="text-[#6B7280] dark:text-gray-500 ml-2 font-medium">/mo</span>
-                </div>
-              </div>
-              
-              <div className="space-y-4 mb-8">
-                <div className="flex items-center text-gray-700 dark:text-gray-300 font-medium">
-                  <CheckCircle2 className="w-5 h-5 text-green-500 dark:text-green-400 mr-3 flex-shrink-0" />
-                  Unlimited QR codes
-                </div>
-                <div className="flex items-center text-gray-700 dark:text-gray-300 font-medium">
-                  <CheckCircle2 className="w-5 h-5 text-green-500 dark:text-green-400 mr-3 flex-shrink-0" />
-                  Visitor sign-in forms
-                </div>
-                <div className="flex items-center text-gray-400 dark:text-gray-600 font-medium">
-                  <div className="w-5 h-5 rounded-full border-2 border-gray-200 dark:border-gray-800 mr-3 flex-shrink-0 flex items-center justify-center">
-                    <div className="w-0.5 h-3 bg-gray-200 dark:bg-gray-800 rotate-45"></div>
-                  </div>
-                  <span className="line-through decoration-gray-300 dark:decoration-gray-700">Property Showcases</span>
-                </div>
-                <div className="flex items-center text-gray-400 dark:text-gray-600 font-medium">
-                  <div className="w-5 h-5 rounded-full border-2 border-gray-200 dark:border-gray-800 mr-3 flex-shrink-0 flex items-center justify-center">
-                    <div className="w-0.5 h-3 bg-gray-200 dark:bg-gray-800 rotate-45"></div>
-                  </div>
-                  <span className="line-through decoration-gray-300 dark:decoration-gray-700">Automated Matching</span>
-                </div>
-              </div>
+          {/* Showcases pitch for a Basic agent: the real guests they'd be serving right now. */}
+          {/showcase/i.test(featureLabel) && (
+            <div className="mx-auto mb-10 max-w-4xl">
+              <MissedShowcasesBanner ctaHref="/settings/subscription" />
+            </div>
+          )}
 
+          {/* Pricing Cards - both sides use the exact same shared card component as the homepage
+              pricing grid (just `current` instead of a CTA on the left), so a Basic/Premium/IDX
+              card looks identical everywhere in the app instead of drifting out of sync with a
+              separate hand-rolled summary. */}
+          <div className="grid md:grid-cols-2 gap-8 mb-16 items-start">
+            {/* Current Plan */}
+            <div className="flex flex-col gap-3">
+              {currentTier ? (
+                <PricingTierCard tier={currentTier} current />
+              ) : (
+                <div className="rounded-[2rem] border border-dashed border-gray-300 dark:border-gray-700 p-10 text-center text-sm font-bold text-gray-400">
+                  No active plan
+                </div>
+              )}
               {!isLoading && hasInactiveSubscription && (
                 <button
                   onClick={handleUpgrade}
-                  className="w-full py-4 bg-gray-50 dark:bg-gray-800 text-[#111827] dark:text-white rounded-xl font-bold border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-300"
+                  className="w-full py-3.5 bg-gray-50 dark:bg-gray-800 text-[#111827] dark:text-white rounded-xl font-bold border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-300 text-sm"
                 >
-                  Reactivate Basic
+                  Reactivate {currentPlan?.name || 'Plan'}
                 </button>
               )}
             </div>
 
-            {/* Premium Plan (Upgrade Target) */}
-            <div className="bg-[#111827] dark:bg-[#1A1A1C] rounded-[2rem] p-10 shadow-[0_30px_80px_-20px_rgba(201,162,77,0.3)] border border-gray-800 dark:border-gray-700 relative overflow-hidden transform md:-translate-y-4 transition-all duration-300">
-              {/* Gradient Effects */}
-              <div className="absolute inset-0 bg-gradient-to-br from-[#111827] via-[#2c241b] to-[#3d3226] dark:from-[#1A1A1C] dark:via-[#2c241b] dark:to-[#3d3226] z-0"></div>
-              <div className="absolute top-0 right-0 w-64 h-64 bg-[#C9A24D]/20 rounded-full blur-[80px] z-0"></div>
-              
-              <div className="relative z-10">
-                <div className="absolute top-0 right-0">
-                   <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#C9A24D] text-[#111827] text-[10px] font-black uppercase tracking-widest">
-                    Recommended
-                   </span>
-                </div>
-
-                <div className="text-center mb-8">
-                  <h2 className="text-sm font-bold text-[#C9A24D] uppercase tracking-widest mb-2">Upgrade To</h2>
-                  <h3 className="text-3xl font-black text-white mb-4">Premium</h3>
-                  <div className="flex items-baseline justify-center">
-                    <span className="text-5xl font-black text-white tracking-tight">{PRICING_PLANS.PREMIUM.priceString}</span>
-                    <span className="text-gray-400 dark:text-gray-500 ml-2 font-medium">/mo</span>
-                  </div>
-                </div>
-
-                <div className="bg-white/10 dark:bg-black/20 rounded-xl p-4 mb-8 border border-white/5 dark:border-white/10">
-                  <p className="text-sm font-medium text-center text-white/90">
-                    <Sparkles className="w-4 h-4 inline-block text-[#C9A24D] mr-2 -mt-0.5" />
-                    Unlocks all features immediately
-                  </p>
-                </div>
-
-                <div className="space-y-4 mb-10">
-                  <div className="flex items-center text-white font-medium">
-                    <div className="w-5 h-5 bg-[#C9A24D] rounded-full flex items-center justify-center mr-3 flex-shrink-0 text-[#111827]">
-                      <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={3} />
-                    </div>
-                    Everything in Basic
-                  </div>
-                  <div className="flex items-center text-white font-medium">
-                    <div className="w-5 h-5 bg-[#C9A24D] rounded-full flex items-center justify-center mr-3 flex-shrink-0 text-[#111827]">
-                      <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={3} />
-                    </div>
-                    Unlimited Property Showcases
-                  </div>
-                  <div className="flex items-center text-white font-medium">
-                    <div className="w-5 h-5 bg-[#C9A24D] rounded-full flex items-center justify-center mr-3 flex-shrink-0 text-[#111827]">
-                      <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={3} />
-                    </div>
-                    Automated Buyer Matching
-                  </div>
-                  <div className="flex items-center text-white font-medium">
-                    <div className="w-5 h-5 bg-[#C9A24D] rounded-full flex items-center justify-center mr-3 flex-shrink-0 text-[#111827]">
-                      <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={3} />
-                    </div>
-                    Advanced Analytics & Insights
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleUpgrade}
-                  className="w-full py-4 bg-gradient-to-r from-[#C9A24D] to-[#b38e3e] text-[#111827] rounded-xl font-bold text-lg hover:shadow-lg hover:shadow-[#C9A24D]/30 transition-all duration-300 transform hover:-translate-y-1"
-                >
-                  Upgrade Now
-                </button>
-              </div>
-            </div>
+            {/* Upgrade Target - the same polished tier card used on the homepage pricing grid,
+                so what an agent sees here always matches what they saw when they signed up. No
+                lift/translate here (unlike the homepage grid) so its top edge lines up exactly
+                with the current-plan card beside it. */}
+            <PricingTierCard tier={targetTier} ctaHref="/settings/subscription" ctaLabel={`Unlock ${featureLabel} — Upgrade Now`} />
           </div>
 
-          {/* Feature Deep Dive */}
-          <div className="bg-white dark:bg-[#151517] rounded-[2rem] p-10 border border-gray-100 dark:border-gray-800 shadow-sm transition-colors duration-300">
-            <div className="flex items-center mb-8">
-              <div className="w-12 h-12 bg-[#111827] dark:bg-[#0B0B0B] rounded-2xl flex items-center justify-center mr-6 text-[#C9A24D] border border-gray-800">
-                <Sparkles className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-2xl font-black text-[#0B0B0B] dark:text-white tracking-tight">Why Upgrade?</h3>
-                <p className="text-[#6B7280] dark:text-gray-400">How Showcases transform your workflow</p>
-              </div>
+          {targetTier === 'IDX' && (
+            <div className="max-w-3xl mx-auto mb-16 -mt-8">
+              <IdxDomainNotice />
             </div>
-            
-            <div className="grid md:grid-cols-2 gap-x-12 gap-y-8">
-              <div className="flex items-start">
-                <div className="w-8 h-8 rounded-full bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center mr-4 mt-1 flex-shrink-0 border border-gray-100 dark:border-gray-800">
-                  <span className="text-sm font-bold text-[#111827] dark:text-white">01</span>
-                </div>
-                <div>
-                  <h4 className="font-bold text-[#111827] dark:text-white mb-2">Automatic Matching</h4>
-                  <p className="text-sm text-[#6B7280] dark:text-gray-400 leading-relaxed">
-                    The system analyzes visitor preferences and instantly finds matching properties from your portfolio, saving you hours of manual searching.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-start">
-                <div className="w-8 h-8 rounded-full bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center mr-4 mt-1 flex-shrink-0 border border-gray-100 dark:border-gray-800">
-                  <span className="text-sm font-bold text-[#111827] dark:text-white">02</span>
-                </div>
-                <div>
-                  <h4 className="font-bold text-[#111827] dark:text-white mb-2">Personalized Collections</h4>
-                  <p className="text-sm text-[#6B7280] dark:text-gray-400 leading-relaxed">
-                    Each visitor receives a unique, branded webpage featuring properties they'll love. It's like a digital brochure custom-made for them.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-start">
-                <div className="w-8 h-8 rounded-full bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center mr-4 mt-1 flex-shrink-0 border border-gray-100 dark:border-gray-800">
-                  <span className="text-sm font-bold text-[#111827] dark:text-white">03</span>
-                </div>
-                <div>
-                  <h4 className="font-bold text-[#111827] dark:text-white mb-2">Engagement Tracking</h4>
-                  <p className="text-sm text-[#6B7280] dark:text-gray-400 leading-relaxed">
-                    Know exactly when they open their showcase, which homes they view, and get notified instantly when they request a tour.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-start">
-                <div className="w-8 h-8 rounded-full bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center mr-4 mt-1 flex-shrink-0 border border-gray-100 dark:border-gray-800">
-                  <span className="text-sm font-bold text-[#111827] dark:text-white">04</span>
-                </div>
-                <div>
-                  <h4 className="font-bold text-[#111827] dark:text-white mb-2">Zero Maintenance</h4>
-                  <p className="text-sm text-[#6B7280] dark:text-gray-400 leading-relaxed">
-                    As new properties hit the market, showcases automatically update. You stay top-of-mind without lifting a finger.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
 
           <div className="text-center mt-12">
             <button
@@ -228,7 +111,7 @@ export default function UpgradeRequiredPage() {
               className="group inline-flex items-center text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white font-bold text-xs uppercase tracking-widest transition-all duration-300 px-6 py-3 rounded-full hover:bg-white dark:hover:bg-[#151517] hover:shadow-sm"
             >
               <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-              Back to Dashboard
+              Back
             </button>
           </div>
         </div>
@@ -236,5 +119,13 @@ export default function UpgradeRequiredPage() {
 
       <Footer />
     </div>
+  )
+}
+
+export default function UpgradeRequiredPage() {
+  return (
+    <Suspense fallback={null}>
+      <UpgradeRequiredContent />
+    </Suspense>
   )
 }

@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, Calendar, Home, MapPin, Phone, TrendingUp } from 'lucide-react'
 import api from '@/lib/api-service'
-import { PublicFormSummary } from '@/types'
+import { PublicBlogSummary, PublicFormSummary } from '@/types'
+import { OhpWordmark } from '@/components/brand/OhpBrand'
 
 type HubItem = { id: string; title: string; description?: string; image?: string; link?: string }
 
@@ -28,6 +29,7 @@ export default function AgentHubBlogsPage() {
   const [profile, setProfile] = useState(defaultProfile)
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('/home.jpg')
   const [blogCards, setBlogCards] = useState<HubItem[]>([])
+  const [publicBlogs, setPublicBlogs] = useState<PublicBlogSummary[]>([])
   const [visitorDarkMode, setVisitorDarkMode] = useState(false)
   const [publicForms, setPublicForms] = useState<PublicFormSummary[]>([])
   const [hubStatus, setHubStatus] = useState<'loading' | 'found' | 'not-found'>('loading')
@@ -43,6 +45,12 @@ export default function AgentHubBlogsPage() {
   useEffect(() => {
     api.public.getPublicForms(agentSlug).then(response => {
       if (response.success && response.data) setPublicForms(response.data)
+    })
+  }, [agentSlug])
+
+  useEffect(() => {
+    api.public.getPublicBlogs(agentSlug).then(response => {
+      if (response.success && response.data) setPublicBlogs(response.data)
     })
   }, [agentSlug])
 
@@ -72,16 +80,24 @@ export default function AgentHubBlogsPage() {
   }, [])
 
   const eligibleBlogs = useMemo(() => {
+    const publishedBlogs = publicBlogs.map((blog): HubItem => ({
+      id: blog.slug,
+      title: blog.title,
+      description: blog.category || 'Blog',
+      image: blog.coverImageUrl || '',
+      link: `${agentHubBasePath}/blogs/${blog.slug}`,
+    }))
+    if (publishedBlogs.length) return publishedBlogs
     const cards = blogCards.filter(item => item.title.trim())
     return cards.length ? cards : blogs.map(([title, date], index): HubItem => ({ id: `fallback-blog-${index}`, title, description: date, image: '', link: '' }))
-  }, [blogCards])
+  }, [agentHubBasePath, blogCards, publicBlogs])
   const buyingForm = publicForms.find(form => form.formType === 'buying')
   const sellingForm = publicForms.find(form => form.formType === 'selling')
 
   if (hubStatus === 'not-found') {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-[#f7f5f1] px-6 text-center dark:bg-[#0B0B0B]">
-        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#8b7355] dark:text-[#d7b974]">OpenHousePal</p>
+        <OhpWordmark className="text-xl text-[#111827] dark:text-white" />
         <h1 className="mt-3 font-serif text-3xl font-black text-[#111827] dark:text-white">This link isn&apos;t active</h1>
         <p className="mt-2 max-w-sm text-sm font-medium text-[#5f6673] dark:text-gray-400">
           We couldn&apos;t find an Agent Hub at this address. Double-check the link, or ask your agent for their current page.
@@ -137,9 +153,9 @@ export default function AgentHubBlogsPage() {
           {eligibleBlogs.map(item => (
             <a
               key={item.id}
-              href={item.link ? (item.link.startsWith('http') ? item.link : `https://${item.link}`) : '#'}
-              target={item.link ? '_blank' : undefined}
-              rel={item.link ? 'noreferrer' : undefined}
+              href={item.link ? (item.link.startsWith('/') ? item.link : item.link.startsWith('http') ? item.link : `https://${item.link}`) : '#'}
+              target={item.link && !item.link.startsWith('/') ? '_blank' : undefined}
+              rel={item.link && !item.link.startsWith('/') ? 'noreferrer' : undefined}
               className={`overflow-hidden rounded-[18px] border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-[#151517] ${item.link ? '' : 'pointer-events-none'}`}
             >
               <div className="relative aspect-[4/3] bg-cover bg-center" style={{ backgroundImage: `url(${item.image || '/placeholder.jpg'})` }} />

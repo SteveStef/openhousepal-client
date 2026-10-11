@@ -1,5 +1,6 @@
 'use client'
 
+import AuthLuxeStyle, { AuthKicker, GoldPal } from '@/components/auth/AuthLuxeStyle'
 import Link from 'next/link'
 import { useState } from 'react'
 import api from '@/lib/api-service'
@@ -65,6 +66,8 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] relative flex items-center justify-center px-6 py-12 overflow-hidden transition-colors duration-300">
+      <AuthLuxeStyle />
+      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 -z-0 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#C9A24D]/15 blur-[110px]" />
       {/* Refined Background Gradient Orbs */}
       <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#C9A24D]/5 rounded-full blur-[120px] pointer-events-none mix-blend-multiply dark:mix-blend-screen"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#111827]/5 dark:bg-[#C9A24D]/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply dark:mix-blend-screen"></div>
@@ -119,7 +122,8 @@ export default function ForgotPasswordPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </Link>
-          <h2 className="text-4xl font-black text-[#0B0B0B] dark:text-white tracking-tight mb-3">Forgot password?</h2>
+          <div><AuthKicker>Account help</AuthKicker></div>
+          <h2 className="mb-3 font-serif text-4xl font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Forgot <em className="ohp-home-em">password?</em></h2>
           <p className="text-[#6B7280] dark:text-gray-400 text-base font-medium max-w-sm mx-auto">
             {emailSent
               ? 'Check your email for instructions to reset your password.'
@@ -129,7 +133,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white dark:bg-[#151517] rounded-3xl p-8 md:p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 transition-colors">
+        <div className="ohp-auth-card bg-white dark:bg-[#151517] rounded-3xl p-8 md:p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 transition-colors">
           {emailSent ? (
             // Success State
             <div className="space-y-8 animate-fadeIn">
@@ -153,7 +157,7 @@ export default function ForgotPasswordPage() {
               <div className="space-y-3 pt-2">
                 <button
                   onClick={() => window.open('https://gmail.com', '_blank')}
-                  className="w-full flex justify-center py-4 px-4 rounded-xl shadow-lg text-sm font-black uppercase tracking-widest text-white bg-[#111827] hover:bg-[#C9A24D] dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111827] transform transition-all duration-300 hover:scale-[1.02]"
+                  className="ohp-auth-btn w-full flex justify-center py-4 px-4 rounded-xl shadow-lg text-sm font-black uppercase tracking-widest text-white bg-[#111827] hover:bg-[#C9A24D] dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111827] transform transition-all duration-300 hover:scale-[1.02]"
                 >
                   Open Email App
                 </button>
@@ -171,7 +175,7 @@ export default function ForgotPasswordPage() {
             </div>
           ) : (
             // Form State
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form method="post" onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label htmlFor="email" className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
                   Email address
@@ -210,7 +214,7 @@ export default function ForgotPasswordPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-4 px-4 rounded-xl shadow-lg text-sm font-black uppercase tracking-widest text-white bg-[#111827] hover:bg-[#C9A24D] dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111827] transform transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="ohp-auth-btn w-full flex justify-center py-4 px-4 rounded-xl shadow-lg text-sm font-black uppercase tracking-widest text-white bg-[#111827] hover:bg-[#C9A24D] dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111827] transform transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <div className="flex items-center">

@@ -9,6 +9,14 @@
   --pearl: #f5f4f2;
 }
 
+/* Reserve the vertical scrollbar's width permanently instead of letting it appear/disappear
+   as page height changes (e.g. while the AI Assistant panel's content grows during a voice
+   session) - without this, each toggle shifts the whole page horizontally by the scrollbar's
+   width. */
+html {
+  scrollbar-gutter: stable;
+}
+
 .dark {
   --luxury: #C9A24D;
   --cream: #0B0B0B;
@@ -17,6 +25,87 @@
 
 body {
   @apply bg-[#faf9f7] dark:bg-[#0B0B0B] text-[#111827] dark:text-[#F3F4F6] transition-colors duration-300;
+}
+
+html[data-ohp-forced-light],
+html[data-ohp-forced-light] body,
+body[data-ohp-forced-light],
+.ohp-force-light {
+  color-scheme: light !important;
+  background-color: #FAFAF7 !important;
+  color: #111827 !important;
+}
+
+.dark .ohp-force-light [class*="dark:bg-[#0B0B0B]"],
+.dark .ohp-force-light [class*="dark:bg-[#1A1A1C]"],
+.dark .ohp-force-light [class*="dark:bg-gray-800"] {
+  background-color: #FAFAF7 !important;
+}
+
+.dark .ohp-force-light [class*="dark:bg-[#151517]"] {
+  background-color: #FFFFFF !important;
+}
+
+.dark .ohp-force-light [class*="dark:border-gray-800"],
+.dark .ohp-force-light [class*="dark:border-white"] {
+  border-color: #E5E7EB !important;
+}
+
+.dark .ohp-force-light [class*="dark:text-white"] {
+  color: #0B0B0B !important;
+}
+
+.dark .ohp-force-light [class*="dark:text-gray-300"],
+.dark .ohp-force-light [class*="dark:text-gray-400"] {
+  color: #5f6673 !important;
+}
+
+/* IDX home: sections fade up as they scroll in. No scroll snapping - it fought the visitor's
+   own scrolling (owner's call, 10/07). */
+html.ohp-home-snap-active .ohp-home-scroll-section.ohp-section-observed {
+  opacity: 0;
+  transform: translateY(34px);
+  transition: opacity 720ms ease, transform 720ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html.ohp-home-snap-active .ohp-home-scroll-section.ohp-section-observed.ohp-section-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.ohp-home-snap-active .ohp-home-scroll-section.ohp-section-observed {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Phones only: the homepage's JS wheel-jump is desktop-input only, so on touch the sections
+   had no rhythm at all. This is a gentle `proximity` snap - it only tidies up where a swipe
+   comes to rest near a section's top edge, and never traps a visitor part-way through a tall
+   section (Pricing/FAQ run several screens on a phone). scroll-padding-top keeps a snapped
+   section clear of the sticky header. Wrapped in prefers-reduced-motion so it's opt-out. */
+@media (max-width: 767px) and (prefers-reduced-motion: no-preference) {
+  html.ohp-home-msnap {
+    scroll-snap-type: y proximity;
+    scroll-padding-top: 56px;
+  }
+
+  html.ohp-home-msnap .ohp-home-scroll-section {
+    scroll-snap-align: start;
+  }
+}
+
+/* Scrolling to the end of a modal/dropdown/panel shouldn't "chain" into scrolling the page
+   behind it - the scroll should stay contained to whatever panel is actually being scrolled. */
+.overflow-y-auto, .overflow-y-scroll, .overflow-auto {
+  overscroll-behavior: contain;
+  /* Same reasoning as the html rule above, but for panels that scroll internally (e.g. the
+     AI Assistant's message thread) - its own scrollbar appearing/disappearing as messages
+     stream in was nudging its content sideways by the scrollbar's width on every turn,
+     which read as the whole panel jittering/reflowing during a conversation. */
+  scrollbar-gutter: stable;
 }
 
 /* Custom animations and effects for landing page */
@@ -28,6 +117,41 @@ body {
   50% {
     background-size: 200% 200%;
     background-position: right center;
+  }
+}
+
+@keyframes sheetIn {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes successPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(6px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes arrow-nudge {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(4px);
   }
 }
 
@@ -181,6 +305,64 @@ body {
   }
 }
 
+/* The little icon block on every demo's title slide (TitleSlide.tsx) - pops in once (a small
+   overshoot on scale/rotation reads as more "alive" than a plain fade), then eases into
+   .title-icon-float below once it settles. */
+@keyframes title-icon-pop {
+  0% {
+    opacity: 0;
+    transform: scale(.4) rotate(-14deg) translateY(10px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08) rotate(4deg) translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg) translateY(0);
+  }
+}
+
+/* A small, slow, perpetual bob+tilt once the pop above finishes - subtle on purpose (a few px),
+   so it reads as "gently alive" rather than distracting on a slide that otherwise holds still. */
+@keyframes title-icon-float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(2.5deg);
+  }
+}
+
+@keyframes scan-line {
+  0%, 100% {
+    top: 15%;
+  }
+  50% {
+    top: 80%;
+  }
+}
+
+@keyframes marquee-x {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Same loop as marquee-x, played backwards - for a second marquee row that should visibly
+   scroll the opposite direction (e.g. Cinematic Luxury's two-row stats marquee). */
+@keyframes marquee-x-reverse {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
 /* Floating particles animation */
 @keyframes float-random {
   0%, 100% {
@@ -230,8 +412,85 @@ body {
   animation: float-random 8s ease-in-out infinite;
 }
 
+.animate-marquee-x {
+  animation: marquee-x 55s linear infinite;
+}
+
+.animate-marquee-x-slow {
+  animation: marquee-x 80s linear infinite;
+}
+
+.animate-marquee-x-reverse-slow {
+  animation: marquee-x-reverse 90s linear infinite;
+}
+
 .animate-fadeIn {
-  animation: fadeIn 0.5s ease-out forwards;
+  /* `both` (not just `forwards`) so an animation-delay - used for staggered reveals - holds the
+     0% keyframe (opacity 0) during the wait instead of flashing fully visible first. */
+  animation: fadeIn 0.5s ease-out both;
+}
+
+/* Two animations chained: the pop plays once (both = holds its 0% state until it starts, then
+   holds its 100% end state after), then the float takes over - its own animation-delay (0.65s)
+   is timed to start right as the pop finishes so there's no dead pause between them. */
+.animate-title-icon {
+  animation: title-icon-pop .65s cubic-bezier(.34,1.56,.64,1) both, title-icon-float 3.2s ease-in-out .65s infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 18px rgba(245, 158, 11, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(245, 158, 11, 0.6);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2.2s ease-in-out infinite;
+}
+
+.animate-success-pop {
+  animation: successPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-sheet-in {
+  animation: sheetIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scan-line {
+  animation: scan-line 1.4s ease-in-out infinite;
+}
+
+.animate-arrow-nudge {
+  animation: arrow-nudge 1.2s ease-in-out infinite;
+}
+
+/* A document and its explainer text popping in together (Kits demo) - one shared scale+fade
+   motion instead of two separately-timed fadeIns, which read as a stagger between them. */
+@keyframes docPopIn {
+  0% { opacity: 0; transform: scale(0.94); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.animate-doc-pop {
+  animation: docPopIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes plusPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.75; }
+}
+.animate-plus-pulse {
+  animation: plusPulse 1.4s ease-in-out infinite;
+}
+
+/* Per-word stagger reveal for the Thank You screen's showcase-invitation line. */
+@keyframes wordIn {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-word-in {
+  animation: wordIn 0.5s ease-out forwards;
 }
 
 /* Delay classes */
@@ -243,6 +502,162 @@ body {
 .delay-800 { animation-delay: 800ms; }
 .delay-900 { animation-delay: 900ms; }
 .delay-1000 { animation-delay: 1000ms; }
+
+/* Hero headline underline (the gold bar under "More Business.") - draws itself in once on
+   first paint, transform-origin left so it reads as being written in rather than fading up. */
+@keyframes underlineDraw {
+  0% { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+.animate-underline-draw {
+  animation: underlineDraw 1s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+/* Wide card-level shimmer sweeps (IDX/No-MLS pricing cards) - transform-based instead of the
+   `left`-animating shimmer-mini utility, which triggers a layout recalculation every frame and
+   visibly hitches on a wide element (thin bars like the underline above don't notice it, but a
+   near-full-card-width sweep does). translateX is GPU-composited, so no more starting hitch. */
+@keyframes cardShimmerSweep {
+  0%, 15% { transform: translateX(-120%); }
+  65%, 100% { transform: translateX(420%); }
+}
+.animate-card-shimmer {
+  animation: cardShimmerSweep 3.5s ease-in-out infinite;
+}
+
+/* Homepage hero subhead - each phrase swap (keyed remount in app/page.tsx) reveals the text
+   left-to-right as the gold highlight grows underneath it, like a highlighter uncovering the
+   words as it draws over them, instead of the text appearing first and being decorated after. */
+@keyframes ohpHeroHighlight {
+  0%, 8% { background-size: 0% 100%; }
+  55%    { background-size: 100% 100%; }
+  100%   { background-size: 100% 100%; }
+}
+@keyframes ohpHeroReveal {
+  0%, 8% { clip-path: inset(-30% 100% -30% 0); }
+  55%    { clip-path: inset(-30% 0% -30% 0); }
+  100%   { clip-path: inset(-30% 0% -30% 0); }
+}
+.ohp-hero-highlight {
+  background-image: linear-gradient(120deg, rgba(201,162,77,0.32), rgba(201,162,77,0.32));
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: 0% 100%;
+  border-radius: 4px;
+  padding: 0.06em 0.28em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  clip-path: inset(-30% 100% -30% 0);
+  animation: ohpHeroHighlight 3.6s cubic-bezier(0.4, 0, 0.2, 1) forwards,
+             ohpHeroReveal 3.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ohp-hero-highlight { animation: none; background-size: 100% 100%; clip-path: none; opacity: 1; }
+}
+
+/* Per-section decorative line-art (see components/home/LineArtMotifs.tsx) - each path/circle/rect
+   draws itself in via stroke-dashoffset the first time its section is scrolled into view, then
+   stays put. Transition-based (not a looping @keyframes) so it plays exactly once, driven by the
+   `.is-visible` class the page toggles from its existing `seenSections` state. Slowed way down
+   (1.6s -> 3.6s) with an expo-out ease (fast start, long gentle settle) instead of the flatter
+   cubic curve, plus the per-path delays in LineArtMotifs.tsx were scaled up to match - together
+   that reads as a deliberate, theatrical reveal instead of a quick sketch-in. */
+.ohp-motif path,
+.ohp-motif circle,
+.ohp-motif rect {
+  stroke-dasharray: 620;
+  stroke-dashoffset: 620;
+  opacity: 0;
+  transition: stroke-dashoffset 3.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 2.2s ease;
+}
+.ohp-motif.is-visible path,
+.ohp-motif.is-visible circle,
+.ohp-motif.is-visible rect {
+  stroke-dashoffset: 0;
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ohp-motif path,
+  .ohp-motif circle,
+  .ohp-motif rect {
+    transition: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+/* Decorative page backgrounds (homepage's fixed mesh layer + PageBackgroundGrid.tsx, shared by
+   login/register/privacy/terms) - on first paint the mesh blobs grow in from slightly smaller +
+   transparent and the grid/dot texture layers fade up to their real opacity, staggered a beat
+   apart, so the background reads as quietly assembling itself instead of being fully there
+   before the visitor can even register it. Each grid/dot layer keeps setting its own final
+   opacity via inline style as before; --ohp-bg-target-opacity just mirrors that same number so
+   the keyframe has something to animate toward instead of a hardcoded value that would drift out
+   of sync if a layer's opacity is ever tuned again. */
+@keyframes ohpBgBlobIn {
+  0% { opacity: 0; transform: scale(0.82); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes ohpBgFadeIn {
+  0% { opacity: 0; }
+  100% { opacity: var(--ohp-bg-target-opacity, 1); }
+}
+.animate-bg-blob-in {
+  opacity: 0;
+  animation: ohpBgBlobIn 1.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-bg-fade-in {
+  opacity: 0;
+  animation: ohpBgFadeIn 1.8s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-bg-blob-in,
+  .animate-bg-fade-in {
+    animation: none;
+    opacity: var(--ohp-bg-target-opacity, 1);
+    transform: none;
+  }
+}
+
+/* Homepage hero "there's more below" cue - a chevron that nudges down and a soft pulsing ring
+   behind it, both looping quietly so it reads as an ongoing invitation to scroll rather than a
+   one-off hint that plays out and goes static. */
+@keyframes ohpScrollCue {
+  0%, 100% { transform: translateY(0); opacity: 0.55; }
+  50% { transform: translateY(8px); opacity: 1; }
+}
+@keyframes ohpScrollCueRing {
+  0% { transform: scale(0.85); opacity: 0.5; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.animate-scroll-cue {
+  animation: ohpScrollCue 2s ease-in-out infinite;
+}
+.animate-scroll-cue-ring {
+  animation: ohpScrollCueRing 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-scroll-cue,
+  .animate-scroll-cue-ring {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/* Below `lg`, compensates the same "flex items-center inside min-h-[100dvh] centers against the
+   full viewport, but the sticky header eats real space off the top" issue the desktop-only
+   `lg:-translate-y-[8%]` utility already fixes on these same wrappers (see app/page.tsx) - that
+   fix never applied below `lg`, so on mobile/tablet this content sat visibly low against the
+   actually-visible area under the header. --ohp-header-h is set from JS (the header's real
+   measured height, which differs by breakpoint) and half of it is exactly the upward shift needed
+   to re-center a flex-centered element against the space actually visible below the header,
+   rather than another guessed percentage. Scoped to below `lg` via this max-width query (not a
+   `lg:` Tailwind prefix) so it never fights the existing desktop-only percentage-based transform. */
+@media (max-width: 1023.98px) {
+  .ohp-hero-mobile-center {
+    transform: translateY(calc(-1 * var(--ohp-header-h, 0px) / 2));
+  }
+}
 
 /* Enhanced button styles */
 .btn-primary {
@@ -318,6 +733,29 @@ body {
 .scrollbar-hide {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
+}
+
+/* Google Maps InfoWindow (property click-cards) chrome, applies to every map in the app -
+   Google's default padding leaves a large empty strip above the content (room reserved for its
+   close button that our compact cards don't need nearly that much of), which reads as "dead
+   white space" above the photo. Trimmed down but not to zero, so Google's own close X (rendered
+   outside our content, absolutely positioned within .gm-style-iw-c) still has room and doesn't
+   overlap our content. */
+.gm-style-iw-c {
+  padding: 10px !important;
+}
+.gm-style-iw-d {
+  overflow: hidden !important;
+}
+/* Newer Maps JS API versions add a separate header row (.gm-style-iw-chr) above the content,
+   just to hold the close button - it reserves its own ~40px of height independent of iw-c's
+   padding, which is the actual source of the leftover gap above the photo even after trimming
+   iw-c's padding. Collapse that row to the close button's own size and let the button float in it. */
+.gm-style-iw-chr {
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
 }
 
 /* Fix for browser autofill background color */
@@ -671,3 +1109,640 @@ input:-webkit-autofill:active {
   .grid { display: grid !important; }
   .max-w-6xl { max-width: none !important; }
 }
+
+@media (min-width: 1024px) {
+  .agent-hub-shelf-window {
+    isolation: isolate;
+  }
+
+  /* No edge fades on the carousel rows - they read as a grey border around every row. */
+
+  .agent-hub-desktop-trio > * {
+    flex: 0 0 calc((100% - 1.5rem) / 3) !important;
+    width: calc((100% - 1.5rem) / 3) !important;
+  }
+
+  /* Two items share the shelf as two wide cards instead of two small ones and a gap. */
+  .agent-hub-desktop-duo > * {
+    flex: 0 0 calc((100% - 0.75rem) / 2) !important;
+    width: calc((100% - 0.75rem) / 2) !important;
+  }
+}
+
+/* Agent Hub shelf auto-advance (desktop): the row glides by hand (lib/rowScroll glideRowByCard),
+   a band of light crosses the shelf as it moves (Recent Sales on Luxe), and the card that lands at
+   the front settles with a small lift. The rows carry side padding (and a matching negative margin)
+   so the cards' shadows aren't cut off into a visible rectangle at the row's edges. */
+.hub-shelf-sweep { position: absolute; inset: 0; z-index: 9; pointer-events: none; overflow: hidden; border-radius: 18px; }
+.hub-shelf-sweep::before { content: ""; position: absolute; top: -30%; bottom: -30%; left: 0; width: 26%; background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0) 32%, rgba(255,255,255,.30) 50%, rgba(255,255,255,0) 68%, transparent 100%); transform: translateX(-160%) skewX(-14deg); opacity: 0; }
+.hub-shelf-sweep.is-on::before { animation: hubShelfSweep 1.35s cubic-bezier(.65,0,.35,1) both; }
+.hub-luxe .hub-shelf-sweep::before { background: linear-gradient(100deg, transparent 0%, rgba(var(--m-pale-rgb),0) 32%, rgba(var(--m-pale-rgb),.34) 50%, rgba(var(--m-pale-rgb),0) 68%, transparent 100%); }
+@keyframes hubShelfSweep { 0% { transform: translateX(-160%) skewX(-14deg); opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { transform: translateX(480%) skewX(-14deg); opacity: 0; } }
+.agent-hub-desktop-trio > *, .agent-hub-desktop-duo > * { transition: transform .75s cubic-bezier(.22,.61,.36,1), filter .75s; box-shadow: none !important; }
+.hub-shelf-lead { transform: translateY(-4px); filter: brightness(1.035); }
+@media (prefers-reduced-motion: reduce) {
+  .hub-shelf-sweep.is-on::before { animation: none; }
+  .hub-shelf-lead { transform: none; filter: none; }
+}
+
+/* The page-load entrance the email signature's Live Preview already has (fade + rise, staggered
+   per section), ported over here - but a ONE-SHOT that only ever plays on this page's own first
+   mount (a plain CSS animation on elements that only exist once hubStatus flips from 'loading' to
+   'found'), not the signature preview's repeating 8s replay loop; that repeat makes sense for a
+   builder someone stares at while editing, not a page a visitor lands on once. Slightly slower
+   than the signature's own timing (1.1s vs .8s, same easing curve) so it reads as a deliberate,
+   premium reveal rather than a snappy UI transition. */
+@keyframes hub-section-enter { 0% { opacity: 0; transform: translateY(18px); } 100% { opacity: 1; transform: translateY(0); } }
+.hub-enter { animation: hub-section-enter 1.1s cubic-bezier(.22,.61,.36,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .hub-enter { animation: none; }
+}
+
+/* Subject hero photo rotates every 3s (see SubjectShowcaseCard) - this always plays the same
+   slow zoom-IN (never out), remounted via a `key` change on each swap so it restarts cleanly.
+   Duration runs much longer than the 3s rotation (each swap only ever shows a small early slice
+   of it) with a linear curve and a small end scale - a front-loaded easing curve here would burn
+   through most of the zoom in the first second and read as a fast snap instead of a slow drift. */
+@keyframes cma-hero-zoom-in {
+  0% {
+    opacity: 0.96;
+    transform: scale(1);
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.045);
+  }
+}
+
+.cma-hero-zoom-in {
+  animation-name: cma-hero-zoom-in;
+  animation-duration: 9s;
+  animation-fill-mode: both;
+  animation-timing-function: linear;
+  transform-origin: center;
+  will-change: opacity, transform;
+}
+
+@keyframes cma-comp-photo-in {
+  0% {
+    opacity: 0.82;
+    transform: scale(1.018);
+    filter: saturate(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: saturate(1);
+  }
+}
+
+.cma-comp-photo {
+  animation: cma-comp-photo-in 360ms ease both;
+  transform-origin: center;
+  will-change: opacity, transform, filter;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cma-hero-zoom-in,
+  .cma-comp-photo {
+    animation: none;
+    transform: scale(1.06);
+  }
+
+  .cma-comp-photo {
+    transform: none;
+  }
+}
+
+/* Hover-to-cycle photo progress bar (useHoverPhotoCycle) - a thin fill across the top of the
+   photo that runs out just as the next photo swaps in. scaleX (GPU-composited) rather than width;
+   duration is set inline per slot, and the element is keyed on index+duration so it restarts on
+   every flip. */
+@keyframes ohpPhotoCycleBar {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.ohp-photo-cycle-bar {
+  transform-origin: left;
+  animation-name: ohpPhotoCycleBar;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ohp-photo-cycle-bar { animation: none; transform: scaleX(1); }
+}
+
+/* One-shot "scanned" sweep over each comp card in the CMA Comparable Order rail (staggered via
+   inline animation-delay) - a gold line falls through the photo once on mount, then it's done. */
+@keyframes ohpCompScan {
+  0%   { top: -10%; opacity: 0; }
+  12%  { opacity: 1; }
+  86%  { opacity: 1; }
+  100% { top: 110%; opacity: 0; }
+}
+.ohp-comp-scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(201, 162, 77, 0.95), transparent);
+  box-shadow: 0 0 14px 3px rgba(201, 162, 77, 0.55);
+  animation: ohpCompScan 1.3s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ohp-comp-scan-line { display: none; }
+}
+
+/* Nav icons built out of separate rect "panels" (Dash/LayoutDashboard, IDX/LayoutTemplate) get
+   their own pieces flying in from outside and snapping into place on hover, instead of the plain
+   whole-icon scale+glow every other nav icon uses (see Header.tsx) - explicit ask: "the different
+   blocks come together... like Meta Muze". transform-box:fill-box is required for an SVG <rect>'s
+   own transform-origin:center to scale/move around ITS OWN center instead of the whole icon's
+   top-left corner (the SVG default). Each rect keyframe starts from roughly where that rect would
+   already visually be if it drifted further out along the icon's own diagonal, so the motion reads
+   as "this piece traveled in from just outside the icon", not an arbitrary direction. */
+.ohp-icon-assemble-dash rect, .ohp-icon-assemble-idx rect { transform-box: fill-box; transform-origin: center; }
+@keyframes ohpIconPieceTL { 0% { transform: translate(-7px, -7px) scale(0.4); opacity: 0.25; } 100% { transform: translate(0, 0) scale(1); opacity: 1; } }
+@keyframes ohpIconPieceTR { 0% { transform: translate(7px, -7px) scale(0.4); opacity: 0.25; } 100% { transform: translate(0, 0) scale(1); opacity: 1; } }
+@keyframes ohpIconPieceBR { 0% { transform: translate(7px, 7px) scale(0.4); opacity: 0.25; } 100% { transform: translate(0, 0) scale(1); opacity: 1; } }
+@keyframes ohpIconPieceBL { 0% { transform: translate(-7px, 7px) scale(0.4); opacity: 0.25; } 100% { transform: translate(0, 0) scale(1); opacity: 1; } }
+@keyframes ohpIconPieceTop { 0% { transform: translate(0, -8px) scale(0.4); opacity: 0.25; } 100% { transform: translate(0, 0) scale(1); opacity: 1; } }
+
+/* LayoutDashboard's 4 rects, in DOM order: tall top-left, short top-right, tall bottom-right,
+   short bottom-left - each one's keyframe matches the corner it actually sits in. */
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-dash rect:nth-child(1) { animation: ohpIconPieceTL .5s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-dash rect:nth-child(2) { animation: ohpIconPieceTR .5s cubic-bezier(0.22, 0.61, 0.36, 1) .05s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-dash rect:nth-child(3) { animation: ohpIconPieceBR .5s cubic-bezier(0.22, 0.61, 0.36, 1) .1s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-dash rect:nth-child(4) { animation: ohpIconPieceBL .5s cubic-bezier(0.22, 0.61, 0.36, 1) .15s both; }
+
+/* LayoutTemplate's 3 rects, in DOM order: full-width top bar, bottom-left block, bottom-right
+   block - a different layout than LayoutDashboard's, so this needs its own direction mapping
+   rather than reusing the dash keyframes above (which don't match a full-width top bar). */
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-idx rect:nth-child(1) { animation: ohpIconPieceTop .5s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-idx rect:nth-child(2) { animation: ohpIconPieceBL .5s cubic-bezier(0.22, 0.61, 0.36, 1) .06s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-idx rect:nth-child(3) { animation: ohpIconPieceBR .5s cubic-bezier(0.22, 0.61, 0.36, 1) .12s both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .group:is(:hover,.ohp-play) .ohp-icon-assemble-dash rect, .group:is(:hover,.ohp-play) .ohp-icon-assemble-idx rect { animation: none; }
+}
+
+/* Every other nav/card icon (single/multi-path outlines, not separable blocks - Home, Users,
+   ShieldCheck, Palette, Globe, everything in the Studio/Opens dropdowns, the Pricing plan feature
+   rows, homepage Tools tabs, Studio hub cards, Settings icons, etc.) gets a "builder" reveal:
+   explicit ask - "i more like the email signature one where the core of the icon is there but it
+   fills in the details... for tools the box should stay and it fills in the tools in the tool
+   box... like studio should have the pallet there but the dots animate in slowly". Rather than the
+   whole icon drawing in at once, the FIRST shape of each element type (the outline/frame - e.g.
+   Palette's blob, ShieldCheck's shield) is left alone and stays fully visible the entire time; only
+   the shapes AFTER it (Palette's 4 paint dots, Users' second/third path + head circle, etc.) sweep
+   in with the stroke-draw technique, one at a time, slowly - so it reads as the core object having
+   its details built into it, not the whole icon flickering. Every lucide icon is drawn with
+   stroke="currentColor" (never filled), which is exactly what stroke-dasharray/dashoffset needs -
+   140 is comfortably longer than any path in a standard 24x24 lucide icon, so at rest (dashoffset:0)
+   the "dash" is one unbroken segment and the icon looks completely normal. */
+.ohp-icon-draw path, .ohp-icon-draw circle, .ohp-icon-draw line, .ohp-icon-draw polyline, .ohp-icon-draw polygon {
+  stroke-dasharray: 140;
+  stroke-dashoffset: 0;
+}
+/* The core/detail split is now by DOM POSITION (nth-child within each shape's own parent), not by
+   tag type (nth-of-type) - fixed bug: a 2-shape icon built from two DIFFERENT tags (Search's
+   handle <path> + lens <circle>) used to have BOTH shapes counted as "the first of their own
+   type", so both got marked static and the icon never animated at all. nth-child has one shared
+   counter across every sibling regardless of tag, so exactly one shape - whichever is actually
+   first - is ever the static "core". Plain descendant selector (not a direct-child `>`), on
+   purpose: a few icons (e.g. PricingCards' DiscoveryManagerIcon) wrap two independent inner <svg>s
+   in one span, and nth-child still needs to resolve within EACH inner svg's own sibling group, not
+   just .ohp-icon-draw's immediate children. */
+.group:is(:hover,.ohp-play) .ohp-icon-draw *:nth-child(1) {
+  animation: none;
+}
+/* Everything after the core sweeps in one at a time, slowly (explicit ask: "much slower", "should
+   slowly build itself") - a wide 0.4s stagger step and a 1.4s draw per piece so a busy icon like
+   Calculator's dot grid or Palette's four paint dots visibly assembles piece by piece instead of
+   all flickering into place together. */
+.group:is(:hover,.ohp-play) .ohp-icon-draw *:nth-child(2) { animation: ohpIconDraw 1.4s cubic-bezier(0.65, 0, 0.35, 1) both; }
+.group:is(:hover,.ohp-play) .ohp-icon-draw *:nth-child(3) { animation: ohpIconDraw 1.4s cubic-bezier(0.65, 0, 0.35, 1) 0.4s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-draw *:nth-child(4) { animation: ohpIconDraw 1.4s cubic-bezier(0.65, 0, 0.35, 1) 0.8s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-draw *:nth-child(5) { animation: ohpIconDraw 1.4s cubic-bezier(0.65, 0, 0.35, 1) 1.2s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-draw *:nth-child(6) { animation: ohpIconDraw 1.4s cubic-bezier(0.65, 0, 0.35, 1) 1.6s both; }
+/* Icons with only ONE shape total (ChevronDown, Check, etc.) have no separate "core" vs "detail" -
+   there's nothing left to build once the lone shape is excluded, so it would sit frozen forever.
+   :has() detects "no second child at all" and lets that lone shape draw itself in instead, same as
+   the old whole-icon behavior - higher specificity than the plain nth-child(1) rule above, so it
+   wins for exactly this case without needing a separate class on every single-shape icon. */
+.group:is(:hover,.ohp-play) .ohp-icon-draw:not(:has(> *:nth-child(2))) > *:nth-child(1) {
+  animation: ohpIconDraw 1.1s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+.ohp-icon-draw {
+  transition: filter 0.5s ease-out;
+}
+.group:is(:hover,.ohp-play) .ohp-icon-draw {
+  filter: drop-shadow(0 2px 5px rgba(201, 162, 77, 0.6));
+}
+@keyframes ohpIconDraw {
+  0% { stroke-dashoffset: 140; }
+  100% { stroke-dashoffset: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .group:is(:hover,.ohp-play) .ohp-icon-draw > * { animation: none; }
+}
+
+/* ---- "Pending" state: an icon on an auto-playing title slide (TitleSlide.tsx) used to sit fully
+   drawn (the default stroke-dashoffset:0 resting state below) for the ~0.65s the block's own pop-in
+   takes, THEN visibly snap back to undrawn before playing its reveal - it looked "finished, then
+   un-finishes itself" instead of entering already unfinished (explicit ask: "don't have it first
+   appear in its finished animation then animate... enter unfinished, then it animates to be full").
+   TitleSlide puts this class on the icon's wrapper (in place of .ohp-play) for that ~0.65s window,
+   which mirrors every "detail" selector below back to its hidden (dashoffset:140) 0% keyframe state
+   up front - the exact same set of elements each per-icon override marks as ohpIconDraw-animated,
+   just forced into their pre-animation look instead of their after-animation one. Whatever's left
+   untouched (the static "core" pieces, e.g. mail's envelope body) already defaults to fully drawn,
+   which is correct - those never animate at all, on this slide or on hover elsewhere. ---- */
+.ohp-icon-pending .ohp-icon-draw *:nth-child(2) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-draw *:nth-child(3) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-draw *:nth-child(4) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-draw *:nth-child(5) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-draw *:nth-child(6) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-draw:not(:has(> *:nth-child(2))) > *:nth-child(1) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-search path:nth-child(1) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-calendar path:nth-child(2) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-calendar path:nth-child(5) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-calendar path:nth-child(4) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-calendar circle:nth-child(6) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-calendar path:nth-child(1) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-plug path:nth-child(2) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-plug path:nth-child(3) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-plug path:nth-child(1) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-sparkle-all path:nth-child(1) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-sparkle-all path:nth-child(2) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-sparkle-all path:nth-child(3) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-sparkle-all circle:nth-child(4) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-forms rect:nth-child(1) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-forms path:nth-child(3) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-forms path:nth-child(4) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-forms path:nth-child(5) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-forms path:nth-child(6) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-mail path:nth-child(1) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-blog path:nth-child(1) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-blog path:nth-child(2) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-blog rect:nth-child(4) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-bell path:nth-child(1) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-clapper path:nth-child(1) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-clapper path:nth-child(2) { stroke-dashoffset: 140 !important; }
+.ohp-icon-pending .ohp-icon-assemble-clapper path:nth-child(3) { stroke-dashoffset: 140 !important; }
+/* The generic *:nth-child(2..6) hide rules above assume the DOM-order default (position 1 = core) -
+   wrong for every icon whose per-icon override puts its real static "core" at position 2 or later
+   (mail's envelope, forms' body, blog/calendar's body, clapper's box, bell's body, search's lens,
+   plug's box) - those got force-hidden too, so the icon looked broken/incomplete even in its
+   "pending" pre-reveal state instead of showing its normal static core (explicit repro: "the symbol
+   isnt starting in the normal animation"). Each restore below has a real tag selector (not the
+   generic rule's bare `*`), which alone gives it higher specificity and lets it win regardless of
+   source order - see each rule's matching "animation: none" (real static core) line further below. */
+.ohp-icon-pending .ohp-icon-assemble-mail rect:nth-child(2) { stroke-dashoffset: 0 !important; }
+.ohp-icon-pending .ohp-icon-assemble-forms path:nth-child(2) { stroke-dashoffset: 0 !important; }
+.ohp-icon-pending .ohp-icon-assemble-blog path:nth-child(3) { stroke-dashoffset: 0 !important; }
+.ohp-icon-pending .ohp-icon-assemble-calendar path:nth-child(3) { stroke-dashoffset: 0 !important; }
+.ohp-icon-pending .ohp-icon-assemble-clapper path:nth-child(4) { stroke-dashoffset: 0 !important; }
+.ohp-icon-pending .ohp-icon-assemble-bell path:nth-child(2) { stroke-dashoffset: 0 !important; }
+.ohp-icon-pending .ohp-icon-assemble-search circle:nth-child(2) { stroke-dashoffset: 0 !important; }
+.ohp-icon-pending .ohp-icon-assemble-plug path:nth-child(4) { stroke-dashoffset: 0 !important; }
+
+/* ---- Per-icon overrides: pair one of these with ohp-icon-draw when the DOM-order default above
+   doesn't match the icon's real "frame vs. detail" anatomy (the piece that should stay static
+   isn't actually first in the SVG's child order). Each one wins over the generic nth-child rules
+   above by being more specific (an extra class) and declared later in the file. ---- */
+
+/* Search (Discovery): DOM order is [handle path, lens circle] - the default rule would freeze the
+   HANDLE and animate the lens, backwards from "the magnifying glass handle can populate". Pins the
+   lens circle as the static core and draws the handle in, plus a slight tilt+lift on the whole
+   glyph (transform-box:view-box makes the icon's own bounding box the rotation origin) for a
+   little "picked up and looked through" dimension - explicit ask for "a nice 3d version". */
+.ohp-icon-assemble-search {
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.5s ease-out;
+  transform-box: view-box;
+  transform-origin: center;
+}
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-search {
+  transform: rotate(-10deg) scale(1.08);
+}
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-search circle:nth-child(2) { animation: none; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-search path:nth-child(1) { animation: ohpIconDraw 0.8s cubic-bezier(0.65, 0, 0.35, 1) 0.15s both; }
+
+/* CalendarClock (Calendar tool): DOM order is [clock hand, top-right peg, calendar body, middle
+   divider line, top-left peg, clock face circle] - explicit ask: "the calendar should stay besides
+   lines at top and in middle, and clock should animate". Body stays put; the two top pegs "populate"
+   first, then the middle line, then the clock face + its hand together last. */
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-calendar path:nth-child(3) { animation: none; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-calendar path:nth-child(2) { animation: ohpIconDraw 0.7s cubic-bezier(0.65, 0, 0.35, 1) both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-calendar path:nth-child(5) { animation: ohpIconDraw 0.7s cubic-bezier(0.65, 0, 0.35, 1) 0.1s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-calendar path:nth-child(4) { animation: ohpIconDraw 0.7s cubic-bezier(0.65, 0, 0.35, 1) 0.45s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-calendar circle:nth-child(6) { animation: ohpIconDraw 0.8s cubic-bezier(0.65, 0, 0.35, 1) 0.8s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-calendar path:nth-child(1) { animation: ohpIconDraw 0.6s cubic-bezier(0.65, 0, 0.35, 1) 1.05s both; }
+
+/* Plug (Integrations tool): DOM order is [cord below, left prong, right prong, plug body] -
+   explicit ask: "the plug box should stay but the top lines animate and line under it animate".
+   Body stays put; both prongs populate first, then the cord drops in below. */
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-plug path:nth-child(4) { animation: none; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-plug path:nth-child(2) { animation: ohpIconDraw 0.7s cubic-bezier(0.65, 0, 0.35, 1) both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-plug path:nth-child(3) { animation: ohpIconDraw 0.7s cubic-bezier(0.65, 0, 0.35, 1) 0.15s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-plug path:nth-child(1) { animation: ohpIconDraw 0.7s cubic-bezier(0.65, 0, 0.35, 1) 0.55s both; }
+
+/* Sparkles (Media Lab): all 4 pieces (the big star + 2 tiny accent lines + a dot) are themselves
+   the "little stars" - explicit ask: "media lab should have all the little stars animate", i.e. no
+   piece should sit out as a static "core" the way the generic rule would freeze the big star. */
+.group:is(:hover,.ohp-play) .ohp-icon-sparkle-all path:nth-child(1) { animation: ohpIconDraw 1s cubic-bezier(0.65, 0, 0.35, 1) both; }
+.group:is(:hover,.ohp-play) .ohp-icon-sparkle-all path:nth-child(2) { animation: ohpIconDraw 0.6s cubic-bezier(0.65, 0, 0.35, 1) 0.3s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-sparkle-all path:nth-child(3) { animation: ohpIconDraw 0.6s cubic-bezier(0.65, 0, 0.35, 1) 0.45s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-sparkle-all circle:nth-child(4) { animation: ohpIconDraw 0.6s cubic-bezier(0.65, 0, 0.35, 1) 0.65s both; }
+
+/* ClipboardList (Forms): DOM order is [clip rect, body path, 2 content lines, 2 content dots] -
+   explicit ask: "the forms icon everywhere should have the clipboard but animate the top part and
+   what's on it" - the clipboard BODY stays put (it's the one piece that should just "be there"),
+   while the clip at the top and everything written on the board (lines, then the two bullet dots)
+   all animate in - the opposite of the generic rule, which would freeze the clip (it's first in
+   the DOM) and animate the body instead. */
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-forms path:nth-child(2) { animation: none; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-forms rect:nth-child(1) { animation: ohpIconDraw 0.6s cubic-bezier(0.65, 0, 0.35, 1) both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-forms path:nth-child(3) { animation: ohpIconDraw 0.6s cubic-bezier(0.65, 0, 0.35, 1) 0.3s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-forms path:nth-child(4) { animation: ohpIconDraw 0.6s cubic-bezier(0.65, 0, 0.35, 1) 0.35s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-forms path:nth-child(5) { animation: ohpIconDraw 0.5s cubic-bezier(0.65, 0, 0.35, 1) 0.6s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-forms path:nth-child(6) { animation: ohpIconDraw 0.5s cubic-bezier(0.65, 0, 0.35, 1) 0.65s both; }
+
+/* FileClock (Deadlines tool): DOM order is [page fold, page body, clock hands, clock face] -
+   explicit ask: "keep the paper, just animate the clock". The page never moves; the clock face
+   draws itself round, then the hands draw in and sweep a full turn around the clock's center. */
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-deadline path:nth-child(1),
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-deadline path:nth-child(2) { animation: none; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-deadline circle:nth-child(4) { animation: ohpIconDraw 0.9s cubic-bezier(0.65, 0, 0.35, 1) both; }
+.ohp-icon-assemble-deadline path:nth-child(3) { transform-box: view-box; transform-origin: 8px 16px; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-deadline path:nth-child(3) {
+  animation: ohpIconDraw 0.5s cubic-bezier(0.65, 0, 0.35, 1) 0.6s both, ohpClockSweep 1.2s cubic-bezier(0.45, 0, 0.2, 1) 1s both;
+}
+@keyframes ohpClockSweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.ohp-icon-pending .ohp-icon-assemble-deadline path:nth-child(1),
+.ohp-icon-pending .ohp-icon-assemble-deadline path:nth-child(2) { stroke-dashoffset: 0 !important; }
+.ohp-icon-pending .ohp-icon-assemble-deadline path:nth-child(3),
+.ohp-icon-pending .ohp-icon-assemble-deadline circle:nth-child(4) { stroke-dashoffset: 140 !important; }
+@media (prefers-reduced-motion: reduce) {
+  .group:is(:hover,.ohp-play) .ohp-icon-assemble-deadline > * { animation: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .group:is(:hover,.ohp-play) .ohp-icon-assemble-search,
+  .group:is(:hover,.ohp-play) .ohp-icon-assemble-calendar,
+  .group:is(:hover,.ohp-play) .ohp-icon-assemble-forms,
+  .group:is(:hover,.ohp-play) .ohp-icon-assemble-plug,
+  .group:is(:hover,.ohp-play) .ohp-icon-sparkle-all { animation: none; transform: none; }
+}
+
+/* Mail (Signature): lucide lists the V flap <path> BEFORE the envelope <rect>, so the generic rule
+   froze the flap and redrew the whole envelope - explicit ask: the signature icon should animate
+   "just the v line" again. Envelope stays put; only the flap draws in. */
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-mail rect:nth-child(2) { animation: none; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-mail path:nth-child(1) { animation: ohpIconDraw 0.9s cubic-bezier(0.65, 0, 0.35, 1) both; }
+
+/* Users (Leads, everywhere): lucide's DOM order is [front body, back head arc, back body arc, front
+   head circle] - the generic rule froze only the front BODY and redrew the front person's head
+   with the back one. Explicit ask: "the front person symbol still there and animate the back" -
+   the front person (body + head) stays put; the back person's head, then body, draw in behind it.
+   Keyed on lucide's own `lucide-users` class so every Users icon that uses ohp-icon-draw gets it
+   without a per-call-site class. */
+.group:is(:hover,.ohp-play) .ohp-icon-draw.lucide-users circle:nth-child(4) { animation: none; }
+.group:is(:hover,.ohp-play) .ohp-icon-draw.lucide-users path:nth-child(2) { animation: ohpIconDraw 0.9s cubic-bezier(0.65, 0, 0.35, 1) both; }
+.group:is(:hover,.ohp-play) .ohp-icon-draw.lucide-users path:nth-child(3) { animation: ohpIconDraw 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.3s both; }
+.ohp-icon-pending .ohp-icon-draw.lucide-users circle:nth-child(4) { stroke-dashoffset: 0 !important; }
+
+/* Newspaper (Blogs, everywhere it's the nav/Tools/pricing icon): DOM order is [text line 1, text
+   line 2, the paper's own outer body/fold, the little headline-photo rect] - explicit ask: "the
+   blogs icon everywhere should stay but the lines in it and other stuff behind it should animate".
+   The paper body (the recognizable newspaper silhouette) stays put; the two text lines and the
+   headline rect all draw/pop in around it. */
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-blog path:nth-child(3) { animation: none; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-blog path:nth-child(1) { animation: ohpIconDraw 0.7s cubic-bezier(0.65, 0, 0.35, 1) both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-blog path:nth-child(2) { animation: ohpIconDraw 0.7s cubic-bezier(0.65, 0, 0.35, 1) 0.15s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-blog rect:nth-child(4) { animation: ohpIconDraw 0.7s cubic-bezier(0.65, 0, 0.35, 1) 0.35s both; }
+
+/* Bell (Notifications, Settings tab rail): DOM order is [the tiny clapper arc at the bottom, the
+   big bell body] - explicit ask: "animate just the small bell on bottom, the large actual bell
+   should stay". Body stays put; only that small bottom arc draws in. */
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-bell path:nth-child(2) { animation: none; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-bell path:nth-child(1) { animation: ohpIconDraw 0.7s cubic-bezier(0.65, 0, 0.35, 1) both; }
+
+/* Clapperboard (Media Lab): DOM order is [top slanted clapper bar, 2 diagonal stripe lines on that
+   bar, the bottom box body] - explicit ask: "media lab animation for symbol should have bottom
+   already there and top animates on" - the base/body already sits there like a real clapperboard
+   waiting to be clapped shut; the top bar + its stripes draw/snap in on top of it. */
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-clapper path:nth-child(4) { animation: none; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-clapper path:nth-child(1) { animation: ohpIconDraw 0.6s cubic-bezier(0.65, 0, 0.35, 1) both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-clapper path:nth-child(2) { animation: ohpIconDraw 0.5s cubic-bezier(0.65, 0, 0.35, 1) 0.15s both; }
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-clapper path:nth-child(3) { animation: ohpIconDraw 0.5s cubic-bezier(0.65, 0, 0.35, 1) 0.3s both; }
+
+/* ToolCase (the "Tools" nav tab) is 4 <path>s but its case/box is the LAST one in DOM order, not
+   the first - the default "first shape stays static" rule above would keep the little handle bar
+   static and animate the box in, backwards from the ask: "the box should stay and it fills in the
+   tools in the tool box". Pair this class with ohp-icon-draw (gives the base dasharray + the
+   single-shape fallback); these rules share the same specificity and come later in the file, so
+   they win for the 4 nth-of-type(N) tiers they redefine. Box (piece 4) never animates; the two
+   prongs build in first, the handle bar drops in last, like tools loading into an open case. */
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-tools path:nth-of-type(4) {
+  animation: none;
+}
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-tools path:nth-of-type(2) {
+  animation: ohpIconDraw 0.9s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-tools path:nth-of-type(3) {
+  animation: ohpIconDraw 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.35s both;
+}
+.group:is(:hover,.ohp-play) .ohp-icon-assemble-tools path:nth-of-type(1) {
+  animation: ohpIconDraw 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.7s both;
+}
+
+/* Shared "grows out from center" hover underline - nav tabs/dropdown items and Studio card
+   buttons all reuse this instead of each hand-rolling their own width transition. Width target
+   is set per-instance via the --ohp-grow-w custom property (defaults to 70%); centering via
+   left-1/2 + translateX(-50%) keeps it centered as the width itself animates, since the percentage
+   offset recalculates against the growing box automatically. */
+.ohp-grow-underline {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  height: 2px;
+  width: 0;
+  border-radius: 9999px;
+  background: #C9A24D;
+  transition: width 0.35s cubic-bezier(0.65, 0, 0.35, 1);
+  pointer-events: none;
+}
+.group:is(:hover,.ohp-play) .ohp-grow-underline {
+  width: var(--ohp-grow-w, 70%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ohp-grow-underline { transition: none; }
+}
+
+/* Dropdown-item underline sized to the exact length of the label text, not a fixed dash -
+   explicit ask: "for the nav tab drop down for other tools should have a highlight under the name
+   the exact length of the name". A background-gradient sized as a percentage of the ELEMENT'S OWN
+   box (not a separate absolutely-positioned bar) naturally matches an inline span's content width,
+   since an inline element's box hugs its text - growing background-size from 0% to 100% on hover
+   draws the line out left-to-right under exactly that text, whatever its length. Must sit on an
+   inline span nested INSIDE any flex-1 wrapper (flex items stretch to fill the row, which would
+   make a flex-1 element's own width the whole row, not the text). */
+.ohp-underline-text {
+  background-image: linear-gradient(#C9A24D, #C9A24D);
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: 0% 2px;
+  padding-bottom: 0.15em;
+  transition: background-size 0.35s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.group:is(:hover,.ohp-play) .ohp-underline-text {
+  background-size: 100% 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ohp-underline-text { transition: none; }
+}
+
+/* Agent Hub carousel "emerge" reveal (Recent Sales / My Listings in Carousel view only) - explicit
+   ask: when a new listing/sale slides in, its status badge pops in right after the slide settles,
+   then the price, city/state and details rise out of a soft blur one after another. Keyed by slide
+   index in the components, so it replays once per slide change and never loops on its own. */
+@keyframes ohpEmerge {
+  0% { opacity: 0; transform: translateY(14px); letter-spacing: 0.04em; }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0); letter-spacing: normal; }
+}
+@keyframes ohpBadgePop {
+  0% { opacity: 0; transform: scale(0.55) translateY(-4px); }
+  60% { opacity: 1; transform: scale(1.08) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes ohpKenBurns {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.06); }
+}
+.ohp-emerge { animation: ohpEmerge 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ohp-badge-pop { transform-origin: left center; animation: ohpBadgePop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.ohp-ken-burns { animation: ohpKenBurns 7s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .ohp-emerge, .ohp-badge-pop, .ohp-ken-burns { animation: none; }
+}
+
+/* BellRing (Follow-ups): DOM order is [clapper, right ring wave, bell body, left ring wave] -
+   explicit ask: "should have the bell already but it animates the things around it". The bell
+   (body + clapper) stays put; the two ring waves on either side draw in together. */
+.group:is(:hover,.ohp-play) .ohp-icon-draw.lucide-bell-ring path:nth-child(3) { animation: none; }
+.group:is(:hover,.ohp-play) .ohp-icon-draw.lucide-bell-ring path:nth-child(2),
+.group:is(:hover,.ohp-play) .ohp-icon-draw.lucide-bell-ring path:nth-child(4) { animation: ohpIconDraw 0.8s cubic-bezier(0.65, 0, 0.35, 1) both; }
+.ohp-icon-pending .ohp-icon-draw.lucide-bell-ring path:nth-child(3) { stroke-dashoffset: 0 !important; }
+.ohp-icon-pending .ohp-icon-draw.lucide-bell-ring path:nth-child(4) { stroke-dashoffset: 140 !important; }
+
+/* ── Shared premium motion (2026-09-30 polish pass) ─────────────────────────────────────────
+   Short, transform/opacity-only animations (GPU-cheap, no layout work) used across modals,
+   Studio, Blogs and Settings. Everything here - and the site-wide fadeIn - switches off for
+   visitors who ask their OS for reduced motion. */
+@keyframes ohpModalPop {
+  0% { opacity: 0; transform: translateY(8px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.ohp-modal-pop { animation: ohpModalPop 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes ohpRise {
+  0% { opacity: 0; transform: translateY(14px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+/* Staggered entrance for grids of cards/tiles: set --i on each child (0, 1, 2...). */
+.ohp-rise { animation: ohpRise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--i, 0) * 45ms); }
+
+/* Lift-on-hover for clickable cards: only on devices that actually hover. */
+@media (hover: hover) {
+  .ohp-lift { transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, border-color 0.2s ease; }
+  .ohp-lift:hover { transform: translateY(-2px); }
+}
+
+/* Loading shimmer for skeleton blocks. */
+@keyframes ohpShimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.ohp-skeleton {
+  background: linear-gradient(90deg, rgba(17,24,39,0.06) 25%, rgba(17,24,39,0.12) 37%, rgba(17,24,39,0.06) 63%);
+  background-size: 400% 100%;
+  animation: ohpShimmer 1.4s ease-in-out infinite;
+}
+.dark .ohp-skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.09) 37%, rgba(255,255,255,0.04) 63%);
+  background-size: 400% 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ohp-modal-pop, .ohp-rise, .animate-fadeIn { animation: none !important; }
+  .ohp-lift, .ohp-lift:hover { transition: none; transform: none; }
+  .ohp-skeleton { animation: none; }
+}
+
+/* Children of .ohp-stagger rise in one after another (first 12; later ones arrive with the 12th). */
+.ohp-stagger > * { animation: ohpRise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ohp-stagger > *:nth-child(2) { animation-delay: 40ms; } .ohp-stagger > *:nth-child(3) { animation-delay: 80ms; }
+.ohp-stagger > *:nth-child(4) { animation-delay: 120ms; } .ohp-stagger > *:nth-child(5) { animation-delay: 160ms; }
+.ohp-stagger > *:nth-child(6) { animation-delay: 200ms; } .ohp-stagger > *:nth-child(7) { animation-delay: 240ms; }
+.ohp-stagger > *:nth-child(8) { animation-delay: 280ms; } .ohp-stagger > *:nth-child(9) { animation-delay: 320ms; }
+.ohp-stagger > *:nth-child(10) { animation-delay: 360ms; } .ohp-stagger > *:nth-child(11) { animation-delay: 400ms; }
+.ohp-stagger > *:nth-child(n+12) { animation-delay: 440ms; }
+@media (prefers-reduced-motion: reduce) { .ohp-stagger > * { animation: none !important; } }
+
+/* Press feedback on every button across the app - a quick squeeze while held. Uses the
+   standalone `scale` property (not `transform`), so it stacks with whatever transform a button
+   already has (hover lifts, centering translates) instead of replacing it. */
+@keyframes ohpPress { from { scale: 1; } to { scale: 0.965; } }
+@keyframes ohpPressSoft { from { scale: 1; } to { scale: 0.985; } }
+button:not(:disabled):active,
+a[role="button"]:active {
+  animation: ohpPress 0.12s ease-out forwards;
+}
+/* Whole clickable cards (role=button divs) squeeze less - they're big. */
+div[role="button"]:active {
+  animation: ohpPressSoft 0.14s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  button:active, a[role="button"]:active, div[role="button"]:active { animation: none; }
+}
+
+/* Luxe dropdown - replaces the browser's grey select chrome with a gold chevron + gold focus. */
+.ohp-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23C9A24D' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  background-size: 12px 12px;
+  padding-right: 2.25rem !important;
+  border-color: rgba(201, 162, 77, 0.3) !important;
+  cursor: pointer;
+  transition: border-color .2s, box-shadow .2s, transform .2s;
+}
+.ohp-select:hover { border-color: rgba(201, 162, 77, 0.7) !important; }
+.ohp-select:focus { border-color: #C9A24D !important; box-shadow: 0 0 0 4px rgba(201, 162, 77, 0.15); outline: none; }
+
+/* Showcase card: "NEW" badge on a home the agent hasn't opened yet - a soft ring that breathes. */
+.ohp-new-badge::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  border: 2px solid rgba(16, 185, 129, .55);
+  animation: ohpNewRing 2.4s ease-out infinite;
+}
+@keyframes ohpNewRing {
+  0% { opacity: .9; transform: scale(.92); }
+  70%, 100% { opacity: 0; transform: scale(1.35); }
+}
+@media (prefers-reduced-motion: reduce) { .ohp-new-badge::after { animation: none; } }
+
+/* PageGate (components/PageGate.tsx): the page waits hidden behind the logo loader. Failsafe in
+   pure CSS - if JavaScript never takes over, both step aside after 10s on their own. */
+.ohp-gate-hold { visibility: hidden; animation: ohpGateShow 0s linear 10s forwards; }
+.ohp-gate-cover { animation: ohpGateCoverOff .4s ease-out 10s forwards; }
+@keyframes ohpGateShow { to { visibility: visible; } }
+@keyframes ohpGateCoverOff { to { opacity: 0; visibility: hidden; pointer-events: none; } }

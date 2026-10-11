@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import api from '@/lib/api-service'
 import { CheckCircle2, AlertCircle, Mail, Loader2 } from 'lucide-react'
+import OhpLoader from '@/components/brand/OhpLoader'
 
 function UnsubscribeContent() {
   const searchParams = useSearchParams()
@@ -117,9 +118,7 @@ export default function UnsubscribePage() {
     <div className="min-h-screen flex flex-col bg-[#FAFAF7] dark:bg-[#0B0B0B] transition-colors duration-300">
       <div className="flex-1 flex flex-col justify-center">
         <Suspense fallback={
-          <div className="flex items-center justify-center min-h-[400px]">
-            <Loader2 className="w-10 h-10 text-[#C9A24D] animate-spin" />
-          </div>
+          <OhpLoader guest fullScreen={false} />
         }>
           <UnsubscribeContent />
         </Suspense>

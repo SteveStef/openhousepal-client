@@ -7,11 +7,14 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { v4 as uuidv4 } from 'uuid'
 import { PropertyRecommendationCard } from '@/components/PropertyRecommendationCard'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
+import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
 import api, { resolveMediaUrl } from '@/lib/api-service'
-import { buildBragSheetData, buildCheatSheetAgentData } from '@/lib/bragSheetData'
+import { buildBragSheetData, buildCheatSheetAgentData, planHasBragSheet } from '@/lib/bragSheetData'
+import { hasMlsAccess, hasShowcaseAccess } from '@/lib/navAccess'
 import { useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
 import { computeMatchScore, isSameSchoolDistrict } from '@/lib/matchScore'
 import { roundedPriceRange } from '@/lib/utils'
+import { readPrintPref, writePrintPref, type PrintPref } from '@/lib/printPrefs'
 import {
   OpenHouse,
   PropertyImage,
@@ -20,7 +23,9 @@ import {
   User,
   PropertyDetailResponse
 } from '@/types'
-import { Bed, Bath, BoxSelect, DollarSign, LandPlot, Layout, QrCode, Sparkles, MapPin, Search, Layers, ArrowRight } from 'lucide-react'
+import { Bed, Bath, BoxSelect, Building2, DollarSign, DoorOpen, LandPlot, Layout, QrCode, Sparkles, MapPin, Search, Layers, ArrowRight, Upload, Loader2, ImageOff, ChevronLeft, ChevronRight, Check, X, Sun, Moon, Ticket, MonitorPlay } from 'lucide-react'
+import LuxeHero from '@/components/ui/LuxeHero'
+import { useQrDataUrl } from '@/lib/qr'
 
 
 interface CreateOpenHouseWizardProps {
@@ -29,6 +34,8 @@ interface CreateOpenHouseWizardProps {
   showToast: (message: string, type: 'success' | 'error') => void;
   triggerPreview: (type: 'flyer' | 'recommendations' | 'bragSheet' | 'cheatSheet', id?: string, customData?: any) => void;
   formatAddress: (address: string) => string;
+  /** Fill the address box (e.g. "Build kit" on an open you're confirmed to host). */
+  prefill?: { address: string; nonce: number } | null;
 }
 
 export function CreateOpenHouseWizard({
@@ -36,12 +43,33 @@ export function CreateOpenHouseWizard({
   onSuccess,
   showToast,
   triggerPreview,
-  formatAddress
+  formatAddress,
+  prefill = null,
 }: CreateOpenHouseWizardProps) {
   const { listingAgentCount, hostCount } = useOpenHouseActionCounts()
 
+  // No-MLS agents have no Bright data to search - the ADDRESS step becomes a manual entry form
+  // instead, and the PREFERENCES step (nearby similar properties, entirely Bright-driven) is
+  // skipped altogether since there's nothing to compare against.
+  // BOTH No-MLS tiers (NO_MLS and PRO_NO_MLS) - neither may touch Bright MLS data.
+  const isNoMls = !hasMlsAccess(currentUser?.plan_tier)
+  const bragSheetAvailable = planHasBragSheet(currentUser?.plan_tier)
+
   // Wizard State
   const [currentStep, setCurrentStep] = useState<OpenHouseWizardStep>('ADDRESS')
+  // Kit print choices asked on the Review step - pre-filled with whatever the agent picked last
+  // time (lib/printPrefs), and every change is remembered for next time.
+  const [kitPrefs, setKitPrefs] = useState<Record<PrintPref, boolean>>({ flyerBrand: true, qrDark: true, matchScore: true, recap: true })
+  // What happens when a guest signs in - same switches as each open house card, picked up front.
+  const [guestPrefs, setGuestPrefs] = useState<{ autoShowcase: boolean; guestPass: boolean; afterSignin: 'hub' | 'none' }>({ autoShowcase: true, guestPass: true, afterSignin: 'none' })
+  useEffect(() => {
+    if (currentStep !== 'REVIEW') return
+    setKitPrefs({ flyerBrand: readPrintPref('flyerBrand'), qrDark: readPrintPref('qrDark'), matchScore: readPrintPref('matchScore'), recap: readPrintPref('recap') })
+  }, [currentStep])
+  const setKitPref = useCallback((pref: PrintPref, on: boolean) => {
+    writePrintPref(pref, on)
+    setKitPrefs(prev => ({ ...prev, [pref]: on }))
+  }, [])
   
   // Data State
   const [address, setAddress] = useState('')
@@ -87,9 +115,17 @@ export function CreateOpenHouseWizard({
   const [selectedFeatures, setSelectedFeatures] = useState({
     signinSheet: true,
     similarProperties: true,
-    bragSheet: true,
-    cheatSheet: true
+    bragSheet: bragSheetAvailable,
+    // No Cheat Sheet on the No-MLS plans: it's built from Bright MLS data (facts, schools, taxes,
+    // price history, nearby places) that those plans don't have.
+    cheatSheet: !isNoMls
   })
+  // currentUser can arrive after mount - keep the kit's documents matched to the real plan.
+  useEffect(() => {
+    setSelectedFeatures(prev => (prev.bragSheet === bragSheetAvailable && prev.cheatSheet === !isNoMls
+      ? prev
+      : { ...prev, bragSheet: bragSheetAvailable, cheatSheet: !isNoMls }))
+  }, [bragSheetAvailable, isNoMls])
 
   // --- HELPERS ---
   const formatStreetAndCity = (addr: string, city?: string) => {
@@ -160,16 +196,23 @@ export function CreateOpenHouseWizard({
         beds: propertyData?.BedroomsTotal || 0,
         baths: propertyData?.BathroomsTotal || 0,
         sqft: propertyData?.LivingArea || propertyData?.livingArea || 0,
+        schoolDistrict: propertyData?.SchoolDistrictName || propertyData?.school_district_name || undefined,
+        // The Review step's Brand choice (same remembered setting as the Documents window's).
+        brand: kitPrefs.flyerBrand ? await buildCheatSheetAgentData(currentUser) : null,
         coverImage: selectedImage?.url,
         coverImagePosition: { x: selectedImage?.x ?? 50, y: selectedImage?.y ?? 50 },
         openHouseUrl: `${window.location.origin}/open-house/${generatedOpenHouseId}`
       };
       triggerPreview('flyer', undefined, flyerData);
     } else if (mode === 'recommendations') {
-      const currentSimilarProps = similarProperties.filter(p => {
+      const selectedSimilarProps = similarProperties.filter(p => {
         const pId = String(p.ListingKey || p.listingKey || p.id);
         return selectedSimilarPropertyIds.map(sid => String(sid)).includes(pId);
-      }).map(p => ({ ...p, matchScore: computeMatchScore(p, propertyData) }));
+      });
+      const currentSimilarProps = selectedSimilarProps.map(p => ({
+        ...p,
+        matchScore: computeMatchScore(p, propertyData, selectedSimilarProps),
+      }));
 
       triggerPreview('recommendations', undefined, {
         address: formatStreetAndCity(address, propertyData?.city || propertyData?.City),
@@ -242,6 +285,19 @@ export function CreateOpenHouseWizard({
       });
     }
   }
+
+  // "Build kit" from an approved open: drop its address in and bring the box into view - the
+  // suggestion list then shows the home, and Generate Kit picks it.
+  React.useEffect(() => {
+    if (!prefill?.address) return
+    setCurrentStep('ADDRESS')
+    setAddress(prefill.address)
+    setCoordinates(null)
+    setShowAddressSuggestions(true)
+    const el = document.getElementById('address') as HTMLInputElement | null
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setTimeout(() => el?.focus(), 350)
+  }, [prefill?.nonce])
 
   // Fetch internal address suggestions
   React.useEffect(() => {
@@ -348,6 +404,16 @@ export function CreateOpenHouseWizard({
     
     setIsGenerating(false)
     setIsLoadingProperty(false)
+  }
+
+  const handleManualPropertyComplete = (manualPropertyData: any, fullAddress: string) => {
+    setAddress(fullAddress)
+    setPropertyData(manualPropertyData)
+    setCoordinates(null)
+    // No Bright data to compare against - skip the similar-properties step and toggle entirely,
+    // and the Cheat Sheet (also MLS-built).
+    setSelectedFeatures(prev => ({ ...prev, similarProperties: false, cheatSheet: false }))
+    setCurrentStep('COVER_IMAGE')
   }
 
   const fetchSimilarProperties = async (data: any, autoSelect = false, preferences?: SearchPreferences) => {
@@ -465,8 +531,8 @@ export function CreateOpenHouseWizard({
 
     const baseUrl = window.location.origin
     const formUrl = `${baseUrl}/open-house/${newEventId}`
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(formUrl)}&bgcolor=ffffff&color=1a1a1a`
-    setQrCode(qrCodeUrl)
+    // The sign-in link the kit's QR codes point at (the codes themselves are drawn locally - lib/qr).
+    setQrCode(formUrl)
 
     setCurrentStep(selectedFeatures.cheatSheet ? 'CHEAT_SHEET_PHOTOS' : 'REVIEW')
   }
@@ -545,7 +611,7 @@ export function CreateOpenHouseWizard({
       }
     }
 
-    const { success, error } = await api.openHouses.create({
+    const { success, error, data: created } = await api.openHouses.create({
       address: String(address || ''),
       property_data: propertyData,
       coverImageUrl: String(selectedImage.url || ''),
@@ -553,10 +619,20 @@ export function CreateOpenHouseWizard({
       openHouseEventId: String(generatedOpenHouseId || ''),
       similarPropertiesSnapshot: selectedSnapshot,
       cheatSheetPhotos: selectedFeatures.cheatSheet ? savedCheatSheetPhotos : undefined,
-      cheatSheetSnapshot: cheatSheetSnapshot
+      cheatSheetSnapshot: cheatSheetSnapshot,
+      qrDarkMode: kitPrefs.qrDark,
     })
 
     if (success) {
+      // Apply the guest settings picked at Review & Save (only what differs from the defaults).
+      const createdId = (created as any)?.id
+      if (createdId) {
+        const patch: Record<string, unknown> = {}
+        if (hasShowcaseAccess(currentUser?.plan_tier) && !guestPrefs.autoShowcase) patch.auto_showcase = false
+        if (!isNoMls && !guestPrefs.guestPass) patch.guest_pass = false
+        if (isNoMls && guestPrefs.afterSignin === 'hub') patch.after_signin = 'hub'
+        if (Object.keys(patch).length) await api.openHouses.updateGuestSettings(createdId, patch as any)
+      }
       await onSuccess()
 
       // Reset local state
@@ -565,7 +641,7 @@ export function CreateOpenHouseWizard({
       setSelectedImage(null)
       setQrCode('')
       setGeneratedOpenHouseId('')
-      setSelectedFeatures({ signinSheet: true, similarProperties: true, bragSheet: true, cheatSheet: true })
+      setSelectedFeatures({ signinSheet: true, similarProperties: true, bragSheet: bragSheetAvailable, cheatSheet: !isNoMls })
       setSelectedSimilarPropertyIds([])
       setCheatSheetPhotos([])
       setCurrentStep('ADDRESS')
@@ -588,26 +664,34 @@ export function CreateOpenHouseWizard({
         exit={{ opacity: 0, y: -12, scale: 0.98 }}
         transition={{ type: 'spring', stiffness: 420, damping: 38, mass: 0.9, layout: { duration: 0.28, ease: [0.22, 1, 0.36, 1] } }}
       >
-      {currentStep === 'ADDRESS' ? (
+      {currentStep === 'ADDRESS' && isNoMls ? (
+        <ManualPropertyEntryForm onComplete={handleManualPropertyComplete} />
+      ) : currentStep === 'ADDRESS' ? (
         <div className="space-y-6 sm:space-y-8 w-full">
-          <div className="bg-white dark:bg-[#151517] rounded-2xl sm:rounded-3xl shadow-xl shadow-[#C9A24D]/[0.07] dark:shadow-black/40 border border-gray-200/60 dark:border-gray-800 p-5 sm:p-8 text-center relative transition-colors w-full">
-            {/* Decorative Background Elements */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-2xl sm:rounded-3xl">
-              <div className="absolute top-0 right-0 w-72 h-72 bg-[#C9A24D]/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
-              <div className="absolute bottom-0 left-0 w-72 h-72 bg-[#111827]/5 dark:bg-white/5 rounded-full blur-3xl -ml-32 -mb-32"></div>
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-40 bg-[#C9A24D]/5 rounded-full blur-3xl"></div>
-            </div>
-
-            <div className="relative z-10 max-w-3xl mx-auto w-full">
-              <h1 className="text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-[#8b7355] to-gray-900 dark:from-white dark:via-[#C9A24D] dark:to-gray-200 tracking-tight mb-2 sm:mb-4 leading-tight py-1">
-                Create Your Open House Kit
-              </h1>
-              <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mb-6 sm:mb-8 font-light">
-                Enter a property address to instantly generate a QR code, professional PDF flyer, and sign-in form.
-              </p>
-
-              <form onSubmit={generateQRCode} className="relative max-w-2xl mx-auto w-full">
-                <div className="flex flex-col sm:flex-row items-stretch w-full rounded-2xl sm:rounded-full bg-gray-50 dark:bg-[#0B0B0B] border-2 border-gray-100 dark:border-gray-800 focus-within:border-[#C9A24D] shadow-sm focus-within:shadow-[0_0_25px_rgba(201,162,77,0.12)] transition-all duration-300 p-1.5 gap-1.5 sm:gap-0">
+          {/* The Opens header - the shared luxe header: the address bar is the main action,
+              Discovery + Manager sit on the right, and what's in a kit is listed under the bar. */}
+          <LuxeHero
+            compact
+            centered
+            kicker="Open Houses"
+            icon={DoorOpen}
+            titleClassName="text-[2.1rem] sm:text-5xl"
+            title={<>Create your <em>Open House Kit.</em></>}
+            subtitle="Enter a property address to instantly generate a QR code, professional PDF flyer, and sign-in form."
+            actions={
+              // Find Open Houses | address search | Manager - one row, so the header stays short.
+              <div className="grid w-full max-w-6xl grid-cols-2 items-stretch gap-3 lg:grid-cols-[230px_minmax(0,1fr)_230px] lg:items-end lg:gap-5">
+              <OpensToolBlock
+                href="/discovery"
+                className="order-2 lg:order-1 lg:-mt-24"
+                icon={<Search size={20} strokeWidth={2.4} className="ohp-icon-draw ohp-icon-assemble-search" />}
+                title="Find Open Houses"
+                blurb="Discover brokerage listings near you"
+                count={hostCount}
+              />
+              <div className="order-1 col-span-2 flex flex-col items-center justify-center lg:order-2 lg:col-span-1">
+              <form onSubmit={generateQRCode} className="relative z-20 w-full max-w-2xl">
+                <div className="flex flex-col sm:flex-row items-stretch w-full rounded-2xl sm:rounded-full bg-white/90 dark:bg-black/40 border-2 border-[#C9A24D]/25 dark:border-white/10 focus-within:border-[#C9A24D] shadow-sm focus-within:shadow-[0_0_25px_rgba(201,162,77,0.12)] transition-all duration-300 p-1.5 gap-1.5 sm:gap-0">
                   <div className="relative flex-1 group w-full">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
                       <MapPin size={20} />
@@ -681,14 +765,14 @@ export function CreateOpenHouseWizard({
                   <button
                     type="submit"
                     disabled={isGenerating || isLoadingProperty}
-                    className="w-full sm:w-auto px-8 py-3.5 sm:py-3 bg-gradient-to-r from-[#C9A24D] to-[#b8923f] text-white rounded-xl sm:rounded-full font-black text-xs uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-[#C9A24D]/25 hover:shadow-lg hover:shadow-[#C9A24D]/40 hover:brightness-105 active:scale-[0.98] flex items-center justify-center whitespace-nowrap sm:min-w-[160px] group/btn"
+                    className="lx-shine relative overflow-hidden w-full sm:w-auto px-8 py-3.5 sm:py-3 bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] text-[#111827] rounded-xl sm:rounded-full font-black text-xs uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-[#C9A24D]/25 hover:shadow-lg hover:shadow-[#C9A24D]/40 hover:brightness-105 active:scale-[0.98] flex items-center justify-center whitespace-nowrap sm:min-w-[160px] group/btn"
                   >
                     {isGenerating || isLoadingProperty ? (
-                      <div className="w-5 h-5 border-2 border-white/60 border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-5 h-5 border-2 border-[#111827]/50 border-t-transparent rounded-full animate-spin"></div>
                     ) : (
                       <div className="flex items-center">
                         <span>Generate Kit</span>
-                        <Sparkles size={14} className="ml-2 text-white group-hover/btn:scale-120 group-hover/btn:rotate-12 transition-transform" />
+                        <Sparkles size={14} className="ml-2 text-[#111827] group-hover/btn:scale-120 group-hover/btn:rotate-12 transition-transform" />
                       </div>
                     )}
                   </button>
@@ -702,57 +786,19 @@ export function CreateOpenHouseWizard({
                   </div>
                 )}
               </form>
-
-              {/* Quick Navigation */}
-              <div className="mt-7 grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-                <Link
-                  href="/discovery"
-                  className="group relative flex items-center gap-4 rounded-2xl border-2 border-[#C9A24D]/30 bg-gradient-to-br from-[#C9A24D]/10 via-white to-white dark:from-[#C9A24D]/15 dark:via-[#1A1A1C] dark:to-[#1A1A1C] p-4 sm:p-5 shadow-sm transition-all duration-300 hover:border-[#C9A24D] hover:shadow-lg hover:shadow-[#C9A24D]/15 hover:-translate-y-0.5"
-                >
-                  {/* Clipped separately from the card so it doesn't also clip the notification badge below, which pokes past this corner on purpose. */}
-                  <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
-                    <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[#C9A24D]/10 blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-[#C9A24D]/20" />
-                  </div>
-                  {hostCount > 0 && (
-                    <span className="absolute -right-2 -top-2 flex h-6 min-w-[24px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-black text-white ring-2 ring-white dark:ring-[#151517] shadow-lg shadow-red-500/40">
-                      {hostCount > 9 ? '9+' : hostCount}
-                    </span>
-                  )}
-                  <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#C9A24D] to-[#b8923f] text-white shadow-md shadow-[#C9A24D]/25 transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3">
-                    <Search size={22} strokeWidth={2.5} />
-                  </div>
-                  <div className="relative min-w-0 flex-1 text-left">
-                    <div className="text-sm font-black text-gray-900 dark:text-white">Find Open Houses</div>
-                    <div className="mt-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">Discover brokerage listings near you</div>
-                  </div>
-                  <ArrowRight size={18} strokeWidth={2.5} className="relative hidden shrink-0 -translate-x-1 text-gray-300 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:text-[#C9A24D] group-hover:opacity-100 dark:text-gray-600 sm:block" />
-                </Link>
-
-                <Link
-                  href="/open-houses/my-listings"
-                  className="group relative flex items-center gap-4 rounded-2xl border-2 border-[#C9A24D]/30 bg-gradient-to-br from-[#C9A24D]/10 via-white to-white dark:from-[#C9A24D]/15 dark:via-[#1A1A1C] dark:to-[#1A1A1C] p-4 sm:p-5 shadow-sm transition-all duration-300 hover:border-[#C9A24D] hover:shadow-lg hover:shadow-[#C9A24D]/15 hover:-translate-y-0.5"
-                >
-                  {/* Clipped separately from the card so it doesn't also clip the notification badge below, which pokes past this corner on purpose. */}
-                  <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
-                    <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[#C9A24D]/10 blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-[#C9A24D]/20" />
-                  </div>
-                  {listingAgentCount > 0 && (
-                    <span className="absolute -right-2 -top-2 flex h-6 min-w-[24px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-black text-white ring-2 ring-white dark:ring-[#151517] shadow-lg shadow-red-500/40">
-                      {listingAgentCount > 9 ? '9+' : listingAgentCount}
-                    </span>
-                  )}
-                  <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#C9A24D] to-[#b8923f] text-white shadow-md shadow-[#C9A24D]/25 transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3">
-                    <Layers size={22} strokeWidth={2.5} />
-                  </div>
-                  <div className="relative min-w-0 flex-1 text-left">
-                    <div className="text-sm font-black text-gray-900 dark:text-white">My Listings</div>
-                    <div className="mt-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">Manage hosts &amp; view insights</div>
-                  </div>
-                  <ArrowRight size={18} strokeWidth={2.5} className="relative hidden shrink-0 -translate-x-1 text-gray-300 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:text-[#C9A24D] group-hover:opacity-100 dark:text-gray-600 sm:block" />
-                </Link>
               </div>
-            </div>
-          </div>
+              <OpensToolBlock
+                href="/open-houses/my-listings"
+                className="order-3 lg:-mt-24"
+                icon={<Building2 size={20} strokeWidth={2.2} className="ohp-icon-draw" />}
+                title="Manager"
+                blurb="Manage hosts & view insights"
+                count={listingAgentCount}
+                delay={1.6}
+              />
+              </div>
+            }
+          />
         </div>
       ) : currentStep === 'PREFERENCES' ? (
         <SimilarPropertiesPreferencesView
@@ -777,7 +823,7 @@ export function CreateOpenHouseWizard({
           propertyData={propertyData}
           address={formatStreetAndCity(address, propertyData?.city || propertyData?.City)}
           onImageSelect={handleImageSelect}
-          onBack={() => setCurrentStep('PREFERENCES')}
+          onBack={() => setCurrentStep(isNoMls ? 'ADDRESS' : 'PREFERENCES')}
         />
       ) : currentStep === 'CHEAT_SHEET_PHOTOS' ? (
         <CheatSheetPhotoSelectionView
@@ -787,6 +833,7 @@ export function CreateOpenHouseWizard({
           initialSelected={cheatSheetPhotos}
           onNext={handleCheatSheetPhotosComplete}
           onBack={() => setCurrentStep('COVER_IMAGE')}
+          recapOn={kitPrefs.recap}
         />
       ) : null}
       </motion.div>
@@ -808,6 +855,13 @@ export function CreateOpenHouseWizard({
           hasBragSheet={selectedFeatures.bragSheet}
           hasCheatSheet={selectedFeatures.cheatSheet}
           formatAddress={formatAddress}
+          kitPrefs={kitPrefs}
+          onKitPrefChange={setKitPref}
+          guestPrefs={guestPrefs}
+          onGuestPrefChange={(k: string, v: unknown) => setGuestPrefs(prev => ({ ...prev, [k]: v }))}
+          showcasesAvailable={hasShowcaseAccess(currentUser?.plan_tier)}
+          guestPassAvailable={!isNoMls}
+          afterSigninAvailable={isNoMls}
         />
       )}
     </div>
@@ -882,7 +936,7 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
   const formatSubjectAddress = (value: string) => (value || '').split(',')[0].trim().toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 
   // Shared with Showcases (lib/matchScore.ts) - same weighted algorithm, one implementation.
-  const getMatchScore = (property: any) => computeMatchScore(property, subject)
+  const getMatchScore = (property: any) => computeMatchScore(property, subject, properties)
   const isSameSchool = (property: any) => isSameSchoolDistrict(property, subject)
   const getPropertyAcres = (property: any) => {
     const explicitAcres = getNum(property, ['acres', 'LotSizeAcres', 'lotSizeAcres', 'lot_size_acres'])
@@ -891,6 +945,16 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
     return squareFeet ? Number((squareFeet / 43560).toFixed(2)) : 0
   }
   const sortedProperties = [...properties].sort((a, b) => getMatchScore(b) - getMatchScore(a))
+
+  // Paginated instead of one long scrolling grid - with a big radius/loose filters this list can
+  // run into dozens of matches, which turned "Refine Your Search" into an endless scroll where the
+  // mouse had to land exactly on the page's edge scrollbar to move at all. A handful of pages of a
+  // few rows each keeps every page short and scroll-free.
+  const RESULTS_PAGE_SIZE = 9
+  const [resultsPage, setResultsPage] = useState(1)
+  useEffect(() => { setResultsPage(1) }, [properties])
+  const resultsTotalPages = Math.max(1, Math.ceil(sortedProperties.length / RESULTS_PAGE_SIZE))
+  const pagedProperties = sortedProperties.slice((resultsPage - 1) * RESULTS_PAGE_SIZE, resultsPage * RESULTS_PAGE_SIZE)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -927,8 +991,19 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
 
   return (
     <div className="bg-white dark:bg-[#151517] rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 transition-colors max-w-7xl mx-auto animate-fadeIn h-full flex flex-col overflow-hidden">
-      <div className="flex-1 overflow-y-auto p-5 sm:p-8">
-        <div className="mb-5 rounded-2xl border border-gray-100 bg-[#faf9f7] p-4 shadow-sm dark:border-gray-800 dark:bg-[#0B0B0B] sm:p-5">
+      {/* overscrollBehavior: 'auto' overrides a global rule (globals.css: any .overflow-y-auto
+          gets overscroll-behavior: contain, so a modal's internal scroll doesn't chain into the
+          page behind it). That rule assumes this element is always its own fully self-contained
+          scroll region, but this one isn't - the Property Selection grid below deliberately has
+          no scroll cap of its own and expects wheel input to fall through to the real page scroll
+          once this panel's own content fits (see the "No height cap/inner scroll here on purpose"
+          comment further down). With the global "contain" behavior in force, once wheel input
+          fails to scroll this element internally, the browser refuses to hand it up to the page
+          at all - so scrolling worked only once the cursor left this panel entirely (the actual
+          "have to reach the edge of the page" bug). Only this specific container needs the
+          override; it's inline so it beats the class-based rule regardless of stylesheet order. */}
+      <div className="flex-1 overflow-y-auto px-5 pb-5 sm:px-8 sm:pb-8" style={{ overscrollBehavior: 'auto' }}>
+        <div className="mb-5 mt-5 rounded-2xl border border-gray-100 bg-[#faf9f7] p-4 shadow-sm dark:border-gray-800 dark:bg-[#0B0B0B] sm:mt-8 sm:p-5">
           <div className="-m-4 mb-4 flex items-center justify-center rounded-t-2xl border-b border-gray-200 bg-gradient-to-r from-[#faf6ec] via-white to-[#faf6ec] px-4 py-2.5 dark:border-gray-800 dark:from-[#1c1710] dark:via-[#151517] dark:to-[#1c1710] sm:-m-5 sm:mb-5 sm:px-5">
             <p className="inline-flex items-center gap-1.5 rounded-full bg-[#C9A24D]/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#8b7355] ring-1 ring-[#C9A24D]/25 dark:text-[#d7b974]">
               <Layers className="h-3.5 w-3.5" /> Similar Homes Sheet
@@ -1002,7 +1077,12 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-[#f1f3f5] p-4 shadow-inner dark:border-gray-800 dark:bg-transparent sm:p-5">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {/* Sticky so the Continue button (and the result counts) stay on screen while only the
+              property cards below scroll under it - the whole panel is one scroll region, and
+              before this the header scrolled away with everything else. Negative margins bleed the
+              bar to the container edges and cover its rounded top corners; the parent scroll
+              container's top padding was moved onto its children so top-0 pins flush. */}
+          <div className="sticky top-0 z-20 -mx-4 -mt-4 mb-4 flex flex-col gap-3 rounded-t-2xl border-b border-gray-200 bg-[#f1f3f5] px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-[#151517] sm:-mx-5 sm:-mt-5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:pt-5">
             <div>
               <h3 className="text-lg font-black text-gray-900 dark:text-white">Property Selection</h3>
               <p className="text-xs font-semibold text-gray-400">Results update automatically as you refine filters.</p>
@@ -1033,12 +1113,21 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
               <p className="mt-1 text-xs font-semibold text-gray-400">Try widening the radius or price range.</p>
             </div>
           ) : (
-            // No height cap/inner scroll here on purpose - this flows as part of the single
-            // outer scroll region (the flex-1 overflow-y-auto wrapping the whole panel below), so
-            // there's exactly one scrollable area for the page and no nested scroll container to
-            // trap the mouse wheel depending on exactly where the cursor happens to be.
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {sortedProperties.map((property) => {
+            <>
+              {/* No height cap/inner scroll here on purpose - this flows as part of the single
+                  outer scroll region (the flex-1 overflow-y-auto wrapping the whole panel below).
+                  Paginated to RESULTS_PAGE_SIZE instead of showing every match at once, so that
+                  single scroll region stays short regardless of how many matches a loose filter
+                  turns up.
+                  select-none - selection here is a plain click-to-toggle (toggleProperty), not
+                  text selection, but the cards' address/price text is selectable by default. A
+                  quick click-drag across several cards to toggle them fast was instead starting a
+                  native text-selection drag, which only auto-scrolls once the cursor reaches the
+                  actual browser viewport edge (not this section's own edge) - exactly the "have to
+                  go to the border of the page" complaint. Disabling text selection here removes
+                  that native drag behavior entirely; plain clicks still toggle normally. */}
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 select-none">
+                {pagedProperties.map((property) => {
                   const propertyId = String(property.ListingKey || property.listingKey || property.id)
                   const isSelected = selectedIdStrings.includes(propertyId)
                   return (
@@ -1071,7 +1160,42 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
                     </div>
                   )
                 })}
-            </div>
+              </div>
+              {resultsTotalPages > 1 && (
+                <div className="mt-5 flex items-center justify-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setResultsPage(p => Math.max(1, p - 1))}
+                    disabled={resultsPage === 1}
+                    className="rounded-lg p-2 text-gray-400 transition hover:bg-white dark:hover:bg-gray-800 disabled:opacity-30"
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  {Array.from({ length: resultsTotalPages }, (_, i) => i + 1).map(n => (
+                    <button
+                      type="button"
+                      key={n}
+                      onClick={() => setResultsPage(n)}
+                      className={`h-8 min-w-[2rem] rounded-lg px-2 text-xs font-black transition ${
+                        n === resultsPage ? 'bg-[#C9A24D] text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setResultsPage(p => Math.min(resultsTotalPages, p + 1))}
+                    disabled={resultsPage === resultsTotalPages}
+                    className="rounded-lg p-2 text-gray-400 transition hover:bg-white dark:hover:bg-gray-800 disabled:opacity-30"
+                    aria-label="Next page"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -1098,6 +1222,146 @@ const isRealPhotoUrl = (url: any): url is string =>
   url.length > 0 &&
   !/virtual-?tour|\/videos?\//i.test(url) &&
   !/\.(mp4|mov|webm|m3u8)(\?|$)/i.test(url)
+
+// No-MLS agents have no Bright listing to search - this replaces the ADDRESS step's search box
+// with a hand-entry form for the same fields the Bright flow would normally fill in, plus a
+// required photo upload (ImageSelectionView below only ever offers photos already present on
+// propertyData - Bright listings always have them, a manual entry needs one uploaded up front).
+const ManualPropertyEntryForm = memo(function ManualPropertyEntryForm({ onComplete }: { onComplete: (propertyData: any, fullAddress: string) => void }) {
+  const [streetAddress, setStreetAddress] = useState('')
+  const [city, setCity] = useState('')
+  const [state, setState] = useState('')
+  const [zipcode, setZipcode] = useState('')
+  const [price, setPrice] = useState('')
+  const [beds, setBeds] = useState('')
+  const [baths, setBaths] = useState('')
+  const [sqft, setSqft] = useState('')
+  const [photoUrl, setPhotoUrl] = useState('')
+  const [isUploading, setIsUploading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsUploading(true)
+    setError('')
+    try {
+      const response = await api.studio.uploadMedia(file)
+      if (response.success && response.data?.url) {
+        setPhotoUrl(resolveMediaUrl(response.data.url))
+      } else {
+        setError(response.error || 'Failed to upload photo. Please try again.')
+      }
+    } catch {
+      setError('Failed to upload photo. Please try again.')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const canSubmit = streetAddress.trim() && city.trim() && state.trim() && photoUrl
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!canSubmit) {
+      setError('Address, city, state, and a photo are required.')
+      return
+    }
+    const fullAddress = `${streetAddress.trim()}, ${city.trim()}, ${state.trim()}${zipcode.trim() ? ' ' + zipcode.trim() : ''}`
+    onComplete({
+      FullStreetAddress: streetAddress.trim(),
+      City: city.trim(),
+      StateOrProvince: state.trim(),
+      PostalCode: zipcode.trim() || undefined,
+      ListPrice: price ? Number(price) : undefined,
+      BedroomsTotal: beds ? Number(beds) : undefined,
+      BathroomsTotal: baths ? Number(baths) : undefined,
+      LivingArea: sqft ? Number(sqft) : undefined,
+      MlsStatus: 'ACTIVE',
+      ListingKey: '',
+      photos: [photoUrl],
+      ListPictureURL: photoUrl,
+    }, fullAddress)
+  }
+
+  const inputClass = "w-full rounded-xl border-2 border-gray-100 bg-gray-50 px-4 py-3 text-sm font-medium text-[#0B0B0B] placeholder-gray-400 focus:border-[#C9A24D] focus:outline-none transition-colors dark:border-gray-800 dark:bg-[#0B0B0B] dark:text-white dark:placeholder-gray-500"
+  const labelClass = "mb-1.5 block text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400"
+
+  return (
+    <div className="mx-auto w-full max-w-2xl">
+      <div className="relative rounded-2xl border border-gray-200/60 bg-white p-5 shadow-xl shadow-[#C9A24D]/[0.07] transition-colors dark:border-gray-800 dark:bg-[#151517] sm:rounded-3xl sm:p-8">
+        <h1 className="mb-2 text-2xl font-black tracking-tight text-gray-900 dark:text-white sm:text-3xl">Enter Property Details</h1>
+        <p className="mb-6 text-sm font-light text-gray-500 dark:text-gray-400">
+          Your plan doesn't include Bright MLS data, so add the property details by hand to generate a QR code, sign-in form, and cheat sheet.
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className={labelClass}>Street Address</label>
+            <div className="relative">
+              <MapPin size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input value={streetAddress} onChange={e => setStreetAddress(e.target.value)} required placeholder="123 Main St" className={`${inputClass} pl-10`} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div>
+              <label className={labelClass}>City</label>
+              <input value={city} onChange={e => setCity(e.target.value)} required placeholder="Bryn Mawr" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>State</label>
+              <input value={state} onChange={e => setState(e.target.value)} required placeholder="PA" maxLength={2} className={`${inputClass} uppercase`} />
+            </div>
+            <div>
+              <label className={labelClass}>Zip</label>
+              <input value={zipcode} onChange={e => setZipcode(e.target.value)} placeholder="19010" className={inputClass} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <label className={labelClass}><DollarSign size={11} className="mb-0.5 mr-0.5 inline" />Price</label>
+              <input value={price} onChange={e => setPrice(e.target.value.replace(/[^0-9]/g, ''))} placeholder="450000" inputMode="numeric" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}><Bed size={11} className="mb-0.5 mr-0.5 inline" />Beds</label>
+              <input value={beds} onChange={e => setBeds(e.target.value.replace(/[^0-9]/g, ''))} placeholder="3" inputMode="numeric" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}><Bath size={11} className="mb-0.5 mr-0.5 inline" />Baths</label>
+              <input value={baths} onChange={e => setBaths(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="2" inputMode="decimal" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}><LandPlot size={11} className="mb-0.5 mr-0.5 inline" />Sqft</label>
+              <input value={sqft} onChange={e => setSqft(e.target.value.replace(/[^0-9]/g, ''))} placeholder="1800" inputMode="numeric" className={inputClass} />
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}>Property Photo</label>
+            {photoUrl ? (
+              <div className="relative h-40 w-full overflow-hidden rounded-xl border-2 border-[#C9A24D]/40">
+                <Image src={photoUrl} alt="Property" fill className="object-cover" unoptimized />
+                <button type="button" onClick={() => setPhotoUrl('')} className="absolute right-2 top-2 rounded-full bg-black/60 px-3 py-1 text-xs font-bold text-white hover:bg-black/80">Replace</button>
+              </div>
+            ) : (
+              <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-gray-400 transition-colors hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:bg-[#0B0B0B] dark:hover:text-[#C9A24D]">
+                {isUploading ? <Loader2 size={22} className="animate-spin" /> : <Upload size={22} />}
+                <span className="text-xs font-bold uppercase tracking-widest">{isUploading ? 'Uploading...' : 'Upload a JPG photo'}</span>
+                <input type="file" accept="image/jpeg" className="hidden" onChange={handlePhotoUpload} disabled={isUploading} />
+              </label>
+            )}
+          </div>
+          {error && <p className="text-sm font-medium text-red-500">{error}</p>}
+          <button
+            type="submit"
+            disabled={!canSubmit || isUploading}
+            className="w-full rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#b8923f] px-8 py-3.5 text-xs font-black uppercase tracking-widest text-white shadow-md shadow-[#C9A24D]/25 transition-all duration-300 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Continue
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+})
 
 const ImageSelectionView = memo(function ImageSelectionView({ propertyData, address, onImageSelect, onBack }: any) {
   const availableImages = (propertyData?.photos && propertyData.photos.length > 0 ? propertyData.photos : [propertyData?.ListPictureURL]).filter(isRealPhotoUrl)
@@ -1135,7 +1399,7 @@ const ImageSelectionView = memo(function ImageSelectionView({ propertyData, addr
               className={`relative aspect-square bg-gray-100 dark:bg-[#0B0B0B] rounded-xl overflow-hidden cursor-pointer transition-shadow duration-200 group ${pending?.url === imageUrl ? 'ring-2 ring-[#8b7355] dark:ring-[#C9A24D]' : 'hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-600'}`}
               onClick={() => setPending({ url: imageUrl, x: 50, y: 50 })}
             >
-              <Image src={imageUrl} alt={`Property view ${index + 1}`} fill sizes="(max-width: 768px) 50vw, (max-width: 1280px) 25vw, 180px" className="object-cover" />
+              <Image src={imageUrl} alt={`Property view ${index + 1}`} fill sizes="(max-width: 768px) 50vw, (max-width: 1280px) 25vw, 320px" quality={88} className="object-cover" />
               <div className={`absolute inset-0 transition-colors duration-200 flex items-center justify-center ${pending?.url === imageUrl ? 'bg-black/10' : 'bg-black/0 group-hover:bg-black/10'}`}>
                 <div className={`bg-white/90 dark:bg-[#151517]/90 rounded-full p-2 transition-opacity duration-200 ${pending?.url === imageUrl ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                   <svg className="w-5 h-5 text-[#8b7355] dark:text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
@@ -1222,7 +1486,23 @@ const normalizeCheatSheetPhotosForSave = (photos: any[]) => (photos || [])
   .map(photo => typeof photo === 'string' ? { url: photo, x: 50, y: 50 } : { url: String(photo?.url || ''), x: photo?.x ?? 50, y: photo?.y ?? 50 })
   .filter(photo => photo.url)
 
-export const CheatSheetPhotoSelectionView = memo(function CheatSheetPhotoSelectionView({ propertyData, address, currentUser, initialSelected, onNext, onBack }: any) {
+export const CheatSheetPhotoSelectionView = memo(function CheatSheetPhotoSelectionView({ propertyData, address, currentUser, initialSelected, onNext, onBack, recapOn = true }: any) {
+  // The Cheat Sheet's AI Recap (a short "Highlights of..." paragraph) is the AI this step leads to -
+  // show roughly what it uses before the agent continues.
+  const descLength = String(propertyData?.PublicRemarks || propertyData?.description || '').trim().length
+  const [recapPct, setRecapPct] = useState<number | null | undefined>(undefined)
+  useEffect(() => {
+    if (!recapOn || !descLength) return
+    let alive = true
+    api.ai.copywriteEstimate('cheat_sheet_highlights', descLength).then(r => { if (alive && r.success && r.data) setRecapPct(r.data.percent) })
+    return () => { alive = false }
+  }, [recapOn, descLength])
+  const continueCost = !recapOn || !descLength
+    ? 'Continue uses no AI'
+    : recapPct === undefined ? 'Checking AI cost...'
+      : recapPct === null ? 'Continue: AI Recap - under a cent'
+        : recapPct < 1 ? `Continue: AI Recap - under 1% of your monthly AI`
+          : `Continue: AI Recap - about ${Math.round(recapPct)}% of your monthly AI`
   const availableImages: string[] = (propertyData?.photos && propertyData.photos.length > 0 ? propertyData.photos : [propertyData?.ListPictureURL]).filter(isRealPhotoUrl)
   const [selected, setSelected] = useState<any[]>(initialSelected && initialSelected.length > 0 ? initialSelected.map(normalizeCheatSheetPhoto) : availableImages.slice(0, 1).map(normalizeCheatSheetPhoto))
   // The live preview's agent block needs the same Agent Hub-backed data (name/title/brokerage/
@@ -1255,11 +1535,16 @@ export const CheatSheetPhotoSelectionView = memo(function CheatSheetPhotoSelecti
           <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">{address} &middot; Choose up to {MAX_CHEAT_SHEET_PHOTOS} photos, in the order you'd like them to appear.</p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:shrink-0">
-          <div className="flex w-full gap-2 sm:w-auto">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
+            <MonthlyAiUsageMeter variant="inline" compact className="w-full sm:w-auto" />
             <button onClick={onBack} className="flex flex-1 items-center justify-center rounded-xl border border-gray-200 bg-gray-100 px-4 py-2.5 text-sm font-bold text-gray-700 transition-colors duration-200 hover:bg-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 sm:flex-none"><svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>Back</button>
             <button onClick={() => onNext(selected)} disabled={selected.length === 0} className="flex flex-1 items-center justify-center rounded-xl bg-[#111827] px-5 py-2.5 text-sm font-black text-white shadow-lg transition-all duration-300 hover:bg-[#8b7355] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D] sm:flex-none">Continue</button>
           </div>
-          <p className="text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest sm:text-right">{selected.length} of {MAX_CHEAT_SHEET_PHOTOS} selected</p>
+          <p className="text-center text-xs font-bold text-gray-500 dark:text-gray-400 sm:text-right">
+            <span className="uppercase tracking-widest">{selected.length} of {MAX_CHEAT_SHEET_PHOTOS} selected</span>
+            <span className="mx-1.5 text-gray-300">·</span>
+            <span className="text-[#8b7355] dark:text-[#d7b974]">{continueCost}</span>
+          </p>
         </div>
       </div>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -1273,7 +1558,7 @@ export const CheatSheetPhotoSelectionView = memo(function CheatSheetPhotoSelecti
                 className={`relative aspect-square bg-gray-100 dark:bg-[#0B0B0B] rounded-xl overflow-hidden cursor-pointer transition-shadow duration-200 group ${isSelected ? 'ring-2 ring-[#8b7355] dark:ring-[#C9A24D]' : 'hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-600'}`}
                 onClick={() => toggleImage(imageUrl)}
               >
-                <Image src={imageUrl} alt={`Property view ${index + 1}`} fill sizes="(max-width: 768px) 50vw, (max-width: 1280px) 25vw, 180px" className="object-cover" />
+                <Image src={imageUrl} alt={`Property view ${index + 1}`} fill sizes="(max-width: 768px) 50vw, (max-width: 1280px) 25vw, 320px" quality={88} className="object-cover" />
                 <div className={`absolute inset-0 transition-colors duration-200 ${isSelected ? 'bg-black/10' : 'bg-black/0 group-hover:bg-black/10'}`} />
                 {isSelected && (
                   <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-[#8b7355] dark:bg-[#C9A24D] text-white text-xs font-bold flex items-center justify-center shadow-lg">
@@ -1291,6 +1576,7 @@ export const CheatSheetPhotoSelectionView = memo(function CheatSheetPhotoSelecti
 })
 
 const CheatSheetLivePreview = memo(function CheatSheetLivePreview({ address, agent, selectedPhotos, onPhotoPositionChange }: any) {
+  const hubQr = useQrDataUrl(agent?.hubUrl, { size: 160 })
   const brokerage = agent?.brokerage || 'Brokerage'
   const agentName = agent?.name || 'Agent Name'
   const title = agent?.title || 'Real Estate Professional'
@@ -1316,7 +1602,7 @@ const CheatSheetLivePreview = memo(function CheatSheetLivePreview({ address, age
         </div>
         <div className="mt-4 flex items-center gap-3 rounded-xl border border-gray-200 bg-[#faf9f7] p-3 dark:border-gray-800 dark:bg-[#1a1a1c]">
           <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-gray-200 bg-white dark:border-gray-700 dark:bg-[#0B0B0B]">
-            {agentPhoto ? <Image src={resolveMediaUrl(agentPhoto)} alt={agentName} fill sizes="48px" className="object-cover" /> : <div className="flex h-full w-full items-center justify-center text-sm font-black text-[#8b7355] dark:text-[#C9A24D]">{initials}</div>}
+            {agentPhoto ? <Image src={resolveMediaUrl(agentPhoto)} alt={agentName} fill sizes="48px" className="object-cover" unoptimized /> : <div className="flex h-full w-full items-center justify-center text-sm font-black text-[#8b7355] dark:text-[#C9A24D]">{initials}</div>}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate font-serif text-base font-black text-gray-900 dark:text-white">{agentName}</p>
@@ -1327,11 +1613,11 @@ const CheatSheetLivePreview = memo(function CheatSheetLivePreview({ address, age
           {/* Mirrors the real Cheat Sheet PDF's QR exactly (same qrserver.com size/params - see
               styles.frontAgentQrImage usage in lib/pdfs.tsx) - omitted, not a blank placeholder, when
               the agent has no Agent Hub slug yet, same as the PDF itself omits it. */}
-          {agent?.hubUrl && (
+          {agent?.hubUrl && hubQr && (
             <div className="hidden h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-[#C9A24D]/40 bg-white p-1 sm:block dark:bg-[#0B0B0B]">
               <div className="relative h-full w-full">
                 <Image
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(agent.hubUrl)}`}
+                  src={hubQr}
                   alt="Scan to view Agent Hub"
                   fill
                   sizes="56px"
@@ -1385,7 +1671,69 @@ const DraggablePreviewPhoto = memo(function DraggablePreviewPhoto({ photo, slotI
   )
 })
 
-const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selectedImage, qrCode, onSave, onCancel, onPreviewFlyer, onPreviewRecommendations, onPreviewBragSheet, onPreviewCheatSheet, hasRecommendations, hasBragSheet, hasCheatSheet, formatAddress }: any) {
+// On/off chip for a kit print option - same check / X language as the Documents window toggles.
+function KitOptionChip({ on, label, hint, onClick }: { on: boolean; label: string; hint: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={hint}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest transition-colors ${
+        on
+          ? 'border-emerald-500/40 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+          : 'border-gray-200 bg-white text-gray-400 hover:text-gray-600 dark:border-gray-700 dark:bg-[#0B0B0B] dark:hover:text-gray-300'
+      }`}
+    >
+      {on ? (
+        <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 text-white"><Check className="h-2.5 w-2.5" strokeWidth={4} /></span>
+      ) : (
+        <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600"><X className="h-2.5 w-2.5" strokeWidth={3.5} /></span>
+      )}
+      {label}
+    </button>
+  )
+}
+
+// One guest setting on Review & Save - icon, what it does, and an on/off switch.
+function GuestPrefRow({ icon: Icon, title, body, on, onToggle }: { icon: React.ComponentType<{ className?: string }>; title: string; body: string; on: boolean; onToggle: () => void }) {
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-[#faf9f7] p-3 dark:border-gray-700 dark:bg-[#1a1a1c]">
+      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-300 ${on ? 'bg-[#C9A24D] text-[#111827]' : 'bg-gray-200 text-gray-400 dark:bg-white/10'}`}><Icon className="h-4 w-4" /></span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-black text-gray-800 dark:text-gray-100">{title} <span className={`ml-1 text-[10px] font-black uppercase tracking-wide transition-colors duration-300 ${on ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`}>{on ? 'On' : 'Off'}</span></p>
+        <p className="text-xs font-medium leading-relaxed text-gray-500 dark:text-gray-400">{body}</p>
+      </div>
+      <button type="button" role="switch" aria-checked={on} aria-label={title} onClick={onToggle}
+        className={`relative mt-1 inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-300 ${on ? 'bg-[#C9A24D] shadow-[0_0_0_4px_rgba(201,162,77,.15)]' : 'bg-gray-300 dark:bg-gray-600'}`}>
+        <motion.span
+          className="h-5 w-5 rounded-full bg-white shadow-md"
+          initial={false}
+          animate={{ x: on ? 20 : 0, scale: 1 }}
+          whileTap={{ scale: 0.9 }}
+          transition={{ type: 'spring', stiffness: 520, damping: 32 }}
+        />
+      </button>
+    </div>
+  )
+}
+
+// Light | Dark choice for the on-screen sign-in page - both options visible, the picked one filled
+// in its own theme's colors, so which one is set is never in doubt.
+function KitThemeChoice({ dark, onChange }: { dark: boolean; onChange: (dark: boolean) => void }) {
+  const base = 'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest transition-colors'
+  return (
+    <div className="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 p-0.5 dark:border-gray-700 dark:bg-[#0B0B0B]" title="Theme of the sign-in page guests see when they scan the QR code or use the kiosk. Doesn't change the printed flyer.">
+      <button type="button" onClick={() => onChange(false)} className={`${base} ${!dark ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200' : 'text-gray-400 hover:text-gray-600'}`}>
+        <Sun className={`h-3 w-3 ${!dark ? 'text-amber-500' : ''}`} strokeWidth={3} />Light
+      </button>
+      <button type="button" onClick={() => onChange(true)} className={`${base} ${dark ? 'bg-[#111111] text-white shadow-sm ring-1 ring-white/10' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}>
+        <Moon className="h-3 w-3" strokeWidth={3} />Dark
+      </button>
+    </div>
+  )
+}
+
+const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selectedImage, qrCode, onSave, onCancel, onPreviewFlyer, onPreviewRecommendations, onPreviewBragSheet, onPreviewCheatSheet, hasRecommendations, hasBragSheet, hasCheatSheet, formatAddress, kitPrefs, onKitPrefChange, guestPrefs, onGuestPrefChange, showcasesAvailable, guestPassAvailable, afterSigninAvailable }: any) {
   const kitLabel = ['Sign In', hasRecommendations && 'Similar Homes', hasBragSheet && 'Brag Sheet', hasCheatSheet && 'Cheat Sheet'].filter(Boolean).join(', ')
   const [isSaving, setIsSaving] = useState(false)
   const handleSave = async () => {
@@ -1397,22 +1745,71 @@ const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selecte
     }
   }
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 print:hidden">
-      <div className="bg-[#FAFAF7] dark:bg-[#151517] rounded-[2rem] shadow-2xl max-w-2xl w-full overflow-hidden border border-white/50 dark:border-gray-800">
-        <div className="p-8 border-b border-gray-200/50 dark:border-gray-800 bg-white/50 dark:bg-[#0B0B0B]/50"><h3 className="text-2xl font-black text-[#0B0B0B] dark:text-white tracking-tight">Review & Save</h3><p className="text-[#6B7280] dark:text-gray-400 text-sm mt-2 font-medium">{formatAddress(address)}</p></div>
-        <div className="p-8">
-          <div className="flex items-center space-x-5 mb-8">
+    <div className="fixed inset-0 bg-black/60 flex justify-center overflow-y-auto z-50 p-4 print:hidden">
+      <div className="my-auto bg-[#FAFAF7] dark:bg-[#151517] rounded-[2rem] shadow-2xl max-w-2xl w-full overflow-hidden border border-white/50 dark:border-gray-800">
+        <div className="px-6 py-5 sm:px-8 border-b border-gray-200/50 dark:border-gray-800 bg-white/50 dark:bg-[#0B0B0B]/50"><h3 className="text-2xl font-black text-[#0B0B0B] dark:text-white tracking-tight">Review & Save</h3><p className="text-[#6B7280] dark:text-gray-400 text-sm mt-2 font-medium">{formatAddress(address)}</p></div>
+        <div className="p-6 sm:p-8">
+          <div className="flex items-center space-x-5 mb-6">
             <div className="w-24 h-24 bg-white dark:bg-[#0B0B0B] rounded-2xl overflow-hidden relative shadow-inner border border-gray-100 dark:border-gray-800">{selectedImage && <Image src={selectedImage.url} alt="Selected cover" fill sizes="96px" className="object-cover" />}</div>
             <div className="flex-1"><p className="text-base font-bold text-[#0B0B0B] dark:text-white">Kit Ready to Generate</p><p className="text-sm text-[#6B7280] dark:text-gray-400 mt-1 font-light leading-relaxed">Includes {kitLabel}.</p></div>
           </div>
-          <div className="bg-white/80 dark:bg-[#0B0B0B]/80 rounded-2xl p-6 mb-8 border border-gray-100 dark:border-gray-800 shadow-sm"><h4 className="text-sm font-bold text-[#C9A24D] uppercase tracking-wider mb-3">Your Kit Includes</h4>
+          <div className="bg-white/80 dark:bg-[#0B0B0B]/80 rounded-2xl p-5 mb-5 border border-gray-100 dark:border-gray-800 shadow-sm"><h4 className="text-sm font-bold text-[#C9A24D] uppercase tracking-wider mb-3">Your Kit Includes</h4>
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Sign In</span></div><button onClick={onPreviewFlyer} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>
-              {hasRecommendations && <div className="flex items-center justify-between p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Similar Homes</span></div><button onClick={onPreviewRecommendations} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>}
+              <div className="p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center justify-between"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Sign In</span></div><button onClick={onPreviewFlyer} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-6"><KitOptionChip on={kitPrefs.flyerBrand} label="Brand" hint="Adds your photo, name, and brokerage to the printed sign-in flyer - the same pill as the top of the on-screen sign-in page." onClick={() => onKitPrefChange('flyerBrand', !kitPrefs.flyerBrand)} /><KitThemeChoice dark={kitPrefs.qrDark} onChange={(dark: boolean) => onKitPrefChange('qrDark', dark)} /></div>
+              </div>
+              {hasRecommendations && <div className="p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center justify-between"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Similar Homes</span></div><button onClick={onPreviewRecommendations} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-6"><KitOptionChip on={kitPrefs.matchScore} label="Match %" hint="Shows the % Match badge on each home and sorts best match first." onClick={() => onKitPrefChange('matchScore', !kitPrefs.matchScore)} /></div>
+              </div>}
               {hasBragSheet && <div className="flex items-center justify-between p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Brag Sheet</span></div><button onClick={onPreviewBragSheet} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>}
-              {hasCheatSheet && <div className="flex items-center justify-between p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Cheat Sheet</span></div><button onClick={onPreviewCheatSheet} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>}
+              {hasCheatSheet && <div className="p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center justify-between"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Cheat Sheet</span></div><button onClick={onPreviewCheatSheet} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-6"><KitOptionChip on={kitPrefs.recap} label="Recap" hint="Replaces the long MLS description with a short AI 'Highlights of [address]' paragraph (3 lines max)." onClick={() => onKitPrefChange('recap', !kitPrefs.recap)} /></div>
+              </div>}
             </div>
           </div>
+          {(guestPassAvailable || showcasesAvailable || afterSigninAvailable) && guestPrefs && (
+            <div className="bg-white/80 dark:bg-[#0B0B0B]/80 rounded-2xl p-5 mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
+              <h4 className="text-sm font-bold text-[#C9A24D] uppercase tracking-wider mb-1">After a guest signs in</h4>
+              <p className="mb-3 text-xs font-medium text-gray-500 dark:text-gray-400">You can change these any time on this open house&apos;s card.</p>
+              <div className="space-y-2.5">
+                {guestPassAvailable && (
+                  <GuestPrefRow
+                    icon={Ticket}
+                    title="Guest Pass"
+                    body="Their phone opens this home, your Similar Homes + Cheat Sheet as web pages, and one-tap disclosure / second tour requests. Never on a Kiosk tablet."
+                    on={guestPrefs.guestPass}
+                    onToggle={() => onGuestPrefChange('guestPass', !guestPrefs.guestPass)}
+                  />
+                )}
+                {showcasesAvailable && (
+                  <GuestPrefRow
+                    icon={Sparkles}
+                    title="Guest Showcases"
+                    body="Everyone who signs in without an agent gets their own Showcase of similar homes. Turn off if you're sitting your own listing and don't want guests shopping other homes."
+                    on={guestPrefs.autoShowcase}
+                    onToggle={() => onGuestPrefChange('autoShowcase', !guestPrefs.autoShowcase)}
+                  />
+                )}
+                {afterSigninAvailable && (
+                  <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-[#faf9f7] p-3 dark:border-gray-700 dark:bg-[#1a1a1c]">
+                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#111827] text-[#e8c97a] dark:bg-white/10"><MonitorPlay className="h-4 w-4" /></span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-black text-gray-800 dark:text-gray-100">After sign-in, open</p>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Your Agent Hub (once it&apos;s set up), or just the thank-you screen. Never on a Kiosk tablet.</p>
+                    </div>
+                    <div className="inline-flex shrink-0 rounded-full border border-gray-200 bg-white p-0.5 dark:border-gray-700 dark:bg-[#0B0B0B]">
+                      {(['hub', 'none'] as const).map(v => (
+                        <button key={v} type="button" onClick={() => onGuestPrefChange('afterSignin', v)}
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide transition ${guestPrefs.afterSignin === v ? 'bg-[#C9A24D] text-[#111827]' : 'text-gray-400 hover:text-gray-600'}`}>
+                          {v === 'hub' ? 'Agent Hub' : 'Nothing'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row gap-3">
             <button onClick={onCancel} disabled={isSaving} className="flex-1 px-6 py-3.5 bg-white dark:bg-[#0B0B0B] text-[#111827] dark:text-white rounded-xl font-bold border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-[#151515] transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">Back</button>
             <button onClick={handleSave} disabled={isSaving} className="flex flex-[2] items-center justify-center gap-2 px-6 py-3.5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-bold hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] transform transition-all duration-300 shadow-[0_10px_20px_-5px_rgba(17,24,39,0.2)] active:scale-95 disabled:opacity-80 disabled:cursor-wait disabled:hover:bg-[#111827] dark:disabled:hover:bg-white">
@@ -1431,3 +1828,42 @@ const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selecte
     </div>
   )
 })
+
+// Discovery / Manager tiles either side of the Opens address search - squares with a slow gold
+// halo, a floating icon and a sheen on hover. The red badge counts what needs attention.
+function OpensToolBlock({ href, icon, title, blurb, count, className = '', delay = 0 }: {
+  href: string
+  icon: React.ReactNode
+  title: string
+  blurb: string
+  count: number
+  className?: string
+  delay?: number
+}) {
+  return (
+    <Link
+      href={href}
+      className={`ohp-otb group relative isolate flex min-h-[108px] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-3xl border border-[#C9A24D]/30 bg-gradient-to-b from-white/95 to-[#fbf3df]/90 px-3 py-3 text-center shadow-[0_18px_40px_-28px_rgba(139,115,85,.8)] transition-all duration-300 hover:-translate-y-1 hover:border-[#C9A24D] hover:shadow-[0_26px_50px_-24px_rgba(201,162,77,.75)] dark:border-white/10 dark:from-white/[0.07] dark:to-[#C9A24D]/[0.08] dark:hover:border-[#e8c97a]/60 ${className}`}
+      style={{ '--otb-d': `${delay}s` } as React.CSSProperties}
+    >
+      <style>{`.ohp-otb .otb-halo{animation:otbSpin 9s linear infinite;animation-delay:calc(var(--otb-d) * -1)}.ohp-otb .otb-icon{animation:otbFloat 4.2s ease-in-out infinite;animation-delay:var(--otb-d)}@keyframes otbSpin{to{transform:rotate(360deg)}}@keyframes otbFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}@media (prefers-reduced-motion:reduce){.ohp-otb .otb-halo,.ohp-otb .otb-icon{animation:none}}`}</style>
+      <span className="pointer-events-none absolute -top-16 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-[#C9A24D]/15 blur-2xl transition-opacity duration-500 group-hover:opacity-100 dark:bg-[#C9A24D]/20" />
+      <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/50 to-transparent transition-transform duration-1000 group-hover:translate-x-full dark:via-white/10" />
+      {count > 0 && (
+        <span className="absolute right-2.5 top-2.5 z-10 flex h-6 min-w-[24px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-black text-white shadow-lg shadow-red-500/40 ring-2 ring-white dark:ring-[#0b0f0e]">
+          {count > 9 ? '9+' : count}
+        </span>
+      )}
+      <span className="relative grid h-12 w-12 place-items-center">
+        <span className="otb-halo absolute inset-0 rounded-2xl bg-[conic-gradient(from_0deg,#C9A24D,#f1d58b,transparent_40%,#C9A24D_70%,#8b6a2b)] opacity-70 blur-[3px]" />
+        <span className="otb-icon relative grid h-[44px] w-[44px] place-items-center rounded-[14px] bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-lg transition-transform duration-300 group-hover:scale-105">
+          {icon}
+        </span>
+      </span>
+      <span className="relative">
+        <span className="flex items-center justify-center gap-1 font-serif text-[15px] font-black leading-tight text-[#111827] dark:text-white">{title}<ArrowRight size={13} strokeWidth={2.5} className="-mr-4 w-0 shrink-0 text-[#C9A24D] opacity-0 transition-all duration-300 group-hover:mr-0 group-hover:w-[13px] group-hover:opacity-100" /></span>
+        <span className="mt-0.5 block text-[10.5px] font-semibold leading-snug text-gray-500 dark:text-white/55">{blurb}</span>
+      </span>
+    </Link>
+  )
+}

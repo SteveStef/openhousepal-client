@@ -2,30 +2,13 @@
 
 import { usePathname } from 'next/navigation'
 import Header from './Header'
+import { hasAppHeader } from '@/lib/appChrome'
 
 export default function AppHeader() {
   const pathname = usePathname()
 
-  // Pages that should NOT have the main app header
-  const noHeaderPaths = [
-    '/login',
-    '/register',
-    '/forgot-password',
-    '/reset-password',
-    '/open-house/',
-    '/property/',
-    '/showcase/',
-    '/unsubscribe',
-  ]
-
-  const isPublicAgentPage = Boolean(
-    pathname?.match(/^\/(?!admin$|agent-hub$|login$|register$|forgot-password$|reset-password$|open-house(?:\/|$)|open-houses(?:\/|$)|privacy$|terms$|unsubscribe$|checkout$|discovery$|broker-authorization$|showcase(?:s)?(?:\/|$)|settings(?:\/|$)|upgrade-required$)[^/]+(?:\/[^/]+)?\/?$/) ||
-    pathname?.startsWith('/AgentHub/')
-  )
-
-  const isNoHeader = noHeaderPaths.some(path => pathname?.startsWith(path)) || isPublicAgentPage
-
-  if (isNoHeader) {
+  // Public pages (sign-in, Showcase, Agent Hub, IDX...) have their own chrome - see lib/appChrome.
+  if (!hasAppHeader(pathname)) {
     return null
   }
 

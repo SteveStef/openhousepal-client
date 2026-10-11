@@ -1,14 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X, Loader2, Plus, ImagePlus } from 'lucide-react'
 import api from '@/lib/api-service'
 import { useToast } from '@/contexts/ToastContext'
 
 export default function AddManualListingModal({ isOpen, onClose, onAdded }: { isOpen: boolean; onClose: () => void; onAdded: () => void }) {
   const { showToast } = useToast()
-  const [draft, setDraft] = useState({ street: '', city: '', state: '', zipcode: '', price: '', beds: '', baths: '', sqft: '', image: '' })
+  const [draft, setDraft] = useState({ street: '', city: '', state: '', zipcode: '', price: '', beds: '', baths: '', sqft: '' })
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  // Revoke the previous preview's object URL whenever it's replaced or the modal unmounts - these
+  // aren't garbage-collected on their own like a data URL string would be.
+  const previewUrlRef = useRef<string | null>(null)
+
+  useEffect(() => () => { if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current) }, [])
 
   if (!isOpen) return null
 
@@ -16,13 +23,19 @@ export default function AddManualListingModal({ isOpen, onClose, onAdded }: { is
 
   const handlePhoto = (file?: File) => {
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => update('image', String(reader.result || ''))
-    reader.readAsDataURL(file)
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+    const url = URL.createObjectURL(file)
+    previewUrlRef.current = url
+    setPhotoFile(file)
+    setPhotoPreviewUrl(url)
   }
 
   const reset = () => {
-    setDraft({ street: '', city: '', state: '', zipcode: '', price: '', beds: '', baths: '', sqft: '', image: '' })
+    setDraft({ street: '', city: '', state: '', zipcode: '', price: '', beds: '', baths: '', sqft: '' })
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+    previewUrlRef.current = null
+    setPhotoFile(null)
+    setPhotoPreviewUrl(null)
   }
 
   const handleSubmit = async () => {
@@ -34,6 +47,20 @@ export default function AddManualListingModal({ isOpen, onClose, onAdded }: { is
       return
     }
     setIsSaving(true)
+
+    // Photo goes to S3 first (if provided) - image_url on the listing itself only ever accepts
+    // the resulting S3 URL, never a raw file, so this upload has to complete before create.
+    let imageUrl: string | undefined
+    if (photoFile) {
+      const uploadResult = await api.openHouseManager.uploadManualListingPhoto(photoFile)
+      if (!uploadResult.success || !uploadResult.data) {
+        setIsSaving(false)
+        showToast(uploadResult.error || 'Unable to upload that photo.', 'error')
+        return
+      }
+      imageUrl = uploadResult.data.photo_url
+    }
+
     const { success, error } = await api.openHouseManager.addManualListing({
       address,
       city,
@@ -43,7 +70,7 @@ export default function AddManualListingModal({ isOpen, onClose, onAdded }: { is
       bedrooms: draft.beds ? Number(draft.beds) : undefined,
       bathrooms: draft.baths ? Number(draft.baths) : undefined,
       living_area: draft.sqft ? Number(String(draft.sqft).replace(/[^0-9.]/g, '')) : undefined,
-      image_url: draft.image.trim() || undefined,
+      image_url: imageUrl,
     })
     setIsSaving(false)
 
@@ -59,7 +86,7 @@ export default function AddManualListingModal({ isOpen, onClose, onAdded }: { is
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-200" onClick={onClose}>
       <div className="w-full max-w-lg overflow-hidden rounded-[2rem] border border-gray-100 bg-white shadow-2xl dark:border-gray-800 dark:bg-[#1A1A1C] animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between gap-3 border-b border-gray-50 bg-gray-50/50 p-6 dark:border-gray-800/50 dark:bg-[#0B0B0B]/50">
           <h3 className="text-lg font-black uppercase tracking-tight text-[#111827] dark:text-white">Add a Listing</h3>
@@ -112,10 +139,10 @@ export default function AddManualListingModal({ isOpen, onClose, onAdded }: { is
           <label className="block">
             <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Photo</span>
             <div className="mt-2 flex items-center gap-3">
-              <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-gray-100 bg-cover bg-center dark:bg-gray-800" style={{ backgroundImage: draft.image ? `url(${draft.image})` : 'none' }}>
-                {!draft.image && <div className="flex h-full w-full items-center justify-center text-gray-300 dark:text-gray-600"><ImagePlus size={18} /></div>}
+              <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-gray-100 bg-cover bg-center dark:bg-gray-800" style={{ backgroundImage: photoPreviewUrl ? `url(${photoPreviewUrl})` : 'none' }}>
+                {!photoPreviewUrl && <div className="flex h-full w-full items-center justify-center text-gray-300 dark:text-gray-600"><ImagePlus size={18} /></div>}
               </div>
-              <input type="file" accept="image/*" onChange={e => handlePhoto(e.target.files?.[0])} className="flex-1 text-xs font-semibold text-gray-500 dark:text-gray-400" />
+              <input type="file" accept="image/jpeg" onChange={e => handlePhoto(e.target.files?.[0])} className="flex-1 text-xs font-semibold text-gray-500 dark:text-gray-400" />
             </div>
           </label>
         </div>

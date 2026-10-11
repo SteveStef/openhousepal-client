@@ -1,293 +1,282 @@
 'use client'
 
-import { useState, useRef, memo } from 'react'
-import GooglePlacesAutocomplete, { GooglePlacesAutocompleteRef } from '@/components/GooglePlacesAutocomplete'
-import MultiSelectDatabaseInput from '@/components/MultiSelectDatabaseInput'
-import api from '@/lib/api-service'
+import { Fragment, memo, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import {
+  ArrowLeft, ArrowRight, Check, Compass, Eye, Handshake, Home, Mail, Map as MapIcon, MapPin, MoreHorizontal,
+  Phone, Search, ShieldCheck, Tag, TrendingUp, User, UserX, Users, X,
+} from 'lucide-react'
+import LuxeHero from '@/components/ui/LuxeHero'
 
-interface CreateCollectionModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (data: any) => void;
+// Who the showcase is for - steps 1 and 2 of creating one. Step 3 (the search itself) is the same
+// full-screen map + grid editor used to edit a showcase (ShowcaseMapEditor in create mode).
+export type ShowcaseClientInfo = {
+  showcaseName: string
+  fullName: string
+  email: string
+  phone: string
+  visitingReason: string
+  hasAgent: string
 }
 
-export const CreateCollectionModal = memo(function CreateCollectionModal({
-  isOpen,
-  onClose,
-  onSubmit
-}: CreateCollectionModalProps) {
-  const googleAutocompleteRef = useRef<GooglePlacesAutocompleteRef>(null)
-  const [formData, setFormData] = useState({
-    showcaseName: '',
-    fullName: '',
-    email: '',
-    phone: '',
-    visitingReason: 'BUYING_SOON',
-    hasAgent: 'NO',
-    additionalComments: '',
-    minBeds: '',
-    maxBeds: '',
-    minBaths: '',
-    maxBaths: '',
-    minPrice: '',
-    maxPrice: '',
-    minYearBuilt: '',
-    maxYearBuilt: '',
-    address: '',
-    lat: null as number | null,
-    long: null as number | null,
-    cities: [] as string[],
-    townships: [] as string[],
-    schoolDistricts: [] as string[],
-    diameter: '2',
-    isTownHouse: false,
-    isLotLand: false,
-    isCondo: false,
-    isMultiFamily: false,
-    isSingleFamily: false,
-    isApartment: false,
-    isCommercial: false,
-    isFarm: false
+interface CreateCollectionModalProps {
+  isOpen: boolean
+  onClose: () => void
+  /** Steps 1-2 are filled in - move on to the search step. */
+  onContinue: (info: ShowcaseClientInfo) => void
+}
+
+const STEPS = [
+  { label: 'Client', icon: User },
+  { label: 'About them', icon: Compass },
+  { label: 'Search area', icon: MapIcon },
+]
+
+const REASONS = [
+  { id: 'BUYING_SOON', label: 'Looking to buy soon', icon: Home },
+  { id: 'BROWSING', label: 'Just browsing', icon: Eye },
+  { id: 'NEIGHBORHOOD', label: 'Interested in area', icon: MapPin },
+  { id: 'INVESTMENT', label: 'Investment opportunity', icon: TrendingUp },
+  { id: 'CURIOUS', label: 'Curious about property', icon: Search },
+  { id: 'OTHER', label: 'Other', icon: MoreHorizontal },
+]
+
+const AGENT = [
+  { id: 'YES', label: 'Yes, they have an agent', icon: ShieldCheck },
+  { id: 'NO', label: "No, they don't have an agent", icon: UserX },
+  { id: 'LOOKING', label: "They're looking for an agent", icon: Handshake },
+]
+
+const firstName = (full: string) => full.trim().split(/\s+/)[0] || ''
+
+export const CreateCollectionModal = memo(function CreateCollectionModal({ isOpen, onClose, onContinue }: CreateCollectionModalProps) {
+  const [step, setStep] = useState(0)
+  const [dir, setDir] = useState(1)
+  const [info, setInfo] = useState<ShowcaseClientInfo>({
+    showcaseName: '', fullName: '', email: '', phone: '', visitingReason: 'BUYING_SOON', hasAgent: 'NO',
   })
-  
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [validationErrors, setValidationErrors] = useState({
-    location: '',
-    propertyTypes: ''
+  // The showcase name follows the client's name until the agent types their own.
+  const [nameTouched, setNameTouched] = useState(false)
+  const first = firstName(info.fullName)
+
+  const set = (field: keyof ShowcaseClientInfo, value: string) => setInfo(prev => {
+    const next = { ...prev, [field]: value }
+    if (field === 'fullName' && !nameTouched) {
+      const f = firstName(value)
+      next.showcaseName = f ? `${f}'s Home Search` : ''
+    }
+    return next
   })
 
-  const validatePropertyTypes = () => {
-    return formData.isSingleFamily || formData.isCondo || formData.isTownHouse || 
-           formData.isApartment || formData.isMultiFamily || formData.isLotLand ||
-           formData.isCommercial || formData.isFarm
-  }
-
-  const validateLocationPreferences = () => {
-    const hasAddress = formData.address && formData.address.trim()
-    const hasAreaFilters = (formData.cities && formData.cities.length > 0) || 
-                          (formData.townships && formData.townships.length > 0) ||
-                          (formData.schoolDistricts && formData.schoolDistricts.length > 0)
-    
-    if (hasAddress && !formData.diameter) {
-      return { isValid: false, error: 'Search diameter is required when using address-based search' }
-    }
-    if (!hasAddress && !hasAreaFilters) {
-      return { isValid: false, error: 'Please specify either an address with search diameter OR select cities/townships/school districts' }
-    }
-    return { isValid: true, error: '' }
-  }
-
-  const isUsingAddressSearch = () => !!(formData.address && formData.address.trim())
-  const isUsingAreaSearch = () => (formData.cities && formData.cities.length > 0) || 
-                                 (formData.townships && formData.townships.length > 0) ||
-                                 (formData.schoolDistricts && formData.schoolDistricts.length > 0)
-
-  const formatNumberWithCommas = (value: string | number | undefined) => {
-    if (!value && value !== 0) return ''
-    const stringValue = value.toString().replace(/,/g, '')
-    if (isNaN(Number(stringValue))) return stringValue
-    return stringValue.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-  }
-
-  const stripCommas = (value: string) => value.replace(/,/g, '')
-
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => {
-      let updated = { ...prev, [field]: value }
-      if (field === 'address' && value && (prev.cities?.length || prev.townships?.length || prev.schoolDistricts?.length)) {
-        updated = { ...updated, cities: [], townships: [], schoolDistricts: [] }
-      } else if ((field === 'cities' || field === 'townships' || field === 'schoolDistricts') && (value as string[]).length > 0 && prev.address) {
-        updated = { ...updated, address: '' }
-      }
-      return updated
-    })
-    if (validationErrors.location) setValidationErrors(prev => ({ ...prev, location: '' }))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const goTo = (n: number) => { setDir(n > step ? 1 : -1); setStep(n) }
+  const submit = (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSubmitting(true)
-
-    // Silent Resolution: If address search is used but coordinates are missing, try to resolve before submitting
-    let finalData = { ...formData }
-    if (isUsingAddressSearch() && (!formData.lat || !formData.long)) {
-      const resolved = await googleAutocompleteRef.current?.resolveAddress()
-      if (resolved) {
-        finalData.address = resolved.address
-        finalData.lat = resolved.lat
-        finalData.long = resolved.lng
-      }
-    }
-
-    const locationValidation = validateLocationPreferences()
-    const hasValidPropertyTypes = validatePropertyTypes()
-    
-    if (!locationValidation.isValid || !hasValidPropertyTypes) {
-      setValidationErrors({
-        location: locationValidation.isValid ? '' : locationValidation.error,
-        propertyTypes: hasValidPropertyTypes ? '' : 'Please select at least one property type'
-      })
-      setIsSubmitting(false)
-      return
-    }
-    
-    try {
-      await onSubmit(finalData)
-      onClose()
-    } finally {
-      setIsSubmitting(false)
-    }
+    if (step === 0) goTo(1)
+    else onContinue({ ...info, fullName: info.fullName.trim(), email: info.email.trim(), showcaseName: info.showcaseName.trim() })
   }
 
-  if (!isOpen) return null
+  const field = 'block w-full rounded-2xl border border-gray-200 bg-white py-3.5 pl-11 pr-4 text-[15px] font-semibold text-[#0B0B0B] shadow-sm transition-all placeholder:font-medium placeholder:text-gray-400 focus:border-[#C9A24D] focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/15 dark:border-white/10 dark:bg-white/[0.04] dark:text-white dark:placeholder:text-white/30'
+  const label = 'mb-1.5 ml-1 block text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]/80'
 
   return (
-    <div className="fixed inset-0 bg-[#111827]/60 flex items-center justify-center z-50 p-4 transition-all duration-300">
-      <div className="bg-white dark:bg-[#151517] rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 max-w-4xl w-full max-h-[90vh] overflow-y-auto transform transition-all">
-        <div className="p-8 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white/95 dark:bg-[#151517]/95 z-10">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-2xl font-black text-[#0B0B0B] dark:text-white tracking-tight">Create New Showcase</h3>
-              <p className="text-sm font-medium text-[#6B7280] dark:text-gray-400 mt-1">Create a personalized property collection for your client.</p>
-            </div>
-            <button onClick={onClose} className="group p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-              <svg className="w-6 h-6 text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-          </div>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="p-8 space-y-10">
-          <div className="space-y-6">
-            <div className="flex items-center space-x-3 pb-2 border-b border-gray-100 dark:border-gray-800"><div className="w-1 h-6 bg-[#C9A24D] rounded-full"></div><h4 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight uppercase">Basic Information</h4></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Showcase Name *</label>
-                <input type="text" required value={formData.showcaseName} onChange={(e) => handleInputChange('showcaseName', e.target.value)} className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all font-medium" placeholder="e.g., West Chester Family Showcase" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Full Name *</label>
-                <input type="text" required value={formData.fullName} onChange={(e) => handleInputChange('fullName', e.target.value)} className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all font-medium" placeholder="Customer's full name" />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Email *</label>
-                <input type="email" required value={formData.email} onChange={(e) => handleInputChange('email', e.target.value)} className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all font-medium" placeholder="customer@email.com" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Phone</label>
-                <input type="tel" value={formData.phone} onChange={(e) => handleInputChange('phone', e.target.value)} className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all font-medium" placeholder="(555) 123-4567" />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="flex items-center space-x-3 pb-2 border-b border-gray-100 dark:border-gray-800"><div className="w-1 h-6 bg-[#C9A24D] rounded-full"></div><h4 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight uppercase">Customer Preferences</h4></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Why are they visiting? *</label>
-                <select value={formData.visitingReason} onChange={(e) => handleInputChange('visitingReason', e.target.value)} className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all appearance-none cursor-pointer" required>
-                  <option value="BUYING_SOON">Looking to buy soon</option><option value="BROWSING">Just browsing</option><option value="NEIGHBORHOOD">Interested in area</option><option value="INVESTMENT">Investment opportunity</option><option value="CURIOUS">Curious about property</option><option value="OTHER">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Do they have an agent? *</label>
-                <select value={formData.hasAgent} onChange={(e) => handleInputChange('hasAgent', e.target.value)} className="block w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all appearance-none cursor-pointer" required>
-                  <option value="YES">Yes, they have an agent</option><option value="NO">No, they don't have an agent</option><option value="LOOKING">They're looking for an agent</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="flex items-center space-x-3 pb-2 border-b border-gray-100 dark:border-gray-800"><div className="w-1 h-6 bg-[#C9A24D] rounded-full"></div><h4 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight uppercase">Search Criteria</h4></div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div><label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase mb-2">Min Beds</label><input type="number" min="0" value={formData.minBeds} onChange={(e) => handleInputChange('minBeds', e.target.value)} className="w-full px-4 py-3 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white" placeholder="0" /></div>
-              <div><label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase mb-2">Max Beds</label><input type="number" min="0" value={formData.maxBeds} onChange={(e) => handleInputChange('maxBeds', e.target.value)} className="w-full px-4 py-3 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white" placeholder="Any" /></div>
-              <div><label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase mb-2">Min Baths</label><input type="number" min="0" step="0.5" value={formData.minBaths} onChange={(e) => handleInputChange('minBaths', e.target.value)} className="w-full px-4 py-3 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white" placeholder="0" /></div>
-              <div><label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase mb-2">Max Baths</label><input type="number" min="0" step="0.5" value={formData.maxBaths} onChange={(e) => handleInputChange('maxBaths', e.target.value)} className="w-full px-4 py-3 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white" placeholder="Any" /></div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div><label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase mb-2">Min Price ($)</label><input type="text" value={formatNumberWithCommas(formData.minPrice)} onChange={(e) => handleInputChange('minPrice', stripCommas(e.target.value))} className="w-full px-4 py-3 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white" placeholder="0" /></div>
-              <div><label className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase mb-2">Max Price ($)</label><input type="text" value={formatNumberWithCommas(formData.maxPrice)} onChange={(e) => handleInputChange('maxPrice', stripCommas(e.target.value))} className="w-full px-4 py-3 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white" placeholder="No limit" /></div>
-            </div>
-
-            <div className="space-y-6">
-              <div className={`p-6 rounded-2xl border transition-all ${isUsingAddressSearch() ? 'border-[#C9A24D] bg-[#FAFAF7] dark:bg-[#0B0B0B]' : 'border-gray-200 dark:border-gray-800'}`}>
-                <h5 className="text-md font-black uppercase mb-6">Address-Based Search</h5>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <GooglePlacesAutocomplete 
-                    ref={googleAutocompleteRef}
-                    value={formData.address} 
-                    onChange={(addr) => handleInputChange('address', addr)} 
-                    onCoordinatesChange={(lat, lng) => { 
-                      handleInputChange('lat', lat); 
-                      handleInputChange('long', lng); 
-                    }}
-                    disabled={isUsingAreaSearch()} 
-                    className="w-full px-4 py-3 border rounded-xl" 
-                    placeholder="123 Main Street" 
-                  />
-                  <input type="number" min="0.1" step="0.1" value={formData.diameter} onChange={(e) => handleInputChange('diameter', e.target.value)} disabled={isUsingAreaSearch()} className="w-full px-4 py-3 border rounded-xl" placeholder="Radius (miles)" />
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="fixed inset-0 z-50 flex overflow-y-auto bg-[#111827]/60 p-3 sm:p-6"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94, y: 18 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 10 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="relative m-auto w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-[0_40px_90px_-30px_rgba(17,24,39,.6)] dark:bg-[#111113]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <LuxeHero
+              compact
+              className="!rounded-b-none !border-x-0 !border-t-0 !shadow-none"
+              kicker="New Showcase"
+              icon={Users}
+              badge={
+                <button type="button" onClick={onClose} aria-label="Close" className="-my-1.5 grid h-8 w-8 place-items-center rounded-full border border-[#C9A24D]/25 bg-white/70 text-[#8b7355] transition hover:rotate-90 hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.06] dark:text-[#e8c97a]">
+                  <X className="h-4 w-4" />
+                </button>
+              }
+              title={<>Homes picked <em>for {first || 'your client'}.</em></>}
+              subtitle={step === 0 ? 'Who is this showcase for?' : `Where ${first || 'they'} ${first ? 'is' : 'are'} in the search - so it fits.`}
+              tabs={
+                <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none]">
+                  {STEPS.map((s, i) => {
+                    const on = i === step
+                    const done = i < step
+                    const Icon = done ? Check : s.icon
+                    return (
+                      <Fragment key={s.label}>
+                        <button
+                          type="button"
+                          disabled={!done}
+                          onClick={() => goTo(i)}
+                          aria-current={on ? 'step' : undefined}
+                          className={`relative flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-black transition-colors ${on ? 'text-white dark:text-[#111827]' : done ? 'text-[#8b7355] hover:bg-[#C9A24D]/10 dark:text-[#e8c97a]' : 'cursor-default text-gray-400 dark:text-white/35'}`}
+                        >
+                          {on && (
+                            <motion.span
+                              layoutId="ohp-showcase-step"
+                              transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                              className="absolute inset-0 rounded-xl bg-[#111827] shadow-lg shadow-[#111827]/20 dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a]"
+                            />
+                          )}
+                          <Icon className={`relative h-3.5 w-3.5 ${on ? 'text-[#e8c97a] dark:text-[#111827]' : ''}`} />
+                          <span className="relative">{s.label}</span>
+                        </button>
+                        {i < STEPS.length - 1 && (
+                          <span className="relative h-px min-w-6 flex-1 overflow-hidden rounded-full bg-[#C9A24D]/20">
+                            <motion.span
+                              className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#C9A24D] to-[#e8c97a]"
+                              initial={false}
+                              animate={{ width: i < step ? '100%' : '0%' }}
+                              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                            />
+                          </span>
+                        )}
+                      </Fragment>
+                    )
+                  })}
                 </div>
+              }
+            />
+
+            <form onSubmit={submit}>
+              <div className="relative overflow-hidden">
+                <AnimatePresence mode="wait" custom={dir} initial={false}>
+                  <motion.div
+                    key={step}
+                    custom={dir}
+                    initial={{ opacity: 0, x: dir * 40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: dir * -40 }}
+                    transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+                    className="p-5 sm:p-8"
+                  >
+                    {step === 0 ? (
+                      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <div className="sm:col-span-2">
+                          <label className={label}>Client&apos;s full name *</label>
+                          <div className="relative">
+                            <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#C9A24D]" />
+                            <input autoFocus type="text" required value={info.fullName} onChange={(e) => set('fullName', e.target.value)} className={field} placeholder="Customer's full name" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className={label}>Email *</label>
+                          <div className="relative">
+                            <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#C9A24D]" />
+                            <input type="email" required value={info.email} onChange={(e) => set('email', e.target.value)} className={field} placeholder="customer@email.com" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className={label}>Phone</label>
+                          <div className="relative">
+                            <Phone className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#C9A24D]" />
+                            <input type="tel" value={info.phone} onChange={(e) => set('phone', e.target.value)} className={field} placeholder="(555) 123-4567" />
+                          </div>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className={label}>Showcase name *</label>
+                          <div className="relative">
+                            <Tag className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#C9A24D]" />
+                            <input type="text" required value={info.showcaseName} onChange={(e) => { setNameTouched(true); set('showcaseName', e.target.value) }} className={field} placeholder="e.g., West Chester Family Showcase" />
+                          </div>
+                          {!nameTouched && info.showcaseName && (
+                            <p className="ml-1 mt-1.5 text-[11px] font-semibold text-gray-400 dark:text-white/40">Named from your client - change it to anything.</p>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-7">
+                        <ChoiceGroup title={`Why ${first ? `is ${first}` : 'are they'} looking?`} group="reason" items={REASONS} value={info.visitingReason} onChange={(v) => set('visitingReason', v)} cols="sm:grid-cols-3" />
+                        <ChoiceGroup title={`Does ${first || 'your client'} have an agent?`} group="agent" items={AGENT} value={info.hasAgent} onChange={(v) => set('hasAgent', v)} cols="sm:grid-cols-3" />
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
               </div>
 
-              <div className={`p-6 rounded-2xl border transition-all ${isUsingAreaSearch() ? 'border-[#C9A24D] bg-[#FAFAF7] dark:bg-[#0B0B0B]' : 'border-gray-200 dark:border-gray-800'}`}>
-                <h5 className="text-md font-black uppercase mb-6">Area-Based Search</h5>
-                <div className="space-y-4">
-                  <MultiSelectDatabaseInput 
-                    values={formData.cities} 
-                    onChange={(v) => handleInputChange('cities', v)} 
-                    apiMethod={api.properties.cities}
-                    placeholder="Search cities..."
-                    disabled={isUsingAddressSearch()} 
-                  />
-                  <MultiSelectDatabaseInput 
-                    values={formData.townships} 
-                    onChange={(v) => handleInputChange('townships', v)} 
-                    apiMethod={api.properties.townships}
-                    placeholder="Search townships..."
-                    disabled={isUsingAddressSearch()} 
-                  />
-                  <MultiSelectDatabaseInput 
-                    values={formData.schoolDistricts} 
-                    onChange={(v) => handleInputChange('schoolDistricts', v)} 
-                    apiMethod={api.properties.searchSchoolDistricts}
-                    placeholder="Search school districts..."
-                    disabled={isUsingAddressSearch()} 
-                  />
-                </div>
+              <div className="flex items-center justify-between gap-3 border-t border-gray-100 bg-[#FAFAF7]/80 px-5 py-4 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-8">
+                {step === 0 ? (
+                  <button type="button" onClick={onClose} className="rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest text-gray-500 transition hover:bg-gray-100 hover:text-[#111827] dark:text-white/50 dark:hover:bg-white/[0.06] dark:hover:text-white">Cancel</button>
+                ) : (
+                  <button type="button" onClick={() => goTo(0)} className="group flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest text-gray-500 transition hover:bg-gray-100 hover:text-[#111827] dark:text-white/50 dark:hover:bg-white/[0.06] dark:hover:text-white">
+                    <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" /> Back
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  className="group relative flex items-center gap-2 overflow-hidden rounded-xl bg-[#111827] px-6 py-3.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-[#111827]/25 transition-all hover:shadow-xl dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827]"
+                >
+                  <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                  {step === 0 ? 'Continue' : <><MapIcon className="h-4 w-4 text-[#e8c97a] dark:text-[#111827]" /> Set the search area</>}
+                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                </button>
               </div>
-            </div>
+            </form>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+})
 
-            <div className="p-6 bg-[#FAFAF7] dark:bg-[#0B0B0B] rounded-2xl border border-gray-200 dark:border-gray-700">
-               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                 {[
-                   { id: 'isSingleFamily', label: 'Single Family' },
-                   { id: 'isCondo', label: 'Condo' },
-                   { id: 'isTownHouse', label: 'Townhouse' },
-                   { id: 'isApartment', label: 'Rentals' },
-                   { id: 'isMultiFamily', label: 'Multi-Family' },
-                   { id: 'isLotLand', label: 'Lot/Land' },
-                   { id: 'isCommercial', label: 'Commercial' },
-                   { id: 'isFarm', label: 'Farm' }
-                 ].map(type => (
-                   <label key={type.id} className="flex items-center space-x-3 cursor-pointer group">
-                     <input type="checkbox" checked={(formData as any)[type.id]} onChange={(e) => handleInputChange(type.id, e.target.checked)} className="w-5 h-5 text-[#111827] border-gray-300 rounded focus:ring-[#C9A24D]" />
-                     <span className="text-sm font-bold text-[#6B7280] dark:text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white">{type.label}</span>
-                   </label>
-                 ))}
-               </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end space-x-4 pt-8 border-t border-gray-100 dark:border-gray-800">
-            <button type="button" onClick={onClose} className="px-6 py-3.5 font-bold rounded-xl uppercase text-xs">Cancel</button>
-            <button type="submit" disabled={isSubmitting} className="px-8 py-3.5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] font-black rounded-xl shadow-lg uppercase text-xs">{isSubmitting ? 'Creating...' : 'Create Showcase'}</button>
-          </div>
-        </form>
+function ChoiceGroup({ title, group, items, value, onChange, cols }: {
+  title: string
+  group: string
+  items: { id: string; label: string; icon: React.ComponentType<{ className?: string }> }[]
+  value: string
+  onChange: (id: string) => void
+  cols: string
+}) {
+  return (
+    <div>
+      <p className="mb-3 font-serif text-lg font-black text-[#111827] dark:text-white">{title}</p>
+      <div className={`grid grid-cols-1 gap-2.5 ${cols}`} role="radiogroup" aria-label={title}>
+        {items.map((it, k) => {
+          const on = it.id === value
+          return (
+            <motion.button
+              key={it.id}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => onChange(it.id)}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: k * 0.04, ease: [0.16, 1, 0.3, 1] }}
+              className={`group relative flex items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-[border-color,background-color,box-shadow,transform] duration-300 ${on
+                ? 'border-[#C9A24D] bg-[#fbf3df] shadow-[0_14px_30px_-20px_rgba(201,162,77,.95)] dark:bg-[#C9A24D]/[0.12]'
+                : 'border-gray-200 bg-white hover:-translate-y-0.5 hover:border-[#C9A24D]/50 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-[#C9A24D]/40'}`}
+            >
+              <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl transition-colors duration-300 ${on ? 'bg-gradient-to-br from-[#C9A24D] to-[#e8c97a] text-[#111827]' : 'bg-[#FAFAF7] text-[#8b7355] group-hover:text-[#C9A24D] dark:bg-white/[0.06] dark:text-[#e8c97a]'}`}>
+                <it.icon className="h-4 w-4" />
+              </span>
+              <span className={`min-w-0 pr-5 text-[13px] font-bold leading-snug ${on ? 'text-[#111827] dark:text-white' : 'text-gray-600 dark:text-white/70'}`}>{it.label}</span>
+              {on && (
+                <motion.span
+                  layoutId={`ohp-choice-${group}`}
+                  transition={{ type: 'spring', stiffness: 500, damping: 34 }}
+                  className="absolute right-2.5 top-2.5 grid h-5 w-5 place-items-center rounded-full bg-[#111827] text-[#e8c97a] dark:bg-[#e8c97a] dark:text-[#111827]"
+                >
+                  <Check className="h-3 w-3" strokeWidth={3} />
+                </motion.span>
+              )}
+            </motion.button>
+          )
+        })}
       </div>
     </div>
   )
-})
+}

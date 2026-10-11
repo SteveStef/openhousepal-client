@@ -95,6 +95,9 @@ export default function MultiSelectDatabaseInput({
       setSelectedIndex(prev => Math.max(prev - 1, -1))
     } else if (e.key === 'Enter') {
       e.preventDefault()
+      // Enter here picks a town/district - it must not also reach a form's "Enter = next question"
+      // (FormRunner), which skipped the rest of the step. Empty box: let Enter move on as usual.
+      if (selectedIndex >= 0 || suggestions.length > 0 || inputValue.trim()) e.stopPropagation()
       if (selectedIndex >= 0) {
         addItem(suggestions[selectedIndex])
       } else if (suggestions.length > 0) {

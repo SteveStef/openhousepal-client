@@ -1,5 +1,6 @@
 'use client'
 
+import AuthLuxeStyle, { AuthKicker, GoldPal } from '@/components/auth/AuthLuxeStyle'
 import Link from 'next/link'
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -152,17 +153,14 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] dark:from-[#0B0B0B] dark:via-[#151517] dark:to-[#0B0B0B] flex items-center justify-center px-6 transition-colors duration-300">
+      <div className="relative min-h-screen overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center px-6 transition-colors duration-300">
+      <AuthLuxeStyle />
+      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#C9A24D]/15 blur-[110px]" />
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <Link href="/" className="inline-flex items-center space-x-3 mb-8">
-              <div className="w-10 h-10 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold">OH</span>
-              </div>
-              <span className="text-2xl font-bold text-gray-900 dark:text-white">Open House Pal</span>
-            </Link>
+            <Link href="/" className="mb-8 inline-flex items-center text-[28px] text-[#111827] dark:text-white"><GoldPal animate /></Link>
           </div>
-          <div className="bg-[#f5f4f2]/90 dark:bg-[#151517]/90 rounded-2xl p-8 border border-gray-200/60 dark:border-gray-800 shadow-xl">
+          <div className="ohp-auth-card relative bg-white dark:bg-[#151517] rounded-3xl p-8 border border-gray-100 dark:border-gray-800 shadow-xl">
             <div className="text-center space-y-4">
               <div className="flex justify-center">
                 <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
@@ -191,7 +189,9 @@ function ResetPasswordForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] dark:from-[#0B0B0B] dark:via-[#151517] dark:to-[#0B0B0B] flex items-center justify-center px-6 transition-colors duration-300">
+    <div className="relative min-h-screen overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center px-6 transition-colors duration-300">
+      <AuthLuxeStyle />
+      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#C9A24D]/15 blur-[110px]" />
       {/* Notification Toast */}
       {notification.type && (
         <div className={`fixed bottom-4 right-4 z-50 max-w-md p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
@@ -237,18 +237,16 @@ function ResetPasswordForm() {
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <Link href="/" className="inline-flex items-center space-x-3 mb-8">
-            <div className="w-10 h-10 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold">OH</span>
-            </div>
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">Open House Pal</span>
+          <Link href="/" className="mb-8 inline-flex items-center">
+            <span className="text-[28px] text-[#111827] dark:text-white"><GoldPal animate /></span>
           </Link>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Create new password</h2>
-          <p className="text-gray-600 dark:text-gray-400">Enter a strong password for your account</p>
+          <div><AuthKicker>Account help</AuthKicker></div>
+          <h2 className="mb-2 font-serif text-4xl font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Create new <em className="ohp-home-em">password.</em></h2>
+          <p className="font-medium text-[#6B7280] dark:text-gray-400">Enter a strong password for your account</p>
         </div>
 
         {/* Reset Password Form */}
-        <div className="bg-[#f5f4f2]/90 dark:bg-[#151517]/90 rounded-2xl p-8 border border-gray-200/60 dark:border-gray-800 shadow-xl">
+        <div className="ohp-auth-card relative bg-white dark:bg-[#151517] rounded-3xl p-8 border border-gray-100 dark:border-gray-800 shadow-xl">
           {resetSuccess ? (
             // Success State
             <div className="space-y-6">
@@ -274,7 +272,7 @@ function ResetPasswordForm() {
             </div>
           ) : (
             // Form State
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form method="post" onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   New password
@@ -353,7 +351,7 @@ function ResetPasswordForm() {
               <button
                 type="submit"
                 disabled={isLoading || resetSuccess}
-                className="w-full px-6 py-3 bg-gradient-to-r from-[#8b7355] to-[#7a6549] text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-[#8b7355]/25 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className="ohp-auth-btn w-full px-6 py-4 bg-[#111827] text-white rounded-xl text-sm font-black uppercase tracking-widest shadow-xl transition-all duration-300 hover:bg-[#C9A24D] hover:scale-[1.02] dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 {isLoading ? (
                   <div className="flex items-center justify-center">
@@ -388,17 +386,14 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] dark:from-[#0B0B0B] dark:via-[#151517] dark:to-[#0B0B0B] flex items-center justify-center px-6 transition-colors duration-300">
+      <div className="relative min-h-screen overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center px-6 transition-colors duration-300">
+      <AuthLuxeStyle />
+      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#C9A24D]/15 blur-[110px]" />
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <Link href="/" className="inline-flex items-center space-x-3 mb-8">
-              <div className="w-10 h-10 bg-gradient-to-r from-[#8b7355] to-[#7a6549] rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold">OH</span>
-              </div>
-              <span className="text-2xl font-bold text-gray-900 dark:text-white">Open House Pal</span>
-            </Link>
+            <Link href="/" className="mb-8 inline-flex items-center text-[28px] text-[#111827] dark:text-white"><GoldPal animate /></Link>
           </div>
-          <div className="bg-[#f5f4f2]/90 dark:bg-[#151517]/90 rounded-2xl p-8 border border-gray-200/60 dark:border-gray-800 shadow-xl">
+          <div className="ohp-auth-card relative bg-white dark:bg-[#151517] rounded-3xl p-8 border border-gray-100 dark:border-gray-800 shadow-xl">
             <div className="text-center space-y-4">
               <div className="flex justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355]"></div>

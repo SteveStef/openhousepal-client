@@ -1,6 +1,7 @@
 'use client'
 
 import { memo } from 'react'
+import { AlertTriangle, CalendarClock } from 'lucide-react'
 import { OpenHouse } from '@/types'
 
 interface OpenHouseNoteModalProps {
@@ -10,6 +11,13 @@ interface OpenHouseNoteModalProps {
   notes: string
   onNotesChange: (notes: string) => void
   onSave: () => void
+}
+
+const formatScheduledDate = (iso?: string | null): string => {
+  if (!iso) return ''
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
 export const OpenHouseNoteModal = memo(function OpenHouseNoteModal({
@@ -22,12 +30,19 @@ export const OpenHouseNoteModal = memo(function OpenHouseNoteModal({
 }: OpenHouseNoteModalProps) {
   if (!isOpen || !openHouse) return null
 
+  // Only sent by the API while a guest-hosted open is still upcoming - see open_houses_routes.
+  const hostInfo = openHouse.listingHostNotes || (openHouse as any).listing_host_notes || ''
+  const scheduledLabel = formatScheduledDate(openHouse.scheduledDate)
+  const coverImage = openHouse.coverImageUrl || (openHouse as any).cover_image_url
+
   return (
     <div className="fixed inset-0 bg-[#111827]/60 z-50 flex items-center justify-center p-4 transition-all duration-300 print:hidden">
       <div className="bg-white dark:bg-[#151517] rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 max-w-lg w-full overflow-hidden transform transition-all">
         <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-[#faf9f7] dark:bg-[#0B0B0B]">
           <div>
-            <h3 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight">Open House Note</h3>
+            <h3 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight">
+              {hostInfo ? 'Notes & Info' : 'Open House Note'}
+            </h3>
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5">
               For {openHouse.address}
             </p>
@@ -41,22 +56,52 @@ export const OpenHouseNoteModal = memo(function OpenHouseNoteModal({
             </svg>
           </button>
         </div>
-        
+
         <div className="p-6">
+          {hostInfo && (
+            // Deliberately styled apart from the rest of the modal (amber, bordered, its own
+            // property strip) - it's not the agent's own note but transient info shared by the
+            // listing agent, and it disappears from here once the open house is over.
+            <div className="mb-5 overflow-hidden rounded-2xl border border-amber-300/70 dark:border-amber-500/30 bg-amber-50/70 dark:bg-amber-500/10">
+              <div className="flex items-center gap-3 border-b border-amber-200/70 dark:border-amber-500/20 bg-white/60 dark:bg-white/5 p-3">
+                {coverImage && (
+                  <img src={coverImage} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+                )}
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">
+                    <CalendarClock className="h-3 w-3" />
+                    {scheduledLabel ? `Hosting ${scheduledLabel}` : 'Upcoming open'}
+                  </p>
+                  <p className="mt-0.5 truncate text-sm font-bold text-gray-900 dark:text-white">{openHouse.address}</p>
+                </div>
+              </div>
+              <div className="p-3">
+                <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Access &amp; Info from the Listing Agent
+                </p>
+                <p className="whitespace-pre-line text-xs font-medium leading-relaxed text-gray-800 dark:text-gray-100">{hostInfo}</p>
+                <p className="mt-2 text-[10px] font-medium italic text-amber-700/80 dark:text-amber-400/70">
+                  Shared just for this open — it clears from here once the open house is over.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="mb-4">
             <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
-              Note Content
+              {hostInfo ? 'Your Private Note' : 'Note Content'}
             </label>
             <textarea
               value={notes}
               onChange={(e) => onNotesChange(e.target.value)}
               className="block w-full px-4 py-3 bg-[#faf9f7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 resize-none font-medium"
               rows={6}
-              placeholder="Enter notes about this open house (e.g., weather, turnout, specific feedback)..."
+              placeholder="Enter notes about this open house (e.g., access info like the lockbox code or key location, weather, turnout, feedback)..."
               autoFocus
             />
           </div>
-          
+
           <div className="flex justify-end space-x-3 pt-2">
             <button
               onClick={onClose}

@@ -164,18 +164,18 @@ export default function PropertyReport({ property }: PropertyReportProps) {
   }
 
   return (
-    <div className="bg-white dark:bg-[#0B0B0B] rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-200 dark:border-gray-800 overflow-hidden transition-colors">
+    <div className="overflow-hidden rounded-3xl border border-[#C9A24D]/20 bg-white shadow-[0_24px_50px_-36px_rgba(139,115,85,.55)] transition-colors dark:border-white/[0.08] dark:bg-[#151517]">
       {/* Report Header */}
-      <div className="bg-gray-50 dark:bg-[#151517] px-8 py-8 text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-800">
+      <div className="border-b border-[#C9A24D]/15 bg-[#fbf8f2] px-6 py-6 text-gray-900 dark:border-white/[0.08] dark:bg-[#111113] dark:text-white sm:px-8 sm:py-7">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center space-x-3 mb-1">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-                <FileText size={16} className="text-white" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] ring-1 ring-[#C9A24D]/30">
+                <FileText size={16} />
               </div>
-              <h2 className="text-xl font-black uppercase tracking-tight">Property Details Report</h2>
+              <h2 className="font-serif text-xl font-black tracking-tight sm:text-2xl">Property details</h2>
             </div>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">Comprehensive technical overview and specifications</p>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Everything on record for this home, straight from the MLS.</p>
           </div>
           <div className="text-right hidden sm:block">
             <div className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-black tracking-[0.2em] mb-1">
@@ -190,7 +190,7 @@ export default function PropertyReport({ property }: PropertyReportProps) {
       </div>
 
       {/* Report Content - Grouped Sections */}
-      <div className="p-6 sm:p-10 space-y-12 bg-white dark:bg-[#0B0B0B]">
+      <div className="space-y-12 bg-white p-6 dark:bg-[#151517] sm:p-10">
         {sections.map((section, sectionIndex) => {
           return (
             <div

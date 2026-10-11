@@ -1,10 +1,41 @@
-import { ApiResponse, User, OpenHouse, OpenHouseFormRequest, SearchPreferences, Notification, NotificationResponse, AgentFormConfig, PublicFormConfig, PublicFormSummary, FormSubmissionListItem, MyListingsResponse, MyListingItem, ManualListingPayload, HostRequest, CreateHostRequestPayload, CreateHostRequestResult, ListingDetail, ListingHostNote, CounterHostRequestPayload, AgentSearchResult, TeamMember, Broadcast, IncomingBroadcast, CreateBroadcastPayload, NearbyAmenitiesResponse, BrandKit, DesignProject, DesignProjectCreatePayload, DesignBlock, Site, SiteDomain, SiteBlock, SitePage, SiteTheme, FeaturedSettings, MediaSettings, Blog, BlogListItem, BlogBlock, BlogAnalytics, PublicBlogSummary, PublicBlogDetail, LinkedProperty, Lead, LeadDetail, LeadOpenHouse, LeadStatus, LeadRepresented, LeadSourceFilter, LeadSort, LeadNote, StatSummary, StatHistory, StatMetric, FormStats, CmaReport, CmaReportListItem, CmaMode, CmaStatus, CmaSubjectProperty, CmaComparable, CmaPricing, CmaMarketContext, CmaImprovement, CmaPresentationSettings, CmaCompSearchParams, CmaCompCandidate, CmaShareResponse, CmaPublicResponse, FinancialToolStatus,
+import type { MarketingMoments, SiteSeo, ShowingStatus, ShowcaseInbox, EmailPerson, ClientEmailRow } from '@/types'
+
+// One "which home?" suggestion for a public showing request (any on-market listing, the agent's first).
+export type PublicHomeSuggestion = {
+  address: string; street?: string; city?: string | null; state?: string | null; zipcode?: string | null
+  price?: number | null; status?: string | null; photo?: string | null; mine?: boolean; listing_key?: string
+  beds?: number | null; baths?: number | null; sqft?: number | null
+}
+import { ApiResponse, User, OpenHouse, OpenHouseFormRequest, SearchPreferences, Notification, NotificationResponse, NotificationPreferences, AgentFormConfig, FormCampaign, CampaignLookup, PublicFormConfig, PublicFormSummary, FormSubmissionListItem, MyListingsResponse, MyListingItem, ManualListingPayload, HostRequest, CreateHostRequestPayload, CreateHostRequestResult, ListingDetail, ListingHostNote, CounterHostRequestPayload, AgentSearchResult, TeamMember, TeamMembership, Broadcast, IncomingBroadcast, CreateBroadcastPayload, IncomingTeamInvite, TrustedHost, HostRequestEvent, CounterBackPayload, RespondToBroadcastPayload, NearbyAmenitiesResponse, BrandKit, DesignProject, DesignProjectCreatePayload, DesignBlock, Site, SiteDomain, SiteBlock, SitePage, SiteTheme, FeaturedSettings, MediaSettings, PropertyWebsite, PropertyWebsiteDraft, PropertyWebsiteAnalytics, Blog, BlogListItem, BlogBlock, BlogAnalytics, PublicBlogSummary, PublicBlogDetail, LinkedProperty, Lead, LeadDetail, LeadOpenHouse, LeadStatus, LeadRepresented, LeadSourceFilter, LeadSort, LeadNote, StatSummary, StatHistory, StatMetric, FormStats, UnfinishedFormResponse, CmaReport, CmaReportListItem, CmaMode, CmaStatus, CmaSubjectProperty, CmaComparable, CmaPricing, CmaMarketContext, CmaImprovement, CmaPresentationSettings, CmaCompSearchParams, CmaCompCandidate, CmaShareResponse, CmaPublicResponse, FinancialToolStatus,
   SellerNetSheet, SellerNetSheetListItem, SnsProperty, SnsScenario, SnsLineItem, SnsCompensation, SnsTaxProration, SellerNetSheetPublicResponse,
   BuyerCashNeeded, BuyerCashNeededListItem, BcnProperty, BcnAmount, BcnDownPaymentScenario, BcnLoanType, BcnLineItem, BcnCredits, BcnMonthlyContext, BuyerCashNeededPublicResponse,
   AIConversationListItem, AIConversation, AISendMessageResponse, AIInsightsResponse, DailyDigest,
   AIAdminOverview, AIAdminAgentSummary, AIAdminAgentDetail,
-  AIRealtimeSessionOut, AIRealtimeToolCallResult, AgentMarketArea, CollectionPreferences } from '@/types';
+  AdminStorageAgentSummary, AdminActivityOverview, AdminActivityAgentDetail, BillingGroup, BillingGroupInput, PromoCode, PromoCodeInput, PayPalPlanTerms, CheckoutCode, AdminStorageAgentDetail,
+  AIRealtimeSessionOut, AIRealtimeToolCallResult, AgentMarketArea, CollectionPreferences,
+  SupportTicketDetail, SupportTicketListItem, AdminSupportTicketListItem, SupportTicketCategory, SupportTicketDetails, SavedManualProperty, PublicQuestion,
+  StudioMediaAsset, StudioMediaGeneratePayload, StudioVideoTestGridPayload, StudioVideoTestGridResponse, MonthlyAiUsage,
+  AgentTask, TaskCounts, TaskCreateInput, TaskUpdateInput, CalendarFeedInfo, AutoFollowupRule, FollowupSettings, FollowupAlerts, PublicFollowup, PublicFollowupText,
+  IntegrationsInfo, CrmTestResult,
+  TitleCardOptions, BrandingOptions, BlogAiContext, BlogAiBrief, BlogAiGenerateResult, BlogAiRefineAction, LinkDomainState } from '@/types';
 import { getToken, removeToken } from './token';
+import { tidyAllCaps } from './cheatSheetContent';
+
+export interface PlanImpact {
+  active_showcases: number;
+  showcase_clients: number;
+  forms: number;
+  open_houses: number;
+  agent_hub_slug: string | null;
+  has_signature: boolean;
+  idx_site_published: boolean;
+  spotlights_published: number;
+  blogs_published: number;
+  designs: number;
+  media_assets: number;
+  reviews: number;
+  calendar_connected: boolean;
+}
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -15,6 +46,8 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost
 export function resolveMediaUrl(url?: string | null): string {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) return url;
+  // The site's own static files (public/demos - homepage demo photos) live on the frontend, not the API.
+  if (url.startsWith('/demos/')) return url;
   return `${API_BASE_URL}${url}`;
 }
 
@@ -36,7 +69,7 @@ class ApiService {
 
     try {
       const response = await fetch(url, { ...options, headers });
-      
+
       // Attempt to parse JSON, handle empty responses
       let data;
       const text = await response.text();
@@ -47,9 +80,9 @@ class ApiService {
       }
 
       if (response.status === 401) {
-        const isAuthPage = typeof window !== 'undefined' && 
+        const isAuthPage = typeof window !== 'undefined' &&
           (window.location.pathname.startsWith('/login') || window.location.pathname.startsWith('/register'));
-        
+
         if (!isAuthPage) {
           this.handleUnauthorized();
           return { success: false, error: 'Session expired. Please log in again.' };
@@ -58,7 +91,7 @@ class ApiService {
 
       if (!response.ok) {
         let errorMessage = 'Request failed';
-        
+
         if (typeof data?.detail === 'string') {
           errorMessage = data.detail;
         } else if (Array.isArray(data?.detail)) {
@@ -100,10 +133,11 @@ class ApiService {
     return {
       id: backend.id,
       type: backend.type,
+      referenceId: backend.reference_id,
       title: backend.title,
       message: backend.message,
-      visitorName: backend.visitor_name || 'Unknown',
-      propertyAddress: backend.property_address || 'Unknown',
+      visitorName: backend.visitor_name || undefined,
+      propertyAddress: tidyAllCaps(backend.property_address) || undefined,
       collectionId: backend.collection_id || '',
       collectionName: backend.collection_name || undefined,
       propertyId: backend.property_id || undefined,
@@ -119,7 +153,7 @@ class ApiService {
    */
   public auth = {
     me: () => this.request<User>('/auth/me'),
-    
+
     login: (credentials: any) => this.request<{ access_token: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
@@ -140,7 +174,13 @@ class ApiService {
       body: JSON.stringify({ email }),
     }),
 
-    verifyBundleCode: (code: string) => this.request<{ plan_id: string }>('/auth/verify-bundle-code', {
+    verifyBundleCode: (code: string) => this.request<CheckoutCode>('/auth/verify-bundle-code', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }),
+
+    // A "billed by us" code: switches the account on with no PayPal.
+    redeemCode: (code: string) => this.request<{ success: boolean; plan_tier: string; subscription_status: string }>('/auth/redeem-code', {
       method: 'POST',
       body: JSON.stringify({ code }),
     }),
@@ -167,6 +207,12 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ new_password: password, token }),
     }),
+
+    changePassword: (currentPassword: string, newPassword: string) =>
+      this.request<{ message: string }>('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+      }),
   };
 
   /**
@@ -181,7 +227,7 @@ class ApiService {
       return response;
     },
     getByQR: (qrCode: string) => this.request<any>(`/api/open-house/property/${qrCode}`),
-    
+
     lookup: (query: string | { listingKey: string }) => this.request<any>('/api/properties/lookup', {
       method: 'POST',
       body: JSON.stringify(typeof query === 'string' ? { address: query } : { listing_key: query.listingKey }),
@@ -198,11 +244,21 @@ class ApiService {
       return this.request<{ results: { address: string, lat: number, lng: number, image?: string | null, status?: string | null, price?: number | null }[] }>(`/api/properties/address?${params.toString()}`);
     },
     // this is for searching brokerages
-    brokerages: async (brokerage: string) => this.request<{results: string[]}>(`/api/properties/brokerages?query=${brokerage}`),
-    cities: async (city: string) => this.request<{results: string[]}>(`/api/properties/cities?query=${city}`),
-    townships: async (township: string) => this.request<{results: string[]}>(`/api/properties/townships?query=${township}`),
+    brokerages: async (brokerage: string) => this.request<{results: string[]}>(`/api/properties/brokerages?query=${encodeURIComponent(brokerage)}`),
+    cities: async (city: string) => this.request<{results: string[]}>(`/api/properties/cities?query=${encodeURIComponent(city)}`),
+    townships: async (township: string) => this.request<{results: string[]}>(`/api/properties/townships?query=${encodeURIComponent(township)}`),
     counties: async (query: string) => this.request<{results: string[]}>(`/api/properties/counties?query=${encodeURIComponent(query)}`),
+    // Real Census lines for a Showcase's towns / school districts / counties (the editor map highlight).
+    areaShapes: async (sel: { cities?: string[]; school_districts?: string[]; counties?: string[] }) => {
+      const q = new URLSearchParams()
+      ;(sel.cities || []).forEach(v => q.append('cities', v))
+      ;(sel.school_districts || []).forEach(v => q.append('school_districts', v))
+      ;(sel.counties || []).forEach(v => q.append('counties', v))
+      return this.request<{ shapes: { kind: 'town' | 'school_district' | 'county'; label: string; query: string; rings: number[][][]; zips?: string[] | null }[] }>(`/api/properties/area-shapes?${q.toString()}`)
+    },
     // Unauthenticated variants for public-facing forms (visitors aren't logged in)
+    // Public "which home?" suggestions (Schedule a Showing) - any on-market listing, the form owner's first.
+    addressesPublic: async (query: string, formId?: string) => this.request<{ results: PublicHomeSuggestion[] }>(`/api/properties/addresses/public?query=${encodeURIComponent(query)}${formId ? `&form_id=${encodeURIComponent(formId)}` : ''}`, {}, false),
     citiesPublic: async (city: string) => this.request<{results: string[]}>(`/api/properties/cities/public?query=${encodeURIComponent(city)}`),
     schoolDistrictsPublic: async (query: string) => this.request<{results: string[]}>(`/api/properties/school-districts/public?query=${encodeURIComponent(query)}`),
     countiesPublic: async (query: string) => this.request<{results: string[]}>(`/api/properties/counties/public?query=${encodeURIComponent(query)}`),
@@ -210,13 +266,13 @@ class ApiService {
     // showcase page - includes listingKey/city/beds/baths/sqft in one shot (see /address/public).
     addressPublic: async (address: string) => this.request<{ results: { listingKey: string, address: string, city?: string | null, lat: number, lng: number, image?: string | null, status?: string | null, price?: number | null, beds?: number | null, baths?: number | null, squareFeet?: number | null }[] }>(`/api/properties/address/public?query=${encodeURIComponent(address)}`),
 
-    findSimilar: (params: SearchPreferences & { listingKey?: string, city?: string, state?: string, zipcode?: string, price?: number, bedrooms?: number, lat?: number, lng?: number }) => 
+    findSimilar: (params: SearchPreferences & { listingKey?: string, city?: string, state?: string, zipcode?: string, price?: number, bedrooms?: number, lat?: number, lng?: number }) =>
       this.request<{ properties: any[] }>('/api/properties/similar', {
         method: 'POST',
         body: JSON.stringify(params),
       }),
 
-    searchSchoolDistricts: (query: string) => 
+    searchSchoolDistricts: (query: string) =>
       this.request<{ results: string[] }>(`/api/properties/school-districts?query=${encodeURIComponent(query)}`),
 
     submitPropertyVisit: (data: any) => this.request('/property-visit/submit', {
@@ -225,14 +281,19 @@ class ApiService {
     }),
 
     getPropertyForAgent: async (propertyId: string, agentId: string) => {
-      const response = await this.request<{ property: any, agentName: string }>(`/api/properties/agent/${agentId}/listing/${propertyId}`, {}, false);
+      const response = await this.request<{ property: any, agentName: string, agentPhotoUrl?: string | null, agentBrokerage?: string | null, spotlightUrl?: string | null, expectedOnMarketDate?: string | null, priceHistory?: any[] }>(`/api/properties/agent/${agentId}/listing/${propertyId}`, {}, false);
       if (response.success && response.data?.property) {
-        return { 
-          ...response, 
-          data: { 
-            ...response.data.property, 
-            agentName: response.data.agentName 
-          } 
+        return {
+          ...response,
+          data: {
+            ...response.data.property,
+            agentName: response.data.agentName,
+            agentPhotoUrl: response.data.agentPhotoUrl ?? null,
+            agentBrokerage: response.data.agentBrokerage ?? undefined,
+            spotlightUrl: response.data.spotlightUrl ?? undefined,
+            expectedOnMarketDate: response.data.expectedOnMarketDate ?? null,
+            priceHistory: response.data.priceHistory ?? [],
+          }
         };
       }
       return response;
@@ -244,7 +305,9 @@ class ApiService {
       propertyAddress: string,
       visitorName: string,
       visitorContact: string,
-      message: string
+      visitorPhone?: string,
+      message: string,
+      cameFrom?: { src?: string; oh?: string; ref?: string }
     }) => this.request<{ success: boolean; message: string }>('/api/properties/message-agent', {
       method: 'POST',
       body: JSON.stringify({
@@ -253,11 +316,19 @@ class ApiService {
         property_address: data.propertyAddress,
         visitor_name: data.visitorName,
         visitor_contact: data.visitorContact,
-        message: data.message
+        visitor_phone: data.visitorPhone || undefined,
+        message: data.message,
+        came_from: data.cameFrom,
       }),
     }),
 
-    scheduleTour: (data: any & { agentId: string }) => 
+    /** An agent's busy blocks (start/end only) for the Listing Page's showing window. */
+    getAgentBusy: async (agentId: string) => {
+      const r = await this.request<{ busy: { start: string; end: string }[] }>(`/api/properties/agent/${agentId}/busy`, {}, false)
+      return r.success && r.data ? r.data.busy : []
+    },
+
+    scheduleTour: (data: any & { agentId: string }) =>
       this.request<{ success: boolean; message: string }>('/api/properties/schedule-tour', {
         method: 'POST',
         body: JSON.stringify({
@@ -266,13 +337,15 @@ class ApiService {
           property_address: data.propertyAddress,
           visitor_name: data.visitorName,
           visitor_contact: data.visitorContact,
+          visitor_phone: data.visitorPhone || undefined,
           preferred_date: data.preferredDate,
           preferred_time: data.preferredTime,
           preferred_date_2: data.preferredDate2,
           preferred_time_2: data.preferredTime2,
           preferred_date_3: data.preferredDate3,
           preferred_time_3: data.preferredTime3,
-          message: data.message
+          message: data.message,
+          came_from: data.cameFrom,
         }),
       }),
   };
@@ -294,7 +367,7 @@ class ApiService {
     getByListingKey: (listingKey: string) => this.request<OpenHouse[]>(`/api/open-houses?listing_key=${encodeURIComponent(listingKey)}`),
 
     getById: (id: string) => this.request<OpenHouse>(`/api/open-houses/${id}`),
-    
+
     create: (data: Partial<OpenHouse>) => this.request<OpenHouse>('/api/open-houses', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -313,6 +386,22 @@ class ApiService {
       method: 'PUT',
       body: JSON.stringify({ qr_dark_mode: qrDarkMode }),
     }),
+
+    // Hosting-agent-only, per open house: whether the listing agent (when different from the
+    // host) can see actual guest name/email/phone on top of the basic anonymous counts they
+    // always see. Off by default.
+    updateShareGuests: (id: string, shareGuestsWithListingAgent: boolean) => this.request<{ success: boolean; share_guests_with_listing_agent: boolean }>(`/api/open-houses/${id}/share-guests`, {
+      method: 'PUT',
+      body: JSON.stringify({ share_guests_with_listing_agent: shareGuestsWithListingAgent }),
+    }),
+
+    // Per open house: auto-build Showcases for guests without an agent, and where a guest's phone
+    // goes after they sign in (their Spotlight / Agent Hub / nothing). Either field alone is fine.
+    updateGuestSettings: (id: string, settings: { auto_showcase?: boolean; after_signin?: 'hub' | 'none'; guest_pass?: boolean; pass_signature?: boolean }) =>
+      this.request<{ success: boolean; auto_showcase: boolean; after_signin: string | null; guest_pass: boolean; pass_signature: boolean }>(`/api/open-houses/${id}/guest-settings`, {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+      }),
 
     updateSnapshot: (id: string, snapshot: any[]) => this.request(`/api/open-houses/${id}/snapshot`, {
       method: 'PATCH',
@@ -338,6 +427,16 @@ class ApiService {
     getVisitors: (id: string) => this.request<any[]>(`/api/open-houses/${id}/visitors`),
 
     getFormRequests: () => this.request<OpenHouseFormRequest[]>('/api/open-houses/form-requests'),
+
+    // Basic agents: guests without an agent (last 90 days) who'd have gotten a Showcase + invite
+    // on Premium - and do get one automatically the moment the agent upgrades.
+    getMissedShowcases: () => this.request<{
+      count: number;
+      recent: { visitor_id: string; name: string; email: string; property_address?: string; signed_in_at?: string }[];
+      window_days: number;
+      upgrade_eligible: boolean;
+      backfilling: boolean;
+    }>('/api/open-houses/missed-showcases'),
 
     completeFormRequest: (requestId: string) => this.request<OpenHouseFormRequest>(`/api/open-houses/form-requests/${requestId}/complete`, {
       method: 'PATCH',
@@ -386,12 +485,26 @@ class ApiService {
       method: 'POST',
     }),
 
+    // Cancels an already-approved date - identified by (listing, host, date) rather than a
+    // request id, since the Scheduled Opens list mixes built-kit previews (id = the
+    // OpenHouseEvent) with kit-less previews (id = the request).
+    cancelApprovedOpen: (listingKey: string, hostingAgentId: string, scheduledDate: string, scheduledStartTime?: string | null, scheduledEndTime?: string | null) =>
+      this.request<{ success: boolean }>(`/api/open-house-manager/listings/${encodeURIComponent(listingKey)}/cancel-approved`, {
+        method: 'POST',
+        body: JSON.stringify({
+          hosting_agent_id: hostingAgentId,
+          scheduled_date: scheduledDate,
+          scheduled_start_time: scheduledStartTime || undefined,
+          scheduled_end_time: scheduledEndTime || undefined,
+        }),
+      }),
+
     counterRequest: (requestId: string, payload: CounterHostRequestPayload) => this.request<HostRequest>(`/api/open-house-manager/host-requests/${requestId}/counter`, {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
 
-    acceptCounter: (requestId: string, slot: 1 | 2 = 1) => this.request<HostRequest>(`/api/open-house-manager/host-requests/${requestId}/counter/accept?slot=${slot}`, {
+    acceptCounter: (requestId: string) => this.request<HostRequest>(`/api/open-house-manager/host-requests/${requestId}/counter/accept`, {
       method: 'POST',
     }),
 
@@ -399,9 +512,20 @@ class ApiService {
       method: 'POST',
     }),
 
+    counterBack: (requestId: string, payload: CounterBackPayload) => this.request<HostRequest>(`/api/open-house-manager/host-requests/${requestId}/counter-back`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+    getRequestHistory: (requestId: string) => this.request<HostRequestEvent[]>(`/api/open-house-manager/host-requests/${requestId}/history`),
+
     searchAgents: (q: string) => this.request<AgentSearchResult[]>(`/api/open-house-manager/team/search-agents?q=${encodeURIComponent(q)}`),
 
     getTeamMembers: () => this.request<TeamMember[]>('/api/open-house-manager/team/members'),
+
+    // Every OTHER agent's team the current agent is an accepted member of - can be more than one,
+    // there's no cap on how many teams an agent can join. Powers Discovery's Team filter.
+    getMyTeamMemberships: () => this.request<TeamMembership[]>('/api/open-house-manager/team/memberships'),
 
     addTeamMember: (identifier: string) => this.request<TeamMember>('/api/open-house-manager/team/members', {
       method: 'POST',
@@ -412,6 +536,26 @@ class ApiService {
       method: 'DELETE',
     }),
 
+    getIncomingTeamInvites: () => this.request<IncomingTeamInvite[]>('/api/open-house-manager/team/invites/incoming'),
+
+    acceptTeamInvite: (memberId: string) => this.request<IncomingTeamInvite>(`/api/open-house-manager/team/invites/${encodeURIComponent(memberId)}/accept`, {
+      method: 'POST',
+    }),
+
+    declineTeamInvite: (memberId: string) => this.request<IncomingTeamInvite>(`/api/open-house-manager/team/invites/${encodeURIComponent(memberId)}/decline`, {
+      method: 'POST',
+    }),
+
+    updateRestriction: (restrictHostRequestsToTeam: boolean) => this.request<null>('/api/open-house-manager/team/restriction', {
+      method: 'PUT',
+      body: JSON.stringify({ restrict_host_requests_to_team: restrictHostRequestsToTeam }),
+    }),
+
+    getHostedBefore: () => this.request<TrustedHost[]>('/api/open-house-manager/team/hosted-before'),
+
+    // windowDate = one hosted day's sign-ins (a host reuses one evergreen kit for every date).
+    getSharedGuests: (eventId: string, windowDate?: string | null) => this.request<any[]>(`/api/open-house-manager/events/${encodeURIComponent(eventId)}/guests${windowDate ? `?date=${windowDate}` : ''}`),
+
     getMyBroadcasts: () => this.request<Broadcast[]>('/api/open-house-manager/team/broadcasts/mine'),
 
     getIncomingBroadcasts: () => this.request<IncomingBroadcast[]>('/api/open-house-manager/team/broadcasts/incoming'),
@@ -421,8 +565,9 @@ class ApiService {
       body: JSON.stringify(payload),
     }),
 
-    respondToBroadcast: (broadcastId: string) => this.request<HostRequest>(`/api/open-house-manager/team/broadcasts/${broadcastId}/respond`, {
+    respondToBroadcast: (broadcastId: string, payload?: RespondToBroadcastPayload) => this.request<HostRequest>(`/api/open-house-manager/team/broadcasts/${broadcastId}/respond`, {
       method: 'POST',
+      body: JSON.stringify(payload || {}),
     }),
 
     cancelBroadcast: (broadcastId: string) => this.request<null>(`/api/open-house-manager/team/broadcasts/${broadcastId}`, {
@@ -436,6 +581,15 @@ class ApiService {
         method: 'PUT',
         body: JSON.stringify(payload),
       }),
+
+    uploadManualListingPhoto: (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      return this.request<{ photo_url: string }>('/api/open-house-manager/my-listings/manual/photo', {
+        method: 'POST',
+        body: formData,
+      });
+    },
 
     addManualListing: (payload: ManualListingPayload) => this.request<MyListingItem>('/api/open-house-manager/my-listings/manual', {
       method: 'POST',
@@ -460,17 +614,30 @@ class ApiService {
       body: JSON.stringify({ subscription_id: subscriptionId }),
     }),
 
-    upgrade: () => this.request<any>('/subscriptions/upgrade', { method: 'POST' }),
-
-    downgrade: () => this.request<any>('/subscriptions/downgrade', { method: 'POST' }),
+    // Generalized plan change (was separate /upgrade and /downgrade endpoints for
+    // Basic<->Premium only) - targetTier is a PlanTier value ('NO_MLS' | 'PRO_NO_MLS' |
+    // 'BASIC' | 'PREMIUM' | 'IDX').
+    changePlan: (targetTier: string, code?: string | null) => this.request<any>('/subscriptions/change-plan', {
+      method: 'POST',
+      body: JSON.stringify({ target_tier: targetTier, code: code || undefined }),
+    }),
 
     cancel: () => this.request<{ message: string }>('/subscriptions/cancel', { method: 'POST' }),
 
+    // Live, client-facing footprint used to warn concretely before a downgrade/cancel.
+    getImpact: () => this.request<PlanImpact>('/subscriptions/impact'),
+
     reactivate: () => this.request('/subscriptions/reactivate', { method: 'POST' }),
 
-    createNew: (planTier: 'BASIC' | 'PREMIUM') => this.request<any>('/subscriptions/create-new', {
+    // The plan's real terms from PayPal (trial days, monthly price, setup fee).
+    planTerms: (planId: string) => this.request<{ trial_days: number; price: number | null; setup_fee: number; status?: string }>(`/subscriptions/plan-terms?plan_id=${encodeURIComponent(planId)}`),
+
+    // Re-read the subscription from PayPal now (back from approving a plan change).
+    sync: () => this.request<{ success: boolean; plan_tier?: string; status?: string }>('/subscriptions/sync', { method: 'POST' }),
+
+    createNew: (planTier: 'NO_MLS' | 'PRO_NO_MLS' | 'BASIC' | 'PREMIUM' | 'IDX', code?: string | null) => this.request<any>('/subscriptions/create-new', {
       method: 'POST',
-      body: JSON.stringify({ plan_tier: planTier }),
+      body: JSON.stringify({ plan_tier: planTier, code: code || undefined }),
     }),
   };
 
@@ -480,7 +647,7 @@ class ApiService {
   public admin = {
     getUsers: () => this.request<User[]>('/admin/users'),
 
-    toggleAuthorization: (userId: string, currentStatus: boolean) => 
+    toggleAuthorization: (userId: string, currentStatus: boolean) =>
       this.request<{ success: boolean }>(`/admin/users/${userId}/authorize?authorized=${!currentStatus}`, {
         method: 'PATCH',
       }),
@@ -496,6 +663,125 @@ class ApiService {
       this.request<AIAdminAgentSummary[]>(`/admin/ai/agents?period=${period}`),
 
     getAIAgentDetail: (ownerId: string) => this.request<AIAdminAgentDetail>(`/admin/ai/agents/${ownerId}`),
+
+    getStorageAgents: () => this.request<AdminStorageAgentSummary[]>('/admin/storage/agents'),
+    /** Agent activity tracker - every agent's usage (counts only, never their clients' details). */
+    getActivity: () => this.request<AdminActivityOverview>('/admin/activity'),
+    getActivityAgent: (agentId: string) => this.request<AdminActivityAgentDetail>(`/admin/activity/agents/${agentId}`),
+    /** Brokerage groups - agents paid for by their brokerage on a custom deal. */
+    getGroups: () => this.request<BillingGroup[]>('/admin/groups'),
+    createGroup: (data: BillingGroupInput) => this.request<BillingGroup>('/admin/groups', { method: 'POST', body: JSON.stringify(data) }),
+    updateGroup: (id: string, data: BillingGroupInput) => this.request<BillingGroup>(`/admin/groups/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    deleteGroup: (id: string) => this.request<{ success: boolean }>(`/admin/groups/${id}`, { method: 'DELETE' }),
+    addGroupMembers: (id: string, userIds: string[], applyPlan = true) =>
+      this.request<BillingGroup>(`/admin/groups/${id}/members`, { method: 'POST', body: JSON.stringify({ user_ids: userIds, apply_plan: applyPlan }) }),
+    removeGroupMember: (id: string, userId: string) => this.request<BillingGroup>(`/admin/groups/${id}/members/${userId}`, { method: 'DELETE' }),
+    applyGroupPlan: (id: string) => this.request<BillingGroup>(`/admin/groups/${id}/apply-plan`, { method: 'POST' }),
+
+    getPromoCodes: () => this.request<PromoCode[]>('/admin/promo-codes'),
+    getPromoPlans: () => this.request<{ plan_tier: string; plan_id: string; label: string }[]>('/admin/promo-codes/plans'),
+    checkPromoPlan: (planId: string) => this.request<PayPalPlanTerms>(`/admin/promo-codes/plan-check?plan_id=${encodeURIComponent(planId)}`),
+    createPromoCode: (data: PromoCodeInput) => this.request<PromoCode>('/admin/promo-codes', { method: 'POST', body: JSON.stringify(data) }),
+    updatePromoCode: (id: string, data: PromoCodeInput) => this.request<PromoCode>(`/admin/promo-codes/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    deletePromoCode: (id: string) => this.request<{ success: boolean }>(`/admin/promo-codes/${id}`, { method: 'DELETE' }),
+
+    getStorageAgentDetail: (ownerId: string) => this.request<AdminStorageAgentDetail>(`/admin/storage/agents/${ownerId}`),
+
+    getSupportTickets: () => this.request<AdminSupportTicketListItem[]>('/admin/support/tickets'),
+
+    getSupportTicket: (ticketId: string) => this.request<SupportTicketDetail>(`/admin/support/tickets/${ticketId}`),
+
+    replySupportTicket: (ticketId: string, body: string) =>
+      this.request<SupportTicketDetail>(`/admin/support/tickets/${ticketId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      }),
+
+    updateSupportTicketStatus: (ticketId: string, status: 'open' | 'closed') =>
+      this.request<SupportTicketDetail>(`/admin/support/tickets/${ticketId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      }),
+
+    getSupportUnreadCount: () => this.request<{ unread_count: number }>('/admin/support/tickets/unread-count'),
+
+    getPublicQuestions: () => this.request<PublicQuestion[]>('/admin/public-questions'),
+
+    getPublicQuestionsUnreadCount: () => this.request<{ unread_count: number }>('/admin/public-questions/unread-count'),
+
+    lookupCmaReportByCode: (code: string) =>
+      this.request<CmaReport & { owner_name?: string | null; owner_email?: string | null }>(
+        `/admin/cma-reports/lookup/${encodeURIComponent(code)}`
+      ),
+
+    markPublicQuestionRead: (questionId: string) =>
+      this.request<PublicQuestion>(`/admin/public-questions/${questionId}/read`, { method: 'PATCH' }),
+  };
+
+  /**
+   * Support Tickets Namespace (agent-facing)
+   */
+  public support = {
+    create: (subject: string, message: string, extra: { category?: SupportTicketCategory; details?: SupportTicketDetails; attachments?: string[] } = {}) =>
+      this.request<SupportTicketDetail>('/api/v1/support/tickets', {
+        method: 'POST',
+        body: JSON.stringify({ subject, message, ...extra }),
+      }),
+
+    /** A screenshot for a ticket that's about to be sent - returns its URL for `attachments`. */
+    uploadScreenshot: (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      return this.request<{ url: string }>('/api/v1/support/screenshots', { method: 'POST', body: formData });
+    },
+
+    getAll: () => this.request<SupportTicketListItem[]>('/api/v1/support/tickets'),
+
+    getById: (ticketId: string) => this.request<SupportTicketDetail>(`/api/v1/support/tickets/${ticketId}`),
+
+    reply: (ticketId: string, body: string) =>
+      this.request<SupportTicketDetail>(`/api/v1/support/tickets/${ticketId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      }),
+
+    getUnreadCount: () => this.request<{ unread_count: number }>('/api/v1/support/tickets/unread-count'),
+
+    updateStatus: (ticketId: string, status: 'open' | 'closed') =>
+      this.request<SupportTicketDetail>(`/api/v1/support/tickets/${ticketId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      }),
+  };
+
+  /**
+   * Saved Manual Properties Namespace - an agent's personal library of hand-typed properties,
+   * reusable across any picker that links a property (Forms, Design Studio, Blogs) without
+   * retyping it. Saving here never creates a real listing or sale by itself.
+   */
+  public savedProperties = {
+    getAll: () => this.request<SavedManualProperty[]>('/api/v1/saved-properties'),
+
+    create: (property: Omit<SavedManualProperty, 'id' | 'created_at'>) =>
+      this.request<SavedManualProperty>('/api/v1/saved-properties', {
+        method: 'POST',
+        body: JSON.stringify(property),
+      }),
+
+    remove: (propertyId: string) =>
+      this.request<void>(`/api/v1/saved-properties/${propertyId}`, { method: 'DELETE' }),
+  };
+
+  /**
+   * Public Questions Namespace - the signed-out homepage's "Ask Us a Question" form. Public
+   * (no auth token required, though `request` will send one if the visitor happens to have one).
+   */
+  public publicQuestions = {
+    submit: (email: string, message: string) =>
+      this.request<{ success: boolean }>('/api/v1/public-questions', {
+        method: 'POST',
+        body: JSON.stringify({ email, message }),
+      }, false),
   };
 
   /**
@@ -505,6 +791,11 @@ class ApiService {
     getAll: () => this.request<any[]>('/collections/'),
 
     getPendingRefineRequestsCount: () => this.request<{ count: number }>('/collections/refine-requests/count'),
+
+    // The Showcases page header's Tour requests + Activity inboxes.
+    getInbox: () => this.request<ShowcaseInbox>('/collections/inbox'),
+    markInboxRead: () => this.request<{ success: boolean }>('/collections/inbox/read', { method: 'POST' }),
+    getDeletePreview: (id: string) => this.request<{ followups: string[] }>(`/collections/${id}/delete-preview`),
 
     getAgentCollections: (agentId: string) => this.request<any[]>(`/agents/${agentId}/collections`),
 
@@ -622,13 +913,14 @@ class ApiService {
    * Notifications Namespace
    */
   public notifications = {
-    getAll: async (unreadOnly: boolean = false, maxAgeDays?: number) => {
+    getAll: async (unreadOnly: boolean = false, maxAgeDays?: number, offset?: number) => {
       const params: string[] = [];
       if (unreadOnly) params.push('unread_only=true');
       if (maxAgeDays) params.push(`max_age_days=${maxAgeDays}`);
+      if (offset) params.push(`offset=${offset}`);
       const queryParam = params.length ? `?${params.join('&')}` : '';
       const response = await this.request<NotificationResponse[]>(`/api/v1/notifications${queryParam}`);
-      
+
       if (response.success && response.data) {
         return {
           ...response,
@@ -676,13 +968,48 @@ class ApiService {
       `/api/v1/notifications/mark-types-as-read?${types.map(t => `types=${encodeURIComponent(t)}`).join('&')}`,
       { method: 'POST' }
     ),
+
+    getPreferences: () => this.request<NotificationPreferences>('/api/v1/notifications/preferences'),
+
+    updatePreferences: (preferences: NotificationPreferences['preferences']) =>
+      this.request<NotificationPreferences>('/api/v1/notifications/preferences', {
+        method: 'PUT',
+        body: JSON.stringify({ preferences }),
+      }),
+  };
+
+  /**
+   * Email Signature Namespace
+   */
+  public emailSignature = {
+    getMine: () => this.request<{ id: string; config: Record<string, any> }>('/email-signature/me'),
+
+    saveConfig: (config: Record<string, any>) =>
+      this.request<{ config: Record<string, any> }>('/email-signature/me', {
+        method: 'PUT',
+        body: JSON.stringify({ config }),
+      }),
+
+    getHtml: () => this.request<{ html: string; asset_base_url: string; html_hash: string; assets_hash: string; installed: boolean; installed_client: string | null; needs_recopy: boolean; recopy_reason: 'edits' | 'images' | null; public_ready: boolean }>('/email-signature/me/html'),
+    markInstalled: (htmlHash: string, assetsHash: string, client: string) =>
+      this.request<{ ok: boolean }>('/email-signature/me/installed', {
+        method: 'POST',
+        body: JSON.stringify({ html_hash: htmlHash, assets_hash: assetsHash, client }),
+      }),
   };
 
   /**
    * Agent Hub Namespace
    */
   public agentHub = {
-    getMine: () => this.request<{ id: string; slug: string; status: string; config?: Record<string, any> } | null>('/agent-hub/me'),
+    // no-store: this feeds the Brag/Cheat Sheet's live bio + contact fields (bragSheetData.ts) -
+    // every open/refresh of those PDFs must show what's actually saved in Settings/Agent Hub right
+    // now, never a browser-cached response from an earlier visit to this page.
+    getMine: () => this.request<{ id: string; slug: string; status: string; config?: Record<string, any> } | null>('/agent-hub/me', { cache: 'no-store' }),
+    // What deserves marketing now (synced MLS data): listings without a Spotlight, newest listing, latest sale.
+    marketingMoments: () => this.request<MarketingMoments>('/agent-hub/me/marketing-moments', { cache: 'no-store' }),
+    // Studio's recommendation for this listing/sale is handled (design made, or dismissed) - for good.
+    markMomentDone: (key: string) => this.request<{ ok: boolean }>('/agent-hub/me/marketing-moments/done', { method: 'POST', body: JSON.stringify({ key }) }),
 
     saveConfig: (config: Record<string, any>) =>
       this.request<{ config: Record<string, any> }>('/agent-hub/me/config', {
@@ -699,7 +1026,30 @@ class ApiService {
       status?: string;
       image?: string;
       sold_date?: string;
+      beds?: number;
+      baths?: number;
+      sqft?: number;
+      acres?: number;
     }>>(`/agent-hub/me/recent-sales?limit=24${reLicenseNumber ? `&re_license_number=${encodeURIComponent(reLicenseNumber)}` : ''}`),
+
+    getListingRouting: () => this.request<{ listings: Array<{
+      id: string;
+      address: string;
+      city?: string;
+      state?: string;
+      status?: string;
+      overrideKey: string | null;
+      spotlightAvailable: boolean;
+      spotlightSlug?: string | null;
+      overridden: boolean;
+      routing: { source: 'spotlight' | 'property_page' | 'none'; url: string | null };
+    }> }>('/agent-hub/me/listing-routing'),
+
+    updateListingRoutingOverride: (overrideKey: string, override: 'auto' | 'property_page') =>
+      this.request<{ listingLinkOverrides: Record<string, string> }>('/agent-hub/me/listing-routing', {
+        method: 'PUT',
+        body: JSON.stringify({ override_key: overrideKey, override }),
+      }),
 
     getLinkPreview: (url: string) =>
       this.request<{ title: string; image: string }>(`/agent-hub/link-preview?url=${encodeURIComponent(url)}`),
@@ -753,6 +1103,47 @@ class ApiService {
     },
 
     getAnalytics: () => this.request<{ type: 'visit' | 'qr' | 'form'; timestamp: string }[]>('/agent-hub/me/analytics'),
+
+    // --- Client reviews (agent side) ---
+    listReviews: () => this.request<{
+      summary: { count: number; average: number | null }
+      reviews: { id: string; reviewer_name: string; reviewer_email?: string | null; rating: number; body: string; status: string; source?: string; posted_google_at?: string | null; posted_zillow_at?: string | null; created_at: string }[]
+      settings: { google_place_id: string; google_review_url: string; zillow_review_url: string; show_on_hub: boolean; show_on_idx: boolean; min_rating: number }
+    }>('/agent-hub/reviews'),
+    updateReviewSettings: (data: { google_place_id?: string; google_review_url?: string; zillow_review_url?: string; show_on_hub?: boolean; show_on_idx?: boolean; min_rating?: number }) =>
+      this.request<{ google_place_id: string; google_review_url: string; zillow_review_url: string; show_on_hub: boolean; show_on_idx: boolean; min_rating: number }>('/agent-hub/reviews/settings', { method: 'PATCH', body: JSON.stringify(data) }),
+    importGoogleReviews: () => this.request<{ imported: number; skipped: number; available: number; google_total: number | null; note: string | null }>('/agent-hub/reviews/import-google', { method: 'POST' }),
+    /** Read reviews out of text copied from Zillow / Google / Realtor.com - nothing is saved yet. */
+    parseReviews: (text: string) => this.request<{ reviews: { name: string; rating: number | null; date: string | null; body: string; already_here?: boolean }[]; dropped: number }>(
+      '/agent-hub/reviews/parse', { method: 'POST', body: JSON.stringify({ text }) }),
+    /** Save reviews brought over from another site (or typed in by hand). */
+    importReviews: (source: string, reviews: { name: string; rating: number; body: string; date?: string | null }[], confirmReal: boolean) =>
+      this.request<{ imported: number; skipped: number }>('/agent-hub/reviews/import', { method: 'POST', body: JSON.stringify({ source, reviews, confirm_real: confirmReal }) }),
+    setReviewStatus: (id: string, status: 'published' | 'hidden') =>
+      this.request<{ id: string; status: string }>(`/agent-hub/reviews/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+    deleteReview: (id: string) => this.request<null>(`/agent-hub/reviews/${id}`, { method: 'DELETE' }),
+  };
+
+  // Public client-review flow (no auth). Keyed by the agent's hub slug.
+  public reviews = {
+    get: (slug: string) => this.request<{
+      agent_name: string
+      agent_first_name: string
+      agent_photo_url: string | null
+      agent_title: string | null
+      agent_brokerage: string | null
+      show_on_hub: boolean
+      min_rating?: number
+      summary: { count: number; average: number | null }
+      reviews: { id: string; reviewer_name: string; rating: number; body: string; created_at: string; source?: string }[]
+      destinations: { google_place_id: string | null; google_review_url: string | null; zillow_review_url: string | null }
+    }>(`/agent-hub/public/${encodeURIComponent(slug)}/reviews`, {}, false),
+    submit: (slug: string, body: { reviewer_name: string; reviewer_email?: string; rating: number; body: string }) =>
+      this.request<{ id: string; rating: number; is_public: boolean; destinations: { google_place_id: string | null; google_review_url: string | null; zillow_review_url: string | null } }>(
+        `/agent-hub/public/${encodeURIComponent(slug)}/reviews`, { method: 'POST', body: JSON.stringify(body) }, false,
+      ),
+    markPosted: (slug: string, reviewId: string, where: 'google' | 'zillow') =>
+      this.request<null>(`/agent-hub/public/${encodeURIComponent(slug)}/reviews/${reviewId}/posted?where=${where}`, { method: 'POST' }, false),
   };
 
   /**
@@ -760,6 +1151,48 @@ class ApiService {
    */
   public forms = {
     getMine: () => this.request<AgentFormConfig[]>('/agent-hub/forms/me'),
+
+    getOne: (formId: string) => this.request<AgentFormConfig>(`/agent-hub/forms/${formId}`),
+
+    duplicate: (formId: string) =>
+      this.request<AgentFormConfig>(`/agent-hub/forms/${formId}/duplicate`, { method: 'POST' }),
+
+    getCampaigns: (formId: string) => this.request<FormCampaign[]>(`/agent-hub/forms/${formId}/campaigns`),
+
+    getCampaignInfo: (campaignId: string) => this.request<CampaignLookup>(`/agent-hub/forms/campaigns/${campaignId}`),
+
+    createCampaign: (formId: string, name: string, redirect?: { redirect_mode: string | null; redirect_url: string | null }) =>
+      this.request<FormCampaign>(`/agent-hub/forms/${formId}/campaigns`, {
+        method: 'POST',
+        body: JSON.stringify({ name, ...(redirect || {}) }),
+      }),
+
+    updateCampaign: (formId: string, campaignId: string, redirect: { redirect_mode: string | null; redirect_url: string | null }) =>
+      this.request<FormCampaign>(`/agent-hub/forms/${formId}/campaigns/${campaignId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(redirect),
+      }),
+
+    deleteCampaign: (formId: string, campaignId: string) =>
+      this.request<null>(`/agent-hub/forms/${formId}/campaigns/${campaignId}`, { method: 'DELETE' }),
+
+    getCampaignStats: (formId: string, campaignId: string, days = 30) =>
+      this.request<FormStats>(`/agent-hub/forms/${formId}/campaigns/${campaignId}/stats?days=${days}`),
+
+    getGeneralStats: (formId: string, days = 30) =>
+      this.request<FormStats>(`/agent-hub/forms/${formId}/campaigns/general/stats?days=${days}`),
+
+    // Visitors who started the form but never pressed Submit (campaign: unset = all, 'general', or an id).
+    getUnfinished: (formId: string, campaign?: string | null) =>
+      this.request<{ items: UnfinishedFormResponse[]; retentionDays: number }>(
+        `/agent-hub/forms/${formId}/unfinished${campaign ? `?campaign=${encodeURIComponent(campaign)}` : ''}`),
+
+    dismissUnfinished: (formId: string, sessionId: string) =>
+      this.request<{ success: boolean }>(`/agent-hub/forms/${formId}/unfinished/${sessionId}/dismiss`, { method: 'POST' }),
+
+    addUnfinishedToLeads: (formId: string, sessionId: string) =>
+      this.request<{ leadId: string; alreadyAdded: boolean; followup: { created: boolean; reason: 'rule_off' | 'has_agent' | 'already_open' | 'not_created' | null; rule: string } | null }>(
+        `/agent-hub/forms/${formId}/unfinished/${sessionId}/add-to-leads`, { method: 'POST' }),
 
     createForm: (title: string) =>
       this.request<AgentFormConfig>('/agent-hub/forms', {
@@ -794,8 +1227,8 @@ class ApiService {
     getUnreadSubmissionsCount: () =>
       this.request<{ count: number }>('/agent-hub/forms/submissions/unread-count'),
 
-    getStats: (formId: string) =>
-      this.request<FormStats>(`/agent-hub/forms/${formId}/stats`),
+    getStats: (formId: string, days = 30) =>
+      this.request<FormStats>(`/agent-hub/forms/${formId}/stats?days=${days}`),
 
     getStatsSummary: () =>
       this.request<FormStats>('/agent-hub/forms/stats/summary'),
@@ -808,6 +1241,14 @@ class ApiService {
         method: 'PATCH',
         body: JSON.stringify({ is_reviewed: isReviewed }),
       }),
+
+    // Schedule a Showing: confirm one time (the visitor's link turns Confirmed + they're emailed);
+    // nulls clear it back to Pending.
+    confirmShowing: (submissionId: string, confirmedDate: string | null, confirmedTime: string | null) =>
+      this.request<FormSubmissionListItem>(`/agent-hub/forms/submissions/${submissionId}/showing`, {
+        method: 'PUT',
+        body: JSON.stringify({ confirmed_date: confirmedDate, confirmed_time: confirmedTime }),
+      }),
   };
 
   /**
@@ -815,6 +1256,13 @@ class ApiService {
    */
   public studio = {
     getBrandKit: () => this.request<BrandKit>('/studio/brand-kit'),
+
+    // The short "about this home" lines a design prints - this agent's saved ones for the listing,
+    // else written once by AI (cheap) and saved; saveListingBlurb keeps an agent's edit for next time.
+    listingBlurb: (p: { listing_key?: string | null; address?: string | null; city?: string | null; remarks?: string | null; facts?: string | null }) =>
+      this.request<{ text: string; source: 'saved' | 'ai' | 'remarks' | 'none' }>('/studio/listing-blurb', { method: 'POST', body: JSON.stringify(p) }),
+    saveListingBlurb: (p: { listing_key?: string | null; address?: string | null; city?: string | null; text: string }) =>
+      this.request<{ text: string; source: string }>('/studio/listing-blurb', { method: 'PUT', body: JSON.stringify(p) }),
 
     updateBrandKit: (data: Partial<Pick<BrandKit, 'primary_color' | 'secondary_color' | 'accent_color' | 'heading_font' | 'body_font' | 'disclaimer_text'>>) =>
       this.request<BrandKit>('/studio/brand-kit', { method: 'PUT', body: JSON.stringify(data) }),
@@ -828,21 +1276,28 @@ class ApiService {
     deleteBrandLogo: (slot: 'personal' | 'team' | 'brokerage') =>
       this.request<BrandKit>(`/studio/brand-kit/logo/${slot}`, { method: 'DELETE' }),
 
-    uploadMedia: (file: File) => {
+    uploadMedia: (file: File, category?: 'blog' | 'design' | 'brand_logo') => {
       const formData = new FormData();
       formData.append('file', file);
-      return this.request<{ url: string }>('/studio/media', { method: 'POST', body: formData });
+      const qs = category ? `?category=${category}` : '';
+      return this.request<{ url: string }>(`/studio/media${qs}`, { method: 'POST', body: formData });
     },
+
+    getStorage: () => this.request<{
+      used_bytes: number; cap_bytes: number; percent: number;
+      by_category: Record<string, { bytes: number; count: number }>;
+    }>('/studio/storage'),
   };
 
   /**
    * Design Studio
    */
   public designs = {
-    getMine: (filters?: { status?: string; design_type?: string; campaign_id?: string }) => {
+    getMine: (filters?: { status?: string; design_type?: string; situation?: string; campaign_id?: string }) => {
       const params = new URLSearchParams();
       if (filters?.status) params.set('status', filters.status);
       if (filters?.design_type) params.set('design_type', filters.design_type);
+      if (filters?.situation) params.set('situation', filters.situation);
       if (filters?.campaign_id) params.set('campaign_id', filters.campaign_id);
       const query = params.toString();
       return this.request<DesignProject[]>(`/studio/designs/me${query ? `?${query}` : ''}`);
@@ -853,7 +1308,7 @@ class ApiService {
 
     get: (designId: string) => this.request<DesignProject>(`/studio/designs/${designId}`),
 
-    update: (designId: string, data: Partial<Pick<DesignProject, 'name' | 'linked_property' | 'blocks' | 'branding_mode' | 'template_id'>>) =>
+    update: (designId: string, data: Partial<Pick<DesignProject, 'name' | 'linked_property' | 'blocks' | 'branding_mode' | 'style_id' | 'color_mode' | 'campaign_id' | 'template_id'>>) =>
       this.request<DesignProject>(`/studio/designs/${designId}`, { method: 'PUT', body: JSON.stringify(data) }),
 
     updateStatus: (designId: string, statusValue: DesignProject['status']) =>
@@ -863,6 +1318,141 @@ class ApiService {
       this.request<DesignProject>(`/studio/designs/${designId}/duplicate`, { method: 'POST' }),
 
     delete: (designId: string) => this.request<null>(`/studio/designs/${designId}`, { method: 'DELETE' }),
+
+    // Binary PDF response, not JSON - can't go through the generic `request` helper. Real,
+    // physically-sized print quality (server-side Playwright render), not a screenshot.
+    exportPdf: async (designId: string): Promise<{ success: boolean; blob?: Blob; error?: string }> => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/studio/designs/${designId}/export-pdf`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${getToken() || ''}` },
+        });
+        if (!response.ok) {
+          const detail = await response.json().catch(() => null);
+          return { success: false, error: detail?.detail || `Export failed (${response.status})` };
+        }
+        return { success: true, blob: await response.blob() };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Export failed' };
+      }
+    },
+
+    // Full-resolution PNG at the format's exact publishing size - same server-side headless render
+    // as exportPdf, so it matches the editor pixel for pixel.
+    exportPng: async (designId: string): Promise<{ success: boolean; blob?: Blob; error?: string }> => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/studio/designs/${designId}/export-png`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${getToken() || ''}` },
+        });
+        if (!response.ok) {
+          const detail = await response.json().catch(() => null);
+          return { success: false, error: detail?.detail || `Export failed (${response.status})` };
+        }
+        return { success: true, blob: await response.blob() };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Export failed' };
+      }
+    },
+  };
+
+  /**
+   * Studio AI Property Media (twilight / lights-on / virtual staging / enhance / animate).
+   */
+  public mediaLab = {
+    generate: (payload: StudioMediaGeneratePayload) =>
+      this.request<StudioMediaAsset>('/studio/media-lab/generate', { method: 'POST', body: JSON.stringify(payload) }),
+
+    videoTestGrid: (payload: StudioVideoTestGridPayload) =>
+      this.request<StudioVideoTestGridResponse>('/studio/media-lab/video-test-grid', {
+        method: 'POST', body: JSON.stringify(payload),
+      }),
+
+    usage: () => this.request<{
+      today_cost_usd: number; month_cost_usd: number; today_count: number; month_count: number;
+      month_ai_used_usd: number | null; month_ai_budget_usd: number | null; month_ai_percent: number | null;
+      video_est_usd: number | null; image_est_usd: number | null; studio_soft_capped: boolean;
+      storage_used_bytes: number; storage_cap_bytes: number;
+      video_clip_price_usd: number | null; video_upscale_price_per_second_usd: number | null;
+      video_seconds_per_clip: number | null; video_photo_enhance_price_usd: number | null;
+    }>('/studio/media-lab/usage'),
+
+    listAssets: (params?: { group_id?: string; limit?: number; kind?: 'upload' }) => {
+      const q = new URLSearchParams();
+      if (params?.group_id) q.set('group_id', params.group_id);
+      if (params?.limit) q.set('limit', String(params.limit));
+      if (params?.kind) q.set('kind', params.kind);
+      const query = q.toString();
+      return this.request<{ assets: StudioMediaAsset[] }>(`/studio/media-lab/assets${query ? `?${query}` : ''}`);
+    },
+
+    uploadPhoto: (file: File) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      return this.request<StudioMediaAsset>('/studio/media-lab/upload', { method: 'POST', body: fd });
+    },
+
+    getAsset: (assetId: string) => this.request<StudioMediaAsset>(`/studio/media-lab/assets/${assetId}`),
+
+    regenerate: (assetId: string, options?: StudioMediaGeneratePayload['options'], effects?: string[]) =>
+      this.request<StudioMediaAsset>(`/studio/media-lab/assets/${assetId}/regenerate`, {
+        method: 'POST', body: JSON.stringify({ options: options ?? null, effects: effects ?? null }),
+      }),
+
+    rename: (assetId: string, name: string) =>
+      this.request<StudioMediaAsset>(`/studio/media-lab/assets/${assetId}/name`, {
+        method: 'PATCH', body: JSON.stringify({ name }),
+      }),
+
+    setStagingTag: (assetId: string, position: 'bottom-right' | 'bottom-middle' | 'off') =>
+      this.request<StudioMediaAsset>(`/studio/media-lab/assets/${assetId}/staging-tag`, {
+        method: 'PATCH', body: JSON.stringify({ position }),
+      }),
+
+    // Opt-in 4K upscale of a finished video - returns a new processing child asset to poll.
+    upscale: (assetId: string) =>
+      this.request<StudioMediaAsset>(`/studio/media-lab/assets/${assetId}/upscale`, { method: 'POST' }),
+
+    remove: (assetId: string) => this.request<null>(`/studio/media-lab/assets/${assetId}`, { method: 'DELETE' }),
+
+    // Binary (png/mp4) with an attachment header - can't go through the generic JSON helper.
+    // `ratio` (video only): '9:16' | '1:1' | '4:5' re-crops the single render on the server;
+    // omit or '16:9' for the base.
+    download: async (assetId: string, ratio?: string): Promise<{ success: boolean; blob?: Blob; error?: string }> => {
+      try {
+        const qs = ratio && ratio !== '16:9' ? `?ratio=${encodeURIComponent(ratio)}` : '';
+        const response = await fetch(`${API_BASE_URL}/studio/media-lab/assets/${assetId}/download${qs}`, {
+          headers: { Authorization: `Bearer ${getToken() || ''}` },
+        });
+        if (!response.ok) return { success: false, error: `Download failed (${response.status})` };
+        return { success: true, blob: await response.blob() };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Download failed' };
+      }
+    },
+
+    // Autosaved from the Overlay editor - a plain options write, no AI cost - so a configured
+    // title card / branding survives a reload without a regenerate.
+    updateOverlay: (assetId: string, data: { title_card?: TitleCardOptions | null; branding?: BrandingOptions | null }) =>
+      this.request<StudioMediaAsset>(`/studio/media-lab/assets/${assetId}/overlay`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+    // Same one-render-many-exports model as download() above, plus optionally burning in the
+    // title card and/or agent branding overlays. Used whenever either overlay is enabled.
+    exportVideo: async (
+      assetId: string, data: { ratio?: string; title_card?: TitleCardOptions | null; branding?: BrandingOptions | null },
+    ): Promise<{ success: boolean; blob?: Blob; error?: string }> => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/studio/media-lab/assets/${assetId}/export`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${getToken() || ''}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        if (!response.ok) return { success: false, error: `Export failed (${response.status})` };
+        return { success: true, blob: await response.blob() };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Export failed' };
+      }
+    },
   };
 
   /**
@@ -873,6 +1463,9 @@ class ApiService {
 
     // Feeds the editor's Form/Showcase block pickers - see backend site_routes.get_my_site_content_options.
     getContentOptions: () => this.request<{ forms: { id: string; title: string; form_type: string }[]; showcases: { id: string; name: string; description: string | null; share_token: string }[] }>('/studio/sites/me/content-options'),
+
+    // Everything the Google tab previews every page from - see backend site_routes.get_my_seo_pages.
+    getSeoPages: () => this.request<SeoPagesData>('/studio/sites/me/seo-pages'),
 
     getAreas: () => this.request<AgentMarketArea[]>('/studio/sites/me/areas'),
 
@@ -892,7 +1485,7 @@ class ApiService {
     previewBlocks: (blocks: SiteBlock[], featuredSettings?: FeaturedSettings) =>
       this.request<{ blocks: SiteBlock[] }>('/studio/sites/me/preview', { method: 'POST', body: JSON.stringify({ blocks, featured_settings: featuredSettings }) }),
 
-    updateDraft: (data: { pages?: SitePage[]; theme?: SiteTheme; featured_settings?: FeaturedSettings; media_settings?: MediaSettings }) =>
+    updateDraft: (data: { pages?: SitePage[]; theme?: SiteTheme; featured_settings?: FeaturedSettings; media_settings?: MediaSettings; seo?: SiteSeo }) =>
       this.request<Site>('/studio/sites/me/draft', { method: 'PATCH', body: JSON.stringify(data) }),
 
     publish: () => this.request<Site>('/studio/sites/me/publish', { method: 'POST' }),
@@ -902,9 +1495,6 @@ class ApiService {
     addDomain: (hostname: string) =>
       this.request<SiteDomain>('/studio/sites/me/domains', { method: 'POST', body: JSON.stringify({ hostname }) }),
 
-    updateDomainStatus: (domainId: string, statusValue: SiteDomain['status']) =>
-      this.request<SiteDomain>(`/studio/sites/me/domains/${domainId}/status`, { method: 'PATCH', body: JSON.stringify({ status: statusValue }) }),
-
     checkDomain: (domainId: string) =>
       this.request<SiteDomain>(`/studio/sites/me/domains/${domainId}/check`, { method: 'POST' }),
 
@@ -913,6 +1503,92 @@ class ApiService {
 
     deleteDomain: (domainId: string) =>
       this.request<null>(`/studio/sites/me/domains/${domainId}`, { method: 'DELETE' }),
+
+    getPublicBaseUrl: () => this.request<{ base_url: string; is_idx_site?: boolean }>('/studio/sites/me/public-base-url'),
+
+    getLinkDomain: () => this.request<LinkDomainState>('/studio/sites/me/link-domain'),
+    setLinkDomain: (useOwnDomain: boolean) =>
+      this.request<LinkDomainState>('/studio/sites/me/link-domain', {
+        method: 'PUT',
+        body: JSON.stringify({ use_own_domain: useOwnDomain }),
+      }),
+    // IDX website on/off - off = the public site isn't served and links fall back to openhousepal.com.
+    setSiteEnabled: (enabled: boolean) =>
+      this.request<LinkDomainState>('/studio/sites/me/site-enabled', { method: 'PUT', body: JSON.stringify({ enabled }) }),
+
+    agreeToIdxDomainMigration: () =>
+      this.request<{ agreed_at: string }>('/studio/sites/me/idx-domain-migration/agree', { method: 'POST' }),
+  };
+
+  /**
+   * Single Property Websites - one standalone cinematic marketing site per listing, separate
+   * from the whole-agent Website Builder above (many per owner, not one).
+   */
+  public propertySites = {
+    list: () => this.request<PropertyWebsite[]>('/studio/property-sites'),
+
+    // Visitor stats (unique visitors + total visits) for every Spotlight site this agent owns -
+    // per site and de-duplicated overall. The agent's own views are never counted.
+    analytics: () => this.request<PropertyWebsiteAnalytics>('/studio/property-sites/analytics'),
+
+    create: (payload: { listing_key?: string; manual_property?: Record<string, unknown>; template_id?: string }) =>
+      this.request<PropertyWebsite>('/studio/property-sites', { method: 'POST', body: JSON.stringify(payload) }),
+
+    get: (id: string) => this.request<PropertyWebsite>(`/studio/property-sites/${id}`),
+
+    // The open houses this page shows right now (Open House Manager + MLS + dates added here).
+    openHouses: (id: string) => this.request<{ open_houses: { id: string; date: string; start_time: string | null; end_time: string | null; source: 'open_house_manager' | 'mls' | 'manual' }[] }>(`/studio/property-sites/${id}/open-houses`),
+
+    updateDraft: (id: string, patch: Partial<PropertyWebsiteDraft>) =>
+      this.request<PropertyWebsite>(`/studio/property-sites/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+
+    publish: (id: string) => this.request<PropertyWebsite>(`/studio/property-sites/${id}/publish`, { method: 'POST' }),
+
+    unpublish: (id: string) => this.request<PropertyWebsite>(`/studio/property-sites/${id}/unpublish`, { method: 'POST' }),
+
+    remove: (id: string) => this.request<null>(`/studio/property-sites/${id}`, { method: 'DELETE' }),
+
+    uploadDocument: (id: string, file: File) => {
+      const formData = new FormData(); formData.append('file', file)
+      return this.request<{ url: string }>(`/studio/property-sites/${id}/documents`, { method: 'POST', body: formData })
+    },
+
+    uploadFloorPlan: (id: string, file: File) => {
+      const formData = new FormData(); formData.append('file', file)
+      return this.request<{ url: string }>(`/studio/property-sites/${id}/floor-plans`, { method: 'POST', body: formData })
+    },
+    // The unpublished draft, rendered exactly like the live page (site_id comes back 'preview').
+    preview: (id: string) => this.request<any>(`/studio/property-sites/${id}/preview`),
+    // "Living photo" header - see backend spotlight_header_service.py.
+    headerEstimate: (id: string) => this.request<{
+      styles: Record<'dusk', { usd: number; percent: number | null }>
+      limit_usd: number | null
+      used_percent: number | null
+      rooms?: { usd: number; percent: number | null }
+    }>(`/studio/property-sites/${id}/header-video/estimate`),
+    createHeaderVideo: (id: string, photo_url: string, note?: string) =>
+      this.request<{ asset_id: string; status: string }>(`/studio/property-sites/${id}/header-video`, {
+        method: 'POST', body: JSON.stringify({ photo_url, style: 'dusk', note: note || null }),
+      }),
+    buildHeaderLoop: (id: string, asset_id: string) =>
+      this.request<{ url: string; poster: string | null; cost_usd: number }>(`/studio/property-sites/${id}/header-video/loop`, {
+        method: 'POST', body: JSON.stringify({ asset_id }),
+      }),
+    // Room by room: AI picks the 3-4 spaces that sell the home (nothing saved until the agent
+    // keeps them). The photo pass is cached per site - fresh=true asks the AI again.
+    autoRooms: (id: string, fresh = false) =>
+      this.request<{
+        chapters: { type: string; label: string | null; photos: string[] }[]
+        questions: { question: string; photos: string[]; choices: string[] }[]
+        rooms: Record<string, string>; cost_usd: number
+      }>(
+        `/studio/property-sites/${id}/rooms/auto${fresh ? '?fresh=true' : ''}`, { method: 'POST' }),
+    // The AI's pick for the photo beside the story (saved to the draft unless one is already chosen).
+    autoStoryPhoto: (id: string) =>
+      this.request<{ story_photo: string | null; cost_usd: number }>(`/studio/property-sites/${id}/story-photo/auto`, { method: 'POST' }),
+    townPhotos: (id: string, name?: string) =>
+      this.request<{ photos: { url: string; thumb: string; caption: string; credit: string; source_url: string | null }[] }>(
+        `/studio/property-sites/${id}/town-photos${name ? `?name=${encodeURIComponent(name)}` : ''}`),
   };
 
   /**
@@ -922,18 +1598,19 @@ class ApiService {
     getMine: (statusFilter?: string) =>
       this.request<BlogListItem[]>(`/studio/blogs/me${statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : ''}`),
 
-    create: (title: string, category?: string, starterBlocks?: BlogBlock[]) =>
-      this.request<Blog>('/studio/blogs', { method: 'POST', body: JSON.stringify({ title, category, starter_blocks: starterBlocks }) }),
+    create: (title: string, category?: string, starterBlocks?: BlogBlock[], theme?: string) =>
+      this.request<Blog>('/studio/blogs', { method: 'POST', body: JSON.stringify({ title, category, starter_blocks: starterBlocks, ...(theme ? { theme } : {}) }) }),
 
     get: (blogId: string) => this.request<Blog>(`/studio/blogs/${blogId}`),
 
-    update: (blogId: string, data: Partial<Pick<Blog, 'title' | 'subtitle' | 'cover_image_url' | 'category' | 'tags' | 'blocks' | 'linked_properties' | 'seo_title' | 'meta_description' | 'focus_keyword' | 'social_title' | 'social_description' | 'social_image_url' | 'is_indexed'>>) =>
+    update: (blogId: string, data: Partial<Pick<Blog, 'title' | 'subtitle' | 'cover_image_url' | 'category' | 'theme' | 'tags' | 'blocks' | 'linked_properties' | 'seo_title' | 'meta_description' | 'focus_keyword' | 'social_title' | 'social_description' | 'social_image_url' | 'is_indexed' | 'luxe_metal'>>) =>
       this.request<Blog>(`/studio/blogs/${blogId}`, { method: 'PUT', body: JSON.stringify(data) }),
 
     updateStatus: (blogId: string, statusValue: Blog['status'], scheduledAt?: string) =>
       this.request<Blog>(`/studio/blogs/${blogId}/status`, { method: 'PATCH', body: JSON.stringify({ status: statusValue, scheduled_at: scheduledAt }) }),
 
-    updateHubVisibility: (blogId: string, data: { agent_hub_visible?: boolean; agent_hub_featured?: boolean }) =>
+    linkableAreas: () => this.request<LinkableAreas>('/studio/blogs/linkable-areas'),
+    updateHubVisibility: (blogId: string, data: { agent_hub_visible?: boolean; agent_hub_featured?: boolean; idx_visible?: boolean; use_signature_card?: boolean; linked_areas?: string[] }) =>
       this.request<Blog>(`/studio/blogs/${blogId}/agent-hub-visibility`, { method: 'PATCH', body: JSON.stringify(data) }),
 
     checkSlug: (blogId: string, slug: string) =>
@@ -945,6 +1622,20 @@ class ApiService {
     getAnalytics: (blogId: string) => this.request<BlogAnalytics>(`/studio/blogs/${blogId}/analytics`),
 
     delete: (blogId: string) => this.request<null>(`/studio/blogs/${blogId}`, { method: 'DELETE' }),
+
+    // AI Blog Writer - guided interview -> full DRAFT article, metered on the monthly AI allowance.
+    aiContext: () => this.request<BlogAiContext>('/studio/blogs/ai/context'),
+    // Roughly what one AI-written article costs, shown before the agent spends it.
+    aiEstimate: (length: string = 'standard') => this.request<{ usd: number; percent: number | null }>(`/studio/blogs/ai/estimate?length=${encodeURIComponent(length)}`),
+    aiGenerateJob: (brief: BlogAiBrief) =>
+      this.request<{ blog_id: string; status: 'running'; stage: string; engine: string }>('/studio/blogs/ai/generate-job', { method: 'POST', body: JSON.stringify(brief) }),
+    aiFinished: (blogId: string) => this.request<Blog>(`/studio/blogs/${blogId}/ai-finished`, { method: 'POST' }),
+    aiJob: (blogId: string) =>
+      this.request<{ status: 'running' | 'done' | 'failed'; stage?: string; error?: string; result?: BlogAiGenerateResult }>(`/studio/blogs/ai/jobs/${blogId}`),
+    aiGenerate: (brief: BlogAiBrief) =>
+      this.request<BlogAiGenerateResult>('/studio/blogs/ai/generate', { method: 'POST', body: JSON.stringify(brief) }),
+    aiRefineSection: (body: { title: string; section_blocks: BlogBlock[]; article_blocks: BlogBlock[]; action: BlogAiRefineAction; instruction?: string }) =>
+      this.request<{ blocks: BlogBlock[]; numbers_to_verify: string[] }>('/studio/blogs/ai/refine-section', { method: 'POST', body: JSON.stringify(body) }),
   };
 
   /**
@@ -968,6 +1659,10 @@ class ApiService {
     },
 
     get: (leadId: string) => this.request<LeadDetail>(`/leads/${leadId}`),
+
+    /** Clear one kind of waiting request from the lead's to-dos (booked it, replied, looked...). */
+    markHandled: (leadId: string, kind: string) =>
+      this.request<LeadDetail>(`/leads/${leadId}/handled`, { method: 'POST', body: JSON.stringify({ kind }) }),
 
     update: (leadId: string, data: { name?: string; email?: string; phone?: string; status?: LeadStatus; represented?: LeadRepresented; tags?: string[]; notes?: string; mark_contacted?: boolean }) =>
       this.request<LeadDetail>(`/leads/${leadId}`, { method: 'PATCH', body: JSON.stringify(data) }),
@@ -1036,6 +1731,20 @@ class ApiService {
   /**
    * AI Assistant
    */
+  // Emails sent to clients: open / click tracking + the daily / weekly / off rules (backend client_email_routes).
+  public clientEmails = {
+    people: () => this.request<{ people: EmailPerson[]; totals: { people: number; daily: number; weekly: number; off: number };
+      rules: { strike_days: number; weekly_strikes: number; max_auto_per_day: number } }>('/client-emails/people'),
+    log: (params: { email?: string; q?: string; limit?: number; offset?: number } = {}) => {
+      const qs = new URLSearchParams()
+      Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== '') qs.set(k, String(v)) })
+      return this.request<{ emails: ClientEmailRow[]; total: number;
+        stats_30d: { sent: number; opened: number; clicked: number; open_rate: number | null; click_rate: number | null } }>(`/client-emails${qs.toString() ? `?${qs}` : ''}`)
+    },
+    setPerson: (email: string, on: boolean) =>
+      this.request<EmailPerson>('/client-emails/people', { method: 'PUT', body: JSON.stringify({ email, on }) }),
+  };
+
   public ai = {
     listConversations: () => this.request<AIConversationListItem[]>('/ai/conversations'),
 
@@ -1056,6 +1765,24 @@ class ApiService {
 
     // Dashboard's Daily Digest panel - open to every user (not the admin-gated assistant).
     getDigest: () => this.request<DailyDigest>('/ai/digest'),
+
+    // "Monthly AI Usage" meter - month-to-date spend across every AI tool vs the plan's
+    // monthly AI budget. Open to every user; percent is null when the tier isn't metered.
+    monthlyUsage: () => this.request<MonthlyAiUsage>('/ai/usage/monthly'),
+
+    // Roughly what one copywrite call will cost (% of the monthly AI budget) - shown before spending it.
+    copywriteEstimate: (purpose: string, chars: number) =>
+      this.request<{ purpose: string; usd: number; percent: number | null }>(`/ai/copywrite/estimate?purpose=${encodeURIComponent(purpose)}&chars=${chars}`),
+    // AI copywriter - Design Studio text, Blogs AI mode, Agent Hub bio polish, caption/email drafts.
+    // Metered against the shared Monthly AI Usage allowance.
+    copywrite: (body: { purpose: string; context?: string; tone?: string; instruction?: string }) =>
+      this.request<{ text: string }>('/ai/copywrite', { method: 'POST', body: JSON.stringify(body) }),
+
+    // Advisory Fair-Housing / MLS phrase check - returns risky phrases + a suggested swap.
+    complianceCheck: (text: string) =>
+      this.request<{ flags: { phrase: string; issue: string; suggestion: string }[] }>(
+        '/ai/compliance-check', { method: 'POST', body: JSON.stringify({ text }) },
+      ),
 
     dismissDigestItem: (itemId: string) =>
       this.request<{ ok: boolean }>('/ai/digest/dismiss', { method: 'POST', body: JSON.stringify({ item_id: itemId }) }),
@@ -1127,10 +1854,16 @@ class ApiService {
     update: (id: string, payload: Partial<{
       client_name: string | null, mode: CmaMode, status: CmaStatus,
       subject: CmaSubjectProperty, comparables: CmaComparable[], pricing: CmaPricing,
-      market_context: CmaMarketContext, improvements: CmaImprovement[], presentation: CmaPresentationSettings,
+      market_context: CmaMarketContext, improvements: CmaImprovement[], presentation: CmaPresentationSettings, use_signature_card: boolean,
     }>) => this.request<CmaReport>(`/api/cma/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
 
     remove: (id: string) => this.request<void>(`/api/cma/${id}`, { method: 'DELETE' }),
+
+    // Merges just default_theme server-side instead of a full presentation replace - used from
+    // the CMA list card, which only knows this one field, not the report's full presentation
+    // settings (hidden_sections/hidden_comp_ids/cover_photo_url).
+    updateTheme: (id: string, theme: 'light' | 'dark') =>
+      this.request<void>(`/api/cma/${id}/theme`, { method: 'PATCH', body: JSON.stringify({ default_theme: theme }) }),
 
     searchComparables: (payload: CmaCompSearchParams) =>
       this.request<CmaCompCandidate[]>('/api/cma/comparables/search', { method: 'POST', body: JSON.stringify(payload) }),
@@ -1139,6 +1872,21 @@ class ApiService {
 
     generateAiAnalysis: (id: string, payload: { max_photos_per_property?: number, include_map_images?: boolean, force_regenerate?: boolean } = {}) =>
       this.request<CmaReport>(`/api/cma/${id}/generate-ai-analysis`, { method: 'POST', body: JSON.stringify(payload) }),
+
+    // Re-runs the deterministic evidence/confidence/value-drivers pipeline plus one lightweight
+    // (no-photo) AI call to keep the value/methodology text consistent with any comp overrides
+    // (reclassify / Mark Irrelevant) made since the initial generation - see cma_ai_service.
+    // recompute_valuation. Repeatable, unlike generateAiAnalysis above.
+    recomputeValuation: (id: string) =>
+      this.request<CmaReport>(`/api/cma/${id}/recompute-valuation`, { method: 'POST' }),
+
+    // Free re-stamp for a report whose only problem is a stale artifact hash (e.g. an agent
+    // filled in a required rating after generation, or a save round-tripped) with nothing about
+    // the content actually needing to change - no AI call, no cost. 409s if a real content
+    // finding is also present; use recomputeValuation (paid) for that instead. See
+    // cma_service.resync_qa.
+    resyncQa: (id: string) =>
+      this.request<CmaReport>(`/api/cma/${id}/resync-qa`, { method: 'POST' }),
   };
 
   public sellerNetSheet = {
@@ -1184,7 +1932,7 @@ class ApiService {
    * Public / Visitor Namespace (Does NOT include JWT)
    */
   public public = {
-    getCmaReport: (slug: string) => this.request<CmaPublicResponse>(`/api/cma/public/${encodeURIComponent(slug)}`, {}, false),
+    getCmaReport: (slug: string) => this.request<CmaPublicResponse>(`/api/cma/public/${encodeURIComponent(slug)}`, { cache: 'no-store' }, false),
 
     getSellerNetSheet: (slug: string) => this.request<SellerNetSheetPublicResponse>(`/api/seller-net-sheets/public/${encodeURIComponent(slug)}`, {}, false),
 
@@ -1192,7 +1940,7 @@ class ApiService {
 
     getOpenHouseProperty: async (id: string) => {
       const response = await this.request<any>(`/open-house/property/${id}`, {}, false);
-      
+
       if (response.success && response.data?.property) {
         const p = response.data.property;
         // Standardize the response to match the Property interface
@@ -1217,6 +1965,9 @@ class ApiService {
             agentName: p.agentName || '',
             agentBrokerage: p.agentBrokerage || '',
             agentPhotoUrl: p.agentPhotoUrl ? resolveMediaUrl(p.agentPhotoUrl) : null,
+            // Where the host sends the guest's phone after signing in ({kind, url}) - their Spotlight
+            // for this home or their Agent Hub; absent = just the thank-you.
+            afterSignin: p.afterSignin || null,
           },
           theme: response.data?.theme || null,
           qrDarkMode: Boolean(response.data?.qrDarkMode),
@@ -1256,12 +2007,34 @@ class ApiService {
       body: JSON.stringify(data),
     }, false),
 
+    // Guest Pass - the page a guest's phone opens right after signing in at an open house.
+    // `token` is the signed link the sign-in hands back (backend services/guest_pass_service.py).
+    getGuestPass: (token: string) => this.request<any>(`/guest-pass/${encodeURIComponent(token)}`, {}, false),
+    guestPassRequest: (token: string, kind: 'disclosure' | 'second_visit', preferredTime?: string) =>
+      this.request<{ sent: boolean; already: boolean }>(`/guest-pass/${encodeURIComponent(token)}/request`, {
+        method: 'POST',
+        body: JSON.stringify({ kind, ...(preferredTime ? { preferred_time: preferredTime } : {}) }),
+      }, false),
+    guestPassQuestion: (token: string, message: string) =>
+      this.request<{ sent: boolean }>(`/guest-pass/${encodeURIComponent(token)}/question`, {
+        method: 'POST',
+        body: JSON.stringify({ message }),
+      }, false),
+    guestPassShowcase: (token: string) =>
+      this.request<{ url: string }>(`/guest-pass/${encodeURIComponent(token)}/showcase`, { method: 'POST' }, false),
+
     getSharedShowcase: (shareToken: string) =>
       this.request<any>(`/collections/shared/${shareToken}`, {}, false),
 
     // Visitor self-serve: address/radius/price/beds/baths only (narrower than the
     // agent-side api.collections.updatePreferencesAndRefresh) - re-runs the real match
     // and returns the same shape as getSharedShowcase, refreshed.
+    // What the visitor's unsaved search changes would match - count + where (nothing saved).
+    previewShowcaseMatches: (shareToken: string, preferences: Partial<CollectionPreferences>) =>
+      this.request<{ count: number; points: { id: string; lat: number; lng: number }[] }>(`/collections/shared/${shareToken}/preview-matches`, {
+        method: 'POST',
+        body: JSON.stringify(preferences),
+      }, false),
     updateShowcasePreferences: (shareToken: string, preferences: Partial<CollectionPreferences>) =>
       this.request<any>(`/collections/shared/${shareToken}/update-preferences-and-refresh`, {
         method: 'PUT',
@@ -1296,6 +2069,12 @@ class ApiService {
         method: 'POST',
         body: JSON.stringify({ message }),
       }, false),
+
+    /** The Showcase agent's busy blocks (start/end only) for the showing window. */
+    getShowcaseBusy: async (collectionId: string) => {
+      const r = await this.request<{ busy: { start: string; end: string }[] }>(`/collections/${collectionId}/busy`, {}, false)
+      return r.success && r.data ? r.data.busy : []
+    },
 
     scheduleTour: (collectionId: string, data: any) =>
       this.request<any>(`/collections/${collectionId}/properties/${data.propertyId}/schedule-tour`, {
@@ -1334,25 +2113,44 @@ class ApiService {
       this.request<null>(`/agent-hub/public/${encodeURIComponent(agentSlug)}/track`, {
         method: 'POST',
         body: JSON.stringify({ event_type: eventType, visitor_id: visitorId }),
+        // Most hub clicks leave the page (a form, a listing, YouTube) - keepalive lets the ping
+        // finish instead of being cancelled by the navigation, which left "Interacted" at 0.
+        keepalive: true,
       }, true),
 
     getPublicForms: (agentSlug: string) =>
       this.request<PublicFormSummary[]>(`/agent-hub/forms/public/${encodeURIComponent(agentSlug)}`, {}, false),
 
-    getPublicForm: (agentSlug: string, formSlug: string) =>
-      this.request<PublicFormConfig>(`/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}`, {}, false),
+    getPublicForm: (agentSlug: string, formSlug: string, campaignToken?: string | null) =>
+      this.request<PublicFormConfig>(`/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}${campaignToken ? `?c=${encodeURIComponent(campaignToken)}` : ''}`, {}, false),
 
-    submitPublicForm: (agentSlug: string, formSlug: string, answers: { questionId: string; value: unknown }[]) =>
+    submitPublicForm: (
+      agentSlug: string,
+      formSlug: string,
+      answers: { questionId: string; value: unknown }[],
+      // Both optional and both new - session attribution is authoritative (see forms_service.py):
+      // sessionKey lets the submission inherit the campaign its FormViewSession was already
+      // attributed to; campaignToken is only a fallback used when no session exists at all.
+      opts?: { sessionKey?: string; campaignToken?: string | null },
+    ) =>
       this.request<{ success: boolean; message: string; submissionId?: string; redirectUrl?: string }>(
         `/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}/submit`,
-        { method: 'POST', body: JSON.stringify({ answers }) },
+        { method: 'POST', body: JSON.stringify({ answers, sessionKey: opts?.sessionKey, campaignToken: opts?.campaignToken }) },
         false,
       ),
 
-    trackFormProgress: (agentSlug: string, formSlug: string, data: { sessionKey: string; stepIndex: number; questionId?: string | null; completed?: boolean }) =>
+    // A visitor's own showing request (remembered on their device) - Pending or Confirmed.
+    getShowingStatus: (agentSlug: string, formSlug: string, submissionId: string) =>
+      this.request<ShowingStatus>(`/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}/showing/${encodeURIComponent(submissionId)}`, {}, false),
+
+    trackFormProgress: (agentSlug: string, formSlug: string, data: {
+      sessionKey: string; stepIndex: number; questionId?: string | null; completed?: boolean; campaignToken?: string | null
+      answers?: Record<string, unknown>; source?: string; device?: string; referrer?: string | null
+    }) =>
       this.request<{ success: boolean }>(
         `/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}/progress`,
-        { method: 'POST', body: JSON.stringify(data) },
+        // keepalive: the last ping is often sent as the page is closing
+        { method: 'POST', body: JSON.stringify(data), keepalive: true },
         false,
       ),
 
@@ -1365,17 +2163,167 @@ class ApiService {
     // Sends the auth token (if the visitor happens to be logged in) unlike the other public.*
     // calls - the backend uses it to skip counting a view for any logged-in viewer, so only
     // anonymous visitors count as real reads.
+    // A reader's question from an article's Contact Form block -> a lead for the agent.
+    submitBlogLead: (agentSlug: string, blogSlug: string, payload: { name: string; email?: string; phone?: string; message?: string }) =>
+      this.request<{ sent: boolean }>(`/studio/blogs/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(blogSlug)}/lead`, { method: 'POST', body: JSON.stringify(payload) }, false),
     getPublicBlog: (agentSlug: string, blogSlug: string) =>
       this.request<PublicBlogDetail>(`/studio/blogs/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(blogSlug)}`, {}, true),
 
-    trackBlogEvent: (agentSlug: string, blogSlug: string, eventType: 'link_click' | 'property_click' | 'contact_click' | 'video_play' | 'qr_scan' | 'lead_submit', meta?: Record<string, unknown>) =>
+    trackBlogEvent: (agentSlug: string, blogSlug: string, eventType: 'view' | 'link_click' | 'property_click' | 'contact_click' | 'video_play' | 'qr_scan' | 'lead_submit', meta?: Record<string, unknown>) =>
       this.request<null>(
         `/studio/blogs/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(blogSlug)}/event`,
-        { method: 'POST', body: JSON.stringify({ event_type: eventType, meta }) },
-        false,
+        { method: 'POST', body: JSON.stringify({ event_type: eventType, meta }), keepalive: true },
+        // Reads send the token (when there is one) so the agent opening their own article isn't counted.
+        eventType === 'view',
       ),
   };
+
+  // Agent tasks / follow-ups + the private calendar (.ics) feed. Backend: app/api/task_routes.py
+  public tasks = {
+    list: (opts?: { leadId?: string; includeDone?: boolean; bucket?: string }) => {
+      const p = new URLSearchParams();
+      if (opts?.leadId) p.set('lead_id', opts.leadId);
+      if (opts?.includeDone) p.set('include_done', 'true');
+      if (opts?.bucket) p.set('bucket', opts.bucket);
+      const q = p.toString();
+      return this.request<AgentTask[]>(`/tasks${q ? `?${q}` : ''}`);
+    },
+    counts: () => this.request<TaskCounts>('/tasks/counts'),
+    create: (data: TaskCreateInput) =>
+      this.request<AgentTask>('/tasks', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: TaskUpdateInput) =>
+      this.request<AgentTask>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    complete: (id: string) =>
+      this.request<AgentTask>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify({ completed: true }) }),
+    reopen: (id: string) =>
+      this.request<AgentTask>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify({ completed: false }) }),
+    remove: (id: string) => this.request<null>(`/tasks/${id}`, { method: 'DELETE' }),
+    calendarFeed: () => this.request<CalendarFeedInfo>('/tasks/calendar-feed'),
+    rotateCalendarFeed: () => this.request<CalendarFeedInfo>('/tasks/calendar-feed/rotate', { method: 'POST' }),
+    // Situations that create a follow-up automatically, each switchable per agent.
+    autoRules: () => this.request<FollowupSettings>('/tasks/auto-rules'),
+    // The calendar alert a situation makes, for a sample lead, with an unsaved message.
+    previewAlert: (key: string, body: { template?: string; pitch?: string; seller?: boolean }) =>
+      this.request<{ summary: string; description: string; all_day?: boolean }>(`/tasks/auto-rules/${encodeURIComponent(key)}/preview`, { method: 'POST', body: JSON.stringify(body) }),
+    setAutoRules: (body: { enabled?: boolean; rules?: Record<string, Partial<Pick<AutoFollowupRule, 'enabled' | 'when' | 'style' | 'template' | 'pitch' | 'seller_template'>>>; color?: string; alerts?: Partial<FollowupAlerts> }) =>
+      this.request<FollowupSettings>('/tasks/auto-rules', { method: 'PUT', body: JSON.stringify(body) }),
+    // One-tap "Mark as done" page linked from calendar events - no login, the code is the key.
+    publicGet: (code: string) => this.request<PublicFollowup>(`/public/followups/${encodeURIComponent(code)}`),
+    publicText: (code: string) => this.request<PublicFollowupText>(`/public/followups/${encodeURIComponent(code)}/text`),
+    publicDone: (code: string) => this.request<PublicFollowup>(`/public/followups/${encodeURIComponent(code)}/done`, { method: 'POST' }),
+    publicUndo: (code: string) => this.request<PublicFollowup>(`/public/followups/${encodeURIComponent(code)}/undo`, { method: 'POST' }),
+  };
+
+  /**
+   * The one-time setup flow (/setup) - see backend setup_routes.py. Answers are written where
+   * every feature already reads them; this only adds the flow's own bookkeeping.
+   */
+  public setup = {
+    get: () => this.request<SetupData>('/setup', { cache: 'no-store' }),
+    patchInfo: (patch: SetupInfoPatch) => this.request<SetupData>('/setup/info', { method: 'PATCH', body: JSON.stringify(patch) }),
+    setState: (body: { last_step?: string; skip?: string; unskip?: string; confirm?: string; seen?: string[] }) =>
+      this.request<SetupData>('/setup/state', { method: 'PUT', body: JSON.stringify(body) }),
+    uploadPhoto: (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return this.request<SetupData>('/setup/photo', { method: 'POST', body: formData })
+    },
+  };
+
+  /**
+   * Integrations - push new leads OUT to the agent's real CRM (FollowUpBoss / Lofty / kvCORE),
+   * and pull portal leads IN via a unique forwarding address (Zillow / Realtor.com / etc.).
+   */
+  public integrations = {
+    get: () => this.request<IntegrationsInfo>('/integrations'),
+    update: (data: {
+      crm_push_enabled: boolean
+      crm_webhook_url?: string | null
+      crm_parse_email?: string | null
+      crm_fub_api_key?: string | null
+    }) => this.request<IntegrationsInfo>('/integrations', { method: 'PUT', body: JSON.stringify(data) }),
+    testCrm: () => this.request<CrmTestResult>('/integrations/crm/test', { method: 'POST' }),
+    rotateInbound: () => this.request<IntegrationsInfo>('/integrations/inbound/rotate', { method: 'POST' }),
+    // Google Calendar: connect() returns the consent URL to send the browser to; the backend
+    // callback finishes the OAuth and redirects to /settings?calendar=connected#integrations.
+    googleConnectUrl: (back?: 'setup') => this.request<{ auth_url: string }>(`/integrations/google/connect${back ? `?back=${back}` : ''}`),
+    disconnectGoogle: () => this.request<IntegrationsInfo>('/integrations/google', { method: 'DELETE' }),
+    resyncGoogle: () => this.request<IntegrationsInfo>('/integrations/google/resync', { method: 'POST' }),
+    // Microsoft/Outlook Calendar - same shape as Google, a second provider on the same
+    // calendar_connections table.
+    microsoftConnectUrl: (back?: 'setup') => this.request<{ auth_url: string }>(`/integrations/microsoft/connect${back ? `?back=${back}` : ''}`),
+    disconnectMicrosoft: () => this.request<IntegrationsInfo>('/integrations/microsoft', { method: 'DELETE' }),
+    resyncMicrosoft: () => this.request<IntegrationsInfo>('/integrations/microsoft/resync', { method: 'POST' }),
+    // Send guest emails from the agent's own Gmail / Outlook (backend agent_mailbox_service).
+    mailbox: () => this.request<MailboxInfo>('/integrations/mailbox', { cache: 'no-store' }),
+    mailboxConnectUrl: (provider: 'google' | 'microsoft', back?: 'setup' | 'emails') =>
+      this.request<{ auth_url: string }>(`/integrations/mailbox/${provider}/connect${back ? `?back=${back}` : ''}`),
+    setMailboxEnabled: (enabled: boolean) => this.request<MailboxInfo>('/integrations/mailbox', { method: 'PUT', body: JSON.stringify({ enabled }) }),
+    testMailbox: () => this.request<MailboxInfo & { ok: boolean; detail: string }>('/integrations/mailbox/test', { method: 'POST' }),
+    disconnectMailbox: () => this.request<MailboxInfo>('/integrations/mailbox', { method: 'DELETE' }),
+  };
+}
+
+export type SetupStepId = 'about' | 'contact' | 'license' | 'photo' | 'story' | 'socials' | 'sales' | 'reviews' | 'brand' | 'hub' | 'signature' | 'alerts' | 'calendar' | 'mailbox' | 'crm' | 'areas' | 'homes' | 'website'
+export interface MailboxInfo {
+  connected: boolean
+  provider: 'google' | 'microsoft' | null
+  account_email: string | null
+  enabled: boolean
+  status: 'ok' | 'needs_reconnect' | null
+  last_sent_at: string | null
+  total_sent: number
+  last_error: string | null
+  google_available?: boolean
+  microsoft_available?: boolean
+}
+export interface SetupData {
+  plan: string | null
+  approved: boolean
+  has_mls: boolean
+  steps: { id: SetupStepId; status: 'done' | 'skipped' | 'todo'; required: boolean }[]
+  last_step: SetupStepId | null
+  seen: string[]
+  finished: boolean
+  complete: boolean
+  required_missing: SetupStepId[]
+  info: {
+    name: string; title: string; brokerage: string; team: string; market: string; about: string; licenseNumber: string
+    call: string; text: string; email: string; officePhone: string; officeAddress: string; linkedin: string
+    photoUrl: string; photoPosition: { x: number; y: number }
+  }
+  slug: string
+  social_links: { id: string; label?: string; url: string; enabled: boolean }[]
+  look: Record<string, string | boolean>
+  reviews: Record<string, any>
+}
+export interface SetupInfoPatch {
+  profile?: Partial<Record<'name' | 'title' | 'brokerage' | 'team' | 'market' | 'about' | 'licenseNumber', string>>
+  contact?: Partial<Record<'call' | 'text' | 'email', string>>
+  card?: Partial<Record<'officePhone' | 'officeAddress' | 'linkedin', string>>
+  socialLinks?: { id: string; label?: string; url: string; enabled?: boolean }[]
+  photoPosition?: { x: number; y: number }
+  look?: Record<string, string | boolean>
 }
 
 export const api = new ApiService();
 export default api;
+
+/** The IDX neighborhood pages an article can link to (GET /studio/blogs/linkable-areas). */
+export interface SeoPagesData {
+  agent: { name?: string; brokerage?: string; market?: string; phone?: string; title?: string; bio?: string }
+  areas: { slug: string; name: string; state?: string; photo?: string | null; median_price?: number | null; active_count?: number | null; school_districts?: string[]; summary?: string }[]
+  posts: { id: string; slug: string; title: string; subtitle?: string | null; seo_title?: string | null; meta_description?: string | null; is_indexed?: boolean; cover_image_url?: string | null; published_at?: string | null }[]
+  featured: { listing_key: string; address?: string; city?: string; state?: string; zipcode?: string; price?: number; bedrooms?: number; bathrooms?: number; living_area?: number; status?: string; photo?: string | null }[]
+  reviews: { count: number; average: number | null } | null
+  google_rating?: { count: number; average: number | null } | null
+  review_filter_on?: boolean
+  published: boolean
+}
+
+export interface LinkableAreas {
+  ready: boolean
+  reason: 'no_plan' | 'no_site' | 'site_off' | 'not_published' | 'no_areas' | null
+  site_url: string | null
+  areas: { slug: string; name: string; state?: string | null; photo?: string | null; median_price?: number | null; active_count?: number | null; url?: string | null }[]
+}

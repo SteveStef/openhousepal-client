@@ -1,7 +1,9 @@
 'use client'
 
+import Link from 'next/link'
 import { Notification } from '@/types'
-import { Calendar, Eye, Heart, X, Home, FileText, Inbox, CheckCircle2, XCircle } from 'lucide-react'
+import { Calendar, X } from 'lucide-react'
+import { getNotificationMeta } from '@/lib/notificationDisplay'
 
 // Helper function to format timestamps
 const formatTimestamp = (timestamp: string): string => {
@@ -34,89 +36,27 @@ export default function NotificationDropdown({
   onMarkAllAsRead,
   onNotificationClick
 }: NotificationDropdownProps) {
-  // Filter to only show unread notifications
-  const unreadNotifications = notifications.filter(n => !n.isRead)
-  const unreadCount = unreadNotifications.length
+  // History mailbox - every notification stays visible after being clicked/dismissed, newest
+  // first (already sorted server-side); unread ones are just highlighted until read.
+  const unreadCount = notifications.filter(n => !n.isRead).length
+  // The dropdown itself only ever shows the 10 most recent - the full history (up to 30 days,
+  // and everything older than that) lives on the /activity page via the link at the bottom.
+  const visibleNotifications = notifications.slice(0, 10)
+  const hasMore = notifications.length > visibleNotifications.length
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'OPEN_HOUSE_SIGN_IN':
-        return <Home className="w-4 h-4" />
-      case 'TOUR_REQUEST':
-        return <Calendar className="w-4 h-4" />
-      case 'PROPERTY_INTERACTION':
-        return <Heart className="w-4 h-4" />
-      case 'FORM_SUBMISSION':
-        return <FileText className="w-4 h-4" />
-      case 'HOST_REQUEST_RECEIVED':
-        return <Inbox className="w-4 h-4" />
-      case 'HOST_REQUEST_APPROVED':
-        return <CheckCircle2 className="w-4 h-4" />
-      case 'HOST_REQUEST_DECLINED':
-        return <XCircle className="w-4 h-4" />
-      default:
-        return <Eye className="w-4 h-4" />
-    }
-  }
-
-  const getTypeBadge = (type: string) => {
-    switch (type) {
-      case 'OPEN_HOUSE_SIGN_IN':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border border-green-200 dark:border-green-800">
-            {getTypeIcon(type)}
-            <span className="ml-1">New Visitor</span>
-          </span>
-        )
-      case 'TOUR_REQUEST':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800">
-            {getTypeIcon(type)}
-            <span className="ml-1">Tour Request</span>
-          </span>
-        )
-      case 'PROPERTY_INTERACTION':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
-            {getTypeIcon(type)}
-            <span className="ml-1">Property Activity</span>
-          </span>
-        )
-      case 'FORM_SUBMISSION':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#C9A24D]/15 dark:bg-[#C9A24D]/20 text-[#8b7355] dark:text-[#d7b974] border border-[#C9A24D]/30">
-            {getTypeIcon(type)}
-            <span className="ml-1">Form Submission</span>
-          </span>
-        )
-      case 'HOST_REQUEST_RECEIVED':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#C9A24D]/15 dark:bg-[#C9A24D]/20 text-[#8b7355] dark:text-[#d7b974] border border-[#C9A24D]/30">
-            {getTypeIcon(type)}
-            <span className="ml-1">Host Request</span>
-          </span>
-        )
-      case 'HOST_REQUEST_APPROVED':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border border-green-200 dark:border-green-800">
-            {getTypeIcon(type)}
-            <span className="ml-1">Request Approved</span>
-          </span>
-        )
-      case 'HOST_REQUEST_DECLINED':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
-            {getTypeIcon(type)}
-            <span className="ml-1">Request Declined</span>
-          </span>
-        )
-      default:
-        return null
-    }
+  const getTypeBadge = (type: string, message?: string, title?: string) => {
+    const { icon: Icon, label, className } = getNotificationMeta(type, message, title)
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${className}`}>
+        <Icon className="w-4 h-4" />
+        <span className="ml-1">{label}</span>
+      </span>
+    )
   }
 
         return (
-          <div className="fixed inset-x-0 top-[64px] mx-auto w-[95%] sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 bg-white dark:bg-[#151517] rounded-2xl sm:rounded-xl shadow-2xl border border-gray-200 dark:border-gray-800 z-[9999] overflow-hidden transition-colors duration-300">      {/* Header */}
+          <div className="fixed inset-x-0 top-[64px] mx-auto w-[95%] sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 bg-white dark:bg-[#151517] rounded-2xl sm:rounded-xl shadow-2xl border border-gray-200 dark:border-gray-800 z-[9999] overflow-hidden transition-colors duration-300">
+      {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0B0B0B]">
         <div>
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</h3>
@@ -144,21 +84,22 @@ export default function NotificationDropdown({
         </div>
       </div>
 
-      {/* Notifications List */}
+      {/* Notifications List - a history mailbox: everything stays here after being dismissed, so
+          this never truly empties out once there's been any activity. */}
       <div className="max-h-96 overflow-y-auto">
-        {unreadNotifications.length === 0 ? (
+        {notifications.length === 0 ? (
           <div className="p-8 text-center bg-white dark:bg-[#151517]">
             <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-3">
               <Calendar className="w-8 h-8 text-gray-400 dark:text-gray-500" />
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">No new notifications</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">No notifications yet</p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-              You're all caught up!
+              Activity will show up here.
             </p>
           </div>
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
-            {unreadNotifications.map((notification) => (
+            {visibleNotifications.map((notification) => (
               <div
                 key={notification.id}
                 onClick={() => {
@@ -168,7 +109,7 @@ export default function NotificationDropdown({
                   }
                 }}
                 className={`p-4 hover:bg-gray-50 dark:hover:bg-[#2c241b] cursor-pointer transition-colors ${
-                  !notification.isRead ? 'bg-blue-50/30 dark:bg-blue-900/10' : 'bg-white dark:bg-[#151517]'
+                  !notification.isRead ? 'bg-blue-50/30 dark:bg-blue-900/10' : 'bg-white dark:bg-[#151517] opacity-70'
                 }`}
               >
                 <div className="flex items-start space-x-3">
@@ -180,20 +121,24 @@ export default function NotificationDropdown({
                   )}
 
                   <div className="flex-1 min-w-0">
-                    {/* Visitor Name */}
+                    {/* Headline - backend sets a type-appropriate title for every notification,
+                        e.g. "New Open House Visitor: Jane Doe" or "New time confirmed" */}
                     <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                      {notification.visitorName}
+                      {notification.title}
                     </p>
 
                     {/* Type Badge */}
                     <div className="mt-1">
-                      {getTypeBadge(notification.type)}
+                      {getTypeBadge(notification.type, notification.message, notification.title)}
                     </div>
 
-                    {/* Property Address */}
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1.5 truncate">
-                      {notification.propertyAddress}
-                    </p>
+                    {/* Property Address - not every notification has one (e.g. forms with no
+                        address question, like Buying/Showing/How Can We Help) */}
+                    {notification.propertyAddress && (
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1.5 truncate">
+                        {notification.propertyAddress}
+                      </p>
+                    )}
 
                     {/* Message */}
                     <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
@@ -211,6 +156,16 @@ export default function NotificationDropdown({
           </div>
         )}
       </div>
+
+      {/* The dropdown itself is capped to the 10 most recent - this is the way to reach anything
+          beyond that (up to 30 days here; everything older lives on the Activity page too). */}
+      <Link
+        href="/activity"
+        onClick={onClose}
+        className="block border-t border-gray-200 p-3 text-center text-xs font-bold text-[#C9A24D] transition-colors hover:bg-gray-50 hover:text-[#b38e3e] dark:border-gray-800 dark:hover:bg-[#2c241b]"
+      >
+        {hasMore ? `View All Activity (${notifications.length})` : 'View All Activity'}
+      </Link>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import { ReactNode } from 'react'
 import { X } from 'lucide-react'
 
 interface ConfirmationModalProps {
@@ -12,6 +13,9 @@ interface ConfirmationModalProps {
   cancelText?: string
   confirmButtonClass?: string
   isLoading?: boolean
+  /** Extra content rendered between the message and the action buttons - e.g. the IDX domain
+   * notice on a "switch to IDX" confirmation, so it doesn't need its own separate modal. */
+  children?: ReactNode
 }
 
 export default function ConfirmationModal({
@@ -23,7 +27,8 @@ export default function ConfirmationModal({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   confirmButtonClass = 'bg-[#111827] hover:bg-[#C9A24D] text-white shadow-lg hover:shadow-[#C9A24D]/30',
-  isLoading = false
+  isLoading = false,
+  children
 }: ConfirmationModalProps) {
   if (!isOpen) return null
 
@@ -36,7 +41,7 @@ export default function ConfirmationModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-[#FAFAF7] rounded-[2rem] shadow-2xl max-w-lg w-full p-8 border border-white dark:bg-[#151517] dark:border-gray-800">
+      <div className="relative bg-[#FAFAF7] rounded-[2rem] shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-8 border border-white dark:bg-[#151517] dark:border-gray-800">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -52,9 +57,11 @@ export default function ConfirmationModal({
         </h3>
 
         {/* Message */}
-        <p className="text-[#6B7280] mb-8 font-medium leading-relaxed text-base dark:text-gray-300">
+        <p className={`text-[#6B7280] font-medium leading-relaxed text-base dark:text-gray-300 ${children ? 'mb-4' : 'mb-8'}`}>
           {message}
         </p>
+
+        {children && <div className="mb-8">{children}</div>}
 
         {/* Actions */}
         <div className="flex gap-4">

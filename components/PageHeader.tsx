@@ -1,49 +1,52 @@
 'use client'
 
-import Link from 'next/link'
-import { ArrowLeft, type LucideIcon } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import LuxeHero from '@/components/ui/LuxeHero'
 
-// Shared top-of-page header for every OpenHousePal tab - icon chip, title, subtitle, and an
-// optional back-link/actions row. Matches the Studio hub / Settings look, which is the style
-// every tab should converge on instead of each page rolling its own header.
+// Shared top-of-page header for every OpenHousePal tab - now the luxe "alive" header (LuxeHero):
+// the small gold kicker line, a serif title (wrap the last words in <em> for the gold italics), the
+// subtitle, and the page's own buttons/stats on the right. Every tool page that used the old plain
+// header picks this up automatically.
 export default function PageHeader({
-  icon: Icon, title, badge, subtitle, actions, backHref, backLabel, compact,
+  icon, title, badge, subtitle, actions, backHref, backLabel, noMargin, kicker, tabs, asideClassName, subtitleClassName, kickerNote,
 }: {
   icon: LucideIcon
-  title: string
+  title: React.ReactNode
   badge?: React.ReactNode
   subtitle: React.ReactNode
   actions?: React.ReactNode
   backHref?: string
   backLabel?: string
-  // Smaller title on mobile only (sm: and up are untouched) - for pages like Dash that pack a
-  // lot above the fold on a small screen. Off by default so every other page's header is unchanged.
+  // Kept for older callers - the luxe header sizes itself the same way everywhere.
   compact?: boolean
+  // Drops the default mb-5 - for a caller that spaces the header itself.
+  noMargin?: boolean
+  subtitleClassName?: string
+  /** The small gold line above the title (defaults to the title when it's plain text). */
+  kicker?: string
+  /** A LuxeTabs bar built into the bottom of the header. */
+  tabs?: React.ReactNode
+  /** Width/position of the right-hand column (buttons/stats) on desktop. */
+  asideClassName?: string
+  /** Small inline note/chip right after the kicker. */
+  kickerNote?: React.ReactNode
 }) {
   return (
-    <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex min-w-0 items-center gap-2.5">
-        {backHref && (
-          <Link
-            href={backHref}
-            title={backLabel ? `Back to ${backLabel}` : undefined}
-            className="shrink-0 rounded-full border border-gray-100 bg-white p-2 text-gray-500 shadow-sm transition-all hover:border-gray-200 hover:text-[#111827] dark:border-gray-800 dark:bg-[#151517] dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-white"
-          >
-            <ArrowLeft size={16} />
-          </Link>
-        )}
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#C9A24D]/10 text-[#C9A24D]">
-          <Icon size={18} />
-        </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className={`font-black leading-tight tracking-tight text-[#111827] dark:text-white ${compact ? 'text-2xl sm:text-4xl' : 'text-3xl sm:text-4xl'}`}>{title}</h1>
-            {badge}
-          </div>
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{subtitle}</p>
-        </div>
-      </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
-    </div>
+    <LuxeHero
+      compact
+      className={noMargin ? '' : 'mb-5'}
+      kicker={kicker || (typeof title === 'string' ? title : '')}
+      icon={icon}
+      title={title}
+      subtitle={subtitle}
+      badge={badge}
+      kickerNote={kickerNote}
+      backHref={backHref}
+      backLabel={backLabel}
+      tabs={tabs}
+      subtitleClassName={subtitleClassName}
+      aside={actions ? <div className="flex w-full flex-wrap items-center justify-center gap-2 lg:justify-end">{actions}</div> : undefined}
+      asideClassName={asideClassName || 'w-full lg:w-auto lg:max-w-[560px] lg:self-center'}
+    />
   )
 }

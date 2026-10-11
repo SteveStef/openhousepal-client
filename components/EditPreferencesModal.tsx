@@ -22,6 +22,7 @@ export default function EditPreferencesModal({
   onSave 
 }: EditPreferencesModalProps) {
   const googleAutocompleteRef = useRef<GooglePlacesAutocompleteRef>(null)
+  const locationSectionRef = useRef<HTMLDivElement>(null)
   const [formData, setFormData] = useState<CollectionPreferences>({
     min_beds: null,
     max_beds: null,
@@ -76,7 +77,7 @@ export default function EditPreferencesModal({
     
     // Must have either address or area filters
     if (!hasAddress && !hasAreaFilters) {
-      return { isValid: false, error: 'Please specify either an address with search diameter OR select cities/townships/school districts' }
+      return { isValid: false, error: 'Choose at least one search area or enter a destination address before saving.' }
     }
     
     return { isValid: true, error: '' }
@@ -137,6 +138,13 @@ export default function EditPreferencesModal({
         propertyTypes: hasValidPropertyTypes ? '' : 'Please select at least one property type'
       })
       setIsSubmitting(false)
+      // Neither section is visually distinguished from the other when both are empty, and the
+      // error text used to only render inside whichever section already had input (isUsingAddressSearch/
+      // isUsingAreaSearch) - meaning it silently rendered nowhere at all when neither was started. Scroll
+      // to and highlight the section unconditionally so a Save click always produces visible feedback.
+      if (!locationValidation.isValid) {
+        locationSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
       return
     }
 
@@ -147,9 +155,9 @@ export default function EditPreferencesModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-[#111827]/60 flex items-center justify-center z-50 p-4 transition-all duration-300 backdrop-blur-sm">
+    <div className="fixed inset-0 bg-[#111827]/60 flex items-center justify-center z-50 p-4 transition-all duration-300">
       <div className="bg-white dark:bg-[#151517] rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 max-w-4xl w-full max-h-[90vh] overflow-y-auto transform transition-all animate-scaleIn">
-        <div className="p-8 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white/95 dark:bg-[#151517]/95 backdrop-blur-md z-10">
+        <div className="p-8 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white/95 dark:bg-[#151517]/95 z-10">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-black text-[#0B0B0B] dark:text-white tracking-tight">Edit Search Preferences</h3>
@@ -277,8 +285,14 @@ export default function EditPreferencesModal({
                 </div>
               </div>
 
-              <div className="space-y-6">
-                <div className={`p-6 rounded-2xl border-2 transition-all ${isUsingAddressSearch() ? 'border-[#C9A24D] bg-[#FAFAF7] dark:bg-[#0B0B0B] shadow-md' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-[#151517]'}`}>
+              <div ref={locationSectionRef} className="space-y-6">
+                {validationErrors.location && (
+                  <p className="flex items-center rounded-xl border-2 border-red-400 bg-red-50 px-4 py-3 text-xs font-bold text-red-600 animate-fadeIn dark:border-red-500/60 dark:bg-red-500/10 dark:text-red-400">
+                    <svg className="mr-2 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    {validationErrors.location}
+                  </p>
+                )}
+                <div className={`p-6 rounded-2xl border-2 transition-all ${isUsingAddressSearch() ? 'border-[#C9A24D] bg-[#FAFAF7] dark:bg-[#0B0B0B] shadow-md' : validationErrors.location ? 'border-red-300 dark:border-red-500/40' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-[#151517]'}`}>
                   <div className="flex items-center justify-between mb-6">
                     <h5 className="text-md font-black text-[#0B0B0B] dark:text-white uppercase tracking-tight">Address-Based Search</h5>
                     {isUsingAddressSearch() && (
@@ -320,15 +334,9 @@ export default function EditPreferencesModal({
                       />
                     </div>
                   </div>
-                  {validationErrors.location && isUsingAddressSearch() && (
-                    <p className="mt-4 text-xs text-red-500 font-bold flex items-center animate-fadeIn">
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      {validationErrors.location}
-                    </p>
-                  )}
                 </div>
 
-                <div className={`p-6 rounded-2xl border-2 transition-all ${isUsingAreaSearch() ? 'border-[#C9A24D] bg-[#FAFAF7] dark:bg-[#0B0B0B] shadow-md' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-[#151517]'}`}>
+                <div className={`p-6 rounded-2xl border-2 transition-all ${isUsingAreaSearch() ? 'border-[#C9A24D] bg-[#FAFAF7] dark:bg-[#0B0B0B] shadow-md' : validationErrors.location ? 'border-red-300 dark:border-red-500/40' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-[#151517]'}`}>
                   <div className="flex items-center justify-between mb-6">
                     <h5 className="text-md font-black text-[#0B0B0B] dark:text-white uppercase tracking-tight">Area-Based Search</h5>
                     {isUsingAreaSearch() && (
@@ -363,12 +371,6 @@ export default function EditPreferencesModal({
                       disabled={isUsingAddressSearch()}
                     />
                   </div>
-                  {validationErrors.location && isUsingAreaSearch() && (
-                    <p className="mt-4 text-xs text-red-500 font-bold flex items-center animate-fadeIn">
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      {validationErrors.location}
-                    </p>
-                  )}
                 </div>
               </div>
             </div>

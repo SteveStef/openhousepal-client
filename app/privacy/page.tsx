@@ -1,19 +1,33 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import Footer from '@/components/Footer'
+import LegalDoc from '@/components/legal/LegalDoc'
+import { ShieldCheck } from 'lucide-react'
+import PageBackgroundGrid from '@/components/PageBackgroundGrid'
+import { ShieldBadge } from '@/components/home/LineArtMotifs'
 
 export default function PrivacyPage() {
+  // Drives the corner motif's one-time stroke draw-in (see components/home/LineArtMotifs.tsx) -
+  // a short delay after mount so it plays as a visible animation instead of appearing pre-drawn.
+  const [motifVisible, setMotifVisible] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setMotifVisible(true), 200)
+    return () => clearTimeout(t)
+  }, [])
+
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] dark:from-[#0B0B0B] dark:via-[#111111] dark:to-[#0B0B0B] transition-colors duration-300">
-      
+    <div className="min-h-screen flex flex-col relative z-0 bg-gradient-to-br from-[#faf9f7] via-white to-[#f5f4f2] dark:from-[#0B0B0B] dark:via-[#111111] dark:to-[#0B0B0B] transition-colors duration-300">
+      <PageBackgroundGrid />
+      <ShieldBadge
+        visible={motifVisible}
+        className="hidden lg:block absolute top-10 right-10 w-[170px] h-[170px] text-[#C9A24D] opacity-[0.2] dark:opacity-[0.26] -z-10"
+      />
 
       {/* Content */}
       <div className="flex-1">
-        <div className="max-w-4xl mx-auto px-6 py-12">
-          <div className="bg-white dark:bg-[#151517] rounded-2xl p-8 md:p-12 shadow-lg border border-gray-200 dark:border-gray-800 transition-colors duration-300">
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Privacy Policy</h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-8">Last Updated: October 21, 2025</p>
+          <LegalDoc kicker="Legal" icon={ShieldCheck} title={<>Privacy <em>Policy.</em></>} updated="October 6, 2026">
 
             <div className="prose prose-gray dark:prose-invert max-w-none space-y-6 text-gray-700 dark:text-gray-300">
               <section>
@@ -36,11 +50,14 @@ export default function PrivacyPage() {
                   <li><strong>Subscription Information:</strong> Payment details processed through PayPal (we do not store credit card information)</li>
                   <li><strong>Property Information:</strong> Property listings, addresses, descriptions, and photos you upload</li>
                   <li><strong>Communication Data:</strong> Messages you send us through support channels</li>
+                  <li><strong>Content You Create or Upload for AI Features:</strong> Property photos and media you upload for AI-assisted photo and video editing, listing facts and comparable-property data you submit for AI-generated valuations, and bio text, listing descriptions, or blog drafts you submit for AI-assisted writing or compliance review</li>
+                  <li><strong>Client Reviews:</strong> Reviews and ratings submitted about you by your clients through your public review page</li>
+                  <li><strong>Connected Account Data (Optional):</strong> If you choose to connect a Google or Microsoft account or a third-party CRM, we collect the account identifiers, tokens, and data necessary to operate that connection, as described in Section 4.6 below</li>
                 </ul>
 
                 <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3 mt-4">2.2 Visitor Data You Collect</h3>
                 <p>
-                  When you use our open house sign-in forms, you may collect information from property visitors. This information is stored in your account and you are the data controller for this information. Typical visitor data includes:
+                  When you use our open house sign-in forms and other lead forms, you may collect information from property visitors and other people who fill them out. This information is stored in your account and you are the data controller for this information. Typical visitor data includes:
                 </p>
                 <p className="mt-4">
                   OpenHousePal acts solely as a data processor with respect to visitor information collected through the Service and processes such data only on behalf of and under the instructions of the user.
@@ -49,7 +66,12 @@ export default function PrivacyPage() {
                   <li>Visitor names and contact information</li>
                   <li>Visit timestamps and property interests</li>
                   <li>Any additional information you choose to collect through custom forms</li>
+                  <li>Form activity, described below</li>
                 </ul>
+
+                <p className="mt-4">
+                  <strong>Form activity and unfinished responses.</strong> To help you understand how your forms perform, the Service records how people move through the forms you publish (including forms reached from a QR code on printed marketing). For each visit this includes: which questions were shown and how far the person got, the time of the visit, whether they arrived by QR code, a direct link, or your website, the general device type (phone, tablet, or computer), and the domain of the website that referred them, if any. Answers are saved as they are entered, <strong>including answers to a form that is never submitted</strong>, so you can see responses that were started but not finished. Answers and contact details from an unfinished response are automatically deleted after 90 days unless you choose to add that person to your Leads, in which case they become part of your Visitor Data. Visit counts and drop-off statistics are kept without those answers.
+                </p>
 
                 <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3 mt-4">2.3 Automatically Collected Information</h3>
                 <p>When you access our Service, we automatically collect certain information:</p>
@@ -57,6 +79,7 @@ export default function PrivacyPage() {
                   <li><strong>Device Information:</strong> IP address, browser type, operating system, device identifiers</li>
                   <li><strong>Usage Data:</strong> Pages visited, features used, time spent on the Service, click patterns</li>
                   <li><strong>Cookies and Tracking:</strong> Session cookies, analytics cookies, and preference cookies</li>
+                  <li><strong>Email Engagement:</strong> When an agent&apos;s client receives an email sent through the Service, we record whether it was delivered, opened (using a small image in the email) and whether its links were clicked. Agents see this for their own clients, and we use it to send fewer automatic emails to people who don&apos;t open them. Recipients can unsubscribe from any of these emails using the link at the bottom.</li>
                 </ul>
               </section>
 
@@ -79,12 +102,62 @@ export default function PrivacyPage() {
                 <p>We do not sell your personal information. We may share your information in the following circumstances:</p>
 
                 <ul className="list-disc pl-6 space-y-2 mt-2">
-                  <li><strong>Service Providers:</strong> With third-party vendors who perform services on our behalf (e.g., PayPal for payment processing, hosting providers, analytics services)</li>
+                  <li><strong>Service Providers:</strong> With third-party vendors who perform services on our behalf, including PayPal (payment processing), AWS (hosting, file storage, and content delivery), and Mailgun (transactional email and inbound email parsing)</li>
+                  <li><strong>AI Features:</strong> With AI providers as described in Section 4.5, solely to generate the output you request</li>
+                  <li><strong>Optional Integrations:</strong> With third-party services you affirmatively choose to connect, as described in Section 4.6</li>
                   <li><strong>Legal Requirements:</strong> When required by law, court order, or governmental authority</li>
                   <li><strong>Business Transfers:</strong> In connection with a merger, acquisition, or sale of assets</li>
                   <li><strong>Protection of Rights:</strong> To protect our rights, property, or safety, or that of our users</li>
                   <li><strong>With Your Consent:</strong> When you explicitly authorize us to share your information</li>
                 </ul>
+              </section>
+
+              <section>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">4.5 AI Features and Third-Party AI Processing</h2>
+                <p>
+                  The Service includes features that use artificial intelligence to generate content on your behalf. Depending on the feature you use, the relevant input data is sent to the following AI providers solely to produce the output you requested. These providers process the data under their own commercial and API-usage terms and do not use your data to train their general-purpose models:
+                </p>
+                <ul className="list-disc pl-6 space-y-2 mt-2">
+                  <li><strong>Anthropic (Claude models):</strong> Powers CMA AI valuations, the AI copywriting assistant, and the Fair Housing compliance checker. Inputs may include property facts, comparable-sale data, listing photos, and text you submit for drafting or review.</li>
+                  <li><strong>OpenAI:</strong> Powers AI photo editing in Design Studio (e.g., virtual staging, twilight and lights-on conversions, photo enhancement). Inputs are the property photos you upload.</li>
+                  <li><strong>fal.ai and Runway:</strong> Power AI video generation in Design Studio. Inputs are the property photos and prompts you provide.</li>
+                </ul>
+                <p className="mt-4">
+                  AI-generated content (valuations, descriptions, compliance flags, images, and video) is produced by automated models and may contain errors or inaccuracies. It is provided as a drafting aid, not professional appraisal, legal, or fair-housing advice, and you are responsible for reviewing it before use. See our <Link href="/terms" className="text-[#8b7355] hover:text-[#7a6549] dark:text-[#C9A24D] dark:hover:text-[#b08d42] transition-colors">Terms of Service</Link> for the full disclaimer.
+                </p>
+              </section>
+
+              <section>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">4.6 Optional Third-Party Integrations</h2>
+                <p>
+                  The following integrations are off by default and only activate if you choose to connect them:
+                </p>
+                <ul className="list-disc pl-6 space-y-2 mt-2">
+                  <li>
+                    <strong>Google Calendar:</strong> If you connect your Google account, we access only (a) a single calendar that the Service creates and manages on your behalf, so we can create, update, and remove your open house and follow-up events, (b) free/busy availability windows on your other calendars so we can avoid scheduling conflicts (we do not see the titles, descriptions, or attendees of those other events), and (c) your Google account email and basic profile identifier to link the connection to your account. We do not access your contacts or any other Google data. You can disconnect this integration at any time in Settings, which revokes our access.
+                  </li>
+                  <li>
+                    <strong>Send From Your Own Email (Gmail or Outlook):</strong> If you choose to connect your Gmail or Outlook account for sending, then with your permission we send the emails you set up for your own clients (such as Showcase invitations and updates, tour confirmations, and replies) from your account, so they come from your address and appear in your Sent folder. We request send-only access (Google&apos;s gmail.send scope or Microsoft&apos;s Mail.Send permission) plus your account email address. We never read, search, delete, or store the contents of your mailbox, and we do not see your other emails or contacts. You can disconnect at any time in Tools → Integrations, which revokes our access; emails then go out through OpenHousePal instead.
+                  </li>
+                  <li>
+                    <strong>Microsoft Outlook Calendar:</strong> If you connect a Microsoft account, we create and manage a single OpenHousePal calendar in it for your open house and follow-up events. We do not read or change your other calendars, and you can disconnect at any time in Settings.
+                  </li>
+                  <li>
+                    <strong>CRM Integrations (e.g., Follow Up Boss):</strong> If you provide an API key, webhook URL, or forwarding email for a CRM of your choice, we send captured lead information (name, email, phone, source, message, property address, and timestamp) to that third-party CRM on your behalf. That provider's own privacy policy and terms govern its handling of the data once received.
+                  </li>
+                  <li>
+                    <strong>Inbound Portal Lead Email:</strong> If you set up email forwarding to your unique Service inbox, we use Mailgun to receive and parse leads forwarded from real estate portals (such as Zillow, Realtor.com, Homes.com, Redfin, or Facebook) into your account.
+                  </li>
+                  <li>
+                    <strong>Google Places:</strong> Used to look up nearby amenities for property listings and, if you choose to import them, to pull your existing public Google Business reviews into the Service. This sends your business's Place ID to Google's Places API.
+                  </li>
+                  <li>
+                    <strong>Bright MLS:</strong> If your account includes MLS-connected features, we pull property and listing data from Bright MLS under our IDX license. This is one-directional; no personal data about you or your visitors is sent to Bright MLS.
+                  </li>
+                </ul>
+                <p className="mt-4">
+                  Our use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="text-[#8b7355] hover:text-[#7a6549] dark:text-[#C9A24D] dark:hover:text-[#b08d42] transition-colors">Google API Services User Data Policy</a>, including the Limited Use requirements. Data obtained through Google APIs is used only to provide the calendar-sync and send-from-your-own-email features described above, is never used to train AI models, is never used for advertising, is never sold, and is not shared with third parties except as necessary to provide the feature, comply with the law, or with your explicit consent.
+                </p>
               </section>
 
               <section>
@@ -95,7 +168,8 @@ export default function PrivacyPage() {
                 <ul className="list-disc pl-6 space-y-2 mt-2">
                   <li>Obtaining necessary consents from visitors before collecting their information</li>
                   <li>Complying with applicable privacy laws (e.g., GDPR, CCPA)</li>
-                  <li>Providing visitors with notice about how their data will be used</li>
+                  <li>Providing visitors with notice about how their data will be used, including that answers entered into your forms may be saved before they are submitted</li>
+                  <li>Contacting people who did not finish a form respectfully and in line with applicable marketing and privacy laws</li>
                   <li>Responding to visitor requests regarding their data (access, deletion, etc.)</li>
                   <li>Maintaining appropriate security measures for visitor data</li>
                   <li>Using visitor data only for legitimate real estate business purposes</li>
@@ -142,6 +216,7 @@ export default function PrivacyPage() {
                 <ul className="list-disc pl-6 space-y-2 mt-2">
                   <li><strong>Account Data:</strong> Retained while your account is active and for a reasonable period after cancellation</li>
                   <li><strong>Visitor Data:</strong> Retained based on your settings and data management practices</li>
+                  <li><strong>Unfinished Form Responses:</strong> Answers and contact details from a form that was started but never submitted are deleted automatically after 90 days, unless you add that person to your Leads</li>
                   <li><strong>Transaction Records:</strong> Retained for accounting and legal compliance purposes (typically 7 years)</li>
                   <li><strong>Analytics Data:</strong> Aggregated data may be retained indefinitely in anonymized form</li>
                 </ul>
@@ -245,8 +320,7 @@ export default function PrivacyPage() {
                 </Link>
               </div>
             </div>
-          </div>
-        </div>
+          </LegalDoc>
       </div>
 
       <Footer />

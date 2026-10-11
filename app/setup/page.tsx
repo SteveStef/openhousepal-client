@@ -1,0 +1,492 @@
+'use client'
+
+// The one-time setup flow. One question group per screen, in plain words, with what it powers and
+// what skipping costs. Everything saves as it's typed, and the step they were on is remembered.
+// Steps come from the backend for the agent's plan (setup_flow_service.py); answers are written
+// where each feature already reads them, so the flow and the features never disagree.
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ArrowLeft, ArrowRight, Check, ChevronDown, CircleAlert, Clock3, ExternalLink, Info, Loader2, Sparkles, X } from 'lucide-react'
+import api, { type SetupData, type SetupInfoPatch, type SetupStepId } from '@/lib/api-service'
+import { useAuth } from '@/contexts/AuthContext'
+import { stepCopy } from '@/lib/setupFlow'
+import { OhpWordmark } from '@/components/brand/OhpBrand'
+import OhpLoader from '@/components/brand/OhpLoader'
+import type { Gate, StepCtx } from '@/components/setup/SetupUi'
+import { AboutStep, ContactStep, LicenseStep, PhotoStep, SocialsStep, StoryStep } from '@/components/setup/InfoSteps'
+import { BrandStep, HubStep, ReviewsStep, SalesStep, SignatureStep } from '@/components/setup/FeatureSteps'
+import { AlertsStep, AreasStep, CalendarStep, CrmStep, HomesStep, MailboxStep, WebsiteStep } from '@/components/setup/ConnectSteps'
+
+const STEP_VIEWS: Record<SetupStepId, (p: { ctx: StepCtx }) => React.ReactElement> = {
+  about: AboutStep, contact: ContactStep, license: LicenseStep, photo: PhotoStep, story: StoryStep, socials: SocialsStep,
+  sales: SalesStep, reviews: ReviewsStep, brand: BrandStep, hub: HubStep, signature: SignatureStep,
+  alerts: AlertsStep, calendar: CalendarStep, mailbox: MailboxStep, crm: CrmStep, areas: AreasStep, homes: HomesStep, website: WebsiteStep,
+}
+const GROUPS: { title: string; ids: SetupStepId[] }[] = [
+  { title: 'About you', ids: ['about', 'contact', 'license', 'photo', 'story', 'socials'] },
+  { title: 'Your pages', ids: ['sales', 'reviews', 'brand', 'hub', 'signature'] },
+  { title: 'Staying in touch', ids: ['alerts', 'calendar', 'mailbox', 'crm'] },
+  { title: 'Your website', ids: ['areas', 'homes', 'website'] },
+]
+
+function mergePatch(a: SetupInfoPatch, b: SetupInfoPatch): SetupInfoPatch {
+  return {
+    ...a, ...b,
+    profile: a.profile || b.profile ? { ...a.profile, ...b.profile } : undefined,
+    contact: a.contact || b.contact ? { ...a.contact, ...b.contact } : undefined,
+    card: a.card || b.card ? { ...a.card, ...b.card } : undefined,
+    look: a.look || b.look ? { ...a.look, ...b.look } : undefined,
+  }
+}
+
+export default function SetupPage() {
+  return <Suspense fallback={<OhpLoader />}><SetupFlow /></Suspense>
+}
+
+function SetupFlow() {
+  const router = useRouter()
+  const params = useSearchParams()
+  const { user, isAuthenticated, isLoading } = useAuth()
+  const [data, setData] = useState<SetupData | null>(null)
+  const [loadError, setLoadError] = useState(false)
+  const [current, setCurrent] = useState<SetupStepId | 'done' | null>(null)
+  const [saving, setSaving] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [gateMsg, setGateMsg] = useState('')
+  const [shake, setShake] = useState(0)
+  const [advancing, setAdvancing] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [notice, setNotice] = useState('')
+  const [newIds, setNewIds] = useState<string[]>([])
+  const gate = useRef<Gate>({ ok: true })
+  const pending = useRef<SetupInfoPatch | null>(null)
+  const timer = useRef<number | undefined>(undefined)
+  const inflight = useRef<Promise<unknown> | null>(null)
+  const savedTimer = useRef<number | undefined>(undefined)
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) router.replace('/login?redirect=/setup')
+  }, [isLoading, isAuthenticated, router])
+
+  // first load: pick the step (URL > where they left off > first unfinished)
+  useEffect(() => {
+    if (!isAuthenticated) return
+    api.setup.get().then(r => {
+      if (!r.success || !r.data) { setLoadError(true); return }
+      const d = r.data
+      setData(d)
+      const ids = d.steps.map(s => s.id)
+      const fresh = d.seen.length ? d.steps.filter(s => s.status === 'todo' && !d.seen.includes(s.id)).map(s => s.id) : []
+      setNewIds(fresh)
+      api.setup.setState({ seen: ids })
+      const want = params.get('step') as SetupStepId | null
+      const start = (want && ids.includes(want) ? want : null)
+        || (fresh[0] as SetupStepId | undefined)
+        || (d.last_step && d.steps.find(s => s.id === d.last_step && s.status !== 'done') ? d.last_step : null)
+        || d.steps.find(s => s.status === 'todo')?.id
+        || d.steps.find(s => s.status === 'skipped')?.id
+        || 'done'
+      setCurrent(start)
+      if (start !== 'done' && params.get('step') !== start) router.replace(`/setup?step=${start}`, { scroll: false })
+      const cal = params.get('calendar')
+      if (cal === 'connected') setNotice('Your calendar is connected.')
+      if (cal === 'error') setNotice('That calendar didn’t connect - please try again.')
+      const mb = params.get('mailbox')
+      if (mb === 'connected') setNotice('Your email is connected - guest emails will now come from you.')
+      if (mb === 'error') setNotice('Your email didn’t connect - please try again, and allow the "send email" permission.')
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated])
+
+  const flashSaved = () => {
+    setSaving('saved')
+    window.clearTimeout(savedTimer.current)
+    savedTimer.current = window.setTimeout(() => setSaving('idle'), 2200)
+  }
+  const flush = useCallback(async () => {
+    window.clearTimeout(timer.current)
+    if (inflight.current) await inflight.current.catch(() => {})
+    const patch = pending.current
+    if (!patch) return
+    pending.current = null
+    setSaving('saving')
+    const p = api.setup.patchInfo(patch).then(r => {
+      if (r.success && r.data) { setData(r.data); flashSaved() } else setSaving('error')
+    })
+    inflight.current = p
+    await p
+    inflight.current = null
+  }, [])
+  const saveInfo = useCallback((patch: SetupInfoPatch) => {
+    pending.current = mergePatch(pending.current || {}, patch)
+    setSaving('saving')
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(flush, 650)
+  }, [flush])
+  const markSaving = useCallback((p: Promise<unknown>) => {
+    setSaving('saving')
+    p.then(flashSaved, () => setSaving('error'))
+  }, [])
+  // never lose typing when they close the tab
+  useEffect(() => {
+    const h = (e: BeforeUnloadEvent) => { if (pending.current) { flush(); e.preventDefault() } }
+    window.addEventListener('beforeunload', h)
+    return () => window.removeEventListener('beforeunload', h)
+  }, [flush])
+
+  const refresh = useCallback(async () => {
+    const r = await api.setup.get()
+    if (r.success && r.data) setData(r.data)
+    return r.data
+  }, [])
+
+  const ids = useMemo(() => (data?.steps || []).map(s => s.id), [data])
+  const goTo = useCallback((id: SetupStepId | 'done') => {
+    setGateMsg('')
+    gate.current = { ok: true }
+    setCurrent(id)
+    setSheetOpen(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    const qs = id === 'done' ? '' : `?step=${id}`
+    router.replace(`/setup${qs}`, { scroll: false })
+    if (id !== 'done') api.setup.setState({ last_step: id })
+  }, [router])
+
+  const nextOf = (id: SetupStepId): SetupStepId | 'done' => {
+    const i = ids.indexOf(id)
+    return (ids[i + 1] as SetupStepId) || 'done'
+  }
+  const onContinue = async () => {
+    if (!current || current === 'done' || advancing) return
+    setAdvancing(true)
+    try {
+      await flush()
+      const g = gate.current
+      if (!g.ok) { setGateMsg(g.message || 'Please finish this step first.'); setShake(s => s + 1); return }
+      if (g.onContinue) {
+        const res = await g.onContinue()
+        if (res === false) { setGateMsg(g.message || 'Something didn’t save - please check and try again.'); setShake(s => s + 1); return }
+      }
+      await api.setup.setState({ unskip: current })
+      await refresh()
+      goTo(nextOf(current))
+    } finally {
+      setAdvancing(false)
+    }
+  }
+  const onSkip = async () => {
+    if (!current || current === 'done') return
+    await flush()
+    const r = await api.setup.setState({ skip: current })
+    if (r.success && r.data) setData(r.data)
+    goTo(nextOf(current))
+  }
+  const onBack = () => {
+    if (!current) return
+    const i = current === 'done' ? ids.length : ids.indexOf(current)
+    if (i > 0) goTo(ids[i - 1] as SetupStepId)
+  }
+
+  const ctx: StepCtx | null = data ? {
+    data, setData, saveInfo, markSaving, plan: data.plan,
+    setGate: (g: Gate) => { gate.current = g; if (g.ok) setGateMsg('') },
+  } : null
+
+  if (isLoading || (!data && !loadError) || !current) return <OhpLoader />
+  if (loadError || !data || !ctx) {
+    return <div className="flex min-h-screen items-center justify-center p-6 text-center"><div><p className="text-lg font-black">We couldn&apos;t load your setup.</p><button onClick={() => window.location.reload()} className="mt-4 rounded-2xl bg-[#111827] px-6 py-3 font-black text-white">Try again</button></div></div>
+  }
+
+  const doneCount = data.steps.filter(s => s.status === 'done').length
+  const total = data.steps.length
+  const pct = Math.round((doneCount / Math.max(1, total)) * 100)
+  const stepIndex = current === 'done' ? total : ids.indexOf(current)
+  const step = current !== 'done' ? data.steps.find(s => s.id === current)! : null
+  const copy = step ? stepCopy(step.id, data.plan, data.has_mls) : null
+  const View = step ? STEP_VIEWS[step.id] : null
+  const firstName = (data.info.name || user?.first_name || '').split(' ')[0]
+
+  const stepList = (
+    <nav aria-label="Setup steps" className="space-y-6">
+      {GROUPS.map(g => {
+        const items = data.steps.filter(s => g.ids.includes(s.id))
+        if (!items.length) return null
+        return (
+          <div key={g.title}>
+            <p className="mb-2 px-3 text-[10px] font-black uppercase tracking-[0.26em] text-[#8b7355] dark:text-[#d7b974]">{g.title}</p>
+            <ul className="space-y-1">
+              {items.map(s => {
+                const c = stepCopy(s.id, data.plan, data.has_mls)
+                const on = s.id === current
+                return (
+                  <li key={s.id}>
+                    <button type="button" onClick={() => goTo(s.id)} aria-current={on ? 'step' : undefined} className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition ${on ? 'bg-[#111827] text-white shadow-[0_14px_30px_-18px_rgba(17,24,39,.9)] dark:bg-white dark:text-[#111827]' : 'text-[#111827] hover:bg-white/80 dark:text-white dark:hover:bg-white/5'}`}>
+                      <StatusDot status={s.status} on={on} />
+                      <span className="min-w-0 flex-1 truncate text-[14.5px] font-bold">{c.label}</span>
+                      {newIds.includes(s.id) && <span className="rounded-full bg-[#C9A24D] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">New</span>}
+                      {s.status === 'skipped' && !on && <span className="text-[11px] font-bold text-gray-400">Skipped</span>}
+                      {s.required && s.status !== 'done' && !on && <span className="text-[11px] font-black text-[#a8803a]">Needed</span>}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )
+      })}
+    </nav>
+  )
+
+  return (
+    <div className="relative min-h-screen overflow-x-clip bg-[#f6f2ea] text-[#111827] dark:bg-[#09090a] dark:text-white">
+      <SetupBackdrop />
+      {/* top bar */}
+      <header className="sticky top-0 z-40 border-b border-[#C9A24D]/15 bg-[#fbf8f2]/85 dark:border-white/[0.06] dark:bg-[#0c0c0d]/80">
+        <div className="mx-auto flex h-16 max-w-[1220px] items-center gap-3 px-4 sm:px-6">
+          <Link href={data.approved && data.plan ? '/dash' : '#'} aria-label="OpenHousePal" className="shrink-0"><OhpWordmark className="text-[22px]" /></Link>
+          <span className="hidden h-6 w-px bg-[#C9A24D]/30 sm:block" />
+          <span className="hidden text-[12px] font-black uppercase tracking-[0.24em] text-[#8b7355] dark:text-[#d7b974] sm:block">Account setup</span>
+          <div className="ml-auto flex items-center gap-2">
+            <SavePill state={saving} />
+            {data.approved && data.plan
+              ? <Link href="/dash" onClick={() => flush()} className="rounded-full border border-[#C9A24D]/40 bg-white/80 px-4 py-2 text-[13px] font-black text-[#111827] transition hover:border-[#C9A24D] dark:border-white/15 dark:bg-white/5 dark:text-white">Finish later</Link>
+              : <Link href={data.approved ? '/checkout' : '/broker-authorization'} onClick={() => flush()} className="rounded-full border border-[#C9A24D]/40 bg-white/80 px-4 py-2 text-[13px] font-black text-[#111827] dark:border-white/15 dark:bg-white/5 dark:text-white">Finish later</Link>}
+          </div>
+        </div>
+        <div className="h-[3px] bg-[#C9A24D]/12">
+          <motion.div className="h-full bg-gradient-to-r from-[#a8803a] via-[#C9A24D] to-[#e8c97a]" initial={false} animate={{ width: `${pct}%` }} transition={{ type: 'spring', stiffness: 120, damping: 24 }} />
+        </div>
+      </header>
+
+      <div className="relative mx-auto max-w-[1220px] px-4 pb-40 pt-6 sm:px-6 lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-10 lg:pt-10">
+        {/* step list - desktop */}
+        <aside className="hidden lg:block">
+          <div className="sticky top-24 rounded-[28px] border border-[#C9A24D]/20 bg-white/60 p-4 shadow-[0_30px_60px_-46px_rgba(139,106,43,.8)] dark:border-white/[0.07] dark:bg-white/[0.03]">
+            <div className="mb-5 flex items-center gap-4 px-2 pt-1">
+              <ProgressRing pct={pct} />
+              <div>
+                <p className="font-serif text-[22px] font-black leading-none">{doneCount} of {total}</p>
+                <p className="mt-1 text-[12.5px] font-bold text-gray-500 dark:text-gray-400">steps finished</p>
+              </div>
+            </div>
+            {stepList}
+          </div>
+        </aside>
+
+        <main className="min-w-0">
+          {!data.approved && (
+            <div className="mb-5 flex items-start gap-3 rounded-[22px] border border-[#C9A24D]/30 bg-white/80 p-4 dark:bg-white/[0.04]">
+              <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-[#C9A24D]" />
+              <p className="text-[14.5px] font-semibold leading-snug">While we wait for your broker&apos;s approval, get a head start. Everything you add here is ready the moment you&apos;re approved.</p>
+            </div>
+          )}
+          {notice && (
+            <div className="mb-5 flex items-center gap-3 rounded-[22px] border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+              <Check className="h-5 w-5 shrink-0" /><p className="flex-1 text-[14.5px] font-bold">{notice}</p>
+              <button onClick={() => setNotice('')} aria-label="Close"><X className="h-4 w-4" /></button>
+            </div>
+          )}
+
+          {/* phone: where am I + all steps */}
+          <button type="button" onClick={() => setSheetOpen(true)} className="mb-4 flex w-full items-center gap-3 rounded-[20px] border border-[#C9A24D]/25 bg-white/80 px-4 py-3 text-left shadow-sm lg:hidden dark:border-white/10 dark:bg-white/[0.04]">
+            <ProgressRing pct={pct} small />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[11px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974]">{current === 'done' ? 'All steps' : `Step ${stepIndex + 1} of ${total}`}</span>
+              <span className="block truncate text-[15px] font-black">{copy ? copy.label : 'Finished'} · {doneCount} done</span>
+            </span>
+            <span className="inline-flex items-center gap-1 text-[13px] font-black text-[#8b6a2b] dark:text-[#e8c97a]">All steps <ChevronDown className="h-4 w-4" /></span>
+          </button>
+
+          <AnimatePresence mode="wait">
+            {current === 'done' ? (
+              <motion.div key="done" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.4 }}>
+                <Finale data={data} firstName={firstName} onGo={goTo} />
+              </motion.div>
+            ) : step && copy && View ? (
+              <motion.section key={step.id} initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -28 }} transition={{ type: 'spring', stiffness: 260, damping: 30 }}
+                className="overflow-clip rounded-[32px] border border-[#C9A24D]/25 bg-white shadow-[0_50px_90px_-60px_rgba(139,106,43,.85)] dark:border-white/[0.08] dark:bg-[#121214]">
+                {/* step header */}
+                <div className="relative overflow-hidden border-b border-[#C9A24D]/15 bg-gradient-to-br from-[#fffaf0] via-white to-[#f8f1e2] px-6 pb-7 pt-7 dark:border-white/[0.06] dark:from-[#1a1712] dark:via-[#141416] dark:to-[#121214] sm:px-10 sm:pt-9">
+                  <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[#e8c97a]/30 blur-3xl dark:bg-[#C9A24D]/15" />
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/70 to-transparent" />
+                  <div className="relative flex items-start gap-5">
+                    <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-[0_18px_34px_-16px_rgba(17,24,39,.9)] ring-1 ring-[#C9A24D]/40 max-sm:h-12 max-sm:w-12 max-sm:rounded-2xl">
+                      <copy.icon className="h-7 w-7 max-sm:h-6 max-sm:w-6" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-[0.26em] text-[#8b7355] dark:text-[#d7b974]">
+                        Step {stepIndex + 1} of {total}
+                        {step.required ? <span className="rounded-full bg-[#111827] px-2 py-0.5 text-[9px] tracking-wider text-[#e8c97a] dark:bg-[#C9A24D] dark:text-[#111827]">Needed</span> : <span className="rounded-full border border-[#C9A24D]/40 px-2 py-0.5 text-[9px] tracking-wider">Can skip</span>}
+                        {newIds.includes(step.id) && <span className="rounded-full bg-[#C9A24D] px-2 py-0.5 text-[9px] tracking-wider text-white">New for your plan</span>}
+                        {step.status === 'done' && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] tracking-wider text-white"><Check className="h-3 w-3" /> Done</span>}
+                      </p>
+                      <h1 className="mt-2 font-serif text-[30px] font-black leading-[1.05] tracking-tight sm:text-[40px]">
+                        {copy.title[0]}<em className="bg-gradient-to-r from-[#a8803a] via-[#C9A24D] to-[#d9b867] bg-clip-text font-black italic text-transparent">{copy.title[1]}</em>
+                      </h1>
+                      <p className="mt-3 max-w-2xl text-[16.5px] font-medium leading-relaxed text-gray-600 dark:text-gray-300">{copy.intro}</p>
+                    </div>
+                  </div>
+                  {copy.powers.length > 0 && (
+                    <div className="relative mt-6 flex flex-wrap items-center gap-2">
+                      <span className="mr-1 text-[12px] font-black text-gray-500 dark:text-gray-400">Shows up on:</span>
+                      {copy.powers.map(p => <span key={p} className="inline-flex items-center gap-1.5 rounded-full border border-[#C9A24D]/35 bg-white/90 px-3 py-1.5 text-[12.5px] font-bold text-[#111827] dark:border-white/10 dark:bg-white/[0.05] dark:text-white"><Check className="h-3.5 w-3.5 text-[#C9A24D]" />{p}</span>)}
+                    </div>
+                  )}
+                </div>
+
+                {/* step body */}
+                <div className="px-6 py-8 sm:px-10 sm:py-10">
+                  <View ctx={ctx} />
+                  {copy.skip && !step.required && (
+                    <p className="mt-8 flex items-start gap-2.5 rounded-2xl bg-[#f7f3ea] px-4 py-3 text-[14px] font-semibold text-gray-600 dark:bg-white/[0.04] dark:text-gray-300">
+                      <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#a8803a]" /><span><b className="text-[#111827] dark:text-white">If you skip this:</b> {copy.skip}</span>
+                    </p>
+                  )}
+                </div>
+              </motion.section>
+            ) : null}
+          </AnimatePresence>
+        </main>
+      </div>
+
+      {/* bottom bar */}
+      {current !== 'done' && step && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#C9A24D]/20 bg-[#fbf8f2]/90 pb-[env(safe-area-inset-bottom)] dark:border-white/[0.07] dark:bg-[#0c0c0d]/90">
+          <AnimatePresence>
+            {gateMsg && (
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mx-auto max-w-[1220px] px-4 pt-3 sm:px-6 lg:pl-[326px]">
+                <motion.p key={shake} animate={{ x: [0, -8, 8, -5, 5, 0] }} transition={{ duration: 0.4 }} className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-4 py-2 text-[14px] font-bold text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"><CircleAlert className="h-4 w-4" /> {gateMsg}</motion.p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <div className="mx-auto flex max-w-[1220px] items-center gap-2 px-4 py-3 sm:gap-3 sm:px-6 lg:pl-[326px]">
+            <button type="button" onClick={onBack} disabled={stepIndex === 0} className="inline-flex h-14 items-center gap-2 rounded-2xl px-3 text-[15px] font-black text-gray-600 transition hover:bg-black/5 disabled:opacity-30 dark:text-gray-300 dark:hover:bg-white/5 sm:px-5">
+              <ArrowLeft className="h-5 w-5" /> <span className="max-sm:sr-only">Back</span>
+            </button>
+            <div className="flex-1" />
+            {!step.required && step.status !== 'done' && (
+              <button type="button" onClick={onSkip} className="h-14 rounded-2xl px-4 text-[15px] font-black text-gray-500 underline-offset-4 transition hover:text-[#111827] hover:underline dark:text-gray-400 dark:hover:text-white sm:px-5">Skip for now</button>
+            )}
+            <button type="button" onClick={onContinue} disabled={advancing} className="group inline-flex h-14 items-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#111827] to-[#2a2218] px-7 text-[17px] font-black text-white shadow-[0_18px_34px_-16px_rgba(17,24,39,.9)] ring-1 ring-[#C9A24D]/40 transition hover:-translate-y-0.5 disabled:opacity-70 dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827] sm:px-9">
+              {advancing ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+              {stepIndex === total - 1 ? 'Finish' : 'Continue'}
+              {!advancing && <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* phone: all steps sheet */}
+      <AnimatePresence>
+        {sheetOpen && (
+          <motion.div className="fixed inset-0 z-50 lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="absolute inset-0 bg-black/40 " onClick={() => setSheetOpen(false)} />
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 34 }} className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-[30px] bg-[#fbf8f2] p-5 pb-10 dark:bg-[#121214]">
+              <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-300 dark:bg-white/20" />
+              <div className="mb-4 flex items-center justify-between px-2">
+                <p className="font-serif text-[22px] font-black">{doneCount} of {total} finished</p>
+                <button onClick={() => setSheetOpen(false)} aria-label="Close" className="rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/5"><X className="h-5 w-5" /></button>
+              </div>
+              {stepList}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function StatusDot({ status, on }: { status: string; on: boolean }) {
+  if (status === 'done') return <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#a8803a] to-[#e8c97a] text-white shadow-sm"><Check className="h-3.5 w-3.5" strokeWidth={3} /></span>
+  if (status === 'skipped') return <span className={`h-6 w-6 shrink-0 rounded-full border-2 border-dashed ${on ? 'border-white/60 dark:border-[#111827]/50' : 'border-gray-300 dark:border-white/25'}`} />
+  return <span className={`h-6 w-6 shrink-0 rounded-full border-2 ${on ? 'border-[#e8c97a] dark:border-[#a8803a]' : 'border-[#d9cdb3] dark:border-white/25'}`} />
+}
+
+function ProgressRing({ pct, small = false }: { pct: number; small?: boolean }) {
+  const size = small ? 40 : 58
+  const r = small ? 16 : 24
+  const c = 2 * Math.PI * r
+  return (
+    <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(201,162,77,.18)" strokeWidth={small ? 4 : 5} />
+        <motion.circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="url(#setupRing)" strokeWidth={small ? 4 : 5} strokeLinecap="round" strokeDasharray={c} initial={false} animate={{ strokeDashoffset: c * (1 - pct / 100) }} transition={{ type: 'spring', stiffness: 90, damping: 20 }} />
+        <defs><linearGradient id="setupRing" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#8b6a2b" /><stop offset="60%" stopColor="#C9A24D" /><stop offset="100%" stopColor="#e8c97a" /></linearGradient></defs>
+      </svg>
+      <span className={`absolute font-black ${small ? 'text-[10px]' : 'text-[13px]'}`}>{pct}%</span>
+    </span>
+  )
+}
+
+function SavePill({ state }: { state: 'idle' | 'saving' | 'saved' | 'error' }) {
+  if (state === 'idle') return <span className="hidden text-[12px] font-bold text-gray-400 sm:inline">Saves as you go</span>
+  if (state === 'saving') return <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-gray-500"><Loader2 className="h-3.5 w-3.5 animate-spin" /> <span className="max-sm:hidden">Saving</span></span>
+  if (state === 'error') return <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-rose-600"><CircleAlert className="h-3.5 w-3.5" /> Not saved - check your connection</span>
+  return <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-emerald-600 dark:text-emerald-400"><Check className="h-3.5 w-3.5" /> Saved</span>
+}
+
+function SetupBackdrop() {
+  return (
+    <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
+      <div className="absolute -left-40 top-24 h-[520px] w-[520px] rounded-full bg-[#e8c97a]/25 blur-[120px] dark:bg-[#C9A24D]/10" />
+      <div className="absolute -right-32 top-[40%] h-[460px] w-[460px] rounded-full bg-[#1b6f58]/[0.07] blur-[110px] dark:bg-[#1b6f58]/15" />
+      <div className="absolute bottom-[-160px] left-1/3 h-[420px] w-[620px] rounded-full bg-[#C9A24D]/15 blur-[120px] dark:bg-[#2c4a96]/12" />
+      <div className="absolute inset-0 opacity-[0.5] [background-image:linear-gradient(rgba(139,106,43,.06)_1px,transparent_1px),linear-gradient(90deg,rgba(139,106,43,.06)_1px,transparent_1px)] [background-size:44px_44px] [mask-image:radial-gradient(70%_50%_at_50%_0%,#000,transparent)] dark:[background-image:linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px)]" />
+    </div>
+  )
+}
+
+function Finale({ data, firstName, onGo }: { data: SetupData; firstName: string; onGo: (id: SetupStepId) => void }) {
+  const skipped = data.steps.filter(s => s.status === 'skipped')
+  const todo = data.steps.filter(s => s.status === 'todo')
+  const hub = data.plan && ['PREMIUM', 'IDX', 'PRO_NO_MLS'].includes(data.plan)
+  const hubUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/${data.slug}`
+  const [copied, setCopied] = useState(false)
+  const links: { label: string; href: string; ext?: boolean }[] = []
+  if (hub) links.push({ label: 'Open my Agent Hub', href: `/${data.slug}`, ext: true })
+  if (data.plan === 'IDX' || data.plan === 'PRO_NO_MLS') links.push({ label: 'My email signature', href: '/studio/email-signature' })
+  if (data.plan === 'IDX') links.push({ label: 'My website', href: '/studio/website' })
+  return (
+    <div className="relative overflow-hidden rounded-[32px] border border-[#C9A24D]/30 bg-white px-6 py-12 text-center shadow-[0_50px_90px_-60px_rgba(139,106,43,.85)] dark:border-white/[0.08] dark:bg-[#121214] sm:px-12 sm:py-16">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(232,201,122,.35),transparent_70%)] dark:bg-[radial-gradient(60%_50%_at_50%_0%,rgba(201,162,77,.18),transparent_70%)]" />
+      {[...Array(14)].map((_, k) => (
+        <motion.span key={k} aria-hidden className="absolute left-1/2 top-24 h-1.5 w-1.5 rounded-full bg-[#e8c97a] shadow-[0_0_10px_2px_rgba(232,201,122,.7)]" initial={{ x: 0, y: 0, opacity: 0 }} animate={{ x: Math.cos((k / 14) * Math.PI * 2) * (120 + (k % 3) * 50), y: Math.sin((k / 14) * Math.PI * 2) * (80 + (k % 3) * 30), opacity: [0, 1, 0] }} transition={{ duration: 1.6, delay: 0.2 + (k % 4) * 0.05, ease: 'easeOut' }} />
+      ))}
+      <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 180, damping: 14, delay: 0.1 }} className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-[26px] bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-[0_24px_44px_-18px_rgba(17,24,39,.9)] ring-1 ring-[#C9A24D]/50">
+        <Sparkles className="h-9 w-9" />
+      </motion.div>
+      <h1 className="relative mt-6 font-serif text-[34px] font-black leading-tight tracking-tight sm:text-[46px]">
+        {todo.length ? <>Almost <em className="bg-gradient-to-r from-[#a8803a] via-[#C9A24D] to-[#d9b867] bg-clip-text italic text-transparent">there</em>{firstName ? `, ${firstName}` : ''}</> : <>You&apos;re all <em className="bg-gradient-to-r from-[#a8803a] via-[#C9A24D] to-[#d9b867] bg-clip-text italic text-transparent">set</em>{firstName ? `, ${firstName}` : ''}!</>}
+      </h1>
+      <p className="relative mx-auto mt-3 max-w-xl text-[16.5px] font-medium leading-relaxed text-gray-600 dark:text-gray-300">
+        {!data.approved
+          ? 'You’re ahead of the game. We’ll email you the moment your broker approves your account - then you’ll pick your plan and the rest is ready.'
+          : !data.plan
+            ? 'Your info is saved. Pick your plan to unlock the rest of your setup.'
+            : todo.length ? 'A few steps still need you - they’re listed below.' : 'Everything you added is already live across your pages. You can change any of it anytime.'}
+      </p>
+      {links.length > 0 && (
+        <div className="relative mt-8 flex flex-wrap justify-center gap-3">
+          {links.map(l => <a key={l.label} href={l.href} target={l.ext ? '_blank' : undefined} rel="noreferrer" className="inline-flex h-12 items-center gap-2 rounded-2xl border-2 border-[#C9A24D]/40 bg-white px-5 text-[15px] font-black text-[#111827] transition hover:-translate-y-0.5 hover:border-[#C9A24D] dark:bg-white/5 dark:text-white">{l.label}{l.ext && <ExternalLink className="h-4 w-4" />}</a>)}
+          {hub && <button type="button" onClick={() => { navigator.clipboard.writeText(hubUrl); setCopied(true) }} className="inline-flex h-12 items-center gap-2 rounded-2xl border-2 border-[#C9A24D]/40 bg-white px-5 text-[15px] font-black text-[#111827] dark:bg-white/5 dark:text-white">{copied ? <><Check className="h-4 w-4 text-emerald-600" /> Link copied</> : 'Copy my hub link'}</button>}
+        </div>
+      )}
+      {(skipped.length > 0 || todo.length > 0) && (
+        <div className="relative mx-auto mt-10 max-w-xl rounded-[22px] bg-[#f7f3ea] p-5 text-left dark:bg-white/[0.04]">
+          <p className="text-[14px] font-black">{todo.length ? 'Still to do' : 'Skipped - finish anytime'}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[...todo, ...skipped].map(s => <button key={s.id} type="button" onClick={() => onGo(s.id)} className="inline-flex items-center gap-1.5 rounded-full border-2 border-[#C9A24D]/30 bg-white px-3.5 py-2 text-[13.5px] font-bold text-[#111827] transition hover:border-[#C9A24D] dark:bg-white/5 dark:text-white">{stepCopy(s.id, data.plan, data.has_mls).label}{s.status === 'skipped' && <span className="text-[11px] text-gray-400">· skipped</span>}<ArrowRight className="h-3.5 w-3.5" /></button>)}
+          </div>
+        </div>
+      )}
+      <div className="relative mt-10">
+        {data.approved && data.plan
+          ? <Link href="/dash" className="inline-flex h-14 items-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#111827] to-[#2a2218] px-9 text-[17px] font-black text-white shadow-[0_18px_34px_-16px_rgba(17,24,39,.9)] ring-1 ring-[#C9A24D]/40 dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827]">Go to my dashboard <ArrowRight className="h-5 w-5" /></Link>
+          : data.approved
+            ? <Link href="/checkout" className="inline-flex h-14 items-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#111827] to-[#2a2218] px-9 text-[17px] font-black text-white ring-1 ring-[#C9A24D]/40">Pick my plan <ArrowRight className="h-5 w-5" /></Link>
+            : <Link href="/broker-authorization" className="inline-flex h-14 items-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#111827] to-[#2a2218] px-9 text-[17px] font-black text-white ring-1 ring-[#C9A24D]/40">Done for now <ArrowRight className="h-5 w-5" /></Link>}
+      </div>
+    </div>
+  )
+}

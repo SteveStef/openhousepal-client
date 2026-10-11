@@ -6,23 +6,34 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import {
-  Activity, ArrowRight, Calculator, Calendar, ClipboardList, GripVertical, Globe2, Home, Image as ImageIcon,
-  Layout as LayoutIcon, LayoutDashboard, Loader2, Mail, Newspaper, Plus, Search, Users,
+  Activity, AlertTriangle, ArrowRight, Calculator, CalendarClock, Clapperboard, ClipboardList, GripVertical, Link2, Home, Image as ImageIcon,
+  Layout as LayoutIcon, LayoutDashboard, Lock, Mail, Newspaper, Plus, Users,
 } from 'lucide-react'
 import api from '@/lib/api-service'
-import { AgentFormConfig, HostRequest, Lead, MyListingsResponse, Notification, OpenHouse, StatSummary } from '@/types'
-import PageHeader from '@/components/PageHeader'
+import { HostRequest, Lead, MyListingsResponse, Notification, StatSummary } from '@/types'
+import LuxeHero, { LuxeStats, luxePill } from '@/components/ui/LuxeHero'
+import MissedShowcasesBanner from '@/components/MissedShowcasesBanner'
+import OhpLoader from '@/components/brand/OhpLoader'
+import NewListingSpotlightCard from '@/components/dash/NewListingSpotlightCard'
+import SetupChecklistCard from '@/components/dash/SetupChecklistCard'
 import StatCard from '@/components/stats/StatCard'
 import { useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
 import DashLeadCard from '@/components/dash/DashLeadCard'
 import LeadDetailModal from '@/components/leads/LeadDetailModal'
 import DashActivityFeed from '@/components/dash/DashActivityFeed'
-import DashOpensPanel, { DiscoveryListing } from '@/components/dash/DashOpensPanel'
-import DashKitsAndFormsPanel from '@/components/dash/DashKitsAndFormsPanel'
+import { DiscoveryListing } from '@/components/dash/DashOpensPanel'
+import { DiscoveryListingStatus } from '@/components/dash/DashDiscoveryPanel'
+import DashManagerCard from '@/components/dash/DashManagerCard'
+import DashCardHeader, { type DashStatusTone } from '@/components/dash/DashCardHeader'
+import DashDiscoveryCard from '@/components/dash/DashDiscoveryCard'
+import TasksPanel, { CalendarChip } from '@/components/tasks/TasksPanel'
+import { useFollowupsEnabled } from '@/components/tasks/FollowupsSwitch'
 import ScrollableSection from '@/components/dash/ScrollableSection'
+import { getNavFeatureAccess, type NavFeatureKey } from '@/lib/navAccess'
+import { AUTO_HIDE_WHEN_READ_TYPES, visibleNotifications } from '@/lib/notificationDisplay'
 
 const STAT_CARDS: { metric: keyof StatSummary; label: string; icon: React.ComponentType<{ className?: string }>; isPercent?: boolean }[] = [
-  { metric: 'agent_hub_visits', label: 'Agent Hub Visitors', icon: Globe2 },
+  { metric: 'agent_hub_visits', label: 'Agent Hub Visitors', icon: Link2 },
   { metric: 'new_leads', label: 'New Leads', icon: Users },
   { metric: 'open_house_signins', label: 'Sign-ins', icon: Home },
   { metric: 'form_views', label: 'Forms Viewed', icon: ClipboardList },
@@ -84,13 +95,14 @@ function DragHandle({ dragging }: { dragging: boolean }) {
   )
 }
 
-const QUICK_CREATE = [
+const QUICK_CREATE: { label: string; href: string; icon: React.ComponentType<{ className?: string }>; feature?: NavFeatureKey }[] = [
   { label: 'Create Open House Kit', href: '/open-houses', icon: Home },
-  { label: 'Create Showcase', href: '/showcases?new=1', icon: LayoutIcon },
+  { label: 'Create Showcase', href: '/showcases?new=1', icon: LayoutIcon, feature: 'showcases' },
   { label: 'Create Form', href: '/studio/forms?new=1', icon: ClipboardList },
-  { label: 'Create Design', href: '/studio/design?new=1', icon: ImageIcon },
-  { label: 'Create Blog Post', href: '/studio/blogs?new=1', icon: Newspaper },
-  { label: 'Create CMA', href: '/studio/cma?new=1', icon: Calculator },
+  { label: 'Create Design', href: '/studio/design?new=1', icon: ImageIcon, feature: 'design_studio' },
+  { label: 'Create Blog Post', href: '/studio/blogs?new=1', icon: Newspaper, feature: 'blogs' },
+  { label: 'Create CMA', href: '/studio/cma?new=1', icon: Calculator, feature: 'cma' },
+  { label: 'Media Lab', href: '/studio/media', icon: Clapperboard, feature: 'ai_media' },
 ]
 
 // Same cross-page "someone acted elsewhere, refresh now" convention used by the Header badges -
@@ -104,17 +116,26 @@ const POLL_INTERVAL_MS = 8000
 
 export default function DashPage() {
   const router = useRouter()
-  const { isAuthenticated, isLoading: isCheckingAuth } = useAuth()
-  const { listingAgentCount: openHouseActionCount, hostCount: openHouseHostActionCount } = useOpenHouseActionCounts()
+  const { user, isAuthenticated, isLoading: isCheckingAuth } = useAuth()
+  const { listingAgentCount: openHouseActionCount, hostCount: openHouseHostActionCount, listingAgentUnseenUpdates, counteredAsHost, incomingAsks } = useOpenHouseActionCounts()
+  // Host requests on my listings waiting on my answer - one per request (its offered time slots
+  // grouped), active listings only: the same number the Opens menu badge counts.
+  const pendingHostRequests = Math.max(0, (openHouseActionCount || 0) - (listingAgentUnseenUpdates || 0))
   const [loading, setLoading] = useState(true)
   const [statSummary, setStatSummary] = useState<StatSummary | null>(null)
-  const [openHouses, setOpenHouses] = useState<OpenHouse[]>([])
   const [newLeads, setNewLeads] = useState<Lead[]>([])
   const [activityNotifications, setActivityNotifications] = useState<Notification[]>([])
-  const [forms, setForms] = useState<AgentFormConfig[]>([])
-  const [pendingSubmissionsByForm, setPendingSubmissionsByForm] = useState<Record<string, number>>({})
   const [hostRequests, setHostRequests] = useState<HostRequest[]>([])
+  // Hosting requests this agent SENT (Discovery card's "Your hosting": counters, confirmed, waiting).
+  const [myHostRequests, setMyHostRequests] = useState<HostRequest[]>([])
   const [discoveryListings, setDiscoveryListings] = useState<DiscoveryListing[]>([])
+  // null (never loaded), then true/false once the first /api/discovery response comes back -
+  // preferences is only null server-side when the agent has never saved a Discovery search at
+  // all (see GetDiscoveryResponse.preferences), which is a different empty state from "searched,
+  // zero matches right now" - defaulting to true avoids flashing the "set up your search" CTA
+  // for a returning agent before this first response lands.
+  const [hasDiscoveryPreferences, setHasDiscoveryPreferences] = useState(true)
+  const [discoveryListingStatuses, setDiscoveryListingStatuses] = useState<Record<string, DiscoveryListingStatus>>({})
   const [myListings, setMyListings] = useState<MyListingsResponse | null>(null)
   const [newLeadsCount, setNewLeadsCount] = useState(0)
   // Rendered once at the page's top level, not nested inside each DashLeadCard - nesting a full
@@ -127,17 +148,30 @@ export default function DashPage() {
   const [nowTick, setNowTick] = useState(Date.now())
 
   const statDrag = useOrderedList('dash:statOrder', STAT_CARDS.map(c => c.metric))
-  // One shared order across all 4 panels (was two separate 2-up rows) - split into two columns
-  // below (even index -> left, odd index -> right) so Leads and Activity - the first two in this
-  // default order - always land side by side as the top row, with the masonry reflow happening
-  // independently within each column beneath them. v2 (was v1) so anyone with an old saved order
-  // picks up this corrected default instead of whatever they'd dragged into place before.
-  const dashPanelsDrag = useOrderedList('dash:panelOrder:v2', ['New Leads', 'Activity', 'Manage Your Opens', 'Open House Kits & Forms'])
+  // One shared order across the panels - split into two columns below (even index -> left, odd
+  // index -> right) so Leads and Activity - the first two in this default order - land side by
+  // side as the top row, and Manager (index 2) / Discovery (index 3) land side by side as the
+  // next row. v5 (was v4) - the shared tabbed "Open House Manager" card was split back into its
+  // own Manager and Discovery cards, so old saved orders pick up the two new keys cleanly.
+  // Keys with no panel this render (Manager when the agent owns no listings) are filtered out
+  // where `order` is consumed, so they never leave an empty draggable slot.
+  // Follow-ups isn't in this list - it's positioned separately (see followupsAtTop below), not
+  // part of the draggable set. v7 (was v6): dropping it here means a saved v6 order carrying that
+  // key would try to render a panel that no longer exists in this set - useOrderedList's merge
+  // only keeps saved ids present in defaultOrder, so bumping the storage key isn't strictly
+  // required for that, but does it cleanly for every existing saved order at once.
+  const dashPanelsDrag = useOrderedList('dash:panelOrder:v7', ['New Leads', 'Activity', 'Open House Manager', 'Open House Discovery'])
+  const [followupOpenCount, setFollowupOpenCount] = useState<number | null>(null)
+  // Hidden entirely while the agent has Follow-ups switched off (null = still checking - keep it).
+  const followupsOn = useFollowupsEnabled().enabled !== false
+  const refreshFollowupCount = useCallback(() => {
+    api.tasks.counts().then(r => { if (r.success && r.data) setFollowupOpenCount(r.data.overdue + r.data.today) })
+  }, [])
+  useEffect(() => { refreshFollowupCount() }, [refreshFollowupCount])
 
   const loadDashData = useCallback(async (isFirstLoad = false) => {
-    const [statsRes, openHousesRes, attentionLeadsRes, recentLeadsRes, activityNotificationsRes, formsRes, hostRequestsRes, discoveryRes, myListingsRes] = await Promise.all([
+    const [statsRes, attentionLeadsRes, recentLeadsRes, activityNotificationsRes, hostRequestsRes, discoveryRes, myListingsRes] = await Promise.all([
       api.stats.getSummary(),
-      api.openHouses.getAll(),
       // Unlimited - every lead needing attention, however many that is, always shown (and always
       // the true badge count, unpadded).
       api.leads.list({ needsAttention: true, sort: 'newest' }),
@@ -150,14 +184,14 @@ export default function DashPage() {
       // 6 highest-priority leads' own last-touch date, which could scatter across many
       // unrelated days instead of reflecting today's real activity).
       api.notifications.getAll(false, 30),
-      api.forms.getMine(),
       api.openHouseManager.getHostRequests('pending'),
       api.discovery.get(),
       api.openHouseManager.getMyListings(),
     ])
+    // Not in the Promise.all above: the No-MLS plans get a 403 here, which must never hold up Dash.
+    api.openHouseManager.getMyRequests().then(r => { if (r.success && r.data) setMyHostRequests(r.data) }).catch(() => {})
 
     if (statsRes.success && statsRes.data) setStatSummary(statsRes.data)
-    if (openHousesRes.success && openHousesRes.data) setOpenHouses(openHousesRes.data)
     if (attentionLeadsRes.success && attentionLeadsRes.data) {
       const attentionLeads = attentionLeadsRes.data
       setNewLeadsCount(attentionLeads.length)
@@ -176,24 +210,29 @@ export default function DashPage() {
     }
     if (activityNotificationsRes.success && activityNotificationsRes.data) setActivityNotifications(activityNotificationsRes.data)
     if (hostRequestsRes.success && hostRequestsRes.data) setHostRequests(hostRequestsRes.data)
-    if (discoveryRes.success && discoveryRes.data) setDiscoveryListings((discoveryRes.data as any).data || [])
-    if (myListingsRes.success && myListingsRes.data) setMyListings(myListingsRes.data)
-
-    if (formsRes.success && formsRes.data) {
-      setForms(formsRes.data)
-      const submissionCounts: Record<string, number> = {}
-      await Promise.all(formsRes.data.map(async form => {
-        const subRes = await api.forms.getSubmissions(form.id)
-        if (subRes.success && subRes.data) {
-          submissionCounts[form.id] = subRes.data.filter(s => !s.is_reviewed).length
-        }
-      }))
-      setPendingSubmissionsByForm(submissionCounts)
+    if (discoveryRes.success && discoveryRes.data) {
+      setDiscoveryListings((discoveryRes.data as any).data || [])
+      setHasDiscoveryPreferences((discoveryRes.data as any).preferences != null)
     }
+    if (myListingsRes.success && myListingsRes.data) setMyListings(myListingsRes.data)
 
     setLastUpdated(new Date())
     if (isFirstLoad) setLoading(false)
   }, [])
+
+  // Real per-listing schedule data for the "Open House Discovery" shortcut panel - same call
+  // Discovery's own page makes for the properties it renders, just scoped to the handful the
+  // panel actually shows (see DashDiscoveryPanel's own top-3-by-distance slice).
+  useEffect(() => {
+    const keys = discoveryListings.map(l => l.ListingKey).filter(Boolean)
+    if (keys.length === 0) {
+      setDiscoveryListingStatuses({})
+      return
+    }
+    api.openHouseManager.getListingStatuses(keys).then(({ success, data }) => {
+      if (success && data) setDiscoveryListingStatuses(data)
+    })
+  }, [discoveryListings])
 
   // Marketing homepage (app/page.tsx) redirects the other way (authenticated -> here) -
   // this is the mirror image, so a logged-out visitor never lands on the dashboard shell.
@@ -213,7 +252,11 @@ export default function DashPage() {
     window.addEventListener('focus', handleFocus)
     window.addEventListener(LEADS_REFRESH_EVENT, handleRefresh)
     window.addEventListener(OPEN_HOUSE_REFRESH_EVENT, handleRefresh)
-    const interval = setInterval(() => loadDashData(), POLL_INTERVAL_MS)
+    // Paused while the tab is in the background (no point re-pulling seven feeds nobody's looking
+    // at); coming back to the tab refetches right away (the focus / visibility handlers).
+    const interval = setInterval(() => { if (!document.hidden) loadDashData() }, POLL_INTERVAL_MS)
+    const handleVisible = () => { if (!document.hidden) loadDashData() }
+    document.addEventListener('visibilitychange', handleVisible)
     const tick = setInterval(() => setNowTick(Date.now()), 15000)
 
     return () => {
@@ -222,6 +265,7 @@ export default function DashPage() {
       window.removeEventListener(OPEN_HOUSE_REFRESH_EVENT, handleRefresh)
       clearInterval(interval)
       clearInterval(tick)
+      document.removeEventListener('visibilitychange', handleVisible)
     }
   }, [loadDashData, isAuthenticated])
 
@@ -233,8 +277,6 @@ export default function DashPage() {
     return `${Math.round(diffSecs / 60)}m ago`
   })()
 
-  const totalPendingSubmissions = Object.values(pendingSubmissionsByForm).reduce((sum, n) => sum + n, 0)
-  const hasOwnListings = (myListings?.listings.length || 0) > 0
   // newLeads is already needs_attention-only, newest-first (see the fetch above) - no further
   // client-side filtering/sorting needed, just take the top few for display. The panel itself
   // only shows 4 rows at a time (see ScrollableSection below) and scrolls for the rest, up to
@@ -245,21 +287,42 @@ export default function DashPage() {
   // is a small dashboard panel, not the full dropdown. Activity rows are shorter than lead cards,
   // so it takes ~7 rows (not 6) to actually fill the same visible height as Leads' 4 cards - see
   // the matching max-h-[430px] on both ScrollableSections below. 21 = 3x that, same ratio as Leads.
-  const topActivityNotifications = activityNotifications.slice(0, 21)
+  // AI Video alerts drop out once seen (see lib/notificationDisplay.tsx) rather than just
+  // graying out like every other type - viewing them here counts as "seen" too (below).
+  const topActivityNotifications = visibleNotifications(activityNotifications).slice(0, 21)
+
+  useEffect(() => {
+    const hasUnseenAutoHide = activityNotifications.some(n => AUTO_HIDE_WHEN_READ_TYPES.has(n.type) && !n.isRead)
+    if (!hasUnseenAutoHide) return
+    api.notifications.markTypesAsRead(Array.from(AUTO_HIDE_WHEN_READ_TYPES)).then(() => {
+      setActivityNotifications(prev => prev.map(n => AUTO_HIDE_WHEN_READ_TYPES.has(n.type) ? { ...n, isRead: true } : n))
+    })
+  }, [activityNotifications])
 
   // One combined set - all 4 render in a single masonry-style flow (see dashPanelsDrag/the
   // columns-based layout below) instead of two separate fixed 2-up rows, so a short panel (e.g.
   // Activity with just 1-2 items) doesn't leave dead space next to it that nothing else can fill.
+  const activityUnread = topActivityNotifications.filter(n => !n.isRead).length
   const allPanels: Record<string, React.ReactNode> = {
     'Activity': (
-      <DashPanel title="Activity" icon={Activity} viewHref="/activity" viewLabel="Full history" isEmpty={topActivityNotifications.length === 0} emptyLabel="No recent activity">
+      <DashPanel
+        title="Activity" icon={Activity} viewHref="/activity" viewLabel="Full history"
+        status={activityUnread ? `${activityUnread} new` : 'Nothing new'} statusTone={activityUnread ? 'gold' : 'muted'}
+        isEmpty={topActivityNotifications.length === 0}
+        emptyLabel="Your recent activity — lead replies, open house sign-ins, form fills, and more — will show up here as it happens."
+      >
         <ScrollableSection maxHeightClass="max-h-[430px]" viewHref="/activity" viewLabel="Full history">
           <DashActivityFeed notifications={topActivityNotifications} />
         </ScrollableSection>
       </DashPanel>
     ),
     'New Leads': (
-      <DashPanel title="Leads" icon={Mail} viewHref="/leads" badgeCount={newLeadsCount} badgeExact isEmpty={topNewLeads.length === 0} emptyLabel="No new leads">
+      <DashPanel
+        title="Leads" icon={Mail} viewHref="/leads" badgeCount={newLeadsCount} badgeExact
+        status={newLeadsCount ? `${newLeadsCount} unread` : 'All caught up'} statusTone={newLeadsCount ? 'red' : 'green'}
+        isEmpty={topNewLeads.length === 0}
+        emptyLabel="New leads will show up here — open house sign-ins, form fills, and inquiries from your Agent Hub, the moment someone reaches out."
+      >
         <ScrollableSection maxHeightClass="max-h-[430px]" viewHref="/leads" viewLabel="View all leads">
           <div className="flex min-w-0 flex-col gap-2.5">
             {topNewLeads.map(lead => <DashLeadCard key={lead.id} lead={lead} onOpenLead={() => setSelectedLeadId(lead.id)} />)}
@@ -267,23 +330,54 @@ export default function DashPage() {
         </ScrollableSection>
       </DashPanel>
     ),
-    'Manage Your Opens': (
-      <DashPanel
-        title={hasOwnListings ? 'Opens & Listings' : 'Find an Open House'}
-        icon={hasOwnListings ? Calendar : Search}
-        viewHref={hasOwnListings ? '/open-houses/my-listings' : '/discovery'}
-        large
-        badgeCount={hasOwnListings ? openHouseActionCount : openHouseHostActionCount}
-      >
-        <DashOpensPanel listings={myListings?.listings || []} hostRequests={hostRequests} discoveryListings={discoveryListings} />
-      </DashPanel>
-    ),
-    'Open House Kits & Forms': (
-      <DashPanel title="Open House Kits & Forms" icon={Home} viewHref="/open-houses" large badgeCount={totalPendingSubmissions}>
-        <DashKitsAndFormsPanel openHouses={openHouses} forms={forms} pendingSubmissionsByForm={pendingSubmissionsByForm} />
-      </DashPanel>
+    // Manager is only its own card for agents who actually have listings to manage - otherwise
+    // there's nothing for it to show and Discovery covers the "find an open to host" case alone.
+    ...((myListings?.listings.length || 0) > 0 ? {
+      'Open House Manager': (
+        <DashManagerCard
+          myListings={myListings}
+          hostRequests={hostRequests}
+          discoveryListings={discoveryListings}
+          actionCount={openHouseActionCount}
+          hasSearchPreferences={hasDiscoveryPreferences}
+        />
+      ),
+    } : {}),
+    'Open House Discovery': (
+      <DashDiscoveryCard
+        listings={discoveryListings}
+        statuses={discoveryListingStatuses}
+        actionCount={openHouseHostActionCount}
+        hasSearchPreferences={hasDiscoveryPreferences}
+        myRequests={myHostRequests}
+        counteredAsHost={counteredAsHost}
+        incomingAsks={incomingAsks}
+      />
     ),
   }
+
+  // Follow-ups is deliberately NOT part of the draggable two-column set above - its position is
+  // urgency-driven, not a layout preference: pinned full-width at the very top when something is
+  // actually due (same "surface it, don't make them go looking" as the host-requests banner), or
+  // tucked full-width at the bottom, out of the way, once the agent is caught up. Defaults to the
+  // bottom while the count is still loading (null) so it doesn't pop to the top and then back down.
+  const followupsAtTop = followupsOn && (followupOpenCount ?? 0) > 0
+  const followupsPanel = !followupsOn ? null : (
+    <DashPanel
+      title="Follow-ups" icon={CalendarClock} viewHref="/leads/tasks" viewLabel="All follow-ups"
+      status={followupOpenCount ? `${followupOpenCount} due` : 'All clear'} statusTone={followupOpenCount ? 'red' : 'green'}
+      badgeCount={followupOpenCount ?? undefined} badgeExact
+      headerExtra={<CalendarChip />}
+    >
+      {/* No ScrollableSection here (unlike Leads/Activity) - Follow-ups' own grid already spreads
+          rows sideways instead of stacking them tall. TasksPanel renders its own "nothing due"
+          state, keeps anything checked off today at the bottom (so an accidental check is easy
+          to undo), and ends with the calendar connected / not-connected line. */}
+      <div className="min-w-0 px-1.5 py-2">
+        <TasksPanel compact onCountChange={refreshFollowupCount} />
+      </div>
+    </DashPanel>
+  )
 
   if (isCheckingAuth || !isAuthenticated) {
     return <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]" />
@@ -292,36 +386,56 @@ export default function DashPage() {
   return (
     <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]">
       <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-5 sm:py-6">
+        {/* The shared luxe header (same look as Listing Spotlight): today's three to-do counts on
+            the right, the quick-create links inside it. Same links, same plan locks as before. */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <PageHeader
+          <LuxeHero
+            kicker="Dash"
             icon={LayoutDashboard}
-            title="What needs your attention"
-            subtitle="New leads, recent activity, open houses, and everything else that needs a look today — all in one place."
             compact
-            badge={updatedAgo && (
-              <span className="inline-flex shrink-0 items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-gray-400 sm:text-[10px]">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Updated {updatedAgo}
-              </span>
+            title={<>What needs your <em>attention.</em></>}
+            subtitle={<><span className="sm:hidden">Leads, activity, open houses &amp; follow-ups.</span><span className="hidden sm:inline">New leads, activity, open houses and follow-ups - everything that needs a look today.</span></>}
+            subtitleClassName="whitespace-nowrap lg:max-w-none"
+            kickerNote={updatedAgo && (
+              <><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 dark:bg-emerald-400" /> Updated {updatedAgo}</>
             )}
+            asideClassName="lg:w-[400px] lg:-mt-6"
+            aside={
+              <LuxeStats
+                stats={[
+                  { label: 'Unread', value: newLeadsCount, icon: Users, alert: newLeadsCount > 0 },
+                  { label: 'Open houses', value: (openHouseActionCount || 0) + (openHouseHostActionCount || 0), icon: Home, alert: ((openHouseActionCount || 0) + (openHouseHostActionCount || 0)) > 0 },
+                  ...(followupsOn ? [{ label: 'Follow-ups', value: followupOpenCount ?? '-', icon: CalendarClock, urgent: (followupOpenCount || 0) > 0 }] : []),
+                ]}
+                note="Waiting on you right now · updates on its own"
+              />
+            }
+            actions={
+              <div className="grid min-w-0 grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:gap-2 [&>*]:min-w-0">
+                {QUICK_CREATE.map(action => {
+                  const access = action.feature ? getNavFeatureAccess(user?.plan_tier, action.feature) : { visible: true, locked: false, upgradeHref: '' }
+                  if (!access.visible) return null
+                  return (
+                    <Link
+                      key={action.label}
+                      href={access.locked ? access.upgradeHref : action.href}
+                      className={`${luxePill()} max-sm:justify-start max-sm:px-2.5 max-sm:py-1.5 max-sm:text-[11px] ${access.locked ? 'opacity-50 hover:opacity-100' : ''}`}
+                    >
+                      {access.locked ? <Lock className="h-3.5 w-3.5 shrink-0" /> : <Plus className="h-3.5 w-3.5 shrink-0 text-[#a8803a] dark:text-[#e8c97a]" />} <span className="truncate"><span className="sm:hidden">{action.label.replace(/^Create /, '')}</span><span className="hidden sm:inline">{action.label}</span></span>
+                    </Link>
+                  )
+                })}
+              </div>
+            }
           />
         </motion.div>
 
-        {/* Quick create */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.05 }} className="mt-6 flex min-w-0 flex-wrap gap-2">
-          {QUICK_CREATE.map(action => (
-            <Link
-              key={action.label}
-              href={action.href}
-              className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-black text-[#111827] shadow-sm transition hover:-translate-y-0.5 hover:border-[#C9A24D] hover:bg-[#C9A24D]/10 dark:border-gray-700 dark:bg-[#151517] dark:text-white sm:px-3.5"
-            >
-              <Plus className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{action.label}</span>
-            </Link>
-          ))}
-        </motion.div>
+        {/* The setup flow - every step for this plan, until all are done (skipped ones stay as chips). */}
+        <SetupChecklistCard className="mt-4" />
 
         {/* KPI strip */}
         {statSummary && (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="mt-6 grid min-w-0 grid-cols-3 gap-1.5 sm:gap-2.5 lg:grid-cols-6">
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="mt-4 grid min-w-0 grid-cols-3 gap-1.5 sm:gap-2.5 lg:grid-cols-6">
             {statDrag.order.map(metric => {
               const card = STAT_CARDS.find(c => c.metric === metric)
               if (!card) return null
@@ -336,25 +450,56 @@ export default function DashPage() {
           </motion.div>
         )}
 
+        {pendingHostRequests > 0 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.02 }} className="mt-4">
+            <Link
+              href="/open-houses/my-listings?panel=host-requests"
+              className="animate-pulse-glow flex min-w-0 items-center gap-3 rounded-2xl border-2 border-amber-400 bg-amber-50 px-4 py-3 shadow-sm transition hover:-translate-y-0.5 dark:border-amber-500/60 dark:bg-amber-500/10"
+            >
+              <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+              <p className="min-w-0 flex-1 text-sm font-black text-amber-800 dark:text-amber-300">
+                {pendingHostRequests} host request{pendingHostRequests === 1 ? '' : 's'} waiting on your response
+              </p>
+              <ArrowRight className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            </Link>
+          </motion.div>
+        )}
+
+        {/* A brand-new listing without a Listing Spotlight yet -> one tap to make one. */}
+        <NewListingSpotlightCard className="mt-4" />
+
+        {/* Basic only: guests who'd already have a Showcase on Premium (renders nothing otherwise). */}
+        <MissedShowcasesBanner className="mt-4" />
+
+
         {loading && (
-          <div className="mt-16 flex items-center justify-center gap-2 py-16 text-sm font-bold text-gray-400">
-            <Loader2 className="h-5 w-5 animate-spin" /> Loading your dashboard...
-          </div>
+          <OhpLoader fullScreen={false} className="mt-8" />
         )}
 
         {!loading && (
           <>
-            {/* Mobile: a fixed single-column order (Leads, then Activity, then Opens & Listings,
-                then Open House Kits & Forms last) - not draggable, since the masonry below only
+            {/* Mobile: a fixed single-column order (Follow-ups pinned top/bottom by urgency, then
+                Leads, Activity, Manager, Discovery) - not draggable, since the masonry below only
                 collapses cleanly into that order at md: and up. Splitting dashPanelsDrag.order by
                 index parity into two columns (see below) doesn't produce this sequence once those
-                columns stack on a narrow screen - column 0 (Leads, Opens & Listings) would render
-                fully before column 1 (Activity, Kits & Forms) even started. */}
+                columns stack on a narrow screen. */}
             <div className="mt-8 flex min-w-0 flex-col gap-4 md:hidden">
-              {['New Leads', 'Activity', 'Manage Your Opens', 'Open House Kits & Forms'].map(key => (
+              {followupsAtTop && <div className="min-w-0">{followupsPanel}</div>}
+              {['New Leads', 'Activity', 'Open House Manager', 'Open House Discovery'].filter(key => allPanels[key]).map(key => (
                 <div key={key} className="min-w-0">{allPanels[key]}</div>
               ))}
+              {!followupsAtTop && followupsPanel && <div className="min-w-0">{followupsPanel}</div>}
             </div>
+
+            {/* Follow-ups pinned full-width above the grid when something's actually due - same
+                "surface it, don't make them go looking" placement as the host-requests banner
+                above, just below it in priority (a follow-up isn't as time-sensitive as another
+                agent waiting on a response). */}
+            {followupsAtTop && (
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.12 }} className="mt-8 hidden min-w-0 md:block">
+                {followupsPanel}
+              </motion.div>
+            )}
 
             {/* Manual masonry (md: and up): the order list is split left/right by index (even ->
                 left column, odd -> right), each rendered as its own independently-stacking flex
@@ -364,10 +509,10 @@ export default function DashPage() {
                 only 1-2 items) just lets the next panel in that same column start right below it,
                 with no dead space dictated by the other column's height (`items-start` keeps the
                 two columns from stretching to match each other). */}
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.15 }} className="mt-8 hidden min-w-0 items-start gap-4 sm:gap-5 md:grid md:grid-cols-2">
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.15 }} className={`hidden min-w-0 items-start gap-4 sm:gap-5 md:grid md:grid-cols-2 ${followupsAtTop ? 'mt-4' : 'mt-8'}`}>
               {[0, 1].map(columnIndex => (
                 <div key={columnIndex} className="flex min-w-0 flex-col gap-4 sm:gap-5">
-                  {dashPanelsDrag.order.filter((_, i) => i % 2 === columnIndex).map(key => (
+                  {dashPanelsDrag.order.filter(key => allPanels[key]).filter((_, i) => i % 2 === columnIndex).map(key => (
                     <div key={key} {...dashPanelsDrag.dragProps(key)} className={`group relative min-w-0 cursor-grab rounded-2xl active:cursor-grabbing ${dashPanelsDrag.draggedId === key ? 'opacity-40' : ''}`}>
                       <DragHandle dragging={dashPanelsDrag.draggedId === key} />
                       {allPanels[key]}
@@ -376,6 +521,13 @@ export default function DashPage() {
                 </div>
               ))}
             </motion.div>
+
+            {/* Follow-ups pinned full-width below the grid, out of the way, once caught up. */}
+            {!followupsAtTop && followupsPanel && (
+              <div className="mt-4 hidden min-w-0 md:block">
+                {followupsPanel}
+              </div>
+            )}
           </>
         )}
       </div>
@@ -391,7 +543,12 @@ export default function DashPage() {
   )
 }
 
-function DashPanel({ title, icon: Icon, children, viewHref, viewLabel, badgeCount, badgeExact, large, isEmpty, emptyLabel }: {
+function DashPanel({ title, icon: Icon, children, viewHref, viewLabel, badgeCount, badgeExact, large, isEmpty, emptyLabel, emptyMinHeightClass = 'min-h-[430px]', headerExtra, status, statusTone }: {
+  /** One line under the title saying where things stand ("1 needs a reply"). */
+  status?: React.ReactNode
+  statusTone?: DashStatusTone
+  /** Small status chip shown in the title row (never its own line). */
+  headerExtra?: React.ReactNode
   title: string
   icon: React.ComponentType<{ className?: string }>
   children: React.ReactNode
@@ -404,25 +561,28 @@ function DashPanel({ title, icon: Icon, children, viewHref, viewLabel, badgeCoun
   large?: boolean
   isEmpty?: boolean
   emptyLabel?: string
+  // How tall the empty-state placeholder floors out at. Defaults to Leads/Activity's own
+  // ScrollableSection max-height (max-h-[430px]) so those two never visibly shrink when empty.
+  // Follow-ups overrides this much smaller (see its own comment below) - its "full" state is
+  // realistically a couple of short rows, not a scrolling list, so matching Leads/Activity's
+  // floor left a mostly-empty box even when it had nothing due.
+  emptyMinHeightClass?: string
 }) {
   return (
-    <div className={`min-w-0 rounded-2xl border border-gray-200 bg-[#fbfaf7] dark:border-gray-800 dark:bg-[#111113] ${large ? 'p-4 sm:p-6' : 'p-3 sm:p-5'}`}>
-      <div className="flex min-w-0 items-center justify-between gap-2">
-        <Link href={viewHref} className={`flex min-w-0 items-center gap-2 font-serif font-black text-[#111827] hover:text-[#8b7355] dark:text-white dark:hover:text-[#d7b974] ${large ? 'text-lg sm:text-xl' : 'text-base sm:text-lg'}`}>
-          <Icon className={`shrink-0 text-[#8b7355] ${large ? 'h-5 w-5' : 'h-4 w-4'}`} /> <span className="min-w-0 truncate">{title}</span>
-          {!!badgeCount && badgeCount > 0 && (
-            <span className="flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
-              {!badgeExact && badgeCount > 9 ? '9+' : badgeCount}
-            </span>
-          )}
-        </Link>
-        <Link href={viewHref} className="inline-flex shrink-0 items-center gap-1 text-xs font-black text-[#8b7355] hover:text-[#111827] dark:hover:text-white">
-          {viewLabel || 'View all'} <ArrowRight className="h-3 w-3" />
-        </Link>
-      </div>
+    <div className={`min-w-0 rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-[#fbf8f2] shadow-sm transition-shadow duration-300 hover:border-[#C9A24D]/40 hover:shadow-[0_18px_40px_-28px_rgba(201,162,77,.9)] dark:border-gray-800 dark:from-[#141416] dark:to-[#121110] ${large ? 'p-4 sm:p-6' : 'p-3 sm:p-5'}`}>
+      <DashCardHeader
+        icon={Icon} title={title} href={viewHref} badgeCount={badgeCount} badgeExact={badgeExact} large={large}
+        status={status} statusTone={statusTone} extra={headerExtra} viewHref={viewHref} viewLabel={viewLabel}
+      />
       <div className="mt-3 min-w-0">
         {isEmpty ? (
-          <p className="rounded-xl border border-dashed border-gray-300 p-4 text-center text-xs font-bold text-gray-400 dark:border-gray-700">{emptyLabel}</p>
+          // Same min-height as the ScrollableSection it replaces (max-h-[430px] everywhere this
+          // panel is used) - otherwise an empty panel collapses to just this placeholder's height
+          // and the whole card visibly shrinks compared to its "full" size, throwing off the
+          // two-column masonry layout it sits in.
+          <div className={`flex min-w-0 items-center justify-center ${emptyMinHeightClass}`}>
+            <p className="rounded-xl border border-dashed border-gray-300 p-4 text-center text-xs font-bold text-gray-400 dark:border-gray-700">{emptyLabel}</p>
+          </div>
         ) : children}
       </div>
     </div>

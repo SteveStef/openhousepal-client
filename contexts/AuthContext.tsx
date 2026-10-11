@@ -53,7 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchUser])
 
   const refreshUser = async () => {
-    setIsLoading(true)
+    // Only a first sign-in shows the loading state. Re-checking an agent who's already signed in
+    // (after a profile save, a plan change...) must not flip every guard back to its loader - that
+    // unmounted whole pages mid-use and threw away what the agent was doing (Studio create flow, 10/09).
+    if (!user) setIsLoading(true)
     await fetchUser()
   }
 

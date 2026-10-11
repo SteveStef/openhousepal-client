@@ -1,5 +1,7 @@
 'use client'
 
+import OhpLoader from '@/components/brand/OhpLoader'
+
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
@@ -7,7 +9,8 @@ import AuthGuard from '@/components/AuthGuard'
 import Footer from '@/components/Footer'
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { ShieldAlert, RefreshCw, Building2, CheckCircle2, Clock, ExternalLink, ChevronRight, Search, PlusCircle, Copy, Check } from 'lucide-react'
+import { ShieldAlert, RefreshCw, Building2, CheckCircle2, Clock, ExternalLink, ChevronRight, Search, PlusCircle, Copy, Check, Sparkles } from 'lucide-react'
+import { copyText } from '@/lib/copyText'
 
 export default function BrokerAuthorizationPage() {
   return (
@@ -36,21 +39,14 @@ function BrokerAuthorizationContent() {
   }
 
   const copyToClipboard = (text: string, field: string) => {
-    navigator.clipboard.writeText(text)
+    copyText(text)
     setCopiedField(field)
     setTimeout(() => setCopiedField(null), 2000)
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center p-4 transition-colors duration-300">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-[#C9A24D]/20 border-t-[#C9A24D] rounded-full animate-spin"></div>
-          <p className="text-sm font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-[0.2em] animate-pulse">
-            Syncing Credentials
-          </p>
-        </div>
-      </div>
+      <OhpLoader />
     )
   }
 
@@ -198,8 +194,19 @@ function BrokerAuthorizationContent() {
                   </button>
                   
                   <p className="mt-6 text-[10px] font-bold text-gray-400 italic">
-                    OpenHousePal will automatically activate your showcases once Bright MLS approves.
+                    We'll email you the moment you're approved, so you can pick your plan.
                   </p>
+
+                  {/* While they wait: the setup flow's shared steps (about you, contact, photo...) -
+                      all ready the moment they're approved. */}
+                  <Link href="/setup" className="group mt-6 flex w-full items-center gap-3 rounded-2xl border border-[#C9A24D]/40 bg-gradient-to-br from-[#fffaf0] to-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#C9A24D] dark:from-[#1b1813] dark:to-[#151517]">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a]"><Sparkles className="h-5 w-5" /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-black text-[#111827] dark:text-white">Get a head start while you wait</span>
+                      <span className="block text-xs font-semibold text-gray-500 dark:text-gray-400">Add your photo, contact info and bio now - it&apos;s all ready when you&apos;re approved.</span>
+                    </span>
+                    <ChevronRight className="h-5 w-5 shrink-0 text-[#C9A24D] transition group-hover:translate-x-0.5" />
+                  </Link>
                 </div>
               </div>
             </div>

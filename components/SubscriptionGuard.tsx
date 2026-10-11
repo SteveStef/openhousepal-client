@@ -1,16 +1,58 @@
 'use client'
 
+import OhpLoader from '@/components/brand/OhpLoader'
+
 import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { hasValidSubscription } from '@/lib/auth-helpers'
 import { useAuth } from '@/contexts/AuthContext'
+import { hasMlsAccess, hasAgentHubAccess, hasEmailSignatureAccess, hasStudioDesignAccess, hasStudioMediaAccess, meetsTier } from '@/lib/navAccess'
 
 interface SubscriptionGuardProps {
   children: React.ReactNode
-  requiredPlan: 'PREMIUM' | 'BASIC'
+  /** Real Bright MLS data access - My Listings, Discovery, base CMA. Excludes NO_MLS only. */
+  requireMlsAccess?: boolean
+  /** Agent Hub's bifurcated capability: PRO_NO_MLS (manual mode), PREMIUM/IDX (full mode).
+   * Excludes BASIC and plain NO_MLS. */
+  requireAgentHubAccess?: boolean
+  /** Email Signature: IDX or PRO_NO_MLS only - narrower than Agent Hub's own set (excludes plain
+   * PREMIUM too). */
+  requireEmailSignatureAccess?: boolean
+  /** Rank-based gate for genuine Basic->Premium->IDX ladder features (Open House Manager,
+   * Showcases need PREMIUM; the IDX site needs IDX). NO_MLS / PRO_NO_MLS always fail this. */
+  requiredTier?: 'PREMIUM' | 'IDX'
+  /** Design Studio + Blogs: PREMIUM, IDX, or PRO_NO_MLS. */
+  requireStudioDesignAccess?: boolean
+  /** Studio AI Media tool: IDX or PRO_NO_MLS only. */
+  requireStudioMediaAccess?: boolean
 }
 
-export default function SubscriptionGuard({ children, requiredPlan }: SubscriptionGuardProps) {
+function hasAccessForTier(planTier: string | undefined, props: SubscriptionGuardProps): boolean {
+  if (props.requireMlsAccess && !hasMlsAccess(planTier)) return false
+  if (props.requireAgentHubAccess && !hasAgentHubAccess(planTier)) return false
+  if (props.requireEmailSignatureAccess && !hasEmailSignatureAccess(planTier)) return false
+  if (props.requireStudioDesignAccess && !hasStudioDesignAccess(planTier)) return false
+  if (props.requireStudioMediaAccess && !hasStudioMediaAccess(planTier)) return false
+  if (props.requiredTier && !meetsTier(planTier, props.requiredTier)) return false
+  return true
+}
+
+// Which plan unlocks the thing this route needed, and a label for it - so the upgrade pitch
+// shows the right branded card (e.g. a No-MLS agent who taps a Design Studio link lands on the
+// "No-MLS Premium" card, not the Bright "Premium" one).
+function upgradeTargetFor(planTier: string | undefined, props: SubscriptionGuardProps): { tier: string; feature: string } {
+  const noMlsTrack = planTier === 'NO_MLS' || planTier === 'PRO_NO_MLS'
+  if (props.requireStudioMediaAccess) return { tier: noMlsTrack ? 'PRO_NO_MLS' : 'IDX', feature: 'Media Lab' }
+  if (props.requireStudioDesignAccess) return { tier: noMlsTrack ? 'PRO_NO_MLS' : 'PREMIUM', feature: 'Studio & Blogs' }
+  if (props.requireAgentHubAccess) return { tier: noMlsTrack ? 'PRO_NO_MLS' : 'PREMIUM', feature: 'Agent Hub' }
+  if (props.requireEmailSignatureAccess) return { tier: noMlsTrack ? 'PRO_NO_MLS' : 'IDX', feature: 'Signature' }
+  if (props.requiredTier) return { tier: props.requiredTier, feature: 'This feature' }
+  if (props.requireMlsAccess) return { tier: 'BASIC', feature: 'Bright MLS tools' }
+  return { tier: 'PREMIUM', feature: 'This feature' }
+}
+
+export default function SubscriptionGuard(props: SubscriptionGuardProps) {
+  const { children } = props
   const router = useRouter()
   const pathname = usePathname()
   const { user, isAuthenticated, isLoading } = useAuth()
@@ -34,31 +76,26 @@ export default function SubscriptionGuard({ children, requiredPlan }: Subscripti
       return
     }
 
-    // Check if user has required plan tier (Premium vs Basic)
-    if (requiredPlan === 'PREMIUM' && user.plan_tier !== 'PREMIUM') {
-      // User has Basic but needs Premium - send to upgrade page
-      router.push('/upgrade-required')
+    // Check the specific capability(ies) this route requires
+    if (!hasAccessForTier(user.plan_tier, props)) {
+      const t = upgradeTargetFor(user.plan_tier, props)
+      router.push(`/upgrade-required?tier=${t.tier}&feature=${encodeURIComponent(t.feature)}`)
       return
     }
-  }, [user, isAuthenticated, isLoading, requiredPlan, router, pathname])
+  }, [user, isAuthenticated, isLoading, props.requireMlsAccess, props.requireAgentHubAccess, props.requireEmailSignatureAccess, props.requireStudioDesignAccess, props.requireStudioMediaAccess, props.requiredTier, router, pathname])
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FAFAF7] dark:bg-[#0B0B0B] transition-colors duration-300">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#C9A24D] mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400 font-bold uppercase tracking-widest text-xs animate-pulse">Verifying access...</p>
-        </div>
-      </div>
+      <OhpLoader />
     )
   }
 
   // Permission check for rendering
   const hasAccess = user?.is_admin || (
-    isAuthenticated && 
-    user && 
+    isAuthenticated &&
+    user &&
     (user.subscription_status !== 'PENDING_PAYMENT' && hasValidSubscription(user)) &&
-    !(requiredPlan === 'PREMIUM' && user.plan_tier !== 'PREMIUM')
+    hasAccessForTier(user.plan_tier, props)
   )
 
   return hasAccess ? <>{children}</> : null

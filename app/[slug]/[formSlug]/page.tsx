@@ -1,30 +1,76 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
+import { formVisitContext, type FormVisitContext } from '@/lib/formTracking'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useParams, useSearchParams } from 'next/navigation'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 import FormRunner from '@/components/forms/FormRunner'
+import ShowingRequestFlow, { canUseShowingFlow } from '@/components/forms/ShowingRequestFlow'
 import { PublicFormConfig } from '@/types'
 import api, { API_BASE_URL } from '@/lib/api-service'
+import { useForcedLightMode } from '@/lib/useForcedLightMode'
+
+function generateSessionKey() {
+  return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
 
 function resolvePhotoUrl(photoUrl?: string | null) {
   if (!photoUrl) return undefined
   return photoUrl.startsWith('http') ? photoUrl : `${API_BASE_URL}${photoUrl}`
 }
 
+function PublicFormBackButton({ fallbackHref }: { fallbackHref: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (window.history.length > 1) {
+          window.history.back()
+        } else {
+          window.location.href = fallbackHref
+        }
+      }}
+      className="absolute left-4 top-4 z-20 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/90 px-3 py-2 text-xs font-black uppercase tracking-wide text-[#111827] shadow-sm transition hover:-translate-y-0.5 hover:bg-white dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/15 sm:left-6 sm:top-6"
+    >
+      <ArrowLeft className="h-4 w-4" />
+      Back
+    </button>
+  )
+}
+
 export default function PublicFormPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const slug = params.slug as string
   const formSlug = params.formSlug as string
+  const forceLightMode = searchParams.get('idx_light') === '1'
+  const idxReturn = searchParams.get('idx_return')
+  const idxFallbackHref = idxReturn || `/${slug}?idx_light=1`
+  // Which Campaign this visit came from (a separately-tracked link for the same premade form) -
+  // absent/invalid just means General, resolved server-side (forms_service.py).
+  const campaignToken = searchParams.get('c')
+  // Opened in a window over another page (a signature card's form button): no decorative
+  // backdrop (it made the window feel sluggish), and finishing closes the window instead of
+  // sending the reader off to the Agent Hub.
+  const embedded = searchParams.get('src') === 'signature' || searchParams.get('embed') === '1'
+  // prefill_<questionId>=value - what the page that opened this form already knows.
+  const prefill = useMemo(() => {
+    const out: Record<string, string> = {}
+    searchParams.forEach((value, key) => { if (key.startsWith('prefill_') && value) out[key.slice('prefill_'.length)] = value })
+    return out
+  }, [searchParams])
 
   const [form, setForm] = useState<PublicFormConfig | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const sessionKeyRef = useRef(generateSessionKey())
+  const visitRef = useRef<FormVisitContext | null>(null)
+  useForcedLightMode(forceLightMode)
 
   useEffect(() => {
     const fetchForm = async () => {
       setIsLoading(true)
-      const { success, data } = await api.public.getPublicForm(slug, formSlug)
+      const { success, data } = await api.public.getPublicForm(slug, formSlug, campaignToken)
       if (success && data) {
         setForm(data)
         setNotFound(false)
@@ -64,18 +110,48 @@ export default function PublicFormPage() {
     )
   }
 
+  const trackProgress = (stepIndex: number, questionId: string | null, completed?: boolean, answers?: Record<string, unknown>) => {
+    visitRef.current = visitRef.current || formVisitContext()
+    api.public.trackFormProgress(slug, formSlug, { sessionKey: sessionKeyRef.current, stepIndex, questionId, completed, campaignToken, answers, ...visitRef.current }).catch(() => {})
+  }
+
+  // Schedule a Showing: find the home, then the Showcase's tour window + Pending/Confirmed status.
+  if (canUseShowingFlow(form)) {
+    return (
+      <div className={`relative ${forceLightMode ? 'ohp-force-light' : ''} ${form.darkMode && !forceLightMode ? 'dark bg-[#0B0B0B]' : 'bg-[#FAFAF7]'} min-h-screen`}>
+        {forceLightMode && <PublicFormBackButton fallbackHref={idxFallbackHref} />}
+        <ShowingRequestFlow
+          form={{ ...form, agentPhotoUrl: resolvePhotoUrl(form.agentPhotoUrl), showBranding: forceLightMode ? false : form.showBranding }}
+          agentSlug={slug}
+          formSlug={formSlug}
+          prefillAddress={prefill.property_of_interest}
+          onProgress={trackProgress}
+          onComplete={embedded ? () => { try { window.parent?.postMessage({ type: 'ohp-form-complete' }, '*') } catch { /* no host */ } } : undefined}
+          onSubmitAnswers={async answers => {
+            const { success, data, error } = await api.public.submitPublicForm(slug, formSlug, answers, { sessionKey: sessionKeyRef.current, campaignToken })
+            return success && data ? data : { success: false, message: error }
+          }}
+        />
+      </div>
+    )
+  }
+
   return (
-    <div className={form.darkMode ? 'dark h-screen' : 'h-screen'}>
+    <div className={`relative ${forceLightMode ? 'ohp-force-light' : ''} ${form.darkMode && !forceLightMode ? 'dark bg-[#0B0B0B]' : 'bg-[#FAFAF7]'} h-screen`}>
+      {forceLightMode && <PublicFormBackButton fallbackHref={idxFallbackHref} />}
       <FormRunner
+        formId={form.formId}
         questions={form.questions}
         linkedProperty={form.linkedProperty}
         propertyPhotoCarousel={form.propertyPhotoCarousel}
+        backgroundEffects={!embedded && form.backgroundEffects !== false}
+        welcomeTextEffects={form.welcomeTextEffects !== false}
         brandingLayout={form.brandingLayout}
         branding={{
           title: form.headline || form.title,
           subtitle: form.subtitle,
           accentColor: form.accentColor,
-          showBranding: form.showBranding,
+          showBranding: forceLightMode ? false : form.showBranding,
           agentName: form.agentName,
           agentBrokerage: form.agentBrokerage,
           agentPhotoUrl: resolvePhotoUrl(form.agentPhotoUrl),
@@ -84,10 +160,22 @@ export default function PublicFormPage() {
         }}
         successHeading={form.successHeading}
         successMessage={form.successMessage}
-        agentHubRedirect={{ enabled: form.redirectToAgentHub, url: `/${slug}` }}
+        agentHubRedirect={embedded ? null : forceLightMode ? { enabled: true, url: idxFallbackHref } : {
+          // a campaign link can send people elsewhere after submitting (its own after-submit choice)
+          enabled: form.afterSubmitMode === 'none' ? false : form.redirectToAgentHub,
+          url: form.afterSubmitMode === 'custom' && form.afterSubmitUrl ? form.afterSubmitUrl : form.afterSubmitMode === 'sales' ? `/${slug}/sales` : `/${slug}`,
+        }}
+        prefill={prefill}
+        onComplete={embedded ? () => { try { window.parent?.postMessage({ type: 'ohp-form-complete' }, '*') } catch { /* no host */ } } : undefined}
+        redirectDelayMs={forceLightMode ? 3000 : undefined}
+        redirectTarget={forceLightMode && idxReturn ? '_top' : '_self'}
+        forceLightMode={forceLightMode}
+        showcasePreview={form.formType === 'showcase_request'}
+        exampleProperties={form.exampleProperties}
+        onProgress={trackProgress}
         onSubmit={async answers => {
-          const { success, data, error } = await api.public.submitPublicForm(slug, formSlug, answers)
-          if (success && data) return data
+          const { success, data, error } = await api.public.submitPublicForm(slug, formSlug, answers, { sessionKey: sessionKeyRef.current, campaignToken })
+          if (success && data) return forceLightMode ? { ...data, redirectUrl: undefined } : data
           return { success: false, message: error }
         }}
       />

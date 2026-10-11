@@ -1,0 +1,535 @@
+'use client'
+
+import { Suspense, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ArrowLeft, Calculator, Download, Home, Loader2, Moon, Plus, Search, Share2, Sun, Trash2, User, X } from 'lucide-react'
+import { pdf } from '@react-pdf/renderer'
+import api from '@/lib/api-service'
+import { CmaMode, CmaReport, CmaReportListItem, CmaStatus, Site, SiteDomain } from '@/types'
+import { CMA_STATUS_STYLES, formatMoney, timeAgo } from '@/lib/cma'
+import { openHousePalPublicUrl, websitePublicUrl } from '@/lib/publicResourceLinks'
+import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
+import StudioPageHeader from '@/components/studio/StudioPageHeader'
+import { LuxeTabs } from '@/components/ui/LuxeHero'
+import { CheckCircle2, LayoutGrid, PenLine } from 'lucide-react'
+
+// Icons for the CMA status tabs in the header.
+const CMA_STATUS_ICON: Record<string, React.ComponentType<{ className?: string }>> = { ALL: LayoutGrid, DRAFT: PenLine, READY: CheckCircle2, SHARED: Share2 }
+import WarningConfirmModal from '@/components/WarningConfirmModal'
+import CmaShareLinksModal from '@/components/CmaShareLinksModal'
+import { CmaPresentationDocument } from '@/lib/pdfs'
+import AuthGuard from '@/components/AuthGuard'
+import SubscriptionGuard from '@/components/SubscriptionGuard'
+
+const STATUS_TABS: (CmaStatus | 'ALL')[] = ['ALL', 'DRAFT', 'READY', 'SHARED']
+
+export default function CmaDashboardPage() {
+  return (
+    <AuthGuard>
+      <SubscriptionGuard requireMlsAccess>
+        <Suspense fallback={null}>
+          <CmaDashboardInner />
+        </Suspense>
+      </SubscriptionGuard>
+    </AuthGuard>
+  )
+}
+
+function CmaDashboardInner() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { showToast } = useToast()
+  const { user } = useAuth()
+  const [reports, setReports] = useState<CmaReportListItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [statusTab, setStatusTab] = useState<CmaStatus | 'ALL'>('ALL')
+  const [search, setSearch] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [sharingId, setSharingId] = useState<string | null>(null)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [agent, setAgent] = useState<any>(null)
+  const [idxSite, setIdxSite] = useState<Site | null>(null)
+  const [idxDomains, setIdxDomains] = useState<SiteDomain[]>([])
+  const [shareLinks, setShareLinks] = useState<{ openHousePalUrl: string, websiteUrl: string | null } | null>(null)
+
+  const load = () => {
+    setLoading(true)
+    api.cma.list().then(response => {
+      if (response.success && response.data) setReports(response.data)
+      setLoading(false)
+    })
+  }
+
+  useEffect(() => { load() }, [])
+
+  // A report's AI analysis can still be running server-side even after backing out to this list -
+  // the request that started it keeps going regardless of which page is open, so a card must be
+  // able to show that on its own instead of just looking idle. Poll quietly (no loading skeleton)
+  // while any card is mid-generation, so the animated badge clears and the price range/comp count
+  // fill in on their own once it finishes.
+  useEffect(() => {
+    if (!reports.some(r => r.generation_status === 'generating')) return
+    const interval = setInterval(() => {
+      api.cma.list().then(response => {
+        if (response.success && response.data) setReports(response.data)
+      })
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [reports])
+
+  useEffect(() => {
+    Promise.allSettled([api.studio.getBrandKit(), api.agentHub.getMine()]).then(([brandResult, hubResult]) => {
+      const brandRes = brandResult.status === 'fulfilled' ? brandResult.value : null
+      const hubRes = hubResult.status === 'fulfilled' ? hubResult.value : null
+      const brand = brandRes?.success ? brandRes.data : null
+      const hubConfig = hubRes?.success ? hubRes.data?.config : null
+      const profilePhotoUrl = hubConfig?.profilePhotoUrl || hubConfig?.profile_photo_url || user?.photo_url || null
+      setAgent({
+        name: user ? `${user.first_name} ${user.last_name}` : '',
+        headshot_url: profilePhotoUrl,
+        photo_url: profilePhotoUrl,
+        brokerage: user?.brokerage || null,
+        email: user?.email || null,
+        phone: hubConfig?.contact?.call || hubConfig?.contact?.phone || hubConfig?.contact?.mobile || (user as any)?.phone || null,
+        service_area: hubConfig?.profile?.market || user?.market || null,
+        logo_url: brand?.personal_logo_url || brand?.brokerage_logo_url || null,
+        primary_color: brand?.primary_color || '#111827',
+        secondary_color: brand?.secondary_color || '#C9A24D',
+      })
+    })
+  }, [user])
+
+  useEffect(() => {
+    Promise.all([api.sites.getMine(), api.sites.getDomains()])
+      .then(([siteResponse, domainsResponse]) => {
+        if (siteResponse.success && siteResponse.data) setIdxSite(siteResponse.data)
+        if (domainsResponse.success && domainsResponse.data) setIdxDomains(domainsResponse.data)
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (searchParams.get('new') === '1') setShowCreate(true)
+  }, [searchParams])
+
+  const filtered = useMemo(() => {
+    return reports.filter(r => {
+      if (statusTab !== 'ALL' && r.status !== statusTab) return false
+      const term = search.trim().toLowerCase()
+      if (term && !(r.subject_address || '').toLowerCase().includes(term) && !(r.client_name || '').toLowerCase().includes(term)) return false
+      return true
+    })
+  }, [reports, statusTab, search])
+
+  const handleDelete = (id: string, event: React.MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setPendingDeleteId(id)
+  }
+
+  const ensureShareSlug = async (report: CmaReportListItem): Promise<string | null> => {
+    if (report.share_slug) return report.share_slug
+    setSharingId(report.id)
+    const response = await api.cma.share(report.id)
+    setSharingId(null)
+    if (!response.success || !response.data) {
+      showToast(response.error || 'Could not create a share link.', 'error')
+      return null
+    }
+    load()
+    return response.data.share_slug
+  }
+
+  const buildShareLinks = (slug: string) => ({
+    openHousePalUrl: openHousePalPublicUrl(`/cma/${slug}`),
+    websiteUrl: websitePublicUrl(idxSite, idxDomains, `/cma/${slug}`),
+  })
+
+  const handleShare = async (report: CmaReportListItem, event: React.MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const slug = await ensureShareSlug(report)
+    if (!slug) return
+    setShareLinks(buildShareLinks(slug))
+  }
+
+  const handleDownload = async (report: CmaReportListItem, event: React.MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (!agent) {
+      showToast('Agent details are still loading. Try again in a moment.', 'error')
+      return
+    }
+    setDownloadingId(report.id)
+    const response = await api.cma.get(report.id)
+    if (!response.success || !response.data) {
+      setDownloadingId(null)
+      showToast(response.error || 'Could not download this CMA.', 'error')
+      return
+    }
+    try {
+      const fullReport = response.data as CmaReport
+      const fileName = `CMA-${(fullReport.subject?.street_address || 'Report').replace(/[^a-z0-9]+/gi, '-')}.pdf`
+      const blob = await pdf(<CmaPresentationDocument report={fullReport as any} agent={agent} />).toBlob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      showToast('Could not generate this CMA PDF.', 'error')
+    } finally {
+      setDownloadingId(null)
+    }
+  }
+
+  // Optimistic - flips the card's icon immediately rather than waiting on the round trip, then
+  // reverts if the save actually fails. Hits the dedicated /theme endpoint (merges server-side)
+  // rather than a full presentation PATCH, since this card only knows default_theme, not the
+  // report's hidden_sections/hidden_comp_ids/cover_photo_url.
+  const handleToggleTheme = async (report: CmaReportListItem, event: React.MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const next = report.default_theme === 'light' ? 'dark' : 'light'
+    setReports(prev => prev.map(r => r.id === report.id ? { ...r, default_theme: next } : r))
+    const response = await api.cma.updateTheme(report.id, next)
+    if (!response.success) {
+      setReports(prev => prev.map(r => r.id === report.id ? { ...r, default_theme: report.default_theme } : r))
+      showToast(response.error || "Could not update this CMA's default theme.", 'error')
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (!pendingDeleteId) return
+    setIsDeleting(true)
+    const response = await api.cma.remove(pendingDeleteId)
+    setIsDeleting(false)
+    const deletedId = pendingDeleteId
+    setPendingDeleteId(null)
+    // Drop it from local state directly instead of waiting on a re-fetch - AnimatePresence below
+    // picks up the removal from this array and plays the exit animation immediately, rather than
+    // the card just vanishing (or waiting on a network round-trip first).
+    if (response.success) setReports(prev => prev.filter(r => r.id !== deletedId))
+  }
+
+  return (
+    <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]">
+      <div className="mx-auto max-w-6xl px-5 py-10">
+        <StudioPageHeader
+          icon={Calculator}
+          kicker="Comparative Market Analysis"
+          title={<>Price it right, <em>prove it.</em></>}
+          subtitle="Build a client-ready pricing report from comparable sales and your own judgment."
+          asideClassName="w-full lg:w-[360px] lg:self-center"
+          actions={
+            <div className="relative w-full">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+                placeholder="Search by address or client..."
+                className="w-full rounded-xl border-2 border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm font-semibold shadow-sm outline-none transition focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/10 dark:border-gray-800 dark:bg-[#151517] dark:text-white"
+              />
+            </div>
+          }
+          tabs={
+            <LuxeTabs
+              label="CMA status"
+              active={statusTab}
+              onChange={setStatusTab}
+              items={STATUS_TABS.map(tab => ({ id: tab, label: tab === 'ALL' ? 'All' : tab.charAt(0) + tab.slice(1).toLowerCase(), icon: CMA_STATUS_ICON[tab] || LayoutGrid }))}
+              pinEnd
+              end={
+                <button
+                  onClick={() => setShowCreate(true)}
+                  className="lx-shine group relative inline-flex items-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-3.5 py-2 text-xs font-black text-[#111827] shadow-md shadow-[#C9A24D]/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
+                >
+                  <Plus className="h-3.5 w-3.5 transition-transform duration-300 group-hover:rotate-90" /> <span className="hidden sm:inline">Create New CMA</span><span className="sm:hidden">Create</span>
+                </button>
+              }
+            />
+          }
+        />
+
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {loading && (
+            <div className="col-span-full flex items-center justify-center gap-2 py-16 text-sm font-bold text-gray-400">
+              <Loader2 className="h-5 w-5 animate-spin" /> Loading CMAs...
+            </div>
+          )}
+          {!loading && filtered.length === 0 && (
+            <div className="col-span-full flex flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-gray-300 p-16 text-center dark:border-gray-700">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#C9A24D]/10">
+                <Calculator className="h-7 w-7 text-[#C9A24D]" />
+              </div>
+              <p className="text-lg font-black text-gray-700 dark:text-gray-300">No CMAs yet</p>
+              <p className="max-w-xs text-sm font-semibold text-gray-400">Build a client-ready pricing report from comparable sales and your own judgment.</p>
+              <button
+                onClick={() => setShowCreate(true)}
+                className="mt-2 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e0b85f] px-6 py-3 text-sm font-black text-white shadow-lg shadow-[#C9A24D]/30 transition hover:shadow-xl hover:shadow-[#C9A24D]/40"
+              >
+                <Plus className="h-4 w-4" /> Create Your First CMA
+              </button>
+            </div>
+          )}
+          {/* popLayout lets a deleted card's exit animation play in place while the rest of the
+              grid smoothly reflows into the gap it leaves, instead of the whole grid just
+              snapping to its new layout the instant the card disappears from the array. */}
+          <AnimatePresence mode="popLayout">
+          {!loading && filtered.map(report => {
+            const hasFairValue = report.fair_value != null
+            const compactFairValue = formatMoney(report.fair_value, { compact: true })
+            return (
+            <motion.div
+              key={report.id}
+              layout
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.85 }}
+              whileHover={{ y: -4 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-md transition-colors hover:border-[#C9A24D]/50 hover:shadow-xl dark:border-gray-800 dark:bg-[#151517]">
+              <Link href={`/studio/cma/${report.id}`} className="block">
+                <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-800">
+                  {report.subject_photo_url ? (
+                    <img src={report.subject_photo_url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center"><Home className="h-6 w-6 text-gray-300" /></div>
+                  )}
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/75 to-transparent" />
+                  {report.generation_status === 'generating' && (
+                    <div className="pointer-events-none absolute inset-0 overflow-hidden bg-black/40">
+                      <motion.div
+                        className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-white/25 to-transparent"
+                        initial={{ x: '-100%' }}
+                        animate={{ x: '200%' }}
+                        transition={{ duration: 1.6, repeat: Infinity, ease: 'linear' }}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 shadow-lg">
+                          <span className="relative flex h-2 w-2">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+                          </span>
+                          <span className="text-xs font-black uppercase tracking-wide text-white">Generating</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="absolute left-2.5 top-2.5 flex items-center gap-1.5">
+                    <span className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide shadow ${CMA_STATUS_STYLES[report.status]}`}>
+                      {report.status.toLowerCase()}
+                    </span>
+                    <span className="rounded-full bg-black/60 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                      {report.mode === 'buyer' ? 'Buyer' : 'Listing'}
+                    </span>
+                  </div>
+                  <div className="absolute inset-x-0 bottom-0 p-3.5">
+                    <p className="truncate text-xs font-black text-white drop-shadow-sm">{report.subject_address ? report.subject_address.split(',')[0] : 'No address yet'}</p>
+                    {report.client_name && (
+                      <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] font-bold text-white/85">
+                        <User className="h-3 w-3 shrink-0" /> {report.client_name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Link>
+              <div className="p-2.5">
+                <Link href={`/studio/cma/${report.id}`} className="block">
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[8px] font-black uppercase tracking-wide text-gray-400">Fair Value</p>
+                      {report.generation_status === 'generating' ? (
+                        <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs font-black text-[#8b7355] dark:text-[#d7b974]">
+                          <Loader2 className="h-3 w-3 shrink-0 animate-spin" /> Analyzing…
+                        </p>
+                      ) : (
+                        <p className={`mt-0.5 truncate text-xs font-black ${
+                          !hasFairValue
+                            ? 'text-gray-500 dark:text-gray-300'
+                            : 'text-[#8b7355] dark:text-[#d7b974]'
+                        }`}>
+                          {hasFairValue ? compactFairValue : 'No estimate yet'}
+                        </p>
+                      )}
+                    </div>
+                    <div className="shrink-0">
+                      <span className="inline-flex items-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-gray-500 dark:bg-gray-800 dark:text-gray-300">
+                        {report.comparable_count} comp{report.comparable_count === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="mt-1.5 truncate text-[9px] font-bold uppercase tracking-wide text-gray-400">Edited {timeAgo(report.updated_at || report.created_at)}</p>
+                </Link>
+                <div className="mt-2.5 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] gap-1 border-t border-gray-100 pt-2.5 dark:border-gray-800">
+                  <button
+                    onClick={event => handleShare(report, event)}
+                    title="Copy Share Link"
+                    disabled={sharingId === report.id}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-1.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-gray-600 transition hover:border-[#C9A24D] hover:text-[#8b7355] disabled:opacity-60 dark:border-gray-700 dark:text-gray-300"
+                  >
+                    {sharingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
+                  </button>
+                  <button
+                    onClick={event => handleDownload(report, event)}
+                    title="Download PDF"
+                    disabled={downloadingId === report.id || !agent}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-1.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-gray-600 transition hover:border-[#C9A24D] hover:text-[#8b7355] disabled:opacity-60 dark:border-gray-700 dark:text-gray-300"
+                  >
+                    {downloadingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                  </button>
+                  {/* Same sliding switch as the Review step's Share section - which state is
+                      active reads at a glance instead of needing to compare two small icon
+                      buttons against each other. Kept compact at every card size, not just mobile -
+                      5-per-row on desktop leaves cards about as narrow as the 2-per-row mobile layout. */}
+                  <button
+                    onClick={event => handleToggleTheme(report, event)}
+                    title={`Visitor default theme: ${report.default_theme === 'light' ? 'Light' : 'Dark'} - click to switch`}
+                    aria-label="Toggle visitor default theme"
+                    aria-pressed={report.default_theme !== 'light'}
+                    className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full p-0.5 transition-colors ${
+                      report.default_theme === 'light' ? 'bg-gray-200 dark:bg-gray-700' : 'bg-[#111827]'
+                    }`}
+                  >
+                    <span
+                      className={`flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-md transition-transform duration-300 ${
+                        report.default_theme === 'light' ? 'translate-x-0' : 'translate-x-5'
+                      }`}
+                    >
+                      {report.default_theme === 'light' ? <Sun className="h-3 w-3 text-[#C9A24D]" /> : <Moon className="h-3 w-3 text-[#111827]" />}
+                    </span>
+                  </button>
+                  <button
+                    onClick={event => handleDelete(report.id, event)}
+                    title="Delete"
+                    aria-label="Delete CMA"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 text-red-500 transition hover:border-red-600 hover:bg-red-600 hover:text-white dark:border-gray-700"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )})}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {showCreate && (
+          <CreateCmaModal
+            onClose={() => { setShowCreate(false); router.replace('/studio/cma') }}
+            onCreated={id => router.push(`/studio/cma/${id}`)}
+          />
+        )}
+      </AnimatePresence>
+
+      <WarningConfirmModal
+        isOpen={!!pendingDeleteId}
+        onClose={() => setPendingDeleteId(null)}
+        onConfirm={confirmDelete}
+        title="Delete this CMA?"
+        message="This will permanently remove the report, including any comps, pricing, and analysis you've added. This can't be undone."
+        confirmText="Delete CMA"
+        isLoading={isDeleting}
+      />
+
+      <CmaShareLinksModal
+        isOpen={!!shareLinks}
+        onClose={() => setShareLinks(null)}
+        openHousePalUrl={shareLinks?.openHousePalUrl || null}
+        websiteUrl={shareLinks?.websiteUrl || null}
+      />
+    </div>
+  )
+}
+
+function CreateCmaModal({ onClose, onCreated }: { onClose: () => void, onCreated: (id: string) => void }) {
+  const [clientName, setClientName] = useState('')
+  const [mode, setMode] = useState<CmaMode>('listing')
+  const [isCreating, setIsCreating] = useState(false)
+
+  const handleCreate = async () => {
+    setIsCreating(true)
+    const response = await api.cma.create({ client_name: clientName.trim() || undefined, mode })
+    setIsCreating(false)
+    if (response.success && response.data) onCreated(response.data.id)
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.94, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 8 }}
+        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-[#151517]"
+        onClick={event => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-lg font-black tracking-tight text-[#111827] dark:text-white">New CMA</p>
+            <p className="text-xs font-semibold text-gray-400">You'll pick the subject property next.</p>
+          </div>
+          <button onClick={onClose} className="shrink-0 rounded-full p-2 text-gray-400 transition hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="mt-5">
+          <label className="text-xs font-black uppercase tracking-wide text-gray-400">Client Name (optional)</label>
+          <input
+            value={clientName}
+            onChange={event => setClientName(event.target.value)}
+            placeholder="e.g. The Johnsons"
+            className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white"
+          />
+        </div>
+
+        <div className="mt-4">
+          <label className="text-xs font-black uppercase tracking-wide text-gray-400">This CMA is for a...</label>
+          <div className="mt-1.5 grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setMode('listing')}
+              className={`rounded-xl border-2 px-4 py-3 text-sm font-black transition ${mode === 'listing' ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#d7b974]' : 'border-gray-200 text-gray-500 dark:border-gray-700 dark:text-gray-400'}`}
+            >
+              Seller / Listing
+            </button>
+            <button
+              onClick={() => setMode('buyer')}
+              className={`rounded-xl border-2 px-4 py-3 text-sm font-black transition ${mode === 'buyer' ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#d7b974]' : 'border-gray-200 text-gray-500 dark:border-gray-700 dark:text-gray-400'}`}
+            >
+              Buyer / Offer
+            </button>
+          </div>
+        </div>
+
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={handleCreate}
+          disabled={isCreating}
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#111827] px-5 py-3 text-sm font-black text-white shadow-sm transition-colors hover:bg-black disabled:opacity-60 dark:bg-white dark:text-[#111827]"
+        >
+          {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          Continue to Subject Property
+        </motion.button>
+      </motion.div>
+    </motion.div>
+  )
+}
