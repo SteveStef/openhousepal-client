@@ -1,4 +1,4 @@
-import { Allura, Anton, Archivo, Cormorant_Garamond, Inter, Jost, Manrope, Playfair_Display } from 'next/font/google'
+import { Allura, Anton, Archivo, Cormorant_Garamond, Dancing_Script, Inter, Jost, Manrope, Playfair_Display } from 'next/font/google'
 
 // The typefaces behind the 4 Design Studio styles. Loaded through next/font (self-hosted, same
 // origin), so the editor, the wizard's live previews, the client-side PNG fallback (html2canvas
@@ -20,6 +20,8 @@ const archivo = Archivo({ subsets: ['latin'], display: 'swap' })
 const inter = Inter({ subsets: ['latin'], display: 'swap' })
 // The handwritten line on the Keepsake layout (the instant-print caption and its headline).
 const allura = Allura({ subsets: ['latin'], weight: '400', display: 'swap' })
+// A readable, lightly joined hand for the Keepsake's short lines (the words on the print, the QR asks).
+const dancing = Dancing_Script({ subsets: ['latin'], weight: ['500', '600', '700'], display: 'swap' })
 
 export const DESIGN_FONTS = {
   playfair: `${playfair.style.fontFamily}, Georgia, serif`,
@@ -30,4 +32,5 @@ export const DESIGN_FONTS = {
   archivo: `${archivo.style.fontFamily}, ui-sans-serif, system-ui, sans-serif`,
   inter: `${inter.style.fontFamily}, ui-sans-serif, system-ui, sans-serif`,
   script: `${allura.style.fontFamily}, 'Brush Script MT', cursive`,
+  hand: `${dancing.style.fontFamily}, 'Brush Script MT', cursive`,
 }

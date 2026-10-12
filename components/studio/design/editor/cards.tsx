@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRight, Calendar, Check, Crop, EyeOff, ImageIcon, Maximize2, Move, Plus, RotateCcw, Sparkles, Type, X, ZoomIn } from 'lucide-react'
 import type { AgentFormConfig, BrandKit, CampaignLookup, DesignBlock, DesignColorMode, DesignProject, DesignStyleId, LinkedProperty, OpenHouse } from '@/types'
 import type { DesignAgentInfo } from '@/lib/studio/designAgent'
-import type { DesignCanvasContext } from '../DesignCanvas'
+import { keepsakeCaption, type DesignCanvasContext } from '../DesignCanvas'
 import type { DesignCompositionId, DesignFamily } from '@/lib/studio/designCompositions'
 import type { DesignFormatDef } from '@/types'
 import { ADDABLE_FACT_FIELDS, DEFAULT_FACT_FIELDS, blockId } from '@/lib/studio/designFormats'
@@ -265,6 +265,9 @@ export function PhotoCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open
             </div>
           )}
         </div>
+      )}
+      {hero && ctl.leadGen && ctl.format.isPrint && ctl.composition === 'keepsake' && ctl.fam !== 'portrait' && (
+        <TextField label="Words under the photo" value={typeof hero.data?.caption === 'string' ? hero.data.caption : keepsakeCaption(ctl.situation)} onCommit={v => setData(ctl, hero.id, { caption: v })} placeholder="Leave empty for no words" hint="Handwritten on the photo's white edge." />
       )}
     </Card>
   )
