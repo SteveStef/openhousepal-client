@@ -263,7 +263,7 @@ function LivePage({ mode, build, prefs, onError }: {
 export default function KitReviewDialog({
   address, street, selectedImage, hasRecommendations, hasBragSheet, hasCheatSheet, similarAvailable, ownListing,
   kitPrefs, onKitPrefChange, guestPrefs, onGuestPrefChange, showcasesAvailable, guestPassAvailable, afterSigninAvailable,
-  onSimilarChange, onPreview, buildDocData, onSave, onCancel,
+  onSimilarChange, onPreview, buildDocData, onSave, onCancel, embedded = false, onStepChange,
 }: {
   address: string
   street: string
@@ -285,8 +285,12 @@ export default function KitReviewDialog({
   buildDocData: (mode: KitDocMode, opts?: { brand?: boolean }) => Promise<any | null>
   onSave: () => Promise<void>
   onCancel: () => void
+  /** Inside the kit flow's window (KitFlowShell draws the frame and header). */
+  embedded?: boolean
+  onStepChange?: (step: 1 | 2) => void
 }) {
   const [step, setStep] = useState<1 | 2>(1)
+  useEffect(() => { onStepChange?.(step) }, [step, onStepChange])
   const [focus, setFocus] = useState<KitDocMode>('flyer')
   const [saving, setSaving] = useState(false)
   const [note, setNote] = useState<string>('')
@@ -314,36 +318,8 @@ export default function KitReviewDialog({
     cheatSheet: kitPrefs.recap ? 'Recap on: the long MLS description becomes a short "Highlights of" paragraph when the kit is made.' : 'Recap off: the full MLS description prints as-is.',
   }
 
-  if (typeof document === 'undefined') return null
-  return createPortal(
-    <motion.div className="fixed inset-0 z-[120] flex justify-center overflow-y-auto bg-black/60 p-3 sm:p-5 print:hidden"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
-      <motion.div
-        initial={{ opacity: 0, y: 28, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 28 }}
-        className="relative my-auto w-full max-w-[1180px] overflow-hidden rounded-[2rem] border border-white/50 bg-[#FAFAF7] shadow-2xl dark:border-gray-800 dark:bg-[#151517]">
-        {/* header + steps */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200/60 bg-white/60 px-5 py-4 sm:px-8 dark:border-gray-800 dark:bg-[#0B0B0B]/50">
-          <div className="flex min-w-0 items-center gap-3">
-            {photo && <span className="h-12 w-12 shrink-0 rounded-xl bg-cover bg-center shadow-inner ring-1 ring-black/5" style={{ backgroundImage: `url(${photo})` }} />}
-            <div className="min-w-0">
-              <h3 className="text-xl font-black tracking-tight text-[#0B0B0B] sm:text-2xl dark:text-white">{step === 1 ? 'Review your kit' : 'After a guest signs in'}</h3>
-              <p className="truncate text-sm font-medium text-[#6B7280] dark:text-gray-400">{address}</p>
-            </div>
-          </div>
-          {hasGuestStep && (
-            <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wide">
-              {[1, 2].map(n => (
-                <React.Fragment key={n}>
-                  {n === 2 && <span className={`h-px w-6 transition-colors duration-500 ${step === 2 ? 'bg-[#C9A24D]' : 'bg-gray-300 dark:bg-gray-700'}`} />}
-                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors duration-500 ${step === n ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : step > n ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'text-gray-400'}`}>
-                    {step > n ? <Check className="h-3 w-3" strokeWidth={3.5} /> : <span>{n}</span>}{n === 1 ? 'Your kit' : 'Guests'}
-                  </span>
-                </React.Fragment>
-              ))}
-            </div>
-          )}
-        </div>
-
+  const body = (
+    <>
         <AnimatePresence mode="wait" initial={false}>
           {step === 1 ? (
             <motion.div key="kit" initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.35, ease: [0.22, 0.61, 0.36, 1] }}
@@ -483,6 +459,40 @@ export default function KitReviewDialog({
             </button>
           )}
         </div>
+    </>
+  )
+  if (embedded) return body
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <motion.div className="fixed inset-0 z-[120] flex justify-center overflow-y-auto bg-black/60 p-3 sm:p-5 print:hidden"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
+      <motion.div
+        initial={{ opacity: 0, y: 28, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+        className="relative my-auto w-full max-w-[1180px] overflow-hidden rounded-[2rem] border border-white/50 bg-[#FAFAF7] shadow-2xl dark:border-gray-800 dark:bg-[#151517]">
+        {/* header + steps */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200/60 bg-white/60 px-5 py-4 sm:px-8 dark:border-gray-800 dark:bg-[#0B0B0B]/50">
+          <div className="flex min-w-0 items-center gap-3">
+            {photo && <span className="h-12 w-12 shrink-0 rounded-xl bg-cover bg-center shadow-inner ring-1 ring-black/5" style={{ backgroundImage: `url(${photo})` }} />}
+            <div className="min-w-0">
+              <h3 className="text-xl font-black tracking-tight text-[#0B0B0B] sm:text-2xl dark:text-white">{step === 1 ? 'Review your kit' : 'After a guest signs in'}</h3>
+              <p className="truncate text-sm font-medium text-[#6B7280] dark:text-gray-400">{address}</p>
+            </div>
+          </div>
+          {hasGuestStep && (
+            <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wide">
+              {[1, 2].map(n => (
+                <React.Fragment key={n}>
+                  {n === 2 && <span className={`h-px w-6 transition-colors duration-500 ${step === 2 ? 'bg-[#C9A24D]' : 'bg-gray-300 dark:bg-gray-700'}`} />}
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors duration-500 ${step === n ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : step > n ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'text-gray-400'}`}>
+                    {step > n ? <Check className="h-3 w-3" strokeWidth={3.5} /> : <span>{n}</span>}{n === 1 ? 'Your kit' : 'Guests'}
+                  </span>
+                </React.Fragment>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {body}
       </motion.div>
     </motion.div>,
     document.body,

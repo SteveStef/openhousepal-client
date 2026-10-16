@@ -256,9 +256,9 @@ export function PropertyRecommendationCard({
         <div className="mt-auto flex items-end justify-between gap-2 print:gap-2">
 
           {/* Stats Row - price leads (unless it's already shown on the photo), then specs.
-              flex-nowrap on purpose: specs dropping to a second line looks worse than them
-              staying tight on one, especially once the card is wide enough (3-per-row grid). */}
-          <div className="flex flex-nowrap items-center gap-x-2 gap-y-1.5 overflow-hidden print:gap-2 min-w-0">
+              flex-nowrap on purpose from tablet up: specs dropping to a second line looks worse than
+              them staying tight on one. Phones wrap instead of running the numbers into each other. */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 overflow-hidden print:gap-2 min-w-0 sm:flex-nowrap">
             {!photoOverlays && (
               <div className="flex items-center whitespace-nowrap rounded-lg bg-gradient-to-r from-[#C9A24D]/20 to-[#C9A24D]/5 px-2.5 py-1 text-sm font-black text-[#8b7355] ring-1 ring-[#C9A24D]/20 print:bg-transparent print:p-0 print:text-black print:ring-0">
                 {price ? `$${price.toLocaleString()}` : 'Price N/A'}

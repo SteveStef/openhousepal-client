@@ -16,6 +16,7 @@ import { computeMatchScore, isSameSchoolDistrict } from '@/lib/matchScore'
 import { roundedPriceRange } from '@/lib/utils'
 import { readPrintPref, writePrintPref, type PrintPref } from '@/lib/printPrefs'
 import KitReviewDialog, { type KitDocMode } from './KitReviewDialog'
+import KitFlowShell, { useKitFlowScrollTop, type KitFlowStepId } from './KitFlowShell'
 import {
   OpenHouse,
   PropertyImage,
@@ -211,10 +212,7 @@ export function CreateOpenHouseWizard({
       };
       return flyerData;
     } else if (mode === 'recommendations') {
-      const selectedSimilarProps = similarProperties.filter(p => {
-        const pId = String(p.ListingKey || p.listingKey || p.id);
-        return selectedSimilarPropertyIds.map(sid => String(sid)).includes(pId);
-      });
+      const selectedSimilarProps = pickedSimilar();
       const currentSimilarProps = selectedSimilarProps.map(p => ({
         ...p,
         matchScore: computeMatchScore(p, propertyData, selectedSimilarProps),
@@ -226,10 +224,7 @@ export function CreateOpenHouseWizard({
         openHouseEventId: generatedOpenHouseId,
       };
     } else if (mode === 'bragSheet') {
-      const currentSimilarPropsForBragSheet = similarProperties.filter(p => {
-        const pId = String(p.ListingKey || p.listingKey || p.id);
-        return selectedSimilarPropertyIds.map(sid => String(sid)).includes(pId);
-      });
+      const currentSimilarPropsForBragSheet = pickedSimilar();
       const { data, error: bragSheetError } = await buildBragSheetData(currentUser, selectedFeatures.similarProperties ? currentSimilarPropsForBragSheet : [], { showcases: guestPrefs.autoShowcase });
       if (!data) {
         showToast(bragSheetError || 'Unable to build your Brag Sheet right now.', 'error');
@@ -434,6 +429,7 @@ export function CreateOpenHouseWizard({
   }
 
   const fetchSimilarProperties = async (data: any, autoSelect = false, preferences?: SearchPreferences) => {
+    const seq = ++similarSeq.current
     setIsLoadingNeighbors(true)
     
     const payload: any = {
@@ -497,6 +493,8 @@ export function CreateOpenHouseWizard({
     }
 
     const { success, data: responseData } = await api.properties.findSimilar(payload)
+    // A newer search started while this one ran (typing a price) - its answer wins, not this one.
+    if (seq !== similarSeq.current) return []
 
     if (success && responseData?.properties) {
       const normalizedProperties = await Promise.all(responseData.properties.map(async (property: any) => {
@@ -516,8 +514,10 @@ export function CreateOpenHouseWizard({
           acres: detailData.LotSizeAcres ?? detailData.lotSizeAcres ?? detailData.lot_size_acres ?? normalized.acres,
         })
       }))
+      if (seq !== similarSeq.current) return []
+      normalizedProperties.forEach((p: any) => similarPool.current.set(String(p.ListingKey || p.listingKey || p.id), p))
       setSimilarProperties(normalizedProperties)
-      
+
       if (autoSelect) {
         const topIds = normalizedProperties.slice(0, 12).map((p: any) => p.listingKey || p.ListingKey || p.id)
         setSelectedSimilarPropertyIds(topIds)
@@ -526,9 +526,17 @@ export function CreateOpenHouseWizard({
       return normalizedProperties
     }
     
+    // Refused (e.g. a max price below the min) - no matches, rather than the old list lingering.
+    setSimilarProperties([])
     setIsLoadingNeighbors(false)
     return []
   }
+  const similarSeq = useRef(0)
+  const similarPool = useRef(new Map<string, any>())
+  // The picked homes, even ones the current filters hide (they stay in the kit).
+  const pickedSimilar = () => selectedSimilarPropertyIds
+    .map(id => similarPool.current.get(String(id)) || similarProperties.find(p => String(p.ListingKey || p.listingKey || p.id) === String(id)))
+    .filter(Boolean)
 
   // Similar Homes switched on from Review & Save with nothing picked: after picking, go straight
   // back to Review instead of redoing the cover photo / Cheat Sheet steps.
@@ -573,10 +581,7 @@ export function CreateOpenHouseWizard({
       return
     }
 
-    const selectedSnapshot = similarProperties.filter(p => {
-      const pId = String(p.ListingKey || p.listingKey || p.id);
-      return selectedSimilarPropertyIds.map(sid => String(sid)).includes(pId);
-    })
+    const selectedSnapshot = pickedSimilar()
     const savedCheatSheetPhotos = normalizeCheatSheetPhotosForSave(cheatSheetPhotos)
     const listingKey = propertyData?.ListingKey || propertyData?.listing_key
     let cheatSheetSnapshot
@@ -683,20 +688,28 @@ export function CreateOpenHouseWizard({
     }
   }
 
+  // Everything after the address happens in one pop-out window (KitFlowShell).
+  const inFlow = currentStep !== 'ADDRESS'
+  const [reviewStep, setReviewStep] = useState<1 | 2>(1)
+  useEffect(() => { if (currentStep !== 'REVIEW') setReviewStep(1) }, [currentStep])
+  const flowSteps: KitFlowStepId[] = [...(!isNoMls ? ['similar' as const] : []), 'cover', ...(selectedFeatures.cheatSheet ? ['cheat' as const] : []), 'kit', 'guests']
+  const flowCurrent: KitFlowStepId = currentStep === 'PREFERENCES' ? 'similar' : currentStep === 'COVER_IMAGE' ? 'cover' : currentStep === 'CHEAT_SHEET_PHOTOS' ? 'cheat' : reviewStep === 2 ? 'guests' : 'kit'
+  const flowTitle = { similar: 'Pick similar homes', cover: 'Choose the cover photo', cheat: 'Cheat Sheet photos', kit: 'Review your kit', guests: 'After a guest signs in' }[flowCurrent]
+  const flowPhoto = selectedImage?.url || propertyData?.ListPictureURL || (Array.isArray(propertyData?.photos) ? propertyData.photos[0] : null)
+  const leaveFlow = () => {
+    returnToReview.current = false
+    setSelectedImage(null)
+    setSelectedSimilarPropertyIds([])
+    setCheatSheetPhotos([])
+    setCurrentStep('ADDRESS')
+  }
+  const onReviewStep = useCallback((st: 1 | 2) => setReviewStep(st), [])
+
   return (
     <div className="w-full">
-      <AnimatePresence mode="popLayout" initial={false}>
-      <motion.div
-        key={currentStep}
-        layout
-        initial={{ opacity: 0, y: 12, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -12, scale: 0.98 }}
-        transition={{ type: 'spring', stiffness: 420, damping: 38, mass: 0.9, layout: { duration: 0.28, ease: [0.22, 1, 0.36, 1] } }}
-      >
-      {currentStep === 'ADDRESS' && isNoMls ? (
+      {isNoMls ? (
         <ManualPropertyEntryForm onComplete={handleManualPropertyComplete} />
-      ) : currentStep === 'ADDRESS' ? (
+      ) : (
         <div className="space-y-6 sm:space-y-8 w-full">
           {/* The Opens header - the shared luxe header: the address bar is the main action,
               Discovery + Manager sit on the right, and what's in a kit is listed under the bar. */}
@@ -830,90 +843,105 @@ export function CreateOpenHouseWizard({
             }
           />
         </div>
-      ) : currentStep === 'PREFERENCES' ? (
-        <SimilarPropertiesPreferencesView
-          preferences={searchPreferences}
-          address={address}
-          subjectProperty={propertyData}
-          properties={similarProperties}
-          isLoading={isLoadingNeighbors}
-          selectedIds={selectedSimilarPropertyIds}
-          onSelectionChange={setSelectedSimilarPropertyIds}
-          onPreferencesChange={handleSimilarPreferencesChange}
-          onNext={() => handleSimilarPropertiesComplete(selectedSimilarPropertyIds)}
-          include={selectedFeatures.similarProperties}
-          onIncludeChange={(on: boolean) => setSelectedFeatures(prev => ({ ...prev, similarProperties: on }))}
-          ownListing={ownListing}
-          onBack={() => {
-            // Came here from Review to pick homes - backing out leaves Similar Homes off.
-            if (returnToReview.current && selectedImage) {
-              returnToReview.current = false
-              setSelectedFeatures(prev => ({ ...prev, similarProperties: false }))
-              setCurrentStep('REVIEW')
-              return
-            }
-            setCurrentStep('ADDRESS')
-            setAddress('')
-            setPropertyData(null)
-            setCoordinates(null)
-          }}
-        />
-      ) : currentStep === 'COVER_IMAGE' ? (
-         <ImageSelectionView
-          propertyData={propertyData}
-          address={formatStreetAndCity(address, propertyData?.city || propertyData?.City)}
-          onImageSelect={handleImageSelect}
-          onBack={() => setCurrentStep(isNoMls ? 'ADDRESS' : 'PREFERENCES')}
-        />
-      ) : currentStep === 'CHEAT_SHEET_PHOTOS' ? (
-        <CheatSheetPhotoSelectionView
-          propertyData={propertyData}
-          address={formatStreetAndCity(address, propertyData?.city || propertyData?.City)}
-          currentUser={currentUser}
-          initialSelected={cheatSheetPhotos}
-          onNext={handleCheatSheetPhotosComplete}
-          onBack={() => setCurrentStep('COVER_IMAGE')}
-          recapOn={kitPrefs.recap}
-        />
-      ) : null}
-      </motion.div>
-      </AnimatePresence>
-
-      {/* Review: 1) your kit with a live preview, 2) what guests get - then Save & Finish */}
-      {currentStep === 'REVIEW' && (
-        <KitReviewDialog
-          address={formatAddress(address)}
-          street={formatStreetAndCity(address, propertyData?.city || propertyData?.City).split(',')[0]}
-          selectedImage={selectedImage}
-          onSave={saveOpenHouse}
-          onCancel={() => setCurrentStep(selectedFeatures.cheatSheet ? 'CHEAT_SHEET_PHOTOS' : 'COVER_IMAGE')}
-          onPreview={handleTriggerPreview}
-          buildDocData={buildKitDocData}
-          hasRecommendations={selectedFeatures.similarProperties}
-          hasBragSheet={selectedFeatures.bragSheet}
-          hasCheatSheet={selectedFeatures.cheatSheet}
-          kitPrefs={kitPrefs}
-          onKitPrefChange={setKitPref}
-          guestPrefs={guestPrefs}
-          onGuestPrefChange={(k, v) => setGuestPrefs(prev => ({ ...prev, [k]: v }))}
-          showcasesAvailable={hasShowcaseAccess(currentUser?.plan_tier)}
-          guestPassAvailable={!isNoMls}
-          afterSigninAvailable={isNoMls}
-          similarAvailable={!isNoMls}
-          ownListing={ownListing}
-          onSimilarChange={(on: boolean) => {
-            if (!on) {
-              setSelectedFeatures(prev => ({ ...prev, similarProperties: false }))
-              return
-            }
-            // Including it again always goes back to the Similar Homes step to pick the homes
-            // again (never silently re-adds the old picks) - Next there returns here.
-            setSelectedFeatures(prev => ({ ...prev, similarProperties: true }))
-            returnToReview.current = true
-            setCurrentStep('PREFERENCES')
-          }}
-        />
       )}
+
+      <AnimatePresence>
+        {inFlow && (
+          <KitFlowShell
+            steps={flowSteps}
+            current={flowCurrent}
+            contentKey={currentStep}
+            title={flowTitle}
+            address={formatAddress(address)}
+            photo={flowPhoto}
+            onClose={leaveFlow}
+          >
+            {currentStep === 'PREFERENCES' ? (
+              <SimilarPropertiesPreferencesView
+                bare
+                keepHiddenSelections
+                preferences={searchPreferences}
+                address={address}
+                subjectProperty={propertyData}
+                properties={similarProperties}
+                isLoading={isLoadingNeighbors}
+                selectedIds={selectedSimilarPropertyIds}
+                onSelectionChange={setSelectedSimilarPropertyIds}
+                onPreferencesChange={handleSimilarPreferencesChange}
+                onNext={() => handleSimilarPropertiesComplete(selectedSimilarPropertyIds)}
+                include={selectedFeatures.similarProperties}
+                onIncludeChange={(on: boolean) => setSelectedFeatures(prev => ({ ...prev, similarProperties: on }))}
+                ownListing={ownListing}
+                onBack={() => {
+                  // Came here from Review to pick homes - backing out leaves Similar Homes off.
+                  if (returnToReview.current && selectedImage) {
+                    returnToReview.current = false
+                    setSelectedFeatures(prev => ({ ...prev, similarProperties: false }))
+                    setCurrentStep('REVIEW')
+                    return
+                  }
+                  leaveFlow()
+                }}
+              />
+            ) : currentStep === 'COVER_IMAGE' ? (
+              <ImageSelectionView
+                bare
+                initial={selectedImage}
+                propertyData={propertyData}
+                address={formatStreetAndCity(address, propertyData?.city || propertyData?.City)}
+                onImageSelect={handleImageSelect}
+                onBack={() => (isNoMls ? leaveFlow() : setCurrentStep('PREFERENCES'))}
+              />
+            ) : currentStep === 'CHEAT_SHEET_PHOTOS' ? (
+              <CheatSheetPhotoSelectionView
+                bare
+                propertyData={propertyData}
+                address={formatStreetAndCity(address, propertyData?.city || propertyData?.City)}
+                currentUser={currentUser}
+                initialSelected={cheatSheetPhotos}
+                onNext={handleCheatSheetPhotosComplete}
+                onBack={() => setCurrentStep('COVER_IMAGE')}
+                recapOn={kitPrefs.recap}
+              />
+            ) : currentStep === 'REVIEW' ? (
+              <KitReviewDialog
+                embedded
+                onStepChange={onReviewStep}
+                address={formatAddress(address)}
+                street={formatStreetAndCity(address, propertyData?.city || propertyData?.City).split(',')[0]}
+                selectedImage={selectedImage}
+                onSave={saveOpenHouse}
+                onCancel={() => setCurrentStep(selectedFeatures.cheatSheet ? 'CHEAT_SHEET_PHOTOS' : 'COVER_IMAGE')}
+                onPreview={handleTriggerPreview}
+                buildDocData={buildKitDocData}
+                hasRecommendations={selectedFeatures.similarProperties}
+                hasBragSheet={selectedFeatures.bragSheet}
+                hasCheatSheet={selectedFeatures.cheatSheet}
+                kitPrefs={kitPrefs}
+                onKitPrefChange={setKitPref}
+                guestPrefs={guestPrefs}
+                onGuestPrefChange={(k, v) => setGuestPrefs(prev => ({ ...prev, [k]: v }))}
+                showcasesAvailable={hasShowcaseAccess(currentUser?.plan_tier)}
+                guestPassAvailable={!isNoMls}
+                afterSigninAvailable={isNoMls}
+                similarAvailable={!isNoMls}
+                ownListing={ownListing}
+                onSimilarChange={(on: boolean) => {
+                  if (!on) {
+                    setSelectedFeatures(prev => ({ ...prev, similarProperties: false }))
+                    return
+                  }
+                  // Including it again always goes back to the Similar Homes step to pick the homes
+                  // again (never silently re-adds the old picks) - Next there returns here.
+                  setSelectedFeatures(prev => ({ ...prev, similarProperties: true }))
+                  returnToReview.current = true
+                  setCurrentStep('PREFERENCES')
+                }}
+              />
+            ) : null}
+          </KitFlowShell>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -934,6 +962,8 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
   include = true,
   onIncludeChange,
   ownListing = false,
+  bare = false,
+  keepHiddenSelections = false,
 }: {
   preferences: SearchPreferences,
   address: string,
@@ -949,8 +979,14 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
   include?: boolean,
   onIncludeChange?: (on: boolean) => void,
   ownListing?: boolean,
+  // Inside the kit flow's window: no card of its own, and the window does the scrolling.
+  bare?: boolean,
+  // Picked homes stay picked when a filter hides them (the kit keeps them) instead of being dropped.
+  keepHiddenSelections?: boolean,
 }) {
   const [prefs, setPrefs] = useState<SearchPreferences>(initialPreferences)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const scrollFlowTop = useKitFlowScrollTop()
 
   // "View details" for a similar-property card - fetches the full listing (these cards only carry
   // lightweight search-result data) and reuses the same PropertyDetailsModal every other property
@@ -1011,6 +1047,15 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
   const [resultsPage, setResultsPage] = useState(1)
   useEffect(() => { setResultsPage(1) }, [properties])
   const resultsTotalPages = Math.max(1, Math.ceil(sortedProperties.length / RESULTS_PAGE_SIZE))
+  // A new results page starts at the top, like turning a page.
+  const goToPage = (n: number) => {
+    setResultsPage(n)
+    if (scrollFlowTop) scrollFlowTop()
+    else rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  const shownIds = new Set(properties.map(p => String(p.ListingKey || p.listingKey || p.id)))
+  const hiddenPicks = selectedIdStrings.filter(id => !shownIds.has(id)).length
+  const priceBackwards = prefs.maxPrice > 0 && prefs.minPrice > 0 && prefs.maxPrice < prefs.minPrice
   const pagedProperties = sortedProperties.slice((resultsPage - 1) * RESULTS_PAGE_SIZE, resultsPage * RESULTS_PAGE_SIZE)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -1030,12 +1075,12 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
   }, [prefs, onPreferencesChange])
 
   useEffect(() => {
-    if (properties.length === 0) return
+    if (keepHiddenSelections || properties.length === 0) return
     const currentPropertyIds = properties.map(p => String(p.ListingKey || p.listingKey || p.id))
     const nextSelectedIds = selectedIds.filter(id => currentPropertyIds.includes(String(id)))
     const changed = nextSelectedIds.length !== selectedIds.length || nextSelectedIds.some((id, index) => String(id) !== String(selectedIds[index]))
     if (changed) onSelectionChange(nextSelectedIds)
-  }, [properties, selectedIds, onSelectionChange])
+  }, [properties, selectedIds, onSelectionChange, keepHiddenSelections])
 
   const toggleProperty = (id: string | number) => {
     const stringId = String(id)
@@ -1047,7 +1092,7 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
   }
 
   return (
-    <div className="bg-white dark:bg-[#151517] rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 transition-colors max-w-7xl mx-auto animate-fadeIn h-full flex flex-col overflow-hidden">
+    <div ref={rootRef} className={bare ? 'flex scroll-mt-4 flex-col' : 'bg-white dark:bg-[#151517] rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 transition-colors max-w-7xl mx-auto animate-fadeIn h-full flex flex-col overflow-hidden'}>
       {/* overscrollBehavior: 'auto' overrides a global rule (globals.css: any .overflow-y-auto
           gets overscroll-behavior: contain, so a modal's internal scroll doesn't chain into the
           page behind it). That rule assumes this element is always its own fully self-contained
@@ -1059,7 +1104,7 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
           at all - so scrolling worked only once the cursor left this panel entirely (the actual
           "have to reach the edge of the page" bug). Only this specific container needs the
           override; it's inline so it beats the class-based rule regardless of stylesheet order. */}
-      <div className="flex-1 overflow-y-auto px-5 pb-5 sm:px-8 sm:pb-8" style={{ overscrollBehavior: 'auto' }}>
+      <div className={bare ? 'px-4 pb-6 sm:px-8 sm:pb-8' : 'flex-1 overflow-y-auto px-5 pb-5 sm:px-8 sm:pb-8'} style={bare ? undefined : { overscrollBehavior: 'auto' }}>
         {onIncludeChange && <SimilarIncludeBar include={include} ownListing={ownListing} onChange={onIncludeChange} />}
         {!include ? (
           <SimilarOffPanel address={formatSubjectAddress(subjectAddress)} ownListing={ownListing} onBack={onBack} onNext={onNext} onTurnOn={() => onIncludeChange?.(true)} />
@@ -1099,11 +1144,11 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
               <div className="grid grid-cols-2 gap-3">
               <div>
                   <label className="mb-1 ml-1 block text-[9px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Min Price</label>
-                  <input type="text" name="minPrice" value={formatPriceForDisplay(prefs.minPrice)} onChange={handleChange} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white" placeholder="0" />
+                  <input type="text" inputMode="numeric" name="minPrice" value={formatPriceForDisplay(prefs.minPrice)} onChange={handleChange} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white" placeholder="0" />
               </div>
               <div>
                   <label className="mb-1 ml-1 block text-[9px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Max Price</label>
-                  <input type="text" name="maxPrice" value={formatPriceForDisplay(prefs.maxPrice)} onChange={handleChange} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white" placeholder="No Max" />
+                  <input type="text" inputMode="numeric" name="maxPrice" value={formatPriceForDisplay(prefs.maxPrice)} onChange={handleChange} className={`w-full rounded-xl border ${priceBackwards ? 'border-red-300 dark:border-red-500/50' : 'border-gray-200'} bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white`} placeholder="No Max" />
                 </div>
               </div>
 
@@ -1132,7 +1177,7 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
                 <input type="range" name="radius" min="1" max="20" step="1" value={prefs.radius} onChange={handleChange} className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-[#C9A24D] dark:bg-gray-700" />
                 <div className="min-w-[70px] text-right"><span className="text-base font-black text-gray-900 dark:text-white">{prefs.radius}</span><span className="ml-1 text-[9px] font-bold uppercase text-gray-500">Miles</span></div>
               </div>
-              <p className="text-[9px] font-medium text-gray-400">Search area centered on the property coordinates captured from address entry.</p>
+              <p className={`min-h-[14px] text-[9px] font-medium ${priceBackwards ? 'font-bold text-red-500' : 'text-gray-400'}`}>{priceBackwards ? 'Max price is below the min price - no home can match.' : 'Search area centered on this home.'}</p>
             </div>
           </div>
         </div>
@@ -1148,51 +1193,50 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
               <h3 className="text-lg font-black text-gray-900 dark:text-white">Property Selection</h3>
               <p className="text-xs font-semibold text-gray-400">Results update automatically as you refine filters.</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={onBack} className="inline-flex items-center self-start rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-[#0B0B0B] dark:text-gray-400 dark:hover:bg-gray-800">Back</button>
-              <div className="inline-flex items-center self-start rounded-2xl border border-gray-200 bg-white px-4 py-2 dark:border-gray-800 dark:bg-[#0B0B0B]">
+            <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+              <button onClick={onBack} className="inline-flex items-center justify-center self-stretch rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm font-black sm:self-start sm:px-4 text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-[#0B0B0B] dark:text-gray-400 dark:hover:bg-gray-800">Back</button>
+              <div className="inline-flex items-center justify-center self-stretch rounded-2xl border border-gray-200 bg-white px-3 py-2 sm:self-start sm:px-4 dark:border-gray-800 dark:bg-[#0B0B0B]">
                 <span className="mr-2 text-[10px] font-black uppercase tracking-wide text-gray-400">Results</span>
-                <span className="text-lg font-black text-[#111827] dark:text-white">{properties.length}</span>
+                <span className="inline-flex min-w-[1.5rem] items-center justify-center text-lg font-black text-[#111827] dark:text-white">{isLoading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#C9A24D] border-t-transparent" /> : properties.length}</span>
               </div>
-              <div className="inline-flex items-center self-start rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-2 dark:border-emerald-900/30 dark:bg-emerald-900/10">
+              <div className="inline-flex items-center justify-center self-stretch rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 sm:self-start sm:px-4 dark:border-emerald-900/30 dark:bg-emerald-900/10">
                 <span className="mr-2 text-[10px] font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Selected</span>
                 <span className="text-lg font-black text-emerald-700 dark:text-emerald-300">{selectedIds.length}</span>
               </div>
-              <button onClick={onNext} disabled={selectedIds.length === 0} className="inline-flex items-center self-start rounded-2xl border border-transparent bg-[#111827] dark:bg-white px-5 py-2 text-sm font-black uppercase tracking-widest text-white dark:text-[#111827] shadow-lg transition-all duration-200 hover:bg-[#8b7355] hover:text-white dark:hover:bg-[#C9A24D] disabled:cursor-not-allowed disabled:opacity-50">Continue ({selectedIds.length})</button>
+              {keepHiddenSelections && hiddenPicks > 0 && (
+                <div className="col-span-3 inline-flex items-center justify-center self-start rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-black text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300" title="Homes you picked that these filters hide - they stay in your kit.">
+                  {hiddenPicks} picked {hiddenPicks === 1 ? 'home' : 'homes'} not shown
+                </div>
+              )}
+              <button onClick={onNext} disabled={selectedIds.length === 0} className="col-span-3 inline-flex items-center justify-center self-start rounded-2xl border border-transparent bg-[#111827] dark:bg-white px-5 py-2 text-sm font-black uppercase tracking-widest text-white dark:text-[#111827] shadow-lg transition-all duration-200 hover:bg-[#8b7355] hover:text-white dark:hover:bg-[#C9A24D] disabled:cursor-not-allowed disabled:opacity-50">Continue ({selectedIds.length})</button>
             </div>
           </div>
 
-          {isLoading ? (
-            <div className="flex items-center justify-center gap-3 rounded-2xl border border-dashed border-gray-200 py-12 text-sm font-bold text-gray-400 dark:border-gray-800">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#C9A24D] border-t-transparent" />
-              Updating results...
+          <div className="relative min-h-[460px]">
+          {properties.length === 0 && isLoading ? (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#0B0B0B]">
+                  <div className="aspect-[4/3] animate-pulse bg-gray-200/70 dark:bg-white/5" style={{ animationDelay: `${i * 90}ms` }} />
+                  <div className="space-y-2 p-4"><div className="h-3 w-2/3 animate-pulse rounded-full bg-gray-200/80 dark:bg-white/5" /><div className="h-3 w-1/3 animate-pulse rounded-full bg-gray-200/80 dark:bg-white/5" /></div>
+                </div>
+              ))}
             </div>
           ) : properties.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-200 p-10 text-center dark:border-gray-800">
+            <div className="flex min-h-[460px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 p-10 text-center dark:border-gray-800">
               <Search className="mx-auto mb-3 h-6 w-6 text-gray-300" />
-              <p className="text-sm font-black text-gray-500 dark:text-gray-400">No matching properties yet</p>
-              <p className="mt-1 text-xs font-semibold text-gray-400">Try widening the radius or price range.</p>
+              <p className="text-sm font-black text-gray-500 dark:text-gray-400">{priceBackwards ? 'Max price is below the min price' : 'No homes match these filters'}</p>
+              <p className="mt-1 text-xs font-semibold text-gray-400">{priceBackwards ? 'Raise the max price or lower the min.' : 'Try widening the radius or the price range.'}</p>
             </div>
           ) : (
             <>
-              {/* No height cap/inner scroll here on purpose - this flows as part of the single
-                  outer scroll region (the flex-1 overflow-y-auto wrapping the whole panel below).
-                  Paginated to RESULTS_PAGE_SIZE instead of showing every match at once, so that
-                  single scroll region stays short regardless of how many matches a loose filter
-                  turns up.
-                  select-none - selection here is a plain click-to-toggle (toggleProperty), not
-                  text selection, but the cards' address/price text is selectable by default. A
-                  quick click-drag across several cards to toggle them fast was instead starting a
-                  native text-selection drag, which only auto-scrolls once the cursor reaches the
-                  actual browser viewport edge (not this section's own edge) - exactly the "have to
-                  go to the border of the page" complaint. Disabling text selection here removes
-                  that native drag behavior entirely; plain clicks still toggle normally. */}
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 select-none">
                 {pagedProperties.map((property) => {
                   const propertyId = String(property.ListingKey || property.listingKey || property.id)
                   const isSelected = selectedIdStrings.includes(propertyId)
                   return (
-                    <div key={propertyId} onClick={() => toggleProperty(propertyId)} className="relative cursor-pointer">
+                    <motion.div key={propertyId} onClick={() => toggleProperty(propertyId)} className="relative cursor-pointer"
+                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(pagedProperties.indexOf(property), 8) * 0.035, ease: [0.22, 0.61, 0.36, 1] }}>
                       <PropertyRecommendationCard
                         image={property.ListPictureURL || property.imageUrl || property.imgSrc || property.image || "/placeholder.svg"}
                         streetAddress={property.FullStreetAddress || property.address}
@@ -1218,7 +1262,7 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
                         elevated
                         onViewDetails={() => handleViewDetails(property)}
                       />
-                    </div>
+                    </motion.div>
                   )
                 })}
               </div>
@@ -1226,7 +1270,7 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
                 <div className="mt-5 flex items-center justify-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setResultsPage(p => Math.max(1, p - 1))}
+                    onClick={() => goToPage(Math.max(1, resultsPage - 1))}
                     disabled={resultsPage === 1}
                     className="rounded-lg p-2 text-gray-400 transition hover:bg-white dark:hover:bg-gray-800 disabled:opacity-30"
                     aria-label="Previous page"
@@ -1237,7 +1281,7 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
                     <button
                       type="button"
                       key={n}
-                      onClick={() => setResultsPage(n)}
+                      onClick={() => goToPage(n)}
                       className={`h-8 min-w-[2rem] rounded-lg px-2 text-xs font-black transition ${
                         n === resultsPage ? 'bg-[#C9A24D] text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800'
                       }`}
@@ -1247,7 +1291,7 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
                   ))}
                   <button
                     type="button"
-                    onClick={() => setResultsPage(p => Math.min(resultsTotalPages, p + 1))}
+                    onClick={() => goToPage(Math.min(resultsTotalPages, resultsPage + 1))}
                     disabled={resultsPage === resultsTotalPages}
                     className="rounded-lg p-2 text-gray-400 transition hover:bg-white dark:hover:bg-gray-800 disabled:opacity-30"
                     aria-label="Next page"
@@ -1258,6 +1302,16 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
               )}
             </>
           )}
+          {isLoading && properties.length > 0 && (
+            <div className="pointer-events-none absolute inset-0 z-10 rounded-2xl bg-[#f1f3f5]/55 transition-opacity dark:bg-[#151517]/55">
+              <div className="sticky top-24 flex justify-center pt-6">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-xs font-black text-[#8b7355] shadow-lg dark:bg-[#0B0B0B] dark:text-[#e8c97a]">
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#C9A24D] border-t-transparent" /> Updating results
+                </span>
+              </div>
+            </div>
+          )}
+          </div>
         </div>
         </>)}
       </div>
@@ -1476,22 +1530,23 @@ const ManualPropertyEntryForm = memo(function ManualPropertyEntryForm({ onComple
   )
 })
 
-const ImageSelectionView = memo(function ImageSelectionView({ propertyData, address, onImageSelect, onBack }: any) {
+const ImageSelectionView = memo(function ImageSelectionView({ propertyData, address, onImageSelect, onBack, bare = false, initial = null }: any) {
   const availableImages = (propertyData?.photos && propertyData.photos.length > 0 ? propertyData.photos : [propertyData?.ListPictureURL]).filter(isRealPhotoUrl)
   // Picking a thumbnail doesn't advance the wizard right away - it stages the photo so its crop
   // position can be dragged into place first, mirrored live in the preview pane on the right.
-  const [pending, setPending] = useState<{ url: string; x: number; y: number } | null>(null)
+  // Coming back to this step keeps the photo (and crop) picked before.
+  const [pending, setPending] = useState<{ url: string; x: number; y: number } | null>(initial ? { url: initial.url, x: initial.x ?? 50, y: initial.y ?? 50 } : null)
 
   const updatePendingPosition = (_: number, position: { x: number; y: number }) => {
     setPending(current => current ? { ...current, ...position } : current)
   }
 
   return (
-    <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-6 transition-colors animate-fadeIn">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
+    <div className={bare ? 'px-4 pb-6 sm:px-8 sm:pb-8' : 'bg-white dark:bg-[#151517] rounded-2xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-6 transition-colors animate-fadeIn'}>
+      <div className={`flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${bare ? 'sticky top-0 z-20 -mx-4 mb-5 border-b border-gray-200/60 bg-[#FAFAF7] px-4 py-3 sm:-mx-8 sm:px-8 dark:border-gray-800 dark:bg-[#151517]' : 'mb-6'}`}>
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Select Cover Image for Sign-in Sheet</h2>
-          <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">{address}{pending ? ' · Drag the preview photo to adjust the crop.' : ' · Choose a photo below to preview the Sign-In Sheet.'}</p>
+          {!bare && <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Select Cover Image for Sign-in Sheet</h2>}
+          <p className={`text-sm ${bare ? 'font-bold text-gray-700 dark:text-gray-200' : 'mt-1 text-gray-600 dark:text-gray-400'}`}>{bare ? (pending ? 'Drag the photo on the right to frame it, then continue.' : 'Pick the photo for the top of your Sign-In Sheet.') : <>{address}{pending ? ' · Drag the preview photo to adjust the crop.' : ' · Choose a photo below to preview the Sign-In Sheet.'}</>}</p>
         </div>
         <div className="flex w-full gap-2 sm:w-auto sm:shrink-0">
           <button onClick={onBack} className="flex flex-1 items-center justify-center rounded-xl border border-gray-200 bg-gray-100 px-4 py-2.5 text-sm font-bold text-gray-700 transition-colors duration-200 hover:bg-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 sm:flex-none"><svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>Back</button>
@@ -1505,20 +1560,21 @@ const ImageSelectionView = memo(function ImageSelectionView({ propertyData, addr
         </div>
       </div>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="grid max-h-[560px] auto-rows-min grid-cols-2 items-start gap-4 overflow-y-auto pr-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3">
+        <div className={`grid auto-rows-min grid-cols-2 items-start gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 ${bare ? '' : 'max-h-[560px] overflow-y-auto pr-1'}`}>
           {availableImages.map((imageUrl: string, index: number) => (
-            <div
+            <motion.div
               key={index}
-              className={`relative aspect-square bg-gray-100 dark:bg-[#0B0B0B] rounded-xl overflow-hidden cursor-pointer transition-shadow duration-200 group ${pending?.url === imageUrl ? 'ring-2 ring-[#8b7355] dark:ring-[#C9A24D]' : 'hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-600'}`}
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(index, 11) * 0.03 }}
+              className={`relative aspect-square bg-gray-100 dark:bg-[#0B0B0B] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 group ${pending?.url === imageUrl ? 'ring-[3px] ring-[#C9A24D] shadow-[0_14px_30px_-14px_rgba(139,115,85,.9)]' : 'hover:-translate-y-0.5 hover:shadow-lg hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-600'}`}
               onClick={() => setPending({ url: imageUrl, x: 50, y: 50 })}
             >
               <Image src={imageUrl} alt={`Property view ${index + 1}`} fill sizes="(max-width: 768px) 50vw, (max-width: 1280px) 25vw, 320px" quality={88} className="object-cover" />
               <div className={`absolute inset-0 transition-colors duration-200 flex items-center justify-center ${pending?.url === imageUrl ? 'bg-black/10' : 'bg-black/0 group-hover:bg-black/10'}`}>
-                <div className={`bg-white/90 dark:bg-[#151517]/90 rounded-full p-2 transition-opacity duration-200 ${pending?.url === imageUrl ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                  <svg className="w-5 h-5 text-[#8b7355] dark:text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                <div className={`rounded-full p-2 transition-all duration-300 ${pending?.url === imageUrl ? 'scale-100 bg-[#C9A24D] text-[#111827] opacity-100' : 'scale-75 bg-white/90 text-[#8b7355] opacity-0 group-hover:scale-100 group-hover:opacity-100 dark:bg-[#151517]/90 dark:text-[#C9A24D]'}`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
         <SignInSheetLivePreview propertyData={propertyData} address={address} pending={pending} onPhotoPositionChange={updatePendingPosition} />
@@ -1599,7 +1655,7 @@ const normalizeCheatSheetPhotosForSave = (photos: any[]) => (photos || [])
   .map(photo => typeof photo === 'string' ? { url: photo, x: 50, y: 50 } : { url: String(photo?.url || ''), x: photo?.x ?? 50, y: photo?.y ?? 50 })
   .filter(photo => photo.url)
 
-export const CheatSheetPhotoSelectionView = memo(function CheatSheetPhotoSelectionView({ propertyData, address, currentUser, initialSelected, onNext, onBack, recapOn = true }: any) {
+export const CheatSheetPhotoSelectionView = memo(function CheatSheetPhotoSelectionView({ propertyData, address, currentUser, initialSelected, onNext, onBack, recapOn = true, bare = false }: any) {
   // The Cheat Sheet's AI Recap (a short "Highlights of..." paragraph) is the AI this step leads to -
   // show roughly what it uses before the agent continues.
   const descLength = String(propertyData?.PublicRemarks || propertyData?.description || '').trim().length
@@ -1641,11 +1697,11 @@ export const CheatSheetPhotoSelectionView = memo(function CheatSheetPhotoSelecti
   }
 
   return (
-    <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-6 transition-colors animate-fadeIn">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
+    <div className={bare ? 'px-4 pb-6 sm:px-8 sm:pb-8' : 'bg-white dark:bg-[#151517] rounded-2xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-6 transition-colors animate-fadeIn'}>
+      <div className={`flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between ${bare ? 'sticky top-0 z-20 -mx-4 mb-5 border-b border-gray-200/60 bg-[#FAFAF7] px-4 py-3 sm:-mx-8 sm:px-8 dark:border-gray-800 dark:bg-[#151517]' : 'mb-6'}`}>
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Select Photos for the Open House Cheat Sheet</h2>
-          <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">{address} &middot; Choose up to {MAX_CHEAT_SHEET_PHOTOS} photos, in the order you'd like them to appear.</p>
+          {!bare && <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Select Photos for the Open House Cheat Sheet</h2>}
+          <p className={`text-sm ${bare ? 'font-bold text-gray-700 dark:text-gray-200' : 'mt-1 text-gray-600 dark:text-gray-400'}`}>{bare ? `Pick up to ${MAX_CHEAT_SHEET_PHOTOS} photos in the order they should print - drag each one on the right to frame it.` : <>{address} &middot; Choose up to {MAX_CHEAT_SHEET_PHOTOS} photos, in the order you'd like them to appear.</>}</p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:shrink-0">
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
@@ -1661,24 +1717,30 @@ export const CheatSheetPhotoSelectionView = memo(function CheatSheetPhotoSelecti
         </div>
       </div>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="grid max-h-[560px] auto-rows-min grid-cols-2 items-start gap-4 overflow-y-auto pr-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3">
+        <div className={`grid auto-rows-min grid-cols-2 items-start gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 ${bare ? '' : 'max-h-[560px] overflow-y-auto pr-1'}`}>
           {availableImages.map((imageUrl: string, index: number) => {
             const selectedIndex = selected.findIndex(photo => photo.url === imageUrl)
             const isSelected = selectedIndex !== -1
+            const full = !isSelected && selected.length >= MAX_CHEAT_SHEET_PHOTOS
             return (
-              <div
+              <motion.div
                 key={index}
-                className={`relative aspect-square bg-gray-100 dark:bg-[#0B0B0B] rounded-xl overflow-hidden cursor-pointer transition-shadow duration-200 group ${isSelected ? 'ring-2 ring-[#8b7355] dark:ring-[#C9A24D]' : 'hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-600'}`}
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(index, 11) * 0.03 }}
+                className={`relative aspect-square bg-gray-100 dark:bg-[#0B0B0B] rounded-xl overflow-hidden transition-all duration-300 group ${full ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} ${isSelected ? 'ring-[3px] ring-[#C9A24D] shadow-[0_14px_30px_-14px_rgba(139,115,85,.9)]' : full ? '' : 'hover:-translate-y-0.5 hover:shadow-lg hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-600'}`}
                 onClick={() => toggleImage(imageUrl)}
+                title={full ? `Up to ${MAX_CHEAT_SHEET_PHOTOS} photos - tap a picked one to swap it out` : undefined}
               >
                 <Image src={imageUrl} alt={`Property view ${index + 1}`} fill sizes="(max-width: 768px) 50vw, (max-width: 1280px) 25vw, 320px" quality={88} className="object-cover" />
                 <div className={`absolute inset-0 transition-colors duration-200 ${isSelected ? 'bg-black/10' : 'bg-black/0 group-hover:bg-black/10'}`} />
-                {isSelected && (
-                  <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-[#8b7355] dark:bg-[#C9A24D] text-white text-xs font-bold flex items-center justify-center shadow-lg">
-                    {selectedIndex + 1}
-                  </div>
-                )}
-              </div>
+                <AnimatePresence>
+                  {isSelected && (
+                    <motion.div key={selectedIndex} initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.4, opacity: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 24 }}
+                      className="absolute top-2 left-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#C9A24D] text-xs font-black text-[#111827] shadow-lg ring-2 ring-white">
+                      {selectedIndex + 1}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
             )
           })}
         </div>
