@@ -87,8 +87,8 @@ const FLYER_WARM = {
 };
 
 // Sign-In flyer's one margin. Agents slide the sheet into a stand holder that hides its edges, so
-// the QR panel's gap to the right and bottom edges, the left column's start, and the agent brand
-// pill's top-left offset all use this same distance.
+// the QR panel's gap to the right and bottom edges and the left column's start all use this same
+// distance.
 const FLYER_INSET = 34;
 
 const styles = StyleSheet.create({
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   // Brand upgrade: the SAME hosting-agent pill the on-screen Sign-In kiosk floats over its photo
   // (black/40 glass, white/20 hairline, gold-ringed headshot, heavy serif name, caps brokerage),
   // pinned top-left of the print's photo.
-  flyerBrandWrap: { position: 'absolute', top: FLYER_INSET, left: FLYER_INSET },
+  flyerBrandWrap: { position: 'absolute', top: 24, left: 26 },
   // react-pdf paints any translucent border color (rgba / 8-digit hex) solid green, so the white/20
   // hairline is a 1pt translucent-white ring (outer View) around the black glass (inner View).
   flyerBrandRing: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 999, padding: 1 },
@@ -205,7 +205,9 @@ const styles = StyleSheet.create({
   qrHeader: { fontSize: 18, fontWeight: 700, marginTop: 5, marginBottom: 8, color: COLORS.text },
   qrDescription: { fontSize: 9, color: COLORS.subtext, textAlign: 'center', lineHeight: 1.4, paddingHorizontal: 8 },
   qrContainer: { backgroundColor: 'white', padding: 10, borderRadius: 12, border: `1 solid ${COLORS.line}`, marginTop: 20 },
-  qrFooterWrapper: { marginTop: 'auto', alignItems: 'center', width: '100%', paddingBottom: 5 },
+  // Fills the space under the QR card and centers "Quick & Easy" in it. The negative bottom margin
+  // cancels rightCol's 20pt padding so that space runs to the panel's actual bottom edge.
+  qrFooterWrapper: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', width: '100%', marginBottom: -20 },
   quickEasyText: { fontSize: 9, color: COLORS.text, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5 },
   secondsText: { fontSize: 8, color: COLORS.muted, marginTop: 3 },
 
