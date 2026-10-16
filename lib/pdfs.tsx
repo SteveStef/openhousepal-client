@@ -86,6 +86,11 @@ const FLYER_WARM = {
   deep: '#6B5740',
 };
 
+// Sign-In flyer's one margin. Agents slide the sheet into a stand holder that hides its edges, so
+// the QR panel's gap to the right and bottom edges, the left column's start, and the agent brand
+// pill's top-left offset all use this same distance.
+const FLYER_INSET = 34;
+
 const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: COLORS.line, width: '100%', marginVertical: 12 },
   label: { fontSize: 7, textTransform: 'uppercase', letterSpacing: 2, color: COLORS.muted, marginBottom: 6 },
@@ -104,7 +109,7 @@ const styles = StyleSheet.create({
   // Left column: identity block up top (eyebrow -> address -> city), a hairline, the facts on
   // one line, then the price anchored to the bottom edge with its own rule. Per-element
   // margins set the rhythm - no forced even spread.
-  flyerContent: { flexDirection: 'row', paddingHorizontal: 34, paddingTop: 16, paddingBottom: 20, gap: 30, height: 792 - 372 },
+  flyerContent: { flexDirection: 'row', paddingHorizontal: FLYER_INSET, paddingTop: 16, paddingBottom: FLYER_INSET, gap: 30, height: 792 - 372 },
   leftCol: { flex: 1.85, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' },
 
   addressBlock: { marginTop: 0, width: '100%', display: 'flex', flexDirection: 'column' },
@@ -117,9 +122,9 @@ const styles = StyleSheet.create({
   flyerEyebrow: { fontSize: 9, fontFamily: 'Montserrat', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 3.2, color: COLORS.accent },
   // The headline. Playfair, large; a long street wraps, which is fine for a hero line.
   addressText: { fontSize: 21, fontFamily: 'Playfair Display', fontWeight: 700, lineHeight: 1.15, color: COLORS.text, hyphens: 'none' },
-  // "Open House" is the headline - large black display type hard on the left edge, address as a
+  // "Open House" is the headline - large black display type on the column's left edge, address as a
   // big second line under it (no brass rule between - it read as a stray mark).
-  flyerOpenHouse: { fontSize: 48, fontFamily: 'Playfair Display', fontWeight: 700, lineHeight: 1.05, color: '#0B0B0B', marginLeft: -3 },
+  flyerOpenHouse: { fontSize: 48, fontFamily: 'Playfair Display', fontWeight: 700, lineHeight: 1.05, color: '#0B0B0B' },
   // Same hairline as the one above the price, splitting the headline from the address.
   flyerHeadlineRule: { height: 1, width: '100%', backgroundColor: FLYER_WARM.border, marginTop: 14, marginBottom: 16 },
   // Address + city + fact card sit low in the free space between the headline and the price: the
@@ -148,7 +153,7 @@ const styles = StyleSheet.create({
   // Brand upgrade: the SAME hosting-agent pill the on-screen Sign-In kiosk floats over its photo
   // (black/40 glass, white/20 hairline, gold-ringed headshot, heavy serif name, caps brokerage),
   // pinned top-left of the print's photo.
-  flyerBrandWrap: { position: 'absolute', top: 20, left: 22 },
+  flyerBrandWrap: { position: 'absolute', top: FLYER_INSET, left: FLYER_INSET },
   // react-pdf paints any translucent border color (rgba / 8-digit hex) solid green, so the white/20
   // hairline is a 1pt translucent-white ring (outer View) around the black glass (inner View).
   flyerBrandRing: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 999, padding: 1 },
@@ -192,7 +197,9 @@ const styles = StyleSheet.create({
   // large figure in Montserrat, since Playfair is reserved for the address.
   priceBlock: { display: 'flex', flexDirection: 'column', paddingTop: 13, borderTopWidth: 1, borderTopColor: FLYER_WARM.border, borderTopStyle: 'solid' },
   priceLabel: { fontSize: 8, fontFamily: 'Montserrat', fontWeight: 600, color: COLORS.accent, textTransform: 'uppercase', letterSpacing: 3, marginBottom: 6 },
-  priceValue: { fontSize: 30, fontFamily: 'Montserrat', fontWeight: 700, color: COLORS.text },
+  // Negative bottom margin drops the figure's baseline (not its empty descender space) onto the
+  // column's bottom edge, so the price visibly ends level with the bottom of the QR panel.
+  priceValue: { fontSize: 30, fontFamily: 'Montserrat', fontWeight: 700, color: COLORS.text, marginBottom: -4 },
 
   rightCol: { flex: 1, backgroundColor: FLYER_WARM.panel, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: FLYER_WARM.border, borderStyle: 'solid', alignItems: 'center', justifyContent: 'flex-start' },
   qrHeader: { fontSize: 18, fontWeight: 700, marginTop: 5, marginBottom: 8, color: COLORS.text },
