@@ -43,19 +43,19 @@ export function AboutStep({ ctx }: { ctx: StepCtx }) {
 
 export function ContactStep({ ctx }: { ctx: StepCtx }) {
   const i = ctx.data.info
-  const [v, setV] = useState({ call: i.call, text: i.text, email: i.email, officePhone: i.officePhone, officeAddress: i.officeAddress })
+  const [v, setV] = useState({ call: i.call, text: i.text, email: i.email, brokeragePhone: i.brokeragePhone || '', officePhone: i.officePhone, officeAddress: i.officeAddress })
   const [sameText, setSameText] = useState(!i.text || i.text === i.call)
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const save = (next: typeof v, same = sameText) => {
     const text = same ? next.call : next.text
-    ctx.saveInfo({ contact: { call: next.call, text, email: next.email }, card: { officePhone: next.officePhone, officeAddress: next.officeAddress } })
+    ctx.saveInfo({ contact: { call: next.call, text, email: next.email }, profile: { brokeragePhone: next.brokeragePhone }, card: { officePhone: next.officePhone, officeAddress: next.officeAddress } })
   }
   const set = (k: keyof typeof v, value: string) => {
     const next = { ...v, [k]: value }
     setV(next)
     save(next)
   }
-  const blurPhone = (k: 'call' | 'text' | 'officePhone') => {
+  const blurPhone = (k: 'call' | 'text' | 'brokeragePhone' | 'officePhone') => {
     setTouched(t => ({ ...t, [k]: true }))
     const f = formatPhone(v[k])
     if (f !== v[k]) set(k, f)
@@ -65,7 +65,8 @@ export function ContactStep({ ctx }: { ctx: StepCtx }) {
   if (!phoneOk(v.call)) problems.push('your mobile number')
   if (!sameText && !phoneOk(v.text)) problems.push('the number you text from')
   if (!emailOk(v.email)) problems.push('your email')
-  if (!phoneOk(v.officePhone)) problems.push('your brokerage office phone')
+  if (!phoneOk(v.brokeragePhone)) problems.push("your brokerage's phone")
+  if (v.officePhone.trim() && !phoneOk(v.officePhone)) problems.push('your office phone')
   useGate(ctx, { ok: problems.length === 0, message: problems.length ? `Please check ${problems.join(', ')}.` : undefined }, [problems.join()])
   return (
     <WithCard ctx={ctx} over={{ call: v.call, text: textValue, email: v.email }}>
@@ -77,7 +78,8 @@ export function ContactStep({ ctx }: { ctx: StepCtx }) {
       </label>
       {!sameText && <Field label="Number you text from" required value={textValue} onChange={x => set('text', x)} onBlur={() => blurPhone('text')} type="tel" inputMode="tel" placeholder="(610) 555-0199" invalid={touched.text && !phoneOk(v.text)} />}
       <Field label="Email for clients" required value={v.email} onChange={x => set('email', x)} onBlur={() => setTouched(t => ({ ...t, email: true }))} type="email" inputMode="email" autoComplete="email" placeholder="jane@yourbrokerage.com" invalid={touched.email && !emailOk(v.email)} hint="Where client emails and form replies should go. It can be different from your login." />
-      <Field label="Brokerage office phone" required value={v.officePhone} onChange={x => set('officePhone', x)} onBlur={() => blurPhone('officePhone')} type="tel" inputMode="tel" placeholder="(610) 555-0100" invalid={touched.officePhone && !phoneOk(v.officePhone)} hint="Printed under your number on mailers, flyers and door hangers - most states require it on print ads. Also added to your Save Contact card." />
+      <Field label="Office phone (optional)" value={v.officePhone} onChange={x => set('officePhone', x)} onBlur={() => blurPhone('officePhone')} type="tel" inputMode="tel" placeholder="(610) 555-0123" invalid={touched.officePhone && !!v.officePhone.trim() && !phoneOk(v.officePhone)} hint="Your own office or direct line, if you have one. It goes on your Save Contact card." />
+      <Field label="Your brokerage's phone" required value={v.brokeragePhone} onChange={x => set('brokeragePhone', x)} onBlur={() => blurPhone('brokeragePhone')} type="tel" inputMode="tel" placeholder="(610) 555-0100" invalid={touched.brokeragePhone && !phoneOk(v.brokeragePhone)} hint="Your brokerage's main number. Most states require it on print ads, so it's printed on your mailers, flyers and door hangers. It never goes on your Save Contact card." />
       <MoreOptions label="Office address (optional)" defaultOpen={!!v.officeAddress}>
         <Field label="Office address" value={v.officeAddress} onChange={x => set('officeAddress', x)} placeholder="123 Lancaster Ave, Wayne, PA" autoComplete="street-address" />
       </MoreOptions>

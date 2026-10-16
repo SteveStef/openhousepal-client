@@ -2322,7 +2322,7 @@ export interface SetupData {
   required_missing: SetupStepId[]
   info: {
     name: string; title: string; brokerage: string; team: string; market: string; about: string; licenseNumber: string
-    call: string; text: string; email: string; officePhone: string; officeAddress: string; linkedin: string
+    call: string; text: string; email: string; brokeragePhone: string; officePhone: string; officeAddress: string; linkedin: string
     photoUrl: string; photoPosition: { x: number; y: number }
   }
   slug: string
@@ -2331,7 +2331,7 @@ export interface SetupData {
   reviews: Record<string, any>
 }
 export interface SetupInfoPatch {
-  profile?: Partial<Record<'name' | 'title' | 'brokerage' | 'team' | 'market' | 'about' | 'licenseNumber', string>>
+  profile?: Partial<Record<'name' | 'title' | 'brokerage' | 'team' | 'market' | 'about' | 'licenseNumber' | 'brokeragePhone', string>>
   contact?: Partial<Record<'call' | 'text' | 'email', string>>
   card?: Partial<Record<'officePhone' | 'officeAddress' | 'linkedin', string>>
   socialLinks?: { id: string; label?: string; url: string; enabled?: boolean }[]

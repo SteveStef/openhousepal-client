@@ -33,6 +33,7 @@ import ListingLinkRoutingPanel from '@/components/agent-hub/ListingLinkRoutingPa
 import BillingPanel from '@/components/settings/BillingPanel'
 import { useSettingsCompleteness } from '@/hooks/useSettingsCompleteness'
 import { toJpeg } from '@/components/setup/SetupUi'
+import { getBrokeragePhone, getOfficePhone, upgradeHubPhones } from '@/lib/hubPhones'
 
 // The "IDX Website" settings tab (IDX plan only). Answers three real questions for an IDX agent
 // in one glance - is my site actually live, what's my address, and is my custom domain's DNS
@@ -294,7 +295,7 @@ export default function SettingsPage() {
 
   // Contact - same Agent Hub config.contact ({call, text, email}) that Studio > Site's Contact
   // group reads/writes, so filling this in here or there shows up in both places.
-  const [contact, setContact] = useState({ call: '', text: '', email: '', officePhone: '' })
+  const [contact, setContact] = useState({ call: '', text: '', email: '', officePhone: '', brokeragePhone: '' })
   const [contactSaving, setContactSaving] = useState(false)
   const [contactSaved, setContactSaved] = useState(false)
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
@@ -342,7 +343,10 @@ export default function SettingsPage() {
           call: config?.contact?.call || '',
           text: config?.contact?.text || '',
           email: config?.contact?.email || user.email || '',
-          officePhone: config?.contactCard?.fields?.officePhone?.value || '',
+          // Two numbers kept apart: the agent's own office line (Save Contact) and the brokerage's
+          // main number (compliance, never on Save Contact) - lib/hubPhones.
+          officePhone: getOfficePhone(config),
+          brokeragePhone: getBrokeragePhone(config),
         })
         if (config?.profilePhotoUrl) setProfilePhotoUrl(config.profilePhotoUrl)
         if (config?.profilePhotoPosition?.x !== undefined) {
@@ -480,12 +484,13 @@ export default function SettingsPage() {
       // prints it on every mailer / flyer / door hanger.
       await queueSave(async () => {
         const current = await api.agentHub.getMine()
-        const config = (current.success && current.data?.config ? current.data.config : {}) as any
+        const config = upgradeHubPhones((current.success && current.data?.config ? current.data.config : {}) as any)
         const card = config.contactCard || {}
         const fields = card.fields || {}
         const office = contact.officePhone.trim()
         await api.agentHub.saveConfig({
           ...config,
+          profile: { ...(config.profile || {}), brokeragePhone: contact.brokeragePhone.trim() },
           contact: { ...(config.contact || {}), call: contact.call, text: contact.text, email: contact.email },
           contactCard: { ...card, fields: { ...fields, officePhone: { ...(fields.officePhone || {}), value: office, include: !!office } } },
         })
@@ -541,7 +546,7 @@ export default function SettingsPage() {
   }
 
   const profileMissing = !profile.name.trim() || !profile.title.trim() || !profile.brokerage.trim()
-  const contactMissing = !contact.call.trim() || !contact.text.trim() || !contact.email.trim() || !contact.officePhone.trim()
+  const contactMissing = !contact.call.trim() || !contact.text.trim() || !contact.email.trim() || !contact.brokeragePhone.trim()
   const socialLinksMissing = !socialLinks.some(link => link.enabled && link.url.trim())
   const profileGroupIncomplete = profileMissing || contactMissing || socialLinksMissing
   const salesIncomplete = getEligibleSales(recentSales).filter(sale => sale.visible).length === 0
@@ -754,16 +759,17 @@ export default function SettingsPage() {
                     <div className="h-full rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
                       <SubHeading title="Contact" incomplete={contactMissing} subtitle="How visitors reach you, and where you work." />
                       <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                        <Field label="Call Phone Number" value={contact.call} onChange={v => updateContactField('call', v)} placeholder="(555) 123-4567" required />
+                        <Field label="Mobile Number (Call)" value={contact.call} onChange={v => updateContactField('call', v)} placeholder="(555) 123-4567" required />
                         <Field label="Text Phone Number" value={contact.text} onChange={v => updateContactField('text', v)} placeholder="(555) 123-4567" required />
                         <Field label="Contact Email" value={contact.email} onChange={v => updateContactField('email', v)} placeholder="you@example.com" required />
-                        <Field label="Brokerage Office Phone" value={contact.officePhone} onChange={v => updateContactField('officePhone', v)} placeholder="(555) 123-4500" required />
+                        <Field label="Office Phone (optional)" value={contact.officePhone} onChange={v => updateContactField('officePhone', v)} placeholder="(555) 123-4589" hint="Your own office or direct line. It goes on your Save Contact card." />
+                        <Field label="Your Brokerage's Phone" value={contact.brokeragePhone} onChange={v => updateContactField('brokeragePhone', v)} placeholder="(555) 123-4500" required hint="Your brokerage's main number. It's printed on your designs for compliance and never goes on your Save Contact card." />
                         <Field label="Market" value={profile.market} onChange={v => updateProfileField('market', v)} placeholder="e.g. Greater Philadelphia" />
                         <LockedField label="License Number" value={profile.licenseNumber} />
                       </div>
                       <AutosaveStatus saving={contactSaving} saved={contactSaved} />
                       {contactMissing && (
-                        <p className="-mt-2 text-xs font-bold text-red-600 dark:text-red-400">Call, Text, Email, and your brokerage office phone are still needed - Studio can&apos;t make print designs without the office phone.</p>
+                        <p className="-mt-2 text-xs font-bold text-red-600 dark:text-red-400">Call, Text, Email, and your brokerage&apos;s phone are still needed - Studio can&apos;t make print designs without your brokerage&apos;s phone.</p>
                       )}
                     </div>
                   </div>
@@ -911,7 +917,7 @@ function LockedField({ label, value }: { label: string; value: string }) {
   )
 }
 
-function Field({ label, value, onChange, placeholder, required = false }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; required?: boolean }) {
+function Field({ label, value, onChange, placeholder, required = false, hint }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; required?: boolean; hint?: string }) {
   const isEmpty = required && !value.trim()
   return (
     <div>
@@ -926,6 +932,7 @@ function Field({ label, value, onChange, placeholder, required = false }: { labe
           isEmpty ? 'border-red-300 dark:border-red-900/60' : 'border-gray-200 dark:border-gray-700'
         }`}
       />
+      {hint && <p className="mt-1 text-[11px] font-medium leading-snug text-gray-500 dark:text-gray-400">{hint}</p>}
     </div>
   )
 }

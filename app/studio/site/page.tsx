@@ -114,6 +114,7 @@ import {
 } from 'lucide-react'
 import { OhpWordmark } from '@/components/brand/OhpBrand'
 import { copyText } from '@/lib/copyText'
+import { upgradeHubPhones } from '@/lib/hubPhones'
 
 type HubStatus = 'Draft' | 'Published' | 'Unpublished'
 type PreviewSize = 'mobile' | 'tablet' | 'desktop'
@@ -1487,7 +1488,9 @@ function AgentHubContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentHubDataReady])
 
-  const applySavedHubData = (parsed: any) => {
+  const applySavedHubData = (raw: any) => {
+    // Older configs kept the brokerage's number in the Save Contact office field - move it out first.
+    const parsed = upgradeHubPhones(raw || {})
     setVideoAutoSync(parsed.videoAutoSync !== false)
     setHubTheme(parsed.hubTheme === 'luxe' ? 'luxe' : 'classic')
     setHubLuxeMetal(metalOf(parsed.hubLuxeMetal))
@@ -2328,7 +2331,7 @@ function AgentHubContent() {
     // Merge onto the latest saved copy: Settings edits the same Agent Hub config, and keys this
     // editor doesn't manage (the hub's theme, video auto-update, ...) must never be wiped by a save here.
     const latest = await api.agentHub.getMine().catch(() => null)
-    const baseConfig = (latest && latest.success && latest.data?.config) ? latest.data.config as Record<string, unknown> : {}
+    const baseConfig = upgradeHubPhones((latest && latest.success && latest.data?.config) ? latest.data.config as Record<string, unknown> : {})
     // profile is merged, not replaced - Settings keeps fields this editor doesn't have (team).
     const baseProfile = (baseConfig.profile && typeof baseConfig.profile === 'object') ? baseConfig.profile as Record<string, unknown> : {}
     const configSaveResult = await api.agentHub.saveConfig({ ...baseConfig, ...savedHub, profile: { ...baseProfile, ...savedHub.profile } } as SavedAgentHubData).catch(() => ({ success: false as const, error: 'Network error' }))

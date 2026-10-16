@@ -36,6 +36,12 @@ const SHORT_FACT: Record<string, string> = { Bed: 'bd', Beds: 'bd', Bath: 'ba', 
 export const listingKicker = (status: string) =>
   status === 'Coming Soon' ? 'Coming to market' : status === 'Active' ? 'Now on the market' : status === 'Sold' ? 'Just sold' : status
 
+const soldOn = (value?: string) => {
+  if (!value) return ''
+  const d = new Date(value.length === 10 ? `${value}T12:00:00` : value)
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 export default function ListingFeatureCard({ listing, luxe = false, compact = false, href, showingHref, onClick, className = '' }: {
   listing: FeatureListing
   luxe?: boolean
@@ -61,6 +67,7 @@ export default function ListingFeatureCard({ listing, luxe = false, compact = fa
   const ink = luxe ? 'text-white' : 'text-[#111827] dark:text-white'
   const soft = luxe ? 'text-white/60' : 'text-gray-500 dark:text-gray-300'
   const metal = luxe ? 'text-[var(--m-light)]' : 'text-[#C9A24D]'
+  const soldDate = sold ? soldOn(listing.sold_date) : ''
 
   const statusPill = sold
     ? 'hub-lx-sold rounded-[9px] px-3 py-1.5 text-[10px]'
@@ -77,6 +84,11 @@ export default function ListingFeatureCard({ listing, luxe = false, compact = fa
         <span className={`inline-flex items-center font-black uppercase tracking-wide ${statusPill}`}>{sold && <span className="hub-lx-sold-dot" />}<span className="relative">{status}</span></span>
         {openHouses.length > 0 && <span className="hidden min-w-0 sm:flex"><OpenHouseChip openHouses={listing.open_houses} variant={luxe ? 'luxe' : 'classic'} compact /></span>}
       </span>
+      {sold && soldDate && (
+        <span className="absolute bottom-3 left-3 hidden items-center gap-1.5 rounded-full bg-black/50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white ring-1 ring-white/15 sm:inline-flex">
+          <CalendarDays className="h-3 w-3" /> Sold {soldDate}
+        </span>
+      )}
       {photos.length > 1 && !compact && (
         <span className="absolute bottom-3 right-3 hidden items-center gap-1.5 rounded-full bg-black/45 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white sm:inline-flex">
           <Images className="h-3 w-3" /> {photos.length} photos
@@ -87,19 +99,27 @@ export default function ListingFeatureCard({ listing, luxe = false, compact = fa
 
 
   const detailSide = (
-    <div className={`relative flex min-w-0 flex-1 flex-col justify-center ${compact ? 'px-4 py-3.5 sm:px-6 sm:py-4' : 'px-4 py-3.5 sm:px-7 sm:py-6 lg:px-9 lg:py-8'}`}>
+    <div className={`relative flex min-w-0 flex-1 flex-col justify-center overflow-hidden ${compact ? 'px-4 py-3.5 sm:px-6 sm:py-4' : 'px-4 py-3.5 sm:px-7 sm:py-6 lg:px-9 lg:py-8'}`}>
+      {sold && (
+        <>
+          {/* a sold home: a soft red glow in the corner and a faint "Sold" set behind the words */}
+          <span aria-hidden className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(178,58,58,.09),transparent)]" />
+          <span aria-hidden className={`pointer-events-none absolute -bottom-4 right-3 select-none font-serif font-black italic leading-none ${compact ? 'text-[64px] sm:text-[84px]' : 'text-[72px] sm:text-[120px] lg:text-[150px]'} ${luxe ? 'text-white/[0.05]' : 'text-[#9b2c2c]/[0.06] dark:text-white/[0.05]'}`}>Sold</span>
+        </>
+      )}
       {!compact && (
-        <p className={`hidden items-center gap-2 text-[10px] font-black uppercase tracking-[0.26em] sm:flex ${luxe ? 'text-[var(--m-light)]' : 'text-[#8b7355] dark:text-[#d7b974]'}`}>
-          <span className={`h-px w-6 ${luxe ? 'bg-[var(--m-light)]' : 'bg-[#d2b16f]'}`} />{listingKicker(status)}
+        <p className={`relative hidden items-center gap-2 text-[10px] font-black uppercase tracking-[0.26em] sm:flex ${luxe ? 'text-[var(--m-light)]' : 'text-[#8b7355] dark:text-[#d7b974]'}`}>
+          <span className={`h-px w-6 ${sold ? 'bg-[#b23a3a]' : luxe ? 'bg-[var(--m-light)]' : 'bg-[#d2b16f]'}`} />{sold && soldDate ? `Sold · ${soldDate}` : listingKicker(status)}
         </p>
       )}
+      {sold && <p className={`relative text-[9.5px] font-black uppercase tracking-[0.24em] ${luxe ? 'text-white/55' : 'text-gray-400 dark:text-gray-500'} ${compact ? 'mb-1' : 'mb-1 sm:mt-3'}`}>Sold for</p>}
       {luxe ? (
-        <p className={`hub-lx-price leading-none ${compact ? 'text-[24px] sm:text-[28px]' : 'text-[24px] sm:mt-2.5 sm:text-[36px] lg:text-[42px]'}`}>{price}</p>
+        <p className={`hub-lx-price relative leading-none ${compact ? 'text-[24px] sm:text-[28px]' : `text-[24px] sm:text-[36px] lg:text-[42px] ${sold ? '' : 'sm:mt-2.5'}`}`}>{price}</p>
       ) : (
-        <p className={`font-black leading-none tracking-tight ${ink} ${compact ? 'text-[22px] sm:text-[26px]' : 'text-[22px] sm:mt-2.5 sm:text-4xl lg:text-[44px]'}`}>{price}</p>
+        <p className={`relative font-black leading-none tracking-tight ${ink} ${compact ? 'text-[22px] sm:text-[26px]' : `text-[22px] sm:text-4xl lg:text-[44px] ${sold ? '' : 'sm:mt-2.5'}`}`}>{price}</p>
       )}
-      <h3 className={`mt-1.5 truncate font-serif font-black leading-tight ${ink} ${compact ? 'text-[15px] sm:text-lg' : 'text-[15px] sm:text-2xl lg:text-[26px]'}`}>{street}</h3>
-      <p className={`mt-1 flex items-center gap-1.5 truncate text-xs font-semibold sm:text-sm ${soft}`}>
+      <h3 className={`relative mt-1.5 truncate font-serif font-black leading-tight ${ink} ${compact ? 'text-[15px] sm:text-lg' : 'text-[15px] sm:text-2xl lg:text-[26px]'}`}>{street}</h3>
+      <p className={`relative mt-1 flex items-center gap-1.5 truncate text-xs font-semibold sm:text-sm ${soft}`}>
         <MapPin className={`h-3.5 w-3.5 shrink-0 ${luxe ? 'text-[var(--m-light)]' : 'text-[#d0ad65]'}`} /> <span className="truncate">{location}</span>
       </p>
 
@@ -109,7 +129,7 @@ export default function ListingFeatureCard({ listing, luxe = false, compact = fa
           <p className={`mt-1.5 truncate text-[11px] font-bold sm:hidden ${soft}`}>{facts.map(f => `${f.value} ${SHORT_FACT[f.label] || f.label.toLowerCase()}`).join(' · ')}</p>
           {/* tablets up: one row of square tiles - icon on top, number + label under it. Pills used
               to wrap, dropping Acres onto a second line. */}
-          <div className={`hidden sm:grid ${compact ? 'mt-2.5 max-w-[340px] gap-1.5' : 'mt-4 max-w-[420px] gap-2'}`} style={{ gridTemplateColumns: `repeat(${facts.length}, minmax(0, 1fr))` }}>
+          <div className={`relative hidden sm:grid ${compact ? 'mt-2.5 max-w-[340px] gap-1.5' : 'mt-4 max-w-[420px] gap-2'}`} style={{ gridTemplateColumns: `repeat(${facts.length}, minmax(0, 1fr))` }}>
             {facts.map(({ icon: Icon, value, label }) => (
               <span key={label} className={`flex min-w-0 flex-col items-center justify-center rounded-xl text-center ${compact ? 'px-1 py-1.5' : 'px-1.5 py-2.5'} ${luxe ? 'border border-white/10 bg-white/[0.05]' : 'border border-gray-200 bg-[#fbfaf7] dark:border-gray-700 dark:bg-[#0f0f0f]'}`}>
                 <Icon className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} ${metal}`} />
@@ -131,10 +151,10 @@ export default function ListingFeatureCard({ listing, luxe = false, compact = fa
         </ul>
       )}
 
-      <div className={`hidden flex-wrap items-center gap-2 sm:flex ${compact ? 'mt-3' : 'mt-5 lg:mt-6'}`}>
+      <div className={`relative hidden flex-wrap items-center gap-2 sm:flex ${compact ? 'mt-3' : 'mt-5 lg:mt-6'}`}>
         {href ? (
           <Link href={href} onClick={e => { e.stopPropagation(); onClick?.() }} className={`inline-flex items-center gap-2 rounded-full font-black shadow-lg ${compact ? 'px-3.5 py-1.5 text-xs' : 'px-4 py-2 text-[13px]'} transition-transform duration-300 group-hover/feat:translate-x-0.5 ${luxe ? 'bg-gradient-to-r from-[var(--m-deep)] via-[var(--m-base)] to-[var(--m-light)] text-[#111827] shadow-[0_14px_30px_-14px_rgba(var(--m-rgb),.9)]' : 'bg-[#111827] text-white shadow-[#111827]/25 dark:bg-white dark:text-[#111827]'}`}>
-            View this home <ArrowRight className="h-4 w-4" />
+            {sold ? 'See all my sales' : 'View this home'} <ArrowRight className="h-4 w-4" />
           </Link>
         ) : null}
         {showingHref && (

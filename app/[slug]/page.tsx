@@ -41,6 +41,8 @@ import {
 import { OhpWordmark } from '@/components/brand/OhpBrand'
 import { publicWebUrl } from '@/lib/webUrl'
 import { LeaveReviewButton, orderReviews, ProfileRatingChip, ProfileReviewButton, ReviewsBigCarousel, ReviewsDeskCard, ReviewsSummary, ReviewsTwoUp, useHubReviews } from '@/components/agent-hub/HubReviews'
+import useHubColorMode from '@/components/agent-hub/useHubColorMode'
+import HubStatusBadge from '@/components/agent-hub/HubStatusBadge'
 
 // 'reviews' is shown when the agent switched reviews on (Settings -> Reviews / Layout) and has some.
 const defaultVisibleSectionIds = ['listings', 'sales', 'videos', 'tours', 'blogs', 'reviews']
@@ -271,26 +273,8 @@ export default function PublicAgentHubPage() {
     if (forceLightMode) setVisitorDarkMode(false)
   }, [forceLightMode])
 
-  // The hub follows ITS OWN light/dark choice, never the OpenHousePal app's: the app's dark mode puts
-  // "dark" on <html> for this whole browser (same site), which turned a light hub dark for anyone who
-  // uses the app in dark mode - and in the setup preview frame. Put the page's own choice on <html>
-  // while the hub is open, and hand the app's back when leaving.
-  // (The app's theme provider sets <html> after this page's effects run, and again whenever it
-  // re-applies the theme - so keep watching and put the hub's choice back each time.)
-  useEffect(() => {
-    const root = document.documentElement
-    const had = root.classList.contains('dark')
-    const prevScheme = root.style.colorScheme
-    const dark = visitorDarkMode && !forceLightMode
-    const apply = () => {
-      if (root.classList.contains('dark') !== dark) root.classList.toggle('dark', dark)
-      if (root.style.colorScheme !== (dark ? 'dark' : 'light')) root.style.colorScheme = dark ? 'dark' : 'light'
-    }
-    apply()
-    const watch = new MutationObserver(apply)
-    watch.observe(root, { attributes: true, attributeFilter: ['class', 'style'] })
-    return () => { watch.disconnect(); root.classList.toggle('dark', had); root.style.colorScheme = prevScheme }
-  }, [visitorDarkMode, forceLightMode])
+  // The hub follows ITS OWN light/dark choice, never the OpenHousePal app's (same on the Sales page).
+  useHubColorMode(visitorDarkMode && !forceLightMode)
 
   // The setup flow's preview frame (?preview=1): the look being picked arrives here the moment
   // it's tapped (same-origin parent only), so the phone changes at once instead of after a save
@@ -562,7 +546,7 @@ export default function PublicAgentHubPage() {
             ) : (
               <Link key={sale.id} href={salesPath} onClick={() => recordAgentHubEvent({ type: 'click', label: `Recent Sale: ${sale.address}` })} className="relative h-[118px] w-[172px] shrink-0 snap-start overflow-hidden rounded-[14px] bg-cover bg-center lg:h-[148px]" style={{ backgroundImage: `url(${sale.image || '/placeholder.jpg'})` }}>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
-                <span className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${getSaleStatusClass(sale.status)}`}>{formatSaleStatus(sale.status)}</span>
+                <span className="absolute left-2 top-2"><HubStatusBadge status={sale.status} size="xs" /></span>
                 <div className="absolute bottom-2 left-2 right-2 text-white"><p className="text-xl font-black leading-none">{sale.price ? `$${sale.price.toLocaleString()}` : 'Price'}</p><p className="truncate text-xs font-bold">{getSaleLocation(sale)}</p></div>
               </Link>
             ))}
@@ -600,8 +584,9 @@ export default function PublicAgentHubPage() {
               // falling back to the general Listings page only when neither exists.
               <Link key={listing.id} href={listing.listingLinkUrl || listingsPath} onClick={() => recordAgentHubEvent({ type: 'click', label: `Listing: ${listing.address}` })} className="relative h-[118px] w-[172px] shrink-0 snap-start overflow-hidden rounded-[14px] bg-cover bg-center lg:h-[148px]" style={{ backgroundImage: `url(${listing.image || '/placeholder.jpg'})` }}>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
-                <span className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${getSaleStatusClass(listing.status)}`}>{formatSaleStatus(listing.status)}</span>
-                <div className="absolute bottom-2 left-2 right-2 text-white"><OpenHouseChip openHouses={listing.open_houses} compact className="mb-1" /><p className="text-xl font-black leading-none">{listing.price ? `$${listing.price.toLocaleString()}` : 'Price'}</p><p className="truncate text-xs font-bold">{getSaleLocation(listing)}</p></div>
+                {/* status with the open house right beside it - never stacked on the price */}
+                <span className="absolute left-2 right-2 top-2 flex items-center gap-1"><HubStatusBadge status={listing.status} size="xs" /><span className="flex min-w-0"><OpenHouseChip openHouses={listing.open_houses} compact /></span></span>
+                <div className="absolute bottom-2 left-2 right-2 text-white"><p className="text-xl font-black leading-none">{listing.price ? `$${listing.price.toLocaleString()}` : 'Price'}</p><p className="truncate text-xs font-bold">{getSaleLocation(listing)}</p></div>
               </Link>
             ))}
           </HubShelf>

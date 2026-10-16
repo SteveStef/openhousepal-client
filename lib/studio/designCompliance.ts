@@ -24,7 +24,7 @@ export function profileGaps(agent: DesignAgentInfo | null | undefined, isPrint: 
   if (!agent?.agentBrokerage?.trim()) gaps.push({ key: 'brokerage', label: 'Your brokerage', inline: false })
   if (!agent?.agentPhotoUrl) gaps.push({ key: 'photo', label: 'Your headshot', inline: false })
   if (digits(agent?.agentPhone).length < 10) gaps.push({ key: 'phone', label: 'Your mobile number', inline: true })
-  if (isPrint && digits(agent?.agentOfficePhone).length < 10) gaps.push({ key: 'officePhone', label: 'Your brokerage office phone', inline: true })
+  if (isPrint && digits(agent?.agentOfficePhone).length < 10) gaps.push({ key: 'officePhone', label: "Your brokerage's phone", inline: true })
   return gaps
 }
 

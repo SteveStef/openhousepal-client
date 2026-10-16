@@ -55,7 +55,7 @@ const FIELD_ORDER: FieldMeta[] = [
   { key: 'website', label: 'Website', kind: 'sourced', sourceHint: 'From Social Links → Website' },
   { key: 'agentHubUrl', label: 'Agent Hub', kind: 'sourced', sourceHint: 'Your public Agent Hub link' },
   { key: 'jobTitle', label: 'Job Title', kind: 'sourced', sourceHint: 'From Profile → Professional title' },
-  { key: 'officePhone', label: 'Office Phone', kind: 'custom', placeholder: '(555) 123-4567' },
+  { key: 'officePhone', label: 'Office Phone (your own line)', kind: 'custom', placeholder: '(555) 123-4567' },
   { key: 'officeAddress', label: 'Office Address', kind: 'custom', placeholder: '123 Main St, Suite 100, City, ST 00000' },
   { key: 'team', label: 'Team', kind: 'sourced', sourceHint: 'From Profile → Team name' },
   { key: 'instagram', label: 'Instagram', kind: 'sourced', sourceHint: 'From Social Links → Instagram' },

@@ -1746,3 +1746,15 @@ div[role="button"]:active {
 .ohp-gate-cover { animation: ohpGateCoverOff .4s ease-out 10s forwards; }
 @keyframes ohpGateShow { to { visibility: visible; } }
 @keyframes ohpGateCoverOff { to { opacity: 0; visibility: hidden; pointer-events: none; } }
+
+/* The Sold badge everywhere a home is sold (Agent Hub on both looks, Sales page, carousels, feature
+   card): a matte red tablet with a thin light edge, a soft shimmer now and then and a breathing
+   white dot (<span class="hub-lx-sold-dot" /> inside). Site-wide so Classic hubs get it too - it used
+   to load only with the Luxe look, which left Classic's Sold badge colorless (user, 10/16). */
+.hub-lx-sold { overflow: hidden; isolation: isolate; display: inline-flex; align-items: center; letter-spacing: .24em; color: #fff7f5 !important; background: linear-gradient(160deg, #b23a3a 0%, #9b2c2c 48%, #7d2222 100%) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.16), inset 0 -6px 12px rgba(0,0,0,.16), 0 10px 22px -10px rgba(110,20,20,.85) !important; text-shadow: 0 1px 1px rgba(0,0,0,.25); -webkit-font-smoothing: antialiased; animation: hubLxSoldIn .6s .2s cubic-bezier(.22,.61,.36,1) both; transition: transform .35s cubic-bezier(.22,.61,.36,1), box-shadow .35s; }
+.hub-lx-sold::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,235,230,.38) 50%, transparent 70%); transform: translateX(-120%); animation: ohpSoldShine 4.6s ease-in-out 1s infinite; }
+.hub-lx-sold-dot { position: relative; display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 0 rgba(255,255,255,.6); animation: hubLxSoldDot 2.4s ease-in-out infinite; }
+@keyframes hubLxSoldIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes hubLxSoldDot { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,.55); } 60% { box-shadow: 0 0 0 5px rgba(255,255,255,0); } }
+@keyframes ohpSoldShine { 0%, 55% { transform: translateX(-100%); } 85%, 100% { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .hub-lx-sold, .hub-lx-sold::after, .hub-lx-sold-dot { animation: none; } }

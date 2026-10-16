@@ -1,4 +1,5 @@
 import { User } from '@/types'
+import { getBrokeragePhone } from '@/lib/hubPhones'
 
 // Who a design is "from" - resolved once from the agent's profile plus their Agent Hub contact card
 // (the same phone/email/headshot/crop the Agent Hub, vCard and email signature use), so every
@@ -28,7 +29,8 @@ export function designAgentFrom(user: Partial<User> | null | undefined, hub: { s
     agentPhotoUrl: config.profilePhotoUrl || user?.photo_url || null,
     agentPhotoPosition: pos && typeof pos.x === 'number' && typeof pos.y === 'number' ? { x: pos.x, y: pos.y } : null,
     agentPhone: (typeof contact.call === 'string' && contact.call.trim()) || (typeof contact.text === 'string' && contact.text.trim()) || null,
-    agentOfficePhone: (typeof config.contactCard?.fields?.officePhone?.value === 'string' && config.contactCard.fields.officePhone.value.trim()) || null,
+    // The brokerage's main number (print compliance) - not the agent's own office line.
+    agentOfficePhone: getBrokeragePhone(config) || null,
     agentEmail: (typeof contact.email === 'string' && contact.email.trim()) || user?.email || null,
     agentHubSlug: hub?.slug || null,
   }

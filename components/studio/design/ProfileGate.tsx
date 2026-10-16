@@ -37,10 +37,11 @@ export default function ProfileGate({ gaps, onSaved, compact = false }: { gaps: 
     const profile: Record<string, string> = {}
     if (values.name?.trim()) profile.name = values.name.trim()
     if (values.brokerage?.trim()) profile.brokerage = values.brokerage.trim()
+    // The brokerage's main number (compliance) - its own field, never the Save Contact office line.
+    if (values.officePhone) profile.brokeragePhone = formatPhone(values.officePhone)
     const patch: Parameters<typeof api.setup.patchInfo>[0] = {}
     if (Object.keys(profile).length) patch.profile = profile
     if (values.phone) patch.contact = { call: formatPhone(values.phone) }
-    if (values.officePhone) patch.card = { officePhone: formatPhone(values.officePhone) }
     if (Object.keys(patch).length) {
       const r = await api.setup.patchInfo(patch)
       if (!r.success) { setSaving(false); setError(r.error || 'Could not save. Please try again.'); return }

@@ -195,14 +195,14 @@ export function HomeOverlay({ luxe = false, status, statusClass, price, title, s
 }) {
   const sold = status.toLowerCase() === 'sold'
   const pill = sold
-    ? (luxe ? 'hub-lx-sold rounded-[9px] px-3 py-1.5 text-[10px]' : 'rounded-full bg-gradient-to-br from-[#c0392b] to-[#8e1e1e] px-3 py-1 text-[10px] text-white shadow-[0_8px_18px_-8px_rgba(140,30,30,.9)]')
+    ? 'hub-lx-sold rounded-[9px] px-3 py-1.5 text-[10px]' // the same red tablet on both looks
     : `rounded-full px-2.5 py-1 text-[10px] shadow ${statusClass}`
   return (
     <>
       {/* status, with the open house (if any) right beside it - never crowding the price */}
       <div className="absolute left-3 right-3 top-3 flex flex-wrap items-center gap-1.5">
         <Rise as="span" still={still} delay={0.4} className={`inline-flex items-center font-black uppercase tracking-wide ${pill}`}>
-          {sold && luxe && <span className="hub-lx-sold-dot" />}<span className="relative">{status}</span>
+          {sold && <span className="hub-lx-sold-dot" />}<span className="relative">{status}</span>
         </Rise>
         {badge && <Rise as="span" still={still} delay={0.48} className="flex min-w-0">{badge}</Rise>}
       </div>

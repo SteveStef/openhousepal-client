@@ -116,9 +116,12 @@ export function LuxeHomeCardBody({ image, price, location, status, statusClass, 
         <span className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.4s] ease-out group-hover/lx:scale-110" style={{ backgroundImage: `url(${image || '/placeholder.jpg'})` }} />
         <span className="absolute inset-0 bg-gradient-to-t from-[#0b0f0e] via-[#0b0f0e]/20 to-black/10" />
         <span aria-hidden className="hub-lx-sweep absolute inset-y-0 left-0 w-1/3" />
-        <span className={`absolute left-2.5 top-2.5 font-black uppercase ${sold ? 'hub-lx-sold rounded-[9px] px-3 py-1.5 text-[10px]' : `rounded-full px-2 py-0.5 text-[9px] shadow ${statusClass}`}`}>{sold && <span className="hub-lx-sold-dot" />}<span className="relative">{status}</span></span>
+        {/* status with the open house (badge) right beside it - never stacked on the price */}
+        <span className="absolute left-2.5 right-2.5 top-2.5 flex items-center gap-1">
+          <span className={`inline-flex shrink-0 items-center font-black uppercase ${sold ? 'hub-lx-sold rounded-[9px] px-3 py-1.5 text-[10px]' : `rounded-full px-2 py-0.5 text-[9px] shadow ${statusClass}`}`}>{sold && <span className="hub-lx-sold-dot" />}<span className="relative">{status}</span></span>
+          {badge && <span className="flex min-w-0">{badge}</span>}
+        </span>
         <span className="absolute inset-x-0 bottom-0 p-3 text-left">
-          {badge && <span className="mb-1.5 flex">{badge}</span>}
           <span className="block h-px w-8 bg-gradient-to-r from-[var(--m-light)] to-transparent" />
           <span className="hub-lx-price mt-1.5 block text-[22px] leading-none">{price}</span>
           <span className="mt-1 block truncate text-[11px] font-bold text-white/80">{location}</span>
@@ -310,15 +313,11 @@ const CSS = `
 .hub-lx-price { font-family: ui-serif, Georgia, serif; font-weight: 700; letter-spacing: -.012em; line-height: 1.12 !important; padding-bottom: .06em; margin-bottom: -.06em; background-image: linear-gradient(100deg, #fff 0%, #fff 38%, var(--m-light) 47%, var(--m-pale) 50%, var(--m-light) 53%, #fff 62%, #fff 100%); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: 0 2px 14px rgba(0,0,0,.25); animation: hubLxPriceGlint 5.5s ease-in-out infinite; }
 @keyframes hubLxPriceGlint { 0%, 100% { background-position: 100% 0; } 50% { background-position: 0 0; } }
 
-/* Status badges on Luxe: Sold = a matte red tablet (rounded rectangle, no gloss) that fades in,
+/* (The Sold tablet itself now lives in app/globals.css so Classic hubs get the same red.)
+   Status badges on Luxe: Sold = a matte red tablet (rounded rectangle, no gloss) that fades in,
    a soft shimmer passing through it now and then, a thin light edge, and a breathing white dot.
    No texture and no scaling (both made the small text read blurry). Others keep their color. */
-.hub-lx-sold { overflow: hidden; isolation: isolate; display: inline-flex; align-items: center; letter-spacing: .24em; color: #fff7f5 !important; background: linear-gradient(160deg, #b23a3a 0%, #9b2c2c 48%, #7d2222 100%) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.16), inset 0 -6px 12px rgba(0,0,0,.16), 0 10px 22px -10px rgba(110,20,20,.85) !important; text-shadow: 0 1px 1px rgba(0,0,0,.25); -webkit-font-smoothing: antialiased; animation: hubLxSoldIn .6s .2s cubic-bezier(.22,.61,.36,1) both; transition: transform .35s cubic-bezier(.22,.61,.36,1), box-shadow .35s; }
-.hub-lx-sold::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,235,230,.38) 50%, transparent 70%); transform: translateX(-120%); animation: hubLxShine 4.6s ease-in-out 1s infinite; }
 .hub-lx-card:hover .hub-lx-sold { transform: translateY(-1px); box-shadow: inset 0 0 0 1px rgba(255,255,255,.22), inset 0 -6px 12px rgba(0,0,0,.16), 0 14px 26px -10px rgba(110,20,20,.95) !important; }
-.hub-lx-sold-dot { position: relative; display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 0 rgba(255,255,255,.6); animation: hubLxSoldDot 2.4s ease-in-out infinite; }
-@keyframes hubLxSoldIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
-@keyframes hubLxSoldDot { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,.55); } 60% { box-shadow: 0 0 0 5px rgba(255,255,255,0); } }
 
 /* Alive on hover - socials, contact medallions and every lead button respond, like the signature card. */
 .hub-luxe [class*="rounded-xl"][class*="border-gray-200"][class*="shrink-0"] { transition: transform .3s cubic-bezier(.22,.61,.36,1), box-shadow .3s, border-color .3s; }

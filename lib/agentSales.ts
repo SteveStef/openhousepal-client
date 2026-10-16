@@ -43,7 +43,7 @@ export const getSaleStatusClass = (status?: string) => {
   if (clean === 'coming soon') return 'bg-[#111827] text-white'
   if (clean === 'pending' || clean === 'under contract') return 'bg-yellow-400 text-[#111827]'
   if (clean === 'off market') return 'bg-gray-500 text-white'
-  if (clean === 'sold') return 'bg-rose-500 text-white'
+  if (clean === 'sold') return 'hub-lx-sold' // the red Sold tablet (app/globals.css), on every look
   return 'bg-[#8b7355] text-white'
 }
 
