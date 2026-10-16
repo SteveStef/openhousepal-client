@@ -9,8 +9,8 @@ import OhpLoader from '@/components/brand/OhpLoader'
 // links, and the received-reviews list with publish/hide/delete), laid out with a plain-language
 // explainer up top and calmer spacing for someone who has never set up a review funnel before.
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Check, Copy, ExternalLink, Eye, EyeOff, Globe, LayoutTemplate, Link2, Loader2, Mail, MessageCircle, MessageSquareQuote, RefreshCw, Send, ShieldCheck, Sparkles, Star, ThumbsUp, Trash2,
 } from 'lucide-react'
@@ -23,6 +23,7 @@ import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import StudioPageHeader from '@/components/studio/StudioPageHeader'
 import { copyText } from '@/lib/copyText'
+import ZillowLinkHelp, { ZILLOW_REVIEW_PLACEHOLDER } from '@/components/reviews/ZillowLinkHelp'
 
 // Matches the backend's REVIEWS_ACCESS_TIERS - Premium / IDX / Pro No-MLS only.
 const REVIEWS_TIERS = ['PREMIUM', 'IDX', 'PRO_NO_MLS']
@@ -98,6 +99,16 @@ function ReviewsPageInner() {
   const [importing, setImporting] = useState(false)
   const [importMsg, setImportMsg] = useState('')
   const [filter, setFilter] = useState<'all' | 'public' | 'private' | 'imported'>('all')
+  // Opened from a "new review" notification ("?review=...") - that review glows and scrolls into view.
+  const focusReviewId = useSearchParams().get('review')
+  const scrolledToReview = useRef(false)
+  useEffect(() => {
+    if (!focusReviewId || scrolledToReview.current) return
+    const el = document.getElementById(`review-${focusReviewId}`)
+    if (!el) return
+    scrolledToReview.current = true
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
 
   const load = () => {
     api.agentHub.listReviews().then(r => {
@@ -302,8 +313,8 @@ function ReviewsPageInner() {
                   placeholder="https://g.page/r/…"
                   how={<>Open your <a href="https://business.google.com/reviews" target="_blank" rel="noreferrer" className="font-black text-[#8b7355] hover:underline dark:text-[#e8c97a]">Google Business Profile</a> → <b>Ask for reviews</b> → copy the short link.</>} inputCls={inputCls} />
                 <DestinationCard name="Zillow" mark={<span className="flex h-full w-full items-center justify-center rounded-lg bg-[#006AFF] text-sm font-black text-white">Z</span>} value={zillowUrl} onChange={setZillowUrl}
-                  placeholder="https://www.zillow.com/profile/…/#reviews"
-                  how={<>Open your Zillow agent profile, scroll to <b>Reviews</b>, and copy that page's link.</>} inputCls={inputCls} />
+                  placeholder={ZILLOW_REVIEW_PLACEHOLDER}
+                  how={<><span className="block">Use the link behind the <b>Write a review</b> button on your Zillow profile - clients land right on the review form.</span><ZillowLinkHelp value={zillowUrl} compact /></>} inputCls={inputCls} />
               </div>
             </motion.div>
 
@@ -366,8 +377,8 @@ function ReviewsPageInner() {
                         const hidden = rv.status === 'hidden'
                         const isPrivate = hidden && (rv.source || 'direct') === 'direct' && rv.rating <= 3
                         return (
-                          <motion.div key={rv.id} layout initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.22 }}
-                            className={`group flex flex-col rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-[0_16px_34px_-22px_rgba(139,115,85,.6)] ${isPrivate ? 'border-amber-200 bg-amber-50/40 dark:border-amber-400/20 dark:bg-amber-400/[0.04]' : hidden ? 'border-gray-200 bg-gray-50/70 dark:border-white/[0.06] dark:bg-white/[0.02]' : 'border-gray-200 bg-white hover:border-[#C9A24D]/50 dark:border-white/[0.08] dark:bg-[#151517]'}`}>
+                          <motion.div key={rv.id} id={`review-${rv.id}`} layout initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.22 }}
+                            className={`group flex flex-col rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-[0_16px_34px_-22px_rgba(139,115,85,.6)] ${focusReviewId === rv.id ? 'ring-2 ring-[#C9A24D] ring-offset-2 ring-offset-[#faf9f7] dark:ring-offset-[#0B0B0B] ' : ''}${isPrivate ? 'border-amber-200 bg-amber-50/40 dark:border-amber-400/20 dark:bg-amber-400/[0.04]' : hidden ? 'border-gray-200 bg-gray-50/70 dark:border-white/[0.06] dark:bg-white/[0.02]' : 'border-gray-200 bg-white hover:border-[#C9A24D]/50 dark:border-white/[0.08] dark:bg-[#151517]'}`}>
                             <div className="flex items-start gap-3">
                               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#e8c97a] to-[#8b6a2b] text-[11px] font-black text-white">{(rv.reviewer_name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}</span>
                               <div className="min-w-0 flex-1">
@@ -448,7 +459,7 @@ function DestinationCard({ name, mark, value, onChange, placeholder, how, inputC
         </AnimatePresence>
       </div>
       <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={`${inputCls} mt-3`} />
-      <p className="mt-2 text-[11px] font-semibold leading-relaxed text-gray-500 dark:text-gray-400">{how}</p>
+      <div className="mt-2 text-[11px] font-semibold leading-relaxed text-gray-500 dark:text-gray-400">{how}</div>
     </div>
   )
 }

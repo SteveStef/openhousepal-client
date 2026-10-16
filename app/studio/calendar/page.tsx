@@ -14,6 +14,8 @@ import {
 import { AnimatePresence, motion, type Variants } from 'framer-motion'
 import { LuxeSurface } from '@/components/ui/LuxeSurface'
 import api from '@/lib/api-service'
+import { GoogleCalendarLogo, OutlookLogo } from '@/components/brand/ProviderLogos'
+import { OUTLOOK_LIVE } from '@/lib/providers'
 import type { IntegrationsInfo } from '@/types'
 import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
@@ -102,7 +104,9 @@ function CalendarPageInner() {
   }
   const gAvail = !!info?.google_calendar_available
   const g = info?.google_calendar
-  const msAvail = !!info?.microsoft_calendar_available
+  // Outlook shows "Coming soon" until it's fully set up (lib/providers) - unless already connected.
+  const msConnected = !!info?.microsoft_calendar?.connected
+  const msAvail = !!info?.microsoft_calendar_available && (OUTLOOK_LIVE || msConnected)
   const ms = info?.microsoft_calendar
   const anyOAuthAvail = gAvail || msAvail
   const connectedSomewhere = !!g || !!ms
@@ -158,20 +162,30 @@ function CalendarPageInner() {
 
             {/* Two-way providers, side by side */}
             {anyOAuthAvail && (
-              <motion.div variants={rise} className={`grid gap-5 ${gAvail && msAvail ? 'md:grid-cols-2' : ''}`}>
+              <motion.div variants={rise} className="grid gap-5 md:grid-cols-2">
                 {gAvail && (
                   <ProviderCard
-                    name="Google Calendar" mark={<GoogleCalMark />} recommended
+                    name="Google Calendar" mark={<GoogleCalendarLogo />} recommended
                     blurb="Two-way - edit events right in Google, and we skip times you're already booked."
                     status={g} busy={busy} onConnect={connect} onDisconnect={disconnect} onResync={resync}
                     steps={['Click Connect - you’ll sign in with Google.', 'If Google says “unverified app”: Advanced → Go to OpenHousePal → Allow.', 'You land back here, synced.']} />
                 )}
                 {msAvail && (
                   <ProviderCard
-                    name="Outlook Calendar" mark={<OutlookMark />}
+                    name="Outlook Calendar" mark={<OutlookLogo />}
                     blurb="Two-way with Outlook / Microsoft 365 - events you can drag and edit."
                     status={ms} busy={msBusy} onConnect={msConnect} onDisconnect={msDisconnect} onResync={msResync}
                     steps={['Click Connect - sign in with Microsoft (work or personal).', 'You land back here, synced.']} />
+                )}
+                {!msAvail && (
+                  <div className="flex items-center gap-4 rounded-3xl border-2 border-dashed border-gray-200 bg-white/60 p-6 dark:border-white/10 dark:bg-white/[0.02]">
+                    <span className="h-12 w-12 shrink-0 opacity-60"><OutlookLogo /></span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-base font-black text-gray-500 dark:text-gray-400">Outlook Calendar</p>
+                      <p className="text-sm font-medium text-gray-400">We&apos;re finishing this one. Use Google, or the calendar link above, for now.</p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-gray-500 dark:bg-white/[0.06] dark:text-gray-400">Coming soon</span>
+                  </div>
                 )}
               </motion.div>
             )}
@@ -286,28 +300,5 @@ function WeekPreview() {
         ))}
       </div>
     </div>
-  )
-}
-
-function GoogleCalMark() {
-  return (
-    <svg viewBox="0 0 48 48" className="h-full w-full" aria-hidden>
-      <rect x="6" y="6" width="36" height="36" rx="5" fill="#fff" stroke="#e5e7eb" />
-      <path d="M6 14h36" stroke="#4285F4" strokeWidth="8" />
-      <rect x="6" y="6" width="36" height="8" rx="4" fill="#4285F4" />
-      <text x="24" y="36" textAnchor="middle" fontSize="16" fontWeight="800" fill="#4285F4" fontFamily="Arial, sans-serif">31</text>
-      <path d="M34 42l8-8v4a4 4 0 0 1-4 4z" fill="#34A853" />
-    </svg>
-  )
-}
-
-function OutlookMark() {
-  return (
-    <svg viewBox="0 0 48 48" className="h-full w-full" aria-hidden>
-      <rect x="14" y="8" width="28" height="32" rx="3" fill="#28A8EA" />
-      <rect x="14" y="8" width="28" height="10" rx="3" fill="#0078D4" />
-      <rect x="4" y="13" width="22" height="22" rx="3" fill="#0A5FB4" />
-      <ellipse cx="15" cy="24" rx="5.5" ry="6.5" fill="none" stroke="#fff" strokeWidth="3" />
-    </svg>
   )
 }

@@ -20,6 +20,8 @@ import { formatDateTime } from '@/lib/relativeDays'
 // the 10 most recent (last 30 days), so this page is where everything else lives: grouped by kind
 // and by day, searchable, filterable by date, paged, and "Load older" past the newest 300.
 const BATCH = 300
+// The bell, Dash and Leads send this when they change something - same name they listen for.
+const REFRESH_EVENT = 'leads-notification-count:refresh'
 const PAGE = 25
 
 // One tab per kind of thing that happens - a tab only shows once it has something in it.
@@ -35,7 +37,7 @@ const KIND_TYPES: Record<Exclude<Kind, 'all' | 'unread' | 'account'>, string[]> 
   reviews: ['NEW_REVIEW'],
   hosting: ['HOST_REQUEST_RECEIVED', 'HOST_REQUEST_APPROVED', 'HOST_REQUEST_DECLINED', 'HOST_REQUEST_COUNTERED', 'HOST_REQUEST_COUNTER_RESPONSE',
     'DIRECT_HOST_REQUEST_RECEIVED', 'TEAM_BROADCAST_RECEIVED', 'TEAM_BROADCAST_RESPONSE', 'TEAM_BROADCAST_CLAIMED', 'TEAM_INVITE_RECEIVED',
-    'TEAM_INVITE_ACCEPTED', 'TEAM_INVITE_DECLINED', 'TEAM_NEW_LISTING'],
+    'TEAM_INVITE_ACCEPTED', 'TEAM_INVITE_DECLINED', 'TEAM_NEW_LISTING', 'HOST_REQUEST_WITHDRAWN'],
 }
 function kindOf(type: string): Kind {
   for (const [k, types] of Object.entries(KIND_TYPES)) if (types.includes(type)) return k as Kind
@@ -94,6 +96,26 @@ export default function ActivityPage() {
     })
   }, [isAuthenticated])
 
+  // Stays current like the bell and Dash: new items come in and read/unread matches theirs - on a
+  // timer, when the tab comes back, and right after the bell / Dash / Leads change something.
+  useEffect(() => {
+    if (!isAuthenticated) return
+    const refresh = () => {
+      if (document.hidden) return
+      api.notifications.getAll(false).then(({ success, data }) => {
+        if (!success || !data) return
+        setNotifications(prev => {
+          const fresh = new Set(data.map(n => n.id))
+          return [...data, ...prev.filter(n => !fresh.has(n.id))]
+        })
+      })
+    }
+    const t = window.setInterval(refresh, 15000)
+    window.addEventListener('focus', refresh)
+    window.addEventListener(REFRESH_EVENT, refresh)
+    return () => { window.clearInterval(t); window.removeEventListener('focus', refresh); window.removeEventListener(REFRESH_EVENT, refresh) }
+  }, [isAuthenticated])
+
   const loadOlder = async () => {
     setOlderBusy(true)
     const { success, data } = await api.notifications.getAll(false, undefined, notifications.length)
@@ -122,7 +144,7 @@ export default function ActivityPage() {
   const open = (n: Notification) => {
     if (!n.isRead) {
       setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, isRead: true } : x))
-      api.notifications.markAsRead(n.id)
+      api.notifications.markAsRead(n.id).then(() => window.dispatchEvent(new Event(REFRESH_EVENT)))
     }
     if (!n.link) return
     // On a computer it opens in a new tab so the list stays put; on a phone, right here.
@@ -134,6 +156,7 @@ export default function ActivityPage() {
   const markAllRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
     await api.notifications.markAllAsRead()
+    window.dispatchEvent(new Event(REFRESH_EVENT))
   }
 
   // Liked and disliked both come back as PROPERTY_INTERACTION (told apart by the message's

@@ -7,6 +7,7 @@ import AnimatedNumber from '@/components/ui/AnimatedNumber'
 import { Loader2, X } from 'lucide-react'
 import api from '@/lib/api-service'
 import { StatDailyPoint } from '@/types'
+import { todayLocal } from '@/lib/relativeDays'
 
 interface StatDetailModalProps {
   metric: string
@@ -298,7 +299,7 @@ export default function StatDetailModal({ metric, label, isPercent, onClose }: S
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974]">Stat History</p>
             <h2 className="mt-1 font-serif text-2xl font-black text-[#111827] dark:text-white">{label}</h2>
-            {joinedAt && <p className="mt-1 text-xs font-semibold text-gray-400">Tracking since {new Date(joinedAt).toLocaleDateString()}</p>}
+            {joinedAt && <p className="mt-1 text-xs font-semibold text-gray-400">Tracking since {new Date(`${joinedAt}T00:00:00`).toLocaleDateString()}</p>}
           </div>
           <button onClick={onClose} aria-label="Close" className="rounded-full border border-gray-200 p-2 text-gray-400 transition hover:rotate-90 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700">
             <X className="h-4 w-4" />
@@ -327,7 +328,7 @@ export default function StatDetailModal({ metric, label, isPercent, onClose }: S
               <input
                 type="date"
                 value={customStart}
-                max={customEnd || new Date().toISOString().slice(0, 10)}
+                max={customEnd || todayLocal()}
                 onChange={event => setCustomStart(event.target.value)}
                 className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-bold text-[#111827] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white"
               />
@@ -338,7 +339,7 @@ export default function StatDetailModal({ metric, label, isPercent, onClose }: S
                 type="date"
                 value={customEnd}
                 min={customStart || undefined}
-                max={new Date().toISOString().slice(0, 10)}
+                max={todayLocal()}
                 onChange={event => setCustomEnd(event.target.value)}
                 className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-bold text-[#111827] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white"
               />

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
+import { useSearchParams } from 'next/navigation'
 import { CalendarClock, CheckCircle2, Plus } from 'lucide-react'
 import api from '@/lib/api-service'
 import type { AgentTask } from '@/types'
@@ -13,6 +14,8 @@ import AutoFollowupSettings from '@/components/tasks/AutoFollowupSettings'
 import { FollowupsHeaderSwitch, useFollowupsEnabled } from '@/components/tasks/FollowupsSwitch'
 
 export default function FollowUpsPage() {
+  // Opened from a notification about one follow-up ("/leads/tasks?task=...") - that card glows.
+  const focusTaskId = useSearchParams().get('task')
   const [openCount, setOpenCount] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
   const { enabled } = useFollowupsEnabled()
@@ -94,7 +97,7 @@ export default function FollowUpsPage() {
         ) : (
           <>
             <div className="mt-4">
-              <TasksPanel onCountChange={setOpenCount} composerOpen={adding} onComposerClose={() => setAdding(false)} />
+              <TasksPanel onCountChange={setOpenCount} composerOpen={adding} onComposerClose={() => setAdding(false)} focusTaskId={focusTaskId} />
             </div>
 
             <AutoFollowupSettings />

@@ -34,7 +34,7 @@ export default function GuestDetailsToggle({ eventId, windowDate }: { eventId: s
         loading ? <div className="mt-2 flex justify-center"><Loader2 size={14} className="animate-spin text-[#C9A24D]" /></div> : (
           <div className="mt-2 space-y-1.5">
             {(guests || []).length === 0 ? (
-              <p className="text-xs text-gray-400">No guests signed in yet.</p>
+              <p className="text-xs text-gray-400">Nobody signed in.</p>
             ) : (guests || []).map(g => (
               <div key={g.id} className="rounded-lg bg-gray-50 dark:bg-[#0F0F11] p-2 text-xs">
                 <p className="font-bold text-gray-700 dark:text-gray-200">{g.full_name}</p>

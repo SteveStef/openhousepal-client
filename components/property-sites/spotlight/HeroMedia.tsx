@@ -17,6 +17,13 @@ import type { HeaderMode, HeaderMotion, HeroFrame } from './model'
 
 export const DEFAULT_FRAME: HeroFrame = { x: 50, y: 50, zoom: 1.12 }
 
+/** A header taller than this (width / height) is a phone header - it uses the phone's own spot. */
+export const PHONE_RATIO = 0.85
+/** The spot to keep centered for a header this shape (0-100 of the photo). */
+export function spotFor(frame: HeroFrame, phone: boolean): { x: number; y: number } {
+  return phone ? { x: frame.px ?? frame.x, y: frame.py ?? frame.y } : { x: frame.x, y: frame.y }
+}
+
 /** The Bright MLS badge's corner of the photo, as fractions of the photo (with a little margin). */
 const BADGE = { w: 0.18, h: 0.1 }
 
@@ -124,9 +131,10 @@ function Placed({ kind, src, poster, box, frame, motionClass, style, alt, priori
     const el = img.current
     if (el && el.complete && el.naturalWidth) setNat({ w: el.naturalWidth, h: el.naturalHeight })
   }, [src])
+  const spot = spotFor(frame, !!box && box.W / box.H < PHONE_RATIO)
   const p = useMemo(
-    () => (box && nat ? placePhoto(box.W, box.H, nat.w, nat.h, frame.x / 100, frame.y / 100) : null),
-    [box, nat, frame.x, frame.y],
+    () => (box && nat ? placePhoto(box.W, box.H, nat.w, nat.h, spot.x / 100, spot.y / 100) : null),
+    [box, nat, spot.x, spot.y],
   )
   // Couldn't measure (an error, an odd file): the plain cover fit, badge corner nudged away.
   const placed: React.CSSProperties = p && nat

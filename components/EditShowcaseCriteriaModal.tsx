@@ -48,7 +48,7 @@ interface EditShowcaseCriteriaModalProps {
   // implicit open-house property it was auto-created from.
   // touredListingKey = the open house home they actually toured (null when the Showcase didn't
   // come from one) - the home card only says "The home you toured" for that one.
-  currentCompareProperty?: { listingKey?: string | null; touredListingKey?: string | null; address?: string | null; city?: string | null; image?: string | null } | null
+  currentCompareProperty?: { listingKey?: string | null; touredListingKey?: string | null; address?: string | null; city?: string | null; state?: string | null; image?: string | null } | null
   // Whether currentCompareProperty is an explicit override vs. just the implicit open-house
   // default - changes what clearing it actually does (see handleSave).
   hasExplicitCompareOverride?: boolean
@@ -109,6 +109,39 @@ const GOLD_CSS = `
 @media (prefers-reduced-motion:reduce){.rf-edge,.rf-spark,.rf-shine:after,.rf-pulse,.rf-aurora,.rf-ring,.rf-radar{animation:none}}
 `
 
+// The window's body eases to the height of whatever screen is showing (one element animates its
+// height - no scaling, no blur), so moving between screens never jumps.
+function AutoHeight({ children }: { children: ReactNode }) {
+  const inner = useRef<HTMLDivElement>(null)
+  const [h, setH] = useState<number | 'auto'>('auto')
+  // Clip only while the height moves - at rest a dropdown (school districts, towns) near the bottom
+  // must be able to spill past the edge, or it gets cut off. Set on the element directly (a state
+  // change here would re-render the whole window mid-animation and drop frames).
+  const outer = useRef<HTMLDivElement>(null)
+  const clip = (on: boolean) => { if (outer.current) outer.current.style.overflow = on ? 'hidden' : 'visible' }
+  useEffect(() => {
+    const el = inner.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setH(el.offsetHeight))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  return (
+    <motion.div ref={outer} animate={{ height: h }} initial={false} transition={{ type: 'spring', stiffness: 380, damping: 38, mass: 0.8 }}
+      onAnimationStart={() => clip(true)} onAnimationComplete={() => clip(false)} style={{ overflow: 'visible' }}>
+      <div ref={inner} className="relative">{children}</div>
+    </motion.div>
+  )
+}
+
+const SCREEN_DEPTH: Record<string, number> = { choose: 0, edit: 1, ask: 1, pick: 2 }
+// Screens slide + fade (transform and opacity only - smooth on phones, no blur).
+const screenSlide = {
+  enter: (dir: number) => ({ x: dir * 44, opacity: 0 }),
+  center: { x: 0, opacity: 1, transition: { type: 'spring' as const, stiffness: 420, damping: 38, mass: 0.8 } },
+  exit: (dir: number) => ({ x: dir * -44, opacity: 0, transition: { duration: 0.12, ease: [0.4, 0, 1, 1] as const } }),
+}
+
 function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessage, agent, currentCompareProperty, hasExplicitCompareOverride, focus = 'all', onRefineFurther, audience = 'client', preview }: EditShowcaseCriteriaModalProps) {
   const their = audience === 'agent' ? 'their' : 'your'
   useEscapeToClose(onClose)
@@ -127,6 +160,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
     cities: preferences?.cities || [],
     school_districts: preferences?.school_districts || [],
   } as FormState))
+  const savedFormRef = useRef(formData)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [saved, setSaved] = useState(false)
   const [outcome, setOutcome] = useState<SaveOutcome | null>(null)
@@ -261,6 +295,18 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
   // when the toured home's details finish loading.
   const priceScaleRef = useRef<number | null>(null)
   const [startedOver, setStartedOver] = useState<FormState | null>(null)
+  // The buyer's window starts on one simple question ("what do you want to do?"), then shows just
+  // that: their filters, a home picker, or a note to their agent. The small windows opened from a
+  // specific line (compare / radius) go straight to the filters.
+  const [step, setStep] = useState<'choose' | 'edit' | 'pick'>(audience !== 'agent' && focus === 'all' ? 'choose' : 'edit')
+  const [pickFrom, setPickFrom] = useState<'choose' | 'edit'>('choose')
+  const openPicker = (from: 'choose' | 'edit') => { setPickFrom(from); setStep('pick'); setError('') }
+  const pickedHomeRef = useRef(false)   // picking a home moves forward to the filters
+  const prevScreenRef = useRef<string>(audience !== 'agent' && focus === 'all' ? 'choose' : 'edit')
+  const screenDirRef = useRef(1)
+  // "Stop using a home": the search becomes just their filters (in the home's own town to start).
+  // Nothing saves until Save; Undo puts the home back.
+  const [removedHome, setRemovedHome] = useState<{ form: FormState; home: { listingKey: string; address: string; city?: string | null; image?: string | null; lat?: number; lng?: number; price?: number | null; beds?: number | null } | null; anchor: { price?: number | null; beds?: number | null; lat?: number | null; lng?: number | null } | null } | null>(null)
   useEffect(() => {
     if (audience === 'agent' || !currentCompareProperty?.address) return
     let alive = true
@@ -268,7 +314,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
       if (!alive || !success) return
       const results: Suggestion[] = data?.results || []
       const hit = results.find(r => r.listingKey && r.listingKey === currentCompareProperty.listingKey) || results[0]
-      if (hit) setAnchor({ price: hit.price, beds: hit.beds, lat: hit.lat, lng: hit.lng })
+      if (hit) { setAnchor({ price: hit.price, beds: hit.beds, lat: hit.lat, lng: hit.lng }); savedAnchorRef.current = { price: hit.price, beds: hit.beds, lat: hit.lat, lng: hit.lng } }
     }).catch(() => {})
     return () => { alive = false }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -299,6 +345,70 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
     setSwitchingHome(false)
     setCompareQuery('')
     setCompareSuggestions([])
+    if (removedHome) { setHomeSwap(prev => prev && { ...prev, form: removedHome.form, home: removedHome.home, anchor: removedHome.anchor }); setRemovedHome(null) }
+    pickedHomeRef.current = true
+    setStep('edit')
+  }
+  const savedHomeRef = useRef(selectedCompareProperty)
+  const savedAnchorRef = useRef<typeof anchor>(null)
+  // Back = leave without saving: everything returns to the saved search.
+  const resetToSaved = () => {
+    setFormData(savedFormRef.current)
+    setSelectedCompareProperty(savedHomeRef.current)
+    setAnchor(savedAnchorRef.current)
+    setHomeSwap(null)
+    setRemovedHome(null)
+    setStartedOver(null)
+    setCustomPrice(false)
+    priceScaleRef.current = null
+    setError('')
+  }
+  // "Stop using a home" asks first, then saves straight away - so it's never shown as done when it
+  // isn't (it used to wait for Save, and Back made it look applied while the page still had the home).
+  const [confirmNoHome, setConfirmNoHome] = useState(false)
+  const homeTown = (() => {
+    const t = selectedCompareProperty?.city || currentCompareProperty?.city || ''
+    return t ? t.toLowerCase().replace(/(^|\s)([a-z])/g, (_, a, c) => a + c.toUpperCase()) : ''
+  })()
+  const stopUsingHome = async () => {
+    const st = currentCompareProperty?.state
+    setIsSubmitting(true)
+    setError('')
+    try {
+      const result = await onSave({
+        address: '', lat: null, long: null, diameter: null, school_districts: [], remove_home: true,
+        cities: homeTown ? [st ? `${homeTown}, ${st}` : homeTown] : (formData.cities || []),
+        min_price: formData.min_price, max_price: formData.max_price, min_beds: formData.min_beds, max_beds: formData.max_beds,
+        min_baths: formData.min_baths, max_baths: formData.max_baths,
+      })
+      setOutcome(result || null)
+      setSaved(true)
+      window.setTimeout(onClose, 1800)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not change your search - please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+  const removeHome = () => {
+    const home = selectedCompareProperty
+    setRemovedHome({ form: formData, home, anchor })
+    const town = home?.city || currentCompareProperty?.city
+    const st = currentCompareProperty?.state
+    const niceTown = town ? town.toLowerCase().replace(/(^|\s)([a-z])/g, (_, a, c) => a + c.toUpperCase()) : ''
+    setSelectedCompareProperty(null)
+    setAnchor(null)
+    setHomeSwap(null)
+    setFormData(prev => ({ ...prev, address: '', lat: null, long: null, diameter: null, cities: niceTown ? [st ? `${niceTown}, ${st}` : niceTown] : prev.cities, school_districts: [] }))
+    setStep('edit')
+    setError('')
+  }
+  const undoRemoveHome = () => {
+    if (!removedHome) return
+    setFormData(removedHome.form)
+    setSelectedCompareProperty(removedHome.home)
+    setAnchor(removedHome.anchor)
+    setRemovedHome(null)
   }
   const undoHomeSwap = () => {
     if (!homeSwap) return
@@ -361,7 +471,9 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
     }
   }
 
-  const isUsingAreaSearch = () => (formData.cities && formData.cities.length > 0) || (formData.school_districts && formData.school_districts.length > 0)
+  // Towns replace the distance search; a school district only narrows it (distance AND district,
+  // like Zillow/Redfin - property_service ANDs districts with every area), so it isn't one.
+  const isUsingAreaSearch = () => !!(formData.cities && formData.cities.length > 0)
   const isUsingAddressSearch = () => !!formData.address
 
   const handleSave = async () => {
@@ -404,6 +516,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
         payload.show_match_score = false
       }
       }
+      if (audience !== 'agent' && removedHome && !selectedCompareProperty) payload.remove_home = true
       const result = await onSave(payload)
       setOutcome(result || null)
       setSaved(true)
@@ -605,16 +718,16 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
   }
 
   // What the search is right now, as chips under the title - they pop in/out as things change.
+  const money = (n: number) => (n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M` : `$${Math.round(n / 1000)}k`)
   const summaryChips = [
     formData.address && formData.diameter ? `Within ${fmtMi(formData.diameter)}` : '',
-    ...(formData.cities || []).slice(0, 2),
+    ...(formData.cities || []).slice(0, 2).map(c => c.split(',')[0]),
     (formData.cities?.length || 0) > 2 ? `+${(formData.cities?.length || 0) - 2} towns` : '',
     ...(formData.school_districts || []).slice(0, 1),
-    formData.min_price || formData.max_price
-      ? `${formData.min_price ? `$${Math.round(formData.min_price / 1000)}k` : 'Any'} – ${formData.max_price ? `$${Math.round(formData.max_price / 1000)}k` : 'Any'}`
-      : '',
-    formData.min_beds ? `${formData.min_beds}+ bd` : '',
-    formData.min_baths ? `${formData.min_baths}+ ba` : '',
+    formData.min_price && formData.max_price ? `${money(formData.min_price)} – ${money(formData.max_price)}`
+      : formData.max_price ? `Up to ${money(formData.max_price)}` : formData.min_price ? `${money(formData.min_price)}+` : '',
+    formData.min_beds ? `${formData.min_beds}+ beds` : '',
+    formData.min_baths ? `${formData.min_baths}+ baths` : '',
   ].filter(Boolean) as string[]
 
   const shell = (opts: { icon: ReactNode; kicker: string; title: string; sub?: string; wide?: boolean; xl?: boolean; summary?: boolean; children: ReactNode; footer?: ReactNode; headerExtra?: ReactNode; headerSide?: ReactNode }) => (
@@ -991,84 +1104,47 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
         {fill ? <div className="flex flex-1 flex-col justify-center">{children}</div> : children}
       </motion.section>
     )
-    const homeSwitcher = (
-      <AnimatePresence mode="wait" initial={false}>
-        {switchingHome ? (
-          <motion.div key="pick" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ type: 'spring', stiffness: 360, damping: 34 }} className="space-y-2 overflow-hidden">
-            <p className="text-[12px] font-semibold leading-snug text-gray-500 dark:text-gray-400">Pick any home - your search starts over around it, just as if you&apos;d toured it.</p>
-            {compareSearch}
-            <button type="button" onClick={() => { setSwitchingHome(false); setCompareQuery('') }} className="text-[11px] font-black uppercase tracking-widest text-gray-400 transition-colors hover:text-[#111827] dark:hover:text-white">Cancel</button>
-          </motion.div>
-        ) : homeSwap ? (
-          <motion.div key="done" initial={{ opacity: 0, y: 8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }} transition={{ type: 'spring', stiffness: 420, damping: 30 }}
-            className="rounded-2xl border border-emerald-500/40 bg-emerald-500/[0.07] p-3">
-            <div className="flex items-center gap-3">
-              <motion.span initial={{ scale: 0, rotate: -40 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 520, damping: 16 }}
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-500 text-white"><Check className="h-4 w-4" strokeWidth={3} /></motion.span>
-              <span className="min-w-0 flex-1 leading-tight">
-                <span className="block truncate text-sm font-black text-[#111827] dark:text-white">Built around {homeStreet}</span>
-                <span className="mt-0.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">New area, price and size - tap Save to keep it</span>
-              </span>
-            </div>
-            <div className="mt-2.5 grid grid-cols-2 gap-2">
-              <motion.button type="button" onClick={() => setSwitchingHome(true)} whileHover={{ y: -1 }} whileTap={{ scale: 0.95 }}
-                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black uppercase tracking-widest text-[#111827] transition-colors hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.04] dark:text-white"><Search className="h-3.5 w-3.5" /> Pick another</motion.button>
-              <motion.button type="button" onClick={undoHomeSwap} whileHover={{ y: -1 }} whileTap={{ scale: 0.95 }}
-                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white text-[11px] font-black uppercase tracking-widest text-gray-500 transition-colors hover:border-[#111827] hover:text-[#111827] dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-300 dark:hover:text-white"><RotateCcw className="h-3.5 w-3.5" /> Undo</motion.button>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.button key="offer" type="button" onClick={() => { setSwitchingHome(true); setError('') }}
-            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.12 } }} exit={{ opacity: 0, y: -8 }}
-            whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}
-            className="group flex w-full items-center gap-3 rounded-2xl border border-dashed border-[#C9A24D]/60 p-3 text-left transition-colors hover:border-solid hover:border-[#C9A24D] hover:bg-[#C9A24D]/[0.07]">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#C9A24D]/15 text-[#a8843a] transition-colors group-hover:bg-[#C9A24D] group-hover:text-[#111827] dark:text-[#e8c97a]">
-              <Home className="h-4 w-4 transition-transform group-hover:scale-110" />
-            </span>
-            <span className="min-w-0 flex-1 leading-tight">
-              <span className="block text-sm font-black text-[#111827] dark:text-white">Build my search around a different home</span>
-              <span className="block text-xs font-semibold text-gray-500 dark:text-gray-400">Area, price and size come from that home</span>
-            </span>
-            <ArrowRight className="h-4 w-4 shrink-0 text-[#a8843a] transition-transform group-hover:translate-x-0.5 dark:text-[#e8c97a]" />
-          </motion.button>
-        )}
-      </AnimatePresence>
-    )
-    const homeCard = selectedCompareProperty?.address ? (
-      <motion.section key="home" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
-        className={`h-full overflow-hidden rounded-3xl border bg-white shadow-[0_14px_30px_-24px_rgba(17,24,39,.7)] dark:bg-[#18181b] ${focus === 'compare' ? 'border-[#C9A24D] ring-4 ring-[#C9A24D]/15' : 'border-[#C9A24D]/30'}`}>
-        <div className="relative h-36 sm:h-44">
-          {selectedCompareProperty.image
-            ? <motion.img key={selectedCompareProperty.image} initial={{ opacity: 0, scale: 1.04 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.35 }} src={selectedCompareProperty.image} alt="" className="h-full w-full object-cover" />
-            : <div className="grid h-full w-full place-items-center bg-[#111827] text-[#e8c97a]"><Home className="h-8 w-8" /></div>}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-          <span className="absolute left-3 top-3 rounded-full bg-[#C9A24D] px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-[#111827] shadow">{isTouredHome ? 'The home you toured' : 'Your search is built around'}</span>
-          <div className="absolute inset-x-4 bottom-3 text-white">
-            <p className="truncate font-serif text-xl font-black leading-tight">{homeStreet}</p>
-            <p className="truncate text-xs font-semibold text-white/75">{[city, facts].filter(Boolean).join(' · ')}</p>
-          </div>
-        </div>
-        <div className="space-y-3 p-4 sm:p-5">
-          <p className="text-[13px] font-semibold leading-relaxed text-gray-600 dark:text-gray-300">
-            Your Showcase is built around this home. Every home in it gets a <b className="text-[#111827] dark:text-white">match %</b> for how close it is to this one: price, size, bedrooms, bathrooms and location. <span className="whitespace-nowrap">96% = very similar.</span>
+    // One slim row at the top of the filters: the home it's built around (or none) + change it.
+    const rowBtn = 'inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-[11px] font-black uppercase tracking-widest text-[#111827] transition-colors hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.04] dark:text-white'
+    const homeRow = (
+      <motion.section key="home" layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+        className={`flex flex-wrap items-center gap-3 rounded-3xl border p-3 shadow-[0_14px_30px_-26px_rgba(17,24,39,.6)] ${homeSwap || removedHome ? 'border-emerald-500/40 bg-emerald-500/[0.06]' : 'border-[#C9A24D]/30 bg-white dark:bg-[#18181b]'}`}>
+        {selectedCompareProperty?.address ? (selectedCompareProperty.image
+          ? <img src={selectedCompareProperty.image} alt="" className="h-14 w-14 shrink-0 rounded-2xl object-cover" />
+          : <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#111827] text-[#e8c97a]"><Home className="h-5 w-5" /></span>)
+          : <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#C9A24D]/15 text-[#a8843a] dark:text-[#e8c97a]"><SlidersHorizontal className="h-5 w-5" /></span>}
+        <div className="min-w-0 flex-1 leading-tight">
+          <p className={`text-[10px] font-black uppercase tracking-widest ${homeSwap || removedHome ? 'text-emerald-600 dark:text-emerald-400' : 'text-[#a8843a] dark:text-[#e8c97a]'}`}>
+            {homeSwap ? 'New home - tap Save to keep it' : removedHome ? 'No home - tap Save to keep it' : selectedCompareProperty?.address ? (isTouredHome ? 'Built around the home you toured' : 'Built around') : 'Just your filters'}
           </p>
-          {homeSwitcher}
+          <p className="mt-0.5 truncate text-[15px] font-black text-[#111827] dark:text-white">{selectedCompareProperty?.address ? homeStreet : removedHome ? 'Showing homes that fit your filters' : 'Not built around a home'}</p>
+          {selectedCompareProperty?.address && <p className="truncate text-xs font-semibold text-gray-500 dark:text-gray-400">{[city, facts].filter(Boolean).join(' · ')}</p>}
+        </div>
+        <div className="flex w-full gap-2">
+          {(homeSwap || removedHome) && (
+            <button type="button" onClick={homeSwap ? undoHomeSwap : undoRemoveHome} className={`${rowBtn} flex-1`}><RotateCcw className="h-3.5 w-3.5" /> Undo</button>
+          )}
+          <button type="button" onClick={() => openPicker('edit')} className={`${rowBtn} flex-1`}>
+            <Home className="h-3.5 w-3.5" /> {selectedCompareProperty?.address ? 'Change home' : 'Use a home'}
+          </button>
         </div>
       </motion.section>
-    ) : card('intro', 'Your Showcase', (
-      <p className="text-[13px] font-semibold leading-relaxed text-gray-600 dark:text-gray-300">
-        It shows every home that fits the search below. Change anything and tap Save - new matches show up right away, and you&apos;ll hear about new ones as they list.
-      </p>
-    ))
+    )
 
+    const drawnArea = !!(preferences as { has_drawn_area?: boolean } | null)?.has_drawn_area && !formData.address && !formData.cities?.length
     const whereCard = !isUsingAreaSearch() && formData.address
       ? card('where', `How far from ${currentCompareProperty?.address ? homeStreet : 'the address'}?`, radiusPicker(), undefined, true)
-      : card('where', 'Which towns?', (
+      : card('where', drawnArea ? 'Where?' : 'Which towns?', (
         <div className="space-y-2">
+          {drawnArea && (
+            <p className="rounded-2xl bg-[#C9A24D]/10 px-3 py-2.5 text-[12px] font-semibold leading-snug text-[#5c4a30] dark:text-[#e8cf8a]">
+              Right now: the area {agentFirst} drew on the map. Pick towns below to search those instead, or a school district to narrow it down.
+            </p>
+          )}
           <MultiSelectDatabaseInput values={formData.cities || []} apiMethod={api.properties.citiesPublic} placeholder="Search towns..."
             onChange={(cities) => setFormData(prev => ({ ...prev, cities, address: '', lat: null, long: null, diameter: null }))} />
           <MultiSelectDatabaseInput values={formData.school_districts || []} apiMethod={api.properties.schoolDistrictsPublic} placeholder="Search school districts..."
-            onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts, address: '', lat: null, long: null, diameter: null }))} />
+            onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts }))} />
           {/* Towns AND a school district = only homes in both (property_service stacks them). */}
           <AnimatePresence initial={false}>
             {!!formData.cities?.length && !!formData.school_districts?.length && (
@@ -1079,8 +1155,8 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
               </motion.p>
             )}
           </AnimatePresence>
-          {homeAddress && homeLat != null && homeLng != null && (
-            <button type="button" onClick={() => setFormData(prev => ({ ...prev, cities: [], school_districts: [], address: homeAddress, lat: homeLat!, long: homeLng!, diameter: prev.diameter || 6 }))}
+          {!removedHome && homeAddress && homeLat != null && homeLng != null && (
+            <button type="button" onClick={() => setFormData(prev => ({ ...prev, cities: [], address: homeAddress, lat: homeLat!, long: homeLng!, diameter: prev.diameter || 6 }))}
               className="inline-flex items-center gap-1.5 text-[12px] font-black text-[#a8843a] hover:underline dark:text-[#e8c97a]">
               <Target className="h-3.5 w-3.5" /> Search by distance from {homeStreet} instead
             </button>
@@ -1171,22 +1247,32 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
         className="rounded-3xl border border-gray-100 bg-white p-4 shadow-[0_14px_30px_-26px_rgba(17,24,39,.6)] dark:border-white/[0.07] dark:bg-[#18181b] sm:p-5">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <p className="text-[15px] font-black text-[#111827] dark:text-white">More options</p>
-          {!isUsingAreaSearch() && <span className="text-[11px] font-bold text-gray-400">Search towns or a school district instead of the distance from {homeStreet || 'the home'}</span>}
+          {!isUsingAreaSearch() && <span className="text-[11px] font-bold text-gray-400">Towns replace the distance · a school district narrows it</span>}
         </div>
         {!isUsingAreaSearch() && (
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <p className="text-xs font-black text-gray-500">Towns or cities</p>
+              <p className="text-xs font-black text-gray-500">Towns or cities <span className="font-semibold text-gray-400">(instead of the distance)</span></p>
               <MultiSelectDatabaseInput values={formData.cities || []} apiMethod={api.properties.citiesPublic} placeholder="Search towns..."
                 onChange={(cities) => setFormData(prev => ({ ...prev, cities, address: '', lat: null, long: null, diameter: null }))} />
             </div>
             <div className="space-y-2">
-              <p className="text-xs font-black text-gray-500">School district</p>
+              <p className="text-xs font-black text-gray-500">School district <span className="font-semibold text-gray-400">(only homes in it)</span></p>
               <MultiSelectDatabaseInput values={formData.school_districts || []} apiMethod={api.properties.schoolDistrictsPublic} placeholder="Search school districts..."
-                onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts, address: '', lat: null, long: null, diameter: null }))} />
+                onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts }))} />
             </div>
           </div>
         )}
+        {/* Distance AND a school district = only homes in both (property_service stacks them). */}
+        <AnimatePresence initial={false}>
+          {!isUsingAreaSearch() && !!formData.address && !!formData.diameter && !!formData.school_districts?.length && (
+            <motion.p key="dist-both" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+              className="mt-3 flex items-start gap-2 overflow-hidden rounded-2xl border border-amber-300/70 bg-amber-50 px-3 py-2.5 text-[12px] font-semibold leading-snug text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+              <Target className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>Only homes within <b>{fmtMi(formData.diameter)}</b> of {homeStreet || 'the home'} <b>and</b> in {formData.school_districts.length > 1 ? 'these school districts' : <b>{formData.school_districts[0].split(',')[0].toLowerCase().replace(/(^|\s)([a-z])/g, (_, a: string, c: string) => a + c.toUpperCase())}</b>}{formData.school_districts.length > 1 ? '' : ' schools'} will show.</span>
+            </motion.p>
+          )}
+        </AnimatePresence>
         {hasSummary && (
           <div className={`space-y-1.5 ${!isUsingAreaSearch() ? 'mt-4 border-t border-gray-100 pt-4 dark:border-white/[0.07]' : ''}`}>
             <p className="text-xs font-black text-gray-500">Also set by your agent</p>
@@ -1228,34 +1314,157 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
       </motion.button>
     ) : null
 
+    // ---- screen 1: "What do you want to do?" - plain words, big buttons.
+    const builtAround = !!selectedCompareProperty?.address
+    const choice = (key: string, icon: ReactNode, title: string, line: string, onClick: () => void, k: number) => (
+      <motion.button key={key} type="button" onClick={onClick}
+        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.08 + k * 0.05 } }}
+        whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}
+        className="group flex w-full items-center gap-4 rounded-3xl border border-gray-200 bg-white p-4 text-left shadow-[0_14px_30px_-26px_rgba(17,24,39,.6)] transition-colors hover:border-[#C9A24D] dark:border-white/10 dark:bg-[#18181b]">
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#C9A24D]/15 text-[#a8843a] transition-colors group-hover:bg-[#C9A24D] group-hover:text-[#111827] dark:text-[#e8c97a]">{icon}</span>
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="block text-base font-black text-[#111827] dark:text-white">{title}</span>
+          <span className="mt-0.5 block text-sm font-semibold text-gray-500 dark:text-gray-400">{line}</span>
+        </span>
+        <ArrowRight className="h-5 w-5 shrink-0 text-[#a8843a] transition-transform group-hover:translate-x-0.5 dark:text-[#e8c97a]" />
+      </motion.button>
+    )
+    const chooseBody = (
+      <div className="space-y-3 bg-[#FAFAF7] px-4 py-5 dark:bg-[#0f0f11] sm:px-6">
+        <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-4 rounded-3xl border border-[#C9A24D]/30 bg-gradient-to-r from-[#C9A24D]/10 to-white p-4 dark:to-[#18181b]">
+          {builtAround ? (selectedCompareProperty!.image
+            ? <img src={selectedCompareProperty!.image} alt="" className="h-20 w-20 shrink-0 rounded-2xl object-cover shadow" />
+            : <span className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-[#111827] text-[#e8c97a]"><Home className="h-7 w-7" /></span>)
+            : <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-[#C9A24D]/20 text-[#a8843a] dark:text-[#e8c97a]"><SlidersHorizontal className="h-6 w-6" /></span>}
+          <div className="min-w-0 flex-1">
+            {builtAround ? (
+              <p className="text-[15px] font-semibold leading-snug text-gray-700 dark:text-gray-200">
+                Your search is built around <b className="text-[#111827] dark:text-white">{homeStreet}</b>{isTouredHome ? ', the home you toured' : ''}. We show you homes like it nearby.
+              </p>
+            ) : (
+              <p className="text-[15px] font-semibold leading-snug text-gray-700 dark:text-gray-200">
+                Your search shows every home that fits your filters.
+              </p>
+            )}
+            {summaryChips.length > 0 && (
+              <p className="mt-1.5 text-xs font-bold text-gray-500 dark:text-gray-400">Right now: {summaryChips.join(' · ')}</p>
+            )}
+          </div>
+        </motion.section>
+        <AnimatePresence mode="wait" initial={false}>
+        {confirmNoHome ? (
+          <motion.div key="confirm" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 420, damping: 34 } }} exit={{ opacity: 0, y: -8, transition: { duration: 0.12 } }}
+            className={`rounded-3xl border-2 p-5 ${saved ? 'border-emerald-500/50 bg-emerald-500/[0.07]' : 'border-amber-400/70 bg-amber-50 dark:bg-amber-500/10'}`}>
+            {saved ? (
+              <div className="flex items-center gap-3">
+                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 520, damping: 16 }} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500 text-white"><Check className="h-5 w-5" strokeWidth={3} /></motion.span>
+                <div className="leading-tight">
+                  <p className="text-base font-black text-[#111827] dark:text-white">Done - your search doesn&apos;t use a home now</p>
+                  <p className="mt-0.5 text-sm font-semibold text-gray-600 dark:text-gray-300">{homeTown ? `Showing homes in ${homeTown} that fit your filters.` : 'Showing homes that fit your filters.'}{outcome && (outcome.added || outcome.removed) ? ` ${[outcome.added ? `+${outcome.added} new` : '', outcome.removed ? `${outcome.removed} gone` : ''].filter(Boolean).join(', ')}.` : ''}</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="text-lg font-black text-[#111827] dark:text-white">Stop using {homeStreet}?</p>
+                <p className="mt-1.5 text-sm font-semibold leading-relaxed text-gray-700 dark:text-gray-200">
+                  Your search will show homes {homeTown ? <>in <b>{homeTown}</b> </> : ''}that fit your price and bedrooms. Homes won&apos;t get a match % any more. You can pick a home again anytime.
+                </p>
+                {errorLine}
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => setConfirmNoHome(false)} disabled={isSubmitting}
+                    className="h-12 rounded-2xl border-2 border-gray-300 bg-white text-xs font-black uppercase tracking-widest text-[#111827] transition-colors hover:border-[#111827] disabled:opacity-50 dark:border-white/25 dark:bg-transparent dark:text-white">Keep the home</motion.button>
+                  <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={stopUsingHome} disabled={isSubmitting}
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#111827] text-xs font-black uppercase tracking-widest text-white disabled:opacity-60 dark:bg-white dark:text-[#111827]">
+                    {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving</> : 'Stop using it'}
+                  </motion.button>
+                </div>
+              </>
+            )}
+          </motion.div>
+        ) : (
+          <motion.div key="choices" className="space-y-3" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8, transition: { duration: 0.12 } }}>
+        <p className="px-1 pt-1 text-xs font-black uppercase tracking-widest text-gray-400">What do you want to do?</p>
+        {choice('filters', <SlidersHorizontal className="h-5 w-5" />, 'Change my filters', builtAround ? 'Price, bedrooms, or how far away' : 'Price, bedrooms, or where', () => setStep('edit'), 0)}
+        {choice('home', <Home className="h-5 w-5" />, builtAround ? 'Pick a different home' : 'Use a home I like', builtAround ? 'Find homes like another home' : "We'll find homes like it", () => openPicker('choose'), 1)}
+        {builtAround && choice('nohome', <X className="h-5 w-5" />, 'Stop using a home', 'Just show homes that fit my filters', () => { setConfirmNoHome(true); setError('') }, 2)}
+        {onSendMessage && choice('ask', <MessageSquareText className="h-5 w-5" />, `Ask ${agentFirst} to change it`, 'Send a quick note', () => { setMode('ask'); setError('') }, builtAround ? 3 : 2)}
+          </motion.div>
+        )}
+        </AnimatePresence>
+      </div>
+    )
+    const back = (to: () => void) => (
+      <button type="button" onClick={to} className="inline-flex items-center gap-1.5 text-[12px] font-black text-gray-500 hover:text-[#111827] dark:hover:text-white">
+        <ArrowRight className="h-3.5 w-3.5 rotate-180" /> Back
+      </button>
+    )
+    // ---- screen: pick a home
+    const pickBody = (
+      <div className="space-y-3 px-5 py-5 sm:px-7">
+        {back(() => { setStep(pickFrom); setCompareQuery('') })}
+        <p className="text-[15px] font-semibold leading-snug text-gray-700 dark:text-gray-200">Type the address of a home you like. We&apos;ll find homes like it nearby.</p>
+        {compareSearch}
+      </div>
+    )
+    const asking = mode === 'ask' && onSendMessage
+    const screen = asking ? 'ask' : step
+    const prevScreen = prevScreenRef.current
+    if (prevScreen !== screen) {
+      screenDirRef.current = pickedHomeRef.current || SCREEN_DEPTH[screen] > SCREEN_DEPTH[prevScreen] ? 1 : -1
+      pickedHomeRef.current = false
+      prevScreenRef.current = screen
+    }
+    const screenDir = screenDirRef.current
+
     return shell({
       xl: true,
-      icon: <SlidersHorizontal className="h-5 w-5" />, kicker: 'Your Showcase', title: mode === 'ask' && onSendMessage ? `Message ${agentFirst}` : 'Your search',
-      headerSide: messageAgent,
-      children: mode === 'ask' && onSendMessage ? (
+      icon: <SlidersHorizontal className="h-5 w-5" />, kicker: 'Your Showcase', title: asking ? `Message ${agentFirst}` : step === 'choose' ? 'Change your search' : step === 'pick' ? 'Pick a home' : 'Your search',
+      headerSide: step === 'edit' ? messageAgent : undefined,
+      children: (
+        <AutoHeight>
+          <AnimatePresence mode="wait" initial={false} custom={screenDir}>
+            <motion.div key={screen} custom={screenDir} variants={screenSlide} initial="enter" animate="center" exit="exit">
+              {asking ? (
         <div className="space-y-4 px-5 py-5 sm:px-7">
           {!askSent && (
             <button type="button" onClick={() => setMode('edit')} className="inline-flex items-center gap-1.5 text-[12px] font-black text-gray-500 hover:text-[#111827] dark:hover:text-white">
-              <ArrowRight className="h-3.5 w-3.5 rotate-180" /> Back to my search
+              <ArrowRight className="h-3.5 w-3.5 rotate-180" /> Back
             </button>
           )}
           {askPane}
         </div>
-      ) : (
+      ) : step === 'choose' ? chooseBody : step === 'pick' ? pickBody : (
         <div className="space-y-4 bg-[#FAFAF7] px-4 py-5 dark:bg-[#0f0f11] sm:px-6">
+          {focus === 'all' && back(() => { resetToSaved(); setStep('choose') })}
+          {/* Phones: the home on top. Desktop: it sits above price, beside the distance picker
+              (fills what was empty space under Bedrooms). */}
+          <div className="md:hidden">{homeRow}</div>
           <div className="grid items-stretch gap-4 md:grid-cols-2">
-            <div>{homeCard}</div>
             <div>{whereCard}</div>
-          </div>
-          <div className="grid items-stretch gap-4 md:grid-cols-2">
-            <div className="[&>section]:h-full">{priceCard}</div>
-            <div className="[&>section]:h-full">{bedsCard}</div>
+            <div className="flex flex-col gap-4">
+              <div className="hidden md:block">{homeRow}</div>
+              {priceCard}
+              {bedsCard}
+            </div>
           </div>
           {moreCard}
           {errorLine}
         </div>
+      )}
+            </motion.div>
+          </AnimatePresence>
+        </AutoHeight>
       ),
-      footer: mode === 'ask' && onSendMessage ? undefined : saveBar('Save', startOver),
+      footer: (
+        <AnimatePresence initial={false}>
+          {!asking && step === 'edit' && (
+            <motion.div key="save" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 420, damping: 34 } }} exit={{ opacity: 0, y: 18, transition: { duration: 0.14 } }}>
+              {saveBar('Save', startOver)}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      ),
     })
   }
 
@@ -1325,7 +1534,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
                         value={formData.address || ''}
                         onChange={(addr) => setFormData(prev => ({ ...prev, address: addr, lat: null, long: null }))}
                         onCoordinatesChange={(lat, long) => setFormData(prev => ({ ...prev, lat, long }))}
-                        placeholder={isUsingAreaSearch() ? 'Searching by town / school district below' : 'Enter an address'}
+                        placeholder={isUsingAreaSearch() ? 'Searching by town below' : 'Enter an address'}
                         disabled={isUsingAreaSearch()}
                       />
                       <AnimatePresence initial={false}>
@@ -1340,7 +1549,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Towns &amp; school districts</p>
-                        {isUsingAreaSearch() && <button type="button" onClick={() => setFormData(prev => ({ ...prev, cities: [], school_districts: [] }))} className="text-[10px] font-black uppercase tracking-widest text-[#a8843a] hover:underline dark:text-[#e8c97a]">Clear</button>}
+                        {(isUsingAreaSearch() || !!formData.school_districts?.length) && <button type="button" onClick={() => setFormData(prev => ({ ...prev, cities: [], school_districts: [] }))} className="text-[10px] font-black uppercase tracking-widest text-[#a8843a] hover:underline dark:text-[#e8c97a]">Clear</button>}
                       </div>
                       <MultiSelectDatabaseInput
                         values={formData.cities || []}
@@ -1351,10 +1560,9 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
                       />
                       <MultiSelectDatabaseInput
                         values={formData.school_districts || []}
-                        onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts, address: '', lat: null, long: null, diameter: null }))}
+                        onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts }))}
                         apiMethod={api.properties.schoolDistrictsPublic}
-                        placeholder="Search school districts..."
-                        disabled={isUsingAddressSearch()}
+                        placeholder={isUsingAddressSearch() ? 'Narrow to a school district...' : 'Search school districts...'}
                       />
                     </div>
                   </div>

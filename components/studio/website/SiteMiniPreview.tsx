@@ -43,7 +43,8 @@ export default function SiteMiniPreview({ site, theme, featured, focus = 'top', 
   /** The small gold tag shown on the ring after a change. */
   note?: string
   hasReviews?: boolean
-  height?: number
+  /** px, or any CSS height (the setup website steps pass var(--setup-prev-h)). */
+  height?: number | string
 }) {
   const { user } = useAuth()
   const [ownSite, setOwnSite] = useState<Site | null>(null)
@@ -59,7 +60,7 @@ export default function SiteMiniPreview({ site, theme, featured, focus = 'top', 
   useEffect(() => { api.agentHub.getMine().then(r => setProfile(siteProfileFromHub(r.success ? r.data?.config : null, user))) }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   // The menu's Neighborhoods link shows once they serve a town, like the live site.
   const [areaCount, setAreaCount] = useState(0)
-  useEffect(() => { api.sites.getAreas().then(r => setAreaCount(r.success && r.data ? r.data.length : 0)) }, [refreshKey, quietKey])
+  useEffect(() => { api.sites.getAreas(true).then(r => setAreaCount(r.success && r.data ? r.data.length : 0)) }, [refreshKey, quietKey])
   const s = site === undefined ? ownSite : site
   // Only the first load of the site carries the signature card's source - keep it.
   const [sigSlug, setSigSlug] = useState<string | null>(null)

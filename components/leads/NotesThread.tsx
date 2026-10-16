@@ -126,6 +126,7 @@ export default function NotesThread({ notes, loading, currentUserId, emptyLabel,
         <button
           onClick={handleAdd}
           disabled={adding || !draft.trim()}
+          aria-label="Add note" title="Add note"
           className="flex shrink-0 items-center justify-center rounded-xl border border-gray-200 px-3 text-gray-400 hover:border-[#C9A24D] hover:text-[#8b7355] disabled:opacity-50 dark:border-gray-700"
         >
           {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}

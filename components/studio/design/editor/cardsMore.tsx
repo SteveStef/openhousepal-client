@@ -8,7 +8,8 @@ import { blockId, DESIGN_STYLES } from '@/lib/studio/designFormats'
 import { DESIGN_COLOR_MODES, joinColorMode, splitColorMode } from '@/lib/studio/designColors'
 import { LUXE_METALS } from '@/lib/luxeMetals'
 import LuxeFinishPicker from '@/components/studio/design/LuxeFinishPicker'
-import { getTemplatesFor } from '@/lib/studio/designTemplates'
+import { getTemplatesFor, isCompositionReady, isStyleReady } from '@/lib/studio/designTemplates'
+import { pickBestForm } from '@/lib/studio/formFit'
 import { COMPOSITION_LABELS } from '@/lib/studio/designCompositions'
 import { DesignPreview } from '@/components/studio/design/StyleThumbnail'
 import LuxeUpgradePitch from '@/components/ui/LuxeUpgradePitch'
@@ -160,7 +161,23 @@ function FinePrintInput({ value, onCommit }: { value: string; onCommit: (v: stri
 // ---------------------------------------------------------------------------------------------
 // Look - layout, style, color. Every tile is the agent's own design rendered that way.
 // ---------------------------------------------------------------------------------------------
-function LookTile({ selected, label, onClick, luxe, locked, children, swatch }: { selected: boolean; label: string; onClick: () => void; luxe?: boolean; locked?: boolean; children: React.ReactNode; swatch?: [string, string] }) {
+function LookTile({ selected, label, onClick, luxe, locked, children, swatch, soon }: { selected: boolean; label: string; onClick: () => void; luxe?: boolean; locked?: boolean; children: React.ReactNode; swatch?: [string, string]; soon?: boolean }) {
+  // not signed off yet (user 10/12): shown so agents see what's coming, but it can't be picked
+  if (soon && !selected && luxe) return (
+    <div aria-disabled="true" title="Coming soon" className="relative cursor-not-allowed select-none overflow-hidden rounded-xl border-2 border-[#C9A24D]/45 bg-gradient-to-br from-[#111827] to-[#2a2218] text-left">
+      <span aria-hidden className="pointer-events-none absolute inset-x-4 top-0 z-10 h-px bg-gradient-to-r from-transparent via-[#e8c97a] to-transparent" />
+      <div className="pointer-events-none p-1.5 opacity-60">{children}</div>
+      <div className="px-2 pb-2"><span className="truncate text-[11px] font-black text-[#f3dfa8]">{label}</span></div>
+      <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#b8913f] to-[#e8c97a] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-[#111827]"><Sparkles className="h-2.5 w-2.5" /> Luxe · Coming soon</span>
+    </div>
+  )
+  if (soon && !selected) return (
+    <div aria-disabled="true" title="Coming soon" className="relative cursor-not-allowed select-none overflow-hidden rounded-xl border-2 border-dashed border-gray-200 bg-white text-left dark:border-white/10 dark:bg-white/[0.03]">
+      <div className="pointer-events-none p-1.5 opacity-40 grayscale">{children}</div>
+      <div className="px-2 pb-2"><span className="truncate text-[11px] font-black text-gray-400">{label}</span></div>
+      <span className="absolute left-2 top-2 rounded-full bg-[#111827] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white dark:bg-white dark:text-[#111827]">Coming soon</span>
+    </div>
+  )
   return (
     <button type="button" onClick={onClick} className={`relative overflow-hidden rounded-xl border-2 text-left transition ${selected ? 'border-[#C9A24D] shadow-[0_10px_24px_-14px_rgba(201,162,77,.9)]' : 'border-gray-200 hover:border-[#C9A24D]/60 dark:border-white/10'} ${luxe ? 'bg-gradient-to-br from-[#111827] to-[#2a2218]' : 'bg-white dark:bg-white/[0.03]'}`}>
       <div className="p-1.5">{children}</div>
@@ -191,7 +208,7 @@ export function LookCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open:
             {layouts.map(t => {
               const locked = t.composition === 'luxe' && !ctl.isIdx
               return (
-                <LookTile key={t.id} selected={ctl.design.template_id === t.id} label={COMPOSITION_LABELS[t.composition]?.label || t.label} luxe={t.composition === 'luxe'} locked={locked} onClick={() => { if (locked) { setPitch(true); return } ctl.changeLook({ template_id: t.id }) }}>
+                <LookTile key={t.id} soon={!isCompositionReady(t.composition)} selected={ctl.design.template_id === t.id} label={COMPOSITION_LABELS[t.composition]?.label || t.label} luxe={t.composition === 'luxe'} locked={locked} onClick={() => { if (locked) { setPitch(true); return } ctl.changeLook({ template_id: t.id }) }}>
                   <DesignPreview blocks={ctl.blocks} ctx={{ ...ctl.ctx, composition: t.composition, layoutHints: t.layoutHints }} rounded={false} />
                 </LookTile>
               )
@@ -203,8 +220,8 @@ export function LookCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open:
         <p className={labelCls}>Style</p>
         <p className="mt-0.5 text-[11px] font-semibold text-gray-400">The typography and finishing details.</p>
         <div className="mt-2 grid grid-cols-2 gap-2">
-          {DESIGN_STYLES.map(s => (
-            <LookTile key={s.id} selected={ctl.design.style_id === s.id} label={s.label} onClick={() => ctl.changeLook({ style_id: s.id })}>
+          {[...DESIGN_STYLES.filter(s => isStyleReady(s.id)), ...DESIGN_STYLES.filter(s => !isStyleReady(s.id))].map(s => (
+            <LookTile key={s.id} soon={!isStyleReady(s.id)} selected={ctl.design.style_id === s.id} label={s.label} onClick={() => ctl.changeLook({ style_id: s.id })}>
               <DesignPreview blocks={ctl.blocks} ctx={{ ...ctl.ctx, styleId: s.id }} rounded={false} />
             </LookTile>
           ))}
@@ -224,7 +241,7 @@ export function LookCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open:
           })}
         </div>
         <div className="mt-3">
-          <LuxeFinishPicker compact value={metal} locked={!ctl.isIdx} onChange={m => { if (m && !ctl.isIdx) { setPitch(true); return } ctl.changeLook({ color_mode: joinColorMode(baseColor, m) }) }} />
+          <LuxeFinishPicker compact value={metal} goldTheme={baseColor === 'luxe' || ctl.ctx.composition === 'luxe'} locked={!ctl.isIdx} onChange={m => { if (m && !ctl.isIdx) { setPitch(true); return } ctl.changeLook({ color_mode: joinColorMode(baseColor, m) }) }} />
         </div>
         <p className="mt-2 text-[11px] font-semibold text-gray-400">Brand uses your Brand Kit colors. <a href="/studio/brand-kit" target="_blank" rel="noreferrer" className="font-black text-[#8b7355] hover:underline">Edit Brand Kit</a></p>
       </div>
@@ -278,7 +295,7 @@ export function LeadsCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open
   const [loading, setLoading] = useState(false)
   const [showNew, setShowNew] = useState(false)
   const [copied, setCopied] = useState(false)
-  useEffect(() => { if (info && !formId) setFormId(info.form_id) }, [info, formId])
+  useEffect(() => { if (info) setFormId(info.form_id) }, [info?.form_id])
   useEffect(() => {
     if (!formId) { setCampaigns([]); return }
     let alive = true
@@ -286,7 +303,11 @@ export function LeadsCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open
     api.forms.getCampaigns(formId).then(res => { if (!alive) return; setCampaigns(res.success && res.data ? res.data.filter(c => !c.deleted_at) : []); setLoading(false) })
     return () => { alive = false }
   }, [formId])
-  const forms = ctl.agentForms.filter(f => f.is_enabled)
+  const headlineText = (ctl.blocks.find(b => b.type === 'headline')?.data as { text?: string } | undefined)?.text || ''
+  const enabled = ctl.agentForms.filter(f => f.is_enabled)
+  const best = pickBestForm(enabled.filter(f => f.form_type !== 'custom'), ctl.situation, headlineText)
+  const forms = best ? [best, ...enabled.filter(f => f.id !== best.id)] : enabled
+  useEffect(() => { if (!info && !formId && best) setFormId(best.id) }, [info, formId, best?.id])
   const createCampaign = async (name: string, redirect: CampaignRedirect) => {
     if (!formId) return false
     const res = await api.forms.createCampaign(formId, name, campaignRedirectPayload(redirect))
@@ -332,7 +353,7 @@ export function LeadsCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open
             <>
               <div className="flex flex-wrap gap-1.5">
                 {forms.map(f => (
-                  <button key={f.id} type="button" onClick={() => setFormId(f.id)} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${formId === f.id ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355]' : 'border-gray-200 text-gray-500 hover:border-[#C9A24D]/60 dark:border-white/10 dark:text-gray-300'}`}>{f.title}</button>
+                  <button key={f.id} type="button" onClick={() => setFormId(f.id)} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-black transition ${formId === f.id ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355]' : 'border-gray-200 text-gray-500 hover:border-[#C9A24D]/60 dark:border-white/10 dark:text-gray-300'}`}>{f.title}{best?.id === f.id && <span className="rounded-full bg-[#C9A24D]/20 px-1.5 py-px text-[8px] font-black uppercase tracking-wider text-[#8b7355]">Best fit</span>}</button>
                 ))}
               </div>
               {formId && (

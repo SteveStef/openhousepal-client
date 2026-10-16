@@ -2,7 +2,7 @@
 // the home page, every page-builder page, the built-in sections, each served town and each
 // published article - so Google finds every page, including the ones it shows as sub-links.
 
-const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://localhost:8080'
+const INTERNAL_API_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 async function json(url: string) {
   const res = await fetch(url, { next: { revalidate: 300 } })

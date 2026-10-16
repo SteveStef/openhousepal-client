@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowRight, Bath, Bed, CalendarCheck, Hammer, Home, Inbox, Maximize, Search, Users } from 'lucide-react'
 import { HostRequest, MyListingItem } from '@/types'
-import WeekendCalendarCards from '@/components/open-house-manager/WeekendCalendarCards'
+import WeekendCalendarCards, { hostingNote } from '@/components/open-house-manager/WeekendCalendarCards'
 import ScrollableSection from './ScrollableSection'
 import { CoverageMeter, ListingCover, Pill, SectionLabel, compactPrice, niceAddress, whenText } from './openHouseBits'
 
@@ -21,6 +21,9 @@ export interface DiscoveryListing {
   SquareFeet?: number
   DaysOnMarket?: number
   DistanceFromLandmark?: number
+  /** Coming Soon: "coming_soon" = no go-live date yet; HostsFrom = first day it can be hosted. */
+  HostingBlocked?: string | null
+  HostsFrom?: string | null
 }
 
 // Pending requests need a response fast (the other agent is waiting), so this sits at the very
@@ -38,7 +41,7 @@ function RequestsSection({ hostRequests }: { hostRequests: HostRequest[] }) {
         {hostRequests.slice(0, 9).map(hr => (
           <Link
             key={hr.id}
-            href="/open-houses/my-listings?panel=host-requests"
+            href={`/open-houses/my-listings?listingKey=${encodeURIComponent(hr.listing_key)}`}
             className="group flex min-w-0 items-center gap-2.5 rounded-xl border border-amber-200 bg-white p-2 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-400 dark:border-amber-500/25 dark:bg-[#151517]"
           >
             <ListingCover src={hr.property_image} className="h-10 w-12" />
@@ -111,9 +114,14 @@ export default function DashOpensPanel({ listings, hostRequests, discoveryListin
     )
   }
 
-  const needsHost = listings.filter(l => l.open_house_status === 'needs_host')
-  // Listings still needing a host lead (most actionable first), then the rest.
-  const ordered = [...needsHost, ...listings.filter(l => l.open_house_status !== 'needs_host')]
+  // Listings still needing a host lead (most actionable first), then the rest, then the ones that
+  // can't have an open house right now (under contract / Coming Soon with no go-live date).
+  const needsHost = listings.filter(l => l.open_house_status === 'needs_host' && !l.hosting_blocked)
+  const ordered = [
+    ...needsHost,
+    ...listings.filter(l => l.open_house_status !== 'needs_host' && !l.hosting_blocked),
+    ...listings.filter(l => l.hosting_blocked),
+  ]
   // Up to STACK_LIMIT listings render one-per-row (full width) so this panel's height lands close
   // to Discovery's own 3-card stack when the two sit side by side on Dash. Past that it switches
   // to the 2-per-row grid, capped at 4 (2 full rows), with a "view all" link for the rest.
@@ -133,6 +141,8 @@ export default function DashOpensPanel({ listings, hostRequests, discoveryListin
           {calendarListings.map((listing, i) => {
             const pending = pendingFor(listing.listing_key)
             const kitsToBuild = (listing.confirmed_pending_kit || []).length
+            // Under contract / Coming Soon before it goes live - says why, instead of "Hosts needed".
+            const cantHost = hostingNote(listing)
             const openListing = () => router.push(`/open-houses/my-listings?listingKey=${encodeURIComponent(listing.listing_key)}`)
             return (
               <motion.div
@@ -141,10 +151,10 @@ export default function DashOpensPanel({ listings, hostRequests, discoveryListin
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.05 * i, type: 'spring', stiffness: 260, damping: 26 }}
                 className={`group/oh relative min-w-0 overflow-hidden rounded-2xl border bg-white p-2.5 shadow-[0_14px_30px_-26px_rgba(17,24,39,.6)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-26px_rgba(201,162,77,.8)] dark:bg-[#151517] ${
-                  listing.open_house_status === 'needs_host' ? 'border-amber-200/80 hover:border-amber-300 dark:border-amber-500/20' : 'border-emerald-200/80 hover:border-emerald-300 dark:border-emerald-500/20'}`}
+                  cantHost ? 'border-gray-200 dark:border-gray-800' : listing.open_house_status === 'needs_host' ? 'border-amber-200/80 hover:border-amber-300 dark:border-amber-500/20' : 'border-emerald-200/80 hover:border-emerald-300 dark:border-emerald-500/20'}`}
               >
-                {/* status edge - amber still needs a host, green all set */}
-                <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${listing.open_house_status === 'needs_host' ? 'bg-gradient-to-b from-amber-300 to-amber-500' : 'bg-gradient-to-b from-emerald-300 to-emerald-500'}`} />
+                {/* status edge - amber still needs a host, green all set, grey can't have one yet */}
+                <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${cantHost ? 'bg-gray-300 dark:bg-gray-700' : listing.open_house_status === 'needs_host' ? 'bg-gradient-to-b from-amber-300 to-amber-500' : 'bg-gradient-to-b from-emerald-300 to-emerald-500'}`} />
                 <button type="button" onClick={openListing} className="flex w-full min-w-0 items-center gap-3 text-left">
                   <ListingCover
                     src={listing.image}
@@ -160,12 +170,14 @@ export default function DashOpensPanel({ listings, hostRequests, discoveryListin
                       {listing.bathrooms != null && <span className="inline-flex items-center gap-0.5"><Bath className="h-2.5 w-2.5" />{listing.bathrooms}</span>}
                       {listing.living_area != null && stacked && <span className="inline-flex items-center gap-0.5"><Maximize className="h-2.5 w-2.5" />{Number(listing.living_area).toLocaleString()}</span>}
                     </p>
-                    <div className="mt-1.5"><CoverageMeter opens={listing.scheduled_opens} pendingDates={pending} openLabel="need a host" /></div>
+                    <div className="mt-1.5"><CoverageMeter opens={listing.scheduled_opens} pendingDates={pending} openLabel="need a host" hostingWindow={listing} /></div>
                   </div>
                 </button>
                 {/* What's going on with it, in one row of pills */}
                 <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1">
-                  {listing.open_house_status === 'needs_host'
+                  {cantHost
+                    ? <Pill tone="muted" icon={listing.hosting_blocked === 'pending' || listing.hosting_blocked === 'off_market' ? Home : CalendarCheck} title={cantHost}>{listing.hosting_blocked === 'pending' ? 'Under contract' : listing.hosting_blocked === 'off_market' ? 'Off market' : 'Coming Soon'}</Pill>
+                    : listing.open_house_status === 'needs_host'
                     ? <Pill tone="amber" icon={Users}>Hosts needed</Pill>
                     : <Pill tone="green" icon={CalendarCheck}>Host booked</Pill>}
                   {listing.pending_request_count > 0 && <Pill tone="red" icon={Inbox}>{listing.pending_request_count} request{listing.pending_request_count === 1 ? '' : 's'}</Pill>}
@@ -185,6 +197,7 @@ export default function DashOpensPanel({ listings, hostRequests, discoveryListin
                     pendingDates={pending}
                     pendingLabel="Request in"
                     pendingTitle="An agent asked to host this date - review it"
+                    hostingWindow={listing}
                   />
                 </div>
               </motion.div>

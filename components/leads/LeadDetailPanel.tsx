@@ -176,7 +176,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
     if (status === 'hidden') {
       setSaving(true)
       const r = await api.leads.hide(lead)
-      if (r.success && r.data) { setLead(r.data); onChanged?.() }
+      if (r.success && r.data) { setLead(r.data); onChanged?.() } else showToast(r.error || "Couldn't hide this lead - try again", 'error')
       setSaving(false)
       return
     }
@@ -225,10 +225,15 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
     }, 60)
   }
   const seeOrigin = () => seeEvent(originEvent)
-  // The request behind a "Waiting on you" row - newest first.
-  const requestEvent = (t: LeadTodo) => events.find(e => (REQUEST_TYPES[t.kind] || []).includes(e.source_type)) || null
+  // The request behind a "Waiting on you" row - the newest one still waiting (same pick as the
+  // server's link for that row), else the newest of that kind.
+  const requestEvent = (t: LeadTodo) => {
+    const ofKind = events.filter(e => (REQUEST_TYPES[t.kind] || []).includes(e.source_type))
+    return ofKind.find(e => !e.handled) || ofKind[0] || null
+  }
   const filtered = useMemo(() => events.filter(e =>
-    filter === 'all' ? true : filter === 'showcase' ? isShowcaseType(e.source_type) : !isShowcaseType(e.source_type) || e.source_type === 'showcase_refine' || e.source_type === 'property_tour' || e.source_type === 'property_comment'),
+    // "Forms & requests" = things they asked for - email opens/pauses aren't requests (they stay under Everything).
+    filter === 'all' ? true : filter === 'showcase' ? isShowcaseType(e.source_type) : (!isShowcaseType(e.source_type) && !e.source_type.startsWith('email_')) || e.source_type === 'showcase_refine' || e.source_type === 'property_tour' || e.source_type === 'property_comment'),
   [events, filter])
   const rows = useMemo(() => foldViews(filtered), [filtered])
 

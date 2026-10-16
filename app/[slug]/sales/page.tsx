@@ -8,7 +8,6 @@ import api from '@/lib/api-service'
 import { HubAgentPhoto, HubLuxeDecor, HubLuxeStyles, LuxeGridHomeCard, hubLuxeMetalClass, isHubPhotoSet } from '@/components/agent-hub/HubLuxeTheme'
 import { HUB_CLASSIC_DEFAULT_ACCENT, HubClassicStyles, hubAccentOf, hubAccentStyle, hubClassicClass } from '@/components/agent-hub/HubClassicTheme'
 import ListingFeatureCard from '@/components/agent-hub/ListingFeatureCard'
-import OpenHouseChip from '@/components/OpenHouseChip'
 import Pager from '@/components/Pager'
 import { AgentSale, formatSaleStatus, getSaleLocation, getSaleStatusClass, getStreetOnly, isEligibleListing, isEligibleSale } from '@/lib/agentSales'
 import { formatOpenHouse, upcomingOpenHouses, type MlsOpenHouse } from '@/lib/mlsOpenHouses'
@@ -160,7 +159,15 @@ export default function AgentHubSalesPage() {
     const href = listing.listingLinkUrl || undefined
     if (luxe) {
       return (
-        <LuxeGridHomeCard key={listing.id} index={i} href={href} image={listing.image || listing.photos?.[0]} price={listing.price ? `$${listing.price.toLocaleString()}` : 'Price upon request'} address={getStreetOnly(listing.address)} location={getSaleLocation(listing)} status={formatSaleStatus(listing.status)} statusClass={getSaleStatusClass(listing.status)} badge={upcomingOpenHouses(listing.open_houses).length ? <OpenHouseChip openHouses={listing.open_houses} variant="luxe" /> : undefined} />
+        <LuxeGridHomeCard key={listing.id} index={i} href={href} image={listing.image || listing.photos?.[0]} price={listing.price ? `$${listing.price.toLocaleString()}` : 'Price upon request'} address={getStreetOnly(listing.address)} location={getSaleLocation(listing)} status={formatSaleStatus(listing.status)} statusClass={getSaleStatusClass(listing.status)}
+          below={upcomingOpenHouses(listing.open_houses).length ? (
+            <span className="mt-3 block border-t border-white/10 pt-3">
+              <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-[var(--m-light)]">Open Houses</span>
+              {upcomingOpenHouses(listing.open_houses).map(oh => (
+                <span key={`${oh.date}-${oh.start || ''}`} className="mt-1.5 flex items-center gap-2 text-[13px] font-semibold text-white"><span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />{formatOpenHouse(oh)}</span>
+              ))}
+            </span>
+          ) : undefined} />
       )
     }
     const status = formatSaleStatus(listing.status)
@@ -172,7 +179,6 @@ export default function AgentHubSalesPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           <span className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-black uppercase ${status === 'Active' ? 'bg-emerald-500 text-white' : getSaleStatusClass(listing.status)}`}>{status}</span>
           <div className="absolute bottom-3 left-3 right-3">
-            {openHouses.length > 0 && <OpenHouseChip openHouses={listing.open_houses} className="mb-1.5" />}
             <p className="text-2xl font-black text-white">{listing.price ? `$${listing.price.toLocaleString()}` : 'Price upon request'}</p>
           </div>
         </div>

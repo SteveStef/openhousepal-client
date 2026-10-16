@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useLayoutEffect, useCallback, Suspense, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { ArrowUpDown, MapPin, Calendar, SlidersHorizontal } from 'lucide-react'
+import { ArrowUpDown, MapPin, Calendar, SlidersHorizontal, Tag, BedDouble, GraduationCap, Home as HomeIcon } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Collection, CollectionPreferences, Property, Comment, TourRequest, PropertyTour } from '@/types'
 import { getToken } from '@/lib/token'
 import api from '@/lib/api-service'
 import PropertyGrid from '@/components/PropertyGrid'
-import ShowcaseRadiusContextLine from '@/components/ShowcaseRadiusContextLine'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import QuickCommentModal from '@/components/QuickCommentModal'
 import ScheduleTourModal from '@/components/ScheduleTourModal'
@@ -20,6 +19,7 @@ import LiveIndicator from '@/components/LiveIndicator'
 import { isPropertyAvailableStatus, haversineMiles } from '@/lib/utils'
 import { computeMatchScore } from '@/lib/matchScore'
 import OhpLoader from '@/components/brand/OhpLoader'
+import { todayLocal } from '@/lib/relativeDays'
 
 export default function CustomerShowcasePage() {
   return (
@@ -75,6 +75,15 @@ function ShowcaseContent() {
   const [isEditCriteriaOpen, setIsEditCriteriaOpen] = useState(false)
 
   const isInternalSyncRef = useRef(false)
+
+  // "Change your search" in their email opens straight to it (?search=1).
+  const openedFromLinkRef = useRef(false)
+  useEffect(() => {
+    if (openedFromLinkRef.current || !showcase || searchParams.get('search') !== '1') return
+    openedFromLinkRef.current = true
+    setCriteriaFocus('all')
+    setIsEditCriteriaOpen(true)
+  }, [showcase, searchParams])
 
   const shareToken = params.shareToken as string
 
@@ -152,7 +161,7 @@ function ShowcaseContent() {
   }, [showcase?.id])
 
   const upcomingConfirmedTours = (() => {
-    const todayStr = new Date().toISOString().slice(0, 10)
+    const todayStr = todayLocal()
     return tours
       .filter(t => t.confirmed_date && !t.is_completed && t.confirmed_date >= todayStr)
       .sort((a, b) => `${a.confirmed_date}${a.confirmed_time}`.localeCompare(`${b.confirmed_date}${b.confirmed_time}`))
@@ -183,6 +192,8 @@ function ShowcaseContent() {
   const compareProperty = (showcase?.preferences as any)?.show_match_score !== false
     ? showcase?.originalProperty || undefined
     : undefined
+  // The home the search is built around (none once they choose "Stop using a home").
+  const builtAround = compareProperty && referencePoint?.address ? referencePoint : null
 
   // A real radius search (center address + radius). Used to show the visitor the same
   // distance-from-center pill and radius context the agent sees - previously gated behind
@@ -713,49 +724,83 @@ function ShowcaseContent() {
     if (!success) throw new Error(error || 'Failed to send your message')
   }
 
-  // Reference property card - same visual language as the open house sign-in card (a photo next
-  // to address/city/specs), just compact enough to sit inline on the "Matched Properties" row.
-  // Clickable - opens Refine Search, where the visitor can also pick a different property to
-  // compare against instead (see EditShowcaseCriteriaModal's "Compare To" picker).
-  const compareInfoNode = referencePoint?.address ? (
-    <button
-      type="button"
-      onClick={() => openCriteria('compare')}
-      title="Your search is built around this home - tap to see or change your search"
-      className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-[#FAFAF7] py-1.5 pl-1.5 pr-4 text-left transition-[border-color,background-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-[#C9A24D]/40 hover:bg-[#C9A24D]/5 hover:shadow-md active:scale-[0.98] dark:border-gray-800 dark:bg-[#0B0B0B]"
-    >
-      {referencePoint.image && (
-        <img src={referencePoint.image} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover" />
-      )}
-      <div className="min-w-0 text-xs leading-tight">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-[#C9A24D]">Built around</p>
-        <p className="mt-0.5 font-black text-[#0B0B0B] dark:text-white truncate">{referencePoint.address}</p>
-        {referencePoint.city && (
-          <p className="text-[#6B7280] dark:text-gray-400 font-semibold truncate">{referencePoint.city}</p>
-        )}
-        <p className="mt-0.5 text-gray-400 dark:text-gray-500 font-semibold truncate">
-          {[
-            referencePoint.beds != null && `${referencePoint.beds} bd`,
-            referencePoint.squareFeet != null && `${referencePoint.squareFeet.toLocaleString()} sqft`,
-            referencePoint.price != null && `$${referencePoint.price.toLocaleString()}`,
-          ].filter(Boolean).join(' · ')}
-        </p>
+  // What their search is, in a few plain words, with ONE big "Change your search" button - the
+  // only way in (it used to be three: Refine, the home card and the distance line).
+  const prefsNow = (showcase?.preferences || {}) as any
+  const kShort = (n: number) => (n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M` : `$${Math.round(n / 1000)}k`)
+  const searchLine = [
+    prefsNow.has_drawn_area ? 'The area your agent drew' : prefsNow.address && prefsNow.diameter ? `Within ${prefsNow.diameter} mi` : '',
+    ...((prefsNow.cities || []) as string[]).slice(0, 2).map(c => c.split(',')[0]),
+    ((prefsNow.cities || []) as string[]).length > 2 ? `+${prefsNow.cities.length - 2} towns` : '',
+    ...((prefsNow.school_districts || []) as string[]).slice(0, 1),
+    prefsNow.min_price || prefsNow.max_price
+      ? (prefsNow.min_price && prefsNow.max_price ? `${kShort(prefsNow.min_price)} – ${kShort(prefsNow.max_price)}` : prefsNow.max_price ? `Up to ${kShort(prefsNow.max_price)}` : `${kShort(prefsNow.min_price)}+`)
+      : '',
+    prefsNow.min_beds ? `${prefsNow.min_beds}+ beds` : '',
+    prefsNow.min_baths ? `${prefsNow.min_baths}+ baths` : '',
+  ].filter(Boolean).join(' · ')
+  const nice = (t: string) => (t === t.toUpperCase() ? t.toLowerCase().replace(/(^|\s)([a-z])/g, (_: string, x: string, c: string) => x + c.toUpperCase()) : t)
+  const whereTile = prefsNow.has_drawn_area ? 'Area your agent drew'
+    : prefsNow.address && prefsNow.diameter ? `Within ${prefsNow.diameter} mi`
+    : ((prefsNow.cities || []) as string[]).length ? ((prefsNow.cities as string[]).slice(0, 2).map(c => c.split(',')[0]).join(', ') + ((prefsNow.cities as string[]).length > 2 ? ` +${prefsNow.cities.length - 2}` : ''))
+    : ''
+  const districtTile = ((prefsNow.school_districts || []) as string[]).length
+    ? nice((prefsNow.school_districts as string[])[0].split(',')[0]) + ' schools' : ''
+  const builtStreet = (() => {
+    const raw = (builtAround?.address || '').split(',')[0]
+    return raw === raw.toUpperCase() ? raw.toLowerCase().replace(/(^|\s)([a-z])/g, (_: string, x: string, c: string) => x + c.toUpperCase()) : raw
+  })()
+  // Each one reads as a short phrase: big value, small plain label under it.
+  const searchTiles = ([
+    { icon: MapPin, value: whereTile || districtTile || 'Anywhere', label: whereTile ? (prefsNow.has_drawn_area ? 'Search area' : prefsNow.address ? `of ${builtStreet || 'the home'}` : 'Towns') : districtTile ? 'School district' : 'Search area' },
+    whereTile && districtTile ? { icon: GraduationCap, value: districtTile.replace(/ schools$/, ''), label: 'Schools only' } : null,
+    { icon: Tag, value: prefsNow.min_price && prefsNow.max_price ? `${kShort(prefsNow.min_price)} – ${kShort(prefsNow.max_price)}` : prefsNow.max_price ? `Up to ${kShort(prefsNow.max_price)}` : prefsNow.min_price ? `${kShort(prefsNow.min_price)}+` : 'Any', label: 'Price' },
+    { icon: BedDouble, value: prefsNow.min_beds ? `${prefsNow.min_beds}+ beds` : 'Any beds', label: prefsNow.min_baths ? `${prefsNow.min_baths}+ baths` : 'Bedrooms' },
+    { icon: HomeIcon, value: `${tabCounts.all} ${tabCounts.all === 1 ? 'home' : 'homes'}`, label: 'Match right now' },
+  ].filter(Boolean)) as { icon: typeof MapPin; value: string; label: string }[]
+  const searchBar = (
+    <div className="flex flex-col gap-3 border-t border-gray-100 px-4 py-3 dark:border-gray-800 sm:flex-row sm:items-center sm:px-6">
+      <button type="button" onClick={() => openCriteria('all')} className="flex min-w-0 flex-1 items-center gap-3 text-left xl:max-w-[30%] xl:flex-none">
+        {builtAround?.image
+          ? <img src={builtAround.image} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+          : <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-[#C9A24D]/12 text-[#C9A24D]"><SlidersHorizontal size={20} /></span>}
+        <span className="min-w-0 leading-tight">
+          <span className="block text-[10px] font-black uppercase tracking-widest text-[#C9A24D]">Your search</span>
+          <span className="mt-0.5 block truncate text-base font-black text-[#0B0B0B] dark:text-white">
+            {builtAround ? `Homes like ${builtStreet}` : 'Homes that fit your filters'}
+          </span>
+          {searchLine && <span className="block truncate text-xs font-semibold text-[#6B7280] dark:text-gray-400 xl:hidden">{searchLine}</span>}
+        </span>
+      </button>
+      {/* Wide screens: what the search looks for, centred in the space between the home and the
+          button (it was empty) - icon, the value, and a plain word under it. */}
+      <div className="hidden min-w-0 flex-1 justify-center px-4 xl:flex">
+        <button type="button" onClick={() => openCriteria('all')} aria-label="Change your search"
+          className="group flex min-w-0 items-center rounded-2xl border border-[#C9A24D]/20 bg-gradient-to-b from-[#FFFDF7] to-[#FAF6EC] px-1.5 py-1.5 shadow-[0_10px_24px_-20px_rgba(140,110,50,.8)] transition-colors hover:border-[#C9A24D]/45 dark:border-white/10 dark:from-white/[0.04] dark:to-white/[0.02]">
+          {searchTiles.map((t, i) => (
+            <span key={t.label + i} className="flex min-w-0 items-center">
+              {i > 0 && <span aria-hidden className="h-8 w-px shrink-0 bg-[#C9A24D]/20 dark:bg-white/10" />}
+              <span className="flex min-w-0 items-center gap-2.5 px-3.5 py-1">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#C9A24D]/12 text-[#a8843a] dark:text-[#e8c97a]"><t.icon size={15} strokeWidth={2.4} /></span>
+                <span className="min-w-0 text-left leading-tight">
+                  <span className="block truncate text-[13.5px] font-black text-[#0B0B0B] dark:text-white">{t.value}</span>
+                  <span className="mt-0.5 block truncate text-[11px] font-semibold text-[#8a8f98] dark:text-gray-400">{t.label}</span>
+                </span>
+              </span>
+            </span>
+          ))}
+        </button>
       </div>
-    </button>
-  ) : null
-  const radiusContextNode = activeTab === 'all' && radiusSearchPrefs ? (
-    <ShowcaseRadiusContextLine
-      address={radiusSearchPrefs.address}
-      radiusMiles={radiusSearchPrefs.diameter}
-      onClick={() => openCriteria('radius')}
-    />
-  ) : null
-  const matchedPropertiesHeaderInfoNode = compareInfoNode || radiusContextNode ? (
-    <div className="flex max-w-full flex-wrap items-center justify-center gap-2">
-      {compareInfoNode}
-      {radiusContextNode}
+      <motion.button
+        whileHover={{ y: -2 }}
+        whileTap={{ scale: 0.97 }}
+        onClick={() => openCriteria('all')}
+        className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#e8c97a] to-[#C9A24D] px-6 text-sm font-black text-[#111827] shadow-[0_12px_26px_-12px_rgba(201,162,77,.9)] transition-shadow hover:shadow-lg"
+      >
+        <SlidersHorizontal size={16} /> Change your search
+      </motion.button>
     </div>
-  ) : null
+  )
 
   const sortControlNode = (
     <div className="flex items-center gap-2">
@@ -896,12 +941,11 @@ function ShowcaseContent() {
             <div className="absolute left-0 right-0 top-0 h-1 bg-[#C9A24D]" />
 
             <div className="px-4 pb-3 pt-4 sm:px-6 sm:pb-3.5 sm:pt-4">
-              {/* One row: the name with its one-line description right under it (left), and Live,
-                  Emails and Refine side by side at the same height (right). Phones keep Live
-                  under the description, where there's room. */}
-              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              {/* One row: the name with its one-line description right under it (left), and Live +
+                  Emails side by side at the same height (right). Phones: name, then Live + Emails. */}
+              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 sm:gap-x-3">
                 <div className="min-w-0 flex-1">
-                  <h1 className="truncate text-xl font-black tracking-tight text-[#0B0B0B] dark:text-white sm:text-2xl">
+                  <h1 className="truncate text-lg font-black tracking-tight text-[#0B0B0B] dark:text-white sm:text-2xl">
                     <span className="sm:hidden">{visitorFirstName ? `${visitorFirstName}'s` : 'My'} Showcase</span>
                     <span className="hidden sm:inline">{visitorFullName || 'My'}&apos;s Showcase</span>
                   </h1>
@@ -910,10 +954,12 @@ function ShowcaseContent() {
                   </p>
                 </div>
 
+                {/* Same line as the name on every size - phones get the short two-line Live badge. */}
                 <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-                  <LiveIndicator checkedAt={checkedAt} className="hidden h-9 !rounded-xl !py-0 !pl-2.5 !pr-3 md:inline-flex" />
-                  <div className="flex h-9 items-center gap-2 rounded-xl border border-[#C9A24D]/25 bg-[#C9A24D]/10 px-2.5 text-xs shadow-sm dark:border-gray-800/50 dark:bg-white/5 sm:px-3">
-                    <span className={`font-black uppercase tracking-wide text-[10px] whitespace-nowrap ${showcase.customer?.is_blacklisted ? 'text-[#9CA3AF] dark:text-gray-500' : 'text-[#8b7355] dark:text-[#e8cf8a]'}`}>Emails</span>
+                  <LiveIndicator checkedAt={checkedAt} compact className="h-9 !px-2 sm:hidden" />
+                  <LiveIndicator checkedAt={checkedAt} className="hidden h-9 !rounded-xl !py-0 !pl-2.5 !pr-3 sm:inline-flex" />
+                  <div className="flex h-9 items-center gap-1.5 rounded-xl border border-[#C9A24D]/25 bg-[#C9A24D]/10 px-1.5 text-xs shadow-sm dark:border-gray-800/50 dark:bg-white/5 sm:gap-2 sm:px-3">
+                    <span className={`font-black uppercase tracking-wide text-[9px] sm:text-[10px] whitespace-nowrap ${showcase.customer?.is_blacklisted ? 'text-[#9CA3AF] dark:text-gray-500' : 'text-[#8b7355] dark:text-[#e8cf8a]'}`}>Emails</span>
                     <button
                       onClick={() => {
                         if (!showcase.customer?.is_blacklisted) {
@@ -921,7 +967,7 @@ function ShowcaseContent() {
                         }
                       }}
                       disabled={showcase.customer?.is_blacklisted}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent shadow-inner transition-colors duration-200 ease-in-out focus:outline-none ${
+                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent shadow-inner transition-colors duration-200 ease-in-out focus:outline-none ${
                         showcase.customer?.is_blacklisted
                           ? 'bg-gray-200 dark:bg-gray-800 cursor-not-allowed'
                           : (showcase.notifyVisitor ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-gray-700')
@@ -930,30 +976,24 @@ function ShowcaseContent() {
                     >
                       <motion.span
                         aria-hidden="true"
-                        animate={{ x: (showcase.notifyVisitor && !showcase.customer?.is_blacklisted) ? 20 : 0 }}
+                        animate={{ x: (showcase.notifyVisitor && !showcase.customer?.is_blacklisted) ? 16 : 0 }}
                         transition={{ type: 'spring', stiffness: 600, damping: 32 }}
-                        className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-md ring-0"
+                        className="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-md ring-0"
                       />
                     </button>
                   </div>
 
-                  <motion.button
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => openCriteria('all')}
-                    className="group inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-xl border border-[#C9A24D]/40 bg-[#151517] px-3 text-[10px] font-black uppercase tracking-widest text-white shadow-md transition-shadow hover:shadow-lg dark:bg-white dark:text-[#111827] sm:gap-2 sm:px-4 sm:text-xs"
-                  >
-                    <SlidersHorizontal size={13} className="transition-transform duration-300 group-hover:rotate-90 sm:h-3.5 sm:w-3.5" />
-                    Refine
-                  </motion.button>
                 </div>
-                {/* Phones: the description gets its own full-width line under the name + buttons. */}
+                {/* Phones: the description gets its own full-width line under the name row. */}
                 <p className="basis-full text-xs font-medium leading-snug text-[#6B7280] dark:text-gray-400 sm:hidden">
                   Homes matched to your search - new listings and price changes show up on their own.
                 </p>
-                <LiveIndicator checkedAt={checkedAt} className="md:hidden" />
               </div>
             </div>
+
+            {/* Their search + the one big "Change your search" button, built into this header (it
+                was its own card under it - three headers stacked looked busy). */}
+            {searchBar}
 
             {/* Property Status Tabs - a full-width, even 4-column bar built into the very bottom
                 edge of the header card (bleeds past the card's own padding via negative margins;
@@ -1027,7 +1067,7 @@ function ShowcaseContent() {
               emptyState={activeTab === 'all' ? {
                 title: 'No homes match your search yet',
                 text: 'New listings that fit will show up here the moment they hit the market. Want to see more right away? Widen your search a little.',
-                action: { label: 'Widen my search', onClick: () => openCriteria('all') },
+                action: { label: 'Change your search', onClick: () => openCriteria('all') },
               } : { title: 'Nothing here yet', text: activeTab === 'liked' ? 'Tap the heart on a home you love and it will show up here.' : activeTab === 'disliked' ? 'Homes you pass on will show up here.' : 'Homes that sell or come off the market move here.' }}
               onLike={handlePropertyLike}
               onDislike={handlePropertyDislike}
@@ -1037,7 +1077,6 @@ function ShowcaseContent() {
               showNewForUnviewed={true}
               destination={radiusSearchPrefs ? { address: radiusSearchPrefs.address, lat: radiusSearchPrefs.lat, lng: radiusSearchPrefs.long } : undefined}
               compareProperty={compareProperty}
-              compareInfo={matchedPropertiesHeaderInfoNode}
               sortControl={sortControlNode}
               animationKey={activeTab}
             />
@@ -1083,8 +1122,8 @@ function ShowcaseContent() {
             // same way the backend's match-score badge does, so there's no reason to hide the
             // implicit one here just because no override happens to be set.
             currentCompareProperty={
-              referencePoint?.address
-                ? { listingKey: referencePoint.listingKey, touredListingKey: referencePoint.touredListingKey ?? null, address: referencePoint.address, city: referencePoint.city, image: referencePoint.image }
+              builtAround
+                ? { listingKey: builtAround.listingKey, touredListingKey: builtAround.touredListingKey ?? null, address: builtAround.address, city: builtAround.city, state: (builtAround as any).state ?? null, image: builtAround.image }
                 : null
             }
             hasExplicitCompareOverride={!!(showcase.preferences as any)?.compare_property_listing_key}

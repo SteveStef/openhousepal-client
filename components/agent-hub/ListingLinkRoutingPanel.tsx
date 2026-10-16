@@ -69,7 +69,7 @@ export default function ListingLinkRoutingPanel() {
               listing page) without assuming the reader already knows what "Agent Hub" or
               "Signature" mean structurally. */}
           <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">
-            When someone clicks a listing photo - on your public page or in your email signature - this is what decides which page opens for them: either your own special page for that exact home (a &quot;Listing Spotlight&quot;), or a plain, standard listing page. When you have a Spotlight for a home, it&apos;s used automatically - you can switch any listing back to the plain page below.
+            Which page opens when someone clicks one of your listings. If a home has a Listing Spotlight, that opens - otherwise the plain listing page. You can switch any listing back to the plain page.
           </p>
         </div>
         <ChevronDown className={`h-5 w-5 shrink-0 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />

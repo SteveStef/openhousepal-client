@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { todayLocal } from '@/lib/relativeDays'
 import { Calendar, Clock, Check, X, Loader2, Home, CalendarClock, History, ChevronDown } from 'lucide-react'
 import { HostRequest, HostRequestEvent } from '@/types'
 import api from '@/lib/api-service'
@@ -90,6 +91,8 @@ export default function HostRequestCard({
   onAcceptCounter,
   onDeclineCounter,
   onCounterBack,
+  asHost = false,
+  onWithdraw,
   showHistory = false,
   buildKitHref,
 }: {
@@ -105,10 +108,15 @@ export default function HostRequestCard({
   // Host proposing yet another time after the listing agent countered - lets the two sides keep
   // negotiating instead of being capped at one round.
   onCounterBack?: (id: string, proposedDate: string, proposedStart: string, proposedEnd: string, note: string) => Promise<void>
+  /** The host's own request (My requests): show the listing agent they're dealing with, not themselves. */
+  asHost?: boolean
+  /** Host side: take the request back, or back out of a confirmed open. */
+  onWithdraw?: (id: string) => Promise<void>
   showHistory?: boolean
 }) {
-  const [busy, setBusy] = useState<'approve' | 'decline' | 'counter' | 'accept-counter' | 'decline-counter' | 'counter-back' | null>(null)
+  const [busy, setBusy] = useState<'approve' | 'decline' | 'counter' | 'accept-counter' | 'decline-counter' | 'counter-back' | 'withdraw' | null>(null)
   const [isCountering, setIsCountering] = useState(false)
+  const [confirmWithdraw, setConfirmWithdraw] = useState(false)
   const [isCounteringBack, setIsCounteringBack] = useState(false)
   // Times come back from the API as "HH:MM:SS" - the time <select>s only ever hold "HH:MM"
   // values, so these need trimming or they'd start out matching no option at all.
@@ -181,9 +189,19 @@ export default function HostRequestCard({
       )}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-black text-[#111827] dark:text-white">{request.requesting_agent_name}</p>
-          {request.requesting_agent_brokerage && (
-            <p className="truncate text-xs font-semibold text-gray-500 dark:text-gray-400">{request.requesting_agent_brokerage}</p>
+          {asHost && request.listing_agent_name ? (
+            <>
+              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Listing agent</p>
+              <p className="truncate text-sm font-black text-[#111827] dark:text-white">{request.listing_agent_name}</p>
+              {request.listing_agent_brokerage && <p className="truncate text-xs font-semibold text-gray-500 dark:text-gray-400">{request.listing_agent_brokerage}</p>}
+            </>
+          ) : (
+            <>
+              <p className="truncate text-sm font-black text-[#111827] dark:text-white">{request.requesting_agent_name}</p>
+              {request.requesting_agent_brokerage && (
+                <p className="truncate text-xs font-semibold text-gray-500 dark:text-gray-400">{request.requesting_agent_brokerage}</p>
+              )}
+            </>
           )}
         </div>
         {!isPending && (
@@ -263,7 +281,7 @@ export default function HostRequestCard({
           >
             {busy === 'decline' ? <Loader2 size={13} className="animate-spin" /> : <X size={13} strokeWidth={3} />} Decline
           </button>
-          {onCounter && (
+          {onCounter && !request.listing_agent_suggested_time && (
             <button
               onClick={() => setIsCountering(v => !v)}
               disabled={busy !== null}
@@ -271,13 +289,17 @@ export default function HostRequestCard({
               aria-label="Suggest a different time"
               title="Suggest a different time"
             >
-              <CalendarClock size={14} />
+              <CalendarClock size={14} /><span className="ml-1.5 text-xs font-black">Other time</span>
             </button>
           )}
         </div>
       )}
 
-      {isPending && isCountering && onCounter && (
+      {isPending && onCounter && request.listing_agent_suggested_time && (
+        <p className="mt-2 text-[11px] font-semibold text-gray-400">You already suggested another time once, so now it&apos;s a yes or no.</p>
+      )}
+
+      {isPending && isCountering && onCounter && !request.listing_agent_suggested_time && (
         <div className="mt-3 space-y-3 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Suggest a different time</p>
@@ -339,7 +361,7 @@ export default function HostRequestCard({
               {busy === 'decline-counter' ? <Loader2 size={13} className="animate-spin" /> : <X size={13} strokeWidth={3} />} Decline
             </button>
           )}
-          {onCounterBack && (
+          {onCounterBack && !request.host_suggested_time && (
             <button
               onClick={() => setIsCounteringBack(v => !v)}
               disabled={busy !== null}
@@ -347,13 +369,17 @@ export default function HostRequestCard({
               aria-label="Propose a different time"
               title="Propose a different time"
             >
-              <CalendarClock size={14} />
+              <CalendarClock size={14} /><span className="ml-1.5 text-xs font-black">Other time</span>
             </button>
           )}
         </div>
       )}
 
-      {isCountered && isCounteringBack && onCounterBack && (
+      {isCountered && onCounterBack && request.host_suggested_time && (
+        <p className="mt-2 text-[11px] font-semibold text-gray-400">You already suggested another time once, so now it&apos;s a yes or no.</p>
+      )}
+
+      {isCountered && isCounteringBack && onCounterBack && !request.host_suggested_time && (
         <div className="mt-3 space-y-3 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Propose a different time</p>
           <div className="grid grid-cols-3 gap-2">
@@ -391,6 +417,25 @@ export default function HostRequestCard({
             {busy === 'counter-back' ? <Loader2 size={13} className="animate-spin" /> : <CalendarClock size={13} />} Send Proposed Time
           </button>
         </div>
+      )}
+
+      {onWithdraw && (isPending || isCountered || (request.status === 'approved' && String(request.requested_date) >= todayLocal())) && (
+        confirmWithdraw ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-rose-50 p-3 dark:bg-rose-500/10">
+            <p className="min-w-0 flex-1 text-xs font-bold text-rose-700 dark:text-rose-300">
+              {request.status === 'approved' ? 'Tell the listing agent you can’t host? The day opens up for someone else.' : 'Take this request back?'}
+            </p>
+            <button onClick={() => setConfirmWithdraw(false)} className="rounded-lg px-3 py-1.5 text-xs font-black text-gray-500">Keep it</button>
+            <button onClick={async () => { setBusy('withdraw'); await onWithdraw(request.id); setBusy(null); setConfirmWithdraw(false) }} disabled={busy !== null}
+              className="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-black text-white disabled:opacity-50">
+              {busy === 'withdraw' && <Loader2 size={12} className="animate-spin" />} {request.status === 'approved' ? 'I can’t host' : 'Withdraw'}
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => setConfirmWithdraw(true)} className="mt-3 block text-[11px] font-black text-gray-400 underline-offset-4 hover:text-rose-600 hover:underline">
+            {request.status === 'approved' ? 'Can’t host anymore?' : 'Withdraw request'}
+          </button>
+        )
       )}
 
       {showHistory && <RequestHistory requestId={request.id} />}

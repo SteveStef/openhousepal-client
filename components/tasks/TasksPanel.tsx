@@ -11,6 +11,7 @@ import {
 import api from '@/lib/api-service'
 import type { AgentTask, TaskBucket, TaskKind } from '@/types'
 import LeadDetailModal from '@/components/leads/LeadDetailModal'
+import OhpLoader from '@/components/brand/OhpLoader'
 import FollowupCard from './FollowupCard'
 import { AnimatePresence, motion } from 'framer-motion'
 
@@ -143,6 +144,7 @@ export default function TasksPanel({
   singleColumn = false,
   onChanged,
   className = '',
+  focusTaskId,
 }: {
   /** Scope to a single lead + prefill new tasks with it. */
   leadId?: string
@@ -162,6 +164,8 @@ export default function TasksPanel({
    * view refreshes - checking one off marks the lead contacted). */
   onChanged?: () => void
   className?: string
+  /** Opened from a notification about one follow-up: scroll to it and glow it gold. */
+  focusTaskId?: string | null
 }) {
   const changedRef = useRef(onChanged)
   changedRef.current = onChanged
@@ -226,6 +230,14 @@ export default function TasksPanel({
     base.setDate(base.getDate() + days)
     patch(t.id, { due_at: base.toISOString(), remind_at: base.toISOString() })
   }
+  // "Pick a day…": that date, same time of day (9am if it had none).
+  const pickDay = (t: AgentTask, ymd: string) => {
+    const [y, m, d] = ymd.split('-').map(Number)
+    const base = t.due_at ? new Date(t.due_at) : new Date()
+    if (!t.due_at) base.setHours(9, 0, 0, 0)
+    base.setFullYear(y, m - 1, d)
+    patch(t.id, { due_at: base.toISOString(), remind_at: base.toISOString() })
+  }
 
   const grouped = useMemo(() => {
     const g: Record<string, AgentTask[]> = { overdue: [], today: [], upcoming: [], someday: [], done: [] }
@@ -233,21 +245,33 @@ export default function TasksPanel({
     return g
   }, [tasks])
 
+  // A checked-off one sits in the folded "completed" list - unfold it so the card can be shown.
+  const focusIsOlderDone = !!focusTaskId && grouped.done.some(t => t.id === focusTaskId && !justDone.has(t.id))
+  useEffect(() => { if (focusIsOlderDone) { setShowOlderDone(true); setDoneShown(n => Math.max(n, 200)) } }, [focusIsOlderDone])
+  const scrolledToFocus = useRef(false)
+  useEffect(() => {
+    if (!focusTaskId || loading || scrolledToFocus.current) return
+    const el = document.getElementById(`followup-${focusTaskId}`)
+    if (!el) return
+    scrolledToFocus.current = true
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
   const justDoneTasks = grouped.done.filter(t => justDone.has(t.id))
   const olderDone = grouped.done.filter(t => !justDone.has(t.id))
   const doneTodayCount = grouped.done.filter(t => isToday(t.completed_at)).length
   const openCount = tasks.filter(t => !t.completed_at).length
-  // Dash only: overdue follow-ups more than a week past due drop off the widget (they stay on the
-  // Follow-ups page) so a backlog doesn't bury what's due today.
+  // Dash only: overdue follow-ups more than a week past due go to the back of the line, after
+  // what's due today, so a backlog never buries today. They still show (and count) - dropping them
+  // left the widget saying "Nothing due" under a header that said "8 due".
   const weekAgo = Date.now() - 7 * 864e5
   const staleOverdue = grouped.overdue.filter(t => t.due_at && new Date(t.due_at).getTime() < weekAgo)
-  const compactOpen = [...grouped.overdue.filter(t => !staleOverdue.includes(t)), ...grouped.today]
+  const compactOpen = [...grouped.overdue.filter(t => !staleOverdue.includes(t)), ...grouped.today, ...staleOverdue]
 
   const renderCard = (t: AgentTask) => {
     const done = !!t.completed_at
     return (
+      <div key={t.id} id={`followup-${t.id}`} className={`h-full rounded-2xl transition-shadow duration-700 ${focusTaskId === t.id ? 'ring-2 ring-[#C9A24D] ring-offset-2 ring-offset-[#faf9f7] dark:ring-offset-[#0B0B0B]' : ''}`}>
       <FollowupCard
-        key={t.id}
         t={t}
         busy={busyId === t.id}
         // Not when this list is already scoped to one lead (it's shown on that lead's own profile).
@@ -258,8 +282,10 @@ export default function TasksPanel({
           if (done) api.tasks.reopen(t.id).then(load).then(() => changedRef.current?.()); else patch(t.id, { completed: true })
         }}
         onSnooze={days => snooze(t, days)}
+        onPickDay={ymd => pickDay(t, ymd)}
         onDelete={() => remove(t.id)}
       />
+      </div>
     )
   }
 
@@ -270,7 +296,7 @@ export default function TasksPanel({
   // the next open one slides into its spot (and a checked card only shows when there's room).
   const dashQueue = [...compactOpen, ...justDoneTasks]
   const dashVisible = dashQueue.slice(0, dashRows * 3)
-  const dashHiddenOpen = Math.max(0, compactOpen.length - dashVisible.filter(t => !t.completed_at).length) + staleOverdue.length
+  const dashHiddenOpen = Math.max(0, compactOpen.length - dashVisible.filter(t => !t.completed_at).length)
   const nothingOpen = compact ? compactOpen.length === 0 : openCount === 0
 
   return (
@@ -280,7 +306,8 @@ export default function TasksPanel({
         : composerOpen && <QuickAdd leadId={leadId} leadName={leadName} onAdded={() => { load(); changedRef.current?.() }} startOpen onClose={onComposerClose} />)}
 
       {loading ? (
-        <div className="flex items-center justify-center py-10 text-gray-400"><Loader2 className="h-5 w-5 animate-spin" /></div>
+        // The same OpenHousePal loader as every other page (no blur - it lags).
+        <OhpLoader fullScreen={false} label="Loading follow-ups" className={compact ? '!py-6' : '!py-12'} />
       ) : (
         <div className="space-y-4">
           {nothingOpen && compact && (

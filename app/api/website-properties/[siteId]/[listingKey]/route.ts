@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // PropertyQuickViewModal) - the server-rendered /properties/{key} detail page itself doesn't need
 // this (it already fetches server-side), only this client-side "pop up without navigating away"
 // path does.
-const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://localhost:8080'
+const INTERNAL_API_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ siteId: string; listingKey: string }> }) {
   const { siteId, listingKey } = await params

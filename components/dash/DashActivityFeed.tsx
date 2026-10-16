@@ -7,9 +7,13 @@ import api from '@/lib/api-service'
 
 // Mirrors the notification bell's own feed (same endpoint/window), not a leads query - this
 // panel is meant to answer "what actually happened recently," same as the bell.
-export default function DashActivityFeed({ notifications }: { notifications: Notification[] }) {
+export default function DashActivityFeed({ notifications, onRead }: { notifications: Notification[]; onRead?: (id: string) => void }) {
   const handleClick = (notification: Notification) => {
-    if (!notification.isRead) api.notifications.markAsRead(notification.id)
+    if (!notification.isRead) {
+      // Read right away here (dot + "N new"), and the bell / Activity page catch up straight after.
+      onRead?.(notification.id)
+      api.notifications.markAsRead(notification.id).then(() => window.dispatchEvent(new Event('leads-notification-count:refresh')))
+    }
     // Opens in a new tab, same as the bell dropdown and the Activity page - clicking one shouldn't
     // navigate the Dashboard itself away.
     window.open(notification.link || '/activity', '_blank', 'noopener,noreferrer')

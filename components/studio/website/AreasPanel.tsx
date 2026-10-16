@@ -89,7 +89,7 @@ export default function AreasPanel({ onChange }: { onChange?: (what?: { added?: 
   }
 
   const load = () => {
-    api.sites.getAreas().then(res => {
+    api.sites.getAreas(true).then(res => {
       if (res.success && res.data) setAreas(res.data)
       setLoading(false)
     })
@@ -277,6 +277,8 @@ export default function AreasPanel({ onChange }: { onChange?: (what?: { added?: 
         <button
           onClick={handleAdd}
           disabled={adding || atAreaLimit}
+          aria-label="Add this area"
+          title="Add this area"
           className="inline-flex items-center gap-1.5 rounded-xl bg-[#111827] px-3 py-2 text-xs font-black uppercase tracking-wide text-white disabled:opacity-50 dark:bg-white dark:text-[#111827]"
         >
           {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}

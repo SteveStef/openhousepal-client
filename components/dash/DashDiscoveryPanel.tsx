@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowRight, Bath, Bed, CalendarCheck, Clock, Hand, Maximize, MessageSquareReply, Search, XCircle } from 'lucide-react'
-import WeekendCalendarCards, { WeekendCalendarOpen, getUpcomingWeekendCells } from '@/components/open-house-manager/WeekendCalendarCards'
+import WeekendCalendarCards, { WeekendCalendarOpen, dayIsHostable, getUpcomingWeekendCells, hostingNote } from '@/components/open-house-manager/WeekendCalendarCards'
 import { useAuth } from '@/contexts/AuthContext'
 import type { HostRequest } from '@/types'
 import { DiscoveryListing, DASH_OPENS_MIN_HEIGHT_CLASS } from './DashOpensPanel'
@@ -27,12 +27,12 @@ function requestState(r: HostRequest): { tone: PillTone; label: string; icon: Re
   if (r.status === 'countered') {
     return { tone: 'red', label: 'New time offered - reply', icon: MessageSquareReply,
       when: whenText(r.counter_date || r.requested_date, r.counter_start_time || r.requested_start_time, r.counter_end_time || r.requested_end_time),
-      href: '/discovery?myRequests=1' }
+      href: `/discovery?myRequests=1&request=${encodeURIComponent(r.id)}` }
   }
   const when = whenText(r.requested_date, r.requested_start_time, r.requested_end_time)
   if (r.status === 'approved') return { tone: 'green', label: "You're hosting", icon: CalendarCheck, when, href: `/open-houses?build=${encodeURIComponent(r.id)}` }
-  if (r.status === 'pending') return { tone: 'sky', label: 'Waiting on listing agent', icon: Clock, when, href: '/discovery?myRequests=1' }
-  return { tone: 'muted', label: 'Not this time', icon: XCircle, when, href: '/discovery?myRequests=1' }
+  if (r.status === 'pending') return { tone: 'sky', label: 'Waiting on listing agent', icon: Clock, when, href: `/discovery?myRequests=1&request=${encodeURIComponent(r.id)}` }
+  return { tone: 'muted', label: 'Not this time', icon: XCircle, when, href: `/discovery?myRequests=1&request=${encodeURIComponent(r.id)}` }
 }
 
 // A quick shortcut to Discovery, not a replacement for it: first what's going on with homes you
@@ -157,7 +157,9 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
             const hostingMine = opens.find(o => o.hosting_agent_id && o.hosting_agent_id === user?.id)
               || myAsks.find(r => r.status === 'approved' && String(r.requested_date) >= today)
             const taken = new Set(opens.map(o => o.scheduled_date).filter(Boolean) as string[])
-            const openDays = getUpcomingWeekendCells(taken).filter(c => !taken.has(c.date) && !pendingDates.includes(c.date)).length
+            const window = { hosting_blocked: listing.HostingBlocked, hosts_from: listing.HostsFrom }
+            const openDays = getUpcomingWeekendCells(taken).filter(c => !taken.has(c.date) && !pendingDates.includes(c.date) && dayIsHostable(window, c.date)).length
+            const notYet = hostingNote(window)
             const hostingDate = hostingMine ? ('scheduled_date' in hostingMine ? hostingMine.scheduled_date : (hostingMine as HostRequest).requested_date) : null
             const go = () => router.push(`/discovery?listingKey=${encodeURIComponent(listing.ListingKey)}`)
             return (
@@ -190,6 +192,8 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
                         ? <Pill tone="green" icon={CalendarCheck}>Hosting {formatShortDateWithDay(hostingDate)}</Pill>
                         : pendingDates.length > 0
                         ? <Pill tone="sky" icon={Clock} title="You asked to host - waiting on the listing agent">Requested {formatShortDateWithDay(pendingDates[0])}</Pill>
+                        : openDays === 0 && notYet
+                        ? <Pill tone="muted" icon={Clock} title={notYet}>Coming Soon</Pill>
                         : openDays > 0
                         ? <Pill tone="amber" icon={Hand}>{openDays} open date{openDays === 1 ? '' : 's'} to host</Pill>
                         : <Pill tone="muted">Fully hosted</Pill>}
@@ -208,6 +212,7 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
                     pendingDates={pendingDates}
                     pendingLabel="Requested"
                     pendingTitle="You asked to host this date - waiting on the listing agent"
+                    hostingWindow={window}
                   />
                 </div>
               </motion.div>

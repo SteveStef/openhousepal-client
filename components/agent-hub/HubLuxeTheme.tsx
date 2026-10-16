@@ -131,8 +131,10 @@ export function LuxeHomeCardBody({ image, price, location, status, statusClass, 
 
 // The big card for the full Sales / Listings pages on Luxe: photo in a metal frame, serif address,
 // the white-glint price, the Luxe status badge, staggered entry, lift + light sweep on hover.
-export function LuxeGridHomeCard({ image, price, address, location, status, statusClass, date, index = 0, href, badge }: {
+export function LuxeGridHomeCard({ image, price, address, location, status, statusClass, date, index = 0, href, badge, below }: {
   image?: string; price: string; address: string; location: string; status: string; statusClass: string; date?: string; index?: number; href?: string; badge?: React.ReactNode
+  /** Under the town (e.g. the listing's open house times). */
+  below?: React.ReactNode
 }) {
   const sold = status.toLowerCase() === 'sold'
   const Tag = href ? 'a' : 'article'
@@ -154,6 +156,7 @@ export function LuxeGridHomeCard({ image, price, address, location, status, stat
         <span className="block px-4 pb-4 pt-3">
           <span className="block truncate font-serif text-lg font-black text-white">{address}</span>
           <span className="mt-1 flex items-center gap-1 text-xs font-semibold text-white/65"><MapPin className="h-3.5 w-3.5 text-[var(--m-light)]" /> {location}</span>
+          {below}
           {date && <span className="mt-3 flex items-center justify-between border-t border-white/10 pt-3 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--m-light)]"><span>{date}</span><span className="text-white/45">{status}</span></span>}
         </span>
       </span>

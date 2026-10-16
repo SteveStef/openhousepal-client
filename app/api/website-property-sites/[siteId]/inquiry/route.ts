@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // app/api/website-forms/[formId]/route.ts: a property website can be served on ANY
 // agent-owned hostname, so the visitor's browser submits to this route (same origin as
 // whatever hostname served the page) instead of talking cross-origin to the backend directly.
-const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://localhost:8080'
+const INTERNAL_API_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = await params

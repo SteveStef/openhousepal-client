@@ -13,7 +13,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowUpRight, Bath, Bed, BellRing, CalendarCheck, Check, Heart, Scale, ChevronLeft, ChevronRight, FileText, Globe, Home, Loader2, Mail,
   MessageSquare, Phone, Ruler, ScanSearch, Send, Sparkles, Ticket, UserRound,
-  MapPin,
+  MapPin, Moon, Sun, Sunrise,
 } from 'lucide-react'
 import api from '@/lib/api-service'
 import PropertyDetailView from '@/components/PropertyDetailView'
@@ -312,31 +312,55 @@ export default function GuestPass({ token, openHouseEventId }: { token: string; 
   )
 }
 
-const TOUR_PARTS = ['Morning', 'Afternoon', 'Evening'] as const
+// The parts of the day, each with a few suggested times so a guest can answer in three taps and the
+// agent never has to ask "what time?". "Any time" keeps it loose for guests who don't mind.
+const TOUR_PARTS = [
+  { id: 'Morning', icon: Sunrise, times: ['9:00 AM', '10:00 AM', '11:00 AM'] },
+  { id: 'Afternoon', icon: Sun, times: ['1:00 PM', '2:00 PM', '3:00 PM'] },
+  { id: 'Evening', icon: Moon, times: ['5:00 PM', '6:00 PM', '7:00 PM'] },
+] as const
+const ANY_TIME = 'any'
+type TourPick = { day: number | null; part: string | null; time: string | null }
+const EMPTY_PICK: TourPick = { day: null, part: null, time: null }
 
-// "When would you like to see it again?" - two quick picks (a day + a part of the day), nothing
-// more. Sent with the second-tour request so the agent sees the times on the alert and in Leads.
+// "When would you like to see it again?" - a day, a part of the day, then a suggested time. Option 1
+// ticks itself off and the sheet glides on to an optional backup (Option 2). Sent with the second-tour
+// request so the agent sees the times on the alert and in Leads.
 function SecondTourPicker({ open, agentFirst, onClose, onSend }: {
   open: boolean; agentFirst: string; onClose: () => void; onSend: (times: string) => void
 }) {
   const days = useMemo(() => Array.from({ length: 10 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() + i + 1); return d
   }), [])
-  const [picks, setPicks] = useState<{ day: number | null; part: string | null }[]>([{ day: null, part: null }, { day: null, part: null }])
+  const [picks, setPicks] = useState<TourPick[]>([EMPTY_PICK, EMPTY_PICK])
   const [slot, setSlot] = useState(0)
-  useEffect(() => { if (open) { setPicks([{ day: null, part: null }, { day: null, part: null }]); setSlot(0) } }, [open])
-  const label = (p: { day: number | null; part: string | null }) =>
-    p.day == null ? '' : `${days[p.day].toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}${p.part ? ` - ${p.part}` : ''}`
-  const set = (patch: Partial<{ day: number; part: string }>) => setPicks(prev => {
+  const [dir, setDir] = useState(1)
+  useEffect(() => { if (open) { setPicks([EMPTY_PICK, EMPTY_PICK]); setSlot(0); setDir(1) } }, [open])
+  const done = (p: TourPick) => p.day != null && !!p.part && !!p.time
+  // `short` = the option box (no room for "any time"); the full words go to the agent.
+  const label = (p: TourPick, short = false) => {
+    if (p.day == null) return ''
+    const day = days[p.day].toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+    if (!p.part) return day
+    if (!p.time) return `${day} · ${p.part}`
+    return p.time === ANY_TIME ? `${day} · ${p.part}${short ? '' : ', any time'}` : `${day} · ${p.time}`
+  }
+  const goSlot = (i: number) => { if (i === slot) return; setDir(i > slot ? 1 : -1); setSlot(i) }
+  const set = (patch: Partial<TourPick>) => setPicks(prev => {
     const next = prev.map((p, i) => (i === slot ? { ...p, ...patch } : p))
-    // Both picked for this slot -> move on to the other one.
-    const cur = next[slot]
-    if (cur.day != null && cur.part && slot === 0 && (next[1].day == null || !next[1].part)) setTimeout(() => setSlot(1), 180)
+    // Option 1 finished (and the backup isn't): a beat to see its tick, then on to Option 2.
+    if (slot === 0 && done(next[0]) && !done(prev[0]) && !done(next[1])) setTimeout(() => { setDir(1); setSlot(1) }, 650)
     return next
   })
+  const cur = picks[slot]
+  const part = TOUR_PARTS.find(p => p.id === cur.part)
   // One good time is enough to ask; a second choice is offered, not required.
-  const done = (p: { day: number | null; part: string | null }) => p.day != null && !!p.part
   const ready = done(picks[0]) || done(picks[1])
+  const slide = {
+    initial: (d: number) => ({ opacity: 0, x: d * 40 }),
+    animate: { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 380, damping: 34 } },
+    exit: (d: number) => ({ opacity: 0, x: d * -32, transition: { duration: 0.15 } }),
+  } as const
   return (
     <AnimatePresence>
       {open && (
@@ -350,58 +374,116 @@ function SecondTourPicker({ open, agentFirst, onClose, onSend }: {
             onClick={(e) => e.stopPropagation()}
             initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 380, damping: 34 }}
-            className="w-full max-w-md rounded-t-[28px] bg-white p-5 shadow-2xl dark:bg-[#141416] sm:rounded-[28px] sm:p-6"
+            className="w-full max-w-md overflow-hidden rounded-t-[28px] bg-white p-5 shadow-2xl dark:bg-[#141416] sm:rounded-[28px] sm:p-6"
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-black/10 dark:bg-white/15 sm:hidden" />
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--gp)]">Second Tour</p>
             <h3 className="mt-1 text-xl font-black tracking-tight">When works for you?</h3>
-            <p className="mt-1 text-[13px] font-semibold text-gray-500 dark:text-gray-400">Pick a day and time - add a second option if you can. {agentFirst} will confirm.</p>
+            <p className="mt-1 text-[13px] font-semibold text-gray-500 dark:text-gray-400">Pick a day and a time - add a backup if you can. {agentFirst} will confirm.</p>
 
+            {/* the two options: the one being filled in is lit; a finished one gets its tick */}
             <div className="mt-4 grid grid-cols-2 gap-2">
-              {picks.map((p, i) => (
-                <button key={i} type="button" onClick={() => setSlot(i)}
-                  className={`rounded-2xl border px-3 py-2.5 text-left transition-colors ${slot === i ? 'border-[var(--gp)] bg-[color-mix(in_srgb,var(--gp)_8%,transparent)]' : 'border-black/[0.08] dark:border-white/[0.1]'}`}>
-                  <span className="block text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">{i === 0 ? 'Option 1' : 'Option 2 · optional'}</span>
-                  <span className={`mt-0.5 block truncate text-[13px] font-black ${label(p) ? '' : 'text-gray-300 dark:text-gray-600'}`}>{label(p) || (i === 0 ? 'Pick a day & time' : 'Another time')}</span>
-                </button>
-              ))}
-            </div>
-
-            <p className="mt-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Day</p>
-            <div className="-mx-1 mt-2 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
-              {days.map((d, i) => {
-                const on = picks[slot].day === i
+              {picks.map((p, i) => {
+                const ok = done(p)
                 return (
-                  <button key={i} type="button" onClick={() => set({ day: i })}
-                    className={`flex w-[54px] shrink-0 flex-col items-center rounded-2xl border py-2 transition-colors ${on ? 'border-transparent bg-[var(--gp)] text-white shadow-md' : 'border-black/[0.08] hover:border-[var(--gp)] dark:border-white/[0.1]'}`}>
-                    <span className={`text-[9px] font-black uppercase tracking-wider ${on ? 'text-white/80' : 'text-gray-400'}`}>{d.toLocaleDateString(undefined, { weekday: 'short' })}</span>
-                    <span className="text-lg font-black leading-tight">{d.getDate()}</span>
-                    <span className={`text-[9px] font-bold ${on ? 'text-white/80' : 'text-gray-400'}`}>{d.toLocaleDateString(undefined, { month: 'short' })}</span>
+                  <button key={i} type="button" onClick={() => goSlot(i)}
+                    className={`relative isolate rounded-2xl border px-3 py-2.5 text-left transition-colors ${slot === i ? 'border-[var(--gp)]' : ok ? 'border-emerald-500/40' : 'border-black/[0.08] dark:border-white/[0.1]'}`}>
+                    {slot === i && <motion.span layoutId="gp-tour-slot" className="absolute inset-0 -z-10 rounded-2xl bg-[color-mix(in_srgb,var(--gp)_9%,transparent)]" transition={{ type: 'spring', stiffness: 480, damping: 38 }} />}
+                    <span className="flex items-center gap-1.5">
+                      <AnimatePresence initial={false}>
+                        {ok && (
+                          <motion.span key="tick" initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }}
+                            transition={{ type: 'spring', stiffness: 520, damping: 18 }}
+                            className="relative grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-500 shadow-[0_4px_10px_-3px_rgba(16,185,129,.8)]">
+                            <motion.span className="absolute inset-0 rounded-full bg-emerald-400/50" initial={{ scale: 1, opacity: 0.8 }} animate={{ scale: 2.4, opacity: 0 }} transition={{ duration: 0.7, ease: 'easeOut' }} />
+                            <svg viewBox="0 0 24 24" className="relative h-2.5 w-2.5" fill="none" stroke="white" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round">
+                              <motion.path d="M5 12.5l4.5 4.5L19 7.5" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.3, delay: 0.12 }} />
+                            </svg>
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                      <span className={`block truncate whitespace-nowrap text-[9px] font-black uppercase tracking-[0.2em] ${ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`}>{i === 0 ? 'Option 1' : ok ? 'Option 2' : 'Option 2 · optional'}</span>
+                    </span>
+                    <span className={`mt-0.5 block truncate text-[13px] font-black ${label(p) ? '' : 'text-gray-300 dark:text-gray-600'}`}>{label(p, true) || (i === 0 ? 'Pick a day & time' : 'A backup time')}</span>
                   </button>
                 )
               })}
             </div>
 
-            <p className="mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Time</p>
-            <div className="mt-2 grid grid-cols-3 gap-1.5">
-              {TOUR_PARTS.map(part => {
-                const on = picks[slot].part === part
-                return (
-                  <button key={part} type="button" onClick={() => set({ part })}
-                    className={`rounded-2xl border py-2.5 text-xs font-black transition-colors ${on ? 'border-transparent bg-[var(--gp)] text-white shadow-md' : 'border-black/[0.08] hover:border-[var(--gp)] dark:border-white/[0.1]'}`}>
-                    {part}
-                  </button>
-                )
-              })}
-            </div>
+            {/* the picker for whichever option is lit - slides across when it moves to the other one */}
+            <AnimatePresence mode="wait" custom={dir} initial={false}>
+              <motion.div key={slot} custom={dir} variants={slide} initial="initial" animate="animate" exit="exit">
+                <p className="mt-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                  {slot === 0 ? 'Day' : <><span className="text-[var(--gp)]">Backup</span> · day</>}
+                </p>
+                <div className="-mx-1 mt-2 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+                  {days.map((d, i) => {
+                    const on = cur.day === i
+                    const other = picks[1 - slot].day === i && done(picks[1 - slot])
+                    return (
+                      <motion.button key={i} type="button" whileTap={{ scale: 0.93 }} onClick={() => set({ day: i })}
+                        className={`relative isolate flex w-[54px] shrink-0 flex-col items-center rounded-2xl border py-2 transition-colors ${on ? 'border-transparent text-white' : 'border-black/[0.08] hover:border-[var(--gp)] dark:border-white/[0.1]'}`}>
+                        {on && <motion.span layoutId={`gp-tour-day-${slot}`} className="absolute inset-0 -z-10 rounded-2xl bg-[var(--gp)] shadow-[0_10px_20px_-8px_var(--gp)]" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
+                        <span className={`text-[9px] font-black uppercase tracking-wider ${on ? 'text-white/80' : 'text-gray-400'}`}>{d.toLocaleDateString(undefined, { weekday: 'short' })}</span>
+                        <span className="text-lg font-black leading-tight">{d.getDate()}</span>
+                        <span className={`text-[9px] font-bold ${on ? 'text-white/80' : 'text-gray-400'}`}>{d.toLocaleDateString(undefined, { month: 'short' })}</span>
+                        {other && !on && <span className="absolute -right-0.5 -top-0.5 grid h-3.5 w-3.5 place-items-center rounded-full bg-emerald-500 text-[8px] font-black text-white">{2 - slot}</span>}
+                      </motion.button>
+                    )
+                  })}
+                </div>
+
+                <p className="mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Time of day</p>
+                <div className="mt-2 flex gap-1 rounded-2xl bg-gray-100 p-1 dark:bg-white/[0.06]">
+                  {TOUR_PARTS.map(p => {
+                    const on = cur.part === p.id
+                    return (
+                      <button key={p.id} type="button" onClick={() => set(on ? {} : { part: p.id, time: null })}
+                        className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[11px] font-black uppercase tracking-wider transition-colors ${on ? 'text-[#0B0B0B] dark:text-white' : 'text-gray-500 hover:text-[#0B0B0B] dark:text-gray-400 dark:hover:text-white'}`}>
+                        {on && <motion.span layoutId={`gp-tour-part-${slot}`} className="absolute inset-0 rounded-xl bg-white shadow-sm dark:bg-white/10" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
+                        <p.icon className="relative h-3.5 w-3.5" /><span className="relative">{p.id}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* suggested times for that part of the day - one tap and this option is done */}
+                <div className="min-h-[52px]">
+                  <AnimatePresence mode="wait" initial={false}>
+                    {part ? (
+                      <motion.div key={part.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.16 }}
+                        className="mt-3 grid grid-cols-4 gap-1.5">
+                        {[...part.times, ANY_TIME].map((t, i) => {
+                          const on = cur.time === t
+                          return (
+                            <motion.button key={t} type="button" onClick={() => set({ time: t })}
+                              initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.04, type: 'spring', stiffness: 520, damping: 30 }}
+                              whileTap={{ scale: 0.92 }}
+                              className={`relative rounded-xl border py-2.5 text-[12px] font-black transition-colors ${on ? 'border-[#0B0B0B] bg-[#0B0B0B] text-white dark:border-white dark:bg-white dark:text-[#0B0B0B]' : 'border-black/[0.08] hover:border-[var(--gp)] dark:border-white/[0.1]'}`}>
+                              {t === ANY_TIME ? 'Any time' : t}
+                              {on && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 600, damping: 20 }}
+                                className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-[var(--gp)] text-white"><Check className="h-2.5 w-2.5" strokeWidth={4} /></motion.span>}
+                            </motion.button>
+                          )
+                        })}
+                      </motion.div>
+                    ) : (
+                      <motion.p key="hint" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-4 text-center text-xs font-semibold text-gray-400">
+                        {cur.day == null ? 'Pick a day, then a time of day.' : 'Now pick morning, afternoon or evening.'}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+            </AnimatePresence>
 
             <button
               type="button"
               disabled={!ready}
-              onClick={() => onSend(picks.filter(done).map(label).join('  or  '))}
+              onClick={() => onSend(picks.filter(done).map(p => label(p)).join('  or  '))}
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--gp)] px-5 py-3.5 text-xs font-black uppercase tracking-[0.16em] text-white shadow-lg transition-transform active:scale-[0.99] disabled:opacity-40"
             >
-              <CalendarCheck className="h-4 w-4" /> Request Second Tour
+              <CalendarCheck className="h-4 w-4" /> {done(picks[0]) && done(picks[1]) ? 'Request Second Tour · 2 times' : 'Request Second Tour'}
             </button>
             <button type="button" onClick={onClose} className="mt-2 w-full py-2 text-[11px] font-black uppercase tracking-widest text-gray-400">Not now</button>
           </motion.div>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
 
-const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://localhost:8080'
+const INTERNAL_API_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 function resolveImageUrl(raw: string): URL | null {
   try {

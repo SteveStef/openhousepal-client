@@ -12,6 +12,7 @@ import { BroadcastCard } from './MyRequestsPanel'
 import TakenDatesPicker from './TakenDatesPicker'
 import TimeSelect from './TimeSelect'
 import { refreshOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
+import { todayLocal } from '@/lib/relativeDays'
 
 export default function RequestToHostModal({
   property,
@@ -146,6 +147,8 @@ export default function RequestToHostModal({
   const hasTeamBroadcasts = localBroadcasts.length > 0
   const sortedScheduledOpens = [...scheduledOpens].sort((a, b) => (a.scheduled_date || '').localeCompare(b.scheduled_date || ''))
   const takenDates = new Set(scheduledOpens.map(o => o.scheduled_date).filter((d): d is string => !!d))
+  // Coming Soon: nothing before the day it goes active (Bright allows no showings until then).
+  const comingSoonFrom: string | undefined = property.HostsFrom && property.HostsFrom > todayLocal() ? property.HostsFrom : undefined
   // The second open's picker also crosses out whatever was picked for the first open - two
   // requests for the same date isn't a real "second open," and the first date isn't in
   // scheduledOpens (it's not booked yet, just already chosen on this form).
@@ -250,6 +253,7 @@ export default function RequestToHostModal({
                 value={date}
                 onChange={setDate}
                 takenDates={takenDates}
+                minDate={comingSoonFrom}
                 buttonClassName="flex w-full items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0B0B0B] px-4 py-3 text-left text-sm font-bold outline-none focus:border-[#C9A24D] dark:text-white"
               />
             </div>
@@ -301,6 +305,7 @@ export default function RequestToHostModal({
                     value={date2}
                     onChange={setDate2}
                     takenDates={takenDatesForSecond}
+                    minDate={comingSoonFrom}
                     buttonClassName="flex w-full items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0B0B0B] px-4 py-3 text-left text-sm font-bold outline-none focus:border-[#C9A24D] dark:text-white"
                   />
                 </div>

@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // INTERNAL_API_URL, exactly like every other public site data fetch. This keeps
 // backend/app/main.py's CORSMiddleware untouched - see the Website Builder Phase 1 plan's note
 // on why widening allow_origins would be a real security downgrade (allow_credentials=True).
-const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://localhost:8080'
+const INTERNAL_API_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ formId: string }> }) {
   const { formId } = await params

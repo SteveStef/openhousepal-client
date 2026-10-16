@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { AnimatePresence, motion } from 'framer-motion'
 import { MapPin, Bed, Bath, Square } from 'lucide-react'
 import { Property } from '@/types'
+import { todayLocal } from '@/lib/relativeDays'
 
 export interface OpenHouseRequestFormData {
   fullName: string
@@ -215,7 +216,7 @@ export default function OpenHouseRequestForm({
                 type="date"
                 value={preferredVisitDate}
                 onChange={(e) => setPreferredVisitDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
+                min={todayLocal()}
                 className="w-[42%] shrink-0 px-3 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white font-medium focus:outline-none focus:ring-4 focus:ring-[var(--accent)] focus:border-[var(--accent)] transition-all"
                 required
               />
@@ -306,7 +307,7 @@ export default function OpenHouseRequestForm({
                         type="date"
                         value={anotherTourDate}
                         onChange={(e) => setAnotherTourDate(e.target.value)}
-                        min={new Date().toISOString().split('T')[0]}
+                        min={todayLocal()}
                         className="w-[42%] shrink-0 px-3 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white font-medium focus:outline-none focus:ring-4 focus:ring-[var(--accent)] focus:border-[var(--accent)] transition-all"
                       />
                       <input

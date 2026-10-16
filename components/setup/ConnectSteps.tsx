@@ -2,18 +2,21 @@
 
 // Alerts, calendar, CRM, and the IDX website steps - each a thin, friendly front on the feature's
 // own endpoints (notification prefs, follow-ups, calendar OAuth, CRM push, site areas/theme/publish).
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { CalendarCheck, Check, Copy, ExternalLink, Globe, Loader2, Rocket } from 'lucide-react'
 import api from '@/lib/api-service'
+import { CONNECTED_EVENT, OUTLOOK_LIVE, openSignInTab } from '@/lib/providers'
+import { GoogleCalendarLogo, OutlookLogo } from '@/components/brand/ProviderLogos'
 import type { FeaturedSettings, IntegrationsInfo, NotificationPreferences, Site, SitePage, SiteTheme } from '@/types'
 import { useFollowupsEnabled } from '@/components/tasks/FollowupsSwitch'
-import AreasPanel from '@/components/studio/website/AreasPanel'
+import TownPicker from './TownPicker'
 import SendAsPanel from '@/components/integrations/SendAsPanel'
 import { CLASSIC_ACCENTS, CLASSIC_DEFAULT_ACCENT, normalizeSiteTheme, siteLuxeMetal } from '@/lib/siteTheme'
 import { LUXE_METALS, LUXE_METAL_ORDER } from '@/lib/luxeMetals'
 import HeaderHomesPanel from '@/components/studio/website/HeaderHomesPanel'
 import FeaturedSettingsPanel from '@/components/studio/website/FeaturedSettingsPanel'
-import { BigToggle, ChoiceCard, Field, MoreOptions, PinnedPreview, StepCtx, SubHead, Swatches, emailOk, useGate } from './SetupUi'
+import { BigToggle, ChoiceCard, Field, MoreOptions, SplitPreview, StepCtx, SubHead, Swatches, emailOk, useGate } from './SetupUi'
+import { ohpHostUrl } from '@/lib/publicResourceLinks'
 import SiteMiniPreview from '@/components/studio/website/SiteMiniPreview'
 import { accentLabel } from '@/lib/accentSwatches'
 
@@ -60,45 +63,72 @@ export function AlertsStep({ ctx }: { ctx: StepCtx }) {
 }
 
 // ---------- Calendar ----------
+/** Refetch when a sign-in finishes in its own tab (app/settings/connected) or the agent comes back. */
+export function useRefreshOnConnected(refresh: () => void) {
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => { if (e.key === CONNECTED_EVENT) refresh() }
+    const onFocus = () => refresh()
+    window.addEventListener('storage', onStorage)
+    window.addEventListener('focus', onFocus)
+    return () => { window.removeEventListener('storage', onStorage); window.removeEventListener('focus', onFocus) }
+  }, [refresh])
+}
+
 export function CalendarStep({ ctx }: { ctx: StepCtx }) {
   const [info, setInfo] = useState<IntegrationsInfo | null>(null)
-  const [busy, setBusy] = useState<'' | 'google' | 'microsoft'>('')
+  const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [feed, setFeed] = useState('')
   const [copied, setCopied] = useState(false)
-  useEffect(() => { api.integrations.get().then(r => { if (r.success && r.data) setInfo(r.data) }) }, [])
+  const load = useCallback(() => { api.integrations.get().then(r => { if (r.success && r.data) setInfo(r.data) }) }, [])
+  useEffect(load, [load])
+  useRefreshOnConnected(load)
+  // Once Google answers, the waiting spinner stops on its own.
+  useEffect(() => { if (info?.google_calendar?.connected) setBusy(false) }, [info?.google_calendar?.connected])
   useGate(ctx, { ok: true }, [])
   if (!info) return <Spinner />
-  const connect = async (p: 'google' | 'microsoft') => {
-    setBusy(p); setErr('')
-    const r = p === 'google' ? await api.integrations.googleConnectUrl('setup') : await api.integrations.microsoftConnectUrl('setup')
-    if (r.success && r.data?.auth_url) { window.location.href = r.data.auth_url; return }
-    setErr(r.error || 'That calendar can’t be connected right now - please try again later.')
-    setBusy('')
+  const connect = async () => {
+    setBusy(true); setErr('')
+    let error = ''
+    const opened = await openSignInTab(async () => {
+      const r = await api.integrations.googleConnectUrl('setup')
+      if (!r.success) error = r.error || ''
+      return r.data?.auth_url
+    })
+    if (!opened) {
+      setErr(error || 'Your browser blocked the new tab - allow pop-ups for OpenHousePal, then press Connect again.')
+      setBusy(false)
+    }
   }
-  const rows = [
-    { p: 'google' as const, name: 'Google Calendar', status: info.google_calendar, available: info.google_calendar_available, mark: 'G', color: 'bg-white text-[#4285F4] border border-gray-200' },
-    { p: 'microsoft' as const, name: 'Outlook Calendar', status: info.microsoft_calendar, available: info.microsoft_calendar_available, mark: 'O', color: 'bg-[#0078D4] text-white' },
-  ]
+  const googleOn = !!info.google_calendar?.connected
   return (
     <div className="space-y-4">
-      {rows.map(r => {
-        const on = !!r.status?.connected
-        return (
-          <div key={r.p} className={`flex flex-wrap items-center gap-4 rounded-[22px] border-2 p-5 ${on ? 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-500/40 dark:bg-emerald-500/10' : 'border-[#ece5d6] bg-white dark:border-white/10 dark:bg-[#141416]'}`}>
-            <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-[20px] font-black ${r.color}`}>{r.mark}</span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[17px] font-black text-[#111827] dark:text-white">{r.name}</p>
-              <p className="text-[14px] font-medium text-gray-500 dark:text-gray-400">{on ? `Connected${r.status?.account_email ? ` to ${r.status.account_email}` : ''}` : r.available ? 'Takes about 30 seconds.' : 'Not available yet.'}</p>
-            </div>
-            {on
-              ? <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-[14px] font-black text-white"><CalendarCheck className="h-4 w-4" /> Connected</span>
-              : <button type="button" disabled={!r.available || !!busy} onClick={() => connect(r.p)} className="inline-flex h-12 items-center gap-2 rounded-2xl bg-[#111827] px-6 text-[15px] font-black text-white transition hover:-translate-y-0.5 disabled:opacity-50 dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827]">{busy === r.p && <Loader2 className="h-4 w-4 animate-spin" />} Connect</button>}
+      <div className={`flex flex-wrap items-center gap-4 rounded-[22px] border-2 p-5 ${googleOn ? 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-500/40 dark:bg-emerald-500/10' : 'border-[#ece5d6] bg-white dark:border-white/10 dark:bg-[#141416]'}`}>
+        <span className="h-12 w-12 shrink-0"><GoogleCalendarLogo /></span>
+        <div className="min-w-[10rem] flex-1">
+          <p className="text-[17px] font-black text-[#111827] dark:text-white">Google Calendar</p>
+          <p className="text-[14px] font-medium text-gray-500 dark:text-gray-400">
+            {googleOn ? `Connected${info.google_calendar?.account_email ? ` to ${info.google_calendar.account_email}` : ''}`
+              : busy ? 'Finish signing in on the new tab - this updates by itself.'
+              : info.google_calendar_available ? 'Takes about 30 seconds.' : 'Not available yet.'}
+          </p>
+        </div>
+        {googleOn
+          ? <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-[14px] font-black text-white"><CalendarCheck className="h-4 w-4" /> Connected</span>
+          : <button type="button" disabled={!info.google_calendar_available || busy} onClick={connect} className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl max-sm:w-full bg-[#111827] px-6 text-[15px] font-black text-white transition hover:-translate-y-0.5 disabled:opacity-50 dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827]">{busy && <Loader2 className="h-4 w-4 animate-spin" />} Connect <ExternalLink className="h-4 w-4" /></button>}
+      </div>
+      {!OUTLOOK_LIVE && (
+        <div className="flex flex-wrap items-center gap-4 rounded-[22px] border-2 border-dashed border-[#ece5d6] bg-white/60 p-5 dark:border-white/10 dark:bg-[#141416]/60">
+          <span className="h-12 w-12 shrink-0 opacity-60"><OutlookLogo /></span>
+          <div className="min-w-[10rem] flex-1">
+            <p className="text-[17px] font-black text-gray-500 dark:text-gray-400">Outlook Calendar</p>
+            <p className="text-[14px] font-medium text-gray-400">Use Google for now.</p>
           </div>
-        )
-      })}
+          <span className="max-sm:w-full max-sm:text-center rounded-full bg-gray-100 px-4 py-2 text-[13px] font-black uppercase tracking-wide text-gray-500 dark:bg-white/[0.06] dark:text-gray-400">Coming soon</span>
+        </div>
+      )}
       {err && <p className="text-[14px] font-bold text-rose-600">{err}</p>}
-      <p className="text-[13.5px] font-medium text-gray-500 dark:text-gray-400">You&apos;ll sign in with Google or Microsoft, then come right back here.</p>
+      <p className="text-[13.5px] font-medium text-gray-500 dark:text-gray-400">Google opens in a new tab - sign in there and this page updates by itself.</p>
       <MoreOptions label="Use Apple Calendar or something else?">
         <p className="text-[14px] font-medium text-gray-600 dark:text-gray-300">Copy your private calendar link and add it as a &quot;subscribed calendar&quot; in any calendar app. It shows your reminders and open houses (read-only).</p>
         {feed
@@ -184,24 +214,9 @@ export function CrmStep({ ctx }: { ctx: StepCtx }) {
 
 // ---------- Website areas ----------
 export function AreasStep({ ctx }: { ctx: StepCtx }) {
+  // No preview here - there's nothing to see until towns are picked (user, 10/15).
   useGate(ctx, { ok: true }, [])
-  const [changed, setChanged] = useState(0)
-  const [quiet, setQuiet] = useState(0)
-  const [note, setNote] = useState<string | undefined>(undefined)
-  return (
-    <div className="space-y-8">
-      <PinnedPreview desktopOnly>
-        <SiteMiniPreview focus="communities" refreshKey={changed} quietKey={quiet} note={note} height={280} />
-      </PinnedPreview>
-      <div className="setup-embed">
-        <AreasPanel onChange={what => {
-          if (what?.added) { setNote(`Added · ${what.added}`); setChanged(n => n + 1) }
-          else if (what?.removed) { setNote(`Removed · ${what.removed}`); setChanged(n => n + 1) }
-          else setQuiet(n => n + 1)
-        }} />
-      </div>
-    </div>
-  )
+  return <TownPicker />
 }
 
 // ---------- Website homes (header + Featured page) ----------
@@ -234,10 +249,7 @@ export function HomesStep({ ctx }: { ctx: StepCtx }) {
   const featured = (site.draft_data?.featured_settings || { mode: 'served_areas', towns: [], school_districts: [], sort: 'newest', prioritize_my_listings: true }) as FeaturedSettings
   const hasFeaturedSection = pages.some(p => p.is_home && p.blocks.some(b => b.type === 'featured_listings' && !b.hidden))
   return (
-    <div className="space-y-8">
-      <PinnedPreview desktopOnly>
-        <SiteMiniPreview site={site} featured={featured} focus={homesFocus} note={homesNote} height={280} />
-      </PinnedPreview>
+    <SplitPreview preview={<SiteMiniPreview site={site} featured={featured} focus={homesFocus} note={homesNote} height="var(--setup-prev-h)" />}>
       <div className="setup-embed space-y-5">
         <HeaderHomesPanel data={hero ? hero.data : null}
           onChange={patch => {
@@ -248,7 +260,7 @@ export function HomesStep({ ctx }: { ctx: StepCtx }) {
           }} />
         <FeaturedSettingsPanel value={featured} onChange={v => { setHomesFocus(hasFeaturedSection ? 'featured_listings' : 'hero'); setHomesNote('Featured homes · updated'); save({ featured_settings: v }) }} />
       </div>
-    </div>
+    </SplitPreview>
   )
 }
 
@@ -269,7 +281,9 @@ export function WebsiteStep({ ctx }: { ctx: StepCtx }) {
       }
       setSite(r.data)
     })
-    api.sites.getPublicBaseUrl().then(r => { if (r.success && r.data) setBase(r.data.base_url) })
+    // The website's own address (their connected domain, else the free <slug>.openhousepal.com) -
+    // never the links base, which is openhousepal.com (that opened their dashboard).
+    api.sites.getLinkDomain().then(r => { if (r.success && r.data) setBase(r.data.own_base_url || r.data.default_base_url) })
   }, [])
   const theme = (site?.draft_data?.theme || {}) as SiteTheme
   // Client reviews on the website (the same switch as Studio -> Reviews).
@@ -312,11 +326,9 @@ export function WebsiteStep({ ctx }: { ctx: StepCtx }) {
   useGate(ctx, { ok: true, onContinue: async () => { if (!live) { const ok = await publish(); if (!ok) return false } await api.setup.setState({ confirm: 'website' }) } }, [live, site?.status])
   if (!site) return <Spinner />
   const template = theme.template === 'luxe' ? 'luxe' : 'default'
+  const siteHost = (() => { try { return base ? new URL(base).host : '' } catch { return '' } })()
   return (
-    <div className="space-y-8">
-      <PinnedPreview desktopOnly>
-        <SiteMiniPreview site={site} theme={theme} note={note} hasReviews={showReviews && reviewCount > 0} height={260} />
-      </PinnedPreview>
+    <SplitPreview preview={<SiteMiniPreview site={site} theme={theme} note={note} hasReviews={showReviews && reviewCount > 0} height="var(--setup-prev-h)" />}>
       <div>
         <SubHead>Style</SubHead>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -358,10 +370,10 @@ export function WebsiteStep({ ctx }: { ctx: StepCtx }) {
           <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${live ? 'bg-emerald-600 text-white' : 'bg-[#111827] text-[#e8c97a]'}`}>{live ? <Globe className="h-6 w-6" /> : <Rocket className="h-6 w-6" />}</span>
           <div className="min-w-0 flex-1">
             <p className="text-[17px] font-black text-[#111827] dark:text-white">{live ? 'Your website is live' : 'Ready when you are'}</p>
-            {base && <p className="truncate text-[14px] font-semibold text-gray-500 dark:text-gray-400">{base.replace(/^https?:\/\//, '')}</p>}
+            {siteHost && <p className="truncate text-[14px] font-semibold text-gray-500 dark:text-gray-400">{siteHost}</p>}
           </div>
           {live
-            ? <a href={base} target="_blank" rel="noreferrer" className="inline-flex h-12 items-center gap-2 rounded-2xl bg-white px-5 text-[15px] font-black text-[#111827] shadow-sm dark:bg-black/30 dark:text-white">Visit <ExternalLink className="h-4 w-4" /></a>
+            ? <a href={ohpHostUrl(siteHost)} target="_blank" rel="noreferrer" className="inline-flex h-12 items-center gap-2 rounded-2xl bg-white px-5 text-[15px] font-black text-[#111827] shadow-sm dark:bg-black/30 dark:text-white">Visit <ExternalLink className="h-4 w-4" /></a>
             : <button type="button" onClick={publish} disabled={busy} className="inline-flex h-12 items-center gap-2 rounded-2xl bg-gradient-to-r from-[#a8803a] via-[#C9A24D] to-[#e8c97a] px-6 text-[15px] font-black text-[#111827] shadow-lg disabled:opacity-60">{busy && <Loader2 className="h-4 w-4 animate-spin" />} Put my website live</button>}
         </div>
         {!live && <p className="mt-3 text-[13.5px] font-medium text-gray-600 dark:text-gray-300">Pressing Continue puts it live too. You can change anything later in the website editor.</p>}
@@ -369,9 +381,9 @@ export function WebsiteStep({ ctx }: { ctx: StepCtx }) {
         {err && <p className="mt-3 text-[14px] font-bold text-rose-600">{err}</p>}
       </div>
       <MoreOptions label="Have your own web address (like janesmith.com)?">
-        <p className="text-[14px] font-medium text-gray-600 dark:text-gray-300">Connect it in Settings - we walk you through it step by step, and your website keeps working the whole time.</p>
-        <a href="/settings#idx" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-4 py-2.5 text-[14px] font-black text-white dark:bg-white dark:text-[#111827]">Connect my domain <ExternalLink className="h-4 w-4" /></a>
+        <p className="text-[14px] font-medium text-gray-600 dark:text-gray-300">Connect it in the website editor's Domain tab - we walk you through it step by step, and your website keeps working the whole time.</p>
+        <a href="/studio/website?tab=domains" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-4 py-2.5 text-[14px] font-black text-white dark:bg-white dark:text-[#111827]">Connect my domain <ExternalLink className="h-4 w-4" /></a>
       </MoreOptions>
-    </div>
+    </SplitPreview>
   )
 }

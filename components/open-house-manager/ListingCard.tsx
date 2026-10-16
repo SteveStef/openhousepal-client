@@ -2,7 +2,7 @@
 
 import { Users, CalendarCheck, Star, BarChart3, UserCog, Home, Trash2, Bed, Bath, Ruler, Clock } from 'lucide-react'
 import { MyListingItem, ScheduledOpen } from '@/types'
-import WeekendCalendarCards, { WeekendCell, WeekendCalendarOpen } from './WeekendCalendarCards'
+import WeekendCalendarCards, { WeekendCell, WeekendCalendarOpen, hostingNote } from './WeekendCalendarCards'
 import { formatShortDateWithDay, formatTimeRangeCompact } from './formatters'
 
 function formatPrice(price?: number | null) {
@@ -16,6 +16,7 @@ export default function ListingCard({
   onManageHosts,
   onRequestRemove,
   onCalendarCellClick,
+  pendingDates,
 }: {
   listing: MyListingItem
   onViewInsights: (listingKey: string) => void
@@ -25,6 +26,8 @@ export default function ListingCard({
   // empty cell prefills a direct request for it, a filled one jumps to Host Notes (see
   // my-listings/page.tsx for what each does with cell/open).
   onCalendarCellClick?: (listingKey: string, cell: WeekendCell, open?: WeekendCalendarOpen) => void
+  /** Days another agent has asked to host - "Request in" instead of "Needs Host". */
+  pendingDates?: string[]
 }) {
   const allOpens: ScheduledOpen[] = [...listing.scheduled_opens, ...listing.confirmed_pending_kit]
     .sort((a, b) => (a.scheduled_date || '').localeCompare(b.scheduled_date || ''))
@@ -133,8 +136,15 @@ export default function ListingCard({
         {/* Weekend mini calendar - fixed at exactly 4 cells (this Sat/Sun, next Sat/Sun) no matter
             how many opens the listing actually has, so this never grows or shrinks the card.
             Clicking a cell jumps into Manage Hosts already primed for that date. */}
+        {hostingNote(listing) && (
+          <p className="rounded-lg bg-gray-100 px-2.5 py-1.5 text-center text-[10.5px] font-bold text-gray-500 dark:bg-white/[0.05] dark:text-gray-400">{hostingNote(listing)}</p>
+        )}
         <WeekendCalendarCards
           opens={allOpens}
+          hostingWindow={listing}
+          pendingDates={pendingDates}
+          pendingLabel="Request in"
+          pendingTitle="An agent asked to host this date - review it"
           onCellClick={onCalendarCellClick ? (cell, open) => onCalendarCellClick(listing.listing_key, cell, open) : undefined}
         />
 

@@ -577,8 +577,11 @@ export function buildDesignPreviewHtml(opts: {
   /** Site version on a page (blog, Spotlight): cycle through several listings - and, when set, a
    *  "Recent Sales" slide - in the banner spot instead of one fixed card. */
   rotation?: { listings: NonNullable<PreviewListing>[]; sales?: PreviewSaleMini[] | null; salesAt?: number; listingsHref?: string; salesHref?: string } | null
+  /** Stats with no listing/sales card beside them: a slim strip in the card's spot instead of the
+   *  right-hand column (same as the email - email_signature_service.stats_as_strip). */
+  statsStrip?: boolean
 }): string {
-  const { identity, socials, buttons, listing, saleCards, listingHref, salesHref, stats, accent, fontFamily, dark, interactive = true, luxe = false, metal = 'gold', reportHeight = interactive, rotation = null } = opts
+  const { identity, socials, buttons, listing, saleCards, listingHref, salesHref, stats, accent, fontFamily, dark, interactive = true, luxe = false, metal = 'gold', reportHeight = interactive, rotation = null, statsStrip = false } = opts
   const mp = LUXE_METALS[metal]
   // Same hex values as _theme_colors/CARD_BG_DARK in email_signature_service.py - kept in sync by
   // hand since one's Python and the other's TS, not a shared module.
@@ -696,7 +699,7 @@ export function buildDesignPreviewHtml(opts: {
       item.sqft ? `${Math.round(item.sqft).toLocaleString()} sq ft` : '',
       item.acres ? `${item.acres} ac` : '',
     ].filter(Boolean)
-    const kicker = chip.label === 'Coming Soon' ? 'Coming soon' : /just listed/i.test(item.kicker) ? item.kicker : 'Featured listing'
+    const kicker = chip.label === 'Coming Soon' ? 'Coming soon' : chip.label === 'Sold' ? 'Recent sale' : /just listed/i.test(item.kicker) ? item.kicker : 'Featured listing'
     const ctaBg = `background:${accent};${accentTextStyle}`
     return `<div class="feat-card" style="--feat-accent:${accent};background:${_cardWashBg(accent, dark)};">
         <div class="feat-photo">
@@ -782,7 +785,13 @@ export function buildDesignPreviewHtml(opts: {
   }
 
   const statsTextColor = '#ffffff'
-  const statsHtml = stats
+  const stripHtml = stats && statsStrip
+    ? `<a href="${esc(salesHref || '#')}" class="stats-strip" style="--signature-accent:${accent};">
+        <span class="ss-head">My stats<i></i></span>
+        ${[[stats.volume, 'Volume'], [stats.sold, 'Closed'], [stats.avg, 'Avg price']].filter(([v]) => v).map(([v, l]) => `<span class="ss-pill"><b>${esc(String(v))}</b><small>${l}</small></span>`).join('')}
+      </a>`
+    : ''
+  const statsHtml = stats && !statsStrip
     ? `<aside class="gallery-rail" style="display:flex;width:112px;flex-shrink:0;flex-direction:column;align-items:center;color:${statsTextColor};" data-accent="${accent}">
         <div class="mt-2" style="margin-top:2px;width:100%;text-align:center;--stat-text:${statsTextColor};">
           ${[
@@ -836,6 +845,12 @@ export function buildDesignPreviewHtml(opts: {
   [style*="--signature-accent"] {}
   ${GALLERY_CSS}
   .gallery-rail { --signature-accent: ${accent}; }
+  .stats-strip { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 8px 10px 8px 14px; border: 1px solid var(--signature-accent); border-radius: 10px; color: #fff; text-decoration: none; background: linear-gradient(90deg, color-mix(in srgb, var(--signature-accent) 92%, white), color-mix(in srgb, var(--signature-accent) 72%, #171817)); animation: stats-rise .8s .2s both; }
+  .stats-strip .ss-head { flex: 0 0 auto; margin-right: 8px; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; text-shadow: 0 1px 2px rgba(0,0,0,.8), 0 1px 4px rgba(0,0,0,.3); }
+  .stats-strip .ss-head i { display: block; width: 14px; height: 2px; margin-top: 5px; border-radius: 2px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.4); }
+  .stats-strip .ss-pill { flex: 1 1 0%; display: flex; flex-direction: column; align-items: center; padding: 7px 6px; border: 1px solid rgba(255,255,255,.3); border-radius: 9px; background: rgba(255,255,255,.13); box-shadow: inset 0 1px rgba(255,255,255,.14); }
+  .stats-strip .ss-pill b { font-size: 17px; font-weight: 800; line-height: 1; letter-spacing: -.03em; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 2px 8px rgba(0,0,0,.45); }
+  .stats-strip .ss-pill small { margin-top: 4px; font-size: 8.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
 </style>
 </head>
 <body>
@@ -859,6 +874,7 @@ export function buildDesignPreviewHtml(opts: {
         ${rotationHtml}
         ${listingHtml}
         ${saleCardsHtml}
+        ${stripHtml}
       </div>
       ${statsHtml}
     </div>

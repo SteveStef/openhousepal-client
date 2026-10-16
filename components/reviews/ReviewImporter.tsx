@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, ClipboardPaste, Loader2, PenLine, Star, Upload } from 'lucide-react'
 import api from '@/lib/api-service'
+import { todayLocal } from '@/lib/relativeDays'
 
 const SOURCES = [
   { id: 'zillow', label: 'Zillow', how: 'Open your Zillow agent profile, scroll to Reviews and tap "See all". Select the reviews (drag over them, or press Ctrl+A / Cmd+A), copy, and paste below.' },
@@ -142,7 +143,7 @@ export default function ReviewImporter({ inputCls, onImported }: { inputCls: str
       {mode === 'one' && (
         <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
           <input value={one.name} onChange={e => setOne({ ...one, name: e.target.value })} placeholder="Client’s name (e.g. Jennifer M.)" className={inputCls} />
-          <input type="date" value={one.date} max={new Date().toISOString().slice(0, 10)} onChange={e => setOne({ ...one, date: e.target.value })} className={inputCls} aria-label="When they wrote it" />
+          <input type="date" value={one.date} max={todayLocal()} onChange={e => setOne({ ...one, date: e.target.value })} className={inputCls} aria-label="When they wrote it" />
           <div className="flex items-center gap-2 sm:col-span-2"><span className="text-xs font-black text-gray-500">Stars</span><StarPicker value={one.rating} onChange={n => setOne({ ...one, rating: n })} /></div>
           <textarea value={one.body} onChange={e => setOne({ ...one, body: e.target.value })} rows={4} placeholder="Paste or type the review, word for word" className={`${inputCls} sm:col-span-2`} />
           <label className="flex items-start gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300 sm:col-span-2">

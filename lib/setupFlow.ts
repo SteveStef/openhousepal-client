@@ -121,7 +121,7 @@ export function stepCopy(id: SetupStepId, plan: string | null, hasMls: boolean):
     case 'mailbox':
       return {
         icon: MailCheck, label: 'Your email', title: ['Send from ', 'your own email'],
-        intro: 'Connect Gmail or Outlook and your client emails come from your real address, so they land in the inbox and show in your Sent folder. Turn it off any time and OpenHousePal sends them for you.',
+        intro: 'Connect Gmail and your client emails come from your real address, so they land in the inbox and show in your Sent folder. Turn it off any time and OpenHousePal sends them for you.',
         powers: where(['Tour confirmations'], [[hasShowcase(plan), 'Showcase invites & new-home updates'], [idx, 'Listing alerts']]),
         skip: 'Guest emails come from OpenHousePal, and some may land in junk.',
       }

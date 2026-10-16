@@ -183,7 +183,8 @@ export default function DashLeadCard({ lead, onOpenLead }: { lead: Lead; onOpenL
       {/* Fixed top-right corner, one line - always the same spot regardless of name/contact length */}
       <div className="absolute right-2 top-2 z-10 flex shrink-0 items-center gap-1">
         <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-black uppercase leading-tight tracking-wide ${STATUS_STYLES[status]}`}>{STATUS_LABELS[status]}</span>
-        {lead.represented !== 'yes' && (
+        {/* Only when they said so - 'unknown' (not asked yet) isn't "no agent". Matches the Leads page. */}
+        {lead.represented === 'no' && (
           <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black uppercase leading-tight tracking-wide text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
             <ShieldAlert className="h-2.5 w-2.5" /> No Agent
           </span>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://localhost:8080'
+const INTERNAL_API_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 const OHP_BASE_DOMAIN = process.env.NEXT_PUBLIC_OHP_BASE_DOMAIN || 'openhousepal.com'
 // Local dev and the app's own hostnames (openhousepal.com/ohp-site-render/<host>) name the site in the page.
 const LOCAL_TEST_HOSTS = new Set(['localhost', '127.0.0.1', OHP_BASE_DOMAIN, `www.${OHP_BASE_DOMAIN}`, `app.${OHP_BASE_DOMAIN}`])

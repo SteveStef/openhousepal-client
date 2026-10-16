@@ -271,6 +271,27 @@ export default function PublicAgentHubPage() {
     if (forceLightMode) setVisitorDarkMode(false)
   }, [forceLightMode])
 
+  // The hub follows ITS OWN light/dark choice, never the OpenHousePal app's: the app's dark mode puts
+  // "dark" on <html> for this whole browser (same site), which turned a light hub dark for anyone who
+  // uses the app in dark mode - and in the setup preview frame. Put the page's own choice on <html>
+  // while the hub is open, and hand the app's back when leaving.
+  // (The app's theme provider sets <html> after this page's effects run, and again whenever it
+  // re-applies the theme - so keep watching and put the hub's choice back each time.)
+  useEffect(() => {
+    const root = document.documentElement
+    const had = root.classList.contains('dark')
+    const prevScheme = root.style.colorScheme
+    const dark = visitorDarkMode && !forceLightMode
+    const apply = () => {
+      if (root.classList.contains('dark') !== dark) root.classList.toggle('dark', dark)
+      if (root.style.colorScheme !== (dark ? 'dark' : 'light')) root.style.colorScheme = dark ? 'dark' : 'light'
+    }
+    apply()
+    const watch = new MutationObserver(apply)
+    watch.observe(root, { attributes: true, attributeFilter: ['class', 'style'] })
+    return () => { watch.disconnect(); root.classList.toggle('dark', had); root.style.colorScheme = prevScheme }
+  }, [visitorDarkMode, forceLightMode])
+
   // The setup flow's preview frame (?preview=1): the look being picked arrives here the moment
   // it's tapped (same-origin parent only), so the phone changes at once instead of after a save
   // and a reload.

@@ -180,7 +180,7 @@ const StatCard = ({ title, value, icon: Icon, accent = 'neutral' }: { title: str
 }
 
 // --- Dashboard Property Row ---
-const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, openHouseSchedule, isNewAndUnseen, onRequestToHost, onViewDetail }: { property: any, openHouseSchedule?: { status: string, scheduled_date?: string | null, scheduled_start_time?: string | null, scheduled_end_time?: string | null, scheduled_opens?: { scheduled_date: string | null, scheduled_start_time: string | null, scheduled_end_time: string | null, hosting_agent_id?: string | null }[] }, isNewAndUnseen: boolean, onRequestToHost: (p: any, prefillDate?: string) => void, onViewDetail: (p: any) => void }) {
+const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, openHouseSchedule, isNewAndUnseen, onRequestToHost, onViewDetail, requestedDates, busyDates }: { requestedDates?: string[], busyDates?: string[], property: any, openHouseSchedule?: { status: string, scheduled_date?: string | null, scheduled_start_time?: string | null, scheduled_end_time?: string | null, scheduled_opens?: { scheduled_date: string | null, scheduled_start_time: string | null, scheduled_end_time: string | null, hosting_agent_id?: string | null }[] }, isNewAndUnseen: boolean, onRequestToHost: (p: any, prefillDate?: string) => void, onViewDetail: (p: any) => void }) {
   const { user } = useAuth()
   const isOpenHouseScheduled = openHouseSchedule?.status === 'scheduled'
   const upcomingOpens = openHouseSchedule?.scheduled_opens || []
@@ -199,7 +199,9 @@ const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, open
           page cards. */}
       <div className="relative w-full md:w-[188px] aspect-[4/3] md:aspect-auto md:h-auto shrink-0 overflow-hidden rounded-2xl bg-gray-100 dark:bg-[#0B0B0B]">
         <Image
-          src={normalizeImageUrl(property.Image || '/placeholder.jpg')}
+          // No photo yet: the site's own placeholder. Prefixing it with the API address pointed it at
+          // a host next/image doesn't allow, which crashed the whole page on a photo-less listing.
+          src={property.Image ? normalizeImageUrl(property.Image) : '/placeholder.jpg'}
           alt={property.Street}
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -320,6 +322,11 @@ const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, open
           onCellClick={(cell, open) => { if (!open) onRequestToHost(property, cell.date) }}
           viewerId={user?.id}
           othersMuted
+          hostingWindow={{ hosting_blocked: property.HostingBlocked, hosts_from: property.HostsFrom }}
+          pendingDates={requestedDates}
+          pendingLabel="Requested"
+          pendingTitle="You asked to host this day - waiting on the listing agent"
+          busyDates={busyDates}
         />
       </div>
       </div>
@@ -348,6 +355,15 @@ const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, open
             >
               <Ban size={12} className="shrink-0" />
               <span>Not Accepting Host Requests</span>
+            </div>
+          ) : property.HostingBlocked ? (
+            // Coming Soon with no go-live date yet: Bright allows no showings, so no open house.
+            <div
+              className="flex-1 md:flex-none flex items-center justify-center gap-1.5 rounded-xl md:rounded-[1.25rem] border border-gray-200 bg-gray-50 px-2 py-2 md:py-2.5 text-center text-[10px] md:text-[9px] font-black uppercase leading-tight tracking-wide text-gray-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-400"
+              title="Coming Soon - Bright allows no showings until it goes active"
+            >
+              <Clock size={12} className="shrink-0" />
+              <span>Coming Soon · Hosting once it&apos;s active</span>
             </div>
           ) : (
             <button
@@ -1828,6 +1844,10 @@ export default function OpenHouseDiscovery() {
                           key={idx}
                           property={property}
                           openHouseSchedule={listingStatuses[property.ListingKey]}
+                          // Days you already asked for here read "Requested"; days you're hosting a
+                          // different home read "Busy" - so the calendar never invites a second ask.
+                          requestedDates={myRequests.filter((r: any) => r.listing_key === property.ListingKey && (r.status === 'pending' || r.status === 'countered')).map((r: any) => String(r.requested_date))}
+                          busyDates={myRequests.filter((r: any) => r.listing_key !== property.ListingKey && r.status === 'approved').map((r: any) => String(r.requested_date))}
                           isNewAndUnseen={Boolean(property.New) && !seenNewKeys.has(property.ListingKey)}
                           onViewDetail={(p) => setQuickViewListingKey(p.ListingKey)}
                           onRequestToHost={(p, prefillDate) => {
@@ -1946,7 +1966,7 @@ export default function OpenHouseDiscovery() {
             onClose={() => setQuickViewListingKey(null)}
           />
 
-          <MyRequestsPanel isOpen={isMyRequestsOpen} onClose={() => setIsMyRequestsOpen(false)} onActionComplete={refreshMyRequests} />
+          <MyRequestsPanel isOpen={isMyRequestsOpen} onClose={() => setIsMyRequestsOpen(false)} onActionComplete={refreshMyRequests} focusRequestId={searchParams.get('request')} />
         </BrokerAuthorizationGuard>
       </SubscriptionGuard>
     </AuthGuard>

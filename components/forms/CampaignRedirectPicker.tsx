@@ -2,8 +2,9 @@
 
 // Where a campaign's visitors land after they submit (user 10/10). Shared by every place a campaign
 // is made or edited: Forms' New Campaign window, Studio's create flow and the Studio editor.
-// "Same as this form" (null) follows the form's own Redirect to Agent Hub switch - always the
-// starting choice for a new campaign.
+// No "Same as this form" row (user 10/12): the place the form already sends people (its Redirect to
+// Agent Hub switch) is simply shown selected, tagged "Form's setting". Picking it keeps mode null so the
+// campaign keeps following the form; any other pick is saved on the campaign.
 import { Check } from 'lucide-react'
 
 export type CampaignRedirectMode = 'agent_hub' | 'sales' | 'none' | 'custom'
@@ -18,11 +19,15 @@ const OPTIONS: { mode: CampaignRedirectMode; label: string; hint: string }[] = [
   { mode: 'custom', label: 'My own link', hint: 'Any web page you choose' },
 ]
 
+const shortLink = (url: string) => url.trim().replace(/^https?:\/\//, '').replace(/\/$/, '')
+/** Where the form itself sends people - what a campaign with no choice of its own does. */
+const formMode = (formGoesToHub: boolean): CampaignRedirectMode => formGoesToHub ? 'agent_hub' : 'none'
+
 /** A short line for a campaign card: "After submitting: My Agent Hub". */
 export function campaignRedirectLabel(mode: string | null | undefined, url: string | null | undefined, formGoesToHub: boolean): string {
-  if (!mode) return `Same as this form (${formGoesToHub ? 'Agent Hub' : 'thank-you screen'})`
-  if (mode === 'custom') return url ? url.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'My own link'
-  return OPTIONS.find(o => o.mode === mode)?.label || 'Same as this form'
+  const m = (mode || formMode(formGoesToHub)) as CampaignRedirectMode
+  if (m === 'custom') return url ? shortLink(url) : 'My own link'
+  return OPTIONS.find(o => o.mode === m)?.label || 'My Agent Hub'
 }
 
 /** The body the campaign endpoints take. */
@@ -45,7 +50,9 @@ export default function CampaignRedirectPicker({ value, onChange, formGoesToHub,
   formGoesToHub: boolean
   compact?: boolean
 }) {
-  const row = (selected: boolean, label: string, hint: string, onClick: () => void, key: string) => (
+  const fallback = formMode(formGoesToHub)
+  const current = value.mode ?? fallback
+  const row = (selected: boolean, label: string, hint: string, onClick: () => void, key: string, tag?: string) => (
     <button
       key={key}
       type="button"
@@ -56,19 +63,30 @@ export default function CampaignRedirectPicker({ value, onChange, formGoesToHub,
       <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${selected ? 'border-[#C9A24D] bg-[#C9A24D]' : 'border-gray-300 dark:border-gray-600'}`}>
         {selected && <Check className="h-2.5 w-2.5 text-white" strokeWidth={4} />}
       </span>
-      <span className="min-w-0">
-        <span className="block text-xs font-black text-[#111827] dark:text-white">{label}</span>
-        {!compact && <span className="block text-[11px] font-medium text-gray-400">{hint}</span>}
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5 text-xs font-black text-[#111827] dark:text-white">
+          {label}
+          {tag && <span className="rounded-full bg-gray-100 px-1.5 py-px text-[9px] font-black uppercase tracking-wider text-gray-500 dark:bg-white/10 dark:text-gray-400">{tag}</span>}
+        </span>
+        {(!compact || (selected && key === 'custom')) && <span className="block truncate text-[11px] font-medium text-gray-400">{hint}</span>}
       </span>
     </button>
   )
   const error = value.mode === 'custom' && value.url.trim() ? campaignRedirectError(value) : ''
+  const customOk = value.mode === 'custom' && value.url.trim() && !error
   return (
     <div data-testid="campaign-redirect-picker">
       <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">After they submit, send them to</p>
       <div className="mt-1.5 space-y-1.5">
-        {row(value.mode === null, 'Same as this form', formGoesToHub ? 'Your Agent Hub (the form\'s setting)' : 'The thank-you screen (the form\'s setting)', () => onChange({ mode: null, url: value.url }), 'default')}
-        {OPTIONS.map(o => row(value.mode === o.mode, o.label, o.hint, () => onChange({ mode: o.mode, url: value.url }), o.mode))}
+        {OPTIONS.map(o => row(
+          current === o.mode,
+          o.label,
+          o.mode === 'custom' && customOk ? `Points to ${shortLink(value.url)}` : o.hint,
+          // the form's own choice keeps the campaign following the form (null); anything else is saved here
+          () => onChange({ mode: o.mode === fallback ? null : o.mode, url: value.url }),
+          o.mode,
+          o.mode === fallback ? "Form's setting" : undefined,
+        ))}
       </div>
       {value.mode === 'custom' && (
         <div className="mt-2">

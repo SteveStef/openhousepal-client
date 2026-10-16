@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
 import { BellOff, BellRing, Loader2 } from 'lucide-react'
 import api from '@/lib/api-service'
 
@@ -48,7 +48,7 @@ export function useFollowupsEnabled() {
   return { enabled, saving, setEnabled }
 }
 
-export default function FollowupsSwitch({ className = '' }: { className?: string }) {
+export default function FollowupsSwitch({ className = '', children }: { className?: string; children?: ReactNode }) {
   const { enabled, saving, setEnabled } = useFollowupsEnabled()
   const on = enabled !== false
   const toggle = async () => {
@@ -69,6 +69,7 @@ export default function FollowupsSwitch({ className = '' }: { className?: string
               ? 'Already have a CRM that reminds you? Turn this off - OpenHousePal stops making follow-ups and hides them everywhere.'
               : 'Nothing new is added and it’s hidden from your Dash, Leads page and daily email. Turn it on to pick up where you left off.'}
           </p>
+          {children}
         </div>
       </div>
       <button

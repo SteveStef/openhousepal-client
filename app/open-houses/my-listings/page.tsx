@@ -97,11 +97,20 @@ function MyListingsContent() {
     }
   }, [showSortDropdown])
 
+  const [pendingDates, setPendingDates] = useState<Record<string, string[]>>({})
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setIsLoading(true)
     setLoadError('')
-    const { success, data, error } = await api.openHouseManager.getMyListings()
+    const [{ success, data, error }, pending] = await Promise.all([
+      api.openHouseManager.getMyListings(), api.openHouseManager.getHostRequests('pending'),
+    ])
     if (success && data) setData(data)
+    // A day another agent has asked to host reads "Request in" on the card, not "Needs Host".
+    if (pending.success && pending.data) {
+      const byKey: Record<string, string[]> = {}
+      for (const r of pending.data) (byKey[r.listing_key] ||= []).push(String(r.requested_date))
+      setPendingDates(byKey)
+    }
     else if (!opts?.silent) setLoadError(error || 'Unable to load your listings right now.')
     if (!opts?.silent) setIsLoading(false)
   }, [])
@@ -354,6 +363,7 @@ function MyListingsContent() {
                     onManageHosts={setManageHostsKey}
                     onRequestRemove={setRemoveTargetKey}
                     onCalendarCellClick={handleCalendarCellClick}
+                    pendingDates={pendingDates[listing.listing_key]}
                   />
                 ))}
               </div>
@@ -380,6 +390,7 @@ function MyListingsContent() {
         onActionComplete={load}
         prefillDirectDate={manageHostsPrefillDate}
         focusHostNotes={manageHostsFocusNotes}
+        hostingWindow={data?.listings.find(l => l.listing_key === manageHostsKey)}
       />
       <OpenHouseInsightsModal
         listingKey={insightsKey}

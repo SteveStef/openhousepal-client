@@ -28,7 +28,7 @@ export default function HeaderHomesPanel({ data, onChange, onEditHero }: {
 }) {
   const [towns, setTowns] = useState<string[] | null>(null)
   useEffect(() => {
-    api.sites.getAreas().then(r => setTowns(r.success && r.data ? r.data.map(a => a.area?.name).filter(Boolean) as string[] : []))
+    api.sites.getAreas(true).then(r => setTowns(r.success && r.data ? r.data.map(a => a.area?.name).filter(Boolean) as string[] : []))
   }, [])
 
   if (!data) {

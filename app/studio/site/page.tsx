@@ -10,6 +10,7 @@ import SubscriptionGuard from '@/components/SubscriptionGuard'
 import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
+import { toJpeg } from '@/components/setup/SetupUi'
 import api, { API_BASE_URL, resolveMediaUrl } from '@/lib/api-service'
 import FormResultsModal from '@/components/forms/FormResultsModal'
 import FormStatsModal from '@/components/forms/FormStatsModal'
@@ -2616,7 +2617,17 @@ function AgentHubContent() {
     if (!file) return
     setPhotoUploading(true)
     setPhotoError('')
-    const response = await api.agentHub.uploadPhoto(file)
+    // Any phone photo (PNG, WebP, a big camera shot) becomes a right-sized JPG first - same as
+    // Settings and the setup flow.
+    let jpg: File = file
+    try {
+      if (!(file.type === 'image/jpeg' && file.size < 4.5 * 1024 * 1024)) jpg = await toJpeg(file)
+    } catch {
+      setPhotoError('That photo couldn’t be read - please try a JPG or PNG.')
+      setPhotoUploading(false)
+      return
+    }
+    const response = await api.agentHub.uploadPhoto(jpg)
     if (response.success && response.data) {
       const url = response.data.photo_url.startsWith('http') ? response.data.photo_url : `${API_BASE_URL}${response.data.photo_url}`
       setProfilePhotoUrl(url)
@@ -3588,7 +3599,7 @@ function AgentHubContent() {
                                           <ImageIcon className="h-3.5 w-3.5 text-[#e8c97a] dark:text-[#111827]" /> Upload a new photo
                                           <input
                                             type="file"
-                                            accept="image/jpeg"
+                                            accept="image/jpeg,image/png,image/webp"
                                             disabled={photoUploading}
                                             onChange={(event) => handleProfilePhotoChange(event.target.files?.[0])}
                                             className="sr-only"

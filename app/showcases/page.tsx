@@ -285,6 +285,12 @@ function ShowcaseContent() {
     if (!selectedCollection?.id || markedSeenRef.current.has(selectedCollection.id)) return
     markedSeenRef.current.add(selectedCollection.id)
     api.collections.markSeen(selectedCollection.id)
+    // Opening it = seeing its new matches: the card's NEW photos + "N NEW" clear (server does the
+    // same). NEW on the homes inside stays until each one is opened.
+    const seenId = selectedCollection.id
+    setCollections(prev => prev.map(c => c.id === seenId
+      ? { ...c, stats: { ...c.stats, newProperties: 0 }, matchedProperties: c.matchedProperties?.map(p => ({ ...p, is_new: false })) }
+      : c))
   }, [selectedCollection?.id])
 
   // Deep link from Leads/the Daily Digest (?showcase=X&open=tours) - once, so re-opening the
@@ -687,6 +693,7 @@ function ShowcaseContent() {
         visitor_phone: info.phone,
         visiting_reason: info.visitingReason,
         has_agent: info.hasAgent,
+        email_client: info.emailClient !== false,
         additional_comments: prefs.special_features || '',
 
         // Search - everything the map editor sets (the same fields Edit saves)
@@ -729,7 +736,7 @@ function ShowcaseContent() {
       const { success, data, error } = await api.collections.createManually(payload)
       if (success && data) {
         resetCreate()
-        showToast('Showcase created successfully!', 'success')
+        showToast(info.emailClient !== false ? `Showcase created - emailed to ${info.fullName.split(/\s+/)[0] || 'your client'}.` : 'Showcase created successfully!', 'success')
         // Trigger full refresh to get the latest list including property counts
         await fetchCollections()
       } else {
@@ -949,6 +956,7 @@ function ShowcaseContent() {
           setSortOrder={setSortOrder}
           onBack={() => router.push('/showcases', { scroll: false })}
           onEditShowcase={() => { setSelectedCollectionForEdit(selectedCollection); setIsEditPreferencesModalOpen(true); }}
+          onShare={() => { setSelectedCollectionForShare(selectedCollection); setIsShareModalOpen(true); }}
           onQuickSave={async (prefs) => {
             const before = new Set(matchedProperties.map(p => String(p.id)))
             const { success, error } = await api.collections.updatePreferencesAndRefresh(selectedCollection.id, prefs)

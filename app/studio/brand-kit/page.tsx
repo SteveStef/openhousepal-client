@@ -9,6 +9,8 @@ import { BrandKit } from '@/types'
 import StudioPageHeader from '@/components/studio/StudioPageHeader'
 import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
+import { BRAND_ACCENT_COLORS, BRAND_MAIN_COLORS, type BrandSwatch } from '@/lib/brandSwatches'
+import { isLight } from '@/components/setup/SetupUi'
 
 const FONT_OPTIONS = [
   { value: 'serif', label: 'Editorial Serif', className: 'font-serif' },
@@ -136,8 +138,8 @@ function BrandKitPageInner() {
             <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
               <h2 className="text-sm font-black uppercase tracking-widest text-gray-400">Colors</h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                <ColorField label="Primary" value={kit.primary_color} onChange={v => scheduleSave({ ...kit, primary_color: v })} />
-                <ColorField label="Secondary" value={kit.secondary_color} onChange={v => scheduleSave({ ...kit, secondary_color: v })} />
+                <ColorField label="Primary" value={kit.primary_color} onChange={v => scheduleSave({ ...kit, primary_color: v })} swatches={BRAND_MAIN_COLORS} />
+                <ColorField label="Secondary" value={kit.secondary_color} onChange={v => scheduleSave({ ...kit, secondary_color: v })} swatches={BRAND_ACCENT_COLORS} />
                 <ColorField label="Accent" value={kit.accent_color} onChange={v => scheduleSave({ ...kit, accent_color: v })} />
               </div>
             </section>
@@ -211,34 +213,37 @@ function BrandKitPreview({ kit }: { kit: BrandKit }) {
   const headingClass = kit.heading_font === 'mono' ? 'font-mono' : kit.heading_font === 'sans' ? 'font-sans' : 'font-serif'
   const bodyClass = kit.body_font === 'mono' ? 'font-mono' : kit.body_font === 'serif' ? 'font-serif' : 'font-sans'
   const logoUrl = kit.personal_logo_url || kit.team_logo_url || kit.brokerage_logo_url
+  // white / silver main colors get dark type (the designs do the same)
+  const lightBg = isLight(kit.primary_color || '#111827')
+  const pillInk = isLight(kit.secondary_color || '#C9A24D') ? '#111827' : '#ffffff'
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-[#151517]">
       {/* Mock card, styled like a Just Listed design */}
-      <div className="relative flex aspect-[4/5] flex-col overflow-hidden" style={{ backgroundColor: kit.primary_color }}>
+      <div className="relative flex aspect-[4/5] flex-col overflow-hidden" style={{ backgroundColor: kit.primary_color, color: lightBg ? '#111827' : '#ffffff' }}>
         <div className="flex h-2/5 items-center justify-center bg-black/20">
-          <Home className="h-10 w-10 text-white/40" />
+          <Home className="h-10 w-10 opacity-40" />
         </div>
         <div className="flex items-start justify-between px-4 pt-3">
-          <span className="rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-white shadow" style={{ backgroundColor: kit.secondary_color }}>
+          <span className="rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: kit.secondary_color, color: pillInk }}>
             Just Listed
           </span>
           {logoUrl && (
             <img src={resolveMediaUrl(logoUrl)} alt="Logo" className="h-7 max-w-[72px] rounded bg-white/90 object-contain p-1" />
           )}
         </div>
-        <div className="flex flex-1 flex-col justify-end gap-1.5 px-4 pb-4 text-white">
+        <div className="flex flex-1 flex-col justify-end gap-1.5 px-4 pb-4">
           <p className={`${headingClass} text-lg font-black leading-tight`}>123 Maple Street</p>
-          <p className={`${bodyClass} text-xs font-bold text-white/80`}>Springfield, IL</p>
+          <p className={`${bodyClass} text-xs font-bold opacity-80`}>Springfield, IL</p>
           <p className="text-xl font-black" style={{ color: kit.secondary_color }}>$650,000</p>
-          <p className={`${bodyClass} mt-1 line-clamp-2 text-[11px] font-medium leading-snug text-white/75`}>
+          <p className={`${bodyClass} mt-1 line-clamp-2 text-[11px] font-medium leading-snug opacity-75`}>
             A sample description will appear in this style — showing your chosen body font and spacing.
           </p>
-          <div className="mt-2 flex items-center gap-2 border-t border-white/20 pt-2">
+          <div className={`mt-2 flex items-center gap-2 border-t pt-2 ${lightBg ? 'border-black/15' : 'border-white/20'}`}>
             <div className="h-6 w-6 rounded-full border-2 bg-white/20" style={{ borderColor: kit.secondary_color }} />
             <div className="leading-tight">
               <p className="text-[10px] font-black">Your Name</p>
-              <p className="text-[9px] font-bold text-white/60">Brokerage</p>
+              <p className="text-[9px] font-bold opacity-60">Brokerage</p>
             </div>
           </div>
         </div>
@@ -252,15 +257,30 @@ function BrandKitPreview({ kit }: { kit: BrandKit }) {
   )
 }
 
-function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+// A color: the same quick picks Setup offers (lib/brandSwatches), plus the picker for any other color.
+function ColorField({ label, value, onChange, swatches }: { label: string; value: string; onChange: (value: string) => void; swatches?: BrandSwatch[] }) {
   return (
-    <label className="block">
-      <span className="text-xs font-black uppercase tracking-widest text-gray-400">{label}</span>
-      <div className="mt-2 flex items-center gap-2 rounded-xl border border-gray-200 bg-[#fbfaf7] p-2 dark:border-gray-700 dark:bg-[#1A1A1C]">
-        <input type="color" value={value} onChange={event => onChange(event.target.value)} className="h-9 w-9 shrink-0 cursor-pointer rounded-lg border-0 bg-transparent" />
-        <input value={value} onChange={event => onChange(event.target.value)} className="w-full bg-transparent text-sm font-bold uppercase text-[#111827] outline-none dark:text-white" />
-      </div>
-    </label>
+    <div>
+      <label className="block">
+        <span className="text-xs font-black uppercase tracking-widest text-gray-400">{label}</span>
+        <div className="mt-2 flex items-center gap-2 rounded-xl border border-gray-200 bg-[#fbfaf7] p-2 dark:border-gray-700 dark:bg-[#1A1A1C]">
+          <input type="color" value={value} onChange={event => onChange(event.target.value)} className="h-9 w-9 shrink-0 cursor-pointer rounded-lg border-0 bg-transparent" />
+          <input value={value} onChange={event => onChange(event.target.value)} className="w-full bg-transparent text-sm font-bold uppercase text-[#111827] outline-none dark:text-white" />
+        </div>
+      </label>
+      {swatches && (
+        <div role="radiogroup" aria-label={`${label} quick picks`} className="mt-2.5 flex flex-wrap gap-1.5">
+          {swatches.map(s => {
+            const on = s.color.toLowerCase() === (value || '').toLowerCase()
+            return (
+              <button key={s.color} type="button" role="radio" aria-checked={on} title={s.label} onClick={() => onChange(s.color)}
+                className={`h-6 w-6 rounded-full ring-1 ring-black/15 transition hover:scale-110 dark:ring-white/20 ${on ? 'scale-110 outline outline-2 outline-offset-2 outline-[#C9A24D]' : ''}`}
+                style={{ background: s.color }} />
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
 

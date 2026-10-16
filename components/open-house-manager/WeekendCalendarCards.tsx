@@ -61,12 +61,35 @@ const hostFirstName = (o: WeekendCalendarOpen) => {
   return n && n !== 'BRIGHT-MLS' ? n.split(' ')[0] : ''
 }
 
+/** Days a listing can't have an open house: everything while under contract, or (Coming Soon)
+ *  every day before it goes active. Mirrors open_house_manager_service.hosting_window. */
+export interface HostingWindow {
+  hosting_blocked?: string | null
+  hosts_from?: string | null
+}
+export const dayIsHostable = (w: HostingWindow | undefined, date: string) =>
+  !w?.hosting_blocked && !(w?.hosts_from && date < w.hosts_from)
+
 // How many of the days shown are covered vs still need a host (Dash's "1 scheduled · 3 needed").
-export function weekendSummary(opens: WeekendCalendarOpen[]): { scheduled: number; needed: number } {
+// Days the listing can't be shown yet never count as "needed".
+export function weekendSummary(opens: WeekendCalendarOpen[], window?: HostingWindow): { scheduled: number; needed: number } {
   const dates = new Set(opens.map(o => o.scheduled_date).filter((d): d is string => !!d))
   const cells = getUpcomingWeekendCells(dates)
   const scheduled = cells.filter(c => dates.has(c.date)).length
-  return { scheduled, needed: cells.length - scheduled }
+  const needed = cells.filter(c => !dates.has(c.date) && dayIsHostable(window, c.date)).length
+  return { scheduled, needed }
+}
+
+/** One line saying why a listing can't take hosts (null when it can). */
+export function hostingNote(w: HostingWindow | undefined): string | null {
+  if (w?.hosting_blocked === 'pending') return 'Under contract - no open houses'
+  if (w?.hosting_blocked === 'off_market') return 'Temporarily off the market - no open houses'
+  if (w?.hosting_blocked === 'coming_soon') return 'Coming Soon - open houses once it goes active'
+  if (w?.hosts_from && w.hosts_from > localIso(new Date())) {
+    const d = new Date(`${w.hosts_from}T00:00:00`)
+    return `Coming Soon - open houses from ${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`
+  }
+  return null
 }
 
 // Same 4-cell weekend-calendar look everywhere it appears (Manager's property cards, Manage
@@ -84,6 +107,8 @@ export default function WeekendCalendarCards({
   pendingDates,
   pendingLabel = 'Requested',
   pendingTitle,
+  hostingWindow,
+  busyDates,
 }: {
   opens: WeekendCalendarOpen[]
   // Omit to render read-only (e.g. Insights). Passed the cell and its open (if any) - the caller
@@ -112,6 +137,10 @@ export default function WeekendCalendarCards({
   pendingDates?: string[]
   pendingLabel?: string
   pendingTitle?: string
+  /** Coming Soon / under contract: days it can't be shown read "Not yet" and can't be clicked. */
+  hostingWindow?: HostingWindow
+  /** Discovery: days the viewer already hosts another open house - "Busy", can't be picked. */
+  busyDates?: string[]
 }) {
   const cells = getUpcomingWeekendCells(opens.map(o => o.scheduled_date).filter((d): d is string => !!d))
   const dayTextSize = size === 'sm' ? 'text-[7px]' : size === 'lg' ? 'text-[9px]' : 'text-[8px]'
@@ -137,11 +166,13 @@ export default function WeekendCalendarCards({
         const timeStr = open ? formatTimeRangeCompact(open.scheduled_start_time, open.scheduled_end_time) : null
         const timeLen = timeStr?.length ?? 0
         const timeTextSize = timeLen > 13 ? timeTextSteps[2] : timeLen > 9 ? timeTextSteps[1] : timeTextSteps[0]
-        const clickable = Boolean(onCellClick) && (!open || filledClickable)
+        const busy = !open && !!busyDates?.includes(cell.date)
+        const locked = !open && (busy || !dayIsHostable(hostingWindow, cell.date))
+        const clickable = Boolean(onCellClick) && !locked && (!open || filledClickable)
         const Wrapper = clickable ? 'button' : 'div'
         const mine = !!open && othersMuted && !!viewerId && cellOpens.some(o => o.hosting_agent_id === viewerId)
         const muted = !!open && othersMuted && !mine
-        const pending = !open && !!pendingDates?.includes(cell.date)
+        const pending = !open && !locked && !!pendingDates?.includes(cell.date)
         return (
           <Wrapper
             key={cell.date}
@@ -154,11 +185,13 @@ export default function WeekendCalendarCards({
                 ? 'border-emerald-200/70 bg-emerald-50/40 opacity-55 grayscale-[35%] dark:border-emerald-500/15 dark:bg-emerald-500/[0.04]'
                 : open
                 ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-500/10'
+                : locked
+                ? 'border-gray-200 bg-gray-50 opacity-70 dark:border-white/10 dark:bg-white/[0.03]'
                 : pending
                 ? 'border-dashed border-sky-300 bg-sky-50 dark:border-sky-500/40 dark:bg-sky-500/10'
                 : 'border-amber-100 bg-amber-50/50 dark:border-amber-500/20 dark:bg-amber-500/5'
             } ${clickable ? (open ? 'hover:border-emerald-300 dark:hover:border-emerald-500/40 cursor-pointer' : 'hover:border-amber-300 dark:hover:border-amber-500/40 cursor-pointer') : ''}`}
-            title={pending ? (pendingTitle || 'Request sent - waiting on an answer') : clickable ? (open ? filledCellTitle : emptyCellTitle) : cell.weekLabel}
+            title={busy ? 'You’re hosting another open house that day' : locked ? (hostingNote(hostingWindow) || 'Not available') : pending ? (pendingTitle || 'Request sent - waiting on an answer') : clickable ? (open ? filledCellTitle : emptyCellTitle) : cell.weekLabel}
           >
             {/* Day of week on its own line, date below it - was one combined "SAT SEP 5" line,
                 but the two are different kinds of information (which day vs which date) and
@@ -174,7 +207,7 @@ export default function WeekendCalendarCards({
                 {/* One line, not two, and the entire range always shown in full - never abbreviated
                     or clipped. The font size steps down as the string gets longer (see
                     timeTextSteps) instead of letting the pill's edge cut off the trailing AM/PM. */}
-                <span className={`mt-0.5 whitespace-nowrap ${needsHostTextSize} font-black uppercase tracking-wide ${muted ? 'text-emerald-700/70 dark:text-emerald-300/60' : 'text-emerald-600 dark:text-emerald-400'}`}>{mine ? (size === 'sm' ? 'Yours' : 'You’re Hosting!') : cell.date < new Date().toISOString().slice(0, 10) ? 'Hosted' : 'Confirmed'}</span>
+                <span className={`mt-0.5 whitespace-nowrap ${needsHostTextSize} font-black uppercase tracking-wide ${muted ? 'text-emerald-700/70 dark:text-emerald-300/60' : 'text-emerald-600 dark:text-emerald-400'}`}>{mine ? (size === 'sm' ? 'Yours' : 'You’re Hosting!') : cell.date < localIso(new Date()) ? 'Hosted' : 'Confirmed'}</span>
                 {timeStr && (
                   <span className={`mt-0.5 max-w-full whitespace-nowrap rounded-full ${muted ? 'bg-emerald-500/50' : 'bg-emerald-500'} px-1.5 py-0.5 ${timeTextSize} font-bold text-white tabular-nums`}>
                     {timeStr}
@@ -198,6 +231,8 @@ export default function WeekendCalendarCards({
                   </span>
                 )}
               </>
+            ) : locked ? (
+              <span className={`mt-0.5 ${needsHostTextSize} font-black uppercase tracking-widest text-gray-400 dark:text-gray-500`}>{busy ? 'Busy' : hostingWindow?.hosting_blocked && hostingWindow.hosting_blocked !== 'coming_soon' ? 'No opens' : 'Not yet'}</span>
             ) : pending ? (
               <span className={`mt-0.5 ${needsHostTextSize} font-black uppercase tracking-widest text-sky-600 dark:text-sky-300`}>{pendingLabel}</span>
             ) : (

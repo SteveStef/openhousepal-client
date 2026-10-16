@@ -20,6 +20,7 @@ import { useSettingsCompleteness } from '@/hooks/useSettingsCompleteness'
 import { useSupportUnreadCount } from '@/hooks/useSupportUnreadCount'
 import { getNavFeatureAccess, isMissingLadderFeatures, type NavFeatureKey } from '@/lib/navAccess'
 import { SpotlightIcon } from '@/components/icons/CustomIcons'
+import { todayLocal } from '@/lib/relativeDays'
 
 const UPGRADE_REMINDER_STORAGE_KEY = 'ohp_upgrade_reminder_date'
 
@@ -148,7 +149,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
     if (isCheckingAuth || !isAuthenticated || !user || user.is_admin) return
     if (!isMissingLadderFeatures(user.plan_tier)) return
     try {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = todayLocal()
       if (localStorage.getItem(UPGRADE_REMINDER_STORAGE_KEY) === today) return
       localStorage.setItem(UPGRADE_REMINDER_STORAGE_KEY, today)
       showToast("You're missing out on features locked in your nav bar — tap a locked item to see what upgrading unlocks.", 'success')

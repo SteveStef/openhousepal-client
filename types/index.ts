@@ -196,7 +196,7 @@ export type OpenHouseWizardStep = 'ADDRESS' | 'PREFERENCES' | 'COVER_IMAGE' | 'C
 
 // No-MLS Pro only (Bright MLS plans get the Guest Pass instead).
 export type AfterSignin = 'hub' | 'none'
-export type GuestSettingsPatch = { autoShowcase?: boolean; afterSignin?: AfterSignin; guestPass?: boolean; passSignature?: boolean }
+export type GuestSettingsPatch = { autoShowcase?: boolean; similarHomes?: boolean; afterSignin?: AfterSignin; guestPass?: boolean; passSignature?: boolean }
 
 export interface OpenHouse {
   id: string;
@@ -213,6 +213,9 @@ export interface OpenHouse {
   shareGuestsWithListingAgent?: boolean;
   // Build a Showcase for each guest who signs in without an agent (on by default).
   autoShowcase?: boolean;
+  // The kit's Similar Homes sheet + the similar homes on the Guest Pass (on by default; a listing
+  // agent at their own listing starts with it - and autoShowcase - off).
+  similarHomes?: boolean;
   // After signing in, guests' phones open their Guest Pass (Bright MLS plans - guestPassAvailable).
   guestPass?: boolean;
   guestPassAvailable?: boolean;
@@ -321,6 +324,10 @@ export interface MyListingItem {
   is_high_priority: boolean;
   pending_request_count: number;
   is_manual: boolean;
+  /** "pending" = under contract, no open houses; "coming_soon" = go-live date unknown, none yet. */
+  hosting_blocked?: 'pending' | 'off_market' | 'coming_soon' | null;
+  /** Coming Soon: the first day an open house is allowed. */
+  hosts_from?: string | null;
 }
 
 export interface MyListingsResponse {
@@ -350,6 +357,11 @@ export interface HostRequest {
   requesting_agent_name: string;
   requesting_agent_brokerage?: string | null;
   requesting_agent_email?: string | null;
+  listing_agent_name?: string | null;
+  listing_agent_brokerage?: string | null;
+  // One "Other time" each way - once used, that side can only say yes or no.
+  listing_agent_suggested_time?: boolean
+  host_suggested_time?: boolean
   requested_date: string;
   requested_start_time: string;
   requested_end_time: string;
@@ -682,6 +694,9 @@ export interface CollectionPreferences {
   // whether to show the badge at all.
   compare_property_listing_key?: string | null;
   show_match_score?: boolean;
+  // Buyer side: "stop using a home" (just their filters), and whether their agent drew the area.
+  remove_home?: boolean;
+  has_drawn_area?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -2137,6 +2152,8 @@ export interface LeadEvent {
   link?: { href: string; label: string; external?: boolean } | null;
   /** Where they came from before reaching out (a Similar Homes QR at an open house, the Agent Hub...). */
   came_from?: string | null;
+  /** The agent already dealt with it (opened / marked done). */
+  handled?: boolean;
 }
 
 export interface LeadProperty {

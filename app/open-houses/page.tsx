@@ -63,6 +63,10 @@ const formatAddress = (address: string) => {
     .join(' ');
 };
 
+// The Brag Sheet's "What a Showcase looks like" example uses this open house's Similar Homes -
+// none when its Similar Homes switch is off.
+const bragSimilar = (oh: any) => (oh && oh.similarHomes !== false ? oh.similarPropertiesSnapshot : []) || []
+
 const formatStreetAndCity = (address: string, city?: string) => {
   if (!address) return "";
   const parts = address.split(',');
@@ -235,19 +239,25 @@ function OpenHouseContent() {
   }, [openHouseForPDFs])
 
   const handleGuestSettings = useCallback((openHouse: OpenHouse, patch: GuestSettingsPatch) => {
-    const undo: GuestSettingsPatch = { autoShowcase: openHouse.autoShowcase, afterSignin: openHouse.afterSignin ?? undefined, guestPass: openHouse.guestPass, passSignature: openHouse.passSignature }
-    const apply = (vals: typeof patch) => setOpenHouses(current => current.map(oh => {
-      if (oh.id !== openHouse.id) return oh
+    const undo: GuestSettingsPatch = { autoShowcase: openHouse.autoShowcase, similarHomes: openHouse.similarHomes, afterSignin: openHouse.afterSignin ?? undefined, guestPass: openHouse.guestPass, passSignature: openHouse.passSignature }
+    const merge = (oh: OpenHouse, vals: GuestSettingsPatch) => {
       const next = { ...oh }
       if (vals.autoShowcase !== undefined) next.autoShowcase = vals.autoShowcase
+      if (vals.similarHomes !== undefined) next.similarHomes = vals.similarHomes
       if (vals.afterSignin !== undefined) next.afterSignin = vals.afterSignin
       if (vals.guestPass !== undefined) next.guestPass = vals.guestPass
       if (vals.passSignature !== undefined) next.passSignature = vals.passSignature
       return next
-    }))
+    }
+    // The card list and the open Documents window both show these switches - keep them in step.
+    const apply = (vals: GuestSettingsPatch) => {
+      setOpenHouses(current => current.map(oh => oh.id === openHouse.id ? merge(oh, vals) : oh))
+      setOpenHouseForPDFs(current => current && current.id === openHouse.id ? merge(current, vals) : current)
+    }
     apply(patch)
     api.openHouses.updateGuestSettings(openHouse.id, {
       ...(patch.autoShowcase !== undefined ? { auto_showcase: patch.autoShowcase } : {}),
+      ...(patch.similarHomes !== undefined ? { similar_homes: patch.similarHomes } : {}),
       ...(patch.afterSignin !== undefined ? { after_signin: patch.afterSignin } : {}),
       ...(patch.guestPass !== undefined ? { guest_pass: patch.guestPass } : {}),
       ...(patch.passSignature !== undefined ? { pass_signature: patch.passSignature } : {}),
@@ -334,7 +344,7 @@ function OpenHouseContent() {
 
     if (mode === 'bragSheet') {
       const targetOHForBragSheet = id ? openHouses.find(oh => oh.id === id) : null;
-      const { data, error } = await buildBragSheetData(currentUser, (targetOHForBragSheet as any)?.similarPropertiesSnapshot);
+      const { data, error } = await buildBragSheetData(currentUser, bragSimilar(targetOHForBragSheet), { showcases: targetOHForBragSheet?.autoShowcase !== false });
       if (!data) {
         showToast(error || 'Unable to build your Brag Sheet right now.', 'error');
         setIsGeneratingPDF(false);
@@ -572,7 +582,7 @@ function OpenHouseContent() {
 
   const handleRefreshBragSheet = useCallback(async (options?: { silent?: boolean }) => {
     setIsRefreshingBragSheet(true);
-    const { data, error } = await buildBragSheetData(currentUser, (openHouseForPDFs as any)?.similarPropertiesSnapshot);
+    const { data, error } = await buildBragSheetData(currentUser, bragSimilar(openHouseForPDFs), { showcases: openHouseForPDFs?.autoShowcase !== false });
     if (!data) {
       showToast(error || 'Unable to resync your Brag Sheet right now.', 'error');
       setIsRefreshingBragSheet(false);
@@ -643,6 +653,29 @@ function OpenHouseContent() {
       agent: freshAgent,
       // amenities/photos intentionally left untouched - no new Google Places request here
     };
+    // The listing's description: picked up only when it actually changed in the MLS. Then (and only
+    // then) a Recap that's on is rewritten from the new text - one AI call, after which the new
+    // description is the saved one, so refreshing again costs nothing. A Recap that's switched off
+    // just drops its parked copy, so turning it on later writes it fresh. Old snapshots saved
+    // without a description only store it - nothing to compare, so no AI call.
+    const tidy = (s: unknown) => String(s || '').replace(/\s+/g, ' ').trim()
+    const freshDesc = tidy(p.description || p.PublicRemarks)
+    const oldDesc = tidy(existingSnapshot?.property?.description)
+    let recapRewritten = false
+    if (freshDesc && freshDesc !== oldDesc) {
+      const prop: any = updatedSnapshot.property
+      prop.description = p.description || p.PublicRemarks
+      if (oldDesc) {
+        delete recapTextCacheRef.current[targetOH.id]
+        if (prop.descriptionHighlights?.length) {
+          const res = await api.ai.copywrite({ purpose: 'cheat_sheet_highlights', context: freshDesc })
+          const text = res.success && res.data?.text ? res.data.text.replace(/\s+/g, ' ').trim() : ''
+          if (text) { prop.descriptionHighlights = text; recapRewritten = true }
+        } else if (prop.descriptionHighlightsSaved) {
+          prop.descriptionHighlightsSaved = null
+        }
+      }
+    }
     const snapshotRes = await api.openHouses.updateCheatSheetSnapshot(targetOH.id, updatedSnapshot);
     if (!snapshotRes.success) {
       showToast(snapshotRes.error || 'Unable to save refreshed price data.', 'error');
@@ -652,7 +685,7 @@ function OpenHouseContent() {
     setOpenHouses(prev => prev.map(oh => oh.id === targetOH.id ? { ...oh, cheatSheetSnapshot: updatedSnapshot } as any : oh));
     setOpenHouseForPDFs(prev => prev && prev.id === targetOH.id ? { ...prev, cheatSheetSnapshot: updatedSnapshot } as any : prev);
     if (pdfPreviewType === 'cheatSheet') setPdfPreviewData({ ...updatedSnapshot, previewId: Date.now() });
-    showToast('Cheat Sheet price data refreshed.', 'success');
+    showToast(recapRewritten ? 'Cheat Sheet refreshed - the listing description changed, so the Recap was rewritten.' : 'Cheat Sheet price data refreshed.', 'success');
     setIsReloadingCheatSheetPrice(false);
   }, [currentUser, pdfPreviewType, showToast])
 
@@ -939,6 +972,14 @@ function OpenHouseContent() {
           onViewPaperSignIn={() => triggerPreview('paperSignIn', openHouseForPDFs.id)}
           onViewRecommendations={() => triggerPreview('recommendations', openHouseForPDFs.id)}
           onEditRecommendations={() => handleOpenEditSimilar(openHouseForPDFs)}
+          similarHomes={openHouseForPDFs.similarHomes !== false}
+          onToggleSimilarHomes={() => {
+            const on = openHouseForPDFs.similarHomes === false
+            handleGuestSettings(openHouseForPDFs, { similarHomes: on })
+            // Switched on with no homes picked yet (it was off when the kit was made) - pick them now.
+            if (on && !(openHouseForPDFs.similarPropertiesSnapshot || []).length) handleOpenEditSimilar(openHouseForPDFs)
+          }}
+          showcasesOn={openHouseForPDFs.autoShowcase !== false}
           onViewBragSheet={() => triggerPreview('bragSheet', openHouseForPDFs.id)}
           onViewCheatSheet={() => triggerPreview('cheatSheet', openHouseForPDFs.id)}
           onEditCheatSheet={() => handleOpenEditCheatSheet(openHouseForPDFs)}

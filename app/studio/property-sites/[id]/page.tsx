@@ -20,7 +20,7 @@ import ChaptersEditor from '@/components/property-sites/ChaptersEditor'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
 import { HEADER_DEMO, LIVING_PHOTO_ENABLED, MEDIA_LAB_DEMO, HeaderPhotoTips, HeroPreviewFrame, KeepGoing, KeepGoingNote, ScaledPreview, WorkingBar } from '@/components/property-sites/editor/FlowParts'
 import RoomsStep from '@/components/property-sites/editor/RoomsStep'
-import HeroFramer from '@/components/property-sites/editor/HeroFramer'
+import HeroFramer, { frameIsSet } from '@/components/property-sites/editor/HeroFramer'
 import type { HeaderMode, HeaderMotion, HeroFrame, SpotlightHeader, TownPhoto } from '@/components/property-sites/spotlight/model'
 import type { TownFacts } from '@/components/property-sites/spotlight/TownSection'
 import { allFeatureTags as allTags, autoFeatured, rankFeature } from '@/components/property-sites/spotlight/features'
@@ -136,6 +136,9 @@ function PropertySiteEditorPage() {
   // carries on through the flow, then shown side by side with the still photo at the end).
   const [header, setHeader] = useState<{ motion: HeaderMotion; video: HeaderVideo | null; frame: HeroFrame | null }>({ motion: 'out', video: null, frame: null })
   const [headerChoice, setHeaderChoice] = useState<HeaderMode>('photo')
+  // A photo header needs its center picked for a computer and a phone (HeroFramer).
+  const needsFraming = !!heroImage && headerChoice !== 'video' && !frameIsSet(header.frame)
+  const [frameNudge, setFrameNudge] = useState(0)
   const [job, setJob] = useState<{ status: 'processing' | 'looping' | 'ready' | 'failed'; startedAt: number; error?: string; costUsd?: number } | null>(null)
   const [startingVideo, setStartingVideo] = useState(false)
   // Remakes only: what was wrong last time ("keep the gate still") - added to the AI's instructions.
@@ -271,22 +274,33 @@ function PropertySiteEditorPage() {
   const originalDescription = site?.property_snapshot.description || ''
 
   // ---- AI helpers (each one small copywriter call, on the agent's monthly AI allowance) ----
+  // A failed call says why (not set up, monthly allowance used up, the writer down) instead of
+  // quietly doing nothing - once, however many helpers failed together.
+  const aiErrAt = useRef(0)
+  const aiFailed = (error?: string) => {
+    if (Date.now() - aiErrAt.current < 15000) return
+    aiErrAt.current = Date.now()
+    // The server never says why a provider failed (that goes to the admin) - only a calm message, or
+    // the agent's own monthly AI allowance being used up.
+    notify(error || "The AI writer isn't available right now - please try again in a little while.")
+  }
   const aiHighlights = async (source: string): Promise<string[]> => {
     const res = await api.ai.copywrite({ purpose: 'property_site_highlights', context: source })
-    if (!res.success || !res.data?.text) return []
+    if (!res.success || !res.data?.text) { aiFailed(res.error); return [] }
     return res.data.text.split('\n').map(l => l.replace(/^[\s\-*•]+/, '').trim()).filter(Boolean)
   }
   const aiShortStory = async (): Promise<string | null> => {
     if (!originalDescription.trim()) return null
     const res = await api.ai.copywrite({ purpose: 'property_site_story_short', context: originalDescription })
-    return res.success && res.data?.text ? res.data.text.trim() : null
+    if (!res.success || !res.data?.text) { aiFailed(res.error); return null }
+    return res.data.text.trim()
   }
   const aiTown = async (name: string): Promise<TownFacts | null> => {
     const p = site?.property_snapshot
     if (!name.trim() || !p) return null
     const context = [`Town: ${name}${p.state ? `, ${p.state}` : ''}`, p.county && `County: ${tidyTown(String(p.county).replace(/-[A-Za-z]{2}$/, ''))}`, p.township && `Township: ${tidyTown(p.township)}`].filter(Boolean).join('\n')
     const res = await api.ai.copywrite({ purpose: 'property_site_town_facts', context })
-    if (!res.success || !res.data?.text) return null
+    if (!res.success || !res.data?.text) { aiFailed(res.error); return null }
     return parseTownFacts(res.data.text)
   }
 
@@ -445,6 +459,13 @@ function PropertySiteEditorPage() {
 
   const publish = async (opts?: { quiet?: boolean }) => {
     if (!site) return
+    if (!opts?.quiet && needsFraming) {
+      setStep('header')
+      setFrameNudge(n => n + 1)
+      notify('One thing first: set the center of your header photo for both a computer and a phone.')
+      window.setTimeout(() => document.getElementById('sp-hero-framer')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 250)
+      return
+    }
     if (opts?.quiet) setAutoPublishing(true)
     setPublishing(true)
     const saved = dirty ? await save() : true
@@ -597,6 +618,13 @@ function PropertySiteEditorPage() {
   // Snap to the step bar first, then swap the step in (its cards rise in on their own). A smooth
   // scroll while the page under it changes height fought itself and looked glitchy.
   const goStep = (key: StepKey) => {
+    // The photo's center has to be picked for a computer AND a phone before moving on (user, 10/15).
+    if (step === 'header' && key !== 'header' && needsFraming) {
+      setFrameNudge(n => n + 1)
+      notify('Set the center of your photo for both a computer and a phone first - tap each tab under “Frame your photo”.')
+      document.getElementById('sp-hero-framer')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
     const nav = document.querySelector('nav[aria-label=Steps]')
     const top = nav ? nav.getBoundingClientRect().top + window.scrollY - 96 : 0
     if (window.scrollY > top) window.scrollTo({ top: Math.max(0, top), behavior: 'auto' })
@@ -703,8 +731,8 @@ function PropertySiteEditorPage() {
           </div>
           <div className="mt-3"><HeaderPhotoTips video={headerChoice === 'video'} /></div>
           {heroImage && headerChoice !== 'video' && (
-            <div className="mt-5">
-              <HeroFramer photo={heroImage} frame={header.frame} onChange={fr => setHeader(h => ({ ...h, frame: fr }))} motion={header.motion} mode={headerChoice} />
+            <div id="sp-hero-framer" className="mt-5 scroll-mt-28">
+              <HeroFramer photo={heroImage} frame={header.frame} onChange={fr => setHeader(h => ({ ...h, frame: fr }))} motion={header.motion} mode={headerChoice} nudge={frameNudge} />
             </div>
           )}
 
@@ -729,7 +757,7 @@ function PropertySiteEditorPage() {
               <div>
                 <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-gray-400">Your page, live</p>
                 <ScaledPreview
-                  src={`/spotlight-preview/${templateId}?site=${site.id}&embed=1&mode=${headerChoice}&motion=${header.motion}${heroImage ? `&hero=${encodeURIComponent(heroImage)}` : ''}${header.frame ? `&fx=${header.frame.x}&fy=${header.frame.y}&fz=${header.frame.zoom}` : ''}`}
+                  src={`/spotlight-preview/${templateId}?site=${site.id}&embed=1&mode=${headerChoice}&motion=${header.motion}${heroImage ? `&hero=${encodeURIComponent(heroImage)}` : ''}${header.frame ? `&fx=${header.frame.x}&fy=${header.frame.y}&fz=${header.frame.zoom}${header.frame.px != null ? `&fpx=${header.frame.px}&fpy=${header.frame.py ?? 50}` : ''}` : ''}`}
                   label={`${site.slug}.openhousepal.com`}
                 />
               </div>

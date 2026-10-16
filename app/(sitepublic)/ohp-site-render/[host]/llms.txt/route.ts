@@ -3,7 +3,7 @@
 // (ChatGPT, Perplexity, Google AI answers) that read it, the way search engines read sitemap.xml.
 // Same facts and the same "hide me" switch as the sitemap.
 
-const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://localhost:8080'
+const INTERNAL_API_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 async function json(url: string) {
   const res = await fetch(url, { next: { revalidate: 300 } })

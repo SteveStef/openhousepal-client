@@ -10,9 +10,10 @@
 //   client   - who, and one-tap copy of phone / email / the ready-to-send message
 // Everything that's "copy onto my clipboard" is a same-size button, three to a row.
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import {
-  AlertTriangle, ArrowUpRight, CalendarCheck, Compass, CalendarClock, Check, CheckSquare, Clock, Copy, Hash, Home,
+  AlertTriangle, ArrowUpRight, CalendarCheck, CalendarDays, Compass, CalendarClock, Check, CheckSquare, Clock, Copy, Hash, Home,
   Loader2, Mail, MessageCircle, MessageSquare, MoreHorizontal, Pencil, Phone, QrCode, Ticket, Trash2,
 } from 'lucide-react'
 import type { AgentTask, TaskKind } from '@/types'
@@ -196,7 +197,7 @@ function StepHead({ n, action, role, name, sub }: { n: number; action: string; r
   )
 }
 
-export default function FollowupCard({ t, compact, busy, clickable, onToggleDone, onOpenLead, onSnooze, onDelete }: {
+export default function FollowupCard({ t, compact, busy, clickable, onToggleDone, onOpenLead, onSnooze, onPickDay, onDelete }: {
   t: AgentTask
   compact?: boolean
   busy?: boolean
@@ -204,6 +205,8 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
   onToggleDone: () => void
   onOpenLead?: () => void
   onSnooze?: (days: number) => void
+  // Move it to any day (YYYY-MM-DD, keeps its time of day).
+  onPickDay?: (ymd: string) => void
   onDelete?: () => void
 }) {
   const done = !!t.completed_at
@@ -241,11 +244,31 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
   const [photoOk, setPhotoOk] = useState(true)
   const [menu, setMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
+  // The menu floats over the page (portal) - inside the card, the next card or the "Automatic
+  // follow-ups" panel below could cover it, hiding Next week / Pick a day / Delete.
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null)
+  const place = () => {
+    const r = menuRef.current?.getBoundingClientRect()
+    if (!r) return false
+    if (r.bottom < 0 || r.top > window.innerHeight) return false
+    const right = Math.max(8, window.innerWidth - r.right)
+    setPos(window.innerHeight - r.bottom < 250 ? { bottom: window.innerHeight - r.top + 4, right } : { top: r.bottom + 4, right })
+    return true
+  }
+  const openMenu = () => { if (place()) setMenu(true) }
   useEffect(() => {
     if (!menu) return
-    const close = (e: MouseEvent) => { if (!menuRef.current?.contains(e.target as Node)) setMenu(false) }
+    const close = (e: MouseEvent) => {
+      const n = e.target as Node
+      if (!menuRef.current?.contains(n) && !popRef.current?.contains(n)) setMenu(false)
+    }
+    // Scrolling keeps it pinned to its "…" button; it closes once the button is off screen.
+    const follow = () => { if (!place()) setMenu(false) }
     document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
+    window.addEventListener('scroll', follow, true)
+    window.addEventListener('resize', follow)
+    return () => { document.removeEventListener('mousedown', close); window.removeEventListener('scroll', follow, true); window.removeEventListener('resize', follow) }
   }, [menu])
 
   const stop = (e: React.MouseEvent) => e.stopPropagation()
@@ -299,12 +322,13 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
           )}
           {!compact && !done && (onSnooze || onDelete) && (
             <div ref={menuRef} className="relative" onClick={stop}>
-              <button type="button" onClick={() => setMenu(m => !m)} aria-label="More" title="Snooze or delete"
+              <button type="button" onClick={() => (menu ? setMenu(false) : openMenu())} aria-label="More" title="Snooze or delete"
                 className="flex h-6 w-6 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-white">
                 {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
               </button>
-              {menu && (
-                <div className="absolute right-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white p-1 shadow-xl shadow-black/10 dark:border-white/10 dark:bg-[#1A1A1C]">
+              {menu && pos && createPortal(
+                <div ref={popRef} onClick={stop} style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, right: pos.right }}
+                  className="z-[300] w-44 overflow-hidden rounded-xl border border-gray-200 bg-white p-1 shadow-xl shadow-black/10 dark:border-white/10 dark:bg-[#1A1A1C]">
                   <p className="px-2.5 pb-1 pt-1.5 text-[9px] font-bold uppercase tracking-[0.1em] text-gray-400">Snooze</p>
                   {([['Tomorrow', 1], ['In 3 days', 3], ['Next week', 7]] as const).map(([label, d]) => (
                     <button key={label} type="button" onClick={() => { setMenu(false); onSnooze?.(d) }}
@@ -312,12 +336,22 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
                       <Clock className="h-3.5 w-3.5 text-gray-400" /> {label}
                     </button>
                   ))}
+                  {onPickDay && (
+                    // A real date picker - any day, not just the three quick ones.
+                    <label className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[12px] font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10">
+                      <CalendarDays className="h-3.5 w-3.5 text-gray-400" /> Pick a day…
+                      <input type="date" aria-label="Pick a day" min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)}
+                        className="sr-only" onClick={e => { try { (e.currentTarget as HTMLInputElement).showPicker?.() } catch { /* older browsers open on focus */ } }}
+                        onChange={e => { if (e.target.value) { setMenu(false); onPickDay(e.target.value) } }} />
+                    </label>
+                  )}
                   <div className="my-1 h-px bg-gray-100 dark:bg-white/10" />
                   <button type="button" onClick={() => { setMenu(false); onDelete?.() }}
                     className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[12px] font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10">
                     <Trash2 className="h-3.5 w-3.5" /> Delete
                   </button>
-                </div>
+                </div>,
+                document.body,
               )}
             </div>
           )}

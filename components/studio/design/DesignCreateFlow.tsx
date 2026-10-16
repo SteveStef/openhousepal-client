@@ -12,9 +12,10 @@ import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import { AgentFormConfig, BrandKit, CampaignLookup, DesignBlock, DesignColorMode, DesignProject, DesignStyleId, FormCampaign, LinkedProperty, OpenHouse } from '@/types'
 import { useOwnDomainBase, agentFormUrl } from '@/lib/ownDomainLinks'
-import { DESIGN_FORMAT_META, DESIGN_FORMATS, DESIGN_STYLES, getDesignFormat } from '@/lib/studio/designFormats'
+import { DESIGN_FORMAT_META, DESIGN_FORMATS, DESIGN_STYLES, formatRatioLabel, getDesignFormat } from '@/lib/studio/designFormats'
+import { pickBestForm } from '@/lib/studio/formFit'
 import { DESIGN_SITUATIONS, DesignMessagingVariant, DesignSituationDef, DesignSituationId, getSituation } from '@/lib/studio/designSituations'
-import { DesignTemplateDef, getTemplate, getTemplatesFor, TemplateBuildOptions } from '@/lib/studio/designTemplates'
+import { DesignTemplateDef, getTemplate, getTemplatesFor, isCompositionReady, isStyleReady, TemplateBuildOptions } from '@/lib/studio/designTemplates'
 import { DESIGN_COLOR_MODES, joinColorMode, splitColorMode } from '@/lib/studio/designColors'
 import { LUXE_METALS } from '@/lib/luxeMetals'
 import LuxeFinishPicker from '@/components/studio/design/LuxeFinishPicker'
@@ -45,13 +46,6 @@ const STEP_ORDER: StepId[] = ['situation', 'format', 'property', 'tracking', 'la
 
 // Mail pieces exist to bring in leads - they always carry a tracked form.
 const MAIL_FORMATS = new Set(['postcard', 'postcard_jumbo', 'letter_mailer', 'property_mailer', 'door_hanger'])
-// The form that fits each moment best - pre-picked so the agent usually just continues.
-const RECOMMENDED_FORM: Record<string, string[]> = {
-  just_listed: ['showing', 'how_can_i_help'], coming_soon: ['showing', 'how_can_i_help'], open_house: ['showing', 'how_can_i_help'],
-  price_improvement: ['showing', 'how_can_i_help'], under_contract: ['home_value', 'selling'], just_sold: ['home_value', 'selling'],
-  home_valuation: ['home_value', 'selling'], make_me_sell: ['make_me_sell', 'selling'], find_your_dream_home: ['buying', 'how_can_i_help'],
-  social_ad: ['how_can_i_help', 'home_value', 'buying'],
-}
 
 // Forms a printed QR code can open. Campaigns (own link + QR + response tracking) exist for the
 // premade lead forms; custom forms are linked through their one general link. Mirrors
@@ -143,7 +137,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
   const [situationId, setSituationId] = useState<DesignSituationId | null>(seededSituation)
   const [designType, setDesignType] = useState<string | null>(seededFormat)
   const [templateId, setTemplateId] = useState<string | null>(initialTemplateId && getTemplate(initialTemplateId) ? initialTemplateId : null)
-  const [styleId, setStyleId] = useState<DesignStyleId>(initialStyleId || 'modern_luxury')
+  const [styleId, setStyleId] = useState<DesignStyleId>(initialStyleId && isStyleReady(initialStyleId) ? initialStyleId : 'modern_luxury')
   // The lead photo's framing inside the design - applied to the hero block on every preview.
   const [crop, setCrop] = useState<{ x: number; y: number; zoom: number; fit: boolean }>({ x: 50, y: 50, zoom: 1, fit: false })
   const [colorMode, setColorMode] = useState<DesignColorMode>(initialColorMode || 'light')
@@ -233,10 +227,10 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
   // click it and see it on their own design, but can't continue with it. IDX sees Luxe first.
   const isIdx = user?.plan_tier === 'IDX'
   const templates: DesignTemplateDef[] = useMemo(() => {
-    const list = situationId && designType ? getTemplatesFor(situationId, designType) : []
-    return isIdx ? [...list.filter(t => t.composition === 'luxe'), ...list.filter(t => t.composition !== 'luxe')] : list
-  }, [situationId, designType, isIdx])
-  const template = templates.find(t => t.id === templateId) || templates[0]
+    return situationId && designType ? getTemplatesFor(situationId, designType) : []
+  }, [situationId, designType])
+  const picked = templates.find(t => t.id === templateId)
+  const template = picked && isCompositionReady(picked.composition) ? picked : templates[0]
 
   // Scheduled open houses for the attached listing - offered as one-tap date/time presets.
   useEffect(() => {
@@ -272,18 +266,15 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
 
   // Required for mailers and lead-generation pieces - everything else can skip it.
   const leadsRequired = leadGen || (!!designType && MAIL_FORMATS.has(designType))
-  const recommendedForm = useMemo(() => {
-    for (const type of RECOMMENDED_FORM[situationId || ''] || []) {
-      const f = linkableForms.find(x => x.form_type === type)
-      if (f) return f
-    }
-    return linkableForms.find(f => f.form_type === 'how_can_i_help') || linkableForms[0]
-  }, [situationId, linkableForms])
+  // Best fit by the moment and (Social Ad) by what the headline asks - it follows the headline until the
+  // agent picks a form themselves.
+  const recommendedForm = useMemo(() => pickBestForm(linkableForms, situationId, messaging?.headline), [situationId, linkableForms, messaging?.headline])
+  const formPicked = useRef(false)
   // The recommended form is pre-picked, so most agents just press Continue. Required pieces start
   // with tracking on; optional ones start off.
   useEffect(() => {
     if (!recommendedForm) return
-    if (!qrFormId || !linkableForms.some(f => f.id === qrFormId)) setQrFormId(recommendedForm.id)
+    if (!formPicked.current || !qrFormId || !linkableForms.some(f => f.id === qrFormId)) { if (qrFormId !== recommendedForm.id) setQrFormId(recommendedForm.id) }
     if (leadsRequired) setQrMode('form')
   }, [recommendedForm, leadsRequired, linkableForms, qrFormId])
 
@@ -366,6 +357,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
   // ---- Selection handlers ----
   const selectSituation = (id: DesignSituationId) => {
     if (id !== situationId) {
+      formPicked.current = false
       setSituationId(id)
       const next = getSituation(id)
       if (designType && !next?.formats.includes(designType)) setDesignType(null)
@@ -496,8 +488,8 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
   const optionCycle = (): { values: string[]; current: string | null; set: (v: string) => void } | null => {
     if (step === 'situation') return { values: DESIGN_SITUATIONS.map(s => s.id), current: situationId, set: v => selectSituation(v as DesignSituationId) }
     if (step === 'format' && situation) return { values: situation.formats, current: designType, set: selectFormat }
-    if (step === 'layout') return { values: templates.map(t => t.id), current: template?.id || null, set: setTemplateId }
-    if (step === 'style') return { values: DESIGN_STYLES.map(s => s.id), current: styleId, set: v => setStyleId(v as DesignStyleId) }
+    if (step === 'layout') return { values: templates.filter(t => isCompositionReady(t.composition)).map(t => t.id), current: template?.id || null, set: setTemplateId }
+    if (step === 'style') return { values: DESIGN_STYLES.filter(s => isStyleReady(s.id)).map(s => s.id), current: styleId, set: v => setStyleId(v as DesignStyleId) }
     if (step === 'theme') return { values: DESIGN_COLOR_MODES.map(c => c.id), current: baseColor, set: v => setColorMode(joinColorMode(v, luxeMetal)) }
     return null
   }
@@ -656,10 +648,9 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
                 <motion.div
                   key={step}
                   custom={direction}
-                  initial={{ opacity: 0, x: direction * 28 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: direction * -28 }}
-                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  initial={{ opacity: 0, x: direction * 18 }}
+                  animate={{ opacity: 1, x: 0, transition: { duration: 0.26, ease: [0.22, 1, 0.36, 1] } }}
+                  exit={{ opacity: 0, transition: { duration: 0.07, ease: 'linear' } }}
                 >
                   {step === 'situation' && (
                     <SituationStep selected={situationId} onPick={id => pickAndAdvance(() => selectSituation(id))} />
@@ -794,7 +785,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
                       {templates.map(t => {
                         const ctx = ctxFor(t, styleId, colorMode)
                         return ctx && (
-                          <PreviewTile key={t.id} luxe={t.composition === 'luxe'} locked={t.composition === 'luxe' && !isIdx} selected={t.id === template.id} onClick={() => setTemplateId(t.id)} onDoubleClick={() => { setTemplateId(t.id); if (isIdx || t.composition !== 'luxe') goTo('style') }} label={t.label} description={t.description}>
+                          <PreviewTile key={t.id} soon={!isCompositionReady(t.composition)} luxe={t.composition === 'luxe'} locked={t.composition === 'luxe' && !isIdx} selected={t.id === template.id} onClick={() => setTemplateId(t.id)} onDoubleClick={() => { setTemplateId(t.id); if (isIdx || t.composition !== 'luxe') goTo('style') }} label={t.label} description={t.description}>
                             <DesignPreview blocks={blocksByTemplate.get(t.id) || []} ctx={ctx} rounded={false} />
                           </PreviewTile>
                         )
@@ -807,10 +798,10 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
 
                   {step === 'style' && template && (
                     <PreviewGrid columns={format?.orientation === 'landscape' ? 'wide' : 'four'}>
-                      {DESIGN_STYLES.map(s => {
+                      {[...DESIGN_STYLES.filter(s => isStyleReady(s.id)), ...DESIGN_STYLES.filter(s => !isStyleReady(s.id))].map(s => {
                         const ctx = ctxFor(template, s.id, colorMode)
                         return ctx && (
-                          <PreviewTile key={s.id} selected={s.id === styleId} onClick={() => setStyleId(s.id)} onDoubleClick={() => { setStyleId(s.id); goTo('theme') }} label={s.label} description={s.description}>
+                          <PreviewTile key={s.id} soon={!isStyleReady(s.id)} selected={s.id === styleId} onClick={() => setStyleId(s.id)} onDoubleClick={() => { setStyleId(s.id); goTo('theme') }} label={s.label} description={s.description}>
                             <DesignPreview blocks={currentBlocks} ctx={ctx} rounded={false} />
                           </PreviewTile>
                         )
@@ -842,7 +833,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
                         })}
                       </PreviewGrid>
                       <div className="mt-5 rounded-2xl border border-[#C9A24D]/30 bg-[#C9A24D]/[0.04] p-4">
-                        <LuxeFinishPicker value={luxeMetal} locked={!isIdx} onChange={m => setColorMode(joinColorMode(baseColor, m))} />
+                        <LuxeFinishPicker value={luxeMetal} goldTheme={baseColor === 'luxe' || template?.composition === 'luxe'} locked={!isIdx} onChange={m => setColorMode(joinColorMode(baseColor, m))} />
                       </div>
                       {luxeThemeLocked && <LuxeUpgradePitch className="mt-5" feature="Studio Luxe" text={luxeMetal && baseColor !== 'luxe' ? "That's your design with a Luxe finish. Upgrade to IDX to use it - or choose None to keep going." : "That's your design in the Luxe theme. Upgrade to IDX to use it - or pick another theme to keep going."} />}
                       <p className="mt-4 text-xs font-semibold text-gray-400">
@@ -875,7 +866,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
                       qrMode={qrMode}
                       onQrMode={mode => { setQrMode(mode); if (mode === 'form' && !qrFormId && recommendedForm) setQrFormId(recommendedForm.id) }}
                       formId={qrFormId}
-                      onForm={id => { setQrMode('form'); setQrFormId(id); setCampaignId(null); setCampaignRedirect(DEFAULT_CAMPAIGN_REDIRECT); setCampaignMode(CAMPAIGN_FORM_TYPES.has(linkableForms.find(f => f.id === id)?.form_type || '') ? 'new' : 'general') }}
+                      onForm={id => { formPicked.current = true; setQrMode('form'); setQrFormId(id); setCampaignId(null); setCampaignRedirect(DEFAULT_CAMPAIGN_REDIRECT); setCampaignMode(CAMPAIGN_FORM_TYPES.has(linkableForms.find(f => f.id === id)?.form_type || '') ? 'new' : 'general') }}
                       campaignable={qrFormCampaignable}
                       campaignMode={campaignMode}
                       onCampaignMode={setCampaignMode}
@@ -1131,7 +1122,11 @@ function FormatStep({ situation, selected, onPick }: { situation: DesignSituatio
                     <span className="min-w-0 pr-5">
                       <span className="block text-[15px] font-black text-[#111827] dark:text-white">{f.label}</span>
                       <span className="block truncate text-xs font-semibold text-gray-500 dark:text-gray-400">{meta?.placement}</span>
-                      <span className="mt-1 block text-[10px] font-black uppercase tracking-[0.12em] text-gray-300 dark:text-gray-600">{meta?.size}{f.isPrint ? ' · PDF + PNG' : ' · PNG'}</span>
+                      <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        {formatRatioLabel(f.designType) && <span className="rounded-md bg-[#111827] px-1.5 py-0.5 text-[10px] font-black tracking-wide text-white dark:bg-white dark:text-[#111827]">{formatRatioLabel(f.designType)}</span>}
+                        <span className="rounded-md border border-gray-200 px-1.5 py-0.5 text-[10px] font-black tracking-wide text-gray-600 dark:border-white/15 dark:text-gray-300">{meta?.size}</span>
+                        <span className="text-[10px] font-bold text-gray-400">{f.isPrint ? 'PDF + PNG' : 'PNG'}</span>
+                      </span>
                     </span>
                   </button>
                 )
@@ -1213,10 +1208,35 @@ function PreviewGrid({ columns, children }: { columns: 'normal' | 'four' | 'five
   return <div className={`ohp-stagger grid gap-4 ${cls}`}>{children}</div>
 }
 
-function PreviewTile({ selected, onClick, onDoubleClick, label, description, adornment, children, luxe = false, locked = false }: {
+function PreviewTile({ selected, onClick, onDoubleClick, label, description, adornment, children, luxe = false, locked = false, soon = false }: {
   selected: boolean; onClick: () => void; onDoubleClick?: () => void; label: string; description: string; adornment?: ReactNode; children: ReactNode
-  luxe?: boolean; locked?: boolean
+  luxe?: boolean; locked?: boolean; soon?: boolean
 }) {
+  if (soon && luxe) return (
+    <div aria-disabled="true" title="Coming soon" className="relative flex cursor-not-allowed select-none flex-col overflow-hidden rounded-2xl border-2 border-[#C9A24D]/45 bg-gradient-to-br from-[#111827] via-[#151a22] to-[#2a2218] text-left">
+      <span aria-hidden className="pointer-events-none absolute inset-x-6 top-0 z-10 h-px bg-gradient-to-r from-transparent via-[#e8c97a] to-transparent" />
+      <span className="absolute left-2.5 top-2.5 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#b8913f] via-[#C9A24D] to-[#e8c97a] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#111827] shadow-md"><Sparkles className="h-2.5 w-2.5" /> Luxe · Coming soon</span>
+      <div className="relative bg-black/30 p-3 opacity-60">
+        <div className="pointer-events-none shadow-[0_8px_24px_rgba(0,0,0,0.16)]">{children}</div>
+      </div>
+      <div className="p-3.5">
+        <p className="font-serif text-[15px] font-black text-[#f3dfa8]">{label}</p>
+        <p className="mt-0.5 text-[11px] font-semibold leading-snug text-white/60">{description}</p>
+      </div>
+    </div>
+  )
+  if (soon) return (
+    <div aria-disabled="true" title="Coming soon" className="relative flex cursor-not-allowed select-none flex-col overflow-hidden rounded-2xl border-2 border-dashed border-gray-200 bg-white text-left dark:border-white/10 dark:bg-white/[0.02]">
+      <span className="absolute left-2.5 top-2.5 z-10 rounded-full bg-[#111827] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow-md dark:bg-white dark:text-[#111827]">Coming soon</span>
+      <div className="relative bg-[#f4f2ee] p-3 opacity-45 grayscale dark:bg-black/30">
+        <div className="pointer-events-none shadow-[0_8px_24px_rgba(0,0,0,0.16)]">{children}</div>
+      </div>
+      <div className="p-3.5 opacity-60">
+        <p className="text-sm font-black text-[#111827] dark:text-white">{label}</p>
+        <p className="mt-0.5 text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400">{description}</p>
+      </div>
+    </div>
+  )
   return (
     <button
       type="button"

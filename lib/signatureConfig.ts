@@ -53,6 +53,8 @@ export type SignatureConfig = {
   luxe: boolean
   /** Luxe finish - the same Luxe look in gold (default), silver or bronze. */
   luxeMetal: LuxeMetal
+  /** The socials from Agent Hub were switched on once (seedSignatureSocials) - later choices stick. */
+  socialsSeeded?: boolean
 }
 
 // What Luxe locks in - the backend's resolve_signature_config applies the same two values.
@@ -81,8 +83,10 @@ export const DEFAULT_SIGNATURE_CONFIG: SignatureConfig = {
     tiktok: { include: false },
   },
   ctaButtons: [],
-  blockVisibility: { banner: false },
-  banner: { showFeaturedListing: true, showRecentSales: true, showStats: false },
+  // Listings & sales and stats both start on (user, 10/15) - each shows only once there's
+  // something behind it, and each has its own switch.
+  blockVisibility: { banner: true },
+  banner: { showFeaturedListing: true, showRecentSales: true, showStats: true },
   accentColor: DEFAULT_ACCENT,
   fontFamily: 'system',
   showVerifiedBadge: true,
@@ -122,7 +126,21 @@ export function mergeSignatureConfig(saved: any): SignatureConfig {
     darkMode: Boolean(saved?.darkMode),
     luxe: Boolean(saved?.luxe),
     luxeMetal: metalOf(saved?.luxeMetal),
+    socialsSeeded: Boolean(saved?.socialsSeeded),
   }
+}
+
+/** First time only: every social the agent already added (Agent Hub / setup's "Your socials")
+ *  goes on the signature too, like the Agent Hub shows them - null when nothing changes. After
+ *  this, whatever they switch off stays off. */
+export function seedSignatureSocials(config: SignatureConfig, hubConfig: any): SignatureConfig | null {
+  if (config.socialsSeeded) return null
+  const urls = socialUrlsFrom(hubConfig)
+  const fields = { ...config.fields }
+  for (const net of ['website', 'instagram', 'facebook', 'youtube', 'tiktok']) {
+    if (urls[net]) fields[net] = { ...fields[net], include: true }
+  }
+  return { ...config, fields, socialsSeeded: true }
 }
 
 /** The smart starting buttons for a signature with none yet: the two most useful premade forms. */

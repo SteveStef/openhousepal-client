@@ -182,7 +182,7 @@ export default function WebsiteEditorShell({ onActionsChange, onBarEndChange, ta
   const [areasVersion, setAreasVersion] = useState(0)
   // The menu's Neighborhoods link shows once they serve a town - same rule as the live site.
   const [areaCount, setAreaCount] = useState(0)
-  useEffect(() => { api.sites.getAreas().then(r => setAreaCount(r.success && r.data ? r.data.length : 0)) }, [areasVersion])
+  useEffect(() => { api.sites.getAreas(true).then(r => setAreaCount(r.success && r.data ? r.data.length : 0)) }, [areasVersion])
   // Reviews page on (Reviews tab) - the preview's menu shows its "Reviews" link while it is.
   const [reviewsShowing, setReviewsShowing] = useState(false)
   useEffect(() => {

@@ -10,11 +10,14 @@ import EmptyState from './EmptyState'
 import { formatEventDate, formatTime, TIME_SLOT_OPTIONS, endTimeOptionsFor } from './formatters'
 import TimeSelect from './TimeSelect'
 import { refreshOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
+import { todayLocal } from '@/lib/relativeDays'
 
-export function BroadcastCard({ broadcast, onAccept, onCounter, busy }: {
+export function BroadcastCard({ broadcast, onAccept, onCounter, onDecline, busy }: {
   broadcast: IncomingBroadcast
   onAccept: (id: string) => void
   onCounter: (id: string, date: string, start: string, end: string, note: string) => void
+  /** Direct asks only (asked by name): "I can't" closes it and tells the listing agent. */
+  onDecline?: (id: string) => void
   busy: string | null
 }) {
   const [isCountering, setIsCountering] = useState(false)
@@ -94,6 +97,15 @@ export function BroadcastCard({ broadcast, onAccept, onCounter, busy }: {
             >
               {busy === broadcast.id ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} strokeWidth={3} />} I Can Host This
             </button>
+            {broadcast.is_direct && onDecline && (
+              <button
+                onClick={() => onDecline(broadcast.id)}
+                disabled={busy === broadcast.id}
+                className="flex shrink-0 items-center justify-center gap-1 rounded-xl border border-gray-200 px-3 py-2.5 text-xs font-black text-[#111827] transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-white dark:hover:bg-gray-800"
+              >
+                <X size={13} strokeWidth={3} /> I Can’t
+              </button>
+            )}
             <button
               onClick={() => setIsCountering(v => !v)}
               disabled={busy === broadcast.id}
@@ -101,7 +113,7 @@ export function BroadcastCard({ broadcast, onAccept, onCounter, busy }: {
               aria-label="Propose a different time"
               title="Propose a different time"
             >
-              <CalendarClock size={14} />
+              <CalendarClock size={14} /><span className="ml-1.5 text-xs font-black">Other time</span>
             </button>
           </div>
           {isCountering && (
@@ -158,7 +170,11 @@ export function BroadcastCard({ broadcast, onAccept, onCounter, busy }: {
 
 const PAGE_SIZE = 5
 
-export default function MyRequestsPanel({ isOpen, onClose, onActionComplete }: { isOpen: boolean; onClose: () => void; onActionComplete?: () => void }) {
+export default function MyRequestsPanel({ isOpen, onClose, onActionComplete, focusRequestId }: {
+  isOpen: boolean; onClose: () => void; onActionComplete?: () => void
+  /** Opened from a notification about one request: open its tab + page, scroll to it, glow it gold. */
+  focusRequestId?: string | null
+}) {
   const { showToast } = useToast()
   const [requests, setRequests] = useState<HostRequest[]>([])
   const [incoming, setIncoming] = useState<IncomingBroadcast[]>([])
@@ -229,6 +245,25 @@ export default function MyRequestsPanel({ isOpen, onClose, onActionComplete }: {
   const pagedResolvedRequests = resolvedRequests.slice((resolvedPage - 1) * PAGE_SIZE, resolvedPage * PAGE_SIZE)
   const pendingCount = invites.length + incoming.length + actionableRequests.length + newlyDeclinedRequests.length
 
+  const focusedOnce = useRef(false)
+  useEffect(() => {
+    if (!isOpen || !focusRequestId || focusedOnce.current) return
+    const target = requests.find(r => r.id === focusRequestId)
+    if (!target) return
+    const tab = target.status === 'approved' ? 'approved' : target.status === 'declined' ? 'denied' : 'pending'
+    if (tab !== mainTab) { setMainTab(tab); return }
+    if (tab !== 'pending') {
+      const list = tab === 'approved' ? approvedRequests : deniedRequests
+      const page = Math.floor(list.findIndex(r => r.id === focusRequestId) / PAGE_SIZE) + 1
+      if (page !== resolvedPage) { setResolvedPage(page); return }
+    }
+    const el = document.getElementById(`hostreq-${focusRequestId}`)
+    if (!el) return
+    focusedOnce.current = true
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
+  const focusRing = (id: string) => focusRequestId === id ? 'rounded-2xl ring-2 ring-[#C9A24D] ring-offset-2 ring-offset-white dark:ring-offset-[#151517]' : ''
+
   const isRespondingRef = useRef(false)
 
   const handleRespond = async (broadcastId: string) => {
@@ -273,6 +308,28 @@ export default function MyRequestsPanel({ isOpen, onClose, onActionComplete }: {
       onActionComplete?.()
     } else {
       showToast(error || 'Failed to confirm this time.', 'error')
+    }
+  }
+
+  const handleWithdraw = async (id: string) => {
+    const { success, error } = await api.openHouseManager.withdrawRequest(id)
+    if (success) {
+      showToast('Done - the listing agent has been told.', 'success')
+      load()
+      onActionComplete?.()
+    } else {
+      showToast(error || 'Couldn’t withdraw this right now.', 'error')
+    }
+  }
+
+  const handleDeclineDirect = async (id: string) => {
+    const { success, error } = await api.openHouseManager.declineDirectAsk(id)
+    if (success) {
+      showToast('Done - the listing agent has been told.', 'success')
+      load()
+      onActionComplete?.()
+    } else {
+      showToast(error || 'Couldn’t answer this right now.', 'error')
     }
   }
 
@@ -377,7 +434,7 @@ export default function MyRequestsPanel({ isOpen, onClose, onActionComplete }: {
                         </div>
                         <div className="space-y-3">
                           {newlyDeclinedRequests.map(request => (
-                            <HostRequestCard key={request.id} request={request} showAddress showHistory />
+                            <div key={request.id} id={`hostreq-${request.id}`} className={focusRing(request.id)}><HostRequestCard asHost onWithdraw={handleWithdraw} request={request} showAddress showHistory /></div>
                           ))}
                         </div>
                       </section>
@@ -427,7 +484,7 @@ export default function MyRequestsPanel({ isOpen, onClose, onActionComplete }: {
                         </div>
                         <div className="space-y-3">
                           {incoming.map(broadcast => (
-                            <BroadcastCard key={broadcast.id} broadcast={broadcast} onAccept={handleRespond} onCounter={handleCounterBroadcast} busy={respondingId} />
+                            <BroadcastCard key={broadcast.id} broadcast={broadcast} onAccept={handleRespond} onCounter={handleCounterBroadcast} onDecline={handleDeclineDirect} busy={respondingId} />
                           ))}
                         </div>
                       </section>
@@ -442,8 +499,8 @@ export default function MyRequestsPanel({ isOpen, onClose, onActionComplete }: {
                         </div>
                         <div className="space-y-3">
                           {actionableRequests.map(request => (
-                            <HostRequestCard key={request.id} request={request} showAddress showHistory onAcceptCounter={handleAcceptCounter} onDeclineCounter={handleDeclineCounter} onCounterBack={handleCounterBack}
-                        buildKitHref={request.status === 'approved' && String(request.requested_date) >= new Date().toISOString().slice(0, 10) ? `/open-houses?build=${request.id}` : undefined} />
+                            <div key={request.id} id={`hostreq-${request.id}`} className={focusRing(request.id)}><HostRequestCard asHost onWithdraw={handleWithdraw} request={request} showAddress showHistory onAcceptCounter={handleAcceptCounter} onDeclineCounter={handleDeclineCounter} onCounterBack={handleCounterBack}
+                        buildKitHref={request.status === 'approved' && String(request.requested_date) >= todayLocal() ? `/open-houses?build=${request.id}` : undefined} /></div>
                           ))}
                         </div>
                       </section>
@@ -460,8 +517,8 @@ export default function MyRequestsPanel({ isOpen, onClose, onActionComplete }: {
                 <>
                   <div className="space-y-3">
                     {pagedResolvedRequests.map(request => (
-                      <HostRequestCard key={request.id} request={request} showAddress showHistory onAcceptCounter={handleAcceptCounter} onDeclineCounter={handleDeclineCounter} onCounterBack={handleCounterBack}
-                        buildKitHref={request.status === 'approved' && String(request.requested_date) >= new Date().toISOString().slice(0, 10) ? `/open-houses?build=${request.id}` : undefined} />
+                      <div key={request.id} id={`hostreq-${request.id}`} className={focusRing(request.id)}><HostRequestCard asHost onWithdraw={handleWithdraw} request={request} showAddress showHistory onAcceptCounter={handleAcceptCounter} onDeclineCounter={handleDeclineCounter} onCounterBack={handleCounterBack}
+                        buildKitHref={request.status === 'approved' && String(request.requested_date) >= todayLocal() ? `/open-houses?build=${request.id}` : undefined} /></div>
                     ))}
                   </div>
                   {resolvedTotalPages > 1 && (

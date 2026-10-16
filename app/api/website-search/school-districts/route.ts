@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // app/api/website-forms/[formId]/route.ts: a public site page can be served on any agent-owned
 // hostname, so the browser must only ever talk to its own origin, never directly to
 // INTERNAL_API_URL. Backs the Search tab's school-district filter (see PropertyMapSearch).
-const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://localhost:8080'
+const INTERNAL_API_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get('query') || ''

@@ -20,3 +20,10 @@ export function formatDateTime(dateString?: string | null): string {
   if (isNaN(date.getTime())) return '—'
   return date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
+
+/** Today as "YYYY-MM-DD" in the viewer's own time zone. Never `new Date().toISOString().slice(0, 10)`
+ * - that's London time, so after 8 PM Eastern it already says tomorrow. */
+export function todayLocal(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}

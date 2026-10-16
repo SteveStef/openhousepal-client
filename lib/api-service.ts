@@ -373,6 +373,11 @@ class ApiService {
       body: JSON.stringify(data),
     }),
 
+    // What a new kit's Showcases + Similar Homes start at for this home: off when you're its
+    // listing (or co-listing) agent, on otherwise.
+    guestDefaults: (listingKey?: string | null) => this.request<{ own_listing: boolean; auto_showcase: boolean; similar_homes: boolean }>(
+      `/api/open-houses/guest-defaults${listingKey ? `?listing_key=${encodeURIComponent(listingKey)}` : ''}`),
+
     delete: (id: string) => this.request(`/api/open-houses/${id}`, {
       method: 'DELETE',
     }),
@@ -397,8 +402,8 @@ class ApiService {
 
     // Per open house: auto-build Showcases for guests without an agent, and where a guest's phone
     // goes after they sign in (their Spotlight / Agent Hub / nothing). Either field alone is fine.
-    updateGuestSettings: (id: string, settings: { auto_showcase?: boolean; after_signin?: 'hub' | 'none'; guest_pass?: boolean; pass_signature?: boolean }) =>
-      this.request<{ success: boolean; auto_showcase: boolean; after_signin: string | null; guest_pass: boolean; pass_signature: boolean }>(`/api/open-houses/${id}/guest-settings`, {
+    updateGuestSettings: (id: string, settings: { auto_showcase?: boolean; similar_homes?: boolean; after_signin?: 'hub' | 'none'; guest_pass?: boolean; pass_signature?: boolean }) =>
+      this.request<{ success: boolean; auto_showcase: boolean; similar_homes: boolean; after_signin: string | null; guest_pass: boolean; pass_signature: boolean }>(`/api/open-houses/${id}/guest-settings`, {
         method: 'PUT',
         body: JSON.stringify(settings),
       }),
@@ -509,6 +514,14 @@ class ApiService {
     }),
 
     declineCounter: (requestId: string) => this.request<HostRequest>(`/api/open-house-manager/host-requests/${requestId}/counter/decline`, {
+      method: 'POST',
+    }),
+    // The host takes back a request, or backs out of an open they were confirmed for.
+    withdrawRequest: (requestId: string) => this.request<HostRequest>(`/api/open-house-manager/host-requests/${requestId}/withdraw`, {
+      method: 'POST',
+    }),
+    // Asked directly to host and can't.
+    declineDirectAsk: (broadcastId: string) => this.request<null>(`/api/open-house-manager/team/broadcasts/${broadcastId}/decline`, {
       method: 'POST',
     }),
 
@@ -1467,7 +1480,7 @@ class ApiService {
     // Everything the Google tab previews every page from - see backend site_routes.get_my_seo_pages.
     getSeoPages: () => this.request<SeoPagesData>('/studio/sites/me/seo-pages'),
 
-    getAreas: () => this.request<AgentMarketArea[]>('/studio/sites/me/areas'),
+    getAreas: (lite = false) => this.request<AgentMarketArea[]>(`/studio/sites/me/areas${lite ? '?lite=true' : ''}`),
 
     addArea: (name: string, state: string, areaType: 'city' | 'neighborhood' = 'city') =>
       this.request<AgentMarketArea>('/studio/sites/me/areas', { method: 'POST', body: JSON.stringify({ name, state, area_type: areaType }) }),
@@ -1695,7 +1708,25 @@ class ApiService {
       return response
     },
 
-    downloadCsv: async (filters?: { source?: LeadSourceFilter; status?: string; represented?: string; search?: string; sort?: LeadSort; openHouseEventId?: string; hidden?: boolean }) => {
+    downloadCsv: async (filters?: { source?: LeadSourceFilter; status?: string; represented?: string; search?: string; sort?: LeadSort; openHouseEventId?: string; hidden?: boolean; ids?: string[] }) => {
+      if (filters?.ids) {
+        // The exact leads on screen, in that order.
+        const response = await fetch(`${API_BASE_URL}/leads/export.csv`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${getToken() || ''}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: filters.ids, hidden: !!filters.hidden }),
+        });
+        if (!response.ok) throw new Error('Failed to export leads');
+        const url = window.URL.createObjectURL(await response.blob());
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'leads.csv';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        return;
+      }
       const params = new URLSearchParams();
       if (filters?.source) params.set('source', filters.source);
       if (filters?.status) params.set('status', filters.status);
@@ -1968,6 +1999,8 @@ class ApiService {
             // Where the host sends the guest's phone after signing in ({kind, url}) - their Spotlight
             // for this home or their Agent Hub; absent = just the thank-you.
             afterSignin: p.afterSignin || null,
+            // Off = this open house shows no similar homes (sign-in thank-you wording).
+            similarHomes: p.similarHomes !== false,
           },
           theme: response.data?.theme || null,
           qrDarkMode: Boolean(response.data?.qrDarkMode),
@@ -2270,7 +2303,7 @@ export interface MailboxInfo {
   provider: 'google' | 'microsoft' | null
   account_email: string | null
   enabled: boolean
-  status: 'ok' | 'needs_reconnect' | null
+  status: 'ok' | 'needs_reconnect' | 'unavailable' | 'blocked' | null
   last_sent_at: string | null
   total_sent: number
   last_error: string | null

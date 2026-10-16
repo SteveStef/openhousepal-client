@@ -5,6 +5,7 @@ import type { HostRequest } from '@/types'
 import DashCardHeader from './DashCardHeader'
 import DashDiscoveryPanel, { DiscoveryListingStatus } from './DashDiscoveryPanel'
 import { DiscoveryListing } from './DashOpensPanel'
+import { todayLocal } from '@/lib/relativeDays'
 
 // The "host someone else's open house" side, its own Dash card now (was a tab inside the shared
 // "Open House Manager" card - split out so it sits beside Manager and uses the full column width).
@@ -22,7 +23,7 @@ export default function DashDiscoveryCard({
   // Say what's actually waiting: only a counter-offer or someone asking you to host needs a reply
   // (red). "Approved / declined" news is just an update - it shows in Your hosting below.
   const toAnswer = counteredAsHost + incomingAsks
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocal()
   const hosting = myRequests.filter(r => r.status === 'approved' && String(r.requested_date) >= today).length
   const status = toAnswer > 0 ? `${toAnswer} to respond to`
     : hosting > 0 ? `Hosting ${hosting} upcoming`

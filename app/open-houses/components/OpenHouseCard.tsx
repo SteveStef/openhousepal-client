@@ -4,7 +4,7 @@ import { memo, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Bath, Bed, BoxSelect, ChevronDown, MapPin, MonitorPlay, Plus, Sparkles, Tablet, Ticket, Trash2, Mail } from 'lucide-react'
+import { Bath, Bed, BoxSelect, ChevronDown, Layers, MapPin, MonitorPlay, Plus, Sparkles, Tablet, Ticket, Trash2, Mail } from 'lucide-react'
 import { AfterSignin, GuestSettingsPatch, OpenHouse } from '@/types'
 
 interface OpenHouseCardProps {
@@ -36,6 +36,9 @@ export const OpenHouseCard = memo(function OpenHouseCard({
   // no longer possible shows as "Nothing", which is also what the sign-in page does with it.
   const passAvailable = !!openHouse.guestPassAvailable
   const passOn = openHouse.guestPass !== false
+  // Similar Homes (the kit's sheet + the Guest Pass's similar homes): MLS-linked homes on Bright plans.
+  const similarAvailable = passAvailable && !!openHouse.listingKey
+  const similarOn = openHouse.similarHomes !== false
   // Guest Pass footer: the host's Email Signature card (plans with signatures) or the plain agent card.
   const passSigOn = openHouse.passSignature !== false
   const hubOk = !!(openHouse.hubAvailable && openHouse.hubReady)
@@ -169,10 +172,24 @@ export const OpenHouseCard = memo(function OpenHouseCard({
             short
             fit={fit}
             hint={showcasesOn
-              ? 'ON - everyone who signs in without an agent gets their own Showcase of similar homes. Turn off if you\'re sitting your own listing and don\'t want guests shopping other homes.'
-              : 'OFF - guests who sign in here don\'t get a Showcase. (Someone who scans "See more homes like these" on a Similar Homes sheet asked for one, so they still get it.)'}
+              ? 'ON - everyone who signs in without an agent gets their own Showcase of similar homes (and a Showcase button on their Guest Pass). Starts OFF when it\'s your own listing, so guests aren\'t sent shopping other homes.'
+              : 'OFF - guests who sign in here don\'t get a Showcase, and their Guest Pass doesn\'t offer one. (Someone who scans "See more homes like these" on a printed Similar Homes sheet asked for one, so they still get it.)'}
             onToggle={() => onGuestSettings(openHouse, { autoShowcase: !showcasesOn })}
           />
+          )}
+          {similarAvailable && (
+            <GuestSwitch
+              on={similarOn}
+              icon={<Layers className="h-3 w-3" />}
+              label="Similar Homes"
+              shortLabel="Similar"
+              short
+              fit={fit}
+              hint={similarOn
+                ? 'ON - your kit includes the Similar Homes sheet, and guests see those homes on their Guest Pass. Starts OFF when it\'s your own listing, so guests stay focused on this home.'
+                : 'OFF - no Similar Homes sheet in your kit and no similar homes on the Guest Pass, so guests stay focused on this home. Your picked homes are kept if you turn it back on.'}
+              onToggle={() => onGuestSettings(openHouse, { similarHomes: !similarOn })}
+            />
           )}
           {passAvailable && (
             <GuestSwitch
@@ -183,7 +200,7 @@ export const OpenHouseCard = memo(function OpenHouseCard({
               short
               fit={fit}
               hint={passOn
-                ? 'ON - right after signing in, each guest\'s phone opens their Guest Pass: this home, your Similar Homes + Cheat Sheet as web pages, one-tap seller disclosure / second tour requests' + (openHouse.showcasesAvailable ? ', their Showcase' : '') + (openHouse.ownSpotlightUrl ? ', and your Spotlight up top' : '') + '. (Not on a Kiosk tablet - it stays ready for the next guest.)'
+                ? 'ON - right after signing in, each guest\'s phone opens their Guest Pass: this home, ' + (similarAvailable && similarOn ? 'your Similar Homes + ' : 'your ') + 'Cheat Sheet as web pages, one-tap seller disclosure / second tour requests' + (openHouse.showcasesAvailable && showcasesOn ? ', their Showcase' : '') + (openHouse.ownSpotlightUrl ? ', and your Spotlight up top' : '') + '. (Not on a Kiosk tablet - it stays ready for the next guest.)'
                 : 'OFF - guests just see the thank-you screen after signing in.'}
               onToggle={() => onGuestSettings(openHouse, { guestPass: !passOn })}
             />

@@ -9,6 +9,7 @@ import PageGate from '@/components/PageGate'
 import NavHistoryTracker from '@/components/NavHistoryTracker'
 import AssistantWidget from '@/components/assistant/AssistantWidget'
 import IdxDomainMigrationModal from '@/components/IdxDomainMigrationModal'
+import ScrollLockWatcher from '@/components/ScrollLockWatcher'
 import { Metadata } from 'next'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -75,7 +76,7 @@ export default async function RootLayout({
           triggering that pairing, so overflow-y stays genuinely visible. */}
       <body suppressHydrationWarning className={`${inter.className} bg-[#faf9f7] dark:bg-[#0B0B0B] min-h-screen text-[#111827] dark:text-[#F3F4F6] overflow-x-clip overflow-y-visible`}>
         {isPublicSite ? (
-          <Providers>{children}</Providers>
+          <Providers>{children}<ScrollLockWatcher /></Providers>
         ) : (
           <Providers>
             <ToastProvider>
@@ -93,6 +94,7 @@ export default async function RootLayout({
                 </main>
                 <AssistantWidget />
                 <IdxDomainMigrationModal />
+                <ScrollLockWatcher />
               </AuthProvider>
             </ToastProvider>
           </Providers>

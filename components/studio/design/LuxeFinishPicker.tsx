@@ -7,28 +7,31 @@ import { Check, Crown } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { LUXE_METALS, LUXE_METAL_ORDER, type LuxeMetal } from '@/lib/luxeMetals'
 
-export default function LuxeFinishPicker({ value, onChange, locked = false, compact = false }: {
+export default function LuxeFinishPicker({ value, onChange, locked = false, compact = false, goldTheme = false }: {
   value: LuxeMetal | null
   onChange: (metal: LuxeMetal | null) => void
   locked?: boolean
   compact?: boolean
+  /** The theme's own accent is already gold (Luxe theme / Luxe layout): no "None" chip, Gold shows picked. */
+  goldTheme?: boolean
 }) {
+  const current: LuxeMetal | null = value ?? (goldTheme ? 'gold' : null)
   return (
     <div>
       <p className="flex flex-wrap items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-gray-400">
         <Crown className="h-3.5 w-3.5 text-[#C9A24D]" /> Luxe finish
         {!compact && <span className="font-semibold normal-case tracking-normal text-gray-400">- the gold, silver and bronze from your signature</span>}
       </p>
-      <div className={`mt-2 grid gap-2 ${compact ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'}`}>
-        <button type="button" onClick={() => onChange(null)} data-testid="luxe-finish-none"
+      <div className={`mt-2 grid gap-2 ${compact ? 'grid-cols-2' : goldTheme ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'}`}>
+        {!goldTheme && <button type="button" onClick={() => onChange(null)} data-testid="luxe-finish-none"
           className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-left transition hover:-translate-y-0.5 ${value === null ? 'border-[#111827] dark:border-white' : 'border-gray-200 dark:border-white/10'}`}>
           <span className="h-7 w-7 shrink-0 rounded-full border-2 border-dashed border-gray-300 dark:border-white/20" />
           <span className="min-w-0 leading-tight"><span className="block text-xs font-black text-[#111827] dark:text-white">None</span><span className="block text-[10px] font-semibold text-gray-400">Theme accent</span></span>
           {value === null && <Check className="ml-auto h-3.5 w-3.5 text-[#111827] dark:text-white" />}
-        </button>
+        </button>}
         {LUXE_METAL_ORDER.map(m => {
           const mp = LUXE_METALS[m]
-          const on = value === m
+          const on = current === m
           return (
             <motion.button key={m} type="button" whileTap={{ scale: 0.96 }} onClick={() => onChange(m)} data-testid={`luxe-finish-${m}`}
               className={`group relative flex items-center gap-2 overflow-hidden rounded-xl border-2 px-3 py-2.5 text-left transition hover:-translate-y-0.5 ${on ? 'shadow-[0_10px_24px_-14px_rgba(0,0,0,.45)]' : 'border-gray-200 dark:border-white/10'}`}

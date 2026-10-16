@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // "Save to your contacts" link in a follow-up's calendar event. Served from the app's own domain
 // (the same one as the done link beside it) and proxied server-to-server to the backend, which
 // builds the vCard live - the phone opens it straight into Create New Contact, notes included.
-const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://localhost:8080'
+const INTERNAL_API_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params

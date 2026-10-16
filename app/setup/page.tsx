@@ -30,6 +30,8 @@ const GROUPS: { title: string; ids: SetupStepId[] }[] = [
   { title: 'Staying in touch', ids: ['alerts', 'calendar', 'mailbox', 'crm'] },
   { title: 'Your website', ids: ['areas', 'homes', 'website'] },
 ]
+// The website steps get the whole width: choices on the left, a tall live preview on the right.
+const WIDE_STEPS: SetupStepId[] = ['homes', 'website']
 
 function mergePatch(a: SetupInfoPatch, b: SetupInfoPatch): SetupInfoPatch {
   return {
@@ -57,7 +59,8 @@ function SetupFlow() {
   const [shake, setShake] = useState(0)
   const [advancing, setAdvancing] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [notice, setNotice] = useState('')
+  // A sign-in result shows on its own step only (the email one on "Your email", not every step after).
+  const [notice, setNotice] = useState<{ text: string; step: SetupStepId } | null>(null)
   const [newIds, setNewIds] = useState<string[]>([])
   const gate = useRef<Gate>({ ok: true })
   const pending = useRef<SetupInfoPatch | null>(null)
@@ -90,11 +93,11 @@ function SetupFlow() {
       setCurrent(start)
       if (start !== 'done' && params.get('step') !== start) router.replace(`/setup?step=${start}`, { scroll: false })
       const cal = params.get('calendar')
-      if (cal === 'connected') setNotice('Your calendar is connected.')
-      if (cal === 'error') setNotice('That calendar didn’t connect - please try again.')
+      if (cal === 'connected') setNotice({ text: 'Your calendar is connected.', step: 'calendar' })
+      if (cal === 'error') setNotice({ text: 'That calendar didn’t connect - please try again.', step: 'calendar' })
       const mb = params.get('mailbox')
-      if (mb === 'connected') setNotice('Your email is connected - guest emails will now come from you.')
-      if (mb === 'error') setNotice('Your email didn’t connect - please try again, and allow the "send email" permission.')
+      if (mb === 'connected') setNotice({ text: 'Your email is connected - guest emails will now come from you.', step: 'mailbox' })
+      if (mb === 'error') setNotice({ text: 'Your email didn’t connect - please try again, and allow the "send email" permission.', step: 'mailbox' })
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated])
@@ -206,6 +209,8 @@ function SetupFlow() {
   const copy = step ? stepCopy(step.id, data.plan, data.has_mls) : null
   const View = step ? STEP_VIEWS[step.id] : null
   const firstName = (data.info.name || user?.first_name || '').split(' ')[0]
+  const wide = !!step && WIDE_STEPS.includes(step.id)
+  const frame = `mx-auto transition-[max-width] duration-500 ${wide ? 'max-w-[1760px]' : 'max-w-[1220px]'}`
 
   const stepList = (
     <nav aria-label="Setup steps" className="space-y-6">
@@ -242,8 +247,8 @@ function SetupFlow() {
     <div className="relative min-h-screen overflow-x-clip bg-[#f6f2ea] text-[#111827] dark:bg-[#09090a] dark:text-white">
       <SetupBackdrop />
       {/* top bar */}
-      <header className="sticky top-0 z-40 border-b border-[#C9A24D]/15 bg-[#fbf8f2]/85 dark:border-white/[0.06] dark:bg-[#0c0c0d]/80">
-        <div className="mx-auto flex h-16 max-w-[1220px] items-center gap-3 px-4 sm:px-6">
+      <header className="sticky top-0 z-40 border-b border-[#C9A24D]/15 bg-[#fbf8f2] dark:border-white/[0.06] dark:bg-[#0c0c0d]">
+        <div className={`${frame} flex h-16 items-center gap-3 px-4 sm:px-6`}>
           <Link href={data.approved && data.plan ? '/dash' : '#'} aria-label="OpenHousePal" className="shrink-0"><OhpWordmark className="text-[22px]" /></Link>
           <span className="hidden h-6 w-px bg-[#C9A24D]/30 sm:block" />
           <span className="hidden text-[12px] font-black uppercase tracking-[0.24em] text-[#8b7355] dark:text-[#d7b974] sm:block">Account setup</span>
@@ -259,7 +264,7 @@ function SetupFlow() {
         </div>
       </header>
 
-      <div className="relative mx-auto max-w-[1220px] px-4 pb-40 pt-6 sm:px-6 lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-10 lg:pt-10">
+      <div className={`relative ${frame} px-4 pb-40 pt-6 sm:px-6 lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:pt-10 ${wide ? 'lg:gap-8' : 'lg:gap-10'}`}>
         {/* step list - desktop */}
         <aside className="hidden lg:block">
           <div className="sticky top-24 rounded-[28px] border border-[#C9A24D]/20 bg-white/60 p-4 shadow-[0_30px_60px_-46px_rgba(139,106,43,.8)] dark:border-white/[0.07] dark:bg-white/[0.03]">
@@ -281,10 +286,10 @@ function SetupFlow() {
               <p className="text-[14.5px] font-semibold leading-snug">While we wait for your broker&apos;s approval, get a head start. Everything you add here is ready the moment you&apos;re approved.</p>
             </div>
           )}
-          {notice && (
+          {notice && notice.step === current && (
             <div className="mb-5 flex items-center gap-3 rounded-[22px] border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
-              <Check className="h-5 w-5 shrink-0" /><p className="flex-1 text-[14.5px] font-bold">{notice}</p>
-              <button onClick={() => setNotice('')} aria-label="Close"><X className="h-4 w-4" /></button>
+              <Check className="h-5 w-5 shrink-0" /><p className="flex-1 text-[14.5px] font-bold">{notice.text}</p>
+              <button onClick={() => setNotice(null)} aria-label="Close"><X className="h-4 w-4" /></button>
             </div>
           )}
 
@@ -336,7 +341,7 @@ function SetupFlow() {
                 </div>
 
                 {/* step body */}
-                <div className="px-6 py-8 sm:px-10 sm:py-10">
+                <div className={wide ? 'px-5 py-7 sm:px-8 sm:py-8' : 'px-6 py-8 sm:px-10 sm:py-10'}>
                   <View ctx={ctx} />
                   {copy.skip && !step.required && (
                     <p className="mt-8 flex items-start gap-2.5 rounded-2xl bg-[#f7f3ea] px-4 py-3 text-[14px] font-semibold text-gray-600 dark:bg-white/[0.04] dark:text-gray-300">
@@ -352,15 +357,15 @@ function SetupFlow() {
 
       {/* bottom bar */}
       {current !== 'done' && step && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#C9A24D]/20 bg-[#fbf8f2]/90 pb-[env(safe-area-inset-bottom)] dark:border-white/[0.07] dark:bg-[#0c0c0d]/90">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#C9A24D]/20 bg-[#fbf8f2] pb-[env(safe-area-inset-bottom)] dark:border-white/[0.07] dark:bg-[#0c0c0d]">
           <AnimatePresence>
             {gateMsg && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mx-auto max-w-[1220px] px-4 pt-3 sm:px-6 lg:pl-[326px]">
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`${frame} px-4 pt-3 sm:px-6 ${wide ? 'lg:pl-[318px]' : 'lg:pl-[326px]'}`}>
                 <motion.p key={shake} animate={{ x: [0, -8, 8, -5, 5, 0] }} transition={{ duration: 0.4 }} className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-4 py-2 text-[14px] font-bold text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"><CircleAlert className="h-4 w-4" /> {gateMsg}</motion.p>
               </motion.div>
             )}
           </AnimatePresence>
-          <div className="mx-auto flex max-w-[1220px] items-center gap-2 px-4 py-3 sm:gap-3 sm:px-6 lg:pl-[326px]">
+          <div className={`${frame} flex items-center gap-2 px-4 py-3 sm:gap-3 sm:px-6 ${wide ? 'lg:pl-[318px]' : 'lg:pl-[326px]'}`}>
             <button type="button" onClick={onBack} disabled={stepIndex === 0} className="inline-flex h-14 items-center gap-2 rounded-2xl px-3 text-[15px] font-black text-gray-600 transition hover:bg-black/5 disabled:opacity-30 dark:text-gray-300 dark:hover:bg-white/5 sm:px-5">
               <ArrowLeft className="h-5 w-5" /> <span className="max-sm:sr-only">Back</span>
             </button>

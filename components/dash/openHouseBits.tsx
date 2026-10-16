@@ -4,7 +4,7 @@
 // you could host): the photo cover with its price tag, the "2 of 4 days covered" meter, stat
 // tiles and status pills - one look for both cards so they read as a matched pair side by side.
 import { Home } from 'lucide-react'
-import { getUpcomingWeekendCells, WeekendCalendarOpen } from '@/components/open-house-manager/WeekendCalendarCards'
+import { dayIsHostable, getUpcomingWeekendCells, hostingNote, type HostingWindow, WeekendCalendarOpen } from '@/components/open-house-manager/WeekendCalendarCards'
 import { formatShortDateWithDay, formatTimeRangeCompact } from '@/components/open-house-manager/formatters'
 
 export const niceAddress = (s?: string | null) => (s && s === s.toUpperCase() ? s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : s || '')
@@ -34,33 +34,41 @@ export function ListingCover({ src, price, chip, className = 'h-[76px] w-[104px]
 }
 
 /** The next 4 open-house days as 4 segments: green = hosted, blue = request waiting, amber = open. */
-export function CoverageMeter({ opens, pendingDates = [], openLabel = 'need a host' }: {
+export function CoverageMeter({ opens, pendingDates = [], openLabel = 'need a host', hostingWindow }: {
   opens: WeekendCalendarOpen[]
   pendingDates?: string[]
   openLabel?: string
+  /** Coming Soon / under contract - days it can't be shown are grey and never "need a host". */
+  hostingWindow?: HostingWindow
 }) {
   const dates = new Set(opens.map(o => o.scheduled_date).filter((d): d is string => !!d))
   const cells = getUpcomingWeekendCells(dates)
+  const locked = (d: string) => !dates.has(d) && !dayIsHostable(hostingWindow, d)
   const covered = cells.filter(c => dates.has(c.date)).length
-  const waiting = cells.filter(c => !dates.has(c.date) && pendingDates.includes(c.date)).length
-  const open = cells.length - covered - waiting
+  const waiting = cells.filter(c => !dates.has(c.date) && !locked(c.date) && pendingDates.includes(c.date)).length
+  const lockedCount = cells.filter(c => locked(c.date)).length
+  const open = cells.length - covered - waiting - lockedCount
+  const note = hostingNote(hostingWindow)
   return (
     <div className="min-w-0">
       <div className="flex gap-1">
         {cells.map(c => (
           <span key={c.date} className={`h-1.5 flex-1 rounded-full ${
             dates.has(c.date) ? 'bg-gradient-to-r from-emerald-400 to-emerald-500'
+              : locked(c.date) ? 'bg-gray-200 dark:bg-white/10'
               : pendingDates.includes(c.date) ? 'bg-sky-400/80'
               : 'bg-amber-200 dark:bg-amber-500/25'}`} />
         ))}
       </div>
       <p className="mt-1 text-[10.5px] font-bold leading-snug text-gray-500 dark:text-gray-400">
-        {open === 0 && waiting === 0
+        {note && lockedCount === cells.length ? <span>{note}</span>
+        : open === 0 && waiting === 0 && lockedCount === 0
           ? <span className="text-emerald-600 dark:text-emerald-400">All {cells.length} days covered</span>
           : <>
               <span className="text-emerald-600 dark:text-emerald-400">{covered} of {cells.length} covered</span>
               {waiting > 0 && <> · <span className="text-sky-600 dark:text-sky-300">{waiting} requested</span></>}
               {open > 0 && <> · <span className="text-amber-600 dark:text-amber-400">{open} {openLabel}</span></>}
+              {lockedCount > 0 && <> · <span title={note || undefined}>{lockedCount} not yet</span></>}
             </>}
       </p>
     </div>

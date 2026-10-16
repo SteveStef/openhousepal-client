@@ -77,8 +77,10 @@ export interface TownPhoto { url: string; credit?: string | null; caption?: stri
 export type HeaderMode = 'photo' | 'cycle' | 'video'
 export type HeaderMotion = 'in' | 'out' | 'both' | 'none'
 /** The main photo's framing: the spot kept centered (0-100 of the photo) and how far the slow
- *  zoom travels (1 = none). */
-export interface HeroFrame { x: number; y: number; zoom: number }
+ *  zoom travels (1 = none). x / y = on a computer; px / py = on a phone (a tall header often
+ *  needs its own spot - the computer's when missing). desk_set / phone_set = the agent picked
+ *  each one in "Frame your photo" (both are required). */
+export interface HeroFrame { x: number; y: number; zoom: number; px?: number; py?: number; desk_set?: boolean; phone_set?: boolean }
 
 export interface SpotlightHeader {
   mode?: HeaderMode

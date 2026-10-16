@@ -264,8 +264,8 @@ export const DESIGN_FORMATS: DesignFormatDef[] = [
 // "Where will it be posted?" step and the export size (server PNG export mirrors `exportPx` in
 // backend/app/services/design_export_service.py, print PDFs use the physical `size`).
 export const DESIGN_FORMAT_META: Record<string, { channel: 'Social' | 'Print' | 'Digital'; placement: string; size: string; exportPx: [number, number] }> = {
-  instagram_post: { channel: 'Social', placement: 'Instagram & Facebook feed · 1:1', size: '1080 × 1080 px', exportPx: [1080, 1080] },
-  instagram_portrait: { channel: 'Social', placement: 'Instagram, Facebook & LinkedIn feed · ads · 4:5', size: '1080 × 1350 px', exportPx: [1080, 1350] },
+  instagram_post: { channel: 'Social', placement: 'Instagram & Facebook feed', size: '1080 × 1080 px', exportPx: [1080, 1080] },
+  instagram_portrait: { channel: 'Social', placement: 'Instagram, Facebook & LinkedIn feed · ads', size: '1080 × 1350 px', exportPx: [1080, 1350] },
   just_sold_post: { channel: 'Social', placement: 'Instagram & Facebook feed', size: '1080 × 1080 px', exportPx: [1080, 1080] },
   instagram_story: { channel: 'Social', placement: 'Stories & Reels cover', size: '1080 × 1920 px', exportPx: [1080, 1920] },
   facebook_post: { channel: 'Social', placement: 'Facebook feed & link posts', size: '1200 × 628 px', exportPx: [1200, 628] },
@@ -279,6 +279,16 @@ export const DESIGN_FORMAT_META: Record<string, { channel: 'Social' | 'Print' | 
   door_hanger: { channel: 'Print', placement: 'Door hanger', size: '4.25 × 11 in', exportPx: [1275, 3300] },
   email_graphic: { channel: 'Digital', placement: 'Email header banner', size: '1800 × 600 px', exportPx: [1800, 600] },
   presentation_graphic: { channel: 'Digital', placement: 'Slides & screens', size: '1920 × 1080 px', exportPx: [1920, 1080] },
+}
+
+/** The shape as people say it: 1:1, 4:5, 9:16, 3:2 - or Portrait / Tall when the true ratio is an awkward one (8.5 x 11). */
+export function formatRatioLabel(designType: string): string {
+  const px = DESIGN_FORMAT_META[designType]?.exportPx
+  if (!px) return ''
+  const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a)
+  const g = gcd(px[0], px[1]), w = px[0] / g, h = px[1] / g
+  if (w <= 16 && h <= 16) return `${w}:${h}`
+  return h / w > 2 ? 'Tall' : h > w ? 'Portrait' : 'Wide'
 }
 
 export function getDesignFormat(designType: string): DesignFormatDef | undefined {

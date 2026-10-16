@@ -81,7 +81,8 @@ function Preview() {
       ...(motion ? { motion } : {}),
       ...(video ? { video: { url: video, poster } } : {}),
       // ?fx=&fy=&fz= - try a framing of the main photo without saving it
-      ...(search.get('fx') ? { frame: { x: Number(search.get('fx')), y: Number(search.get('fy') || 50), zoom: Number(search.get('fz') || 1.12) } } : {}),
+      ...(search.get('fx') ? { frame: { x: Number(search.get('fx')), y: Number(search.get('fy') || 50), zoom: Number(search.get('fz') || 1.12),
+        ...(search.get('fpx') ? { px: Number(search.get('fpx')), py: Number(search.get('fpy') || 50) } : {}) } } : {}),
     }
     return {
       ...data,

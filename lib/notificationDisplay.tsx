@@ -1,12 +1,14 @@
 import { SlidersHorizontal,
   Calendar, CalendarClock, Eye, Home, FileText, FileCheck, Inbox, CheckCircle2, XCircle, MessageSquareText,
   MessageCircle, Megaphone, UserCheck, Mail, TrendingUp, ThumbsUp, ThumbsDown, Send, UserPlus, HelpCircle, Film,
-  MailOpen, MailX, Star, Newspaper, Bell, CreditCard, ClipboardList,
+  MailOpen, MailX, Star, Newspaper, Bell, CreditCard, ClipboardList, AlertTriangle,
 } from 'lucide-react'
 
 // Shared per-type display metadata for Notification.type - used by both the bell dropdown
 // (NotificationDropdown) and the full-history Activity page, so the two never drift apart.
 export const NOTIFICATION_META: Record<string, { icon: React.ComponentType<{ className?: string }>; label: string; className: string }> = {
+  // admin_alerts.py - a provider / setup failure only the admin sees (agents get a calm message).
+  ADMIN_WARNING: { icon: AlertTriangle, label: 'Admin warning', className: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800' },
   OPEN_HOUSE_SIGN_IN: { icon: Home, label: 'New Visitor', className: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800' },
   TOUR_REQUEST: { icon: Calendar, label: 'Tour Request', className: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800' },
   // Generic fallback within PROPERTY_INTERACTION - getNotificationMeta below branches liked/disliked
@@ -25,6 +27,8 @@ export const NOTIFICATION_META: Record<string, { icon: React.ComponentType<{ cla
   HOST_REQUEST_RECEIVED: { icon: Inbox, label: 'Host Request', className: 'bg-[#C9A24D]/15 dark:bg-[#C9A24D]/20 text-[#8b7355] dark:text-[#d7b974] border-[#C9A24D]/30' },
   HOST_REQUEST_APPROVED: { icon: CheckCircle2, label: 'Request Approved', className: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800' },
   HOST_REQUEST_DECLINED: { icon: XCircle, label: 'Request Declined', className: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700' },
+  // A host pulled out (or a request was withdrawn) - neutral, like a decline.
+  HOST_REQUEST_WITHDRAWN: { icon: XCircle, label: 'Request Withdrawn', className: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700' },
   // A new time was proposed on your request - not resolved yet, so amber (needs a decision) rather
   // than green/red like the final approve/decline outcomes above.
   HOST_REQUEST_COUNTERED: { icon: CalendarClock, label: 'Time Proposed', className: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-800' },

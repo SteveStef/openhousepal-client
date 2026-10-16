@@ -6,7 +6,8 @@ const LOCAL_TEST_HOSTS = new Set(['localhost', '127.0.0.1'])
 // The free <slug>.openhousepal.com addresses only open once the wildcard DNS record
 // (*.openhousepal.com) exists. Until NEXT_PUBLIC_OHP_SUBDOMAINS_LIVE=true, links use the same page
 // on openhousepal.com (/ohp-site-render/<host>), which always works.
-const SUBDOMAINS_LIVE = process.env.NEXT_PUBLIC_OHP_SUBDOMAINS_LIVE === 'true'
+export const OHP_SUBDOMAINS_LIVE = process.env.NEXT_PUBLIC_OHP_SUBDOMAINS_LIVE === 'true'
+const SUBDOMAINS_LIVE = OHP_SUBDOMAINS_LIVE
 
 /** A public page on an agent's <slug>.openhousepal.com address, as a link that opens today. */
 export function ohpHostUrl(hostname: string, path = '') {

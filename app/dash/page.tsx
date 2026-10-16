@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import {
-  Activity, AlertTriangle, ArrowRight, Calculator, CalendarClock, Clapperboard, ClipboardList, GripVertical, Link2, Home, Image as ImageIcon,
+  Activity, AlertTriangle, ArrowRight, Calculator, CalendarClock, ChevronDown, Clapperboard, ClipboardList, GripVertical, Link2, Home, Image as ImageIcon,
   Layout as LayoutIcon, LayoutDashboard, Lock, Mail, Newspaper, Plus, Users,
 } from 'lucide-react'
 import api from '@/lib/api-service'
@@ -214,7 +214,12 @@ export default function DashPage() {
       setDiscoveryListings((discoveryRes.data as any).data || [])
       setHasDiscoveryPreferences((discoveryRes.data as any).preferences != null)
     }
-    if (myListingsRes.success && myListingsRes.data) setMyListings(myListingsRes.data)
+    // Dash only shows listings that can still need a host - under contract (Pending / Active Under
+    // Contract) or off the market has nothing to find a host for. They stay on the Manager page.
+    if (myListingsRes.success && myListingsRes.data) {
+      const d = myListingsRes.data
+      setMyListings({ ...d, listings: d.listings.filter(l => l.hosting_blocked !== 'pending' && l.hosting_blocked !== 'off_market') })
+    }
 
     setLastUpdated(new Date())
     if (isFirstLoad) setLoading(false)
@@ -302,7 +307,8 @@ export default function DashPage() {
   // One combined set - all 4 render in a single masonry-style flow (see dashPanelsDrag/the
   // columns-based layout below) instead of two separate fixed 2-up rows, so a short panel (e.g.
   // Activity with just 1-2 items) doesn't leave dead space next to it that nothing else can fill.
-  const activityUnread = topActivityNotifications.filter(n => !n.isRead).length
+  // Counted over the whole 30-day feed (not just the 21 rows shown) - the same number the bell shows.
+  const activityUnread = visibleNotifications(activityNotifications).filter(n => !n.isRead).length
   const allPanels: Record<string, React.ReactNode> = {
     'Activity': (
       <DashPanel
@@ -312,7 +318,8 @@ export default function DashPage() {
         emptyLabel="Your recent activity — lead replies, open house sign-ins, form fills, and more — will show up here as it happens."
       >
         <ScrollableSection maxHeightClass="max-h-[430px]" viewHref="/activity" viewLabel="Full history">
-          <DashActivityFeed notifications={topActivityNotifications} />
+          <DashActivityFeed notifications={topActivityNotifications}
+            onRead={id => setActivityNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n))} />
         </ScrollableSection>
       </DashPanel>
     ),
@@ -362,18 +369,28 @@ export default function DashPage() {
   // tucked full-width at the bottom, out of the way, once the agent is caught up. Defaults to the
   // bottom while the count is still loading (null) so it doesn't pop to the top and then back down.
   const followupsAtTop = followupsOn && (followupOpenCount ?? 0) > 0
+  // Hide/show for this visit only - coming back to Dash (or reloading) opens it again, so what's
+  // due is always in front of the agent.
+  const [followupsHidden, setFollowupsHidden] = useState(false)
   const followupsPanel = !followupsOn ? null : (
     <DashPanel
       title="Follow-ups" icon={CalendarClock} viewHref="/leads/tasks" viewLabel="All follow-ups"
       status={followupOpenCount ? `${followupOpenCount} due` : 'All clear'} statusTone={followupOpenCount ? 'red' : 'green'}
       badgeCount={followupOpenCount ?? undefined} badgeExact
-      headerExtra={<CalendarChip />}
+      headerExtra={<>
+        <CalendarChip />
+        <button type="button" onClick={() => setFollowupsHidden(h => !h)} aria-expanded={!followupsHidden}
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-black text-gray-500 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-400 dark:hover:text-[#d7b974]">
+          <ChevronDown className={`h-3 w-3 transition-transform ${followupsHidden ? '' : 'rotate-180'}`} /> {followupsHidden ? 'Show' : 'Hide'}
+        </button>
+      </>}
     >
       {/* No ScrollableSection here (unlike Leads/Activity) - Follow-ups' own grid already spreads
           rows sideways instead of stacking them tall. TasksPanel renders its own "nothing due"
           state, keeps anything checked off today at the bottom (so an accidental check is easy
           to undo), and ends with the calendar connected / not-connected line. */}
-      <div className="min-w-0 px-1.5 py-2">
+      {/* Kept mounted while hidden, so Show is instant and the count keeps updating. */}
+      <div className="min-w-0 px-1.5 py-2" hidden={followupsHidden}>
         <TasksPanel compact onCountChange={refreshFollowupCount} />
       </div>
     </DashPanel>

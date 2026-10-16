@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { styledQrSvg } from '@/lib/qrStyle'
 import { Home } from 'lucide-react'
@@ -1016,7 +1016,8 @@ function Tel({ kind, num, style }: { kind: 'mobile' | 'office'; num: string; sty
 // line that is NEVER smaller than the name (a long brokerage steps the name down with it, and wraps
 // rather than ever being cut), then the mobile and - on print - the brokerage office line, each
 // with its little icon.
-function AgentCard({ c, t, ink, S, align = 'left', variant = 'row', sel, showContact = true, scale = 1, narrow = false, showPhoto = true, noTitle = false }: {
+function AgentCard({ c, t, ink, S, align = 'left', variant = 'row', sel, showContact = true, scale = 1, narrow = false, showPhoto = true, noTitle = false, fitLong = false }: {
+  fitLong?: boolean // footers with room to wrap: a long name / brokerage wraps to two lines instead of shrinking
   c: Content; t: DesignTheme; ink: Ink; S: Sizes; align?: 'left' | 'center'; variant?: 'row' | 'stack'; sel: Sel; showContact?: boolean; scale?: number
   noTitle?: boolean // just the name + brokerage (the letter footer: two lines beside two lines of contact)
   narrow?: boolean // tight columns: name, brokerage and one contact item (no title)
@@ -1031,17 +1032,23 @@ function AgentCard({ c, t, ink, S, align = 'left', variant = 'row', sel, showCon
   const nameFit = c.hanger && narrow
     ? fit(a.name, nameBase, upper ? (showPhoto ? 13 : 16) : (showPhoto ? 14 : 18), 0.6)
     : narrow ? nameBase : fit(a.name, nameBase, upper ? 16 : 20, 0.55)
-  const brokerFit = a.brokerage ? fit(a.brokerage, nameBase, narrow ? (showPhoto ? 16 : 20) : 28, 0.6) : nameFit
+  // print (user 10/12): a long name or brokerage wraps to two balanced lines instead of shrinking to a
+  // whisper - sized so each line fits even the narrowest footer column (~19 characters at full size)
+  const nameWraps = c.isPrint && fitLong && !narrow && (((a.name || '').length > 22) || ((a.brokerage || '').length > 30))
+  const twoLineK = (x: string | null | undefined) => x ? Math.max(0.62, Math.min(1, 19 / Math.max(...splitLines(x, 2).map(l => l.length)))) : 1
+  const wrapSize = nameBase * Math.min(twoLineK(a.name), twoLineK(a.brokerage))
+  const brokerFit = a.brokerage ? (nameWraps ? wrapSize : fit(a.brokerage, nameBase, narrow ? (showPhoto ? 16 : 20) : 28, 0.6)) : nameFit
   // Print: the name and the brokerage are one matched pair - same bold sans, same size (user 10/09:
   // the thin serif name looked underwhelming next to a bold brokerage). Social keeps the theme's name font.
   const pair = c.isPrint
-  const nameSize = pair ? Math.min(fit(a.name, nameBase, narrow ? (showPhoto ? 15 : 19) : 24, 0.6), brokerFit) : Math.min(nameFit, brokerFit)
+  const nameSize = pair ? (nameWraps ? wrapSize : Math.min(fit(a.name, nameBase, narrow ? (showPhoto ? 15 : 19) : 24, 0.6), brokerFit)) : Math.min(nameFit, brokerFit)
   const brokerSize = pair ? nameSize : Math.max(brokerFit, nameSize)
   const nameStyle: CSSProperties = {
     fontFamily: pair ? t.fonts.label : nameFont, fontWeight: pair ? 800 : nameFont === t.fonts.display ? 700 : 800,
     textTransform: pair ? 'none' : upper ? 'uppercase' : 'none',
     letterSpacing: pair ? '0' : lux ? (c.hanger && narrow ? '0.06em' : '0.12em') : t.styleId === 'bold' ? '0.04em' : '-0.005em',
-    fontSize: u(nameSize), lineHeight: 1.15, color: ink.ink, whiteSpace: narrow && !c.hanger ? 'normal' : 'nowrap',
+    fontSize: u(nameSize), lineHeight: 1.15, color: ink.ink, whiteSpace: (narrow && !c.hanger) || nameWraps ? 'normal' : 'nowrap',
+    ...(nameWraps ? { textWrap: 'balance' as CSSProperties['textWrap'] } : {}),
   }
   const strong = ink.onPhoto ? 'rgba(255,255,255,0.95)' : ink.ink
   const metaStyle: CSSProperties = { fontFamily: t.fonts.label, fontSize: u(S.agentMeta * scale), lineHeight: 1.4, color: ink.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
@@ -1050,21 +1057,30 @@ function AgentCard({ c, t, ink, S, align = 'left', variant = 'row', sel, showCon
   const emailLine = pair && showContact ? a.email : ''
   const others = (pair ? (a.phone ? [] : [a.website]) : narrow ? (a.phone ? [] : [a.email || a.website]) : [a.email, a.website]).filter(Boolean) as string[]
   // door hangers are narrow (QR + headshot beside it) - the email stays at the width that fits there
-  const emailSize = fit(emailLine || '', S.agentMeta * scale * 1.22, narrow ? (showPhoto ? (c.hanger ? 19.5 : 22) : (c.hanger ? 24 : 28)) : 36, 0.5)
+  const emailCap = narrow ? (showPhoto ? (c.hanger ? 19.5 : 22) : (c.hanger ? 24 : 28)) : 36
+  const emailParts = emailLine ? [emailLine] : []
+  const emailSize = fit(emailParts.reduce((m, l) => (l.length > m.length ? l : m), ''), S.agentMeta * scale * 1.22, emailCap, 0.5)
   const stack = variant === 'stack'
   const centerText = stack && align === 'center'
+  const fitPair = pair && nameWraps && (noTitle || !a.title)
   return (
     <Pick id={a.id} sel={sel} style={{ display: 'flex', flexDirection: stack ? 'column' : 'row', alignItems: stack ? (align === 'center' ? 'center' : 'flex-start') : 'center', gap: u(S.agentName * scale * (stack ? 0.7 : 0.9)), minWidth: 0 }}>
       {showPhoto && <Headshot agent={a} size={S.headshot * scale} ring={ink.onPhoto ? 'rgba(255,255,255,0.6)' : ink.accent} />}
       <div style={{ minWidth: 0, textAlign: centerText ? 'center' : 'left', display: 'flex', flexDirection: 'column', alignItems: centerText ? 'center' : 'flex-start' }}>
-        {a.name && (!narrow && !noTitle && a.title
+        {fitPair ? (
+          // long name / brokerage: one matched pair, measured - as big as it can be while each wraps to at most two lines
+          <FitLines text={`${a.name}|${a.brokerage}`} size={nameBase} lines={4} style={{ lineHeight: 1.18, textAlign: centerText ? 'center' : 'left' }} node={<>
+            {a.name && <div style={{ ...nameStyle, fontSize: '1em', lineHeight: 1.18, whiteSpace: 'normal', textWrap: 'balance' as CSSProperties['textWrap'] }}>{a.name}</div>}
+            {a.brokerage && <div style={{ fontFamily: t.fonts.label, fontWeight: 700, fontSize: '1em', lineHeight: 1.18, color: strong, marginTop: '0.15em', textWrap: 'balance' as CSSProperties['textWrap'] }}>{a.brokerage}</div>}
+          </>} />
+        ) : a.name && (!narrow && !noTitle && a.title
           ? <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', columnGap: u(S.agentMeta * scale * 0.7), justifyContent: centerText ? 'center' : 'flex-start' }}>
               <span style={nameStyle}>{a.name}</span>
               <span aria-hidden style={{ alignSelf: 'stretch', width: hair, background: ink.rule, margin: `${u(S.agentMeta * scale * 0.25)} 0` }} />
               <span style={{ ...metaStyle, overflow: 'visible' }}>{a.title}</span>
             </div>
           : <div style={nameStyle}>{a.name}</div>)}
-        {a.brokerage && <div style={{ fontFamily: t.fonts.label, fontWeight: pair ? 700 : 800, fontSize: u(brokerSize), lineHeight: 1.18, color: strong, marginTop: u(S.agentMeta * scale * 0.2), whiteSpace: a.brokerage.length > (narrow ? 26 : 36) ? 'normal' : 'nowrap', textWrap: 'balance' as any }}>{a.brokerage}</div>}
+        {!fitPair && a.brokerage && <div style={{ fontFamily: t.fonts.label, fontWeight: pair ? 700 : 800, fontSize: u(brokerSize), lineHeight: 1.18, color: strong, marginTop: u(S.agentMeta * scale * 0.2), whiteSpace: nameWraps || a.brokerage.length > (narrow ? 26 : 36) ? 'normal' : 'nowrap', textWrap: 'balance' as any }}>{a.brokerage}</div>}
         {showContact && (a.phone || others.length > 0 || (a.office && (!c.hanger || c.phonesInline))) && (
           <div style={{ ...contactStyle, display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: u(S.agentMeta * scale * 1.2), marginTop: u(S.agentMeta * scale * 0.2), justifyContent: centerText ? 'center' : 'flex-start' }}>
             {a.phone && <Tel kind="mobile" num={a.phone} />}
@@ -1073,7 +1089,7 @@ function AgentCard({ c, t, ink, S, align = 'left', variant = 'row', sel, showCon
           </div>
         )}
         {showContact && a.office && c.hanger && !c.phonesInline && <Tel kind="office" num={a.office} style={{ ...metaStyle, color: strong, overflow: 'visible' }} />}
-        {emailLine && <div style={{ ...metaStyle, fontSize: u(emailSize), color: strong, fontWeight: 600, overflow: 'visible', marginTop: u(S.agentMeta * scale * 0.1) }}>{emailLine}</div>}
+        {emailLine && <div style={{ ...metaStyle, fontSize: u(emailSize), color: strong, fontWeight: 600, overflow: 'visible', marginTop: u(S.agentMeta * scale * 0.1) }}>{emailParts.map((l, i) => <div key={i}>{l}</div>)}</div>}
       </div>
     </Pick>
   )
@@ -1081,15 +1097,18 @@ function AgentCard({ c, t, ink, S, align = 'left', variant = 'row', sel, showCon
 
 // The letter footer's right side (user 10/11): the mobile number large, the office and the email under
 // it, all set right so the footer spans the page.
-function SplitContacts({ c, t, ink, S, sel, scale = 1 }: { c: Content; t: DesignTheme; ink: Ink; S: Sizes; sel: Sel; scale?: number }) {
+function SplitContacts({ c, t, ink, S, sel, scale = 1, splitMail = false, center = false }: { c: Content; t: DesignTheme; ink: Ink; S: Sizes; sel: Sel; scale?: number; splitMail?: boolean; center?: boolean }) {
   const a = c.agent
   if (!a || (!a.phone && !a.office && !a.email && !a.website)) return null
   const strong = ink.onPhoto ? 'rgba(255,255,255,0.95)' : ink.ink
   const base: CSSProperties = { fontFamily: t.fonts.label, color: strong, whiteSpace: 'nowrap', lineHeight: 1.3, fontVariantNumeric: 'lining-nums' }
   const mail = a.email || a.website || ''
   return (
-    <Pick id={a.id} sel={sel} style={{ flex: '0 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', textAlign: 'right', gap: u(S.agentMeta * scale * 0.3) }}>
-      {mail && <div style={{ ...base, fontWeight: 700, fontSize: u(fit(mail, S.agentMeta * scale * 1.4, 26, 0.6)) }}>{mail}</div>}
+    <Pick id={a.id} sel={sel} style={{ flex: splitMail ? '0 0 auto' : '0 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-end', textAlign: center ? 'center' : 'right', gap: u(S.agentMeta * scale * 0.3) }}>
+      {mail && (() => {
+        // roomy footers (user 10/13): the email stays on ONE line and barely shrinks - the name column wraps instead
+        return <div style={{ ...base, fontWeight: 700, fontSize: u(fit(mail, S.agentMeta * scale * 1.4, splitMail ? 40 : 26, splitMail ? 0.84 : 0.6)) }}>{mail}</div>
+      })()}
       {(a.phone || a.office) && (
         <div style={{ display: 'flex', alignItems: 'center', gap: u(S.agentMeta * scale * 1.1) }}>
           {a.phone && <Tel kind="mobile" num={a.phone} style={{ ...base, fontWeight: 700, fontSize: u(S.agentMeta * scale * 1.4), letterSpacing: '0.02em' }} />}
@@ -2430,7 +2449,7 @@ function LuxeGoldFrame({ inset, gold }: { inset: number; gold: string }) {
   )
 }
 
-function Luxe({ c, t, fam, S: S0, sel }: CompProps) {
+function Luxe({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
   const wide = fam === 'landscape' || fam === 'banner'
   const S = fam === 'banner' ? scaled(S0, 0.78) : wide ? scaled(S0, 0.9) : S0
   const P = S.pad
@@ -2508,6 +2527,436 @@ function Luxe({ c, t, fam, S: S0, sel }: CompProps) {
     </>
   )
 
+  // Postcards (user 10/12 rebuild): the approved postcard order - the photo framed on the left with its
+  // address plate and a little gold calendar on its corner; the status set big in serif, the price and the
+  // QR on the right; the agent along the bottom - all the Luxe way: midnight, gold keylines, serif type.
+  // Letter-size pages (letter, flyers) use the same pieces stacked: the status, the framed photo with its
+  // plate, then the price beside a tall QR card, then the agent bar.
+  // Square posts (user 10/13) use the same pieces: the status across the top, then the framed photo beside the
+  // price and a stats grid (or the promises and the ask), then the agent bar - no QR on social.
+  // 4:5 posts (user 10/13) take the approved letter layout - the ask box stands in for the QR card
+  if (((fam === 'landscape' || fam === 'portrait') && print) || ((fam === 'square' || fam === 'portrait' || fam === 'story') && !print)) {
+    const port = fam === 'portrait'
+    // stories (user 10/13): the square design stacked, kept clear of the Instagram header and reply bar
+    const st = fam === 'story' && !print
+    const sq = fam === 'square' || st
+    const AW = port || sq ? 100 : 100 * Math.max(1.2, ar)
+    const AH = port ? 100 / Math.min(0.95, ar || 0.77) : 100
+    const padT = port ? 8.4 : st ? 10 : sq ? 6.6 : 7.4, padX = sq ? 7.2 : 8.6, padB = port ? 5.6 : st ? 9 : sq ? 4.8 : 5.2
+    const inner = AW - padX * 2
+    const LW = port || st || (sq && !c.leadGen) ? inner : inner * (sq ? 0.56 : 0.53), gapC = sq ? 4.4 : 5.4, RW = port || st ? inner : inner - LW - gapC
+    // portrait bottom row: the price (or promises) on the left, the QR card on the right
+    const PW = port ? inner * 0.58 : RW, QW = port ? inner - inner * 0.58 - 5 : RW
+    const ivory = ink.ink
+    const capsL: CSSProperties = { fontFamily: t.fonts.label, textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1.15 }
+    const cardBg = hexA(ivory, t.isDark ? 0.045 : 0.035)
+    const ornament = (w: number) => (
+      <div aria-hidden style={{ display: 'flex', alignItems: 'center', gap: u(1.2), width: u(w) }}>
+        <span style={{ flex: 1, height: hair, background: `linear-gradient(90deg, transparent, ${hexA(gold, 0.8)})` }} />
+        <LuxeDiamond size={1.3} color={gold} />
+        <span style={{ flex: 1, height: hair, background: `linear-gradient(270deg, transparent, ${hexA(gold, 0.8)})` }} />
+      </div>
+    )
+    const kickLine = (text: string, size: number, id?: string) => {
+      const ls = 0.3
+      const fs = Math.min(size, (RW - 12) / (Math.max(4, text.length) * (0.66 + ls)))
+      return (
+        <Pick id={id} sel={sel} style={{ width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: u(fs * 0.7), width: '100%' }}>
+            <span style={{ flex: '1 1 0', maxWidth: u(10), height: hair, background: `linear-gradient(90deg, transparent, ${gold})` }} />
+            <LuxeDiamond size={fs * 0.42} color={gold} />
+            <span style={{ ...capsL, fontWeight: 600, letterSpacing: `${ls}em`, paddingLeft: `${ls}em`, fontSize: u(fs), color: gold }}>{text}</span>
+            <LuxeDiamond size={fs * 0.42} color={gold} />
+            <span style={{ flex: '1 1 0', maxWidth: u(10), height: hair, background: `linear-gradient(270deg, transparent, ${gold})` }} />
+          </div>
+        </Pick>
+      )
+    }
+    // address plate hanging off the photo's bottom edge - it may run wider than the photo
+    const addr = c.title?.isAddress ? c.title : null
+    const aLines = addr ? (addr.text.length > 22 ? splitLines(addr.text, 2) : [addr.text]) : []
+    const aFs = addr ? Math.min(st ? 5.8 : 4.5, (LW * (st ? 0.88 : 0.72)) / (Math.max(...aLines.map(l => l.length)) * 0.6)) : 0
+    const sFs = c.sub ? Math.min(st ? 2.5 : 2, (LW * (st ? 0.76 : 0.66)) / (c.sub.text.length * 0.98)) : 0
+    const plateH = addr ? aFs * 1.1 * aLines.length + (c.sub ? sFs * 1.4 + 0.9 : 0) + 3.8 : 0
+    const kPlate = c.leadGen && !!kick
+    const kFs = kPlate ? Math.min(4.2, (LW * 0.78) / (kick.length * 0.78)) : 0
+    const kPlateH = kPlate ? kFs * 1.15 + 4 : 0
+    // open house: the same little gold calendars as the door hanger, clipped to the photo's top corner
+    const days = oh ? (() => {
+      const clean = (x: string) => x.replace(/:00/g, '').replace(/\s*[–—-]\s*/g, '–').replace(/\s+/g, ' ').trim().replace(/^(\d+(?::\d+)?)\s*(AM|PM)–(\d+(?::\d+)?)\s*\2$/i, '$1–$3 $2')
+      const ds = oh.date.split(/\s*(?:&|\band\b)\s*/i).filter(Boolean).slice(0, 2)
+      const ts = oh.time.split(/\s*(?:&|\band\b|\/)\s*/i).map(clean).filter(Boolean)
+      return ds.map((d, k) => {
+        const [wd, rest] = d.includes(',') ? [d.split(',')[0].trim(), d.split(',').slice(1).join(',').trim()] : ['', d.trim()]
+        const m = rest.match(/^([A-Za-z]+)\.?\s+(\d+)/)
+        return { wd, mon: m ? m[1] : '', day: m ? m[2] : rest, time: ts.length > 1 ? ts[k] ?? '' : ts[0] ?? '' }
+      })
+    })() : []
+    const tileW = sq ? 20 : days.length > 1 ? 22 : 23
+    // a long time range sits on two lines (start / end) so it can stay big
+    const tLines = (x: string) => x.length > 11 && x.includes('–') ? [x.split('–')[0].trim() + ' –', x.split('–').slice(1).join('–').trim()] : [x]
+    const tFs = Math.min(2.4, (tileW - 3.4) / (Math.max(5, ...days.flatMap(d => tLines(d.time).map(l => l.length))) * 0.74))
+    const dates = oh && days.length > 0 && (
+      <Pick id={oh.id} sel={sel} style={{ position: 'absolute', top: u(-2.6), right: u(sq ? -0.8 : -3), ...((port || sq) && days.length > 1 ? { left: u(sq ? -0.8 : -3), justifyContent: 'space-between' } : {}), display: 'flex', gap: u(2.2), zIndex: 4 }}>
+        {days.map((d, i) => (
+          <div key={i} style={{ position: 'relative', width: u(tileW), transform: `rotate(${days.length > 1 ? (i ? 2 : port || sq ? -2 : -1.4) : 2}deg)`, filter: 'drop-shadow(0 0.9cqmin 1.8cqmin rgba(0,0,0,0.5))' }}>
+            {[0.3, 0.7].map(x => <span key={x} aria-hidden style={{ position: 'absolute', top: u(-1), left: `${x * 100}%`, width: u(1), height: u(2.2), transform: 'translateX(-50%)', borderRadius: u(0.5), background: `linear-gradient(180deg, ${hexA('#FFFFFF', 0.85)}, ${gold})`, zIndex: 2 }} />)}
+            <div style={{ overflow: 'hidden', borderRadius: u(0.7), border: `${hair} solid ${hexA(gold, 0.9)}`, background: t.isDark ? '#141820' : '#FFFDF8' }}>
+              <div style={{ background: `linear-gradient(135deg, ${gold}, ${hexA(gold, 0.82)})`, padding: `${u(1.3)} ${u(0.8)} ${u(1.1)}`, display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: u(0.9), whiteSpace: 'nowrap' }}>
+                <span style={{ ...capsL, fontWeight: 800, letterSpacing: '0.14em', fontSize: u(days.length > 1 ? 1.9 : 2.1), color: t.isDark ? '#14161C' : '#FFFFFF' }}>{[d.wd.slice(0, 3), d.mon.slice(0, 3)].filter(Boolean).join(' · ')}</span>
+                <span style={{ fontFamily: t.fonts.display, fontWeight: 600, fontSize: u(days.length > 1 ? 4.4 : 4.9), lineHeight: 1, color: t.isDark ? '#14161C' : '#FFFFFF' }}>{d.day}</span>
+              </div>
+              {d.time && (
+                <div style={{ padding: `${u(1.5)} ${u(0.8)} ${u(1.4)}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(0.7) }}>
+                  <span style={{ ...capsL, fontWeight: 700, letterSpacing: '0.05em', fontSize: u(tFs * 1.08), color: t.isDark ? ivory : '#16171B', textAlign: 'center' }}>{tLines(d.time).map((l, k) => <div key={k}>{l}</div>)}</span>
+                  <LuxeDiamond size={0.8} color={gold} />
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </Pick>
+    )
+    const photo = (
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', boxShadow: '0 2cqmin 5cqmin rgba(0,0,0,0.5)' }}>
+          {c.photos[0]
+            ? <Photo photo={c.photos[0]} t={t} sel={sel} pickId={c.heroId || c.galleryId} style={{ position: 'absolute', inset: 0 }} />
+            : <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(70% 70% at 70% 20%, ${hexA(gold, 0.32)}, transparent 60%), linear-gradient(135deg, ${night(1)}, ${night(0.85)})` }} />}
+          <div style={{ position: 'absolute', inset: u(1.4), border: `${hair} solid ${hexA('#FFFFFF', 0.55)}`, pointerEvents: 'none' }} />
+        </div>
+        {dates}
+        {addr && (
+          <Pick id={addr.id} sel={sel} style={{ position: 'absolute', left: '50%', bottom: 0, transform: st ? 'translate(-50%, 26%)' : 'translate(-50%, 50%)', zIndex: 3, width: 'max-content', maxWidth: u(LW + 4), background: night(1), border: `${hair} solid ${hexA(gold, 0.85)}`, boxShadow: '0 1.2cqmin 3cqmin rgba(0,0,0,0.45)', padding: `${u(1.6)} ${u(3.2)} ${u(1.8)}`, textAlign: 'center' }}>
+            <div style={{ fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : 500, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: u(aFs), lineHeight: 1.1, color: ivory }}>{aLines.map((l, i) => <div key={i} style={{ whiteSpace: 'nowrap' }}>{l}</div>)}</div>
+            {c.sub && <div style={{ ...capsL, marginTop: u(0.9), fontWeight: 600, letterSpacing: '0.28em', paddingLeft: '0.28em', fontSize: u(sFs), color: gold }}>{c.sub.text}</div>}
+          </Pick>
+        )}
+        {kPlate && (
+          <Pick id={c.kicker?.id} sel={sel} style={{ position: 'absolute', left: '50%', bottom: 0, transform: st ? 'translate(-50%, 26%)' : 'translate(-50%, 50%)', zIndex: 3, width: 'max-content', maxWidth: u(LW + 4), background: night(1), border: `${hair} solid ${hexA(gold, 0.85)}`, boxShadow: '0 1.2cqmin 3cqmin rgba(0,0,0,0.45)', padding: `${u(1.9)} ${u(3.6)} ${u(2.1)}`, display: 'flex', alignItems: 'center', gap: u(kFs * 0.7) }}>
+            <LuxeDiamond size={kFs * 0.32} color={gold} />
+            <span style={{ fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : 500, textTransform: 'uppercase', letterSpacing: '0.1em', paddingLeft: '0.1em', fontSize: u(kFs), lineHeight: 1.15, color: ivory, whiteSpace: 'nowrap' }}>{kick}</span>
+            <LuxeDiamond size={kFs * 0.32} color={gold} />
+          </Pick>
+        )}
+      </div>
+    )
+    // the status: two words stack (ivory over gold) so each can be set big; one word stays one line
+    const word = newsWord(c).toUpperCase()
+    const wLines = st ? (word.includes(' ') ? splitLines(word, 2) : [word]) : !port && !sq && word.includes(' ') && word.length > 8 ? splitLines(word, 2) : [word]
+    const headFs = Math.min(port ? 12.5 : st ? 15 : sq ? 10.6 : (wLines.length > 1 ? 10.5 : 11.5) + (c.logo ? 0 : 1.6), (sq ? inner : RW) / (Math.max(4, ...wLines.map(l => l.length)) * (t.styleId === 'modern_luxury' ? 0.76 : 0.68)))
+    const qLines = c.leadGen && c.title ? splitLines(c.title.text.toUpperCase(), c.title.text.length > (port || sq ? 40 : 26) ? 3 : 2) : []
+    const qFs = Math.min((st ? 8.4 : sq ? 7.2 : qLines.length > 2 ? 7.4 : 8.2) * (c.logo ? 0.86 : 1), (sq ? inner : RW) / (Math.max(6, ...qLines.map(l => l.length)) * 0.64))
+    // the agent's note, broken into short promises - each sentence (and a ' - ' aside) on its own diamond row
+    const promises = c.leadGen && c.sub ? (() => {
+      const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1)
+      const out: string[] = []
+      for (const sen of c.sub.text.split(/(?<=[.!?])\s+/).filter(Boolean)) {
+        const parts = sen.split(/\s+[-–—]\s+/)
+        for (const part of parts) {
+          // one long sentence: break at its commas when every piece still reads on its own
+          const bits = part.length > 80 ? part.split(/,\s+/) : [part]
+          if (bits.length > 1 && bits.every(b => b.length >= 18)) bits.forEach(b => out.push(cap(b.replace(/^and\s+/i, '').replace(/[.,]$/, ''))))
+          else out.push(cap(part.replace(/[.,]$/, '')))
+        }
+      }
+      return out.slice(0, 4)
+    })() : []
+    // size the promises to the room left between the question and the QR card (never into the footer)
+    const pFs = (() => {
+      const room = st ? 36 : sq ? 30 : port ? 27 : 100 - padT - padB - 16 - 3.2 - (qLines.length * qFs * 1.05 + 4.5) - (14 + 5.6) - 5 - (c.logo ? 8 : 0)
+      if (st) return 3.4
+      for (let f = port ? 2.8 : 2.6; f > 1.8; f -= 0.1) {
+        const perLine = (PW * 0.88) / (f * 0.5)
+        const lines = promises.reduce((n, l) => n + Math.min(2, Math.ceil(l.length / perLine)), 0)
+        if (lines * f * 1.3 + (promises.length - 1) * 1.5 <= room) return f
+      }
+      return 1.8
+    })()
+    const priceBlock = (c.price || facts) && (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(1.3) }}>
+        {c.price && (
+          <Pick id={c.price.id} sel={sel}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(0.7) }}>
+              {(c.price.label || c.situation === 'price_improvement') && <span style={{ ...capsL, fontWeight: 600, letterSpacing: '0.34em', paddingLeft: '0.34em', fontSize: u(1.9), color: hexA(ivory, 0.7) }}>{c.price.label || 'Now Offered At'}</span>}
+              <span style={{ fontFamily: t.fonts.price, fontWeight: t.price.weight, letterSpacing: t.price.tracking, fontSize: u(Math.min(8.4 * c.price.o.k, (PW * 0.86) / (c.price.value.length * 0.56))), lineHeight: 1, color: gold, whiteSpace: 'nowrap', fontVariantNumeric: 'lining-nums', ...c.price.o.css }}>{c.price.value}</span>
+              {c.price.previous && <span style={{ ...capsL, fontSize: u(2), color: hexA(ivory, 0.55), textDecoration: 'line-through' }}>{c.price.previous}</span>}
+            </div>
+          </Pick>
+        )}
+        {facts && <LuxeFacts c={c} t={t} gold={gold} size={Math.min(2.5, (PW * 0.92) / (facts.items.map(i => `${i.value} ${i.label}`).join('    ').length * 0.62))} sel={sel} />}
+      </div>
+    )
+    const descB = c.details.find(d => d.kind === 'description') as Extract<DetailItem, { kind: 'description' }> | undefined
+    const askCta = c.details.find(d => d.kind === 'cta') as Extract<DetailItem, { kind: 'cta' }> | undefined
+    const askT = (askCta?.label || (c.situation === 'open_house' ? 'Learn More' : c.situation === 'coming_soon' ? 'Be the first inside' : 'See every photo')).replace(/(^|\s)(\S)/g, (_m: string, a: string, ch: string) => a + ch.toUpperCase())
+    const qs = c.leadGen ? 14 : 11
+    // the ask on one line when short, else two even lines (never a lone first word)
+    const askLines = (() => {
+      const w = askT.split(/\s+/)
+      if (askT.length <= (st ? 32 : 19) || w.length < 2) return [askT]
+      let best = [askT], worst = Infinity
+      for (let k = 1; k < w.length; k++) {
+        const l = [w.slice(0, k).join(' '), w.slice(k).join(' ')], m = Math.max(l[0].length, l[1].length)
+        if (m < worst && !/\s(in|at|of|for|to|on|the)$/i.test(' ' + l[0])) { worst = m; best = l }
+      }
+      return best
+    })()
+    const askFs = Math.min(c.leadGen ? 4.6 : 4.2, (RW - qs - 13) / (Math.max(...askLines.map(l => l.length)) * 0.44))
+    const qrCard = c.qr && (
+      <Pick id={askCta?.id || c.qr.id} sel={sel} style={{ alignSelf: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: u(3), background: cardBg, border: `${hair} solid ${hexA(gold, 0.6)}`, padding: `${u(2)} ${u(3.4)} ${u(2)} ${u(2)}` }}>
+          <div style={{ flexShrink: 0, padding: u(0.8), background: '#FFFFFF', outline: `${hair} solid ${hexA(gold, 0.9)}`, outlineOffset: u(0.7) }}><Qr c={c} t={t} ink={{ ...ink, ink: '#111111' }} size={qs} sel={sel} labelSide="none" /></div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: u(1.1), minWidth: 0 }}>
+            <div style={{ fontFamily: t.fonts.display, fontStyle: 'italic', fontWeight: 500, fontSize: u(askFs), lineHeight: 1.08, color: ivory }}>{askLines.map((l, i) => <div key={i} style={{ whiteSpace: 'nowrap' }}>{l}</div>)}</div>
+            {c.qr.label && <Pick id={c.qr.id} sel={sel}><span style={{ ...capsL, display: 'block', fontWeight: 700, letterSpacing: '0.2em', fontSize: u(Math.min(2, (RW - qs - 15) / (c.qr.label.length * 0.86))), color: gold }}>{c.qr.label}</span></Pick>}
+          </div>
+        </div>
+      </Pick>
+    )
+    const footer = (c.agent || c.finePrint) && (
+      <div data-foot="" style={{ display: 'flex', flexDirection: 'column', gap: u(1.3), width: '100%', position: 'relative', zIndex: 3 }}>
+        <span aria-hidden style={{ display: 'block', height: hair, width: '100%', background: `linear-gradient(90deg, transparent, ${hexA(gold, 0.75)} 12%, ${hexA(gold, 0.75)} 88%, transparent)` }} />
+        {c.agent && st && (() => {
+          // story footer (user 10/13): the agent centred, then ONE contact line - phone, a gold diamond, the email
+          const a = c.agent!
+          const mail = a.email || a.website || ''
+          const line = [a.phone, mail].filter(Boolean).join('   ')
+          const cfs = Math.min(2.6, (inner * 0.94) / (Math.max(18, line.length) * 0.56))
+          const cs: CSSProperties = { fontFamily: t.fonts.label, fontWeight: 700, fontSize: u(cfs), color: ivory, whiteSpace: 'nowrap', lineHeight: 1.2, fontVariantNumeric: 'lining-nums' }
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(1.6), padding: `${u(0.8)} 0 ${u(0.2)}` }}>
+              <AgentCard fitLong c={c} t={t} ink={ink} S={S} sel={sel} align="left" scale={1.25} showContact={false} noTitle />
+              {(a.phone || mail) && (
+                <Pick id={a.id} sel={sel}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: u(1.8) }}>
+                    {a.phone && <Tel kind="mobile" num={a.phone} style={cs} />}
+                    {a.phone && mail && <LuxeDiamond size={0.9} color={gold} />}
+                    {mail && <span style={{ ...cs, fontWeight: 600 }}>{mail}</span>}
+                  </div>
+                </Pick>
+              )}
+            </div>
+          )
+        })()}
+        {c.agent && !st && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: u(3) }}>
+            <div style={{ flex: '1 1 auto', minWidth: 0 }}><AgentCard fitLong c={c} t={t} ink={ink} S={S} sel={sel} align="left" scale={!print ? 1.12 : 0.92} showContact={false} noTitle /></div>
+            <div style={{ flexShrink: 0 }}><SplitContacts splitMail c={c} t={t} ink={ink} S={S} sel={sel} scale={!print ? 0.8 : 0.62} /></div>
+          </div>
+        )}
+        <FinePrint c={c} ink={ink} t={t} size={S.fine} oneLine={!st} align={st ? 'center' : 'left'} />
+      </div>
+    )
+    // the brokerage name already sits (bold, with the office phone) in the agent bar - only an uploaded logo shows up here
+    const brandRow = c.logo && brand && <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>{brand}</div>
+    const promiseRows = promises.length > 0 && c.sub && (
+      <Pick id={c.sub.id} sel={sel} style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: u(port ? 2 : 1.5), maxWidth: '96%' }}>
+          {promises.map((l, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: u(1.6), textAlign: 'left', fontSize: u(pFs), lineHeight: 1.3 }}>
+              <span style={{ flexShrink: 0, height: u(pFs * 1.3), display: 'flex', alignItems: 'center', lineHeight: 0 }}><LuxeDiamond size={pFs * 0.36} color={gold} /></span>
+              <span style={{ fontFamily: t.fonts.body, fontWeight: 500, fontSize: u(pFs), lineHeight: 1.3, color: hexA(ivory, 0.9), textWrap: 'balance' as CSSProperties['textWrap'], display: '-webkit-box', WebkitLineClamp: sq ? 3 : 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{l}</span>
+            </div>
+          ))}
+        </div>
+      </Pick>
+    )
+    // social has no QR: the ask sits in a fine gold box
+    const askW = port ? QW : RW
+    const askBox = !c.qr && askCta && (
+      <Pick id={askCta.id} sel={sel} style={{ maxWidth: '100%', flexShrink: 0 }}>
+        <div style={{ border: `${hair} solid ${hexA(gold, 0.85)}`, background: cardBg, padding: `${u(port ? 2.2 : 1.5)} ${u(port ? 2.8 : 2.2)}`, textAlign: 'center', fontFamily: t.fonts.display, fontStyle: 'italic', fontWeight: 500, fontSize: u(Math.min(st ? 4.4 : port ? 3.8 : 3.2, (askW - 5) / (Math.max(...askLines.map(l => l.length)) * 0.44))), lineHeight: 1.1, color: ivory }}>{askLines.map((l, i) => <div key={i} style={{ whiteSpace: 'nowrap' }}>{l}</div>)}</div>
+      </Pick>
+    )
+    if (sq) {
+      const wordParts = word.split(' ')
+      return (
+        <>
+          <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(80% 50% at 50% 25%, ${hexA(gold, t.isDark ? 0.1 : 0.06)}, transparent 70%), ${night(1)}` }} />
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: `${u(padT)} ${u(padX)} ${u(padB)}`, gap: u(2.8), zIndex: 2 }}>
+            {brandRow}
+            {c.leadGen ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(1.8), textAlign: 'center' }}>
+                {c.title && <Pick id={c.title.id} sel={sel}><div>{qLines.map((l, i) => <div key={i} style={{ fontFamily: t.fonts.display, fontWeight: 500, letterSpacing: '0.03em', fontSize: u(qFs), lineHeight: 1.05, color: i % 2 ? gold : ivory, whiteSpace: 'nowrap' }}>{l}</div>)}</div></Pick>}
+                {ornament(inner * 0.36)}
+              </div>
+            ) : (
+              <Pick id={c.big?.id || c.kicker?.id} sel={sel}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(1.6) }}>
+                  {st && wLines.length > 1
+                    ? <div style={{ textAlign: 'center' }}>{wLines.map((l, i) => <div key={i} style={{ fontFamily: t.fonts.display, fontWeight: 500, letterSpacing: '0.07em', paddingLeft: '0.07em', fontSize: u(headFs), lineHeight: 1.02, color: i === 0 ? ivory : gold, whiteSpace: 'nowrap' }}>{l}</div>)}</div>
+                    : <div style={{ fontFamily: t.fonts.display, fontWeight: 500, letterSpacing: '0.07em', paddingLeft: '0.07em', fontSize: u(headFs), lineHeight: 1, whiteSpace: 'nowrap' }}>
+                    {wordParts.length > 1 ? <><span style={{ color: ivory }}>{wordParts[0]}</span> <span style={{ color: gold }}>{wordParts.slice(1).join(' ')}</span></> : <span style={{ color: gold }}>{word}</span>}
+                  </div>}
+                  {ornament(inner * 0.4)}
+                </div>
+              </Pick>
+            )}
+            {c.leadGen && st ? (
+              <>
+                <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', paddingBottom: u(kPlate ? kPlateH * 0.26 + 2.6 : 0) }}>{photo}</div>
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(2.4), textAlign: 'center' }}>
+                  {askBox}
+                  {askBox && ornament(inner * 0.5)}
+                  {/* story (user 10/13): the promises sit centred as a group in a fine gold-keylined card */}
+                  {promiseRows && <div style={{ maxWidth: '90%', border: `${hair} solid ${hexA(gold, 0.45)}`, background: cardBg, padding: `${u(2.6)} ${u(3.4)}` }}>{promiseRows}</div>}
+                </div>
+              </>
+            ) : c.leadGen ? (
+              // lead-gen (user 10/13): photo + plate on the left; the promises up top, a gold rule, then the ask box
+              <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', gap: u(gapC) }}>
+                <div style={{ width: u(LW), flexShrink: 0, display: 'flex', flexDirection: 'column', paddingBottom: u(kPlate ? kPlateH / 2 + 0.6 : 0) }}>{photo}</div>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', gap: u(3), paddingTop: u(ar < 0.95 ? 4 : 2.4), textAlign: 'center' }}>
+                  {/* 4:5 (user 10/13): the ask leads, a gold rule, then the promises; the square keeps promises first */}
+                  {ar < 0.95 && askBox}
+                  {ar < 0.95 && askBox && ornament(RW * 0.72)}
+                  {promiseRows}
+                  {ar >= 0.95 && askBox && ornament(RW * 0.72)}
+                  {ar >= 0.95 && askBox}
+                </div>
+              </div>
+            ) : (
+              // listings (user 10/13): the photo right under the header, full width, then the price beside the stats
+              <>
+                <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', paddingTop: u(dates ? 2.4 : 0), paddingBottom: u(addr ? (st ? plateH * 0.26 + 2.6 : plateH / 2 + 0.6) : 0) }}>{photo}</div>
+                {(c.price || facts) && (
+                  <div style={{ display: 'flex', flexDirection: st ? 'column' : 'row', alignItems: 'center', justifyContent: 'center', gap: u(st ? 2 : 3.6), maxWidth: '100%' }}>
+                    {c.price && (
+                      <Pick id={c.price.id} sel={sel}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(0.7) }}>
+                          {(c.price.label || c.situation === 'price_improvement') && <span style={{ ...capsL, fontWeight: 600, letterSpacing: '0.3em', paddingLeft: '0.3em', fontSize: u(1.8), color: hexA(ivory, 0.7) }}>{c.price.label || 'Now Offered At'}</span>}
+                          <span style={{ fontFamily: t.fonts.price, fontWeight: t.price.weight, letterSpacing: t.price.tracking, fontSize: u(Math.min((st ? 9.5 : 6.8) * c.price.o.k, (inner * (st ? 0.8 : 0.42)) / (c.price.value.length * 0.56))), lineHeight: 1, color: gold, whiteSpace: 'nowrap', fontVariantNumeric: 'lining-nums', ...c.price.o.css }}>{c.price.value}</span>
+                          {c.price.previous && <span style={{ ...capsL, fontSize: u(1.7), color: hexA(ivory, 0.55), textDecoration: 'line-through' }}>{c.price.previous}</span>}
+                        </div>
+                      </Pick>
+                    )}
+                    {c.price && facts && !st && <span aria-hidden style={{ alignSelf: 'stretch', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(0.8) }}><span style={{ flex: 1, width: hair, background: `linear-gradient(180deg, transparent, ${hexA(gold, 0.7)})` }} /><LuxeDiamond size={1} color={gold} /><span style={{ flex: 1, width: hair, background: `linear-gradient(0deg, transparent, ${hexA(gold, 0.7)})` }} /></span>}
+                    {c.price && facts && st && ornament(inner * 0.5)}
+                    {facts && <LuxeFacts c={c} t={t} gold={gold} size={Math.min(st ? 3.4 : 2.8, (inner * (st ? 0.9 : 0.46)) / (facts.items.map(i => `${i.value} ${i.label}`).join('    ').length * 0.56))} sel={sel} />}
+                  </div>
+                )}
+              </>
+            )}
+            {footer}
+          </div>
+          <LuxeGoldFrame inset={2.8} gold={gold} />
+        </>
+      )
+    }
+    if (port) {
+      const qsP = c.leadGen ? 14 : 13
+      const askP = (() => {
+        const w = askT.split(/\s+/)
+        if (askT.length <= 16 || w.length < 2) return [askT]
+        let best = [askT], worst = Infinity
+        for (let k = 1; k < w.length; k++) {
+          const l = [w.slice(0, k).join(' '), w.slice(k).join(' ')], m = Math.max(l[0].length, l[1].length)
+          if (m < worst && !/\s(in|at|of|for|to|on|the)$/i.test(' ' + l[0])) { worst = m; best = l }
+        }
+        return best
+      })()
+      const askPFs = Math.min(4.2, (QW - 5) / (Math.max(...askP.map(l => l.length)) * 0.44))
+      const qrTall = c.qr && (
+        <Pick id={askCta?.id || c.qr.id} sel={sel} style={{ flexShrink: 0, width: u(QW) }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(1.6), background: cardBg, border: `${hair} solid ${hexA(gold, 0.6)}`, padding: `${u(2.6)} ${u(1.6)} ${u(2.4)}`, textAlign: 'center' }}>
+            <div style={{ padding: u(0.8), background: '#FFFFFF', outline: `${hair} solid ${hexA(gold, 0.9)}`, outlineOffset: u(0.7) }}><Qr c={c} t={t} ink={{ ...ink, ink: '#111111' }} size={qsP} sel={sel} labelSide="none" /></div>
+            <div style={{ marginTop: u(0.6), fontFamily: t.fonts.display, fontStyle: 'italic', fontWeight: 500, fontSize: u(askPFs), lineHeight: 1.08, color: ivory }}>{askP.map((l, i) => <div key={i} style={{ whiteSpace: 'nowrap' }}>{l}</div>)}</div>
+            {c.qr.label && <Pick id={c.qr.id} sel={sel}><span style={{ ...capsL, display: 'block', fontWeight: 700, letterSpacing: '0.18em', fontSize: u(Math.min(1.9, (QW - 4) / (c.qr.label.length * 0.84))), color: gold }}>{c.qr.label}</span></Pick>}
+          </div>
+        </Pick>
+      )
+      const wordParts = word.split(' ')
+      return (
+        <>
+          <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(80% 40% at 50% 22%, ${hexA(gold, t.isDark ? 0.1 : 0.06)}, transparent 70%), ${night(1)}` }} />
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: `${u(padT)} ${u(padX)} ${u(padB)}`, gap: u(3.4), zIndex: 2 }}>
+            {brandRow}
+            {c.leadGen ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(2.2), textAlign: 'center' }}>
+                {c.title && <Pick id={c.title.id} sel={sel}><div>{qLines.map((l, i) => <div key={i} style={{ fontFamily: t.fonts.display, fontWeight: 500, letterSpacing: '0.03em', fontSize: u(qFs), lineHeight: 1.05, color: i % 2 ? gold : ivory, whiteSpace: 'nowrap' }}>{l}</div>)}</div></Pick>}
+                {ornament(inner * 0.4)}
+              </div>
+            ) : (
+              <Pick id={c.big?.id || c.kicker?.id} sel={sel}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(2) }}>
+                  <div style={{ fontFamily: t.fonts.display, fontWeight: 500, letterSpacing: '0.07em', paddingLeft: '0.07em', fontSize: u(headFs), lineHeight: 1, whiteSpace: 'nowrap' }}>
+                    {wordParts.length > 1 ? <><span style={{ color: ivory }}>{wordParts[0]}</span> <span style={{ color: gold }}>{wordParts.slice(1).join(' ')}</span></> : <span style={{ color: gold }}>{word}</span>}
+                  </div>
+                  {ornament(inner * 0.46)}
+                </div>
+              </Pick>
+            )}
+            <div style={{ flex: 1, minHeight: u(30), width: u(LW), display: 'flex', flexDirection: 'column', paddingBottom: u(addr ? plateH / 2 + 0.6 : kPlate ? kPlateH / 2 + 0.6 : 0) }}>{photo}</div>
+            <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: u(3) }}>
+              <div style={{ flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: u(2.6), textAlign: 'center' }}>
+                {c.leadGen ? promiseRows : <>
+                  {c.price && (
+                    <Pick id={c.price.id} sel={sel}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(0.9) }}>
+                        {(c.price.label || c.situation === 'price_improvement') && <span style={{ ...capsL, fontWeight: 600, letterSpacing: '0.34em', paddingLeft: '0.34em', fontSize: u(1.9), color: hexA(ivory, 0.7) }}>{c.price.label || 'Now Offered At'}</span>}
+                        <span style={{ fontFamily: t.fonts.price, fontWeight: t.price.weight, letterSpacing: t.price.tracking, fontSize: u(Math.min(8.8 * c.price.o.k, (PW * 0.86) / (c.price.value.length * 0.56))), lineHeight: 1, color: gold, whiteSpace: 'nowrap', fontVariantNumeric: 'lining-nums', ...c.price.o.css }}>{c.price.value}</span>
+                        {c.price.previous && <span style={{ ...capsL, fontSize: u(2), color: hexA(ivory, 0.55), textDecoration: 'line-through' }}>{c.price.previous}</span>}
+                      </div>
+                    </Pick>
+                  )}
+                  {/* the stats sit in their own band - gold hairlines above and below, a diamond at each end */}
+                  {facts && (
+                    <div style={{ position: 'relative', width: 'fit-content', maxWidth: '100%', padding: `${u(1.7)} ${u(2.6)}`, display: 'flex', justifyContent: 'center' }}>
+                      {(['top', 'bottom'] as const).map(edge => (
+                        <div key={edge} aria-hidden style={{ position: 'absolute', left: 0, right: 0, [edge]: 0, display: 'flex', alignItems: 'center', gap: u(1) }}>
+                          <LuxeDiamond size={0.9} color={gold} />
+                          <span style={{ flex: 1, height: hair, background: hexA(gold, 0.5) }} />
+                          <LuxeDiamond size={0.9} color={gold} />
+                        </div>
+                      ))}
+                      <LuxeFacts c={c} t={t} gold={gold} size={Math.min(2.8, (PW * 0.95) / (facts.items.map(i => `${i.value} ${i.label}`).join('    ').length * 0.56))} sel={sel} />
+                    </div>
+                  )}
+                  {descB && <Pick id={descB.id} sel={sel} style={{ maxWidth: u(PW * 0.94) }}><div style={{ fontFamily: t.fonts.display, fontStyle: 'italic', fontWeight: 500, fontSize: u(Math.min(2.9, S.body * 1.12)), lineHeight: 1.4, color: hexA(ivory, 0.88), textAlign: 'center', textWrap: 'balance' as CSSProperties['textWrap'], display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{descB.text}</div></Pick>}
+                </>}
+              </div>
+              {qrTall || askBox}
+            </div>
+            {footer}
+          </div>
+          <LuxeGoldFrame inset={3.2} gold={gold} />
+        </>
+      )
+    }
+    return (
+      <>
+        <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(60% 70% at 74% 40%, ${hexA(gold, t.isDark ? 0.1 : 0.06)}, transparent 70%), ${night(1)}` }} />
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', padding: `${u(padT)} ${u(padX)} ${u(padB)}`, gap: u(3.2), zIndex: 2 }}>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: u(gapC) }}>
+            <div style={{ width: u(LW), flexShrink: 0, display: 'flex', flexDirection: 'column', paddingBottom: u(addr ? plateH / 2 + 0.6 : kPlate ? kPlateH / 2 + 0.6 : 0) }}>{photo}</div>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', textAlign: 'center', gap: u(2) }}>
+              {brandRow}
+              {c.leadGen ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(2), width: '100%' }}>
+                  {c.title && <Pick id={c.title.id} sel={sel}><div>{qLines.map((l, i) => <div key={i} style={{ fontFamily: t.fonts.display, fontWeight: 500, letterSpacing: '0.03em', fontSize: u(qFs), lineHeight: 1.05, color: i % 2 ? gold : ivory, whiteSpace: 'nowrap' }}>{l}</div>)}</div></Pick>}
+                  {ornament(RW * 0.5)}
+                </div>
+              ) : (
+                <Pick id={c.big?.id || c.kicker?.id} sel={sel}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(1.6) }}>
+                    <div>{wLines.map((l, i) => <div key={i} style={{ fontFamily: t.fonts.display, fontWeight: 500, letterSpacing: '0.07em', paddingLeft: '0.07em', fontSize: u(headFs), lineHeight: 1, color: wLines.length > 1 && i === 0 ? ivory : gold, whiteSpace: 'nowrap' }}>{l}</div>)}</div>
+                    {ornament(RW * 0.6)}
+                  </div>
+                </Pick>
+              )}
+              {!c.leadGen && priceBlock}
+              {promiseRows}
+              {qrCard}
+            </div>
+          </div>
+          {footer}
+        </div>
+        <LuxeGoldFrame inset={3.2} gold={gold} />
+      </>
+    )
+  }
+
   if (wide) {
     return (
       <>
@@ -2527,11 +2976,193 @@ function Luxe({ c, t, fam, S: S0, sel }: CompProps) {
     )
   }
 
+  // Door hanger (user 10/12 rebuild): the approved door-hanger order - status, the photo with its address
+  // plate, the price, the QR, the agent - set the Luxe way: midnight, fine gold keylines, serif type, and a
+  // gold ring drawn around the die-cut hole so the hole reads as part of the design.
+  if (tall && print) {
+    const W = 100 - P * 2
+    const ivory = ink.ink
+    const capsL: CSSProperties = { fontFamily: t.fonts.label, textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1.15 }
+    const cardBg = hexA(ivory, t.isDark ? 0.045 : 0.035)
+    // spaced caps between gold rules - sized from the text so it can never run off the hanger
+    const kickLine = (text: string, size: number, id?: string) => {
+      const ls = 0.3
+      const fs = Math.min(size, (W - 16) / (Math.max(4, text.length) * (0.66 + ls)))
+      return (
+        <Pick id={id} sel={sel} style={{ width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: u(fs * 0.7), width: '100%' }}>
+            <span style={{ flex: '1 1 0', maxWidth: u(14), height: hair, background: `linear-gradient(90deg, transparent, ${gold})` }} />
+            <LuxeDiamond size={fs * 0.42} color={gold} />
+            <span style={{ ...capsL, fontWeight: 600, letterSpacing: `${ls}em`, paddingLeft: `${ls}em`, fontSize: u(fs), color: gold }}>{text}</span>
+            <LuxeDiamond size={fs * 0.42} color={gold} />
+            <span style={{ flex: '1 1 0', maxWidth: u(14), height: hair, background: `linear-gradient(270deg, transparent, ${gold})` }} />
+          </div>
+        </Pick>
+      )
+    }
+    const ornament = (w: number) => (
+      <div aria-hidden style={{ display: 'flex', alignItems: 'center', gap: u(1.4), width: u(w) }}>
+        <span style={{ flex: 1, height: hair, background: `linear-gradient(90deg, transparent, ${hexA(gold, 0.8)})` }} />
+        <LuxeDiamond size={1.5} color={gold} />
+        <span style={{ flex: 1, height: hair, background: `linear-gradient(270deg, transparent, ${hexA(gold, 0.8)})` }} />
+      </div>
+    )
+    // the hole: 1.25in, its top 0.5in down on a 4.25in-wide piece - a double gold ring sits just outside it
+    const holeC = (0.5 + 0.625) / 4.25 * 100, ringD = 1.5 / 4.25 * 100
+    const ring = (
+      <div aria-hidden style={{ position: 'absolute', left: '50%', top: u(holeC), width: u(ringD), height: u(ringD), transform: 'translate(-50%, -50%)', zIndex: 3, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `${hair} solid ${hexA(gold, 0.85)}` }} />
+        <div style={{ position: 'absolute', inset: u(1.5), borderRadius: '50%', border: `${hair} solid ${hexA(gold, 0.32)}` }} />
+        <span style={{ position: 'absolute', left: '50%', bottom: u(-1), width: u(2), height: u(2), background: gold, transform: 'translateX(-50%) rotate(45deg)' }} />
+      </div>
+    )
+    // the photo in a fine gold keyline; listings hang the address on a midnight plate off its bottom edge
+    const addr = c.title?.isAddress ? c.title : null
+    const photoW = W * (c.leadGen ? 0.9 : oh ? 0.84 : 0.88)
+    const aLines = addr ? (addr.text.length > 24 ? splitLines(addr.text, 2) : [addr.text]) : []
+    const aFs = addr ? Math.min(7.2, (W * 0.9) / (Math.max(...aLines.map(l => l.length)) * 0.6)) : 0
+    const sFs = c.sub ? Math.min(3, (W * 0.84) / (c.sub.text.length * 0.98)) : 0
+    const plateH = addr ? aFs * 1.1 * aLines.length + (c.sub ? sFs * 1.4 + 1 : 0) + 4.4 : 0
+    const framed = (aspect: string, width: number) => (
+      <div style={{ position: 'relative', flexShrink: 0, width: u(width), marginBottom: addr ? u(plateH / 2) : 0 }}>
+        <div style={{ position: 'relative', aspectRatio: aspect, overflow: 'hidden', boxShadow: '0 2.4cqmin 6cqmin rgba(0,0,0,0.5)' }}>
+          {c.photos[0]
+            ? <Photo photo={c.photos[0]} t={t} sel={sel} pickId={c.heroId || c.galleryId} style={{ position: 'absolute', inset: 0 }} />
+            : <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(70% 70% at 70% 20%, ${hexA(gold, 0.32)}, transparent 60%), linear-gradient(135deg, ${night(1)}, ${night(0.85)})` }} />}
+          <div style={{ position: 'absolute', inset: u(1.6), border: `${hair} solid ${hexA('#FFFFFF', 0.55)}`, pointerEvents: 'none' }} />
+        </div>
+        {addr && (
+          <Pick id={addr.id} sel={sel} style={{ position: 'absolute', left: '50%', bottom: 0, transform: 'translate(-50%, 50%)', zIndex: 3, width: 'max-content', maxWidth: u(W + 2), background: night(1), border: `${hair} solid ${hexA(gold, 0.85)}`, boxShadow: '0 1.2cqmin 3cqmin rgba(0,0,0,0.45)', padding: `${u(2.2)} ${u(4.4)} ${u(2.4)}`, textAlign: 'center' }}>
+            <div style={{ fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : 500, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: u(aFs), lineHeight: 1.1, color: ivory }}>{aLines.map((l, i) => <div key={i} style={{ whiteSpace: 'nowrap' }}>{l}</div>)}</div>
+            {c.sub && <div style={{ ...capsL, marginTop: u(1), fontWeight: 600, letterSpacing: '0.28em', paddingLeft: '0.28em', fontSize: u(sFs), color: gold }}>{c.sub.text}</div>}
+          </Pick>
+        )}
+      </div>
+    )
+    // open house: dated tiles - weekday, the day big in serif, the time in gold
+    const days = oh ? (() => {
+      const clean = (x: string) => x.replace(/:00/g, '').replace(/\s*[–—-]\s*/g, '–').replace(/\s+/g, ' ').trim().replace(/^(\d+(?::\d+)?)\s*(AM|PM)–(\d+(?::\d+)?)\s*\2$/i, '$1–$3 $2')
+      const ds = oh.date.split(/\s*(?:&|\band\b)\s*/i).filter(Boolean).slice(0, 2)
+      const ts = oh.time.split(/\s*(?:&|\band\b|\/)\s*/i).map(clean).filter(Boolean)
+      return ds.map((d, k) => {
+        const [wd, rest] = d.includes(',') ? [d.split(',')[0].trim(), d.split(',').slice(1).join(',').trim()] : ['', d.trim()]
+        const m = rest.match(/^([A-Za-z]+)\.?\s+(\d+)/)
+        return { wd, mon: m ? m[1] : '', day: m ? m[2] : rest, time: ts.length > 1 ? ts[k] ?? '' : ts[0] ?? '' }
+      })
+    })() : []
+    const tileW = days.length > 1 ? (W * 0.74 - 3.4) / 2 : W * 0.4
+    const tFs = Math.min(2.5, (tileW - 4) / (Math.max(5, ...days.map(d => d.time.length)) * 0.74))
+    // a real little calendar, same footprint as before: a gold header band with the weekday + month + date on
+    // one line, two binding rings on top, the time set in ivory below - gold keyline, soft shadow, a slight tilt
+    const dates = oh && days.length > 0 && (
+      <Pick id={oh.id} sel={sel} style={{ display: 'flex', justifyContent: 'center', gap: u(3.4), paddingTop: u(1.2) }}>
+        {days.map((d, i) => (
+          <div key={i} style={{ position: 'relative', width: u(tileW), transform: `rotate(${days.length > 1 ? (i ? 1.6 : -1.6) : 0}deg)`, filter: 'drop-shadow(0 0.9cqmin 1.8cqmin rgba(0,0,0,0.45))' }}>
+            {[0.3, 0.7].map(x => <span key={x} aria-hidden style={{ position: 'absolute', top: u(-1.1), left: `${x * 100}%`, width: u(1.1), height: u(2.4), transform: 'translateX(-50%)', borderRadius: u(0.6), background: `linear-gradient(180deg, ${hexA('#FFFFFF', 0.85)}, ${gold})`, zIndex: 2 }} />)}
+            <div style={{ overflow: 'hidden', borderRadius: u(0.8), border: `${hair} solid ${hexA(gold, 0.9)}`, background: t.isDark ? '#141820' : '#FFFDF8' }}>
+              <div style={{ background: `linear-gradient(135deg, ${gold}, ${hexA(gold, 0.82)})`, padding: `${u(1.5)} ${u(1)} ${u(1.3)}`, display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: u(1.1), whiteSpace: 'nowrap' }}>
+                <span style={{ ...capsL, fontWeight: 800, letterSpacing: '0.16em', fontSize: u(2.4), color: t.isDark ? '#14161C' : '#FFFFFF' }}>{[d.wd.slice(0, 3), d.mon.slice(0, 3)].filter(Boolean).join(' · ')}</span>
+                <span style={{ fontFamily: t.fonts.display, fontWeight: 600, fontSize: u(5.6), lineHeight: 1, color: t.isDark ? '#14161C' : '#FFFFFF' }}>{d.day}</span>
+              </div>
+              {d.time && (
+                <div style={{ padding: `${u(1.9)} ${u(1)} ${u(1.8)}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(0.8) }}>
+                  <span style={{ ...capsL, fontWeight: 700, letterSpacing: '0.05em', fontSize: u(tFs * 1.12), color: t.isDark ? ivory : '#16171B' }}>{d.time}</span>
+                  <LuxeDiamond size={0.9} color={gold} />
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </Pick>
+    )
+    const priceBlock = (c.price || facts) && (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(1.6) }}>
+        {c.price && (
+          <Pick id={c.price.id} sel={sel}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(0.8) }}>
+              {(c.price.label || c.situation === 'price_improvement') && <span style={{ ...capsL, fontWeight: 600, letterSpacing: '0.34em', paddingLeft: '0.34em', fontSize: u(2.3), color: hexA(ivory, 0.7) }}>{c.price.label || 'Now Offered At'}</span>}
+              <span style={{ fontFamily: t.fonts.price, fontWeight: t.price.weight, letterSpacing: t.price.tracking, fontSize: u(Math.min(11 * c.price.o.k, (W * 0.84) / (c.price.value.length * 0.56))), lineHeight: 1, color: gold, whiteSpace: 'nowrap', fontVariantNumeric: 'lining-nums', ...c.price.o.css }}>{c.price.value}</span>
+              {c.price.previous && <span style={{ ...capsL, fontSize: u(2.4), color: hexA(ivory, 0.55), textDecoration: 'line-through' }}>{c.price.previous}</span>}
+            </div>
+          </Pick>
+        )}
+        {c.price && facts && ornament(W * 0.56)}
+        {facts && <LuxeFacts c={c} t={t} gold={gold} size={Math.min(3, (W * 0.9) / (facts.items.map(i => `${i.value} ${i.label}`).join('    ').length * 0.62))} sel={sel} />}
+      </div>
+    )
+    const descB = c.details.find(d => d.kind === 'description') as Extract<DetailItem, { kind: 'description' }> | undefined
+    const askCta = c.details.find(d => d.kind === 'cta') as Extract<DetailItem, { kind: 'cta' }> | undefined
+    const askT = (askCta?.label || (c.situation === 'open_house' ? 'Learn More' : c.situation === 'coming_soon' ? 'Be the first inside' : 'See every photo')).replace(/(^|\s)(\S)/g, (_m: string, a: string, ch: string) => a + ch.toUpperCase())
+    const qs = S.qr * (c.leadGen ? 1.15 : 0.95)
+    const askLines = (() => {
+      if (askT.length <= 18) return [askT]
+      const l = splitLines(askT, 2)
+      const m = l.length === 2 ? l[0].match(/^(.*)\s(in|at|of|for|to|on|the|a|your)$/i) : null
+      return m ? [m[1], `${m[2]} ${l[1]}`] : l
+    })()
+    const askFs = Math.min(c.leadGen ? 6 : 5.4, (W - qs - 16) / (Math.max(...askLines.map(l => l.length)) * 0.44))
+    const qrCard = c.qr && (
+      <Pick id={askCta?.id || c.qr.id} sel={sel} style={{ alignSelf: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: u(4), background: cardBg, border: `${hair} solid ${hexA(gold, 0.6)}`, padding: `${u(2.6)} ${u(4.2)} ${u(2.6)} ${u(2.6)}` }}>
+          <div style={{ flexShrink: 0, padding: u(1), background: '#FFFFFF', outline: `${hair} solid ${hexA(gold, 0.9)}`, outlineOffset: u(0.8) }}><Qr c={c} t={t} ink={{ ...ink, ink: '#111111' }} size={qs} sel={sel} labelSide="none" /></div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: u(1.4), minWidth: 0 }}>
+            <div style={{ fontFamily: t.fonts.display, fontStyle: 'italic', fontWeight: 500, fontSize: u(askFs), lineHeight: 1.08, color: ivory }}>{askLines.map((l, i) => <div key={i} style={{ whiteSpace: 'nowrap' }}>{l}</div>)}</div>
+            {c.qr.label && <Pick id={c.qr.id} sel={sel}><span style={{ ...capsL, display: 'block', fontWeight: 700, letterSpacing: '0.2em', fontSize: u(Math.min(2.5, (W - qs - 18) / (c.qr.label.length * 0.86))), color: gold }}>{c.qr.label}</span></Pick>}
+          </div>
+        </div>
+      </Pick>
+    )
+    const word = newsWord(c).toUpperCase()
+    const headFs = Math.min(13, W / (Math.max(5, word.length) * (t.styleId === 'modern_luxury' ? 0.78 : 0.7)))
+    const qLines = c.leadGen && c.title ? splitLines(c.title.text.toUpperCase(), 2) : []
+    const qFs = Math.min(8.6, W / (Math.max(6, ...qLines.map(l => l.length)) * 0.66))
+    const footer = (c.agent || c.finePrint) && (
+      <div data-foot="" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(1.6), marginTop: u(3) }}>
+        {ornament(W * 0.7)}
+        {c.agent && <AgentCard fitLong c={c} t={t} ink={ink} S={S} sel={sel} align="center" scale={1.05} showContact={false} noTitle />}
+        {c.agent && <SplitContacts splitMail c={c} t={t} ink={ink} S={S} sel={sel} scale={0.9} />}
+        <FinePrint c={c} ink={ink} t={t} size={S.fine} align="center" />
+      </div>
+    )
+    return (
+      <>
+        <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(90% 40% at 50% 30%, ${hexA(gold, t.isDark ? 0.1 : 0.06)}, transparent 70%), ${night(1)}` }} />
+        {ring}
+        {brand && <div style={{ position: 'absolute', left: 0, right: 0, top: u(holeC + ringD / 2 + 3.5), display: 'flex', justifyContent: 'center', zIndex: 3 }}>{brand}</div>}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: `${u(holeC + ringD / 2 + (brand ? 11 : 5))} ${u(P)} ${u(P * 0.95)}`, zIndex: 2 }}>
+          <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-evenly', gap: u(3) }}>
+            {c.leadGen ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(2.4), width: '100%', textAlign: 'center' }}>
+                {kick && kickLine(kick, 3.2, c.kicker?.id)}
+                {c.title && <Pick id={c.title.id} sel={sel}><div>{qLines.map((l, i) => <div key={i} style={{ fontFamily: t.fonts.display, fontWeight: 500, letterSpacing: '0.03em', fontSize: u(qFs), lineHeight: 1.05, color: i % 2 ? gold : ivory, whiteSpace: 'nowrap' }}>{l}</div>)}</div></Pick>}
+                {c.sub && <div style={{ width: '90%' }}><Lede text={c.sub.text} t={t} ink={ink} size={S.body * 1.12} align="center" style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} /></div>}
+              </div>
+            ) : (
+              <Pick id={c.big?.id || c.kicker?.id} sel={sel}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(2) }}>
+                  <div style={{ fontFamily: t.fonts.display, fontWeight: 500, letterSpacing: '0.08em', paddingLeft: '0.08em', fontSize: u(headFs), lineHeight: 1, color: gold, whiteSpace: 'nowrap' }}>{word}</div>
+                  {ornament(W * 0.62)}
+                </div>
+              </Pick>
+            )}
+            {framed('3 / 2', photoW)}
+            {dates}
+            {priceBlock}
+            {!oh && !c.leadGen && descB && <Pick id={descB.id} sel={sel} style={{ width: '90%' }}><Lede text={descB.text} t={t} ink={ink} size={S.body} align="center" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} /></Pick>}
+            {qrCard}
+          </div>
+          {footer}
+        </div>
+        <LuxeGoldFrame inset={P * 0.42} gold={gold} />
+      </>
+    )
+  }
+
   // Vertical formats: photo above, midnight plate below. Stories keep everything clear of the
   // Instagram header and reply bar; the door hanger leaves its hole zone empty.
   const photoPct = story ? 56 : tall ? (c.leadGen ? 47 : 36) : fam === 'portrait' ? 52 : 58
   const k = story ? 1.22 : tall ? (c.leadGen ? 1.38 : 1.18) : fam === 'portrait' ? 1.1 : 1.14
-  const topPad = tall ? HANGER_ZONE : story ? 13 : P * 0.95
+  const topPad = tall ? HANGER_ZONE + 6 : story ? 13 : P * 0.95
   return (
     <>
       <div style={{ position: 'absolute', inset: 0, background: night(1) }} />
@@ -2867,15 +3498,17 @@ function tickerItems(c: Content): string[] {
   return items
 }
 
-function ScriptLine({ text, size, color, align = 'left', id, sel, comfortable = 11, bold = 0 }: { text: string; size: number; color: string; align?: 'left' | 'center'; id?: string; sel: Sel; comfortable?: number; bold?: number }) {
+function ScriptLine({ text, size, color, align = 'left', id, sel, comfortable = 11, bold = 0, oneLineW }: { text: string; size: number; color: string; align?: 'left' | 'center'; id?: string; sel: Sel; comfortable?: number; bold?: number; oneLineW?: number }) {
   if (!text) return null
   // Too long for one line at a readable size ("Complimentary Home Valuation" on a door hanger):
   // two balanced lines, sized to the longer one - never cut off at the page edge.
-  const lines = text.length > comfortable * 1.6 ? splitLines(text, 2) : [text]
+  // oneLineW: always one line, as big as the given width allows (never bigger than `size`).
+  const lines = !oneLineW && text.length > comfortable * 1.6 ? splitLines(text, 2) : [text]
   const longest = lines.reduce((a, l) => (l.length > a.length ? l : a), '')
+  const fs = oneLineW ? Math.min(size, oneLineW / (Math.max(4, text.length) * 0.385)) : fit(longest, size, comfortable, lines.length > 1 ? 0.45 : 0.55)
   return (
     <Pick id={id} sel={sel}>
-      <div style={{ fontFamily: DESIGN_FONTS.script, fontWeight: 400, fontSize: u(fit(longest, size, comfortable, lines.length > 1 ? 0.45 : 0.55)), lineHeight: lines.length > 1 ? 1.08 : 1, color, textAlign: align, paddingBottom: '0.08em', ...(bold ? { WebkitTextStroke: `${bold}em ${color}` } : {}) }}>
+      <div style={{ fontFamily: DESIGN_FONTS.script, fontWeight: 400, fontSize: u(fs), lineHeight: lines.length > 1 ? 1.08 : 1, color, textAlign: align, paddingBottom: '0.08em', ...(bold ? { WebkitTextStroke: `${bold}em ${color}` } : {}) }}>
         {lines.map((l, i) => <div key={i} style={{ whiteSpace: 'nowrap' }}>{l}</div>)}
       </div>
     </Pick>
@@ -2927,7 +3560,12 @@ function InstantPrint({ c, t, sel, width, rotate, caption, photo, pickId, style,
       {foot && <div style={{ position: 'absolute', left: '7%', right: '7%', bottom: 0, height: u(width * footH), display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>{foot}</div>}
       {!foot && caption && (
         <Pick id={captionId} sel={sel} style={{ position: 'absolute', left: '6%', right: '6%', bottom: 0, height: u(width * 0.22), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontFamily: DESIGN_FONTS.script, fontSize: u(fit(caption, width * 0.105, 20, 0.6)), lineHeight: 1.35, color: '#2B2824', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', ...(bold ? { WebkitTextStroke: `${bold}em #2B2824` } : {}) }}>{caption}</div>
+          {/* a long address writes on two lines (user 10/13: it was cut off with "...") - sized by the longer line */}
+          {(() => {
+            const capLines = caption.length > 26 ? splitLines(caption, 2) : [caption]
+            const capLong = capLines.reduce((m, l) => (l.length > m.length ? l : m), '')
+            return <div style={{ fontFamily: DESIGN_FONTS.script, fontSize: u(fit(capLong, width * 0.105, capLines.length > 1 ? 16.5 : 20, capLines.length > 1 ? 0.5 : 0.6)), lineHeight: capLines.length > 1 ? 1.12 : 1.35, color: '#2B2824', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', textAlign: 'center', ...(bold ? { WebkitTextStroke: `${bold}em #2B2824` } : {}) }}>{capLines.map((l, i) => <div key={i} style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{l}</div>)}</div>
+          })()}
         </Pick>
       )}
     </div>
@@ -3035,10 +3673,10 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
   const tapeStrip = (style: CSSProperties) => (
     <span aria-hidden style={{ position: 'absolute', width: u(13), height: u(3.4), background: 'linear-gradient(180deg, rgba(240,230,205,0.92), rgba(226,214,186,0.88))', boxShadow: '0 0.25cqmin 0.6cqmin rgba(0,0,0,0.12)', clipPath: 'polygon(2% 0, 98% 6%, 100% 94%, 0 100%)', zIndex: 2, ...style }} />
   )
-  const paperNote = (rot: number, tape: CSSProperties, child: ReactNode, pad: string) => (
-    <div style={{ position: 'relative', transform: `rotate(${rot}deg)` }}>
+  const paperNote = (rot: number, tape: CSSProperties, child: ReactNode, pad: string, fill = false) => (
+    <div style={{ position: 'relative', transform: `rotate(${rot}deg)`, ...(fill ? { height: '100%' } : {}) }}>
       {tapeStrip(tape)}
-      <div style={{ background: '#FFFDF8', borderRadius: u(0.4), boxShadow: '0 1cqmin 2.6cqmin rgba(0,0,0,0.2), 0 0 0 0.12cqmin rgba(0,0,0,0.04)', padding: pad }}>{child}</div>
+      <div style={{ background: '#FFFDF8', borderRadius: u(0.4), boxShadow: '0 1cqmin 2.6cqmin rgba(0,0,0,0.2), 0 0 0 0.12cqmin rgba(0,0,0,0.04)', padding: pad, ...(fill ? { height: '100%', boxSizing: 'border-box' as const } : {}) }}>{child}</div>
     </div>
   )
   const diamondRule = (
@@ -3048,7 +3686,73 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
       <span style={{ flex: 1, height: hair, background: hexA(gold, 0.55) }} />
     </div>
   )
+  const ohCards = !c.leadGen && !!oh
+  const twine = '#A88E62'
+  const ohPiecesAt = (sc: number, compact = false, wideW = 0) => {
+    if (!ohCards || !oh) return null
+    const clean = (x: string) => x.replace(/:00/g, '').replace(/\s*[–—-]\s*/g, '–').replace(/\s+/g, ' ').trim().replace(/^(\d+(?::\d+)?)\s*(AM|PM)–(\d+(?::\d+)?)\s*\2$/i, '$1–$3 $2')
+    const days = oh.date.split(/\s*(?:&|\band\b)\s*/i).filter(Boolean).slice(0, 2)
+    const times = oh.time.split(/\s*(?:&|\band\b|\/)\s*/i).map(clean).filter(Boolean)
+    const rows = days.map((d, k) => {
+      const [wd, rest] = d.includes(',') ? [d.split(',')[0].trim(), d.split(',').slice(1).join(',').trim()] : ['', d.trim()]
+      const m = rest.match(/^([A-Za-z]+)\.?\s+(\d+)/)
+      return { wd, mon: m ? m[1] : '', day: m ? m[2] : rest, time: times.length > 1 ? times[k] ?? '' : times[0] ?? '' }
+    })
+    const string = (left: string, h: number) => <span aria-hidden style={{ position: 'absolute', left, top: 0, width: u((0.4) * sc), height: u((h) * sc), background: twine, transform: 'translateX(-50%)', borderRadius: u((0.2) * sc) }} />
+    if (rows.length === 1) {
+      const r0 = rows[0]
+      const W = wideW ? wideW / sc : 44
+      return (
+        <Pick id={oh.id} sel={sel} style={{ position: 'relative', paddingTop: u((4.5) * sc) }}>
+          {string('16%', 5.2)}{string('84%', 5.2)}
+          <div style={{ position: 'relative', width: u((W) * sc), background: '#FFFDF8', borderRadius: u((0.6) * sc), boxShadow: '0 1cqmin 2.4cqmin rgba(0,0,0,0.2)', padding: `${u((2.2) * sc)} ${u((2.4) * sc)} ${u((2) * sc)}`, textAlign: 'center', transform: 'rotate(1.2deg)' }}>
+            <div aria-hidden style={{ position: 'absolute', inset: u((0.9) * sc), border: `${u((0.3) * sc)} solid ${gold}`, borderRadius: u((0.4) * sc) }} />
+            <div aria-hidden style={{ position: 'absolute', inset: u((1.6) * sc), border: `${hair} solid ${hexA(gold, 0.5)}`, borderRadius: u((0.3) * sc) }} />
+            {['16%', '84%'].map(x => <span key={x} aria-hidden style={{ position: 'absolute', left: x, top: u((-0.4) * sc), width: u((1.4) * sc), height: u((1.4) * sc), borderRadius: '50%', background: '#FFFDF8', boxShadow: `0 0 0 ${u((0.3) * sc)} ${twine}`, transform: 'translateX(-50%)' }} />)}
+            {r0.wd && <div style={{ fontFamily: DESIGN_FONTS.script, fontSize: u((4.4) * sc), lineHeight: 1.05, color: gold, WebkitTextStroke: `0.02em ${gold}` }}>{r0.wd}</div>}
+            <div style={{ fontFamily: t.fonts.display, fontWeight: 600, fontSize: u((fit(`${r0.mon} ${r0.day}`, 5.4, 11, 0.6)) * sc), lineHeight: 1.1, color: '#1B1A17', whiteSpace: 'nowrap' }}>{r0.mon} {r0.day}</div>
+            {r0.time && <div style={{ ...caps, fontWeight: 800, color: gold, letterSpacing: '0.12em', paddingLeft: '0.12em', fontSize: u((fit(r0.time, 3, 12, 0.6)) * sc), marginTop: u((0.8) * sc) }}>{r0.time}</div>}
+          </div>
+        </Pick>
+      )
+    }
+    const W = wideW ? (wideW / sc - 3.2) / 2 : 21.5
+    const tagClip = `polygon(${u((3) * sc)} 0, calc(100% - ${u((3) * sc)}) 0, 100% ${u((3) * sc)}, 100% 100%, 0 100%, 0 ${u((3) * sc)})`
+    return (
+      <Pick id={oh.id} sel={sel} style={{ display: 'flex', gap: u((3.2) * sc) }}>
+        {rows.map((r0, k) => (
+          <div key={k} style={{ position: 'relative', paddingTop: u((4.5) * sc), transform: `rotate(${k ? 2.5 : -2.5}deg)` }}>
+            {string('50%', 6.4)}
+            <div style={{ filter: 'drop-shadow(0 0.9cqmin 1.6cqmin rgba(0,0,0,0.2))' }}>
+              <div style={{ width: u((W) * sc), background: gold, clipPath: tagClip, padding: u((0.35) * sc) }}>
+                <div style={{ position: 'relative', background: '#FFFDF8', clipPath: tagClip, padding: `${u((3.4) * sc)} ${u((1) * sc)} ${u((1.6) * sc)}`, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span aria-hidden style={{ position: 'absolute', left: '50%', top: u((1) * sc), width: u((1.5) * sc), height: u((1.5) * sc), borderRadius: '50%', background: '#EFE6D2', boxShadow: `0 0 0 ${u((0.3) * sc)} ${gold}`, transform: 'translateX(-50%)' }} />
+                  {r0.wd && <div style={{ fontFamily: DESIGN_FONTS.script, fontSize: u((fit(r0.wd, 3.6, 8, 0.6)) * sc), lineHeight: 1.1, color: gold, WebkitTextStroke: `0.02em ${gold}`, whiteSpace: 'nowrap' }}>{r0.wd}</div>}
+                  {compact ? (() => {
+                    const md = `${r0.mon.slice(0, 3)} ${r0.day}`.trim()
+                    const split = (x: string) => x.length > 9 && x.includes('–') ? [x.slice(0, x.indexOf('–') + 1), x.slice(x.indexOf('–') + 1)] : x ? [x] : []
+                    const tl = split(r0.time)
+                    // one time size across both tags, so they match
+                    const tlen = Math.max(4, ...rows.flatMap(rr => split(rr.time)).map(l => l.length))
+                    return <>
+                      <div style={{ fontFamily: t.fonts.display, fontWeight: 600, fontSize: u((Math.min(wideW ? 7 : 6, (W - 2.5) / (Math.max(4, md.length) * 0.58))) * sc), lineHeight: 1.05, color: '#1B1A17', whiteSpace: 'nowrap' }}>{md}</div>
+                      {tl.length > 0 && <div style={{ ...caps, fontWeight: 800, color: gold, letterSpacing: '0.04em', fontSize: u((Math.min(wideW ? 4.6 : 4, (W - 2.5) / (tlen * 0.72))) * sc), lineHeight: 1.12, marginTop: u((0.8) * sc) }}>{tl.map((l, i) => <div key={i}>{l}</div>)}</div>}
+                    </>
+                  })() : <>
+                  <div style={{ fontFamily: t.fonts.display, fontWeight: 600, fontSize: u((6.2) * sc), lineHeight: 1, color: '#1B1A17' }}>{r0.day}</div>
+                  {r0.mon && <div style={{ ...caps, fontWeight: 800, color: '#1B1A17', letterSpacing: '0.16em', paddingLeft: '0.16em', fontSize: u((2.1) * sc) }}>{r0.mon.slice(0, 3)}</div>}
+                  {r0.time && <div style={{ ...caps, fontWeight: 800, color: gold, letterSpacing: '0.04em', fontSize: u((fit(r0.time, 2.3, 12, 0.6)) * sc), marginTop: u((0.7) * sc), whiteSpace: 'normal', textWrap: 'balance' as any }}>{r0.time}</div>}
+                  </>}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </Pick>
+    )
+  }
   if (wide && c.isPrint) {
+    const ohPieces = ohPiecesAt(1)
     // Postcards (user 10/12): in the Keepsake's own language - the words on a taped photo-paper card
     // (the town handwritten like the print's caption), the QR on a taped note under it, a slim footer
     // with both numbers on one line
@@ -3060,62 +3764,9 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
     const statSize = facts ? Math.min(S.facts * 1.7, ...facts.items.map(i => (statColW - S.gap * 0.5) / (Math.max(2, i.value.length) * 0.47))) : 0
     const priceSize = c.price ? Math.min(S.price * 1.25 * t.price.scale, (priceW - S.gap * 2.6) / (c.price.value.length * 0.56)) * c.price.o.k : 0
     const town = !c.leadGen && c.sub && !c.townOnly ? placeName(c) : ''
-    const ohCards = !c.leadGen && !!oh
-    const twine = '#A88E62'
-    const ohPieces = (() => {
-      if (!ohCards || !oh) return null
-      const clean = (x: string) => x.replace(/:00/g, '').replace(/\s*[–—-]\s*/g, '–').replace(/\s+/g, ' ').trim().replace(/^(\d+(?::\d+)?)\s*(AM|PM)–(\d+(?::\d+)?)\s*\2$/i, '$1–$3 $2')
-      const days = oh.date.split(/\s*(?:&|\band\b)\s*/i).filter(Boolean).slice(0, 2)
-      const times = oh.time.split(/\s*(?:&|\band\b|\/)\s*/i).map(clean).filter(Boolean)
-      const rows = days.map((d, k) => {
-        const [wd, rest] = d.includes(',') ? [d.split(',')[0].trim(), d.split(',').slice(1).join(',').trim()] : ['', d.trim()]
-        const m = rest.match(/^([A-Za-z]+)\.?\s+(\d+)/)
-        return { wd, mon: m ? m[1] : '', day: m ? m[2] : rest, time: times.length > 1 ? times[k] ?? '' : times[0] ?? '' }
-      })
-      const string = (left: string, h: number) => <span aria-hidden style={{ position: 'absolute', left, top: 0, width: u(0.4), height: u(h), background: twine, transform: 'translateX(-50%)', borderRadius: u(0.2) }} />
-      if (rows.length === 1) {
-        const r0 = rows[0]
-        const W = 44
-        return (
-          <Pick id={oh.id} sel={sel} style={{ position: 'relative', paddingTop: u(4.5) }}>
-            {string('16%', 5.2)}{string('84%', 5.2)}
-            <div style={{ position: 'relative', width: u(W), background: '#FFFDF8', borderRadius: u(0.6), boxShadow: '0 1cqmin 2.4cqmin rgba(0,0,0,0.2)', padding: `${u(2.2)} ${u(2.4)} ${u(2)}`, textAlign: 'center', transform: 'rotate(1.2deg)' }}>
-              <div aria-hidden style={{ position: 'absolute', inset: u(0.9), border: `${u(0.3)} solid ${gold}`, borderRadius: u(0.4) }} />
-              <div aria-hidden style={{ position: 'absolute', inset: u(1.6), border: `${hair} solid ${hexA(gold, 0.5)}`, borderRadius: u(0.3) }} />
-              {['16%', '84%'].map(x => <span key={x} aria-hidden style={{ position: 'absolute', left: x, top: u(-0.4), width: u(1.4), height: u(1.4), borderRadius: '50%', background: '#FFFDF8', boxShadow: `0 0 0 ${u(0.3)} ${twine}`, transform: 'translateX(-50%)' }} />)}
-              {r0.wd && <div style={{ fontFamily: DESIGN_FONTS.script, fontSize: u(4.4), lineHeight: 1.05, color: gold, WebkitTextStroke: `0.02em ${gold}` }}>{r0.wd}</div>}
-              <div style={{ fontFamily: t.fonts.display, fontWeight: 600, fontSize: u(fit(`${r0.mon} ${r0.day}`, 5.4, 11, 0.6)), lineHeight: 1.1, color: '#1B1A17', whiteSpace: 'nowrap' }}>{r0.mon} {r0.day}</div>
-              {r0.time && <div style={{ ...caps, fontWeight: 800, color: gold, letterSpacing: '0.12em', paddingLeft: '0.12em', fontSize: u(fit(r0.time, 3, 12, 0.6)), marginTop: u(0.8) }}>{r0.time}</div>}
-            </div>
-          </Pick>
-        )
-      }
-      const W = 21.5
-      const tagClip = `polygon(${u(3)} 0, calc(100% - ${u(3)}) 0, 100% ${u(3)}, 100% 100%, 0 100%, 0 ${u(3)})`
-      return (
-        <Pick id={oh.id} sel={sel} style={{ display: 'flex', gap: u(3.2) }}>
-          {rows.map((r0, k) => (
-            <div key={k} style={{ position: 'relative', paddingTop: u(4.5), transform: `rotate(${k ? 2.5 : -2.5}deg)` }}>
-              {string('50%', 6.4)}
-              <div style={{ filter: 'drop-shadow(0 0.9cqmin 1.6cqmin rgba(0,0,0,0.2))' }}>
-                <div style={{ width: u(W), background: gold, clipPath: tagClip, padding: u(0.35) }}>
-                  <div style={{ position: 'relative', background: '#FFFDF8', clipPath: tagClip, padding: `${u(3.4)} ${u(1)} ${u(1.6)}`, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <span aria-hidden style={{ position: 'absolute', left: '50%', top: u(1), width: u(1.5), height: u(1.5), borderRadius: '50%', background: '#EFE6D2', boxShadow: `0 0 0 ${u(0.3)} ${gold}`, transform: 'translateX(-50%)' }} />
-                    {r0.wd && <div style={{ fontFamily: DESIGN_FONTS.script, fontSize: u(fit(r0.wd, 3.6, 8, 0.6)), lineHeight: 1.1, color: gold, WebkitTextStroke: `0.02em ${gold}`, whiteSpace: 'nowrap' }}>{r0.wd}</div>}
-                    <div style={{ fontFamily: t.fonts.display, fontWeight: 600, fontSize: u(6.2), lineHeight: 1, color: '#1B1A17' }}>{r0.day}</div>
-                    {r0.mon && <div style={{ ...caps, fontWeight: 800, color: '#1B1A17', letterSpacing: '0.16em', paddingLeft: '0.16em', fontSize: u(2.1) }}>{r0.mon.slice(0, 3)}</div>}
-                    {r0.time && <div style={{ ...caps, fontWeight: 800, color: gold, letterSpacing: '0.04em', fontSize: u(fit(r0.time, 2.3, 12, 0.6)), marginTop: u(0.7), whiteSpace: 'normal', textWrap: 'balance' as any }}>{r0.time}</div>}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </Pick>
-      )
-    })()
     const leadFoot = c.leadGen && c.qr ? (
       <>
-        {askCta && <Pick id={askCta.id} sel={sel} style={{ alignSelf: 'stretch' }}><FitLines text={askCta.label} size={S.facts * 2.05} lines={askCta.label.length > 26 ? 2 : 1} style={{ fontFamily: DESIGN_FONTS.script, lineHeight: 1.05, color: '#2B2824', textAlign: 'center', textWrap: 'balance' as any, WebkitTextStroke: '0.016em #2B2824' }} /></Pick>}
+        {askCta && <Pick id={askCta.id} sel={sel} style={{ alignSelf: 'stretch' }}><FitLines text={askCta.label.replace(/(^|\s)(\S)/g, (_m: string, a: string, ch: string) => a + ch.toUpperCase())} size={S.facts * 1.85} lines={askCta.label.length > 26 ? 2 : 1} style={{ fontFamily: t.fonts.display, fontWeight: 600, letterSpacing: '-0.005em', lineHeight: 1.08, color: '#1B1A17', textAlign: 'center', textWrap: 'balance' as any }} /></Pick>}
         {c.sub && <div style={{ marginTop: u(S.gap * 0.45), width: '100%' }}><Lede text={c.sub.text} t={t} ink={paperInk} size={S.body * 0.86} align="center" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.35 }} /></div>}
       </>
     ) : null
@@ -3138,7 +3789,7 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
       <Pick id={askCta?.id || c.qr.id} sel={sel} style={{ width: '100%' }}>
         {paperNote(-0.8, { top: u(-1.6), left: '50%', marginLeft: u(-6.5), transform: 'rotate(2deg)' }, (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(1.6), textAlign: 'center' }}>
-            {askCta && <FitLines text={askCta.label} size={4.6} lines={2} style={{ fontFamily: DESIGN_FONTS.script, lineHeight: 1.05, color: '#2B2824', textAlign: 'center', textWrap: 'balance' as any, WebkitTextStroke: '0.018em #2B2824' }} />}
+            {askCta && <FitLines text={askCta.label.replace(/(^|\s)(\S)/g, (_m: string, a: string, ch: string) => a + ch.toUpperCase())} size={4.2} lines={2} style={{ fontFamily: t.fonts.display, fontWeight: 600, letterSpacing: '-0.005em', lineHeight: 1.08, color: '#1B1A17', textAlign: 'center', textWrap: 'balance' as any }} />}
             <div style={{ border: `${hair} solid ${hexA(gold, 0.45)}`, padding: u(1.1), background: '#FFFFFF' }}>
               <Qr c={c} t={t} ink={paperInk} size={26} sel={sel} labelSide="none" />
             </div>
@@ -3207,7 +3858,7 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
               <Qr c={c} t={t} ink={paperInk} size={qs} sel={sel} labelSide="none" />
             </div>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: u(S.gap * 0.4) }}>
-              <FitLines text={c.leadGen ? (c.qr.label || ask) : ask} size={S.facts * (c.leadGen ? 2.3 : 2.2)} lines={(c.leadGen ? (c.qr.label || ask) : ask).length > 24 ? 2 : 1} style={{ fontFamily: DESIGN_FONTS.script, lineHeight: 1.1, color: paperInk.ink, textWrap: 'balance' as any, WebkitTextStroke: `0.015em ${paperInk.ink}` }} />
+              <FitLines text={(c.leadGen ? (c.qr.label || ask) : ask).replace(/(^|\s)(\S)/g, (_m: string, a: string, ch: string) => a + ch.toUpperCase())} size={S.facts * (c.leadGen ? 2.1 : 2)} lines={(c.leadGen ? (c.qr.label || ask) : ask).length > 24 ? 2 : 1} style={{ fontFamily: t.fonts.display, fontWeight: 600, letterSpacing: '-0.005em', lineHeight: 1.1, color: paperInk.ink, textWrap: 'balance' as any }} />
               {c.qr.label && !c.leadGen && <Pick id={c.qr.id} sel={sel}><span style={{ ...caps, fontWeight: 800, color: gold, letterSpacing: '0.16em', fontSize: u(fit(c.qr.label, S.facts * 1, 22, 0.6)) }}>{c.qr.label}</span></Pick>}
             </div>
           </div>
@@ -3220,7 +3871,7 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
           <>
             <Rule color={ink.rule} />
             <div style={{ display: 'flex', alignItems: 'center', gap: u(S.gap * 1.2) }}>
-              <div style={{ flex: '1 1 auto', minWidth: 0 }}><AgentCard c={c} t={t} ink={ink} S={S} sel={sel} align="left" scale={0.95} showContact={false} noTitle /></div>
+              <div style={{ flex: '1 1 auto', minWidth: 0 }}><AgentCard fitLong c={c} t={t} ink={ink} S={S} sel={sel} align="left" scale={0.95} showContact={false} noTitle /></div>
               <div style={{ flexShrink: 0 }}><SplitContacts c={c} t={t} ink={ink} S={S} sel={sel} scale={0.68} /></div>
             </div>
           </>
@@ -3274,29 +3925,6 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
     )
   }
 
-  // Door hanger: headline + fanned prints high up under the hanger hole, then the facts, story and
-  // sign-off - larger - spread across the whole lower half (user review 10/09: "header and photos
-  // move up, the bottom section takes up more of the hanger").
-  if (tall) {
-    return (
-      <>
-        {backdrop}
-        <div style={{ position: 'absolute', inset: 0, padding: `${u(HANGER_ZONE - 2)} ${u(P)} ${u(P * 0.75)}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.gap * 0.9) }}>
-          {/* The headline sits right under the die-cut hole - as high as it can go without the hole cutting it. */}
-          <ScriptLine text={word} size={S.big * 1.08} color={script} align="center" id={kickId} sel={sel} comfortable={9} />
-          <div style={{ flexShrink: 0, width: '100%', display: 'flex', justifyContent: 'center' }}>
-            <PrintFan c={c} t={t} sel={sel} width={62} caption={caption} />
-          </div>
-          <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-evenly', gap: u(S.gap * 0.8), overflow: 'hidden' }}>
-            {info(c.leadGen ? 1.12 : 1.2)}
-            {!c.leadGen && <div style={{ width: '100%' }}><PrintStory c={c} t={t} ink={ink} S={S} sel={sel} align="center" clamp={3} /></div>}
-          </div>
-          <div style={{ width: '100%', flexShrink: 0 }}><PrintSignOff c={c} t={t} ink={ink} S={scaled(S, 1.08)} sel={sel} fam={fam} /></div>
-        </div>
-      </>
-    )
-  }
-
   // Letters / flyers (user 10/12): the approved postcard pieces, stood up - the fanned prints (with the
   // scrapbook sticker on listings), then the words on a taped paper card beside a taped QR note (the ask,
   // a big code, its message), and a footer without the QR
@@ -3304,7 +3932,8 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
     const cw = 100 - P * 2
     const noteW = 32
     const cardW = cw - noteW - S.gap * 1.5
-    const fanW = 39
+    const ohDays = ohCards && oh ? oh.date.split(/\s*(?:&|\band\b)\s*/i).filter(Boolean).length : 0
+    const fanW = ohDays ? 37 : 39
     const priceW = cardW
     const statColW = facts ? (cardW - 5.2) / facts.items.length : 0
     const statSize = facts ? Math.min(S.facts * 1.9, ...facts.items.map(i => (statColW - S.gap * 0.5) / (Math.max(2, i.value.length) * 0.47))) : 0
@@ -3312,9 +3941,10 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
     const town = !c.leadGen && c.sub && !c.townOnly ? placeName(c) : ''
     const desc = c.details.find(d => d.kind === 'description') as Extract<DetailItem, { kind: 'description' }> | undefined
     const listingBody = (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: u(S.gap * 0.65) }}>
-        {town && <Pick id={c.title?.id} sel={sel}><div style={{ fontFamily: DESIGN_FONTS.script, fontSize: u(fit(town, S.facts * 2.2, 18, 0.6)), lineHeight: 1.05, color: gold, textAlign: 'center', whiteSpace: 'nowrap', WebkitTextStroke: `0.02em ${gold}` }}>{town}</div></Pick>}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: u(S.gap * 0.6) }}>
+      // open house (user 10/11): the card runs the full height of the QR + date column; every row evenly spaced, so the price sits centred between the town and its divider
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: u(S.gap * 0.65), ...(ohCards ? { height: '100%', justifyContent: 'space-between' } : {}) }}>
+        {town && <Pick id={c.title?.id} sel={sel} style={ohCards ? { marginTop: u(1.4) } : undefined}><div style={{ fontFamily: DESIGN_FONTS.script, fontSize: u(ohCards ? fit(town, S.facts * 2.75, 15, 0.6) : fit(town, S.facts * 2.2, 18, 0.6)), lineHeight: 1.05, color: gold, textAlign: 'center', whiteSpace: 'nowrap', WebkitTextStroke: `0.02em ${gold}` }}>{town}</div></Pick>}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: u(S.gap * 0.6), ...(ohCards ? { display: 'contents' } : {}) }}>
           {c.price && (
             <Pick id={c.price.id} sel={sel}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.facts * 0.3) }}>
@@ -3345,8 +3975,7 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
             </Pick>
           )}
         </div>
-        {oh && <Pick id={oh.id} sel={sel}><OpenHouseLine date={oh.date} time={oh.time} t={t} ink={{ ...paperInk, accent: gold }} size={S.facts * 0.85} align="center" o={oh.o} /></Pick>}
-        {desc && <><div style={{ height: hair, background: hexA(gold, 0.35) }} /><div style={{ overflow: 'hidden' }}><Details c={c} t={t} ink={paperInk} S={scaled(S, 1.1)} align="left" sel={sel} only={['description']} clamp={3} /></div></>}
+        {desc && <div style={{ display: 'flex', flexDirection: 'column', gap: u(S.gap * 0.65) }}><div style={{ height: hair, background: hexA(gold, 0.35) }} /><div style={{ overflow: 'hidden' }}><Details c={c} t={t} ink={paperInk} S={scaled(S, 1.1)} align="left" sel={sel} only={['description']} clamp={3} /></div></div>}
       </div>
     )
     const leadBody = (
@@ -3373,7 +4002,7 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
         ), `${u(2.2)} ${u(2)} ${u(2)}`)}
       </Pick>
     )
-    const card = paperNote(0.8, { top: u(-1.5), left: '50%', marginLeft: u(-6.5), transform: 'rotate(-3deg)' }, c.leadGen ? leadBody : listingBody, `${u(2.6)} ${u(2.6)} ${u(2.3)}`)
+    const card = paperNote(0.8, { top: u(-1.5), left: '50%', marginLeft: u(-6.5), transform: 'rotate(-3deg)' }, c.leadGen ? leadBody : listingBody, `${u(2.6)} ${u(2.6)} ${u(2.3)}`, ohCards)
     const fanBox = fanW * (1.36 + 0.55)
     const leadAsk = c.leadGen && c.qr && askCta ? (
       <Pick id={askCta.id} sel={sel} style={{ alignSelf: 'stretch' }}><FitLines text={askCta.label.replace(/(^|\s)(\S)/g, (_m, a, ch) => a + ch.toUpperCase())} size={askCta.label.length <= 20 ? 5.6 : 4.4} lines={2} style={{ fontFamily: t.fonts.display, fontWeight: 600, letterSpacing: '-0.005em', lineHeight: 1.08, color: '#1B1A17', textAlign: 'center', textWrap: 'balance' as any }} /></Pick>
@@ -3382,7 +4011,8 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
       <>
         {backdrop}
         <div style={{ position: 'absolute', inset: 0, padding: `${u(P * 0.85)} ${u(P)} ${u(P * 0.7)}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.gap * 0.9) }}>
-          <ScriptLine text={word} size={S.big * 1.08} color={script} align="center" id={kickId} sel={sel} comfortable={16} bold={0.022} />
+          {/* the heading sits above the prints, so a tail like the g in Coming is never hidden */}
+          <div style={{ position: 'relative', zIndex: 7, width: '100%' }}><ScriptLine text={word} size={S.big * 1.08} color={script} align="center" id={kickId} sel={sel} comfortable={16} bold={0.022} /></div>
           <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ position: 'relative' }}>
               <PrintFan c={c} t={t} sel={sel} width={fanW} caption={caption} spread={0.55} foot={leadAsk || undefined} footH={0.36} />
@@ -3396,9 +4026,15 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
               {!c.leadGen && word && <Pick id={kickId} sel={sel} style={{ position: 'absolute', top: u(-2.2), left: u(-4.2), zIndex: 3, transform: 'rotate(-14deg)' }}><KeepsakeSticker news={word} size={17} gold={gold} /></Pick>}
             </div>
           </div>
-          <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: u(S.gap * 1.5), padding: `0 ${u(0.5)}`, boxSizing: 'border-box' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>{card}</div>
-            {qrNote}
+          <div style={{ width: '100%', display: 'flex', alignItems: ohCards ? 'flex-start' : 'center', gap: u(S.gap * 1.5), padding: `0 ${u(0.5)}`, boxSizing: 'border-box' }}>
+            <div style={{ flex: 1, minWidth: 0, alignSelf: ohCards ? 'stretch' : undefined }}>{card}</div>
+            {ohCards ? (
+              // open house (user 10/11): the QR note up level with the address card, the date sign hanging under it
+              <div style={{ width: u(noteW), flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                {qrNote}
+                <div style={{ position: 'relative', zIndex: 1, marginTop: u(-1.2) }}>{ohPiecesAt(ohDays > 1 ? 0.63 : 0.7, true)}</div>
+              </div>
+            ) : qrNote}
           </div>
           <div style={{ width: '100%', marginTop: u(S.gap * 0.4) }}><PrintSignOff c={{ ...c, qr: null }} t={t} ink={ink} S={S} sel={sel} fam={fam} /></div>
         </div>
@@ -3406,8 +4042,8 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
     )
   }
 
-  // Flyer / letter mailer: the headline, three prints fanned, the facts, the story.
-  if (portrait || tall) {
+  // Flyer / letter mailer (non-print fallback): the headline, three prints fanned, the facts, the story.
+  if (portrait) {
     return (
       <>
         {backdrop}
@@ -3424,31 +4060,229 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
     )
   }
 
-  if (story) {
+  // Social posts (user 10/12): the approved print pieces on the feed - the print with its one-word sticker,
+  // the words on a taped paper card (town, price, gold diamond divider, stats), the open-house date hanging
+  // beside / under it, and lead-gen = a headline card over the photo plus a taped note with the ask
+  const sTown = !c.leadGen && c.sub && !c.townOnly ? placeName(c) : ''
+  const socialCard = (innerW: number, cols0: number, k: number, withDesc = false, descLines = 3, townTop = 0) => {
+    const items = facts?.items || []
+    const cols = items.length <= 3 ? Math.max(1, items.length) : cols0
+    const colW = innerW / Math.max(1, Math.min(cols, items.length || 1))
+    const priceSize = c.price ? Math.min(S.price * 1.5 * k * t.price.scale, (innerW - 1) / (c.price.value.length * 0.56)) * c.price.o.k : 0
+    const statSize = facts ? Math.min(S.facts * 2 * k, ...items.map(i => (colW - 1.6) / (Math.max(2, i.value.length) * 0.5))) : 0
+    return <div style={{ width: '100%', minWidth: 0 }}>{paperNote(1, { top: u(-1.6), left: '50%', marginLeft: u(-6.5), transform: 'rotate(-3deg)' }, (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: u(S.gap * 0.7 * k) }}>
+        {sTown && <Pick id={c.title?.id} sel={sel} style={townTop ? { marginTop: u(townTop) } : undefined}><div style={{ fontFamily: DESIGN_FONTS.script, fontSize: u(Math.min(fit(sTown, S.facts * 2.5 * k, 14, 0.6), (innerW - 1) / (sTown.length * 0.46))), lineHeight: 1.05, color: gold, textAlign: 'center', whiteSpace: 'nowrap', WebkitTextStroke: `0.02em ${gold}` }}>{sTown}</div></Pick>}
+        {c.price && (
+          <Pick id={c.price.id} sel={sel}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.facts * 0.3 * k) }}>
+              {c.price.label && <span style={{ ...caps, fontWeight: 800, color: gold, letterSpacing: '0.2em', paddingLeft: '0.2em', fontSize: u(S.facts * 0.68 * k) }}>{c.price.label}</span>}
+              <span style={{ fontFamily: t.fonts.price, fontWeight: 600, letterSpacing: t.price.tracking, fontSize: u(priceSize), lineHeight: 1, color: paperInk.ink, whiteSpace: 'nowrap', fontVariantNumeric: 'lining-nums', ...c.price.o.css }}>{c.price.value}</span>
+              {c.price.previous && <span style={{ fontFamily: t.fonts.label, fontWeight: 600, fontSize: u(S.facts * 0.66 * k), color: paperInk.muted, textDecoration: 'line-through', textDecorationColor: gold, whiteSpace: 'nowrap' }}>{c.price.previous}</span>}
+            </div>
+          </Pick>
+        )}
+        {c.price && facts && (
+          <div aria-hidden style={{ display: 'flex', alignItems: 'center', gap: u(S.gap * 0.5) }}>
+            <span style={{ flex: 1, height: u(0.4), background: `linear-gradient(90deg, transparent, ${gold} 25%)` }} />
+            <span style={{ width: u(1.7), height: u(1.7), background: gold, transform: 'rotate(45deg)' }} />
+            <span style={{ flex: 1, height: u(0.4), background: `linear-gradient(270deg, transparent, ${gold} 25%)` }} />
+          </div>
+        )}
+        {facts && (
+          <Pick id={facts.id} sel={sel}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(cols, items.length)}, 1fr)` }}>
+              {items.map((i, n) => (
+                <div key={i.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.facts * 0.25 * k), padding: `${u(cols < items.length ? 1.1 : 0)} 0`, borderLeft: n % cols ? `${hair} solid ${hexA(gold, 0.3)}` : undefined, borderTop: n >= cols ? `${hair} solid ${hexA(gold, 0.3)}` : undefined, minWidth: 0 }}>
+                  <span style={{ fontFamily: t.fonts.price, fontWeight: 600, fontSize: u(statSize), color: paperInk.ink, lineHeight: 1, whiteSpace: 'nowrap' }}>{i.value}</span>
+                  <span style={{ ...caps, fontWeight: 800, letterSpacing: '0.1em', fontSize: u(S.facts * 0.62 * k), color: gold }}>{i.label}</span>
+                </div>
+              ))}
+            </div>
+          </Pick>
+        )}
+        {withDesc && c.details.some(d => d.kind === 'description') && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: u(S.gap * 0.6 * k) }}>
+            <div style={{ height: hair, background: hexA(gold, 0.35) }} />
+            <div style={{ overflow: 'hidden' }}><Details c={c} t={t} ink={paperInk} S={scaled(S, k * 0.92)} align="center" sel={sel} only={['description']} clamp={descLines} /></div>
+          </div>
+        )}
+      </div>
+    ), `${u(2.4)} ${u(2.4)} ${u(2.2)}`)}</div>
+  }
+  const leadTitle = (size: number) => {
+    if (!c.title) return null
+    const tt = titleCase(c.title.text)
+    const qm = tt.match(/^([\s\S]*?)([?.!]+)$/)
+    return <Pick id={c.title.id} sel={sel}><FitLines text={tt} node={qm ? <>{qm[1]}<span style={{ color: gold, fontStyle: 'italic' }}>{qm[2]}</span></> : tt} size={size * (c.title.o.k || 1)} lines={2} style={{ fontFamily: t.fonts.display, fontWeight: 600, lineHeight: 1.06, color: paperInk.ink, letterSpacing: '-0.005em', textWrap: 'balance' as any, opacity: c.title.placeholder ? 0.45 : 1, ...c.title.o.css }} /></Pick>
+  }
+  // the headline card laid over the bottom of the lead print
+  const socialLeadCard = (w: number, titleSize: number, sub: boolean) => (
+    <div style={{ position: 'absolute', left: '50%', bottom: u(-2), width: u(w), transform: 'translateX(-50%) rotate(1.5deg)', zIndex: 3 }}>
+      {paperNote(0, { top: u(-1.6), left: '50%', marginLeft: u(-6.5), transform: 'rotate(-3deg)' }, (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: u(1.3), textAlign: 'center' }}>
+          {leadTitle(titleSize)}
+          {diamondRule}
+          {sub && c.sub && <Lede text={c.sub.text} t={t} ink={paperInk} size={titleSize * 0.46} align="center" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.32, color: '#3A3631' }} />}
+        </div>
+      ), `${u(2.6)} ${u(2.8)} ${u(2.4)}`)}
+    </div>
+  )
+  // the ask on its own taped note, in the readable serif (never a solid button on Keepsake)
+  const askNote = (askSize: number, sub: boolean) => askCta && (
+    <Pick id={askCta.id} sel={sel} style={{ width: '100%' }}>
+      {paperNote(-1, { top: u(-1.6), left: '50%', marginLeft: u(-6.5), transform: 'rotate(2.5deg)' }, (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(1.4), textAlign: 'center' }}>
+          <FitLines text={askCta.label.replace(/(^|\s)(\S)/g, (_m: string, a: string, ch: string) => a + ch.toUpperCase())} size={askSize} lines={2} style={{ fontFamily: t.fonts.display, fontWeight: 600, letterSpacing: '-0.005em', lineHeight: 1.08, color: '#1B1A17', textAlign: 'center', textWrap: 'balance' as any }} />
+          {sub && c.sub && <>{diamondRule}<div style={{ width: '100%' }}><Lede text={c.sub.text} t={t} ink={paperInk} size={askSize * 0.56} align="center" style={{ display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.34, color: '#3A3631' }} /></div></>}
+        </div>
+      ), `${u(2.6)} ${u(2.6)} ${u(2.4)}`)}
+    </Pick>
+  )
+  const sticker = (size: number, top: number, left: number) => !c.leadGen && word ? <Pick id={kickId} sel={sel} style={{ position: 'absolute', top: u(top), left: u(left), zIndex: 3, transform: 'rotate(-10deg)' }}><KeepsakeSticker news={word} size={size} gold={gold} /></Pick> : null
+  const sDays = ohCards && oh ? oh.date.split(/\s*(?:&|\band\b)\s*/i).filter(Boolean).length : 0
+  const header = (size: number, center: boolean, comfortable: number, oneLineW?: number) => (
+    // the heading sits above the prints, so a tail like the g in Coming is never hidden
+    <div style={{ position: 'relative', zIndex: 7, width: '100%' }}><ScriptLine text={word} size={size} color={script} align={center ? 'center' : 'left'} id={kickId} sel={sel} comfortable={comfortable} bold={0.022} oneLineW={oneLineW} /></div>
+  )
+
+  // Door hanger (user 10/12): the approved Keepsake pieces, stood up under the hanger hole - the fanned
+  // prints with the one-word sticker, the taped card (town, price, gold divider, stats, description) with the
+  // open-house date hanging from it, a taped QR note; lead-gen = the ask on the lead print + a headline card
+  if (tall) {
+    const caps1 = (x: string) => x.replace(/(^|\s)(\S)/g, (_m: string, a: string, ch: string) => a + ch.toUpperCase())
+    const fanW = c.leadGen ? 44 : ohCards ? 33 : 35
+    // heading + prints a little lower, off the hanger hole (user 10/12): a one-line lead headline gets more
+    const dropT = ohCards ? 4 : c.leadGen ? (word.length > 16 ? 3 : 9) : 3
+    const leadAskT = c.leadGen && askCta ? (
+      <Pick id={askCta.id} sel={sel} style={{ alignSelf: 'stretch' }}><FitLines text={caps1(askCta.label)} size={askCta.label.length <= 20 ? 6.6 : 5.2} lines={2} style={{ fontFamily: t.fonts.display, fontWeight: 600, letterSpacing: '-0.005em', lineHeight: 1.08, color: '#1B1A17', textAlign: 'center', textWrap: 'balance' as any }} /></Pick>
+    ) : null
+    const leadCardT = c.leadGen && paperNote(0.8, { top: u(-1.6), left: '50%', marginLeft: u(-6.5), transform: 'rotate(-3deg)' }, (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: u(1.6), textAlign: 'center' }}>
+        {leadTitle(7.2)}
+        {diamondRule}
+        {c.sub && <Lede text={c.sub.text} t={t} ink={paperInk} size={3.4} align="center" style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.34, color: '#3A3631' }} />}
+      </div>
+    ), `${u(3.2)} ${u(3.2)} ${u(3)}`)
+    const qrNoteT = c.qr && (
+      <Pick id={c.leadGen ? c.qr.id : askCta?.id || c.qr.id} sel={sel} style={{ width: '100%' }}>
+        {paperNote(-0.8, { top: u(-1.4), left: u(-3), transform: 'rotate(-34deg)', width: u(12) }, (
+          <div style={{ display: 'flex', alignItems: 'center', gap: u(3) }}>
+            <div style={{ flexShrink: 0, border: `${hair} solid ${hexA(gold, 0.45)}`, padding: u(1), background: '#FFFFFF' }}>
+              <Qr c={c} t={t} ink={paperInk} size={22} sel={sel} labelSide="none" />
+            </div>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: u(1.4) }}>
+              <FitLines text={caps1(c.leadGen ? 'Learn more' : ask)} size={5.4} lines={2} style={{ fontFamily: t.fonts.display, fontWeight: 600, letterSpacing: '-0.005em', lineHeight: 1.08, color: paperInk.ink, textWrap: 'balance' as any }} />
+              {c.qr.label && <Pick id={c.qr.id} sel={sel}><span style={{ ...caps, display: 'block', fontWeight: 800, color: gold, letterSpacing: c.qr.label.length > 16 ? '0.06em' : '0.12em', lineHeight: 1.3, whiteSpace: 'nowrap', fontSize: u(Math.min(3.8, (100 - P * 2 - 34) / (c.qr.label.length * (c.qr.label.length > 16 ? 0.66 : 0.72)))) }}>{c.qr.label}</span></Pick>}
+            </div>
+          </div>
+        ), `${u(2.2)} ${u(3)} ${u(2.2)} ${u(2.2)}`)}
+      </Pick>
+    )
     return (
       <>
         {backdrop}
-        <div style={{ position: 'absolute', inset: 0, padding: `12cqh ${u(P)} 11cqh`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.gap * 1.1) }}>
-          <ScriptLine text={word} size={S.big * 1.05} color={script} align="center" id={kickId} sel={sel} comfortable={10} />
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-            <InstantPrint c={c} t={t} sel={sel} width={(oh || c.leadGen ? 64 : 76) * (word.length > 10 ? 0.84 : 1)} rotate={-2.5} caption={caption} />
+        <div style={{ position: 'absolute', inset: 0, padding: `${u(HANGER_ZONE - 2 + dropT)} ${u(P)} ${u(P * 0.75)}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.gap * 0.9) }}>
+          {/* the headline under the die-cut hole, above the prints */}
+          <div style={{ position: 'relative', zIndex: 7, width: '100%' }}><ScriptLine text={word} size={S.big * 1.08} color={script} align="center" id={kickId} sel={sel} comfortable={9} bold={0.022} /></div>
+          <div style={{ flexShrink: 0, width: '100%', display: 'flex', justifyContent: 'center' }}>
+            <div style={{ position: 'relative' }}>
+              <PrintFan c={c} t={t} sel={sel} width={fanW} caption={caption} spread={0.4} foot={leadAskT || undefined} footH={0.36} />
+              {sticker(24, -3, -5)}
+            </div>
           </div>
-          {info(1.18)}
-          {signOff}
+          <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-evenly', gap: u(S.gap * 1.2) }}>
+            {c.leadGen ? <div style={{ width: '100%' }}>{leadCardT}</div> : (
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                {socialCard(100 - P * 2 - 5, 4, 1, !ohCards, 3, 1.4)}
+                {ohCards && <div style={{ position: 'relative', zIndex: 1, marginTop: u(-1.4) }}>{ohPiecesAt(sDays > 1 ? 0.9 : 0.95, true, 100 - P * 2 - 12)}</div>}
+              </div>
+            )}
+            {qrNoteT}
+          </div>
+          {(c.agent || c.finePrint) && (
+            <div data-foot="" style={{ width: '100%', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: u(S.gap * 0.55) }}>
+              {c.agent && (
+                <>
+                  <Rule color={ink.rule} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: u(S.gap) }}>
+                    <div style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}><AgentCard c={c} t={t} ink={ink} S={S} sel={sel} align="left" scale={0.9} showContact={false} noTitle /></div>
+                    {(() => {
+                      // narrow hanger: mobile, office and email stacked on the right, one per line
+                      const a = c.agent!
+                      const mail = a.email || a.website || ''
+                      const base: CSSProperties = { fontFamily: t.fonts.label, color: ink.ink, whiteSpace: 'nowrap', lineHeight: 1.25, fontVariantNumeric: 'lining-nums' }
+                      return (
+                        <Pick id={a.id} sel={sel} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', textAlign: 'right', gap: u(0.5) }}>
+                          {a.phone && <Tel kind="mobile" num={a.phone} style={{ ...base, fontWeight: 700, fontSize: u(3.2) }} />}
+                          {a.office && <Tel kind="office" num={a.office} style={{ ...base, fontWeight: 500, fontSize: u(2.9) }} />}
+                          {mail && <div style={{ ...base, fontWeight: 600, fontSize: u(Math.min(2.8, 40 / (mail.length * 0.55))) }}>{mail}</div>}
+                        </Pick>
+                      )
+                    })()}
+                  </div>
+                </>
+              )}
+              <FinePrint c={c} ink={ink} t={t} size={S.fine} oneLine />
+            </div>
+          )}
         </div>
       </>
     )
   }
 
-  // Square + 4:5 post: the headline across the top, the print with the facts beside it.
+  if (story) {
+    const W = c.leadGen ? 66 : ohCards ? (sDays > 1 ? 42 : 46) : 54
+    const ohRow = ohCards && !c.leadGen
+    return (
+      <>
+        {backdrop}
+        <div style={{ position: 'absolute', inset: 0, padding: `10cqh ${u(P)} 11cqh`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.gap * 1.1) }}>
+          {header(S.big * 1.05, true, 12)}
+          {/* the print and its card sit right under the header (user 10/12); the spare room goes above the sign-off */}
+          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', marginTop: u(-1) }}>
+            <div style={{ position: 'relative', ...(c.leadGen ? { marginBottom: u(10) } : {}) }}>
+              <InstantPrint c={c} t={t} sel={sel} width={W * (word.length > 10 ? 0.9 : 1)} rotate={-2.5} caption={c.leadGen ? '' : caption} bold={0.018} />
+              {c.leadGen && socialLeadCard(W + 10, 6.4, true)}
+              {sticker(21, -4, -4)}
+            </div>
+          </div>
+          {c.leadGen
+            ? <div style={{ width: '74%', marginTop: u(4) }}>{askNote(5.4, false)}</div>
+            : ohRow
+              ? (
+                // open house: the date sign / tags hang from the bottom of the card (user 10/12)
+                <div style={{ width: '84%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  {socialCard((100 - P * 2) * 0.84 - 5, 4, 0.95)}
+                  <div style={{ position: 'relative', zIndex: 1, marginTop: u(-1.4) }}>{ohPiecesAt(sDays > 1 ? 0.72 : 0.76, true)}</div>
+                </div>
+              )
+              : <div style={{ width: '84%' }}>{socialCard((100 - P * 2) * 0.84 - 5, 4, 0.95)}</div>}
+          <div style={{ flex: 1, minHeight: 0 }} />
+          <div style={{ width: '100%' }}>{signOff}</div>
+        </div>
+      </>
+    )
+  }
+
+  // Square + 4:5 post: the headline across the top, the print (with its sticker) beside the taped card.
+  const W = (ar < 0.9 ? 49 : 50) * (word.length > 11 ? 0.86 : 1)
+  const colW = 100 - P * 2.8 - W
   return (
     <>
       {backdrop}
-      <div style={{ position: 'absolute', inset: 0, padding: `${u(P * 0.85)} ${u(P)} ${u(P * 0.75)}`, display: 'flex', flexDirection: 'column', gap: u(S.gap * 0.8) }}>
-        <ScriptLine text={word} size={S.big * 1.08} color={script} id={kickId} sel={sel} comfortable={11} />
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', gap: u(P * 0.9) }}>
-          <div style={{ paddingLeft: u(P * 0.2) }}><InstantPrint c={c} t={t} sel={sel} width={(ar < 0.9 ? 58 : 53) * (word.length > 11 ? (ar < 0.9 ? 0.8 : 0.72) : 1)} rotate={-3.5} caption={caption} /></div>
-          <div style={{ flex: 1, minWidth: 0 }}>{info(1.22)}</div>
+      <div style={{ position: 'absolute', inset: 0, padding: `${u(P * (ar < 0.9 ? 1.35 : 0.85))} ${u(P)} ${u(P * 0.75)}`, display: 'flex', flexDirection: 'column', gap: u(S.gap * 0.8) }}>
+        {header(S.big * 1.08, true, 11, 100 - P * 2.2)}
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', gap: u(P * 0.8) }}>
+          <div style={{ position: 'relative', flexShrink: 0, paddingLeft: u(P * 0.2), ...(c.leadGen ? { marginBottom: u(6) } : {}) }}>
+            <InstantPrint c={c} t={t} sel={sel} width={W} rotate={-3.5} caption={c.leadGen ? '' : caption} bold={0.018} />
+            {c.leadGen && socialLeadCard(W + 6, 5.2, false)}
+            {sticker(19, -4, -3)}
+          </div>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            {c.leadGen ? askNote(3.9, true) : socialCard(colW - 5, 2, 1.3)}
+            {!c.leadGen && ohCards && <div style={{ position: 'relative', zIndex: 1, marginTop: u(-1.2) }}>{ohPiecesAt(sDays > 1 ? 0.66 : 0.66, true)}</div>}
+          </div>
         </div>
         {signOff}
       </div>
@@ -3458,9 +4292,10 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
 
 // ── Billboard: the news in giant poster type, the photo as a card laid over it, a ticker of the
 // facts running across - loud, graphic, unmistakable in a feed or a mailbox.
-function Billboard({ c, t, fam, S: S0, sel }: CompProps) {
-  const story = fam === 'story'
-  const tall = fam === 'tall'
+function Billboard({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
+  const hanger = fam === 'tall' && c.isPrint
+  const story = fam === 'story' || hanger
+  const tall = fam === 'tall' && !hanger
   const portrait = fam === 'portrait'
   const wide = fam === 'landscape' || fam === 'banner'
   const S = wide ? scaled(S0, c.isPrint ? 0.8 : 0.86) : S0
@@ -3470,11 +4305,18 @@ function Billboard({ c, t, fam, S: S0, sel }: CompProps) {
   const word = (c.leadGen ? (c.title?.text || newsWord(c)) : newsWord(c)).toUpperCase()
   const hangerAsk = tall && c.leadGen
   // Door-hanger ask: three lines, two words each where it can ("WHAT IS / YOUR HOME / WORTH?").
-  const lines = splitLines(word, hangerAsk ? 3 : word.length > 18 ? (word.length > 30 ? 4 : 3) : 2)
+  const social = (!c.isPrint && (fam === 'square' || story)) || hanger
+  const newLook = ((wide || portrait) && c.isPrint) || social
+  const tallLook = (portrait && c.isPrint) || social
+  const ohSide = social && !c.leadGen && !!findOpenHouse(c)
+  const oneLineGiant = portrait && c.isPrint && !c.leadGen
+  const bigStack = social && !c.leadGen && !oneLineGiant && !ohSide
+  const lines = oneLineGiant ? [word] : ohSide || (social && story && !c.leadGen) ? splitLines(word, 2) : splitLines(word, hangerAsk ? 3 : word.length > 18 ? (word.length > 30 ? 4 : 3) : 2)
   const charW = t.styleId === 'bold' ? 0.48 : t.styleId === 'modern_luxury' ? 0.84 : t.styleId === 'minimal' ? 0.72 : 0.68
   const usable = fam === 'banner' ? 300 * 0.28 : wide ? 150 * 0.44 : 100 - P * 2
   const longest = Math.max(3, ...lines.map(l => l.length))
-  const fs = Math.min(story || tall ? 34 : wide ? 22 : 26, usable / longest / (hangerAsk ? charW * 0.8 : charW))
+  const twoDaysB = /&| and /i.test(findOpenHouse(c)?.date || '')
+  const fs = ohSide ? (c.socialButton ? 0.84 : 1) * Math.min(story ? (twoDaysB ? 26 : 24) : 21, ((100 - P * 2) - (story ? (twoDaysB ? 20 : 23 * 1.4) : twoDaysB ? 2 * 17.5 * (ar < 0.9 ? 1.08 : 1) + 2.4 : 23 * 1.3) - 3) / longest / (charW * 0.86)) : oneLineGiant || bigStack ? Math.min(bigStack ? (!story && ar < 0.9 ? (c.socialButton ? 11.5 : 14) : c.socialButton ? (story ? 19 : longest <= 6 && ar >= 0.9 ? 14 : 15.5) : !story && longest <= 6 ? 18 : hanger ? 17.5 : story && longest <= 5 ? 22 : 26) : 24, usable / longest / (charW * (bigStack ? 0.9 : story ? 0.62 : 0.74))) : Math.min(story || tall ? 34 : wide ? (c.isPrint && fam !== 'banner' ? (c.leadGen ? 14 : 14.5) : 22) : portrait && c.isPrint ? 15.5 : social ? (story ? 19 : ar < 0.9 ? 15 : 12.5) : 26, usable / longest / (hangerAsk ? charW * 0.8 : charW))
   const lead = 0.84
   const outline = ink.accent
   const giant = (
@@ -3482,11 +4324,12 @@ function Billboard({ c, t, fam, S: S0, sel }: CompProps) {
       {c.leadGen && c.kicker && <div style={{ marginBottom: u(fs * 0.12) }}><Kicker text={c.kicker.text} t={t} ink={ink} size={S.kicker} align="left" o={c.kicker.o} /></div>}
       {lines.map((l, i) => (
         <div key={i} style={{
+          ...(bigStack ? { textAlign: 'center' as const } : {}),
           fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : t.styleId === 'minimal' ? 800 : 600,
           textTransform: 'uppercase', letterSpacing: t.styleId === 'modern_luxury' ? '0.02em' : '-0.015em',
           fontSize: u(fs), lineHeight: lead, whiteSpace: 'nowrap',
           ...(i % 2 === 1 ? (c.leadGen ? { color: outline } : { color: 'transparent', WebkitTextStroke: `max(1px, ${Math.max(0.18, fs * 0.012)}cqmin) ${outline}` }) : { color: ink.ink }),
-        } as CSSProperties}>{l}</div>
+        } as CSSProperties}>{oneLineGiant ? l.split(' ').map((w, k) => <span key={k} style={k > 0 ? { color: 'transparent', WebkitTextStroke: `max(1px, ${Math.max(0.18, fs * 0.012)}cqmin) ${outline}` } : undefined}>{k > 0 ? ' ' : ''}{w}</span>) : l}</div>
       ))}
     </Pick>
   )
@@ -3499,8 +4342,8 @@ function Billboard({ c, t, fam, S: S0, sel }: CompProps) {
         // on a narrow piece (door hanger), sized so the longer line fits the band.
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.facts * 0.35), padding: `0 ${u(P * 1.5 + P * 0.5)}`, fontFamily: t.fonts.label, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: ink.fillInk, textAlign: 'center' }}>
           {(() => {
-            const list = items.slice(0, tall || story ? 4 : 5).map(String)
-            const roomy = tall || story || portrait ? 26 : 52
+            const list = (wide && c.isPrint ? items.filter(x => !c.price || String(x).indexOf(c.price.value) < 0) : items).slice(0, tall || story ? 4 : 5).map(String)
+            const roomy = tall || story || portrait ? 26 : wide && c.isPrint ? 999 : 52
             const total = list.join(' ✦ ').length
             let rows: string[][] = [list]
             if (total > roomy && list.length > 1) {
@@ -3512,7 +4355,7 @@ function Billboard({ c, t, fam, S: S0, sel }: CompProps) {
               rows = [list.slice(0, best), list.slice(best)]
             }
             const longest = Math.max(...rows.map(r => r.join(' ✦ ').length))
-            const fs = fit('x'.repeat(longest), S.facts * (tall || story ? 0.92 : 1), roomy, 0.55)
+            const fs = wide && c.isPrint ? Math.min(S.facts * 1.05, 128 / (longest * 0.78)) : fit('x'.repeat(longest), S.facts * (tall || story ? 0.92 : 1), roomy, 0.55)
             return rows.map((r, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: u(fs * 0.8), whiteSpace: 'nowrap', fontSize: u(fs) }}>
                 {r.map((it, n) => <span key={n} style={{ display: 'inline-flex', alignItems: 'center', gap: u(fs * 0.8) }}>{n > 0 && <span style={{ opacity: 0.6 }}>✦</span>}{it}</span>)}
@@ -3528,19 +4371,93 @@ function Billboard({ c, t, fam, S: S0, sel }: CompProps) {
     </Pick>
   )
   const oh = findOpenHouse(c)
+  const ohDaysB = (() => {
+    if (!oh) return []
+    const clean = (x: string) => x.replace(/:00/g, '').replace(/\s*[–—-]\s*/g, '–').replace(/\s+/g, ' ').trim().replace(/^(\d+(?::\d+)?)\s*(AM|PM)–(\d+(?::\d+)?)\s*\2$/i, '$1–$3 $2')
+    const days = oh.date.split(/\s*(?:&|\band\b)\s*/i).filter(Boolean).slice(0, 2)
+    const times = oh.time.split(/\s*(?:&|\band\b|\/)\s*/i).map(clean).filter(Boolean)
+    return days.map((d, k) => {
+      const [wd, rest] = d.includes(',') ? [d.split(',')[0].trim(), d.split(',').slice(1).join(',').trim()] : ['', d.trim()]
+      const m = rest.match(/^([A-Za-z]+)\.?\s+(\d+)/)
+      return { wd, mon: m ? m[1] : '', day: m ? m[2] : rest, time: times.length > 1 ? times[k] ?? '' : times[0] ?? '' }
+    })
+  })()
+  const askCta = c.leadGen ? (c.details.find(d => d.kind === 'cta') as Extract<DetailItem, { kind: 'cta' }> | undefined) : undefined
+  const calCardsEach = (inline: boolean) => ohDaysB.map((d, i) => {
+        const ck = inline ? (story ? 1.4 : ohDaysB.length > 1 ? (ar < 0.9 ? 1.08 : 1) : 1.3) : social && !story ? (ar >= 0.9 ? 0.62 : 0.66) : social ? 1.02 : 1
+        const W = (inline && ohDaysB.length > 1 ? 17.5 : 23) * ck
+        const cut = 9
+        const wdT = inline && ohDaysB.length > 1 ? d.wd.slice(0, 3) : d.wd
+        const second = ohDaysB.length > 1 && i === 0
+        const tLines = d.time.length > cut && d.time.includes('–') ? [d.time.slice(0, d.time.indexOf('–') + 1), d.time.slice(d.time.indexOf('–') + 1)] : d.time ? [d.time] : []
+        const tFs = Math.min(2.6, (W - 3) / (Math.max(4, ...ohDaysB.flatMap(x => x.time.length > cut && x.time.includes('–') ? [x.time.slice(0, x.time.indexOf('–') + 1), x.time.slice(x.time.indexOf('–') + 1)] : [x.time]).map(l => l.length)) * 0.66))
+        return (
+          <Pick key={i} id={oh!.id} sel={sel} style={{ ...(inline ? { position: 'relative' as const, flexShrink: 0 } : { position: 'absolute' as const, top: u((2.2) * ck), ...(second ? { left: u((2.2) * ck) } : { right: u((2.2) * ck) }) }), width: u(W), zIndex: 2, transform: `rotate(${second ? -3 : 3}deg)`, filter: 'drop-shadow(0 0.8cqmin 1.6cqmin rgba(0,0,0,0.35))' }}>
+            <div style={{ background: '#FFFDF9', borderRadius: u((1) * ck), overflow: 'hidden', textAlign: 'center' }}>
+              <div style={{ background: ink.fill, color: ink.fillInk, fontFamily: t.fonts.label, fontWeight: 800, letterSpacing: '0.2em', paddingLeft: '0.2em', textTransform: 'uppercase', fontSize: u((1.9) * ck), padding: `${u((0.7) * ck)} 0` }}>{d.mon.slice(0, 3)}</div>
+              <div style={{ padding: `${u((0.6) * ck)} ${u((0.6) * ck)} ${u((1) * ck)}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u((0.3) * ck) }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: u((1) * ck), whiteSpace: 'nowrap' }}>
+                  {wdT && <span style={{ fontFamily: t.fonts.label, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', fontSize: u((Math.min(wdT.length <= 3 ? 2.3 : 1.9, 11 / (wdT.length * 0.8))) * ck), color: '#5A564E' }}>{wdT}</span>}
+                  <span style={{ fontFamily: t.fonts.display, fontWeight: 600, fontSize: u((6.4) * ck), lineHeight: 1, color: '#16171B' }}>{d.day}</span>
+                </div>
+                {tLines.length > 0 && <div style={{ fontFamily: t.fonts.label, fontWeight: 800, textTransform: 'uppercase', fontSize: u((tFs) * ck), lineHeight: 1.15, color: ink.fill, whiteSpace: 'nowrap', marginTop: u((0.5) * ck) }}>{tLines.map((l, k) => <div key={k}>{l}</div>)}</div>}
+              </div>
+            </div>
+          </Pick>
+        )
+      })
+  const calTallW = 20
+  const calCards = (inline: boolean) => !(inline && story && ohDaysB.length > 1) ? calCardsEach(inline) : [(() => {
+    const W = calTallW
+    const mons = Array.from(new Set(ohDaysB.map(d => d.mon.slice(0, 3)).filter(Boolean)))
+    const split = (x: string) => x.length > 9 && x.includes('–') ? [x.slice(0, x.indexOf('–') + 1), x.slice(x.indexOf('–') + 1)] : x ? [x] : []
+    const tFs = Math.min(2.7, (W - 3) / (Math.max(4, ...ohDaysB.flatMap(d => split(d.time)).map(l => l.length)) * 0.66))
+    return (
+      <Pick key="tall" id={oh!.id} sel={sel} style={{ position: 'relative', flexShrink: 0, width: u(W), zIndex: 2, transform: 'rotate(3deg)', filter: 'drop-shadow(0 0.8cqmin 1.6cqmin rgba(0,0,0,0.35))' }}>
+        <div style={{ background: '#FFFDF9', borderRadius: u(1.1), overflow: 'hidden', textAlign: 'center' }}>
+          <div style={{ background: ink.fill, color: ink.fillInk, fontFamily: t.fonts.label, fontWeight: 800, letterSpacing: '0.2em', paddingLeft: '0.2em', textTransform: 'uppercase', fontSize: u(2.1), padding: `${u(0.8)} 0` }}>{mons.join(' · ')}</div>
+          {ohDaysB.map((d, i) => (
+            <div key={i} style={{ padding: `${u(1)} ${u(0.8)} ${u(1.2)}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(0.3), borderTop: i ? `${hair} solid ${hexA(ink.fill, 0.45)}` : undefined, margin: i ? `0 ${u(2)}` : undefined }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: u(1), whiteSpace: 'nowrap' }}>
+                {d.wd && <span style={{ fontFamily: t.fonts.label, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', fontSize: u(2.4), color: '#5A564E' }}>{d.wd.slice(0, 3)}</span>}
+                <span style={{ fontFamily: t.fonts.display, fontWeight: 600, fontSize: u(7), lineHeight: 1, color: '#16171B' }}>{mons.length > 1 && d.mon ? <span style={{ fontSize: '0.5em', marginRight: '0.2em' }}>{d.mon.slice(0, 3)}</span> : null}{d.day}</span>
+              </div>
+              {d.time && <div style={{ fontFamily: t.fonts.label, fontWeight: 800, textTransform: 'uppercase', fontSize: u(tFs), lineHeight: 1.15, color: ink.fill, whiteSpace: 'nowrap', marginTop: u(0.3) }}>{split(d.time).map((l, k) => <div key={k}>{l}</div>)}</div>}
+            </div>
+          ))}
+        </div>
+      </Pick>
+    )
+  })()]
+  const plate = newLook && !!c.title && !c.leadGen
+  const plateLines = c.title ? (c.title.text.length > 28 ? splitLines(c.title.text, 2) : [c.title.text]) : []
+  const plateLong = plateLines.reduce((m, l) => (l.length > m.length ? l : m), '')
+  const plateFs = c.title ? (tallLook ? Math.min(S.title * (social && !story ? 0.66 : story ? 0.92 : 0.7), (social ? (story ? 52 : 42) : 58) / (plateLong.length * 0.66)) : fit(plateLong, S.title * 0.56, 24, 0.7)) : 0
+  const plateSub = S.sub * (tallLook ? (social && !story ? 0.82 : story ? 0.78 : 0.86) : 0.76)
+  const plateHang = plate ? (plateFs * 1.05 + (c.sub ? plateSub * 1.3 + S.gap * 0.25 : 0) + 3) * 0.5 : 0
   const card = (style: CSSProperties) => (
-    <div style={{ position: 'relative', zIndex: 2, borderRadius: u(2.4), overflow: 'hidden', boxShadow: '0 2.2cqmin 5cqmin rgba(0,0,0,0.42)', ...style }}>
-      <Photo photo={c.photos[0]} t={t} sel={sel} pickId={c.heroId || c.galleryId} style={{ position: 'absolute', inset: 0 }} />
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(0deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.5) 22%, rgba(0,0,0,0) 50%)', pointerEvents: 'none' }} />
-      {oh && (
-        <Pick id={oh.id} sel={sel} style={{ position: 'absolute', top: u(S.gap), left: '50%', transform: 'translateX(-50%)', background: ink.fill, color: ink.fillInk, borderRadius: ohLines(oh.date, oh.time).length > 1 ? u(S.facts * 0.9) : 999, padding: `${u(S.facts * 0.4)} ${u(S.facts * 0.9)}`, fontFamily: t.fonts.label, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: u(S.facts * 0.7), whiteSpace: 'nowrap', textAlign: 'center', lineHeight: 1.35 }}>
-          {ohLines(oh.date, oh.time).map(l => <div key={l}>{l}</div>)}
-        </Pick>
-      )}
-      {c.title && !c.leadGen && (
-        <Pick id={c.title.id} sel={sel} style={{ position: 'absolute', left: u(S.gap * 1.1), right: u(S.gap * 1.1), bottom: u(S.gap * 1.1) }}>
-          <div style={{ fontFamily: t.fonts.display, fontWeight: t.display.weight, textTransform: t.display.transform, letterSpacing: t.display.tracking, fontSize: u(fit(c.title.text, S.title * (story || tall ? 0.62 : 0.5), 20, 0.7)), lineHeight: 1.05, color: '#FFFFFF', textShadow: '0 0.2cqmin 0.8cqmin rgba(0,0,0,0.55), 0 0.3cqmin 2.4cqmin rgba(0,0,0,0.45)' }}>{c.title.text}</div>
-          {c.sub && <div style={{ marginTop: u(S.gap * 0.3), fontFamily: t.fonts.label, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.2em', fontSize: u(S.sub * 0.72), color: 'rgba(255,255,255,0.86)', whiteSpace: 'nowrap' }}>{c.sub.text}</div>}
+    <div style={{ position: 'relative', zIndex: 2, ...style, ...(plate && style.marginBottom === undefined ? { marginBottom: u(plateHang) } : {}) }}>
+      <div style={{ position: 'absolute', inset: 0, borderRadius: u(2.4), overflow: 'hidden', boxShadow: '0 2.2cqmin 5cqmin rgba(0,0,0,0.42)' }}>
+        <Photo photo={c.photos[0]} t={t} sel={sel} pickId={c.heroId || c.galleryId} style={{ position: 'absolute', inset: 0 }} />
+        {!plate && <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(0deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.5) 22%, rgba(0,0,0,0) 50%)', pointerEvents: 'none' }} />}
+        {oh && newLook && !ohSide && calCards(false)}
+        {oh && !newLook && (
+          <Pick id={oh.id} sel={sel} style={{ position: 'absolute', top: u(S.gap), left: '50%', transform: 'translateX(-50%)', background: ink.fill, color: ink.fillInk, borderRadius: ohLines(oh.date, oh.time).length > 1 ? u(S.facts * 0.9) : 999, padding: `${u(S.facts * 0.4)} ${u(S.facts * 0.9)}`, fontFamily: t.fonts.label, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: u(S.facts * 0.7), whiteSpace: 'nowrap', textAlign: 'center', lineHeight: 1.35 }}>
+            {ohLines(oh.date, oh.time).map(l => <div key={l}>{l}</div>)}
+          </Pick>
+        )}
+        {c.title && !c.leadGen && !plate && (
+          <Pick id={c.title.id} sel={sel} style={{ position: 'absolute', left: u(S.gap * 1.1), right: u(S.gap * 1.1), bottom: u(S.gap * 1.1) }}>
+            <div style={{ fontFamily: t.fonts.display, fontWeight: t.display.weight, textTransform: t.display.transform, letterSpacing: t.display.tracking, whiteSpace: 'nowrap', fontSize: u(fit(c.title.text, S.title * (story || tall ? 0.62 : 0.5), 20, 0.7)), lineHeight: 1.05, color: '#FFFFFF', textShadow: '0 0.2cqmin 0.8cqmin rgba(0,0,0,0.55), 0 0.3cqmin 2.4cqmin rgba(0,0,0,0.45)' }}>{c.title.text}</div>
+            {c.sub && <div style={{ marginTop: u(S.gap * 0.3), fontFamily: t.fonts.label, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.2em', fontSize: u(S.sub * 0.72), color: 'rgba(255,255,255,0.86)', whiteSpace: 'nowrap' }}>{c.sub.text}</div>}
+          </Pick>
+        )}
+      </div>
+      {plate && c.title && (
+        // the address on its own plate, hanging half off the photo so it always reads (user 10/12)
+        <Pick className="ohp-plate" id={c.title.id} sel={sel} style={{ position: 'absolute', left: '50%', bottom: 0, transform: 'translate(-50%, 50%)', zIndex: 3, maxWidth: '108%', width: 'max-content', background: t.isDark ? '#1C1D22' : '#FFFDF9', border: `${hair} solid ${hexA(ink.accent, 0.6)}`, borderRadius: u(1), boxShadow: '0 1cqmin 2.6cqmin rgba(0,0,0,0.3)', padding: `${u(1.3)} ${u(3)} ${u(1.5)}`, textAlign: 'center' }}>
+          <div style={{ fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : 600, textTransform: 'uppercase', letterSpacing: '0.02em', whiteSpace: 'nowrap', fontSize: u(plateFs), lineHeight: 1.05, color: t.isDark ? '#F4F1EA' : '#16171B' }}>{plateLines.map((l, i) => <div key={i}>{l}</div>)}</div>
+          {c.sub && <div style={{ marginTop: u(S.gap * 0.25), fontFamily: t.fonts.label, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.2em', paddingLeft: '0.2em', fontSize: u(plateSub), color: ink.accent, whiteSpace: 'nowrap' }}>{c.sub.text}</div>}
         </Pick>
       )}
     </div>
@@ -3580,6 +4497,219 @@ function Billboard({ c, t, fam, S: S0, sel }: CompProps) {
             </div>
           </div>
           <div style={{ paddingBottom: u(P * 0.35) }}>{ticker}</div>
+        </div>
+      </>
+    )
+  }
+
+  // Postcards (user 10/12): the features approved on the other themes, in Billboard's poster language -
+  // the giant word, the price + stats on a framed card with a gold tab, the QR on its own framed card,
+  // a slim footer, the band one line (no repeated price); lead-gen = a bigger paragraph + the ask on the QR card
+  if (newLook) {
+    const accent = ink.accent
+    const onAccent = t.isDark ? '#15161A' : '#FFFFFF'
+    const capsB: CSSProperties = { fontFamily: t.fonts.label, fontWeight: 800, textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1.1 }
+    const colW = social ? (story ? (100 - P * 2) * 0.86 : ar < 0.9 ? (100 - P * 2) * 0.8 : (100 - P * 2) * 0.4) : portrait ? 100 - P * 2 : 150 * 0.44
+    const facts = findFacts(c)
+    const fItems = social ? [...(facts?.items || []).filter(i => i.key !== 'property_type'), ...(c.lot && !(facts?.items || []).some(i => i.key === 'lot_size') ? [c.lot] : [])].slice(0, 4) : facts?.items || []
+    const gridCols = social && fItems.length === 4 && !story && ar >= 0.9 ? 2 : fItems.length
+    const tabText = c.price?.label || (c.situation === 'price_improvement' ? 'Now Offered At' : undefined)
+    const frameB = (children: ReactNode, pad: string, tab?: string, style?: CSSProperties) => (
+      <div style={{ position: 'relative', background: t.isDark ? 'rgba(255,255,255,0.06)' : '#FFFDF9', border: `${hair} solid ${hexA(accent, 0.55)}`, borderRadius: u(1.2), boxShadow: '0 0.8cqmin 2.2cqmin rgba(0,0,0,0.1)', padding: pad, ...style }}>
+        {tab && <span style={{ position: 'absolute', top: 0, left: '50%', transform: 'translate(-50%, -50%)', background: accent, color: onAccent, ...capsB, letterSpacing: '0.24em', padding: `${u(0.7)} ${u(2)} ${u(0.7)} ${u(2.24)}`, borderRadius: u(0.5), fontSize: u(S.facts * 0.74), zIndex: 1 }}>{tab}</span>}
+        {children}
+      </div>
+    )
+    const innerW = colW - 6
+    const pSize = c.price ? Math.min(S.price * (c.price.previous ? 0.95 : 1.05) * t.price.scale, (innerW - 2) / (c.price.value.length * 0.56)) * c.price.o.k : 0
+    const sSize = facts ? Math.min(S.facts * (social ? 2.1 : 1.7), ...fItems.map(i => (innerW / gridCols - 1.5) / (Math.max(2, i.value.length) * 0.5))) : 0
+    const priceCardB = !c.leadGen && (c.price || facts) && frameB(
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: u(1.1) }}>
+        {c.price && <Pick id={c.price.id} sel={sel}><div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(0.5) }}>
+          <span style={{ fontFamily: t.fonts.price, fontWeight: 600, letterSpacing: t.price.tracking, fontSize: u(pSize), lineHeight: 1, color: ink.ink, whiteSpace: 'nowrap', fontVariantNumeric: 'lining-nums', ...c.price.o.css }}>{c.price.value}</span>
+          {c.price.previous && <span style={{ fontFamily: t.fonts.label, fontWeight: 600, fontSize: u(S.facts * 0.7), color: ink.muted, textDecoration: 'line-through', whiteSpace: 'nowrap' }}>{c.price.previous}</span>}
+        </div></Pick>}
+        {c.price && facts && (
+          <div aria-hidden style={{ display: 'flex', alignItems: 'center', gap: u(1) }}>
+            <span style={{ flex: 1, height: u(0.32), background: `linear-gradient(90deg, transparent, ${accent} 30%)` }} />
+            <span style={{ width: u(1.3), height: u(1.3), background: accent, transform: 'rotate(45deg)' }} />
+            <span style={{ flex: 1, height: u(0.32), background: `linear-gradient(270deg, transparent, ${accent} 30%)` }} />
+          </div>
+        )}
+        {facts && <Pick id={facts.id} sel={sel}><div style={{ display: 'grid', gridTemplateColumns: `repeat(${gridCols}, 1fr)` }}>
+          {fItems.map((i, n) => (
+            <div key={i.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(0.5), borderLeft: n % gridCols ? `${hair} solid ${hexA(accent, 0.35)}` : undefined, borderTop: n >= gridCols ? `${hair} solid ${hexA(accent, 0.35)}` : undefined, padding: gridCols < fItems.length ? `${u(1.1)} 0` : undefined, minWidth: 0 }}>
+              <span style={{ fontFamily: t.fonts.price, fontWeight: 600, fontSize: u(sSize), color: ink.ink, lineHeight: 1, whiteSpace: 'nowrap' }}>{i.value}</span>
+              <span style={{ ...capsB, color: accent, letterSpacing: '0.12em', fontSize: u(S.facts * 0.66) }}>{i.label}</span>
+            </div>
+          ))}
+        </div></Pick>}
+      </div>, `${u(2.6)} ${u(2.6)} ${u(1.8)}`, tabText
+    )
+    const askT = (askCta?.label || (c.situation === 'open_house' ? 'Learn More' : c.situation === 'coming_soon' ? 'Be the first inside' : 'See every photo')).replace(/(^|\s)(\S)/g, (_m: string, a: string, ch: string) => a + ch.toUpperCase())
+    const qBig = (portrait || hanger) && c.leadGen
+    const qs = S.qr * (qBig ? (hanger ? 1.25 : 1.35) : hanger ? 1.05 : 0.74)
+    // the lead-gen letter's text column: as wide as its longest line (two balanced lines of the ask, or the scan line)
+    const qAskLines = askT.length > 22 ? splitLines(askT, 2) : [askT]
+    const qTextW = Math.min((hanger ? 100 - P * 2 : colW) - qs - 12, Math.max(...qAskLines.map(l => l.length * S.facts * (hanger ? 2.4 : 2.9) * 0.4), c.qr ? (c.qr.label || '').length * S.facts * 1.2 * 0.8 : 0) + 0.5)
+    const qrCardB = c.qr && frameB(
+      <Pick id={askCta?.id || c.qr.id} sel={sel}>
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: u(qs + 4.6), background: `linear-gradient(160deg, ${accent}, ${hexA(accent, 0.86)})`, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
+          <div style={{ borderRadius: u(0.5), padding: u(0.7), background: '#FFFFFF' }}><Qr c={c} t={t} ink={{ ...ink, ink: '#111111' }} size={qs} sel={sel} labelSide="none" /></div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: u(1.2), minHeight: u(qs + 5), paddingLeft: u(qs + 7.4), paddingRight: u(3.4), ...(qBig ? { width: u(qs + 7.4 + 3.4 + qTextW) , boxSizing: 'border-box' as const } : {}) }}>
+          <FitLines text={askT} size={S.facts * (qBig ? (hanger ? 2.4 : 2.9) : hanger ? 2.2 : c.leadGen ? 1.75 : 1.85)} lines={askT.length > 22 ? 2 : 1} style={{ fontFamily: t.fonts.display, fontWeight: 600, fontStyle: 'italic', lineHeight: 1.1, color: ink.ink, textWrap: 'balance' as any }} />
+          {c.qr.label && <Pick id={c.qr.id} sel={sel}><span style={{ ...capsB, display: 'block', color: accent, letterSpacing: '0.14em', fontSize: u(Math.min(S.facts * (qBig ? 1.2 : 0.8), (colW - qs - 12) / (c.qr.label.length * 0.78))) }}>{c.qr.label}</span></Pick>}
+        </div>
+      </Pick>, '0', undefined, { overflow: 'hidden', alignSelf: 'center', width: 'fit-content', maxWidth: '100%' }
+    )
+    const ribbonWord = (c.leadGen ? (c.kicker?.text || word) : newsWord(c)).toUpperCase()
+    const ribbonTown = !c.leadGen && c.sub && !c.townOnly ? placeName(c).toUpperCase() : ''
+    const ribbonBits = social ? [oh ? 'OPEN HOUSE' : ribbonWord] : oh && ohDaysB.length ? ['OPEN HOUSE', ohDaysB.map(d => `${d.wd ? d.wd + ', ' : ''}${d.mon} ${d.day}`).join(' & ').toUpperCase()] : ribbonTown ? [ribbonWord, ribbonTown] : [ribbonWord]
+    const ribbon = (
+      <Pick className="ohp-ribbon" id={c.leadGen ? c.kicker?.id : (c.big?.id || c.kicker?.id)} sel={sel} style={{ position: 'relative', zIndex: 3, margin: `0 ${u(-P * 1.5)}`, transform: 'rotate(-1.4deg)', background: ink.fill, boxShadow: '0 0.8cqmin 2cqmin rgba(0,0,0,0.22)', overflow: 'hidden', padding: `${u(S.facts * (hanger ? 0.45 : portrait || social ? 0.9 : 0.62))} 0` }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: u(S.facts * 1.1), whiteSpace: 'nowrap', fontFamily: t.fonts.label, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.16em', fontSize: u(S.facts * (hanger ? 0.85 : portrait || social ? 1.3 : 1.02)), color: ink.fillInk }}>
+          {hanger ? Array.from({ length: 9 }).flatMap((_, k) => ribbonBits.map((x, j) => <span key={`${k}-${j}`} style={{ display: 'inline-flex', alignItems: 'center', gap: u(S.facts * 1.1) }}>{k || j ? <span style={{ opacity: 0.6 }}>✦</span> : null}{x}</span>)) : Array.from({ length: 8 }).flatMap((_, k) => ribbonBits.map((x, j) => <span key={`${k}-${j}`} style={{ display: 'inline-flex', alignItems: 'center', gap: u(S.facts * 1.1) }}>{x}<span style={{ opacity: 0.6 }}>✦</span></span>))}
+        </div>
+      </Pick>
+    )
+    const footerB = (c.agent || c.finePrint) && (
+      <div data-foot="" style={{ display: 'flex', flexDirection: 'column', gap: u(S.gap * 0.55), width: '100%', position: 'relative', zIndex: 3 }}>
+        {c.agent && <>
+          <Rule color={ink.rule} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: u(S.gap), ...(hanger ? { flexDirection: 'column' as const, gap: u(S.gap * 0.6) } : {}) }}>
+            <div style={{ flex: hanger ? undefined : '1 1 auto', minWidth: 0 }}><AgentCard fitLong c={c} t={t} ink={ink} S={S} sel={sel} align={hanger ? 'center' : 'left'} scale={hanger ? 1.1 : 0.92} showContact={false} noTitle /></div>
+            <div style={{ flexShrink: 0 }}><SplitContacts splitMail c={c} t={t} ink={ink} S={S} sel={sel} scale={hanger ? 0.95 : 0.62} /></div>
+          </div>
+        </>}
+        <FinePrint c={c} ink={ink} t={t} size={S.fine} oneLine={!hanger} />
+      </div>
+    )
+    if (social) {
+      // Social posts (user 10/12): the approved letter pieces on the feed - the giant word on one line (or
+      // the centred lead-gen group), the photo at 3:2 with its centred address / calendar cards, the price
+      // card (beside the photo on the square + 4:5, under it on the story), the ask on its own card, the
+      // status ribbon, then the sign-off with the Instagram button
+      const sKick = c.kicker?.text || ''
+      const sQ = splitLines((c.title?.text || '').toUpperCase(), 2)
+      const fullW = 100 - P * 2
+      const sQFs = Math.min(story ? 10 : (ar < 0.9 ? 8.4 : 7.6) - (c.socialButton ? 0.9 : 0), (fullW - 1) / (Math.max(6, ...sQ.map(l => l.length)) * charW * 0.8))
+      const sRule = <span aria-hidden style={{ width: u(8), height: hair, background: accent }} />
+      const askCardS = c.leadGen && askCta && frameB(
+        <Pick id={askCta.id} sel={sel}><FitLines text={askT} size={S.facts * (story ? 2.6 : ar < 0.9 ? 3 : 2.5)} lines={story && askT.length > 26 ? 2 : 1} style={{ fontFamily: t.fonts.display, fontWeight: 600, fontStyle: 'italic', lineHeight: 1.1, color: ink.ink, textAlign: 'center', textWrap: 'balance' as any }} /></Pick>,
+        `${u(2.4)} ${u(3.6)}`, undefined, { alignSelf: 'center', width: '100%', boxShadow: '0 1.4cqmin 3cqmin rgba(0,0,0,0.25)' }
+      )
+      const leadGroup = c.leadGen && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: u(S.gap * 0.8), width: '100%' }}>
+          {sKick && <Pick id={c.kicker!.id} sel={sel}><div style={{ display: 'flex', alignItems: 'center', gap: u(2.2) }}>{sRule}<span style={{ ...capsB, color: accent, letterSpacing: '0.3em', paddingLeft: '0.3em', fontSize: u(Math.min(S.kicker * 1.2, (fullW - 24) / (sKick.length * 0.9))) }}>{sKick}</span>{sRule}</div></Pick>}
+          {c.title && <Pick id={c.title.id} sel={sel}><div>{sQ.map((l, i) => <div key={i} style={{ fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : 600, textTransform: 'uppercase', letterSpacing: '0.02em', fontSize: u(sQFs), lineHeight: 0.98, color: i % 2 ? accent : ink.ink, whiteSpace: 'nowrap' }}>{l}</div>)}</div></Pick>}
+          {c.sub && <div style={{ width: '92%' }}><Lede text={c.sub.text} t={t} ink={ink} size={S.body * (story ? 1.25 : ar < 0.9 ? 1.32 : 1.05)} align="center" style={{ display: '-webkit-box', WebkitLineClamp: story ? 4 : ar < 0.9 ? 3 : 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} /></div>}
+        </div>
+      )
+      const side = !story && !c.leadGen && ar >= 0.9
+      return (
+        <>
+          {glow}
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', padding: hanger ? '17cqh 0 2.2cqh' : story ? '6.5cqh 0 8cqh' : `${u(P * 0.7)} 0 ${u(P * 0.55)}` }}>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-evenly', gap: u(S.gap * 1.1), padding: `0 ${u(P)} ${u(2)}` }}>
+              {c.leadGen ? leadGroup : ohSide ? (
+                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: u(3) }}>
+                  {giant}
+                  <div style={{ display: 'flex', flexDirection: story ? 'column' : 'row', gap: u(story ? 1.1 : 2.4), alignItems: story ? 'center' : 'flex-start' }}>{calCards(true)}</div>
+                </div>
+              ) : <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>{giant}</div>}
+              {side ? (
+                <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: u(3) }}>
+                  {card({ flex: c.leadGen ? '0 0 48%' : ohSide || bigStack ? '0 0 50%' : '0 0 54%', aspectRatio: '3 / 2', transform: 'rotate(-1.2deg)' })}
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>{c.leadGen ? askCardS : priceCardB}</div>
+                </div>
+              ) : c.leadGen ? (<>
+                <div style={{ position: 'relative', flexShrink: 0, width: u(fullW * ((hanger ? 0.94 : story ? 0.86 : ar < 0.9 ? 0.8 : 0.48) - (c.socialButton ? (story ? 0.14 : 0.1) : 0))), marginBottom: u(hanger ? 0 : story ? 7 : 4.6) }}>
+                  {card({ width: '100%', aspectRatio: '3 / 2', transform: 'rotate(-1deg)' })}
+                  {!hanger && <div data-ask="" style={{ position: 'absolute', left: '50%', bottom: u(story ? -7 : -4.6), width: story ? '96%' : ar < 0.9 ? '106%' : '124%', transform: 'translateX(-50%) rotate(-2.5deg)', zIndex: 4, display: 'flex', justifyContent: 'center' }}>{askCardS}</div>}
+                </div>
+                {hanger && qrCardB && <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', width: '100%' }}>{qrCardB}</div>}
+              </>) : <>
+                {card({ flexShrink: 0, width: u(fullW * (hanger ? 0.84 : story ? (c.socialButton ? 0.76 : 0.84) : c.socialButton ? 0.58 : 0.66)), aspectRatio: '3 / 2', transform: 'rotate(-1deg)' })}
+                {priceCardB && <div style={{ width: u(colW + 4), marginTop: u(hanger ? 3.5 : 0) }}>{priceCardB}</div>}
+                {hanger && qrCardB && <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', width: '100%' }}>{qrCardB}</div>}
+              </>}
+            </div>
+            <div style={{ marginTop: u(story ? 1.6 : c.leadGen ? 2.6 : -0.8), marginBottom: u(story ? 2 : 3.4) }}>{ribbon}</div>
+            <div style={{ padding: `${u(1.2)} ${u(P)} 0` }}>{hanger ? footerB : signOff}</div>
+          </div>
+        </>
+      )
+    }
+    if (portrait) {
+      // Letters / flyers (user 10/12): the approved postcard pieces, stood up - the giant word (or the centred
+      // lead-gen group), the photo card with its calendar cards, the framed price card, the story, the
+      // centred QR card, the status ribbon, the slim footer
+      const descB = c.details.find(d => d.kind === 'description') as Extract<DetailItem, { kind: 'description' }> | undefined
+      const kick = c.kicker?.text || ''
+      const qLines = splitLines((c.title?.text || '').toUpperCase(), (c.title?.text || '').length > 32 ? 3 : 2)
+      const qFs = Math.min(11, (colW - 1) / (Math.max(6, ...qLines.map(l => l.length)) * charW * 0.8))
+      const rule = <span aria-hidden style={{ width: u(9), height: hair, background: accent }} />
+      return (
+        <>
+          {glow}
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-evenly', gap: u(S.gap * 1.1), padding: `${u(P * 0.8)} ${u(P)} ${u(2.4)}` }}>
+              {c.leadGen ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: u(S.gap * 0.9), width: '100%' }}>
+                  {kick && <Pick id={c.kicker!.id} sel={sel}><div style={{ display: 'flex', alignItems: 'center', gap: u(2.4) }}>{rule}<span style={{ ...capsB, color: accent, letterSpacing: '0.3em', paddingLeft: '0.3em', fontSize: u(Math.min(S.kicker * 1.3, (colW - 26) / (kick.length * 0.9))) }}>{kick}</span>{rule}</div></Pick>}
+                  {c.title && <Pick id={c.title.id} sel={sel}><div>{qLines.map((l, i) => <div key={i} style={{ fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : 600, textTransform: 'uppercase', letterSpacing: '0.02em', fontSize: u(qFs), lineHeight: 0.98, color: i % 2 ? accent : ink.ink, whiteSpace: 'nowrap' }}>{l}</div>)}</div></Pick>}
+                  {c.sub && <div style={{ width: '88%' }}><Lede text={c.sub.text} t={t} ink={ink} size={S.body * 1.3} align="center" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} /></div>}
+                </div>
+              ) : <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>{giant}</div>}
+              {/* the whole photo at its proper 3:2 - never squeezed into a strip */}
+              {card({ flexShrink: 0, width: u(colW * (c.leadGen ? 0.6 : 0.76)), aspectRatio: '3 / 2', transform: 'rotate(-1deg)' })}
+              {c.leadGen
+                ? qrCardB && <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', width: '100%' }}>{qrCardB}</div>
+                : <>
+                  {/* the price + stats and the QR, side by side */}
+                  <div style={{ flexShrink: 0, width: '100%', display: 'flex', alignItems: 'stretch', gap: u(2.6), marginTop: u(1.4) }}>
+                    {priceCardB && <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>{priceCardB}</div>}
+                    {qrCardB && <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>{qrCardB}</div>}
+                  </div>
+                  {descB && <Pick id={descB.id} sel={sel} style={{ width: '88%', flexShrink: 0 }}><Lede text={descB.text} t={t} ink={ink} size={S.body * 1.05} align="center" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.4 }} /></Pick>}
+                </>}
+            </div>
+            <div style={{ marginTop: u(0.6), marginBottom: u(1.6) }}>{ribbon}</div>
+            <div style={{ padding: `${u(1.6)} ${u(P)} ${u(P * 0.55)}` }}>{footerB}</div>
+          </div>
+        </>
+      )
+    }
+    return (
+      <>
+        {glow}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: u(P * 0.9), padding: `${u(P * 0.7)} ${u(P)} ${u(P * 0.35)}` }}>
+            <div style={{ flex: '0 0 44%', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: c.leadGen ? 'center' : 'space-between', alignItems: c.leadGen ? 'center' : 'stretch', gap: u(S.gap * (c.leadGen ? 1.2 : 0.9)) }}>
+              {c.leadGen ? (() => {
+                const kick = c.kicker?.text || ''
+                const qLines = splitLines((c.title?.text || '').toUpperCase(), (c.title?.text || '').length > 32 ? 3 : 2)
+                const qFs = Math.min(9.5, (colW - 1) / (Math.max(6, ...qLines.map(l => l.length)) * charW * 0.8))
+                const rule = <span aria-hidden style={{ width: u(7), height: hair, background: accent }} />
+                return <>
+                  {kick && <Pick id={c.kicker!.id} sel={sel}><div style={{ display: 'flex', alignItems: 'center', gap: u(2) }}>{rule}<span style={{ ...capsB, color: accent, letterSpacing: '0.3em', paddingLeft: '0.3em', fontSize: u(Math.min(S.kicker * 1.15, (colW - 20) / (kick.length * 0.9))) }}>{kick}</span>{rule}</div></Pick>}
+                  {c.title && <Pick id={c.title.id} sel={sel}><div style={{ textAlign: 'center' }}>{qLines.map((l, i) => <div key={i} style={{ fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : 600, textTransform: 'uppercase', letterSpacing: '0.02em', fontSize: u(qFs), lineHeight: 0.98, color: i % 2 ? accent : ink.ink, whiteSpace: 'nowrap' }}>{l}</div>)}</div></Pick>}
+                  {c.sub && <Lede text={c.sub.text} t={t} ink={ink} size={S.body * 1.2} align="center" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} />}
+                  <span aria-hidden style={{ width: u(14), height: u(0.45), borderRadius: u(0.3), background: accent }} />
+                  {qrCardB}
+                </>
+              })() : <>
+                {giant}
+                {priceCardB && <div style={{ flexShrink: 0 }}>{priceCardB}</div>}
+                {qrCardB && <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center' }}>{qrCardB}</div>}
+              </>}
+            </div>
+            {card({ flex: 1, minWidth: 0, transform: 'rotate(1.2deg)' })}
+          </div>
+          {/* the status ribbon, then the slim footer across the full width (user 10/12) */}
+          <div style={{ marginTop: u(1.6), marginBottom: u(1) }}>{ribbon}</div>
+          <div style={{ padding: `${u(2)} ${u(P)} ${u(P * 0.45)}` }}>{footerB}</div>
         </div>
       </>
     )
@@ -4482,12 +5612,10 @@ function KeepsakeSticker({ news, size, gold }: { news: string; size: number; gol
   const words = news.trim().split(/\s+/)
   const KEY = ['sold', 'soon', 'new', 'listed', 'contract', 'pending', 'reduced', 'house']
   const ki = Math.max(0, words.findIndex(w => KEY.includes(w.toLowerCase().replace(/[^a-z]/g, ''))) >= 0 ? words.findIndex(w => KEY.includes(w.toLowerCase().replace(/[^a-z]/g, ''))) : words.length - 1)
-  const big = words[ki].toLowerCase().replace(/^./, ch => ch.toUpperCase())
-  const before = words.slice(0, ki).join(' ').toUpperCase()
-  const after = words.slice(ki + 1).join(' ').toUpperCase()
-  const solo = ['soon', 'sold', 'new', 'listed'].includes(big.toLowerCase())
-  const small = solo ? '' : before || after
-  const smallBelow = !before && !!after
+  const key = words[ki].toLowerCase().replace(/[^a-z]/g, '')
+  // one word only on the sticker (user 10/11): Open House -> Open, Under Contract -> Pending
+  const ONE: Record<string, string> = { house: 'open', contract: 'pending' }
+  const big = (ONE[key] || words[ki].toLowerCase()).replace(/^./, ch => ch.toUpperCase())
   const N = 18, r0 = 45.5, rc = 52.5
   let d = ''
   for (let k = 0; k < N; k++) {
@@ -4495,16 +5623,14 @@ function KeepsakeSticker({ news, size, gold }: { news: string; size: number; gol
     const pt = (a: number, rr: number) => `${(50 + rr * Math.cos(a)).toFixed(2)} ${(50 + rr * Math.sin(a)).toFixed(2)}`
     d += (k ? '' : `M ${pt(a0, r0)} `) + `Q ${pt(am, rc)} ${pt(a1, r0)} `
   }
-  const bigFs = Math.min(solo ? 29 : 27, 58 / (Math.max(3, big.length) * 0.46))
+  const bigFs = Math.min(29, 58 / (Math.max(3, big.length) * 0.46))
   const lean = bigFs * 0.08 // the script leans right (its ascenders sit right of centre)
-  const smallFs = Math.min(9.5, 44 / (Math.max(3, small.length) * 0.82))
   return (
     <svg viewBox="0 0 100 100" aria-hidden style={{ display: 'block', width: u(size), height: u(size), overflow: 'visible', filter: 'drop-shadow(0 0.8cqmin 1.6cqmin rgba(0,0,0,0.28))' }}>
       <path d={d + 'Z'} fill="#FFFDF8" stroke={gold} strokeWidth="1.2" />
       <circle cx="50" cy="50" r="40" fill="none" stroke={gold} strokeWidth="1.8" />
       <circle cx="50" cy="50" r="36" fill="none" stroke={gold} strokeWidth="0.7" strokeDasharray="2 1.8" opacity="0.85" />
-      {small && <text x="50" y={smallBelow ? 50 + bigFs * 0.62 : 50 - bigFs * 0.42} textAnchor="middle" fill={gold} style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif', fontWeight: 800, fontSize: smallFs, letterSpacing: 1.8 }}>{small}</text>}
-      <text x={50 - lean} y={!small ? 50 + bigFs * 0.36 : smallBelow ? 50 + bigFs * 0.08 : 50 + bigFs * 0.52} textAnchor="middle" fill="#2B2824" style={{ fontFamily: DESIGN_FONTS.script, fontSize: bigFs }}>{big}</text>
+      <text x={50 - lean} y={50 + bigFs * 0.36} textAnchor="middle" fill="#2B2824" style={{ fontFamily: DESIGN_FONTS.script, fontSize: bigFs }}>{big}</text>
     </svg>
   )
 }
@@ -4892,7 +6018,7 @@ function DateFilm({ oh, t, sel, bleed, accent }: { oh: Extract<DetailItem, { kin
   )
 }
 
-function Filmstrip({ c, t, fam, S: S0, sel }: CompProps) {
+function Filmstrip({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
   const story = fam === 'story'
   const tall = fam === 'tall'
   const portrait = fam === 'portrait'
@@ -4910,8 +6036,8 @@ function Filmstrip({ c, t, fam, S: S0, sel }: CompProps) {
         <Pick id={c.title.id} sel={sel} style={{ display: 'flex', flexDirection: 'column', gap: u(S.gap * 0.3), alignItems: align === 'center' ? 'center' : 'flex-start' }}>
           {c.leadGen
             ? <SerifHeadline text={c.title.text} t={t} ink={ink} size={S.title * (portrait || tall ? 1 : 0.78) * k} align={align} o={c.title.o} placeholder={c.title.placeholder} comfortable={portrait || tall ? 24 : 28} />
-            : tall && oh && c.title.isAddress
-              ? <Title text={c.title.text} t={t} ink={ink} size={Math.min(S.title * 0.95 * k, 84 / (c.title.text.length * (t.styleId === 'modern_luxury' ? 0.8 : 0.68)))} align={align} o={c.title.o} placeholder={c.title.placeholder} maxChars={99} style={{ whiteSpace: 'nowrap' }} />
+            : (tall || ((wide || portrait) && c.isPrint) || (!c.isPrint && fam !== 'landscape' && fam !== 'banner')) && c.title.isAddress
+              ? <Title text={c.title.text} t={t} ink={ink} size={Math.min(S.title * 0.95 * k, (tall ? 84 : story ? 108 : !c.isPrint ? 94 : 86) / (c.title.text.length * (t.styleId === 'modern_luxury' ? 0.8 : 0.68)))} align={align} o={c.title.o} placeholder={c.title.placeholder} maxChars={99} style={{ whiteSpace: 'nowrap' }} />
               : <Title text={c.title.text} t={t} ink={ink} size={S.title * 0.95 * k} align={align} o={c.title.o} placeholder={c.title.placeholder} maxChars={14} />}
           {c.sub && (c.title.isAddress ? <Sub text={c.sub.text} t={t} ink={ink} size={S.sub * k} align={align} /> : <Lede text={c.sub.text} t={t} ink={ink} size={S.body * k} align={align} style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} />)}
         </Pick>
@@ -4949,6 +6075,251 @@ function Filmstrip({ c, t, fam, S: S0, sel }: CompProps) {
     <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(60% 45% at 50% 50%, ${hexA(ink.accent, 0.2)}, transparent 70%), radial-gradient(120% 90% at 0% 0%, ${hexA(ink.ink, 0.05)}, transparent 50%), ${T.strong}` }} />
   )
 
+  // Postcards (user 10/12): the film strip stays down the right; on the left the address up top, then the
+  // price + stats and the open house each on their own framed card (a fine film-edge of sprocket marks),
+  // the QR on its own framed card above a slim footer (the Keepsake postcard's).
+  if (((wide || portrait) && c.isPrint) || (!c.isPrint && (fam === 'square' || story))) {
+    const accent = ink.accent
+    const paperBg = t.isDark ? 'rgba(255,255,255,0.06)' : '#FFFDF9'
+    const capsF: CSSProperties = { fontFamily: t.fonts.label, fontWeight: 800, textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1.1 }
+    const colW = portrait || !c.isPrint ? 100 - P * 2 : 150 * 0.54
+    const edge = (side: 'top' | 'bottom', from = 0) => (
+      <div aria-hidden style={{ position: 'absolute', left: u(from + 1.8), right: u(1.8), [side]: u(0.75), display: 'flex', justifyContent: 'space-between' }}>
+        {Array.from({ length: Math.max(8, Math.round(30 * (1 - from / 76))) }).map((_, i) => <span key={i} style={{ width: u(0.9), height: u(0.65), borderRadius: u(0.2), background: hexA(ink.ink, 0.13) }} />)}
+      </div>
+    )
+    const onAccent = t.isDark ? '#15161A' : '#FFFFFF'
+    const frame = (children: ReactNode, pad = `${u(2.9)} ${u(3)}`, tab?: string, style?: CSSProperties, panelW = 0) => (
+      <div style={{ position: 'relative', background: paperBg, border: `${hair} solid ${hexA(accent, 0.55)}`, borderRadius: u(1.2), boxShadow: '0 0.8cqmin 2.2cqmin rgba(0,0,0,0.08)', padding: pad, ...style }}>
+        {edge('top', panelW)}{edge('bottom', panelW)}
+        {tab && <span style={{ position: 'absolute', top: 0, left: '50%', transform: 'translate(-50%, -50%)', background: accent, color: onAccent, ...capsF, letterSpacing: '0.24em', padding: `${u(0.7)} ${u(2)} ${u(0.7)} ${u(2.24)}`, borderRadius: u(0.5), fontSize: u(S.facts * 0.78), boxShadow: '0 0.4cqmin 1cqmin rgba(0,0,0,0.12)', zIndex: 1 }}>{tab}</span>}
+        {children}
+      </div>
+    )
+    // a gold side panel, flush with the card's left edge (the QR, the Open House label)
+    const panel = (children: ReactNode, w: number) => (
+      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: u(w), background: `linear-gradient(160deg, ${accent}, ${hexA(accent, 0.86)})`, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>{children}</div>
+    )
+    const qk = portrait && c.leadGen ? 1.4 : 1
+    const shortW = colW * (portrait ? (c.leadGen ? 0.86 : 0.62) : 0.74)
+    const items = facts?.items || []
+    const descF = c.details.find(d => d.kind === 'description') as Extract<DetailItem, { kind: 'description' }> | undefined
+    const priceW = facts ? colW * 0.38 : colW - 8
+    const statColW = facts ? (colW - 8 - priceW - 4) / Math.max(1, items.length) : 0
+    const priceSize = c.price ? Math.min(S.price * 1.35 * t.price.scale, (priceW - 1) / (c.price.value.length * 0.56)) * c.price.o.k : 0
+    const statSize = facts ? Math.min(S.facts * 2.3, ...items.map(i => (statColW - 1) / (Math.max(2, i.value.length) * 0.5))) : 0
+    const stackW = colW - 8
+    const priceTab = c.price?.label || (c.situation === 'price_improvement' ? 'Now Offered At' : undefined)
+    // the 4:5 post has the room for a bigger price + stats (user 10/12)
+    const k45 = !c.isPrint && !story && fam === 'square' && ar < 0.9 ? 1.2 : 1
+    const stackPrice = c.price ? Math.min(S.price * 1.42 * k45 * t.price.scale, (stackW - 4) / (c.price.value.length * 0.56)) * c.price.o.k : 0
+    const stackStat = facts ? Math.min(S.facts * 2.35 * k45, ...items.map(i => (stackW / items.length - 2) / (Math.max(2, i.value.length) * 0.5))) : 0
+    const stackCard = !c.leadGen && (c.price || facts) && frame(
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: u(1.3) }}>
+        {c.price && (
+          <Pick id={c.price.id} sel={sel}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(0.9) }}>
+              <span style={{ fontFamily: t.fonts.price, fontWeight: 600, letterSpacing: t.price.tracking, fontSize: u(stackPrice), lineHeight: 1, color: ink.ink, whiteSpace: 'nowrap', fontVariantNumeric: 'lining-nums', ...c.price.o.css }}>{c.price.value}</span>
+              {c.price.previous && <span style={{ fontFamily: t.fonts.label, fontWeight: 600, fontSize: u(S.facts * 0.8), color: ink.muted, textDecoration: 'line-through', whiteSpace: 'nowrap' }}>{c.price.previous}</span>}
+            </div>
+          </Pick>
+        )}
+        {c.price && facts && (
+          <div aria-hidden style={{ display: 'flex', alignItems: 'center', gap: u(1.2) }}>
+            <span style={{ flex: 1, height: u(0.35), background: `linear-gradient(90deg, transparent, ${accent} 30%)` }} />
+            <span style={{ width: u(1.5), height: u(1.5), background: accent, transform: 'rotate(45deg)' }} />
+            <span style={{ flex: 1, height: u(0.35), background: `linear-gradient(270deg, transparent, ${accent} 30%)` }} />
+          </div>
+        )}
+        {facts && (
+          <Pick id={facts.id} sel={sel}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, 1fr)` }}>
+              {items.map((i, n) => (
+                <div key={i.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(0.7), borderLeft: n ? `${hair} solid ${hexA(accent, 0.35)}` : undefined, minWidth: 0 }}>
+                  <span style={{ fontFamily: t.fonts.price, fontWeight: 600, fontSize: u(stackStat), color: ink.ink, lineHeight: 1, whiteSpace: 'nowrap' }}>{i.value}</span>
+                  <span style={{ ...capsF, color: accent, letterSpacing: '0.14em', fontSize: u(S.facts * 0.8) }}>{i.label}</span>
+                </div>
+              ))}
+            </div>
+          </Pick>
+        )}
+      </div>, `${u(3.4)} ${u(3.2)} ${u(2.4)}`, priceTab
+    )
+    const priceCard = !c.leadGen && (c.price || facts) && frame(
+      <div style={{ display: 'flex', alignItems: 'center', gap: u(2.2) }}>
+        {c.price && (
+          <Pick id={c.price.id} sel={sel} style={{ flex: facts ? '0 0 auto' : 1, width: facts ? u(priceW) : undefined }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(0.7) }}>
+              <span style={{ fontFamily: t.fonts.price, fontWeight: 600, letterSpacing: t.price.tracking, fontSize: u(priceSize), lineHeight: 1, color: ink.ink, whiteSpace: 'nowrap', fontVariantNumeric: 'lining-nums', ...c.price.o.css }}>{c.price.value}</span>
+              {c.price.previous && <span style={{ fontFamily: t.fonts.label, fontWeight: 600, fontSize: u(S.facts * 0.66), color: ink.muted, textDecoration: 'line-through', whiteSpace: 'nowrap' }}>{c.price.previous}</span>}
+            </div>
+          </Pick>
+        )}
+        {c.price && facts && <span aria-hidden style={{ alignSelf: 'stretch', width: u(0.35), flexShrink: 0, background: `linear-gradient(180deg, transparent, ${accent} 18%, ${accent} 82%, transparent)` }} />}
+        {facts && (
+          <Pick id={facts.id} sel={sel} style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, 1fr)` }}>
+              {items.map((i, n) => (
+                <div key={i.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(0.6), borderLeft: n ? `${hair} solid ${hexA(accent, 0.35)}` : undefined, minWidth: 0 }}>
+                  <span style={{ fontFamily: t.fonts.price, fontWeight: 600, fontSize: u(statSize), color: ink.ink, lineHeight: 1, whiteSpace: 'nowrap' }}>{i.value}</span>
+                  <span style={{ ...capsF, color: accent, letterSpacing: '0.12em', fontSize: u(S.facts * 0.74) }}>{i.label}</span>
+                </div>
+              ))}
+            </div>
+          </Pick>
+        )}
+      </div>, `${u(3.2)} ${u(3)} ${u(2.6)}`, priceTab
+    )
+    const ohCard = (() => {
+      if (c.leadGen || !oh) return null
+      const clean = (x: string) => x.replace(/:00/g, '').replace(/\s*[–—-]\s*/g, '–').replace(/\s+/g, ' ').trim().replace(/^(\d+(?::\d+)?)\s*(AM|PM)–(\d+(?::\d+)?)\s*\2$/i, '$1–$3 $2')
+      const days = oh.date.split(/\s*(?:&|\band\b)\s*/i).filter(Boolean).slice(0, 2)
+      const times = oh.time.split(/\s*(?:&|\band\b|\/)\s*/i).map(clean).filter(Boolean)
+      const rows = days.map((d, k) => {
+        const [wd, rest] = d.includes(',') ? [d.split(',')[0].trim(), d.split(',').slice(1).join(',').trim()] : ['', d.trim()]
+        const m = rest.match(/^([A-Za-z]+)\.?\s+(\d+)/)
+        return { wd, md: m ? `${m[1].slice(0, 3)} ${m[2]}` : rest, time: times.length > 1 ? times[k] ?? '' : times[0] ?? '' }
+      })
+      return frame(
+        <Pick id={oh.id} sel={sel}>
+          {panel(<span style={{ ...capsF, color: onAccent, letterSpacing: '0.2em', paddingLeft: '0.2em', fontSize: u(S.facts * 0.9), lineHeight: 1.35, whiteSpace: 'normal', textAlign: 'center' }}>Open<br />House</span>, 15)}
+          <div style={{ display: 'flex', alignItems: 'center', gap: u(2.4), padding: `${u(3)} 0 ${u(3)} ${u(17.4)}` }}>
+            {rows.map((x, i) => (
+              <div key={i} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(0.5), borderLeft: i ? `${hair} solid ${hexA(accent, 0.35)}` : undefined, textAlign: 'center' }}>
+                {x.wd && <span style={{ ...capsF, color: ink.muted, letterSpacing: '0.18em', paddingLeft: '0.18em', fontSize: u(S.facts * 0.74) }}>{x.wd}</span>}
+                <span style={{ fontFamily: t.fonts.display, fontWeight: 600, fontSize: u(Math.min(S.facts * 2.3, (rows.length > 1 ? 24 : 44) / (x.md.length * 0.55))), lineHeight: 1, color: ink.ink, whiteSpace: 'nowrap', textTransform: 'uppercase' }}>{x.md}</span>
+                {x.time && <span style={{ ...capsF, color: accent, letterSpacing: '0.06em', fontSize: u(Math.min(S.facts * 1.05, (rows.length > 1 ? 24 : 44) / (x.time.length * 0.62))) }}>{x.time}</span>}
+              </div>
+            ))}
+          </div>
+        </Pick>, `0 ${u(3)} 0 0`, undefined, { overflow: 'hidden', ...(rows.length > 1 ? {} : { width: u(shortW), alignSelf: 'center' }) }, 15
+      )
+    })()
+    const askText = (askCta?.label || listingAsk || '').replace(/(^|\s)(\S)/g, (_m: string, a: string, ch: string) => a + ch.toUpperCase())
+    const qrS = S.qr * 0.92 * qk * (qk > 1 ? 1.4 : 1)
+    const qrPanelW = qrS + (qk > 1 ? 5.6 : 6.2)
+    const qrCard = c.qr && frame(
+      <Pick id={askCta?.id || c.qr.id} sel={sel}>
+        {panel(
+          <div style={{ borderRadius: u(0.6), padding: u(0.8), background: '#FFFFFF' }}>
+            <Qr c={c} t={t} ink={{ ...ink, ink: '#111111' }} size={qrS} sel={sel} labelSide="none" />
+          </div>, qrPanelW
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: u(3), minHeight: u(qrS + (qk > 1 ? 6 : 6.4)), paddingLeft: u(qrPanelW + 3 * qk) }}>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: u(qk > 1 ? 2.2 : 1), padding: `${u(2.4)} 0` }}>
+            {askText && <FitLines text={askText} size={S.facts * 2.05 * qk} lines={2} style={{ fontFamily: t.fonts.display, fontWeight: 600, fontStyle: 'italic', lineHeight: 1.1, color: ink.ink, textWrap: 'balance' as any }} />}
+            {c.qr.label && <Pick id={c.qr.id} sel={sel}><span style={{ ...capsF, color: accent, letterSpacing: '0.16em', fontSize: u(Math.min(S.facts * 0.9 * qk, (shortW - qrPanelW - 7) / (c.qr.label.length * 0.8))) }}>{c.qr.label}</span></Pick>}
+          </div>
+        </div>
+      </Pick>, `0 ${u(3)} 0 0`, undefined, { overflow: 'hidden', width: u(shortW), alignSelf: 'center' }, qrPanelW
+    )
+    const footer = (c.agent || c.finePrint) && (
+      <div data-foot="" style={{ display: 'flex', flexDirection: 'column', gap: u(S.gap * 0.6), width: '100%' }}>
+        {c.agent && (
+          <>
+            <Rule color={ink.rule} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: u(S.gap * 1.2) }}>
+              <div style={{ flex: '1 1 auto', minWidth: 0 }}><AgentCard fitLong c={c} t={t} ink={ink} S={S} sel={sel} align="left" scale={0.95} showContact={false} noTitle /></div>
+              <div style={{ flexShrink: 0 }}><SplitContacts splitMail c={c} t={t} ink={ink} S={S} sel={sel} scale={0.68} /></div>
+            </div>
+          </>
+        )}
+        <FinePrint c={c} ink={ink} t={t} size={S.fine} oneLine />
+      </div>
+    )
+    const leadBlock = (withQr: boolean, k = 1, bodyK = 1, gapK = 1) => {
+      const kick = c.kicker?.text || ''
+      const kickFs = Math.min(S.kicker * 1.45 * k, (colW - 30) / (Math.max(6, kick.length) * 0.95))
+      const tt = c.title ? titleCase(c.title.text) : ''
+      const line = <span aria-hidden style={{ flex: '0 0 auto', width: u(9 * k), height: hair, background: accent }} />
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: u(S.gap * 0.72 * k * gapK), padding: `0 ${u(1.5)}` }}>
+          {kick && <Pick id={c.kicker!.id} sel={sel}><div style={{ display: 'flex', alignItems: 'center', gap: u(2.4) }}>{line}<span style={{ fontFamily: t.fonts.kicker, fontWeight: t.kicker.weight, textTransform: 'uppercase', letterSpacing: '0.32em', paddingLeft: '0.32em', fontSize: u(kickFs), color: accent, whiteSpace: 'nowrap' }}>{kick}</span>{line}</div></Pick>}
+          {c.title && <Pick id={c.title.id} sel={sel} style={{ width: '100%' }}><FitLines text={tt} size={S.title * 0.78 * 1.45 * 1.12 * k * (c.title.o.k || 1)} lines={2} style={{ fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : 600, letterSpacing: '-0.005em', lineHeight: 1.08, color: ink.ink, textAlign: 'center', textWrap: 'balance' as any, opacity: c.title.placeholder ? 0.45 : 1, ...c.title.o.css }} /></Pick>}
+          {c.sub && <Lede text={c.sub.text} t={t} ink={ink} size={S.body * 1.3 * k * bodyK} align="center" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} />}
+          <span aria-hidden style={{ width: u(16), height: u(0.5), borderRadius: u(0.3), background: accent }} />
+          {withQr && qrCard && <div style={{ marginTop: u(S.gap * 0.25), display: 'flex', justifyContent: 'center', width: '100%' }}>{qrCard}</div>}
+        </div>
+      )
+    }
+    if (!c.isPrint) {
+      // Social (user 10/12): the approved print pieces on the feed - the address (or the lead-gen words) up
+      // top, the film strip across, the framed price card / open house card, the ask on a framed card,
+      // the social sign-off with the Instagram button
+      const tall45 = story || ar < 0.9
+      const stripT = c.leadGen ? (story ? 32 : tall45 ? 28 : c.socialButton ? 20 : 23) : story ? (oh ? 32 : 40) : oh ? (tall45 ? 30 : c.socialButton ? 15 : 19) : tall45 ? 37 : 29
+      const askCard = c.leadGen && askCta && frame(
+        <Pick id={askCta.id} sel={sel}>
+          <FitLines text={askText} size={S.facts * (story ? 2.4 : tall45 ? 2.9 : 2.5)} lines={story ? 2 : 1} style={{ fontFamily: t.fonts.display, fontWeight: 600, fontStyle: 'italic', lineHeight: 1.1, color: ink.ink, textAlign: 'center', textWrap: 'balance' as any }} />
+        </Pick>, `${u(tall45 ? 3 : 2.2)} ${u(4)}`, undefined, { width: u(colW * (story ? 0.72 : 0.9)), alignSelf: 'center' }
+      )
+      return (
+        <>
+          {bg}
+          <div style={{ position: 'absolute', inset: 0, padding: story ? `11cqh ${u(P)} 10cqh` : `${u(P * 0.85)} ${u(P)} ${u(P * 0.7)}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.gap * 1.1) }}>
+            {c.leadGen
+              ? (story ? leadBlock(false, 0.9) : leadBlock(false, tall45 ? 0.96 : 0.82, tall45 ? 1.36 : 1.28, 1.02))
+              : headline(story ? 1.5 : tall45 ? 1.42 : oh ? 1.12 : 1.28, 'center')}
+            {/* the strip keeps its full height; everything under it sits centred in the room that's left */}
+            <div style={{ flex: (story || tall45) && !(story && c.leadGen) ? '0 0 auto' : 1, minHeight: u(stripT + 7.5), display: 'flex', alignItems: 'center', justifyContent: 'center', width: `calc(100% + ${u(P * 3.2)})`, ...((story || tall45) && !(story && c.leadGen) ? { margin: `${u(S.gap * 0.6)} 0` } : {}) }}>
+              <FilmStrip c={c} t={t} sel={sel} dir="row" thick={stripT} length={130} rotate={-3} />
+            </div>
+            <div style={{ ...((story || tall45) && !(story && c.leadGen) ? { flex: 1, minHeight: 0, justifyContent: 'space-evenly', ...(!story && !c.leadGen ? { paddingBottom: u(5) } : {}) } : {}), ...(!story && !tall45 && !c.leadGen ? { marginTop: u(-1.6), marginBottom: u(1.6) } : {}), width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.gap * 1.1) }}>
+              {!c.leadGen && <div style={{ width: tall45 ? '86%' : '100%' }}>{tall45 ? stackCard : priceCard}</div>}
+              {ohCard && <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: (oh?.date || '').match(/&|\band\b/i) ? 'stretch' : 'center' }}>{ohCard}</div>}
+              {askCard}
+            </div>
+            <div style={{ width: '100%' }}>{signOff}</div>
+          </div>
+        </>
+      )
+    }
+    if (portrait) {
+      const sDaysF = oh ? oh.date.split(/\s*(?:&|\band\b)\s*/i).filter(Boolean).length : 0
+      // Letter / flyer (user 10/12): the approved postcard pieces stood up - the address (or the lead-gen
+      // words) up top, the film strip across the page, the framed price card, the open house card,
+      // the description, the QR card centred, the slim footer
+      return (
+        <>
+          {bg}
+          <div style={{ position: 'absolute', inset: 0, padding: `${u(P * 0.85)} ${u(P)} ${u(P * 0.6)}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.gap * 1.1) }}>
+            {c.leadGen ? leadBlock(false, 1.05) : headline(1.3, 'center')}
+            {/* lead-gen: the strip keeps its full height, the spare room splits around the QR card */}
+            <div style={{ ...(c.leadGen ? { flex: '0 0 auto', height: u(39) } : { flex: 1, minHeight: 0, marginTop: u(oh ? 0.5 : 4.5) }), display: 'flex', alignItems: 'center', justifyContent: 'center', width: `calc(100% + ${u(P * 3.2)})` }}>
+              <FilmStrip c={c} t={t} sel={sel} dir="row" thick={c.leadGen ? 31.5 : 31} length={130} rotate={-3} />
+            </div>
+            {c.leadGen && <div style={{ flex: 0.45, minHeight: 0 }} />}
+            {!c.leadGen && <div style={{ width: oh ? '100%' : '84%', marginTop: u(oh ? 0 : 2.6) }}>{oh ? priceCard : stackCard}</div>}
+            {ohCard && <div style={{ width: sDaysF > 1 ? '92%' : '100%', display: 'flex', flexDirection: 'column', alignItems: sDaysF > 1 ? 'stretch' : 'center' }}>{ohCard}</div>}
+            {!c.leadGen && !oh && descF && <Pick id={descF.id} sel={sel} style={{ width: '88%' }}><Lede text={descF.text} t={t} ink={ink} size={S.body * 1.05} align="center" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.4 }} /></Pick>}
+            {qrCard && <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>{qrCard}</div>}
+            {c.leadGen && <div style={{ flex: 0.55, minHeight: 0 }} />}
+            <div style={{ width: '100%' }}>{footer}</div>
+          </div>
+        </>
+      )
+    }
+    return (
+      <>
+        {bg}
+        <div style={{ position: 'absolute', top: '-12%', bottom: '-12%', right: u(P * 1.2), display: 'flex', alignItems: 'center' }}>
+          <FilmStrip c={c} t={t} sel={sel} dir="column" thick={150 * 0.25} length={135} rotate={5} />
+        </div>
+        <div style={{ position: 'absolute', left: u(P), top: u(P * 0.6), bottom: u(P * 0.6), width: '54%', display: 'flex', flexDirection: 'column', gap: u(S.gap * 1.1), zIndex: 2 }}>
+          {!c.leadGen && headline(1.42, 'left')}
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: u(S.gap * 1.2) }}>
+            {c.leadGen && leadBlock(true)}
+            {oh ? priceCard : stackCard}
+            {ohCard}
+            {!c.leadGen && !oh && descF && <Pick id={descF.id} sel={sel}><Lede text={descF.text} t={t} ink={ink} size={S.body * 1.05} align="left" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.4 }} /></Pick>}
+          </div>
+          {!c.leadGen && qrCard}
+          {footer}
+        </div>
+      </>
+    )
+  }
+
   if (wide) {
     const W = fam === 'banner' ? 300 : 150 * (c.isPrint ? 1 : 1.27)
     return (
@@ -4974,14 +6345,14 @@ function Filmstrip({ c, t, fam, S: S0, sel }: CompProps) {
     return (
       <>
         {bg}
-        <div style={{ position: 'absolute', inset: 0, padding: `${u(HANGER_ZONE + 2)} ${u(P)} ${u(P * 0.7)}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.gap * 1.1) }}>
+        <div style={{ position: 'absolute', inset: 0, padding: `${u(HANGER_ZONE + 5)} ${u(P)} ${u(P * 0.7)}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.gap * 1.1) }}>
           {headline(1, 'center')}
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', position: 'relative' }}>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', position: 'relative', paddingTop: u(3) }}>
             {oh && <DateFilm oh={oh} t={t} sel={sel} bleed={P} accent={ink.accent} />}
             <div style={{ position: 'relative', zIndex: 1 }}><FilmStrip c={c} t={t} sel={sel} dir="column" thick={c.leadGen ? 54 : oh ? 40 : 46} length={c.leadGen ? 98 : oh ? 84 : 80} rotate={-3} /></div>
           </div>
           {priceRow(1, 'center')}
-          {!c.leadGen && <PrintStory c={c} t={t} ink={ink} S={S} sel={sel} align="center" clamp={oh ? 4 : scanPrompt ? 2 : 3} />}
+          {!c.leadGen && <PrintStory c={c} t={t} ink={ink} S={S} sel={sel} align="center" clamp={oh ? 4 : 3} />}
           {scanPrompt}
           <div style={{ width: '100%' }}>{signOff}</div>
         </div>
@@ -5124,6 +6495,149 @@ function Ticket(props: CompProps) {
   const notch = wide ? 7 : 8
   const admit = <span style={{ fontFamily: t.fonts.label, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.32em', paddingLeft: '0.32em', fontSize: u(S.kicker * 0.78), color: stubInk.accent, whiteSpace: 'nowrap' }}>Admit one</span>
   const num = <span style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontWeight: 600, fontSize: u(S.fine * 1.15), letterSpacing: '0.24em', color: stubInk.muted, whiteSpace: 'nowrap' }}>No. {serial}</span>
+  // Door hanger (user 10/13 rebuild): the approved door-hanger order on an admission ticket - the status big,
+  // the photo with its address plate (or the offer's plate), a date strip / the price + stats (or the
+  // promises), then the perforated stub with a QR and the ask; the agent centred under the ticket.
+  if (tall) {
+    const paper = T.light
+    const pk = stubInk
+    const W = 100 - P * 1.2
+    const capsT: CSSProperties = { fontFamily: t.fonts.label, textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1.15 }
+    const oh = findOpenHouse(c)
+    const facts = findFacts(c)
+    const addr = c.title?.isAddress ? c.title : null
+    const word = (c.leadGen ? (c.kicker?.text || '') : newsWord(c)).toUpperCase()
+    const wLines = !c.leadGen && word.includes(' ') ? splitLines(word, 2) : [word]
+    const headFs = Math.min(12, (W * 0.86) / (Math.max(4, ...wLines.map(l => l.length)) * 0.72))
+    const qLines = c.leadGen && c.title ? splitLines(c.title.text.toUpperCase(), c.title.text.length > 30 ? 3 : 2) : []
+    const qFs = Math.min(7.6, (W * 0.88) / (Math.max(6, ...qLines.map(l => l.length)) * 0.66))
+    const aLines = addr ? (addr.text.length > 22 ? splitLines(addr.text, 2) : [addr.text]) : []
+    const aFs = addr ? Math.min(5.2, (W * 0.8) / (Math.max(...aLines.map(l => l.length)) * 0.62)) : 0
+    const sFs = c.sub ? Math.min(2.4, (W * 0.7) / (c.sub.text.length * 0.98)) : 0
+    const plateText = addr ? null : c.leadGen ? (c.kicker?.text || '') : ''
+    const ptFs = plateText ? Math.min(3.8, (W * 0.7) / (plateText.length * 0.82)) : 0
+    const plateH = addr ? aFs * 1.1 * aLines.length + (c.sub ? sFs * 1.4 + 0.9 : 0) + 3.6 : plateText ? ptFs * 1.2 + 3.6 : 0
+    // open house: one ticket-style date strip per day - SAT · NOV 22 | 1-3 PM
+    const days = oh ? (() => {
+      const clean = (x: string) => x.replace(/:00/g, '').replace(/\s*[–—-]\s*/g, '–').replace(/\s+/g, ' ').trim().replace(/^(\d+(?::\d+)?)\s*(AM|PM)–(\d+(?::\d+)?)\s*\2$/i, '$1–$3 $2')
+      const ds = oh.date.split(/\s*(?:&|\band\b)\s*/i).filter(Boolean).slice(0, 2)
+      const ts = oh.time.split(/\s*(?:&|\band\b|\/)\s*/i).map(clean).filter(Boolean)
+      return ds.map((d, k) => {
+        const [wd, rest] = d.includes(',') ? [d.split(',')[0].trim(), d.split(',').slice(1).join(',').trim()] : ['', d.trim()]
+        const m = rest.match(/^([A-Za-z]+)\.?\s+(\d+)/)
+        return { label: [wd.slice(0, 3), m ? `${m[1].slice(0, 3)} ${m[2]}` : rest].filter(Boolean).join(' · ').toUpperCase(), time: (ts.length > 1 ? ts[k] ?? '' : ts[0] ?? '').toUpperCase() }
+      })
+    })() : []
+    const dLen = Math.max(10, ...days.map(d => d.label.length + d.time.length + 3))
+    const dFs = Math.min(2.7, (W * 0.8) / (dLen * 0.78))
+    const dates = oh && days.length > 0 && (
+      <Pick id={oh.id} sel={sel} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(1.2) }}>
+        {days.map((d, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'stretch', border: `${hair} solid ${hexA(pk.accent, 0.7)}`, borderRadius: u(0.8), overflow: 'hidden' }}>
+            <span style={{ ...capsT, fontWeight: 800, letterSpacing: '0.14em', fontSize: u(dFs), color: t.accentInk || '#FFFFFF', background: pk.accent, padding: `${u(1.1)} ${u(1.8)}` }}>{d.label}</span>
+            {d.time && <span style={{ ...capsT, fontWeight: 700, letterSpacing: '0.06em', fontSize: u(dFs), color: pk.ink, padding: `${u(1.1)} ${u(1.8)}` }}>{d.time}</span>}
+          </div>
+        ))}
+      </Pick>
+    )
+    const priceRow = (c.price || facts) && (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(1.1) }}>
+        {c.price && (
+          <Pick id={c.price.id} sel={sel}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: u(1.4) }}>
+              {c.price.label && <span style={{ ...capsT, fontWeight: 700, letterSpacing: '0.2em', fontSize: u(1.9), color: pk.muted }}>{c.price.label}</span>}
+              <span style={{ fontFamily: t.fonts.price, fontWeight: t.price.weight, letterSpacing: t.price.tracking, fontSize: u(Math.min(7.4 * c.price.o.k, (W * 0.6) / (c.price.value.length * 0.56))), lineHeight: 1, color: pk.ink, whiteSpace: 'nowrap', fontVariantNumeric: 'lining-nums', ...c.price.o.css }}>{c.price.value}</span>
+            </div>
+          </Pick>
+        )}
+        {facts && (
+          <Pick id={facts.id} sel={sel}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: u(1.6), ...capsT, fontWeight: 700, letterSpacing: '0.12em', fontSize: u(Math.min(2.6, (W * 0.86) / (facts.items.map(i => `${i.value} ${i.label}`).join('    ').length * 0.62))), color: pk.ink }}>
+              {facts.items.map((i, k) => <Fragment key={i.key}>{k > 0 && <span style={{ width: u(0.7), height: u(0.7), background: pk.accent, transform: 'rotate(45deg)' }} />}<span>{i.value} {SHORT_FACT[i.label] ?? i.label.toUpperCase()}</span></Fragment>)}
+            </div>
+          </Pick>
+        )}
+      </div>
+    )
+    // lead-gen: the note as short promises on diamond rows
+    const promises = c.leadGen && c.sub ? c.sub.text.split(/(?<=[.!?])\s+/).flatMap(x => x.split(/\s+[-–—]\s+/)).map(x => x.replace(/[.,]$/, '').trim()).filter(Boolean).map(x => x.charAt(0).toUpperCase() + x.slice(1)).slice(0, 3) : []
+    const promiseRows = promises.length > 0 && c.sub && (
+      <Pick id={c.sub.id} sel={sel} style={{ display: 'flex', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: u(1.1), maxWidth: '92%' }}>
+          {promises.map((l, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: u(1.5), fontSize: u(3), lineHeight: 1.3, textAlign: 'left' }}>
+              <span style={{ flexShrink: 0, height: u(3 * 1.3), display: 'flex', alignItems: 'center', lineHeight: 0 }}><span style={{ display: 'inline-block', width: u(0.9), height: u(0.9), background: pk.accent, transform: 'rotate(45deg)' }} /></span>
+              <span style={{ fontFamily: t.fonts.body, fontWeight: 500, color: pk.ink, textWrap: 'balance' as CSSProperties['textWrap'] }}>{l}</span>
+            </div>
+          ))}
+        </div>
+      </Pick>
+    )
+    const photoBlock = (
+      <div style={{ position: 'relative', width: '90%', flex: 1, minHeight: u(30), marginBottom: u(plateH / 2) }}>
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: u(0.8), boxShadow: '0 1.2cqmin 3cqmin rgba(0,0,0,0.22)' }}>
+          <Photo photo={c.photos[0]} t={t} sel={sel} pickId={c.heroId || c.galleryId} style={{ position: 'absolute', inset: 0 }} />
+        </div>
+        {(addr || plateText) && (
+          <Pick id={addr ? addr.id : c.kicker?.id} sel={sel} style={{ position: 'absolute', left: '50%', bottom: 0, transform: 'translate(-50%, 50%)', zIndex: 3, width: 'max-content', maxWidth: u(W), background: paper, border: `${hair} solid ${hexA(pk.accent, 0.75)}`, borderRadius: u(0.8), boxShadow: '0 1cqmin 2.4cqmin rgba(0,0,0,0.2)', padding: `${u(1.5)} ${u(3)} ${u(1.7)}`, textAlign: 'center' }}>
+            {addr ? <>
+              <div style={{ fontFamily: t.fonts.display, fontWeight: t.display.weight, textTransform: 'uppercase', letterSpacing: '0.03em', fontSize: u(aFs), lineHeight: 1.1, color: pk.ink }}>{aLines.map((l, i) => <div key={i} style={{ whiteSpace: 'nowrap' }}>{l}</div>)}</div>
+              {c.sub && <div style={{ ...capsT, marginTop: u(0.9), fontWeight: 700, letterSpacing: '0.24em', paddingLeft: '0.24em', fontSize: u(sFs), color: pk.accent }}>{c.sub.text}</div>}
+            </> : <div style={{ ...capsT, fontWeight: 800, letterSpacing: '0.2em', paddingLeft: '0.2em', fontSize: u(ptFs), color: pk.accent }}>{plateText}</div>}
+          </Pick>
+        )}
+      </div>
+    )
+    const askCta = c.details.find(d => d.kind === 'cta') as Extract<DetailItem, { kind: 'cta' }> | undefined
+    const askT = (askCta?.label || (oh ? 'Learn More' : 'See every photo')).replace(/(^|\s)(\S)/g, (_m: string, a: string, ch: string) => a + ch.toUpperCase())
+    const askLines = askT.length > 16 ? splitLines(askT, 2) : [askT]
+    const qs = 19
+    const askFs = Math.min(4.2, (W - qs - 18) / (Math.max(...askLines.map(l => l.length)) * 0.46))
+    const stubT = (
+      <div style={{ position: 'relative', flexShrink: 0, background: paper, borderTop: `${u(0.45)} dashed ${hexA(pk.ink, 0.3)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: u(3.4), padding: `${u(3.2)} ${u(3)} ${u(3)}` }}>
+        {[0, 1].map(i => <span key={i} aria-hidden style={{ position: 'absolute', width: u(notch), height: u(notch), borderRadius: '50%', background: back, top: u(-notch / 2), [i ? 'right' : 'left']: u(-notch / 2) } as CSSProperties} />)}
+        {c.qr && <div style={{ flexShrink: 0, padding: u(0.8), background: '#FFFFFF', borderRadius: u(1), border: `${hair} solid ${hexA(pk.accent, 0.6)}` }}><Qr c={c} t={t} ink={{ ...pk, ink: '#111111' }} size={qs} sel={sel} labelSide="none" /></div>}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: u(1.1), minWidth: 0 }}>
+          {admit}
+          <Pick id={askCta?.id || c.qr?.id} sel={sel}><div style={{ fontFamily: t.fonts.display, fontStyle: 'italic', fontWeight: 500, fontSize: u(askFs), lineHeight: 1.08, color: pk.ink }}>{askLines.map((l, i) => <div key={i} style={{ whiteSpace: 'nowrap' }}>{l}</div>)}</div></Pick>
+          {c.qr?.label && <Pick id={c.qr.id} sel={sel}><span style={{ ...capsT, display: 'block', fontWeight: 800, letterSpacing: '0.16em', fontSize: u(Math.min(2.1, (W - qs - 18) / (c.qr.label.length * 0.8))), color: pk.accent }}>{c.qr.label}</span></Pick>}
+          {num}
+        </div>
+      </div>
+    )
+    const footer = (c.agent || c.finePrint) && (
+      <div data-foot="" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(1.2), width: '100%' }}>
+        {c.agent && <AgentCard fitLong c={c} t={t} ink={inkOnBg(t)} S={S} sel={sel} align="center" scale={1.05} showContact={false} noTitle />}
+        {c.agent && <SplitContacts center c={c} t={t} ink={inkOnBg(t)} S={S} sel={sel} scale={0.9} />}
+        <FinePrint c={c} ink={inkOnBg(t)} t={t} size={S.fine} align="center" />
+      </div>
+    )
+    return (
+      <>
+        <div style={{ position: 'absolute', inset: 0, background: `repeating-linear-gradient(45deg, ${hexA(t.ink, 0.035)} 0 ${u(0.8)}, transparent ${u(0.8)} ${u(2.2)}), ${back}` }} />
+        <div style={{ position: 'absolute', inset: 0, padding: `${u(HANGER_ZONE - 2)} ${u(P * 0.6)} ${u(P * 0.6)}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(3) }}>
+          <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', borderRadius: u(2.2), overflow: 'hidden', background: paper, boxShadow: '0 1.6cqmin 4cqmin rgba(0,0,0,0.24)', transform: 'rotate(-0.6deg)' }}>
+            <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(2.6), padding: `${u(4.4)} ${u(2.6)} ${u(3.4)}`, textAlign: 'center' }}>
+              <div aria-hidden style={{ position: 'absolute', inset: u(1.6), border: `${hair} dashed ${hexA(pk.accent, 0.5)}`, borderRadius: u(1.2), pointerEvents: 'none' }} />
+              {c.leadGen ? (
+                c.title && <Pick id={c.title.id} sel={sel}><div>{qLines.map((l, i) => <div key={i} style={{ fontFamily: t.fonts.display, fontWeight: t.display.weight, letterSpacing: '0.02em', fontSize: u(qFs), lineHeight: 1.05, color: i % 2 ? pk.accent : pk.ink, whiteSpace: 'nowrap' }}>{l}</div>)}</div></Pick>
+              ) : (
+                <Pick id={c.big?.id || c.kicker?.id} sel={sel}>
+                  <div>{wLines.map((l, i) => <div key={i} style={{ fontFamily: t.fonts.display, fontWeight: t.display.weight, letterSpacing: '0.05em', paddingLeft: '0.05em', fontSize: u(headFs), lineHeight: 1, color: wLines.length > 1 && i === 0 ? pk.ink : pk.accent, whiteSpace: 'nowrap' }}>{l}</div>)}</div>
+                </Pick>
+              )}
+              {photoBlock}
+              {dates}
+              {!c.leadGen && priceRow}
+              {promiseRows}
+            </div>
+            {stubT}
+          </div>
+          {footer}
+        </div>
+      </>
+    )
+  }
   const qrSize = wide ? 34 : tall ? 50 : 30
   const stub = (
     <div style={{ position: 'relative', flex: '0 0 auto', width: wide ? '34%' : '100%', background: T.light, display: 'flex', flexDirection: wide || tall ? 'column' : 'row', alignItems: 'center', justifyContent: 'center', gap: u(S.gap * (wide ? 0.7 : 1.1)), padding: u(P * (tall ? 0.7 : 0.5)), [wide ? 'borderLeft' : 'borderTop']: `${u(0.45)} dashed ${hexA(stubInk.ink, 0.35)}` } as CSSProperties}>

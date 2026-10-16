@@ -71,7 +71,7 @@ export const DESIGN_SITUATIONS: DesignSituationDef[] = [
     label: 'Open House',
     description: 'Invite buyers and neighbors to an open house.',
     propertyAttached: true,
-    formats: ['open_house_flyer', 'postcard', 'door_hanger', 'instagram_post', 'instagram_portrait', 'instagram_story'],
+    formats: ['open_house_flyer', 'postcard', 'postcard_jumbo', 'door_hanger', 'instagram_post', 'instagram_portrait', 'instagram_story'],
   },
   {
     id: 'price_improvement',
@@ -101,13 +101,13 @@ export const DESIGN_SITUATIONS: DesignSituationDef[] = [
     propertyAttached: false,
     formats: ['postcard', 'postcard_jumbo', 'letter_mailer', 'door_hanger', 'instagram_post', 'instagram_portrait'],
     messagingVariants: [
-      { id: 'what_is_it_worth', headline: 'What is your home worth?' },
+      { id: 'what_is_it_worth', headline: 'What is your home worth today?' },
       { id: 'curious', headline: "Curious about your home's value?" },
       { id: 'see_what_it_could_sell_for', headline: 'See what your home could sell for.' },
     ],
     leadGenCopy: {
       eyebrow: 'Free Home Valuation',
-      subtext: "A personal, no-obligation look at your home's value in today's market. I'll walk you through it myself - no algorithm, no pressure.",
+      subtext: "A personal, no-obligation look at your home's value. Based on real recent sales near you. Prepared by me personally, completely free.",
       cta: "Your home's value in today's market",
       qrLabel: 'Scan to find out',
       formType: 'home_value',
@@ -127,7 +127,7 @@ export const DESIGN_SITUATIONS: DesignSituationDef[] = [
     ],
     leadGenCopy: {
       eyebrow: 'For Homeowners',
-      subtext: "Tell me the number that would make a move worth it. I'll show you what today's market can do - no pressure.",
+      subtext: "Tell me the number that would make a move worth it. I'll show you what today's market can do. Private, just between us.",
       cta: 'Share your number',
       qrLabel: 'Scan & name your price',
       formType: 'make_me_sell',

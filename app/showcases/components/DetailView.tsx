@@ -4,7 +4,7 @@ import { memo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import api, { resolveMediaUrl } from '@/lib/api-service'
-import { Calendar, Copy, Check, ArrowUpDown, Mail, MapPin, MessageSquareText, Phone, User, SlidersHorizontal, X } from 'lucide-react'
+import { Calendar, Copy, Check, ArrowUpDown, Mail, MapPin, MessageSquareText, Phone, Share2, User, SlidersHorizontal, X } from 'lucide-react'
 import PropertyGrid from '@/components/PropertyGrid'
 import ShowcaseRadiusContextLine from '@/components/ShowcaseRadiusContextLine'
 import PropertyDetailsModal from '@/components/PropertyDetailsModal'
@@ -28,6 +28,8 @@ interface DetailViewProps {
   setSortOrder: (order: 'asc' | 'desc') => void;
   onBack: () => void;
   onEditShowcase: () => void;
+  /** No public link yet: open the share window (it turns the link on). */
+  onShare?: () => void;
   /** The quick "Comparing to" / "how far" windows (the same ones the buyer gets) - saves just those fields. */
   onQuickSave: (preferences: Partial<import('@/types').CollectionPreferences>) => Promise<{ added: number; removed: number } | void>;
   onDismissRefineRequest: () => void;
@@ -75,6 +77,7 @@ export const DetailView = memo(function DetailView({
   setSortOrder,
   onBack,
   onEditShowcase,
+  onShare,
   onQuickSave,
   onDismissRefineRequest,
   onStatusToggle,
@@ -125,6 +128,19 @@ export const DetailView = memo(function DetailView({
         console.error('Failed to copy link:', err)
       }
     }
+  }
+
+  // Share from inside the Showcase (user, 10/15): a phone opens its own share sheet (Messages,
+  // email, WhatsApp...); a computer copies the link. No public link yet -> the share window.
+  const [shared, setShared] = useState(false)
+  const handleShare = async () => {
+    if (!shareUrl || !selectedCollection.isPublic) { onShare?.(); return }
+    const name = selectedCollection.customer.firstName
+    const phone = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+    if (phone && typeof navigator !== 'undefined' && navigator.share) {
+      try { await navigator.share({ title: `${name}'s Showcase`, text: `Here are the homes I picked for you, ${name}:`, url: shareUrl }); return } catch { /* closed the sheet - fall through to copy */ return }
+    }
+    try { await copyText(shareUrl); setShared(true); setTimeout(() => setShared(false), 2000) } catch { onShare?.() }
   }
 
   const handleCopyField = async (field: string, value: string) => {
@@ -396,7 +412,7 @@ export const DetailView = memo(function DetailView({
                 (see PropertyGrid's compareInfo/sortControl below), and the status tabs are now a
                 bar built into the bottom edge of this card, exactly like the visitor's showcase
                 page. */}
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="flex items-center gap-3 min-w-0">
                   <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight truncate">
@@ -410,7 +426,16 @@ export const DetailView = memo(function DetailView({
                   </div>
                 )}
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="grid shrink-0 grid-cols-3 items-center gap-2 sm:flex">
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
+                  onClick={handleShare}
+                  title={shareUrl ? 'Share this Showcase' : 'Turn on the link and share it'}
+                  className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs ${shared ? 'bg-emerald-500 text-white' : 'bg-[#111827] text-white hover:bg-[#C9A24D] hover:text-[#111827] dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D]'}`}
+                >
+                  {shared ? <Check size={13} className="sm:h-3.5 sm:w-3.5" /> : <Share2 size={13} className="sm:h-3.5 sm:w-3.5" />}
+                  {shared ? 'Link copied' : 'Share'}
+                </motion.button>
                 <button
                   onClick={onEditShowcase}
                   className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#C9A24D]/30 bg-[#C9A24D]/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] transition-all hover:border-[#C9A24D] hover:bg-[#C9A24D]/15 dark:text-[#e8cf8a] sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs"

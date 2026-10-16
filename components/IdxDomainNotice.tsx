@@ -8,11 +8,14 @@ import { ChevronDown, Globe } from 'lucide-react'
 // target tier) - one place to keep the copy and layout in sync instead of two banners drifting
 // apart. Click-to-expand instead of a wall of text always showing, since most of the time the
 // one-line summary is all anyone needs.
+// Same rule as the backend (site_service.resolve_owner_public_base_url): links stay on
+// openhousepal.com unless the agent connects a domain of their own and switches it on.
 const DETAILS = [
-  'Every sign-in sheet, cheat sheet, form, blog post, and showcase link you generate from now on points to your IDX domain instead of the shared app link.',
-  'This starts as a free subdomain under openhousepal.com (like the example above) - connect your own custom domain any time in Tools → Site.',
-  'Anything you already shared or printed before switching still shows the old link - reprint or reshare it if you want that copy on your new domain too.',
-  'Your login, dashboard, and Agent Hub link all stay exactly the same - only the tools you publish out move to the IDX domain.',
+  'Your IDX website gets its own free address - yourname.openhousepal.com - set up for you automatically.',
+  'Your sign-in QR codes, cheat sheets, forms, Showcases and copied links stay on openhousepal.com, exactly like every plan - so nothing you print ever breaks.',
+  'Connect a domain you own (like janesmithhomes.com) and switch on "Use my own domain for my links" - from then on, new links use your domain.',
+  'Anything you already shared or printed keeps working - reprint it only if you want that copy on your own domain.',
+  'Your login, dashboard and Agent Hub editor never change.',
 ]
 
 export function IdxDomainNotice({ baseUrl, defaultOpen = false, subtle = false, className = '' }: { baseUrl?: string | null; defaultOpen?: boolean; subtle?: boolean; className?: string }) {
@@ -28,9 +31,9 @@ export function IdxDomainNotice({ baseUrl, defaultOpen = false, subtle = false, 
             <Globe className="h-4 w-4" strokeWidth={2.5} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[9px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">Everything Through IDX</p>
+            <p className="text-[9px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">Your website &amp; your links</p>
             <p className="break-words text-xs font-bold leading-snug text-[#111827] dark:text-gray-200">
-              Sign-ins, cheat sheets, forms, blogs &amp; showcases {baseUrl ? 'now use' : 'will use your IDX domain'}
+              Your sign-ins, forms, Showcases &amp; links {baseUrl ? 'use' : 'stay on openhousepal.com until you connect a domain of your own'}
               {baseUrl && (
                 <span className="mt-0.5 block break-all font-black text-[#8b7355] underline decoration-[#C9A24D]/50 underline-offset-2 dark:text-[#d7b974]">{baseUrl}</span>
               )}
@@ -65,9 +68,9 @@ export function IdxDomainNotice({ baseUrl, defaultOpen = false, subtle = false, 
           <Globe className="h-5 w-5" strokeWidth={2.5} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#C9A24D]">Everything Through IDX</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-[#C9A24D]">Your website &amp; your links</p>
           <p className="break-words text-sm font-bold leading-snug text-white">
-            Sign-ins, cheat sheets, forms, blogs &amp; showcases {baseUrl ? 'now use' : 'will use your IDX domain'}
+            Your sign-ins, forms, Showcases &amp; links {baseUrl ? 'use' : 'stay on openhousepal.com until you connect a domain of your own'}
             {baseUrl && (
               <span className="mt-0.5 block break-all font-black text-[#C9A24D] underline decoration-[#C9A24D]/60 underline-offset-2">{baseUrl}</span>
             )}

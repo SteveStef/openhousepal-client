@@ -5,7 +5,7 @@ import { ArrowRight } from 'lucide-react'
 import type { BrandKit, DesignColorMode, DesignStyleId } from '@/types'
 import { DESIGN_SITUATIONS, DesignSituationId } from '@/lib/studio/designSituations'
 import { getDesignFormat } from '@/lib/studio/designFormats'
-import { getTemplatesFor } from '@/lib/studio/designTemplates'
+import { getTemplatesFor, isCompositionReady } from '@/lib/studio/designTemplates'
 import { COMPOSITION_LABELS } from '@/lib/studio/designCompositions'
 import type { DesignAgentInfo } from '@/lib/studio/designAgent'
 import StyleThumbnail from './StyleThumbnail'
@@ -21,13 +21,14 @@ export interface BrowsePick {
 interface BrowseItem extends BrowsePick { key: string; situationLabel: string; formatLabel: string; layoutLabel: string }
 
 // Each card gets a different style + theme so the gallery doubles as a tour of the whole range.
+// Only the signed-off style for now (user 10/12) - the other styles are "Coming soon"
 const LOOKS: { styleId: DesignStyleId; colorMode: DesignColorMode }[] = [
   { styleId: 'modern_luxury', colorMode: 'light' },
-  { styleId: 'editorial', colorMode: 'forest' },
-  { styleId: 'bold', colorMode: 'dark' },
-  { styleId: 'minimal', colorMode: 'stone' },
+  { styleId: 'modern_luxury', colorMode: 'forest' },
   { styleId: 'modern_luxury', colorMode: 'dark' },
-  { styleId: 'editorial', colorMode: 'light' },
+  { styleId: 'modern_luxury', colorMode: 'stone' },
+  { styleId: 'modern_luxury', colorMode: 'dark' },
+  { styleId: 'modern_luxury', colorMode: 'light' },
   { styleId: 'bold', colorMode: 'light' },
   { styleId: 'minimal', colorMode: 'forest' },
   { styleId: 'modern_luxury', colorMode: 'stone' },
@@ -58,7 +59,7 @@ function buildItems(situation: string, placement: string): BrowseItem[] {
     }
     for (const f of formats) {
       const format = getDesignFormat(f)
-      const templates = getTemplatesFor(s.id, f)
+      const templates = getTemplatesFor(s.id, f).filter(t => isCompositionReady(t.composition))
       const pick = situation === 'all' && placement === 'all' && f !== formats[0] ? templates.slice(0, 1) : templates
       for (const tpl of pick) {
         items.push({

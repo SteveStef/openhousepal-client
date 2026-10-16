@@ -112,7 +112,7 @@ export function Swatches({ colors, value, onChange, label }: { colors: { color: 
             onClick={() => onChange(c.color)}
             className="group flex flex-col items-center gap-1.5"
           >
-            <span className={`relative flex h-12 w-12 items-center justify-center rounded-full border-2 shadow-sm ring-1 ring-black/10 transition ${on ? 'scale-110 border-[#111827] dark:border-white' : 'border-white group-hover:scale-105 dark:border-[#141416]'}`} style={{ background: c.color, boxShadow: on ? '0 0 0 3px rgba(201,162,77,.35)' : undefined }}>
+            <span className={`relative flex h-12 w-12 items-center justify-center rounded-full border-2 shadow-sm ring-1 ring-black/10 transition dark:ring-white/25 ${on ? 'scale-110 border-[#111827] dark:border-white' : 'border-white group-hover:scale-105 dark:border-[#141416]'}`} style={{ background: c.color, boxShadow: on ? '0 0 0 3px rgba(201,162,77,.35)' : undefined }}>
               {on && <Check className={`h-5 w-5 ${isLight(c.color) ? 'text-[#111827]' : 'text-white'}`} strokeWidth={3} />}
             </span>
             <span className={`text-[11px] font-bold ${on ? 'text-[#111827] dark:text-white' : 'text-gray-500'}`}>{c.label}</span>
@@ -155,6 +155,20 @@ export function PinnedPreview({ children, desktopOnly = false }: { children: Rea
   return (
     <div className={`${desktopOnly ? 'lg:sticky' : 'sticky'} top-[67px] z-20 -mx-6 -mt-8 border-b border-[#C9A24D]/15 bg-white/95 px-6 pb-5 pt-5 shadow-[0_18px_30px_-28px_rgba(17,24,39,.5)] dark:border-white/[0.06] dark:bg-[#121214]/95 sm:-mx-10 sm:-mt-10 sm:px-10`}>
       {children}
+    </div>
+  )
+}
+
+/** The website steps on a wide screen: the choices on the left, a tall live preview pinned on the
+ *  right (as tall as a real desktop window). Phones: the preview on top, the choices under it.
+ *  The preview reads its height from --setup-prev-h. */
+export function SplitPreview({ preview, children }: { preview: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="[--setup-prev-h:420px] lg:grid lg:grid-cols-[minmax(300px,340px)_minmax(0,1fr)] lg:gap-6 lg:[--setup-prev-h:max(480px,calc(100vh_-_236px))] xl:grid-cols-[minmax(330px,370px)_minmax(0,1fr)] xl:gap-8 2xl:grid-cols-[minmax(380px,460px)_minmax(0,1fr)] 2xl:gap-10">
+      <div className="mb-8 lg:order-2 lg:mb-0">
+        <div className="lg:sticky lg:top-[92px]">{preview}</div>
+      </div>
+      <div className="min-w-0 space-y-8 lg:order-1">{children}</div>
     </div>
   )
 }

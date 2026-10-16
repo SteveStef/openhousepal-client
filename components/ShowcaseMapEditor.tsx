@@ -224,7 +224,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
       const p = collection?.preferences as CollectionPreferences | undefined
       setFormData({
         address: p?.address || '', lat: p?.lat ?? null, long: p?.long ?? null,
-        diameter: p?.diameter ?? null, search_polygon: p?.search_polygon ?? null,
+        diameter: p?.diameter || null, search_polygon: p?.search_polygon ?? null,
         cities: p?.cities || [], townships: p?.townships || [], school_districts: p?.school_districts || [],
         // Older form-built Showcases kept the county only in the single `county` text field.
         counties: p?.counties?.length ? p.counties : ((p as any)?.county ? String((p as any).county).split(',').map((c: string) => c.trim()).filter((c: string) => c.length > 2) : []),
@@ -1161,7 +1161,8 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
           })}
 
           {/* Geography criteria stack: address+radius, towns/school-districts/counties, and drawn
-              shapes can all be combined at once - a property matches if it falls in any of them. */}
+              shapes can all be combined at once - a property matches if it falls in any of them.
+              A school district narrows all of them (radius AND district, like Zillow/Redfin). */}
           {card({
             i: 3, icon: <Crosshair className="h-4 w-4" />, title: 'Where', sectionRef: locationSectionRef,
             set: geoMode !== 'none',
@@ -1173,7 +1174,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
                     <MultiSelectDatabaseInput values={formData.cities || []} onChange={(cities) => setFormData(prev => ({ ...prev, cities }))} apiMethod={api.properties.cities} placeholder="Search towns..." />
                   </div>
                   <div>
-                    <label className={miniLabel}>School districts</label>
+                    <label className={miniLabel}>School districts <span className="normal-case tracking-normal text-gray-400">· narrows every area</span></label>
                     <MultiSelectDatabaseInput values={formData.school_districts || []} onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts }))} apiMethod={api.properties.searchSchoolDistricts} placeholder="Search school districts..." />
                   </div>
                   <div>
@@ -1203,7 +1204,9 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
                     ref={googleAutocompleteRef}
                     value={formData.address || ''}
                     onChange={(addr) => setFormData(prev => ({ ...prev, address: addr }))}
-                    onCoordinatesChange={(lat, long) => setFormData(prev => ({ ...prev, lat, long }))}
+                    // A distance search needs a distance: picking an address starts at the 2 mi the map
+                    // shows when none is set (a Showcase drawn on the map first saved 0).
+                    onCoordinatesChange={(lat, long) => setFormData(prev => ({ ...prev, lat, long, diameter: prev.diameter && prev.diameter > 0 ? prev.diameter : 2 }))}
                     placeholder="Enter an address, or place a pin on the map"
                   />
                   <AnimatePresence initial={false}>
@@ -1382,7 +1385,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
         <div className={`${mobileTab === 'criteria' ? 'hidden' : 'flex'} md:flex min-h-0 flex-1 flex-col`}>
           <div className="hidden shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2 dark:border-white/[0.07] dark:bg-[#151517] md:flex">
             <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-gray-400">
-              {isLoadingPreview ? <><Loader2 className="h-3.5 w-3.5 animate-spin text-[#C9A24D]" /> Updating matches…</> : geoMode === 'none' ? 'Set a search area to see matches' : <><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{previewCount} live {previewCount === 1 ? 'match' : 'matches'}{keptHomes.length > 0 && <span className="ml-1 text-rose-500">+ {keptHomes.length} kept</span>}</>}
+              {isLoadingPreview ? <><Loader2 className="h-3.5 w-3.5 animate-spin text-[#C9A24D]" /> Updating matches…</> : geoMode === 'none' ? 'Set a search area to see matches' : <><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{previewCount} live {previewCount === 1 ? 'match' : 'matches'}{keptHomes.length > 0 && <span className="ml-1 text-rose-500">+ {keptHomes.length} kept</span>}{previewCount > 500 && <span className="ml-1 normal-case tracking-normal text-amber-600 dark:text-amber-400">· a Showcase holds 500 - narrow it down</span>}</>}
             </p>
             <div className="flex items-center gap-1 rounded-xl bg-gray-100 p-1 dark:bg-white/[0.06]">
               {([['map', MapIcon, 'Map'], ['split', Columns2, 'Both'], ['grid', LayoutGrid, 'Grid']] as const).map(([mode, Icon, label]) => (

@@ -280,11 +280,25 @@ export const DESIGN_TEMPLATES: DesignTemplateDef[] = DESIGN_SITUATIONS.flatMap(s
   situation.formats.flatMap(designType => compositionsFor(situation.id, designType).map(comp => makeTemplate(situation.id, designType, comp))),
 )
 
+// Reviewed and signed off design by design (user 10/12): only these layouts and this style can be picked
+// for a new look; every other layout / style shows as "Coming soon". Designs already saved with another
+// layout or style still open and render exactly as saved.
+export const READY_COMPOSITIONS: DesignCompositionId[] = [...SIGNATURE_SET, 'luxe']
+export const READY_STYLES: string[] = ['modern_luxury']
+export const isCompositionReady = (id: string) => (READY_COMPOSITIONS as string[]).includes(id)
+export const isStyleReady = (id: string) => READY_STYLES.includes(id)
+// the ready layouts first (in the signature order), then Luxe, then the other coming-soon ones
+const readyFirst = (list: DesignTemplateDef[]) => {
+  const ready = list.filter(t => isCompositionReady(t.composition))
+  const luxe = list.filter(t => t.composition === 'luxe' && !isCompositionReady(t.composition))
+  return [...ready, ...luxe, ...list.filter(t => !ready.includes(t) && !luxe.includes(t))]
+}
+
 export function getTemplatesFor(situationId: string, designType: string): DesignTemplateDef[] {
   const real = DESIGN_TEMPLATES.filter(t => t.situationId === situationId && t.designType === designType)
-  if (real.length) return real
+  if (real.length) return readyFirst(real)
   // A format a situation doesn't curate (only reachable through old links) - still never empty.
-  return compositionsFor(situationId, designType).map(comp => ({ ...makeTemplate('just_listed', designType, comp), id: `generic__${designType}__${comp}`, situationId: 'any' as const }))
+  return readyFirst(compositionsFor(situationId, designType).map(comp => ({ ...makeTemplate('just_listed', designType, comp), id: `generic__${designType}__${comp}`, situationId: 'any' as const })))
 }
 
 export function getRealTemplatesForFormat(designType: string): DesignTemplateDef[] {

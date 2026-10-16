@@ -26,6 +26,12 @@ interface ViewPDFsModalProps {
   onViewPaperSignIn?: () => void;
   onViewRecommendations: () => void;
   onEditRecommendations?: () => void;
+  // This open house's Similar Homes switch (the sheet here + the similar homes on the Guest Pass).
+  // Off = the card shows as off with a switch to include it again; the picked homes are kept.
+  similarHomes?: boolean;
+  onToggleSimilarHomes?: () => void;
+  // This open house's Showcases switch - off drops the Brag Sheet's Showcase pitch page.
+  showcasesOn?: boolean;
   onViewBragSheet: () => void;
   onViewCheatSheet: () => void;
   onEditCheatSheet?: () => void;
@@ -189,12 +195,15 @@ function DocumentCard({
   onView,
   showViewHint = true,
   actions = [],
+  off = false,
 }: {
   icon: ReactNode;
   title: string;
   subtitle: string;
   onView: () => void;
   showViewHint?: boolean;
+  // Switched off for this open house: dimmed, and its first action row is the switch back on.
+  off?: boolean;
   // A plain CardAction renders as its own full-width row; a nested CardAction[] renders as a
   // shared row split evenly between its members (e.g. Edit + Match Score side by side).
   actions?: (CardAction | CardAction[])[];
@@ -205,14 +214,14 @@ function DocumentCard({
         onClick={onView}
         className="flex flex-1 flex-col items-center justify-center gap-1.5 p-2.5 text-center active:scale-[0.98] sm:gap-2.5 sm:p-3.5 md:gap-3 md:p-4"
       >
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-100 bg-[#faf9f7] shadow-sm transition-all duration-150 dark:border-gray-800 dark:bg-[#0B0B0B] sm:h-12 sm:w-12 sm:rounded-xl md:h-14 md:w-14">
+        <div className={`flex h-9 w-9 items-center justify-center rounded-lg border border-gray-100 bg-[#faf9f7] shadow-sm transition-all duration-150 dark:border-gray-800 dark:bg-[#0B0B0B] sm:h-12 sm:w-12 sm:rounded-xl md:h-14 md:w-14 ${off ? 'opacity-40 grayscale' : ''}`}>
           <div className="h-5 w-5 text-[#8b7355] dark:text-[#C9A24D] sm:h-6 sm:w-6 md:h-7 md:w-7">{icon}</div>
         </div>
         <div>
-          <h4 className="text-[11px] font-bold leading-tight text-gray-900 dark:text-white sm:text-sm md:text-base">{title}</h4>
-          <p className="mt-1 hidden text-[9px] font-bold uppercase leading-relaxed tracking-widest text-gray-400 sm:block">{subtitle}</p>
+          <h4 className={`text-[11px] font-bold leading-tight sm:text-sm md:text-base ${off ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>{title}</h4>
+          <p className={`mt-1 text-[9px] font-bold uppercase leading-relaxed tracking-widest sm:block ${off ? 'text-amber-600 dark:text-amber-400' : 'hidden text-gray-400'}`}>{subtitle}</p>
         </div>
-        {showViewHint && (
+        {showViewHint && !off && (
           <div className="hidden items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-gray-300 transition-colors group-hover:text-[#8b7355] dark:group-hover:text-[#C9A24D] sm:mt-1 sm:flex">
             View
             <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -244,6 +253,9 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
   onViewPaperSignIn,
   onViewRecommendations,
   onEditRecommendations,
+  similarHomes,
+  onToggleSimilarHomes,
+  showcasesOn,
   onViewBragSheet,
   onViewCheatSheet,
   onEditCheatSheet,
@@ -272,6 +284,10 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
   useEscapeToClose(onClose);
   const { user } = useAuth();
   const hasComps = Boolean(openHouse.similarPropertiesSnapshot && openHouse.similarPropertiesSnapshot.length > 0);
+  // With the switch wired, the Similar Homes card always shows for an MLS-linked home (on, off, or
+  // on with nothing picked yet) - without it, only when there are homes to show.
+  const similarSwitchable = Boolean(onToggleSimilarHomes && openHouse.listingKey && hasMlsAccess(user?.plan_tier));
+  const similarOn = similarHomes !== false;
   // The Cheat Sheet is built from Bright MLS data, so it only exists for an MLS-linked open house
   // on an MLS plan - never for the No-MLS plans' manually entered homes.
   const hasCheatSheet = Boolean(openHouse.listingKey) && hasMlsAccess(user?.plan_tier);
@@ -279,7 +295,7 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
   // The Brag Sheet only exists on plans with a sales source, and its Showcase pitch page only on
   // Showcase plans - the card's subtitle says exactly what this agent's copy contains.
   const hasBragSheet = planHasBragSheet(user?.plan_tier);
-  const bragSheetSubtitle = hasShowcaseAccess(user?.plan_tier) ? 'Bio, Your Sales, & Showcase Pitch' : 'Bio & Your Recent Sales';
+  const bragSheetSubtitle = hasShowcaseAccess(user?.plan_tier) && showcasesOn !== false ? 'Bio, Your Sales, & Showcase Pitch' : 'Bio & Your Recent Sales';
   const canReloadFlyerPrice = Boolean(onReloadFlyerPrice && openHouse.listingKey);
 
   return (
@@ -348,16 +364,39 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
             ]}
           />
 
-          {hasComps && (
+          {(hasComps || similarSwitchable) && (
             <DocumentCard
-              onView={onViewRecommendations}
+              onView={!similarOn ? onToggleSimilarHomes! : hasComps ? onViewRecommendations : (onEditRecommendations || onViewRecommendations)}
               title="Similar Homes"
-              subtitle="Similar Active Listings"
+              subtitle={!similarOn ? 'Off for this open house' : hasComps ? 'Similar Active Listings' : 'No homes picked yet'}
+              off={!similarOn}
               icon={
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
               }
-              actions={[
-                ...((onEditRecommendations || onToggleMatchScore) ? [[
+              actions={!similarOn ? [{
+                key: 'include',
+                label: 'Include',
+                active: false,
+                showInfo: true,
+                hint: 'Similar Homes is OFF for this open house: no Similar Homes sheet, and no similar homes on guests’ Guest Pass - guests stay focused on this home. Tap to include it again (your picked homes are kept).',
+                onClick: onToggleSimilarHomes!,
+              }] : [
+                ...(similarSwitchable ? [{
+                  key: 'include',
+                  label: 'Include',
+                  active: true,
+                  showInfo: true,
+                  hint: 'Similar Homes is ON: the Similar Homes sheet prints with your kit, and guests see these homes on their Guest Pass. Tap to turn it off for this open house (e.g. sitting your own listing).',
+                  onClick: onToggleSimilarHomes!,
+                }] : []),
+                ...(!hasComps && onEditRecommendations ? [{
+                  key: 'choose',
+                  label: 'Choose Homes',
+                  hint: 'Pick the similar active listings for this open house’s Similar Homes sheet and Guest Pass.',
+                  onClick: onEditRecommendations,
+                  icon: 'edit' as const,
+                }] : []),
+                ...(hasComps && (onEditRecommendations || onToggleMatchScore) ? [[
                   ...(onEditRecommendations ? [{
                     key: 'edit',
                     label: 'Edit',
@@ -375,7 +414,7 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
                     active: Boolean(showMatchScore),
                   }] : []),
                 ]] : []),
-                ...(onReloadRecommendations ? [{
+                ...(hasComps && onReloadRecommendations ? [{
                   key: 'reload',
                   label: 'Refresh Listings',
                   hint: 'Does: re-checks each listing shown here against the database - updates its price if changed, and removes it automatically if it has sold or is no longer active.',
@@ -447,7 +486,7 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
                 ...(onReloadCheatSheet && canRefreshCheatSheet ? [{
                   key: 'reload',
                   label: 'Refresh Data',
-                  hint: 'Does: re-pull price and MLS stats (beds/baths/sqft) from the database. Does NOT change nearby places or photos.',
+                  hint: 'Does: re-pull price, beds/baths/sqft and the listing description from the MLS (the Recap is rewritten only if the description changed). Does NOT change nearby places or photos.',
                   onClick: onReloadCheatSheet,
                   loading: isReloadingCheatSheet,
                   icon: 'reload' as const,

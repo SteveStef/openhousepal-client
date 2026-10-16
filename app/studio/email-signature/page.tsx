@@ -27,7 +27,7 @@ import {
 
 import {
   DEFAULT_SIGNATURE_CONFIG as DEFAULT_CONFIG, FONT_OPTIONS, FORM_BUTTON_DEFAULTS, FORM_BUTTON_ORDER, LUXE_FONT, MAX_CTA_BUTTONS,
-  bustImageCache, fontStackFor, luxeAccentFor, mergeSignatureConfig as mergeConfig, seedSignatureButtons, staleSignatureFields, withoutFields, wrapRealHtmlForPreview,
+  bustImageCache, fontStackFor, luxeAccentFor, mergeSignatureConfig as mergeConfig, seedSignatureButtons, seedSignatureSocials, staleSignatureFields, withoutFields, wrapRealHtmlForPreview,
   type CtaButton, type SignatureConfig, type SignatureField,
 } from '@/lib/signatureConfig'
 
@@ -171,6 +171,14 @@ export default function EmailSignaturePage() {
   // Settings (a social link, or the Team name), turn it off rather than silently rendering
   // something that goes nowhere or shows blank - matches the "can't turn it on without a value"
   // rule the toggle itself enforces going forward.
+  // First visit: the socials they already added go on (seedSignatureSocials) - once.
+  useEffect(() => {
+    if (!loaded) return
+    const seeded = seedSignatureSocials(config, hubConfig)
+    if (seeded) update(() => seeded)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, hubConfig])
+
   useEffect(() => {
     if (!loaded) return
     const stale = staleSignatureFields(config, hubConfig)
@@ -667,11 +675,11 @@ export default function EmailSignaturePage() {
                           links={[{ href: '/settings#listings', label: 'Listings' }, { href: '/settings#recent-sales', label: 'Recent Sales' }]}
                         />
                         <div className="flex items-center justify-between gap-2 rounded-lg bg-[#fbfaf7] p-2.5 dark:bg-[#0B0B0B]">
-                          <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Show banner</span>
+                          <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Show my listings &amp; sales</span>
                           <button
                             onClick={() => update(current => ({ ...current, blockVisibility: { banner: !current.blockVisibility.banner } }))}
                             className={`relative h-5 w-9 shrink-0 rounded-full transition ${config.blockVisibility.banner ? 'bg-[#111827] dark:bg-white' : 'bg-gray-300 dark:bg-gray-700'}`}
-                            aria-label={`${config.blockVisibility.banner ? 'Turn off' : 'Turn on'} banner`}
+                            aria-label={`${config.blockVisibility.banner ? 'Turn off' : 'Turn on'} listings and sales`}
                           >
                             <span className={`absolute top-0.5 h-4 w-4 rounded-full transition ${config.blockVisibility.banner ? 'left-4 bg-white dark:bg-[#111827]' : 'left-1 bg-white'}`} />
                           </button>
@@ -695,17 +703,10 @@ export default function EmailSignaturePage() {
                                 />
                                 <BannerShowRow
                                   icon={TrendingUp}
-                                  label="Recent sale"
-                                  hint={hasSales ? 'Two most recent sales, photo + price' : 'No recent sales yet'}
+                                  label="Recent sales"
+                                  hint={hasSales ? 'One or two show like a featured listing (two take turns); three or more show side by side' : 'No recent sales yet'}
                                   checked={config.banner.showRecentSales}
                                   onChange={(v) => updateBanner({ showRecentSales: v })}
-                                />
-                                <BannerShowRow
-                                  icon={BarChart3}
-                                  label="My stats"
-                                  hint="Homes Sold / Volume / Avg Price, on the right edge of the card"
-                                  checked={config.banner.showStats}
-                                  onChange={(v) => updateBanner({ showStats: v })}
                                 />
                               </div>
                               <p className="mt-2 text-[11px] font-semibold text-gray-400">
@@ -720,6 +721,14 @@ export default function EmailSignaturePage() {
                             </div>
                           </>
                         )}
+                        {/* Its own switch - stats show with listings & sales off too (as a slim strip). */}
+                        <BannerShowRow
+                          icon={BarChart3}
+                          label="My stats"
+                          hint={config.blockVisibility.banner ? 'Volume / Closed / Avg Price, on the right edge of the card' : 'Volume / Closed / Avg Price, as a slim strip under your name'}
+                          checked={config.banner.showStats}
+                          onChange={(v) => updateBanner({ showStats: v })}
+                        />
                       </div>
                     )}
 

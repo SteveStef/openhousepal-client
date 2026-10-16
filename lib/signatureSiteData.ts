@@ -91,6 +91,13 @@ export function buildSignatureSiteInput({ config, hubConfig, agentHubSlug, owner
     buttons.push({ label: b.label, url })
   }
 
+  // A recent sale drawn as the featured-listing card (status Sold, "Recent sale").
+  const saleCard = (item: any) => ({
+    image: item.image || '', kicker: 'RECENT SALE', address: (item.address || '').split(',')[0].trim(),
+    location: [item.city, item.state].filter(Boolean).join(', '), price: fmtMoney(item.price), status: 'Sold',
+    beds: item.beds, baths: item.baths, sqft: item.sqft, acres: item.acres,
+    href: agentHubUrl ? `${agentHubUrl}/sales` : '',
+  })
   let listing: any = null
   let saleCards: { image: string; city: string; price: string }[] | null = null
   let listingHref = ''
@@ -110,10 +117,11 @@ export function buildSignatureSiteInput({ config, hubConfig, agentHubSlug, owner
       listingHref = ownerId ? `${API_BASE_URL}/email-signature/go/${ownerId}/featured` : (item.listingLinkUrl || (agentHubUrl ? `${agentHubUrl}/sales` : ''))
     } else if (banner.showRecentSales) {
       const pool = getSalesRotationPool(hubConfig.recentSales || [], hubConfig.salesMinPrice || 0)
-      if (pool.length) {
-        saleCards = pool.slice(0, 3).map((s: any) => ({ image: s.image || '', city: s.city || '', price: fmtMoney(s.price) }))
-        salesHref = agentHubUrl ? `${agentHubUrl}/sales` : ''
-      }
+      salesHref = agentHubUrl ? `${agentHubUrl}/sales` : ''
+      // 3+ sales: the row of three. 1 or 2: the featured-listing card (two take turns - the
+      // rotation below), like the email's render_sale_feature - one card in a 3-slot row looked empty.
+      if (pool.length >= 3) saleCards = pool.slice(0, 3).map((s: any) => ({ image: s.image || '', city: s.city || '', price: fmtMoney(s.price) }))
+      else if (pool.length) { listing = saleCard(pool[0]); listingHref = salesHref }
     }
   }
 
@@ -144,27 +152,34 @@ export function buildSignatureSiteInput({ config, hubConfig, agentHubSlug, owner
     const townSales = banner.showRecentSales !== false && towns.length
       ? getSalesRotationPool(hubConfig.recentSales || [], hubConfig.salesMinPrice || 0, Infinity).filter((x: any) => inTown(x.city))
       : []
-    let sales: { image: string; city: string; price: string }[] | null = null
+    let raw: any[] = []
     // The town's own sales lead; any open spots (of 3) fill with the agent's other recent sales.
-    if (townSales.length) sales = [...townSales, ...pool.filter((x: any) => !inTown(x.city))].slice(0, 3).map(toSale)
-    else if (all.length <= 3 && pool.length) sales = [...pool.slice(0, 6)].sort((a: any, b: any) => (b.price || 0) - (a.price || 0)).slice(0, 3).map(toSale)
+    if (townSales.length) raw = [...townSales, ...pool.filter((x: any) => !inTown(x.city))].slice(0, 3)
+    else if (all.length <= 3 && pool.length) raw = [...pool.slice(0, 6)].sort((a: any, b: any) => (b.price || 0) - (a.price || 0)).slice(0, 3)
     // Sales slide position: right after the town's own listings (first when there are none there).
     const salesAt = townSales.length ? local.length : listings.length
-    if (listings.length + (sales ? 1 : 0) > 1) {
-      rotation = { listings: listings.map(toCard), sales, salesAt, listingsHref: agentHubUrl ? `${agentHubUrl}/sales` : '', salesHref: agentHubUrl ? `${agentHubUrl}/sales` : '' }
+    // Fewer than 3 sales: each its own featured-style slide (a 3-slot row with gaps looked empty).
+    const cards = listings.map(toCard)
+    const sales = raw.length >= 3 ? raw.map(toSale) : null
+    if (raw.length && raw.length < 3) cards.splice(Math.min(salesAt, cards.length), 0, ...raw.map(saleCard))
+    if (cards.length + (sales ? 1 : 0) > 1) {
+      rotation = { listings: cards, sales, salesAt, listingsHref: agentHubUrl ? `${agentHubUrl}/sales` : '', salesHref: agentHubUrl ? `${agentHubUrl}/sales` : '' }
     }
   }
 
+  // Stats have their own switch - they show with the listings & sales card off too (as a strip).
   const stats = (() => {
-    if (!config.blockVisibility?.banner || !banner.showStats) return null
+    if (!banner.showStats) return null
     const summary = getSaleSummary(hubConfig.recentSales || [])
     return summary.totalSold ? { volume: fmtCompactMoney(summary.totalVolume), sold: String(summary.totalSold), avg: fmtCompactMoney(summary.avgPrice) } : null
   })()
 
   const luxe = !!config.luxe
   const metal = metalOf(config.luxeMetal)
+  const statsStrip = !!stats && !listing && !saleCards && !rotation
+  if (statsStrip && !salesHref && agentHubUrl) salesHref = `${agentHubUrl}/sales`
   return {
-    identity, socials, buttons, listing, saleCards, listingHref, salesHref, stats, rotation,
+    identity, socials, buttons, listing, saleCards, listingHref, salesHref, stats, rotation, statsStrip,
     accent: luxe ? LUXE_METALS[metal].base : (config.accentColor || '#B87943'),
     fontFamily: signatureFontStack(luxe ? 'georgia' : (config.fontFamily || 'system')),
     dark: !!config.darkMode,

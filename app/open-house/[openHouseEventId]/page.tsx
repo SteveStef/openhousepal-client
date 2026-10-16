@@ -911,7 +911,7 @@ export default function OpenHouseSignInPage() {
                     ? "You're all set! Your Showcase of homes like this one is being built right now - the link is on its way to your email."
                     : goingToSpotlight
                       ? goingTo?.kind === 'pass'
-                        ? "You're signed in. Opening your Guest Pass - this home's details, similar homes and more..."
+                        ? `You're signed in. Opening your Guest Pass - this home's details${(property as any)?.similarHomes === false ? ', the neighborhood' : ', similar homes'} and more...`
                         : `You're signed in. Taking you to ${(property as any)?.agentName ? `${(property as any).agentName}'s` : "your host's"} page...`
                       : 'Your information has been submitted successfully.'}
                 </p>

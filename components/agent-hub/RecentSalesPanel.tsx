@@ -161,7 +161,9 @@ export function SettingToggleRow({ label, hint, checked, onChange, accent = 'gol
         type="button"
         onClick={() => onChange(!checked)}
         className={`relative h-6 w-11 shrink-0 rounded-full transition ${checked ? onClass : 'bg-gray-300 dark:bg-gray-600'}`}
-        aria-label={checked ? `Turn off ${label}` : `Turn on ${label}`}
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
         title={checked ? `Turn off ${label}` : `Turn on ${label}`}
       >
         <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all duration-200 ${checked ? 'left-6' : 'left-1'}`} />

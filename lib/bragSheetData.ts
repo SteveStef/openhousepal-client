@@ -106,12 +106,14 @@ function hubIsLive(planTier: string | null | undefined, config: any): boolean {
  * - Sales: the Agent Hub's curated Recent Sales; Basic (no Agent Hub to curate in) falls back to
  *   the agent's own Bright MLS sales.
  */
-export async function buildBragSheetData(currentUser: User | null, similarProperties?: any[]): Promise<{ data: BragSheetPayload | null; error?: string }> {
+export async function buildBragSheetData(currentUser: User | null, similarProperties?: any[], opts?: { showcases?: boolean }): Promise<{ data: BragSheetPayload | null; error?: string }> {
   const planTier = currentUser?.plan_tier
   if (!planHasBragSheet(planTier)) {
     return { data: null, error: 'The Brag Sheet is built from your Recent Sales - it comes with No-MLS Premium, where you can add your sales by hand.' }
   }
-  const withShowcase = hasShowcaseAccess(planTier)
+  // ...and only when this open house gives guests Showcases (a listing agent at their own listing
+  // turns them off - no page sending guests to shop other homes).
+  const withShowcase = hasShowcaseAccess(planTier) && opts?.showcases !== false
   const withHub = hasAgentHubAccess(planTier)
 
   const [hubRes, formsRes, siteRes, domainsRes] = await Promise.all([

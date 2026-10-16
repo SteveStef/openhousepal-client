@@ -10,7 +10,7 @@ import StyleThumbnail from '@/components/studio/design/StyleThumbnail'
 import { DESIGN_SITUATIONS } from '@/lib/studio/designSituations'
 import { DESIGN_FORMAT_META, DESIGN_STYLES } from '@/lib/studio/designFormats'
 import { DESIGN_COLOR_MODES } from '@/lib/studio/designColors'
-import { getTemplatesFor } from '@/lib/studio/designTemplates'
+import { getTemplatesFor, isCompositionReady } from '@/lib/studio/designTemplates'
 import { COMPOSITION_LABELS } from '@/lib/studio/designCompositions'
 import { AGENT, DEMO_PLACEHOLDER_PHOTOS, REAL_STUDIO_PROPERTY } from './realData'
 import type { DesignColorMode, DesignStyleId, LinkedProperty } from '@/types'
@@ -38,7 +38,7 @@ const placements = [
   { designType: 'just_listed_flyer', label: 'Flyer' },
 ]
 const placementIdx = placements.findIndex(f => f.designType === DESIGN_TYPE)
-const templates = getTemplatesFor(SITUATION_ID, DESIGN_TYPE)
+const templates = getTemplatesFor(SITUATION_ID, DESIGN_TYPE).filter(t => isCompositionReady(t.composition))
 // The layout it settles on: the first Just Sold post (full-bleed photo), after a look at the Headline Band.
 const LAYOUT_ORDER = [Math.max(0, templates.findIndex(t => t.composition === 'band')), 0]
 const STYLE_ORDER = [DESIGN_STYLES.findIndex(s => s.id === 'bold'), DESIGN_STYLES.findIndex(s => s.id === 'modern_luxury')]

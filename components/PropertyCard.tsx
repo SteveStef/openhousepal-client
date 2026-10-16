@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { Property } from '@/types'
 import { formatOpenHouse, formatOpenHouseDay, upcomingOpenHouses } from '@/lib/mlsOpenHouses'
-import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye, Bed, Bath, Square, Home, MapPin, School } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye, Bed, Bath, Square, Home, MapPin, School, Trees, Navigation } from 'lucide-react'
 import { cleanAddress, formatMlsStatus, formatPropertyFeature, isPropertyAvailableStatus, normalizeImageUrl, haversineMiles, googleMapsDirectionsUrl } from '@/lib/utils'
 
 // "Lower Merion Township School District" -> "Lower Merion": the words that only make the pill
@@ -132,10 +132,11 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
           </div>
         )}
 
-        {/* Floating Badges (Top Left) - text-center on each since flex-col stretches every badge
-            to the width of the widest one (the match score badge, usually), which otherwise left
-            a shorter badge's text sitting off to one side instead of centered in its own bubble. */}
-        <div className="absolute top-3 left-3 flex flex-col items-stretch gap-2">
+        {/* Top row: match score (left), DOM (right), and the open house tag centred in the space
+            BETWEEN them - not the centre of the photo, where a wide badge could overlap it. The
+            distance / directions moved off the photo into the details below (user, 10/15). */}
+        <div className="absolute inset-x-3 top-3 z-10 flex items-start gap-2">
+          <div className="flex shrink-0 flex-col items-stretch gap-2">
           {/* Same badge treatment as the Similar Properties picker (PropertyRecommendationCard) -
               rounded-full pill, text-xs, no border - not the smaller boxier style used elsewhere
               on this card. */}
@@ -150,9 +151,16 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
             </span>
           )}
         </div>
-
-        {/* Top Right Badges */}
-        <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
+          <div className="flex min-w-0 flex-1 justify-center">
+            {nextOpenHouse && (
+              <span title={upcomingOpenHouses(property.open_houses).map(oh => `Open house: ${formatOpenHouse(oh)}`).join('\n')}
+                className="inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-emerald-500 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-widest text-white shadow-lg ring-1 ring-white/25">
+                <span aria-hidden className="relative flex h-1.5 w-1.5 shrink-0"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" /></span>
+                <span className="truncate">Open House {formatOpenHouseDay(nextOpenHouse.date, true)}</span>
+              </span>
+            )}
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-2">
           {/* Days on Market */}
           {property.DaysOnMarket !== undefined && property.DaysOnMarket !== null && (
             <span className="bg-white/90 dark:bg-[#151517]/90 text-[#111827] dark:text-white font-bold px-2.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider shadow-sm border border-gray-200 dark:border-gray-800 flex items-center gap-1">
@@ -161,41 +169,8 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
             </span>
           )}
 
-          {/* Recent Price Change */}
-          {isRecentPriceChange && (
-            <span className="bg-green-500/90 text-white font-black px-2.5 py-1.5 rounded-lg text-[8px] uppercase tracking-widest shadow-xl border border-white/10 flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
-              Recent Price Change
-            </span>
-          )}
         </div>
-
-        {/* Straight-line distance from the showcase's search address - top-center of the photo,
-            sitting between the match-score badge (top-left) and the DOM badge (top-right).
-            Clickable through to Google Maps driving directions when both endpoints have coords.
-            Only present when a destination is given (showcase view). */}
-        {distanceMiles !== null && (
-          <div className="absolute top-3 left-1/2 z-10 -translate-x-1/2">
-            {directionsUrl ? (
-              <a
-                href={directionsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                title="Get directions in Google Maps"
-                className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white/90 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wider text-[#111827] shadow-sm transition-colors hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-800 dark:bg-[#151517]/90 dark:text-white dark:hover:text-[#e8cf8a]"
-              >
-                <MapPin size={10} className="text-[#C9A24D]" />
-                <span>{distanceMiles.toFixed(1)} mi &middot; Directions</span>
-              </a>
-            ) : (
-              <span className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white/90 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wider text-[#111827] shadow-sm dark:border-gray-800 dark:bg-[#151517]/90 dark:text-white">
-                <MapPin size={10} className="text-[#C9A24D]" />
-                <span>{distanceMiles.toFixed(1)} mi away</span>
-              </span>
-            )}
-          </div>
-        )}
+        </div>
 
         {/* Interaction Indicators (Bottom Right) */}
         <div className="absolute bottom-3 right-3 flex gap-1.5">
@@ -239,14 +214,15 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
               {/* Moved off the photo (was a flashing badge there - distracting) and next to the
                   price instead, since the match score badge already owns the photo's top-left
                   corner. No animation - a still pill draws the eye without being annoying. */}
-              {/* An upcoming open house outranks "New" until its day has passed. */}
-              {nextOpenHouse ? (
-                <span title={upcomingOpenHouses(property.open_houses).map(oh => `Open house: ${formatOpenHouse(oh)}`).join('\n')}
+              {/* A recent price change sits by the price (it's about the price), in the same green
+                  pill as the open house tag; otherwise "New". The open house lives on the photo. */}
+              {isRecentPriceChange ? (
+                <span title={`Price changed ${new Date(property.PriceChangeTimestamp as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-500 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-white shadow-sm">
                   <span aria-hidden className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" /></span>
-                  Open {formatOpenHouseDay(nextOpenHouse.date, true)}
+                  Price change
                 </span>
-              ) : (showNewForUnviewed ? !isViewed : property.is_new) && (
+              ) : (showNewForUnviewed ? !isViewed && property.is_new !== false : property.is_new) && (
                 <span className="bg-green-500 text-white font-black px-2 py-1 rounded-full text-[9px] uppercase tracking-widest shadow-sm">
                   New
                 </span>
@@ -334,29 +310,35 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
             </div>
           </div>
           
-          <h3 className="text-[12.5px] font-bold text-gray-600 dark:text-gray-300 tracking-wide uppercase line-clamp-1 mb-3 sm:text-[13px]">
-            {cleanAddress(property.FullStreetAddress, property.City)}
+          <h3 className="line-clamp-1 text-[15px] font-bold leading-snug text-[#111827] dark:text-white" title={cleanAddress(property.FullStreetAddress, property.City)}>
+            {cleanAddress(property.FullStreetAddress, property.City).split(',')[0]}
           </h3>
+          <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[12px] font-semibold text-gray-500 dark:text-gray-400">
+            <MapPin size={12} className="shrink-0 text-[#C9A24D]" />
+            <span className="truncate">{[property.City ? String(property.City).toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : '', [property.StateOrProvince, property.PostalCode].filter(Boolean).join(' ')].filter(Boolean).join(', ')}</span>
+            {distanceMiles !== null && (directionsUrl ? (
+              <a href={directionsUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title="Get directions in Google Maps"
+                className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-gray-200 px-2 py-0.5 text-[10px] font-black text-[#8b7355] transition-colors hover:border-[#C9A24D] dark:border-gray-700 dark:text-[#e8cf8a]">
+                <Navigation size={10} /> {distanceMiles.toFixed(1)} mi
+              </a>
+            ) : (
+              <span className="ml-auto shrink-0 text-[10px] font-black text-gray-400">{distanceMiles.toFixed(1)} mi away</span>
+            ))}
+          </p>
 
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
-            <div className="flex items-center">
-              <span className="text-[#111827] dark:text-white mr-1.5">{formatPropertyFeature(property.BedroomsTotal)}</span>
-              <span>Beds</span>
-            </div>
-            <div className="flex items-center">
-              <span className="text-[#111827] dark:text-white mr-1.5">{formatPropertyFeature(property.BathroomsTotal)}</span>
-              <span>Baths</span>
-            </div>
-            <div className="flex items-center">
-              <span className="text-[#111827] dark:text-white mr-1.5">{formatPropertyFeature(property.LivingArea, true)}</span>
-              <span>SqFt</span>
-            </div>
-            {!!property.LotSizeAcres && (
-              <div className="flex items-center">
-                <span className="text-[#111827] dark:text-white mr-1.5">{property.LotSizeAcres.toFixed(property.LotSizeAcres < 1 ? 2 : 1)}</span>
-                <span>Acres</span>
-              </div>
-            )}
+          <div className="mt-3 grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
+            {([
+              [Bed, formatPropertyFeature(property.BedroomsTotal), 'Beds'],
+              [Bath, formatPropertyFeature(property.BathroomsTotal), 'Baths'],
+              [Square, formatPropertyFeature(property.LivingArea, true), 'Sq Ft'],
+              ...(property.LotSizeAcres ? [[Trees, property.LotSizeAcres.toFixed(property.LotSizeAcres < 1 ? 2 : 1), 'Acres']] : []),
+            ] as [typeof Bed, string, string][]).map(([Icon, value, label]) => (
+              <span key={label} className="inline-flex items-center gap-1.5 rounded-lg bg-gray-50 px-2 py-1.5 text-[11px] font-bold text-gray-500 ring-1 ring-gray-100 dark:bg-white/[0.04] dark:text-gray-400 dark:ring-white/[0.06]">
+                <Icon size={13} className="shrink-0 text-[#C9A24D]" />
+                <span className="font-black text-[#111827] dark:text-white">{value}</span>
+                {label}
+              </span>
+            ))}
           </div>
         </div>
 

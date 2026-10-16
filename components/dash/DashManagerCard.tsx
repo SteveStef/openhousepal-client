@@ -21,7 +21,7 @@ export default function DashManagerCard({
   // Counted from the same boxes shown below (the next 4 open-house days of every listing), so the
   // numbers always match what you see: "1 covered · 3 need a host".
   const summary = myListings ? (myListings.listings || []).reduce((acc, l) => {
-    const s = weekendSummary(l.scheduled_opens || [])
+    const s = weekendSummary(l.scheduled_opens || [], l)
     return { scheduled: acc.scheduled + s.scheduled, needed: acc.needed + s.needed }
   }, { scheduled: 0, needed: 0 }) : null
   const avgGuests = myListings?.summary?.avg_guests_per_open || 0

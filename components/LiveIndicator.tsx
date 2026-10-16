@@ -12,11 +12,20 @@ const ago = (ms: number) => {
   return m < 60 ? `${m} min ago` : `${Math.round(m / 60)} hr ago`
 }
 
-export default function LiveIndicator({ checkedAt, note, className = '' }: {
+const agoShort = (ms: number) => {
+  const s = Math.max(0, Math.round(ms / 1000))
+  if (s < 60) return 'just now'
+  const m = Math.round(s / 60)
+  return m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`
+}
+
+export default function LiveIndicator({ checkedAt, note, className = '', compact = false }: {
   checkedAt?: number | string | null
   // Short extra line after "Updated ..." (hidden on phones).
   note?: string
   className?: string
+  // Two short lines ("● LIVE" over "43m ago") - fits beside a name and another button on a phone.
+  compact?: boolean
 }) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
@@ -24,6 +33,22 @@ export default function LiveIndicator({ checkedAt, note, className = '' }: {
     return () => window.clearInterval(t)
   }, [])
   const at = checkedAt ? new Date(checkedAt).getTime() : null
+
+  if (compact) {
+    return (
+      <span className={`inline-flex flex-col justify-center rounded-xl border border-emerald-500/25 bg-emerald-500/[0.08] px-2.5 leading-none text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300 ${className}`}
+        title={at ? `These homes update automatically from the MLS - updated ${ago(now - at)}` : 'These homes update automatically from the MLS'}>
+        <span className="flex items-center gap-1.5">
+          <span className="relative flex h-1.5 w-1.5 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70 motion-reduce:hidden" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          </span>
+          <span className="text-[10px] font-black uppercase tracking-[0.16em]">Live</span>
+        </span>
+        {at && <span className="mt-1 whitespace-nowrap text-[9px] font-bold text-emerald-700/80 dark:text-emerald-300/80">{agoShort(now - at)}</span>}
+      </span>
+    )
+  }
 
   return (
     <span

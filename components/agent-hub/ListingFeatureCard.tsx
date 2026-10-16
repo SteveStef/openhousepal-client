@@ -72,14 +72,15 @@ export default function ListingFeatureCard({ listing, luxe = false, compact = fa
       <div className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.6s] ease-out group-hover/feat:scale-[1.05]" style={{ backgroundImage: `url(${main})` }} />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-black/10" />
       {luxe && <span aria-hidden className="hub-lx-sweep absolute inset-y-0 left-0 w-1/3" />}
-      <span className={`absolute left-3 top-3 inline-flex items-center font-black uppercase tracking-wide ${statusPill}`}>{sold && <span className="hub-lx-sold-dot" />}<span className="relative">{status}</span></span>
+      {/* status, with the open house (if any) right beside it */}
+      <span className="absolute left-3 right-3 top-3 flex flex-wrap items-center gap-1.5">
+        <span className={`inline-flex items-center font-black uppercase tracking-wide ${statusPill}`}>{sold && <span className="hub-lx-sold-dot" />}<span className="relative">{status}</span></span>
+        {openHouses.length > 0 && <span className="hidden min-w-0 sm:flex"><OpenHouseChip openHouses={listing.open_houses} variant={luxe ? 'luxe' : 'classic'} compact /></span>}
+      </span>
       {photos.length > 1 && !compact && (
         <span className="absolute bottom-3 right-3 hidden items-center gap-1.5 rounded-full bg-black/45 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white sm:inline-flex">
           <Images className="h-3 w-3" /> {photos.length} photos
         </span>
-      )}
-      {openHouses.length > 0 && (
-        <span className="absolute bottom-3 left-3 hidden sm:flex"><OpenHouseChip openHouses={listing.open_houses} variant={luxe ? 'luxe' : 'classic'} compact /></span>
       )}
     </div>
   )

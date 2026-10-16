@@ -129,8 +129,10 @@ function LeadsPageInner() {
   useEffect(() => {
     api.leads.getOpenHouseHistory().then(r => { if (r.success && r.data) setOpenHouses(r.data) })
     api.tasks.counts().then(r => { if (r.success && r.data) setFollowupCount(r.data.overdue + r.data.today) })
-    // Opening Leads = seeing these alerts.
-    api.notifications.markTypesAsRead(['OPEN_HOUSE_SIGN_IN', 'OPEN_HOUSE_SECOND_VISIT', 'OPEN_HOUSE_DISCLOSURE', 'FORM_SUBMISSION', 'TOUR_REQUEST', 'PROPERTY_COMMENT'])
+    // Opening Leads = seeing the new-lead alerts (every kind of lead that lands here - the rows keep
+    // their red dot until each one is opened). Showcase likes / search requests clear on Showcases.
+    api.notifications.markTypesAsRead(['OPEN_HOUSE_SIGN_IN', 'OPEN_HOUSE_SECOND_VISIT', 'OPEN_HOUSE_DISCLOSURE', 'FORM_SUBMISSION', 'TOUR_REQUEST', 'PROPERTY_COMMENT', 'PROPERTY_INQUIRY', 'PORTAL_LEAD', 'LEAD'])
+      .then(() => window.dispatchEvent(new Event('leads-notification-count:refresh')))
   }, [])
 
   const all = useMemo(() => [...leads, ...(hiddenLeads || [])], [leads, hiddenLeads])
@@ -219,7 +221,8 @@ function LeadsPageInner() {
   }
   const exportCsv = async () => {
     setExporting(true)
-    try { await api.leads.downloadCsv({ sort: 'activity', hidden: activeView === 'hidden' }) } catch { showToast("Couldn't export - try again", 'error') }
+    // Exactly the leads on screen - this tab, search, filters and sort.
+    try { await api.leads.downloadCsv({ ids: visible.map(l => l.id), hidden: activeView === 'hidden' }) } catch { showToast("Couldn't export - try again", 'error') }
     setExporting(false)
   }
 
@@ -401,7 +404,7 @@ function LeadsPageInner() {
             <div className="flex items-center justify-center gap-2 py-16 text-sm font-bold text-gray-400"><Loader2 className="h-5 w-5 animate-spin" /></div>
           )}
           {!loading && visible.length === 0 && !(activeView === 'hidden' && hiddenLeads === null) && (
-            <EmptyState view={activeView} filtered={!!search || origin !== 'any' || !!tag} noLeads={leads.length === 0}
+            <EmptyState view={activeView} filtered={!!search || origin !== 'any' || !!tag || !!openHouseId} noLeads={leads.length === 0}
               onClear={() => { setSearch(''); setOrigin('any'); setTag(''); setOpenHouseId('') }} onAll={() => setView('all')} />
           )}
           <AnimatePresence mode="popLayout" initial={false}>

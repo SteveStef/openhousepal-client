@@ -62,6 +62,9 @@ export function CreateOpenHouseWizard({
   const [kitPrefs, setKitPrefs] = useState<Record<PrintPref, boolean>>({ flyerBrand: true, qrDark: true, matchScore: true, recap: true })
   // What happens when a guest signs in - same switches as each open house card, picked up front.
   const [guestPrefs, setGuestPrefs] = useState<{ autoShowcase: boolean; guestPass: boolean; afterSignin: 'hub' | 'none' }>({ autoShowcase: true, guestPass: true, afterSignin: 'none' })
+  // You're this home's listing agent: Showcases + Similar Homes start off (guests stay focused on
+  // your listing instead of being sent to shop other homes). Set from the server once a home is picked.
+  const [ownListing, setOwnListing] = useState(false)
   useEffect(() => {
     if (currentStep !== 'REVIEW') return
     setKitPrefs({ flyerBrand: readPrintPref('flyerBrand'), qrDark: readPrintPref('qrDark'), matchScore: readPrintPref('matchScore'), recap: readPrintPref('recap') })
@@ -224,7 +227,7 @@ export function CreateOpenHouseWizard({
         const pId = String(p.ListingKey || p.listingKey || p.id);
         return selectedSimilarPropertyIds.map(sid => String(sid)).includes(pId);
       });
-      const { data, error: bragSheetError } = await buildBragSheetData(currentUser, currentSimilarPropsForBragSheet);
+      const { data, error: bragSheetError } = await buildBragSheetData(currentUser, selectedFeatures.similarProperties ? currentSimilarPropsForBragSheet : [], { showcases: guestPrefs.autoShowcase });
       if (!data) {
         showToast(bragSheetError || 'Unable to build your Brag Sheet right now.', 'error');
         return;
@@ -394,6 +397,12 @@ export function CreateOpenHouseWizard({
           minAcres: 0,
           radius: 5
         })
+        // Starting Showcases / Similar Homes for this home (both off at your own listing).
+        const defaults = await api.openHouses.guestDefaults(data.ListingKey || data.listing_key)
+        const own = !!(defaults.success && defaults.data?.own_listing)
+        setOwnListing(own)
+        setGuestPrefs(prev => ({ ...prev, autoShowcase: !own }))
+        setSelectedFeatures(prev => ({ ...prev, similarProperties: !own }))
         setCurrentStep('PREFERENCES')
       } else {
         setError('Cannot create an open house for this property. No images are available.')
@@ -513,8 +522,16 @@ export function CreateOpenHouseWizard({
     return []
   }
 
+  // Similar Homes switched on from Review & Save with nothing picked: after picking, go straight
+  // back to Review instead of redoing the cover photo / Cheat Sheet steps.
+  const returnToReview = useRef(false)
   const handleSimilarPropertiesComplete = (selectedIds: (string | number)[]) => {
     setSelectedSimilarPropertyIds(selectedIds)
+    if (returnToReview.current && selectedImage) {
+      returnToReview.current = false
+      setCurrentStep('REVIEW')
+      return
+    }
     setCurrentStep('COVER_IMAGE')
   }
 
@@ -621,15 +638,18 @@ export function CreateOpenHouseWizard({
       cheatSheetPhotos: selectedFeatures.cheatSheet ? savedCheatSheetPhotos : undefined,
       cheatSheetSnapshot: cheatSheetSnapshot,
       qrDarkMode: kitPrefs.qrDark,
+      // The guest settings picked in the wizard (the picked Similar Homes are saved either way, so
+      // switching Similar Homes on later on the card brings them back).
+      autoShowcase: guestPrefs.autoShowcase,
+      similarHomes: !isNoMls && selectedFeatures.similarProperties,
+      ...(!isNoMls ? { guestPass: guestPrefs.guestPass } : {}),
     })
 
     if (success) {
-      // Apply the guest settings picked at Review & Save (only what differs from the defaults).
+      // No-MLS Pro's "after sign-in" choice is its own setting.
       const createdId = (created as any)?.id
       if (createdId) {
         const patch: Record<string, unknown> = {}
-        if (hasShowcaseAccess(currentUser?.plan_tier) && !guestPrefs.autoShowcase) patch.auto_showcase = false
-        if (!isNoMls && !guestPrefs.guestPass) patch.guest_pass = false
         if (isNoMls && guestPrefs.afterSignin === 'hub') patch.after_signin = 'hub'
         if (Object.keys(patch).length) await api.openHouses.updateGuestSettings(createdId, patch as any)
       }
@@ -642,6 +662,8 @@ export function CreateOpenHouseWizard({
       setQrCode('')
       setGeneratedOpenHouseId('')
       setSelectedFeatures({ signinSheet: true, similarProperties: true, bragSheet: bragSheetAvailable, cheatSheet: !isNoMls })
+      setGuestPrefs({ autoShowcase: true, guestPass: true, afterSignin: 'none' })
+      setOwnListing(false)
       setSelectedSimilarPropertyIds([])
       setCheatSheetPhotos([])
       setCurrentStep('ADDRESS')
@@ -811,7 +833,17 @@ export function CreateOpenHouseWizard({
           onSelectionChange={setSelectedSimilarPropertyIds}
           onPreferencesChange={handleSimilarPreferencesChange}
           onNext={() => handleSimilarPropertiesComplete(selectedSimilarPropertyIds)}
+          include={selectedFeatures.similarProperties}
+          onIncludeChange={(on: boolean) => setSelectedFeatures(prev => ({ ...prev, similarProperties: on }))}
+          ownListing={ownListing}
           onBack={() => {
+            // Came here from Review to pick homes - backing out leaves Similar Homes off.
+            if (returnToReview.current && selectedImage) {
+              returnToReview.current = false
+              setSelectedFeatures(prev => ({ ...prev, similarProperties: false }))
+              setCurrentStep('REVIEW')
+              return
+            }
             setCurrentStep('ADDRESS')
             setAddress('')
             setPropertyData(null)
@@ -862,6 +894,16 @@ export function CreateOpenHouseWizard({
           showcasesAvailable={hasShowcaseAccess(currentUser?.plan_tier)}
           guestPassAvailable={!isNoMls}
           afterSigninAvailable={isNoMls}
+          similarAvailable={!isNoMls}
+          ownListing={ownListing}
+          onSimilarChange={(on: boolean) => {
+            setSelectedFeatures(prev => ({ ...prev, similarProperties: on }))
+            // Turned on with no homes picked yet - go pick them (Back returns here through the steps).
+            if (on && selectedSimilarPropertyIds.length === 0) {
+              returnToReview.current = true
+              setCurrentStep('PREFERENCES')
+            }
+          }}
         />
       )}
     </div>
@@ -881,6 +923,9 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
   onPreferencesChange,
   onNext,
   onBack,
+  include = true,
+  onIncludeChange,
+  ownListing = false,
 }: {
   preferences: SearchPreferences,
   address: string,
@@ -892,6 +937,10 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
   onPreferencesChange: (prefs: SearchPreferences) => Promise<any[]>,
   onNext: () => void,
   onBack: () => void,
+  // The kit wizard's Similar Homes switch (the Edit Similar Homes window leaves these out).
+  include?: boolean,
+  onIncludeChange?: (on: boolean) => void,
+  ownListing?: boolean,
 }) {
   const [prefs, setPrefs] = useState<SearchPreferences>(initialPreferences)
 
@@ -1003,7 +1052,11 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
           "have to reach the edge of the page" bug). Only this specific container needs the
           override; it's inline so it beats the class-based rule regardless of stylesheet order. */}
       <div className="flex-1 overflow-y-auto px-5 pb-5 sm:px-8 sm:pb-8" style={{ overscrollBehavior: 'auto' }}>
-        <div className="mb-5 mt-5 rounded-2xl border border-gray-100 bg-[#faf9f7] p-4 shadow-sm dark:border-gray-800 dark:bg-[#0B0B0B] sm:mt-8 sm:p-5">
+        {onIncludeChange && <SimilarIncludeBar include={include} ownListing={ownListing} onChange={onIncludeChange} />}
+        {!include ? (
+          <SimilarOffPanel address={formatSubjectAddress(subjectAddress)} ownListing={ownListing} onBack={onBack} onNext={onNext} onTurnOn={() => onIncludeChange?.(true)} />
+        ) : (<>
+        <div className={`mb-5 rounded-2xl border border-gray-100 bg-[#faf9f7] p-4 shadow-sm dark:border-gray-800 dark:bg-[#0B0B0B] sm:p-5 ${onIncludeChange ? 'mt-4' : 'mt-5 sm:mt-8'}`}>
           <div className="-m-4 mb-4 flex items-center justify-center rounded-t-2xl border-b border-gray-200 bg-gradient-to-r from-[#faf6ec] via-white to-[#faf6ec] px-4 py-2.5 dark:border-gray-800 dark:from-[#1c1710] dark:via-[#151517] dark:to-[#1c1710] sm:-m-5 sm:mb-5 sm:px-5">
             <p className="inline-flex items-center gap-1.5 rounded-full bg-[#C9A24D]/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#8b7355] ring-1 ring-[#C9A24D]/25 dark:text-[#d7b974]">
               <Layers className="h-3.5 w-3.5" /> Similar Homes Sheet
@@ -1198,6 +1251,7 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
             </>
           )}
         </div>
+        </>)}
       </div>
 
       {/* zIndex above EditSimilarPropertiesModal's z-[110] wrapper (harmless when reached from the
@@ -1212,6 +1266,57 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
     </div>
   )
 })
+
+// The Similar Homes step's switch: include a Similar Homes sheet (+ similar homes on the Guest
+// Pass) or not. Starts off when it's your own listing - the bar says why.
+function SimilarIncludeBar({ include, ownListing, onChange }: { include: boolean; ownListing: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <div className={`mt-5 flex flex-col gap-3 rounded-2xl border p-4 sm:mt-8 sm:flex-row sm:items-center sm:justify-between sm:p-5 ${include ? 'border-[#C9A24D]/30 bg-[#fbf6ea] dark:border-[#C9A24D]/25 dark:bg-[#C9A24D]/[0.06]' : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-[#0B0B0B]'}`}>
+      <div className="flex min-w-0 items-start gap-3">
+        <span className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${include ? 'bg-[#111827] text-[#e8c97a]' : 'bg-gray-100 text-gray-400 dark:bg-white/10'}`}><Layers className="h-5 w-5" /></span>
+        <div className="min-w-0">
+          <p className="text-base font-black text-gray-900 dark:text-white">Similar Homes</p>
+          <p className="mt-0.5 text-sm font-medium leading-snug text-gray-500 dark:text-gray-400">
+            A printed sheet of similar homes for sale, and the same homes on each guest&apos;s Guest Pass.
+            {ownListing && <span className="mt-1 block font-bold text-[#8b7355] dark:text-[#e8c97a]">You&apos;re the listing agent here, so this starts off - guests stay focused on your listing.</span>}
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={include}
+        aria-label="Include Similar Homes"
+        onClick={() => onChange(!include)}
+        className={`inline-flex shrink-0 items-center gap-2 self-start rounded-full border py-1.5 pl-3 pr-1.5 text-xs font-black uppercase tracking-wide transition-colors sm:self-center ${include ? 'border-[#C9A24D]/50 bg-white text-[#8b7355] dark:bg-[#151517] dark:text-[#e8c97a]' : 'border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-white/[0.04] dark:text-gray-400'}`}
+      >
+        {include ? 'Included' : 'Off'}
+        <span className={`relative h-6 w-11 rounded-full transition-colors ${include ? 'bg-[#C9A24D]' : 'bg-gray-300 dark:bg-gray-600'}`}>
+          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${include ? 'left-[22px]' : 'left-0.5'}`} />
+        </span>
+      </button>
+    </div>
+  )
+}
+
+// Shown instead of the home picker while Similar Homes is off.
+function SimilarOffPanel({ address, ownListing, onBack, onNext, onTurnOn }: { address: string; ownListing: boolean; onBack: () => void; onNext: () => void; onTurnOn: () => void }) {
+  return (
+    <div className="mt-4 rounded-2xl border border-dashed border-gray-200 bg-[#faf9f7] px-5 py-10 text-center dark:border-gray-800 dark:bg-[#0B0B0B] sm:px-10 sm:py-14">
+      <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#C9A24D] shadow-sm dark:bg-[#151517]"><DoorOpen className="h-7 w-7" /></span>
+      <h3 className="mt-4 font-serif text-2xl font-black text-gray-900 dark:text-white sm:text-3xl">All eyes on {address || 'this home'}</h3>
+      <p className="mx-auto mt-2 max-w-md text-sm font-medium leading-relaxed text-gray-500 dark:text-gray-400">
+        No Similar Homes sheet in this kit, and guests won&apos;t see other homes on their Guest Pass.
+        {`${ownListing ? ' Perfect for sitting your own listing.' : ''} You can turn it on any time from this open house’s card.`}
+      </p>
+      <div className="mt-6 flex flex-col items-center justify-center gap-2 sm:flex-row">
+        <button type="button" onClick={onBack} className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-black text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-[#151517] dark:text-gray-300 sm:w-auto">Back</button>
+        <button type="button" onClick={onTurnOn} className="w-full rounded-2xl border border-[#C9A24D]/50 bg-white px-5 py-2.5 text-sm font-black text-[#8b7355] transition-colors hover:bg-[#C9A24D]/10 dark:bg-[#151517] dark:text-[#e8c97a] sm:w-auto">Pick similar homes instead</button>
+        <button type="button" onClick={onNext} className="w-full rounded-2xl bg-[#111827] px-6 py-2.5 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-colors hover:bg-[#8b7355] dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D] sm:w-auto">Continue</button>
+      </div>
+    </div>
+  )
+}
 
 // MLS media occasionally mislabels a builder's virtual-tour page or a hosted video (e.g. Lennar
 // virtual-tour pages, Aryeo "/videos/..." links) as MediaCategory=Photo - it's a webpage or video,
@@ -1733,7 +1838,7 @@ function KitThemeChoice({ dark, onChange }: { dark: boolean; onChange: (dark: bo
   )
 }
 
-const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selectedImage, qrCode, onSave, onCancel, onPreviewFlyer, onPreviewRecommendations, onPreviewBragSheet, onPreviewCheatSheet, hasRecommendations, hasBragSheet, hasCheatSheet, formatAddress, kitPrefs, onKitPrefChange, guestPrefs, onGuestPrefChange, showcasesAvailable, guestPassAvailable, afterSigninAvailable }: any) {
+const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selectedImage, qrCode, onSave, onCancel, onPreviewFlyer, onPreviewRecommendations, onPreviewBragSheet, onPreviewCheatSheet, hasRecommendations, hasBragSheet, hasCheatSheet, formatAddress, kitPrefs, onKitPrefChange, guestPrefs, onGuestPrefChange, showcasesAvailable, guestPassAvailable, afterSigninAvailable, similarAvailable, ownListing, onSimilarChange }: any) {
   const kitLabel = ['Sign In', hasRecommendations && 'Similar Homes', hasBragSheet && 'Brag Sheet', hasCheatSheet && 'Cheat Sheet'].filter(Boolean).join(', ')
   const [isSaving, setIsSaving] = useState(false)
   const handleSave = async () => {
@@ -1758,8 +1863,9 @@ const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selecte
               <div className="p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center justify-between"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Sign In</span></div><button onClick={onPreviewFlyer} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>
                 <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-6"><KitOptionChip on={kitPrefs.flyerBrand} label="Brand" hint="Adds your photo, name, and brokerage to the printed sign-in flyer - the same pill as the top of the on-screen sign-in page." onClick={() => onKitPrefChange('flyerBrand', !kitPrefs.flyerBrand)} /><KitThemeChoice dark={kitPrefs.qrDark} onChange={(dark: boolean) => onKitPrefChange('qrDark', dark)} /></div>
               </div>
+              {similarAvailable && !hasRecommendations && <div className="p-3 bg-white dark:bg-[#151517] rounded-lg border border-dashed border-gray-200 dark:border-gray-700"><div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center"><span className="text-gray-300 dark:text-gray-600 mr-3 font-bold">–</span><span className="text-sm font-medium text-gray-400 dark:text-gray-500">Similar Homes <span className="text-xs font-bold text-gray-400">· off{ownListing ? ' (your listing)' : ''}</span></span></div><KitOptionChip on={false} label="Include" hint="Adds the Similar Homes sheet to this kit and shows those homes on each guest's Guest Pass. You'll pick the homes next." onClick={() => onSimilarChange?.(true)} /></div></div>}
               {hasRecommendations && <div className="p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center justify-between"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Similar Homes</span></div><button onClick={onPreviewRecommendations} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>
-                <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-6"><KitOptionChip on={kitPrefs.matchScore} label="Match %" hint="Shows the % Match badge on each home and sorts best match first." onClick={() => onKitPrefChange('matchScore', !kitPrefs.matchScore)} /></div>
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-6"><KitOptionChip on={kitPrefs.matchScore} label="Match %" hint="Shows the % Match badge on each home and sorts best match first." onClick={() => onKitPrefChange('matchScore', !kitPrefs.matchScore)} />{similarAvailable && onSimilarChange && <KitOptionChip on label="Include" hint="Included: the Similar Homes sheet prints with this kit and guests see these homes on their Guest Pass. Tap to leave it out - guests stay focused on this home." onClick={() => onSimilarChange(false)} />}</div>
               </div>}
               {hasBragSheet && <div className="flex items-center justify-between p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Brag Sheet</span></div><button onClick={onPreviewBragSheet} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>}
               {hasCheatSheet && <div className="p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center justify-between"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Cheat Sheet</span></div><button onClick={onPreviewCheatSheet} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>
@@ -1771,12 +1877,15 @@ const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selecte
             <div className="bg-white/80 dark:bg-[#0B0B0B]/80 rounded-2xl p-5 mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
               <h4 className="text-sm font-bold text-[#C9A24D] uppercase tracking-wider mb-1">After a guest signs in</h4>
               <p className="mb-3 text-xs font-medium text-gray-500 dark:text-gray-400">You can change these any time on this open house&apos;s card.</p>
+              {ownListing && showcasesAvailable && (
+                <p className="mb-3 rounded-xl border border-[#C9A24D]/25 bg-[#fbf6ea] px-3 py-2 text-xs font-bold text-[#8b7355] dark:border-[#C9A24D]/20 dark:bg-[#C9A24D]/[0.06] dark:text-[#e8c97a]">You&apos;re the listing agent here, so Guest Showcases start off - guests stay focused on your listing instead of shopping other homes.</p>
+              )}
               <div className="space-y-2.5">
                 {guestPassAvailable && (
                   <GuestPrefRow
                     icon={Ticket}
                     title="Guest Pass"
-                    body="Their phone opens this home, your Similar Homes + Cheat Sheet as web pages, and one-tap disclosure / second tour requests. Never on a Kiosk tablet."
+                    body={`Their phone opens this home, your ${hasRecommendations ? 'Similar Homes + ' : ''}Cheat Sheet as web pages, and one-tap disclosure / second tour requests. Never on a Kiosk tablet.`}
                     on={guestPrefs.guestPass}
                     onToggle={() => onGuestPrefChange('guestPass', !guestPrefs.guestPass)}
                   />
@@ -1785,7 +1894,7 @@ const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selecte
                   <GuestPrefRow
                     icon={Sparkles}
                     title="Guest Showcases"
-                    body="Everyone who signs in without an agent gets their own Showcase of similar homes. Turn off if you're sitting your own listing and don't want guests shopping other homes."
+                    body="Everyone who signs in without an agent gets their own Showcase of similar homes (and a Showcase button on their Guest Pass). Off: no Showcases from this open house."
                     on={guestPrefs.autoShowcase}
                     onToggle={() => onGuestPrefChange('autoShowcase', !guestPrefs.autoShowcase)}
                   />

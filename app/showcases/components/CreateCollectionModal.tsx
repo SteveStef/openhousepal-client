@@ -7,6 +7,7 @@ import {
   Phone, Search, ShieldCheck, Tag, TrendingUp, User, UserX, Users, X,
 } from 'lucide-react'
 import LuxeHero from '@/components/ui/LuxeHero'
+import OhpSwitch from '@/components/ui/OhpSwitch'
 
 // Who the showcase is for - steps 1 and 2 of creating one. Step 3 (the search itself) is the same
 // full-screen map + grid editor used to edit a showcase (ShowcaseMapEditor in create mode).
@@ -17,6 +18,8 @@ export type ShowcaseClientInfo = {
   phone: string
   visitingReason: string
   hasAgent: string
+  /** Email them their Showcase (link + a few homes) the moment it's made. */
+  emailClient: boolean
 }
 
 interface CreateCollectionModalProps {
@@ -53,13 +56,13 @@ export const CreateCollectionModal = memo(function CreateCollectionModal({ isOpe
   const [step, setStep] = useState(0)
   const [dir, setDir] = useState(1)
   const [info, setInfo] = useState<ShowcaseClientInfo>({
-    showcaseName: '', fullName: '', email: '', phone: '', visitingReason: 'BUYING_SOON', hasAgent: 'NO',
+    showcaseName: '', fullName: '', email: '', phone: '', visitingReason: 'BUYING_SOON', hasAgent: 'NO', emailClient: true,
   })
   // The showcase name follows the client's name until the agent types their own.
   const [nameTouched, setNameTouched] = useState(false)
   const first = firstName(info.fullName)
 
-  const set = (field: keyof ShowcaseClientInfo, value: string) => setInfo(prev => {
+  const set = (field: Exclude<keyof ShowcaseClientInfo, 'emailClient'>, value: string) => setInfo(prev => {
     const next = { ...prev, [field]: value }
     if (field === 'fullName' && !nameTouched) {
       const f = firstName(value)
@@ -195,6 +198,16 @@ export const CreateCollectionModal = memo(function CreateCollectionModal({ isOpe
                           {!nameTouched && info.showcaseName && (
                             <p className="ml-1 mt-1.5 text-[11px] font-semibold text-gray-400 dark:text-white/40">Named from your client - change it to anything.</p>
                           )}
+                        </div>
+                        <div className="sm:col-span-2">
+                          <div className="flex items-center gap-3 rounded-2xl border border-[#C9A24D]/30 bg-[#C9A24D]/[0.06] px-4 py-3">
+                            <Mail className="h-4 w-4 shrink-0 text-[#C9A24D]" />
+                            <div className="min-w-0 flex-1 leading-tight">
+                              <p className="text-sm font-black text-[#111827] dark:text-white">Email {first || 'them'} their Showcase</p>
+                              <p className="mt-0.5 text-[11px] font-semibold text-gray-500 dark:text-white/50">When you create it: their link, what it looks for and a few of the homes.</p>
+                            </div>
+                            <OhpSwitch on={info.emailClient} onChange={(v) => setInfo(prev => ({ ...prev, emailClient: v }))} label={`Email ${first || 'them'} their Showcase`} />
+                          </div>
                         </div>
                       </div>
                     ) : (

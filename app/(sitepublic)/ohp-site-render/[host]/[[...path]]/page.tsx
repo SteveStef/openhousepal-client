@@ -56,7 +56,7 @@ import { tidyAllCaps } from '@/lib/cheatSheetContent'
 // Server Component only - this is the entire CORS story for Website Builder (see
 // backend/app/api/public_site_routes.py). INTERNAL_API_URL is server-only (no NEXT_PUBLIC_
 // prefix), never shipped to the browser, distinct from the browser-facing NEXT_PUBLIC_API_URL.
-const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://localhost:8080'
+const INTERNAL_API_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 const OHP_BASE_DOMAIN = process.env.NEXT_PUBLIC_OHP_BASE_DOMAIN || 'openhousepal.com'
 
 interface ResolveResponse {

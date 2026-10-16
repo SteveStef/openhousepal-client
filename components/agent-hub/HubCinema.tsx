@@ -53,12 +53,18 @@ export default function HubCinema({
 
   useEffect(() => { if (state.index >= count && count > 0) setState({ index: 0, prev: null, nonce: 0 }) }, [count, state.index])
 
+  // With the progress segments showing, the running segment itself moves the slider on when it fills,
+  // so a pause carries on exactly where it stopped. Without them (or with reduced motion, where the
+  // segment doesn't animate) a plain timer does it.
+  const [reduceMotion, setReduceMotion] = useState(false)
+  useEffect(() => { setReduceMotion(!!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) }, [])
+  const timerDriven = !showProgress || reduceMotion
   useEffect(() => {
-    if (!autoScroll || count <= 1 || paused || !onScreen) return
+    if (!timerDriven || !autoScroll || count <= 1 || paused || !onScreen) return
     const t = setInterval(() => step(1), intervalMs)
     return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoScroll, count, paused, onScreen, intervalMs])
+  }, [timerDriven, autoScroll, count, paused, onScreen, intervalMs])
 
   // Rest while scrolled off-screen (no timers burning on a long page).
   useEffect(() => {
@@ -68,23 +74,39 @@ export default function HubCinema({
     io.observe(el)
     return () => io.disconnect()
   }, [])
-  useEffect(() => () => { if (resumeTimer.current) clearTimeout(resumeTimer.current) }, [])
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (resumeTimer.current) clearTimeout(resumeTimer.current)
+    if (holdTimer.current) clearTimeout(holdTimer.current)
+  }, [])
 
   const holdPause = () => { if (resumeTimer.current) clearTimeout(resumeTimer.current); setPaused(true) }
   const resumeSoon = (after = 2500) => { if (resumeTimer.current) clearTimeout(resumeTimer.current); resumeTimer.current = setTimeout(() => setPaused(false), after) }
+  const cancelHold = () => { if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null } }
 
+  // A finger only pauses it by resting on it (a real hold) or by swiping it sideways - a finger that
+  // lands on it on the way to scrolling the page leaves it running.
   const onPointerDown = (e: React.PointerEvent) => {
     pointer.current = { x: e.clientX, y: e.clientY, moved: false }
-    if (e.pointerType !== 'mouse') holdPause()
+    if (e.pointerType !== 'mouse') {
+      cancelHold()
+      holdTimer.current = setTimeout(() => { holdTimer.current = null; if (pointer.current && !pointer.current.moved) holdPause() }, 260)
+    }
   }
   const onPointerMove = (e: React.PointerEvent) => {
     const p = pointer.current
     if (!p) return
-    if (Math.abs(e.clientX - p.x) > 10 || Math.abs(e.clientY - p.y) > 10) p.moved = true
+    const dx = Math.abs(e.clientX - p.x), dy = Math.abs(e.clientY - p.y)
+    if (dx > 10 || dy > 10) {
+      p.moved = true
+      cancelHold()
+      if (e.pointerType !== 'mouse' && dx > dy) holdPause()   // a sideways swipe holds it while it's moving
+    }
   }
   const onPointerUp = (e: React.PointerEvent) => {
     const p = pointer.current
     pointer.current = null
+    cancelHold()
     if (!p) return
     const dx = e.clientX - p.x
     const dy = e.clientY - p.y
@@ -108,10 +130,13 @@ export default function HubCinema({
       style={sizing}
       onMouseEnter={holdPause}
       onMouseLeave={() => resumeSoon(400)}
+      // scrolling the page with the mouse over it isn't "looking at it" - keep it going
+      onWheel={() => { if (resumeTimer.current) clearTimeout(resumeTimer.current); setPaused(false) }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={() => { pointer.current = null; resumeSoon() }}
+      // the browser took the finger to scroll the page: it never paused, so nothing to resume
+      onPointerCancel={() => { pointer.current = null; cancelHold(); if (paused) resumeSoon() }}
     >
       <style>{CINEMA_CSS}</style>
       {luxe && <span aria-hidden className="absolute inset-0 rounded-[20px] bg-gradient-to-br from-[var(--m-cream)] via-[rgba(var(--m-rgb),0.45)] to-[var(--m-deep)]" />}
@@ -146,7 +171,9 @@ export default function HubCinema({
           <div className={`hc-prog ${progressTone === 'dark' ? 'is-dark' : ''}`}>
             {slides.map((s, i) => (
               <button key={s.id} type="button" aria-label={`Show ${i + 1} of ${count}`} onClick={e => { e.preventDefault(); e.stopPropagation(); jump(i); holdPause(); resumeSoon(4000) }}>
-                {i === state.index && <i key={`p-${state.nonce}`} style={{ animationDuration: `${intervalMs}ms`, animationPlayState: paused || !autoScroll || !onScreen ? 'paused' : 'running' }} />}
+                {i === state.index && <i key={`p-${state.nonce}`}
+                  style={{ animationDuration: `${intervalMs}ms`, animationPlayState: paused || !autoScroll || !onScreen ? 'paused' : 'running' }}
+                  onAnimationEnd={() => { if (!timerDriven && autoScroll) step(1) }} />}
                 {i < state.index && <span className="done" />}
               </button>
             ))}
@@ -172,11 +199,14 @@ export function HomeOverlay({ luxe = false, status, statusClass, price, title, s
     : `rounded-full px-2.5 py-1 text-[10px] shadow ${statusClass}`
   return (
     <>
-      <Rise as="span" still={still} delay={0.4} className={`absolute left-3 top-3 inline-flex items-center font-black uppercase tracking-wide ${pill}`}>
-        {sold && luxe && <span className="hub-lx-sold-dot" />}<span className="relative">{status}</span>
-      </Rise>
+      {/* status, with the open house (if any) right beside it - never crowding the price */}
+      <div className="absolute left-3 right-3 top-3 flex flex-wrap items-center gap-1.5">
+        <Rise as="span" still={still} delay={0.4} className={`inline-flex items-center font-black uppercase tracking-wide ${pill}`}>
+          {sold && luxe && <span className="hub-lx-sold-dot" />}<span className="relative">{status}</span>
+        </Rise>
+        {badge && <Rise as="span" still={still} delay={0.48} className="flex min-w-0">{badge}</Rise>}
+      </div>
       <div className={`absolute inset-x-4 ${compact ? 'bottom-4' : 'bottom-6'}`}>
-        {badge && <Rise still={still} delay={0.45} className="mb-2 flex">{badge}</Rise>}
         <Rise as="span" still={still} delay={0.5} className={`block h-px w-10 bg-gradient-to-r ${luxe ? 'from-[var(--m-light)]' : 'from-[#e8c97a]'} to-transparent`}>{''}</Rise>
         <Rise as="p" still={still} delay={0.6} className={`mt-2 leading-none ${luxe ? 'hub-lx-price' : 'font-black tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,.35)]'} ${compact ? 'text-[22px]' : 'text-[28px]'}`}>{price}</Rise>
         <Rise as="p" still={still} delay={0.74} className={`mt-1.5 truncate font-serif font-bold text-white/90 ${compact ? 'text-[13px]' : 'text-[15px]'}`}>{title}</Rise>

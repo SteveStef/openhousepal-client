@@ -136,6 +136,8 @@ export default function NotificationBell() {
 
       // Call API to mark as read
       const { success, error } = await api.notifications.markAsRead(id)
+      // Dash and the Activity page catch up right away.
+      if (success) window.dispatchEvent(new Event(LEADS_REFRESH_EVENT))
 
       if (!success) {
         console.error('Failed to mark notification as read:', error)
@@ -156,6 +158,7 @@ export default function NotificationBell() {
 
       // Call API to mark all as read
       const { success, error } = await api.notifications.markAllAsRead()
+      if (success) window.dispatchEvent(new Event(LEADS_REFRESH_EVENT))
 
       if (!success) {
         console.error('Failed to mark all notifications as read:', error)

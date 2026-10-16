@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Globe } from 'lucide-react'
 import AuthGuard from '@/components/AuthGuard'
 import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
@@ -13,6 +13,11 @@ function WebsiteStudioPage() {
   const [actions, setActions] = useState<React.ReactNode>(null)
   const [tab, setTab] = useState<EditorTab>('content')
   const [barEnd, setBarEnd] = useState<React.ReactNode>(null)
+  // ?tab=domains (Settings -> IDX Website shortcuts, setup's "connect my domain") opens that tab.
+  useEffect(() => {
+    const want = new URLSearchParams(window.location.search).get('tab') as EditorTab | null
+    if (want && TABS.some(t => t.id === want)) setTab(want)
+  }, [])
 
   return (
     <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]">

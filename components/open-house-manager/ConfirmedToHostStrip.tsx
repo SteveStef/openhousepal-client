@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { CalendarCheck2, CheckCircle2, FolderOpen, Hammer, StickyNote } from 'lucide-react'
 import api from '@/lib/api-service'
 import type { HostRequest, OpenHouse } from '@/types'
+import { todayLocal } from '@/lib/relativeDays'
 
 // Upcoming opens a listing agent approved you to host - right above Your Opens. Kits are
 // evergreen (one per home, reused for every date - no reprinting), so each date shows either
@@ -31,7 +32,7 @@ export default function ConfirmedToHostStrip({ openHouses, onBuild, onOpenKit, a
     api.openHouseManager.getMyRequests().then(({ success, data }) => { if (success && data) setRequests(data) })
   }, [])
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocal()
   const upcoming = requests
     .filter(r => r.status === 'approved' && String(r.requested_date) >= today)
     .sort((a, b) => String(a.requested_date).localeCompare(String(b.requested_date)))

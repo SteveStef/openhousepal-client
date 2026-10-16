@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // ask_about_site_property) - same reason as the GET next door: a site can live on any hostname,
 // so the browser only ever talks to its own origin. The visitor's IP is passed along so the
 // backend's per-visitor submit limit counts them, not this server.
-const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://localhost:8080'
+const INTERNAL_API_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ siteId: string; listingKey: string }> }) {
   const { siteId, listingKey } = await params

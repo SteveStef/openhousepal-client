@@ -2,14 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, X, Loader2, Inbox, History, Users, Home, Star, Save, AlertTriangle, CalendarClock, Send, Search, Trash2, ChevronLeft, ChevronRight, Info, User } from 'lucide-react'
+import { ArrowLeft, X, Loader2, Inbox, History, Users, Home, Star, Save, AlertTriangle, CalendarClock, Send, Search, Trash2, ChevronLeft, ChevronRight, ChevronDown, Info, PencilLine, User } from 'lucide-react'
 import api from '@/lib/api-service'
 import { useToast } from '@/contexts/ToastContext'
 import { AgentSearchResult, Broadcast, ListingDetail, ScheduledOpen, TeamMember, TrustedHost } from '@/types'
 import HostRequestCard from './HostRequestCard'
 import GuestDetailsToggle from './GuestDetailsToggle'
 import EmptyState from './EmptyState'
-import WeekendCalendarCards, { WeekendCell, WeekendCalendarOpen } from './WeekendCalendarCards'
+import WeekendCalendarCards, { WeekendCell, WeekendCalendarOpen, hostingNote, type HostingWindow } from './WeekendCalendarCards'
+import { todayLocal } from '@/lib/relativeDays'
 import TakenDatesPicker from './TakenDatesPicker'
 import InfoTooltip from './InfoTooltip'
 import { formatEventDate, formatDuration, formatTime, TIME_SLOT_OPTIONS, endTimeOptionsFor } from './formatters'
@@ -23,6 +24,7 @@ export default function ManageHostsModal({
   onActionComplete,
   prefillDirectDate,
   focusHostNotes,
+  hostingWindow,
 }: {
   listingKey: string | null
   onClose: () => void
@@ -33,6 +35,8 @@ export default function ManageHostsModal({
   // Set when the agent clicked an already-filled weekend cell - jumps to Host Notes since that's
   // the thing worth their attention there (see the warning banner on that section).
   focusHostNotes?: boolean
+  // Coming Soon / under contract - days it can't be shown are locked on the calendar.
+  hostingWindow?: HostingWindow
 }) {
   const { showToast } = useToast()
   const [detail, setDetail] = useState<ListingDetail | null>(null)
@@ -74,6 +78,10 @@ export default function ManageHostsModal({
   const hostNotesSectionRef = useRef<HTMLDivElement>(null)
   const [directHighlight, setDirectHighlight] = useState(false)
   const [notesHighlight, setNotesHighlight] = useState(false)
+  // Host Notes sit half-open (a nudge when empty, a preview when written) - the editor opens on tap.
+  const [notesOpen, setNotesOpen] = useState(false)
+  // Hosting history starts folded - it's looked at far less than requests and finding a host.
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   // Accepted teammates get their own starred row above "Hosted for you before," sorted by who's
   // hosted the most FOR THIS AGENT specifically - reuses the same times_hosted the trusted-hosts
@@ -169,7 +177,7 @@ export default function ManageHostsModal({
     } else if (focusHostNotes) {
       setTimeout(() => {
         hostNotesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        setNotesHighlight(true)
+        setNotesHighlight(true); setNotesOpen(true)
         setTimeout(() => setNotesHighlight(false), 2000)
       }, 200)
     }
@@ -202,7 +210,7 @@ export default function ManageHostsModal({
   const handleSendDirectRequest = async () => {
     if (isSendingDirectRef.current) return
     if (!listingKey || (!directTargetAgent && !sendToWholeTeam) || !directDate || (!directIsAnytime && (!directStart || !directEnd))) {
-      showToast('Pick an agent, date, and time window first (or mark it Anytime).', 'error')
+      showToast('Pick a day and time (or Anytime), then who to ask.', 'error')
       return
     }
     isSendingDirectRef.current = true
@@ -302,6 +310,7 @@ export default function ManageHostsModal({
     })
     if (success && data) {
       setDetail(prev => prev ? { ...prev, notes: data } : prev)
+      setNotesOpen(false)
       showToast('Host notes saved.', 'success')
       onActionComplete()
     } else {
@@ -313,7 +322,7 @@ export default function ManageHostsModal({
   const handleCalendarCellClick = (cell: WeekendCell, open?: WeekendCalendarOpen) => {
     if (open) {
       hostNotesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      setNotesHighlight(true)
+      setNotesHighlight(true); setNotesOpen(true)
       setTimeout(() => setNotesHighlight(false), 2000)
     } else {
       setDirectDate(cell.date)
@@ -322,6 +331,17 @@ export default function ManageHostsModal({
       setTimeout(() => setDirectHighlight(false), 2000)
     }
   }
+
+  // Coming Soon: no days before it goes live (the server refuses them anyway).
+  const firstHostableDay = hostingWindow?.hosts_from && hostingWindow.hosts_from > todayLocal() ? hostingWindow.hosts_from : undefined
+  const askReady = !!directDate && (directIsAnytime || (!!directStart && !!directEnd)) && (sendToWholeTeam || !!directTargetAgent)
+  const askLabel = !directDate || (!directIsAnytime && (!directStart || !directEnd))
+    ? 'Pick a day and time'
+    : !sendToWholeTeam && !directTargetAgent
+      ? 'Choose who to ask'
+      : sendToWholeTeam
+        ? (teamHosts.length === 1 ? 'Ask your teammate' : `Ask all ${teamHosts.length} teammates`)
+        : `Ask ${directTargetAgent!.name.split(' ')[0]}`
 
   const allOpens: ScheduledOpen[] = detail ? [...detail.scheduled_opens, ...detail.confirmed_pending_kit] : []
   // A kit that's been reused so much its own recorded date got cleared back to "evergreen" (see
@@ -415,7 +435,8 @@ export default function ManageHostsModal({
                   </div>
 
                   <p className="mb-2 text-[9px] font-black uppercase tracking-widest text-gray-400">This weekend / Next weekend</p>
-                  <WeekendCalendarCards opens={allOpens} onCellClick={handleCalendarCellClick} />
+                  <WeekendCalendarCards opens={allOpens} onCellClick={handleCalendarCellClick} hostingWindow={hostingWindow}
+                    pendingDates={detail.pending_requests.map(r => String(r.requested_date))} pendingLabel="Request in" pendingTitle="An agent asked to host this date - see the request above" />
 
                   {datedOpens.length === 0 ? (
                     <div className="mt-3 flex-1">
@@ -487,13 +508,17 @@ export default function ManageHostsModal({
                   className="flex flex-col rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#151517] p-4 sm:p-5 shadow-sm"
                 >
                   <div className="mb-3 flex items-center justify-between gap-2">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-[#111827] dark:text-white">Host Notes</h3>
+                    <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-[#111827] dark:text-white">Host Notes
+                      {!(detail.notes.notes || '').trim() && !notesOpen && <span className="rounded-full bg-[#C9A24D] px-2 py-0.5 text-[9px] font-black tracking-widest text-white">Empty</span>}
+                    </h3>
                     {detail.notes.updated_at && (
                       <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
                         Updated {new Date(detail.notes.updated_at).toLocaleDateString()}
                       </span>
                     )}
                   </div>
+                  {notesOpen ? (
+                  <>
                   <div className="mb-3 flex items-start gap-2 rounded-xl border border-blue-100 dark:border-blue-500/20 bg-blue-50/60 dark:bg-blue-500/5 p-2.5">
                     <Info size={13} className="mt-0.5 shrink-0 text-blue-500" />
                     <p className="text-[10px] font-semibold leading-snug text-blue-700 dark:text-blue-300">
@@ -501,6 +526,7 @@ export default function ManageHostsModal({
                     </p>
                   </div>
                   <textarea
+                    autoFocus
                     value={notesDraft}
                     onChange={e => setNotesDraft(e.target.value)}
                     rows={5}
@@ -509,6 +535,13 @@ export default function ManageHostsModal({
                   />
                   <div className="mt-3 flex items-center justify-end gap-3">
                     <button
+                      onClick={() => { setNotesDraft(detail.notes.notes || ''); setNotesOpen(false) }}
+                      disabled={isSavingNotes}
+                      className="px-3 py-2 text-xs font-black text-gray-500 hover:text-gray-700 dark:hover:text-white disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
                       onClick={handleSaveNotes}
                       disabled={isSavingNotes}
                       className="inline-flex items-center gap-1.5 rounded-xl bg-[#111827] dark:bg-white px-4 py-2 text-xs font-black text-white dark:text-[#111827] transition hover:bg-black dark:hover:bg-gray-200 disabled:opacity-50"
@@ -516,26 +549,96 @@ export default function ManageHostsModal({
                       {isSavingNotes ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />} Save Notes
                     </button>
                   </div>
+                  </>
+                  ) : (detail.notes.notes || '').trim() ? (
+                    <button onClick={() => setNotesOpen(true)} className="group flex flex-1 flex-col text-left">
+                      <p className="line-clamp-4 whitespace-pre-line rounded-xl bg-gray-50 dark:bg-white/5 p-3 text-sm font-medium text-gray-700 dark:text-gray-200">{detail.notes.notes}</p>
+                      <span className="mt-2 text-xs font-black text-[#8b7355] group-hover:underline dark:text-[#e8cf8a]">Edit notes</span>
+                    </button>
+                  ) : (
+                    <div className="flex flex-1 flex-col justify-between gap-3 rounded-xl border-2 border-dashed border-[#C9A24D]/60 bg-[#C9A24D]/5 p-4">
+                      <p className="text-sm font-semibold leading-snug text-[#5c4a30] dark:text-[#e8cf8a]">
+                        Hosts need this to get in. Add the lockbox code, parking, and anything else they should know.
+                      </p>
+                      <button onClick={() => setNotesOpen(true)}
+                        className="inline-flex items-center justify-center gap-1.5 self-start rounded-xl bg-[#C9A24D] px-4 py-2 text-xs font-black text-white transition hover:bg-[#b08b3a]">
+                        <PencilLine size={13} /> Write host notes
+                      </button>
+                    </div>
+                  )}
                 </motion.section>
               </div>
 
-              {/* Direct Request - its own full-width section. */}
+              {/* Find a Host - one step for both ways of asking: pick the day, then pick one agent
+                  or the whole team. (Agents can still ask on their own from Discovery.) */}
               <motion.section
                 ref={directRequestSectionRef}
                 animate={directHighlight ? { boxShadow: ['0 0 0 0px rgba(201,162,77,0)', '0 0 0 4px rgba(201,162,77,0.5)', '0 0 0 0px rgba(201,162,77,0)'] } : {}}
                 transition={{ duration: 2 }}
                 className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#151517] p-4 sm:p-5 shadow-sm"
               >
-                <div className="mb-3 flex items-center gap-2">
-                  <Send size={15} className="text-[#C9A24D]" />
-                  <h3 className="text-sm font-black uppercase tracking-widest text-[#111827] dark:text-white">Direct Request</h3>
+                <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <div className="flex items-center gap-2">
+                    <Send size={15} className="text-[#C9A24D]" />
+                    <h3 className="text-sm font-black uppercase tracking-widest text-[#111827] dark:text-white">Find a Host</h3>
+                  </div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Pick a day, then who to ask.</p>
                 </div>
+                {hostingWindow?.hosting_blocked ? (
+                  <EmptyState compact icon={CalendarClock} title="Not taking hosts right now" description={hostingNote(hostingWindow) || 'This home can\'t be shown right now.'} />
+                ) : (
+                <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8cf8a]">1 · When</p>
+                    <div className="flex flex-wrap gap-2">
+                      <div className="min-w-[140px] flex-1">
+                        <TakenDatesPicker value={directDate} onChange={setDirectDate} takenDates={takenDates} minDate={firstHostableDay} />
+                      </div>
+                      {!directIsAnytime && (
+                        <>
+                          <TimeSelect
+                            value={directStart}
+                            onChange={handleDirectStartChange}
+                            options={TIME_SLOT_OPTIONS}
+                            placeholder="Start"
+                            className="flex-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-2 py-2 text-xs font-semibold outline-none focus:border-[#C9A24D] dark:text-white"
+                          />
+                          <TimeSelect
+                            value={directEnd}
+                            onChange={setDirectEnd}
+                            options={endTimeOptionsFor(directStart)}
+                            placeholder="End"
+                            disabled={!directStart}
+                            className="flex-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-2 py-2 text-xs font-semibold outline-none focus:border-[#C9A24D] dark:text-white disabled:opacity-50"
+                          />
+                        </>
+                      )}
+                    </div>
+                    <label className="flex cursor-pointer items-center gap-2 px-0.5">
+                      <input
+                        type="checkbox"
+                        checked={directIsAnytime}
+                        onChange={e => setDirectIsAnytime(e.target.checked)}
+                        className="h-3.5 w-3.5 shrink-0 accent-[#C9A24D]"
+                      />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Anytime - I don't care what time</span>
+                    </label>
+                    <textarea
+                      value={directMessage}
+                      onChange={e => setDirectMessage(e.target.value)}
+                      placeholder="Optional note..."
+                      rows={2}
+                      className="w-full resize-none rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-3 py-2 text-xs font-medium outline-none focus:border-[#C9A24D] dark:text-white"
+                    />
+                  </div>
+
+                  <div className="space-y-2 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8cf8a]">2 · Who</p>
                     {(directTargetAgent || sendToWholeTeam) ? (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between gap-2 rounded-lg bg-[#C9A24D]/10 px-3 py-2">
-                          <span className="text-sm font-black text-[#8b7355] dark:text-[#e8cf8a]">{sendToWholeTeam ? 'Your Entire Team' : directTargetAgent!.name}</span>
+                          <span className="text-sm font-black text-[#8b7355] dark:text-[#e8cf8a]">{sendToWholeTeam ? `Your whole team (${teamHosts.length})` : directTargetAgent!.name}</span>
                           <button onClick={() => { setDirectTargetAgent(null); setSendToWholeTeam(false) }} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
                         </div>
                         {/* Sending to the entire team pings everyone at once - show exactly who
@@ -570,9 +673,9 @@ export default function ManageHostsModal({
                               onClick={() => setSendToWholeTeam(true)}
                               className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[#C9A24D] bg-[#C9A24D]/10 px-3 py-3 text-xs font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8cf8a] transition hover:bg-[#C9A24D]/20 active:scale-[0.99]"
                             >
-                              <Users size={15} /> Send to Entire Team
+                              <Users size={15} /> My Whole Team ({teamHosts.length})
                             </button>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Your Team</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Or one teammate</p>
                             <div className="relative flex items-center">
                               {teamHostsOverflow && (
                                 <button
@@ -658,7 +761,7 @@ export default function ManageHostsModal({
                           <input
                             value={directSearchQuery}
                             onChange={e => setDirectSearchQuery(e.target.value)}
-                            placeholder="Search by name, email, or MLS ID..."
+                            placeholder="Or search any agent: name, email, MLS ID..."
                             className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] py-2 pl-8 pr-3 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:text-white"
                           />
                         </div>
@@ -679,56 +782,16 @@ export default function ManageHostsModal({
                       </>
                     )}
                   </div>
+                </div>
 
-                  <div className="space-y-2 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-                    <div className="flex flex-wrap gap-2">
-                      <div className="min-w-[140px] flex-1">
-                        <TakenDatesPicker value={directDate} onChange={setDirectDate} takenDates={takenDates} />
-                      </div>
-                      {!directIsAnytime && (
-                        <>
-                          <TimeSelect
-                            value={directStart}
-                            onChange={handleDirectStartChange}
-                            options={TIME_SLOT_OPTIONS}
-                            placeholder="Start"
-                            className="flex-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-2 py-2 text-xs font-semibold outline-none focus:border-[#C9A24D] dark:text-white"
-                          />
-                          <TimeSelect
-                            value={directEnd}
-                            onChange={setDirectEnd}
-                            options={endTimeOptionsFor(directStart)}
-                            placeholder="End"
-                            disabled={!directStart}
-                            className="flex-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-2 py-2 text-xs font-semibold outline-none focus:border-[#C9A24D] dark:text-white disabled:opacity-50"
-                          />
-                        </>
-                      )}
-                    </div>
-                    <label className="flex cursor-pointer items-center gap-2 px-0.5">
-                      <input
-                        type="checkbox"
-                        checked={directIsAnytime}
-                        onChange={e => setDirectIsAnytime(e.target.checked)}
-                        className="h-3.5 w-3.5 shrink-0 accent-[#C9A24D]"
-                      />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Anytime - I don't care what time</span>
-                    </label>
-                    <textarea
-                      value={directMessage}
-                      onChange={e => setDirectMessage(e.target.value)}
-                      placeholder="Optional note..."
-                      rows={2}
-                      className="w-full resize-none rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-3 py-2 text-xs font-medium outline-none focus:border-[#C9A24D] dark:text-white"
-                    />
-                    <button
-                      onClick={handleSendDirectRequest}
-                      disabled={isSendingDirect || (!directTargetAgent && !sendToWholeTeam)}
-                      className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#111827] dark:bg-white px-3 py-2.5 text-xs font-black text-white dark:text-[#111827] transition hover:bg-black dark:hover:bg-gray-200 disabled:opacity-50"
-                    >
-                      {isSendingDirect ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Send Request
-                    </button>
-                    {openBroadcasts.length > 0 && (
+                <button
+                  onClick={handleSendDirectRequest}
+                  disabled={isSendingDirect || !askReady}
+                  className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#111827] dark:bg-white px-3 py-3 text-xs font-black text-white dark:text-[#111827] transition hover:bg-black dark:hover:bg-gray-200 disabled:opacity-50"
+                >
+                  {isSendingDirect ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} {askLabel}
+                </button>
+                {openBroadcasts.length > 0 && <div className="mt-3">
                       <div>
                         <p className="mb-1.5 text-[9px] font-black uppercase tracking-widest text-gray-400">Awaiting a response</p>
                         {/* Capped to ~2 visible rows with a scroll for the rest - this list can
@@ -754,18 +817,22 @@ export default function ManageHostsModal({
                           ))}
                         </div>
                       </div>
-                    )}
-                  </div>
-                </div>
+                </div>}
+                </>
+                )}
               </motion.section>
 
               {/* Agents Who Have Hosted Here - its own full-width section. */}
-              <section className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#151517] p-4 sm:p-5 shadow-sm">
-                <div className="mb-3 flex items-center gap-2">
+              <section className="space-y-3 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#151517] p-4 sm:p-5 shadow-sm">
+                <button onClick={() => setHistoryOpen(v => !v)} aria-expanded={historyOpen} className="flex w-full items-center gap-2 text-left">
                   <History size={15} className="text-[#C9A24D]" />
                   <h3 className="text-sm font-black uppercase tracking-widest text-[#111827] dark:text-white">Agents Who Have Hosted Here</h3>
-                </div>
-                {hostingHistory.length === 0 ? (
+                  {hostingHistory.length > 0 && (
+                    <span className="rounded-full bg-[#C9A24D]/15 px-2 py-0.5 text-[10px] font-black text-[#8b7355] dark:text-[#e8cf8a]">{hostingHistory.length}</span>
+                  )}
+                  <ChevronDown size={16} className={`ml-auto shrink-0 text-gray-400 transition-transform ${historyOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {!historyOpen ? null : hostingHistory.length === 0 ? (
                   <EmptyState compact icon={Users} title="No hosting history yet" description="Once an open house happens here, hosting agents and their visitor stats will show up here." />
                 ) : (
                   <>

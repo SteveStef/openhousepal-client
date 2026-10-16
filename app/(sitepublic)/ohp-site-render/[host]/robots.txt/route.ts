@@ -1,7 +1,7 @@
 // robots.txt for an agent's IDX site (proxy.ts rewrites <agent-domain>/robots.txt here): points
 // search engines at the sitemap, or keeps them out when the agent turned indexing off.
 
-const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://localhost:8080'
+const INTERNAL_API_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ host: string }> }) {
   const { host: rawHost } = await params

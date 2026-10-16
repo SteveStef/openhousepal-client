@@ -7,7 +7,8 @@ import { ReactNode, Suspense, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
-import { AlertCircle, ArrowUpRight, Bell, BellRing, CalendarClock, Camera, Check, ChevronDown, CircleUser, CreditCard, Globe, Loader2, Lock, Plug, Settings as SettingsIcon, Star, ToolCase } from 'lucide-react'
+import { AlertCircle, ArrowUpRight, Bell, CalendarClock, Camera, Check, ChevronDown, CircleUser, Copy, CreditCard, Globe, Layers, Loader2, Lock, MapPin, Palette, Plug, Search, Settings as SettingsIcon, Star, ToolCase } from 'lucide-react'
+import { OHP_SUBDOMAINS_LIVE, ohpHostUrl } from '@/lib/publicResourceLinks'
 import type { NotificationPreferences, Site } from '@/types'
 import { useToolConnectionStatus } from '@/lib/toolsStatus'
 import { BIO_MAX_CHARS, fitBio } from '@/lib/agentBio'
@@ -31,6 +32,7 @@ import MyListingsPanel from '@/components/agent-hub/MyListingsPanel'
 import ListingLinkRoutingPanel from '@/components/agent-hub/ListingLinkRoutingPanel'
 import BillingPanel from '@/components/settings/BillingPanel'
 import { useSettingsCompleteness } from '@/hooks/useSettingsCompleteness'
+import { toJpeg } from '@/components/setup/SetupUi'
 
 // The "IDX Website" settings tab (IDX plan only). Answers three real questions for an IDX agent
 // in one glance - is my site actually live, what's my address, and is my custom domain's DNS
@@ -55,12 +57,18 @@ function IdxTab() {
   }, [linkDomain.state?.current_base_url])
 
   const isPublished = site?.status === 'PUBLISHED'
+  // The website's own address (never the links base, which is openhousepal.com for most agents):
+  // their connected domain once it's live, otherwise the free <slug>.openhousepal.com.
+  const siteHost = (() => {
+    const u = linkDomain.state?.own_base_url || linkDomain.state?.default_base_url
+    try { return u ? new URL(u).host : '' } catch { return '' }
+  })()
+  const siteLink = siteHost ? ohpHostUrl(siteHost) : ''
+  const [copied, setCopied] = useState(false)
 
   return (
     <div id="idx" className="scroll-mt-24 space-y-4">
       <IdxSiteSwitch linkDomain={linkDomain} />
-
-      {siteOn && <IdxDomainNotice baseUrl={baseUrl} defaultOpen />}
 
       {/* Site status + address - the two things worth knowing at a glance before digging into DNS. */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
@@ -79,29 +87,40 @@ function IdxTab() {
                 {isPublished ? 'Published & live' : 'Draft — not published yet'}
               </span>
             )}
-            {siteOn ? (
-              <p className="mt-2 break-all font-mono text-xs font-bold text-[#8b7355] dark:text-[#d7b974]">{baseUrl || 'Loading…'}</p>
-            ) : (
-              <p className="mt-2 break-all font-mono text-xs font-bold text-gray-400 line-through">{linkDomain.state?.default_base_url}</p>
-            )}
+            {siteHost ? (
+              <div className="mt-2 flex min-w-0 items-center gap-1.5">
+                <p className={`break-all font-mono text-[13px] font-bold ${siteOn ? 'text-[#8b7355] dark:text-[#d7b974]' : 'text-gray-400 line-through'}`}>{siteHost}</p>
+                {siteOn && (
+                  <button type="button" title="Copy my website address" onClick={() => { navigator.clipboard?.writeText(siteLink).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) }).catch(() => {}) }}
+                    className="inline-flex shrink-0 items-center justify-center rounded-lg border border-gray-200 p-1 text-gray-400 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/10">
+                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                )}
+              </div>
+            ) : <p className="mt-2 text-xs font-bold text-gray-400">Loading…</p>}
             {isPublished && site?.published_at && (
               <p className="mt-1 text-xs font-semibold text-gray-400">Last published {new Date(site.published_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
             )}
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
-            {baseUrl && siteOn && isPublished && (
-              <a href={baseUrl} target="_blank" rel="noopener noreferrer" className="group inline-flex items-center gap-1.5 rounded-xl bg-[#111827] px-3.5 py-2.5 text-[11px] font-black uppercase tracking-wide text-white transition hover:bg-[#C9A24D] hover:text-[#111827] dark:bg-white dark:text-[#111827]">
-                <ArrowUpRight className="ohp-icon-draw h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /> View Live Site
+            {siteLink && siteOn && isPublished && (
+              <a href={siteLink} target="_blank" rel="noopener noreferrer" className="group inline-flex items-center gap-1.5 rounded-xl bg-[#111827] px-3.5 py-2.5 text-[11px] font-black uppercase tracking-wide text-white transition hover:bg-[#C9A24D] hover:text-[#111827] dark:bg-white dark:text-[#111827]">
+                <ArrowUpRight className="ohp-icon-draw h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /> View My Website
               </a>
             )}
-            <Link href="/studio/site" className="group inline-flex items-center gap-1.5 rounded-xl border border-gray-200 px-3.5 py-2.5 text-[11px] font-black uppercase tracking-wide text-gray-600 transition hover:border-[#C9A24D] hover:text-[#111827] dark:border-gray-700 dark:text-gray-300 dark:hover:text-white">
-              <Globe className="ohp-icon-draw h-3.5 w-3.5" /> Edit Site
+            <Link href="/studio/website" className="group inline-flex items-center gap-1.5 rounded-xl border border-gray-200 px-3.5 py-2.5 text-[11px] font-black uppercase tracking-wide text-gray-600 transition hover:border-[#C9A24D] hover:text-[#111827] dark:border-gray-700 dark:text-gray-300 dark:hover:text-white">
+              <Globe className="ohp-icon-draw h-3.5 w-3.5" /> Edit My Website
             </Link>
           </div>
         </div>
         {siteOn && !isPublished && !siteLoading && (
           <p className="mt-3 text-xs font-semibold text-gray-500 dark:text-gray-400">
-            Your site is still in draft - visitors won&apos;t see it until you publish from the website builder.
+            Your site is still in draft - visitors won&apos;t see it until you publish from the website editor.
+          </p>
+        )}
+        {siteOn && isPublished && !OHP_SUBDOMAINS_LIVE && !linkDomain.state?.own_base_url && (
+          <p className="mt-3 text-xs font-semibold text-gray-500 dark:text-gray-400">
+            Your own address switches on soon. Until then, &ldquo;View My Website&rdquo; opens the very same site on openhousepal.com.
           </p>
         )}
       </div>
@@ -111,6 +130,32 @@ function IdxTab() {
       <IdxDomainCard linkDomain={linkDomain}>
         {site && <DomainsPanel subdomainSlug={site.subdomain_slug} />}
       </IdxDomainCard>
+
+      {/* Settings keeps the basics; everything else lives in the website editor - one tap to each part. */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">More website settings</p>
+        <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">Everything else about your website is in the website editor. Jump straight to:</p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {([
+            ['content', Layers, 'Pages & sections', 'Your home page, About, Contact'],
+            ['design', Palette, 'Look & colors', 'Classic or Luxe, light or dark'],
+            ['featured', Star, 'Featured homes', 'Header homes and your Featured page'],
+            ['areas', MapPin, 'Towns you serve', 'Town pages and local data'],
+            ['search', Search, 'Google', 'Search titles and descriptions'],
+            ['domains', Globe, 'Domain', 'Connect a domain you own'],
+          ] as const).map(([id, Icon, title, blurb]) => (
+            <Link key={id} href={`/studio/website?tab=${id}`} className="group flex items-start gap-3 rounded-xl border border-gray-100 p-3 transition hover:-translate-y-0.5 hover:border-[#C9A24D]/60 dark:border-gray-800">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#d7b974]"><Icon className="h-4 w-4" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1 text-[13px] font-black text-[#111827] dark:text-white">{title}<ArrowUpRight className="h-3.5 w-3.5 text-gray-300 transition group-hover:text-[#C9A24D]" /></span>
+                <span className="block text-[11.5px] font-semibold text-gray-400">{blurb}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {siteOn && <IdxDomainNotice baseUrl={baseUrl} subtle />}
     </div>
   )
 }
@@ -322,13 +367,23 @@ export default function SettingsPage() {
     })
   }, [user])
 
+  // Every save on this page reads the whole Agent Hub config fresh and writes it back, so two saves
+  // running at once (Profile + Contact autosaves, a Social Links edit) could each read the old
+  // config and the later write would undo the earlier one. They queue up and run one at a time.
+  const saveQueue = useRef<Promise<unknown>>(Promise.resolve())
+  const queueSave = <T,>(job: () => Promise<T>): Promise<T> => {
+    const run = saveQueue.current.then(job, job)
+    saveQueue.current = run.catch(() => undefined)
+    return run
+  }
+
   // Fetches the current config fresh (so we never clobber sections this page doesn't manage,
   // like videos/tours/blogs from the full Agent Hub editor) and merges the given patch into it.
-  const saveHubConfigPatch = async (patch: Record<string, any>) => {
+  const saveHubConfigPatch = (patch: Record<string, any>) => queueSave(async () => {
     const current = await api.agentHub.getMine()
     const config = (current.success && current.data?.config ? current.data.config : {}) as any
     await api.agentHub.saveConfig({ ...config, ...patch })
-  }
+  })
 
   const handleSaveRecentSales = async (overrides?: { recentSales?: AgentSale[]; showSalesStats?: boolean; salesCarousel?: boolean; salesAutoScroll?: boolean; salesMinPrice?: number }) => {
     const nextRecentSales = overrides?.recentSales ?? recentSales
@@ -366,12 +421,10 @@ export default function SettingsPage() {
     })
   }
 
+  // Saved by the debounced autosave below - one save after the agent stops typing a link, not
+  // one per keystroke.
   const updateSocialLink = (id: string, updates: Partial<SocialLink>) => {
-    setSocialLinks(current => {
-      const next = current.map(link => link.id === id ? { ...link, ...updates } : link)
-      saveHubConfigPatch({ socialLinks: next.map(({ id, label, url, enabled }) => ({ id, label, url, enabled })) })
-      return next
-    })
+    setSocialLinks(current => current.map(link => link.id === id ? { ...link, ...updates } : link))
   }
 
   const updateProfileField = (field: keyof typeof profile, value: string) => {
@@ -394,13 +447,15 @@ export default function SettingsPage() {
     setProfileSaved(false)
     const timer = setTimeout(async () => {
       setProfileSaving(true)
-      const current = await api.agentHub.getMine()
-      const config = (current.success && current.data?.config ? current.data.config : {}) as any
-      const nextConfig = { ...config, profile: { ...config.profile, ...profile }, profilePhotoUrl, profilePhotoPosition }
-      await Promise.all([
-        api.agentHub.saveConfig(nextConfig),
-        api.agentHub.updateProfile({ title: profile.title, market: profile.market, name: profile.name, brokerage: profile.brokerage }),
-      ])
+      await queueSave(async () => {
+        const current = await api.agentHub.getMine()
+        const config = (current.success && current.data?.config ? current.data.config : {}) as any
+        const nextConfig = { ...config, profile: { ...config.profile, ...profile }, profilePhotoUrl, profilePhotoPosition }
+        await Promise.all([
+          api.agentHub.saveConfig(nextConfig),
+          api.agentHub.updateProfile({ title: profile.title, market: profile.market, name: profile.name, brokerage: profile.brokerage }),
+        ])
+      })
       setProfileSaving(false)
       setProfileSaved(true)
     }, 700)
@@ -423,15 +478,17 @@ export default function SettingsPage() {
       setContactSaving(true)
       // The office line lives on the Save Contact card (same place the setup flow saves it); Studio
       // prints it on every mailer / flyer / door hanger.
-      const current = await api.agentHub.getMine()
-      const config = (current.success && current.data?.config ? current.data.config : {}) as any
-      const card = config.contactCard || {}
-      const fields = card.fields || {}
-      const office = contact.officePhone.trim()
-      await api.agentHub.saveConfig({
-        ...config,
-        contact: { ...(config.contact || {}), call: contact.call, text: contact.text, email: contact.email },
-        contactCard: { ...card, fields: { ...fields, officePhone: { ...(fields.officePhone || {}), value: office, include: !!office } } },
+      await queueSave(async () => {
+        const current = await api.agentHub.getMine()
+        const config = (current.success && current.data?.config ? current.data.config : {}) as any
+        const card = config.contactCard || {}
+        const fields = card.fields || {}
+        const office = contact.officePhone.trim()
+        await api.agentHub.saveConfig({
+          ...config,
+          contact: { ...(config.contact || {}), call: contact.call, text: contact.text, email: contact.email },
+          contactCard: { ...card, fields: { ...fields, officePhone: { ...(fields.officePhone || {}), value: office, include: !!office } } },
+        })
       })
       setContactSaving(false)
       setContactSaved(true)
@@ -445,11 +502,33 @@ export default function SettingsPage() {
     return () => clearTimeout(timer)
   }, [contactSaved])
 
+  // Social Links - same debounced autosave (a switch flip or a typed link saves once it settles).
+  const socialLoadedRef = useRef(false)
+  useEffect(() => {
+    if (loading) return
+    if (!socialLoadedRef.current) { socialLoadedRef.current = true; return }
+    const timer = setTimeout(() => {
+      saveHubConfigPatch({ socialLinks: socialLinks.map(({ id, label, url, enabled }) => ({ id, label, url, enabled })) })
+    }, 700)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socialLinks, loading])
+
   const handleProfilePhotoChange = async (file?: File) => {
     if (!file) return
     setPhotoUploading(true)
     setPhotoError('')
-    const response = await api.agentHub.uploadPhoto(file)
+    // Same as the setup flow: any phone photo (PNG, WebP, a 12 MB camera shot) is turned into a
+    // right-sized JPG first, instead of being turned away.
+    let jpg: File = file
+    try {
+      if (!(file.type === 'image/jpeg' && file.size < 4.5 * 1024 * 1024)) jpg = await toJpeg(file)
+    } catch {
+      setPhotoError('That photo couldn’t be read - please try a JPG or PNG.')
+      setPhotoUploading(false)
+      return
+    }
+    const response = await api.agentHub.uploadPhoto(jpg)
     if (response.success && response.data) {
       const url = response.data.photo_url.startsWith('http') ? response.data.photo_url : `${API_BASE_URL}${response.data.photo_url}`
       setProfilePhotoUrl(url)
@@ -613,14 +692,17 @@ export default function SettingsPage() {
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-gray-700 dark:text-gray-300">Profile photo</p>
                         <p className="text-xs font-semibold text-gray-400">Drag the circle to reposition if it looks off-centered.</p>
-                        <input
-                          type="file"
-                          accept="image/jpeg"
-                          disabled={photoUploading}
-                          onChange={(event) => handleProfilePhotoChange(event.target.files?.[0])}
-                          className="mt-2 block w-full cursor-pointer text-sm font-semibold transition-transform active:scale-[0.98] file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-[#111827] file:px-3 file:py-2 file:text-sm file:font-black file:text-white file:transition-colors file:duration-150 hover:file:bg-black disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-300 dark:file:bg-white dark:file:text-[#111827] dark:hover:file:bg-gray-200"
-                        />
-                        {photoUploading && <p className="mt-2 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading...</p>}
+                        <label className={`mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[#111827] px-3 py-2 text-xs font-black text-white transition hover:bg-black active:scale-[0.98] dark:bg-white dark:text-[#111827] dark:hover:bg-gray-200 ${photoUploading ? 'pointer-events-none opacity-50' : 'cursor-pointer'}`}>
+                          {photoUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                          {photoUploading ? 'Uploading…' : profilePhotoUrl ? 'Change photo' : 'Upload photo'}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            disabled={photoUploading}
+                            onChange={(event) => { handleProfilePhotoChange(event.target.files?.[0]); event.target.value = '' }}
+                            className="sr-only"
+                          />
+                        </label>
                         {photoError && <p className="mt-2 text-xs font-bold text-red-600">{photoError}</p>}
                       </div>
                     </div>
@@ -880,33 +962,35 @@ function Toggle({ on, onClick, disabled = false, label }: { on: boolean; onClick
 function ToolsStatusSection({ planTier }: { planTier?: string }) {
   // Shared with the Tools page's own Calendar/Reviews/Integrations cards (lib/toolsStatus.ts) -
   // one fetch-and-compute, so the two can't show different answers for the same connection.
-  const { loading, calendarStatus, calendarOk, reviewsStatus, reviewsOk, reviewsAvailable, integrationsStatus, integrationsOk } = useToolConnectionStatus(planTier)
-  // Follow-ups: how many automatic situations are on + how a set-time one buzzes the phone.
-  const [followups, setFollowups] = useState<{ on: number; total: number; alerts: string } | null>(null)
+  // Follow-ups' status line comes from the same shared hook as the Tools page (it knows a phone
+  // alert needs a connected calendar) - this used to be worked out separately here and said
+  // "buzzes 15 min before" even with no calendar connected.
+  const { loading, calendarStatus, calendarOk, reviewsStatus, reviewsOk, reviewsAvailable, integrationsStatus, integrationsOk, followupsStatus, followupsTone } = useToolConnectionStatus(planTier)
   const followupsOn = useFollowupsEnabled().enabled !== false
-  useEffect(() => {
-    api.tasks.autoRules().then(r => {
-      if (!r.success || !r.data) return
-      const a = r.data.alerts
-      const buzz = [a.before ? `${a.before} min before` : null, a.at_start ? 'at the time' : null].filter(Boolean).join(' + ')
-      setFollowups({ on: r.data.rules.filter(x => x.enabled).length, total: r.data.rules.length, alerts: buzz ? `buzzes ${buzz}` : 'no phone buzz' })
-    })
-  }, [])
 
   const rows: { id: string; icon: typeof CalendarClock; iconClass?: string; title: string; blurb: string; status: string; ok: boolean; href: string; locked?: boolean }[] = [
     { id: 'calendar', icon: CalendarClock, iconClass: 'ohp-icon-assemble-calendar', title: 'Calendar', blurb: 'Tasks and open houses on your calendar.', status: calendarStatus, ok: calendarOk, href: '/studio/calendar' },
     { id: 'reviews', icon: Star, title: 'Reviews', blurb: 'Collect client reviews and post the best ones.', status: reviewsStatus, ok: reviewsOk, href: '/studio/reviews', locked: !reviewsAvailable },
     { id: 'integrations', icon: Plug, iconClass: 'ohp-icon-assemble-plug', title: 'Integrations', blurb: 'Send leads to your CRM, pull leads from portals.', status: integrationsStatus, ok: integrationsOk, href: '/studio/integrations' },
-    {
-      id: 'followups', icon: BellRing, title: 'Follow-ups', blurb: 'Automatic follow-ups, their messages and your phone alerts.',
-      status: !followupsOn ? 'Turned off' : followups ? `${followups.on} of ${followups.total} situations on · ${followups.alerts}` : 'Checking…',
-      ok: followupsOn && !!followups && followups.on > 0, href: '/leads/tasks#automatic-followups',
-    },
   ]
 
   return (
     <SettingsAccordion title="Tools" subtitle="A quick check that Calendar, Reviews, Integrations and Follow-ups are set up - manage each in its own page." hideStatus>
-      <FollowupsSwitch className="mb-5" />
+      {/* Follow-ups: the on/off switch with its status + Manage link inside it (was a switch card
+          AND a second Follow-ups row below saying much the same thing). */}
+      <FollowupsSwitch className="mb-5">
+        {followupsOn && !loading && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <span className={`flex items-center gap-1.5 text-xs font-bold ${followupsTone === 'ok' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>
+              {followupsTone === 'ok' ? <Check className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
+              {followupsStatus}
+            </span>
+            <a href="/leads/tasks#automatic-followups" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wide text-[#8b6a2b] hover:underline dark:text-[#e8c97a]">
+              Manage <ArrowUpRight className="h-3 w-3" />
+            </a>
+          </div>
+        )}
+      </FollowupsSwitch>
       {loading ? (
         <div className="flex items-center gap-2 py-4 text-gray-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
       ) : (
@@ -969,7 +1053,7 @@ function PasswordSection() {
 
   const tooShort = next.length > 0 && next.length < 8
   const mismatch = confirm.length > 0 && next !== confirm
-  const canSubmit = current.length > 0 && next.length >= 6 && next === confirm && !saving
+  const canSubmit = current.length > 0 && next.length >= 8 && next === confirm && !saving
 
   const submit = async () => {
     setError('')
@@ -1039,11 +1123,11 @@ function AccountSection({ onGoToBilling }: { onGoToBilling: () => void }) {
   if (!user) return null
 
   const rows: { label: string; value: string }[] = [
-    { label: 'Email (your sign-in)', value: user.email },
+    { label: 'Sign-in email', value: user.email },
     user.mls_id ? { label: 'MLS ID', value: user.mls_id } : { label: 'License number', value: user.license_number || 'Not set' },
     { label: 'State', value: user.state || '—' },
     { label: 'Plan', value: PRICING_PLANS[user.plan_tier as keyof typeof PRICING_PLANS]?.name || user.plan_tier || '—' },
-    { label: 'Status', value: (user.subscription_status || '').replace(/^\w/, c => c.toUpperCase()) || '—' },
+    { label: 'Status', value: (user.subscription_status || '').toLowerCase().replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()) || '—' },
     {
       label: 'Member since',
       value: user.created_at
@@ -1057,20 +1141,21 @@ function AccountSection({ onGoToBilling }: { onGoToBilling: () => void }) {
       <dl className="divide-y divide-gray-100 dark:divide-gray-800">
         {rows.map(r => (
           <div key={r.label} className="flex items-center justify-between gap-4 py-2.5">
-            <dt className="text-xs font-black uppercase tracking-widest text-gray-400">{r.label}</dt>
-            <dd className="text-sm font-bold text-[#111827] dark:text-white">{r.value}</dd>
+            <dt className="shrink-0 whitespace-nowrap text-xs font-black uppercase tracking-widest text-gray-400">{r.label}</dt>
+            <dd className="min-w-0 break-all text-right text-sm font-bold text-[#111827] dark:text-white">{r.value}</dd>
           </div>
         ))}
       </dl>
       <p className="mt-3 text-xs font-semibold text-gray-400">
-        Need to change your email, MLS ID, license number, or brokerage? <Link href="/settings/help?compose=1&category=support" className="underline decoration-gray-300 underline-offset-2 hover:text-[#C9A24D]">Contact support</Link> and we&apos;ll update it.
+        Need to change your sign-in email, MLS ID or license number?{' '}
+        <Link href="/settings/help?compose=1&category=support" className="underline decoration-gray-300 underline-offset-2 hover:text-[#C9A24D]">Contact support</Link>{' '}and we&apos;ll update it.
       </p>
       <div className="mt-4 grid gap-2 border-t border-gray-100 pt-4 dark:border-gray-800 sm:grid-cols-3 lg:grid-cols-1">
         <Link href="/open-houses/my-listings" className="rounded-xl border border-gray-200 px-3 py-2.5 text-center text-xs font-black text-gray-700 transition hover:border-[#C9A24D]/50 dark:border-gray-700 dark:text-gray-200">
           Your team →
         </Link>
-        <Link href="/studio/site" className="rounded-xl border border-gray-200 px-3 py-2.5 text-center text-xs font-black text-gray-700 transition hover:border-[#C9A24D]/50 dark:border-gray-700 dark:text-gray-200">
-          Website &amp; domain →
+        <Link href={user.plan_tier === 'IDX' ? '/studio/website' : '/studio/site'} className="rounded-xl border border-gray-200 px-3 py-2.5 text-center text-xs font-black text-gray-700 transition hover:border-[#C9A24D]/50 dark:border-gray-700 dark:text-gray-200">
+          {user.plan_tier === 'IDX' ? <>Website &amp; domain →</> : <>Agent Hub →</>}
         </Link>
         <button type="button" onClick={onGoToBilling} className="rounded-xl border border-gray-200 px-3 py-2.5 text-center text-xs font-black text-gray-700 transition hover:border-[#C9A24D]/50 dark:border-gray-700 dark:text-gray-200">
           Billing →
@@ -1080,8 +1165,8 @@ function AccountSection({ onGoToBilling }: { onGoToBilling: () => void }) {
   )
 }
 
-// Per-category email opt-outs. The in-app bell always fires and isn't shown here. Push is a
-// column now but disabled until push notifications actually exist (push_available from the API).
+// Per-category email opt-outs. The in-app bell always fires and isn't shown here.
+// Push only appears once push notifications actually exist (push_available from the API).
 function NotificationPrefsSection() {
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null)
   const [loading, setLoading] = useState(true)
@@ -1135,7 +1220,7 @@ function NotificationPrefsSection() {
             </div>
             <div className="flex shrink-0 items-center gap-6 text-[10px] font-black uppercase tracking-widest text-gray-400">
               <span className="w-11 text-center">Email</span>
-              <span className="w-11 text-center">Push</span>
+              {prefs.push_available && <span className="w-11 text-center">Push</span>}
             </div>
           </div>
           <ul className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -1152,10 +1237,12 @@ function NotificationPrefsSection() {
                     <div className="flex w-11 justify-center">
                       <Toggle on={row.email} onClick={() => toggle(cat.id, 'email')} label={`Email me about ${cat.label}`} />
                     </div>
-                    <div className="relative flex w-11 justify-center">
-                      <Toggle on={row.push} disabled={!prefs.push_available} onClick={() => toggle(cat.id, 'push')} label={`Push notify about ${cat.label}`} />
-                      {!prefs.push_available && <span className="pointer-events-none absolute -bottom-3.5 text-[8px] font-black uppercase tracking-wider text-gray-400">Soon</span>}
-                    </div>
+                    {/* Push only shows once it exists - 12 greyed-out "Soon" switches were just clutter. */}
+                    {prefs.push_available && (
+                      <div className="flex w-11 justify-center">
+                        <Toggle on={row.push} onClick={() => toggle(cat.id, 'push')} label={`Push notify about ${cat.label}`} />
+                      </div>
+                    )}
                   </div>
                 </li>
               )
@@ -1163,7 +1250,7 @@ function NotificationPrefsSection() {
           </ul>
           <p className="mt-3 flex items-start gap-1.5 text-xs font-semibold text-gray-400">
             <Bell className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            You&apos;ll still see every one of these in the notification bell - this only controls email.
+            You&apos;ll still see every one of these in the notification bell - this only controls email.{!prefs.push_available && ' Phone push alerts are coming soon.'}
           </p>
         </div>
       )}
