@@ -156,7 +156,14 @@ function OpenHouseContent() {
   const [isRefreshingRecommendations, setIsRefreshingRecommendations] = useState(false)
   // Local override for the Brag Sheet's Sold/Volume/Avg stats block, set via the "Documents"
   // window - doesn't touch the agent's actual Agent Hub "Show stats" setting.
-  const [bragSheetStatsEnabled, setBragSheetStatsEnabled] = useState(true)
+  // Remembered per device, shared with the create wizard's Review step (lib/printPrefs).
+  const [bragSheetStatsEnabled, setBragSheetStatsEnabledRaw] = useState(true)
+  useEffect(() => { setBragSheetStatsEnabledRaw(readPrintPref('bragStats')) }, [])
+  const setBragSheetStatsEnabled = (next: boolean | ((cur: boolean) => boolean)) => setBragSheetStatsEnabledRaw(cur => {
+    const v = typeof next === 'function' ? next(cur) : next
+    writePrintPref('bragStats', v)
+    return v
+  })
   // Print choices below are remembered per device (lib/printPrefs) - last choice wins, so the
   // next open house's kit is already set the way the agent likes it.
   // Similar Homes only - shared between the Documents selection screen and the full preview so

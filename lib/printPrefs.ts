@@ -9,6 +9,8 @@ export const PRINT_PREFS = {
   matchScore: { key: 'ohp:matchScore', fallback: true },
   // Cheat Sheet: AI "Highlights of ..." recap in place of the full MLS description.
   recap: { key: 'ohp:recap', fallback: true },
+  // Brag Sheet: the Sold / Volume / Avg stats row.
+  bragStats: { key: 'ohp:bragStats', fallback: true },
 } as const;
 
 export type PrintPref = keyof typeof PRINT_PREFS;

@@ -15,6 +15,7 @@ import { useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
 import { computeMatchScore, isSameSchoolDistrict } from '@/lib/matchScore'
 import { roundedPriceRange } from '@/lib/utils'
 import { readPrintPref, writePrintPref, type PrintPref } from '@/lib/printPrefs'
+import KitReviewDialog, { type KitDocMode } from './KitReviewDialog'
 import {
   OpenHouse,
   PropertyImage,
@@ -23,7 +24,7 @@ import {
   User,
   PropertyDetailResponse
 } from '@/types'
-import { Bed, Bath, BoxSelect, Building2, DollarSign, DoorOpen, LandPlot, Layout, QrCode, Sparkles, MapPin, Search, Layers, ArrowRight, Upload, Loader2, ImageOff, ChevronLeft, ChevronRight, Check, X, Sun, Moon, Ticket, MonitorPlay } from 'lucide-react'
+import { Bed, Bath, BoxSelect, Building2, DollarSign, DoorOpen, LandPlot, Layout, QrCode, Sparkles, MapPin, Search, Layers, ArrowRight, Upload, Loader2, ImageOff, ChevronLeft, ChevronRight } from 'lucide-react'
 import LuxeHero from '@/components/ui/LuxeHero'
 import { useQrDataUrl } from '@/lib/qr'
 
@@ -59,7 +60,7 @@ export function CreateOpenHouseWizard({
   const [currentStep, setCurrentStep] = useState<OpenHouseWizardStep>('ADDRESS')
   // Kit print choices asked on the Review step - pre-filled with whatever the agent picked last
   // time (lib/printPrefs), and every change is remembered for next time.
-  const [kitPrefs, setKitPrefs] = useState<Record<PrintPref, boolean>>({ flyerBrand: true, qrDark: true, matchScore: true, recap: true })
+  const [kitPrefs, setKitPrefs] = useState<Record<PrintPref, boolean>>({ flyerBrand: true, qrDark: true, matchScore: true, recap: true, bragStats: true })
   // What happens when a guest signs in - same switches as each open house card, picked up front.
   const [guestPrefs, setGuestPrefs] = useState<{ autoShowcase: boolean; guestPass: boolean; afterSignin: 'hub' | 'none' }>({ autoShowcase: true, guestPass: true, afterSignin: 'none' })
   // You're this home's listing agent: Showcases + Similar Homes start off (guests stay focused on
@@ -67,7 +68,7 @@ export function CreateOpenHouseWizard({
   const [ownListing, setOwnListing] = useState(false)
   useEffect(() => {
     if (currentStep !== 'REVIEW') return
-    setKitPrefs({ flyerBrand: readPrintPref('flyerBrand'), qrDark: readPrintPref('qrDark'), matchScore: readPrintPref('matchScore'), recap: readPrintPref('recap') })
+    setKitPrefs({ flyerBrand: readPrintPref('flyerBrand'), qrDark: readPrintPref('qrDark'), matchScore: readPrintPref('matchScore'), recap: readPrintPref('recap'), bragStats: readPrintPref('bragStats') })
   }, [currentStep])
   const setKitPref = useCallback((pref: PrintPref, on: boolean) => {
     writePrintPref(pref, on)
@@ -191,7 +192,9 @@ export function CreateOpenHouseWizard({
 
   // --- HANDLERS ---
 
-  const handleTriggerPreview = async (mode: 'flyer' | 'recommendations' | 'bragSheet' | 'cheatSheet') => {
+  // Builds one kit document's data - used by "Preview PDF" (the full preview window) and by the
+  // Review step's live preview, so both always show the same page.
+  const buildKitDocData = async (mode: KitDocMode, opts: { brand?: boolean } = {}): Promise<any | null> => {
     if (mode === 'flyer') {
       const flyerData = {
         address: formatStreetAndCity(address, propertyData?.city || propertyData?.City),
@@ -201,12 +204,12 @@ export function CreateOpenHouseWizard({
         sqft: propertyData?.LivingArea || propertyData?.livingArea || 0,
         schoolDistrict: propertyData?.SchoolDistrictName || propertyData?.school_district_name || undefined,
         // The Review step's Brand choice (same remembered setting as the Documents window's).
-        brand: kitPrefs.flyerBrand ? await buildCheatSheetAgentData(currentUser) : null,
+        brand: (opts.brand ?? kitPrefs.flyerBrand) ? await buildCheatSheetAgentData(currentUser) : null,
         coverImage: selectedImage?.url,
         coverImagePosition: { x: selectedImage?.x ?? 50, y: selectedImage?.y ?? 50 },
         openHouseUrl: `${window.location.origin}/open-house/${generatedOpenHouseId}`
       };
-      triggerPreview('flyer', undefined, flyerData);
+      return flyerData;
     } else if (mode === 'recommendations') {
       const selectedSimilarProps = similarProperties.filter(p => {
         const pId = String(p.ListingKey || p.listingKey || p.id);
@@ -217,11 +220,11 @@ export function CreateOpenHouseWizard({
         matchScore: computeMatchScore(p, propertyData, selectedSimilarProps),
       }));
 
-      triggerPreview('recommendations', undefined, {
+      return {
         address: formatStreetAndCity(address, propertyData?.city || propertyData?.City),
         properties: currentSimilarProps,
         openHouseEventId: generatedOpenHouseId,
-      });
+      };
     } else if (mode === 'bragSheet') {
       const currentSimilarPropsForBragSheet = similarProperties.filter(p => {
         const pId = String(p.ListingKey || p.listingKey || p.id);
@@ -230,16 +233,16 @@ export function CreateOpenHouseWizard({
       const { data, error: bragSheetError } = await buildBragSheetData(currentUser, selectedFeatures.similarProperties ? currentSimilarPropsForBragSheet : [], { showcases: guestPrefs.autoShowcase });
       if (!data) {
         showToast(bragSheetError || 'Unable to build your Brag Sheet right now.', 'error');
-        return;
+        return null;
       }
-      triggerPreview('bragSheet', undefined, data);
+      return { ...data, showSalesStats: kitPrefs.bragStats };
     } else if (mode === 'cheatSheet') {
       const listingKey = propertyData?.ListingKey || propertyData?.listing_key;
       const [amenitiesRes, cheatSheetAgent] = await Promise.all([
         listingKey ? api.properties.getNearbyAmenities(listingKey) : Promise.resolve(null),
         buildCheatSheetAgentData(currentUser),
       ]);
-      triggerPreview('cheatSheet', undefined, {
+      return {
         property: {
           id: propertyData?.id || propertyData?.ListingKey || propertyData?.listing_key,
           openHouseEventId: String(generatedOpenHouseId || ''),
@@ -285,8 +288,13 @@ export function CreateOpenHouseWizard({
         },
         agent: cheatSheetAgent,
         amenities: amenitiesRes?.success ? amenitiesRes.data : undefined,
-      });
+      };
     }
+    return null
+  }
+  const handleTriggerPreview = async (mode: KitDocMode) => {
+    const data = await buildKitDocData(mode)
+    if (data) triggerPreview(mode, undefined, data)
   }
 
   // "Build kit" from an approved open: drop its address in and bring the box into view - the
@@ -871,38 +879,38 @@ export function CreateOpenHouseWizard({
       </motion.div>
       </AnimatePresence>
 
-      {/* Review Step Dialog */}
+      {/* Review: 1) your kit with a live preview, 2) what guests get - then Save & Finish */}
       {currentStep === 'REVIEW' && (
-        <SaveOpenHouseDialog
-          address={address}
+        <KitReviewDialog
+          address={formatAddress(address)}
+          street={formatStreetAndCity(address, propertyData?.city || propertyData?.City).split(',')[0]}
           selectedImage={selectedImage}
-          qrCode={qrCode}
           onSave={saveOpenHouse}
           onCancel={() => setCurrentStep(selectedFeatures.cheatSheet ? 'CHEAT_SHEET_PHOTOS' : 'COVER_IMAGE')}
-          onPreviewFlyer={() => handleTriggerPreview('flyer')}
-          onPreviewRecommendations={() => handleTriggerPreview('recommendations')}
-          onPreviewBragSheet={() => handleTriggerPreview('bragSheet')}
-          onPreviewCheatSheet={() => handleTriggerPreview('cheatSheet')}
+          onPreview={handleTriggerPreview}
+          buildDocData={buildKitDocData}
           hasRecommendations={selectedFeatures.similarProperties}
           hasBragSheet={selectedFeatures.bragSheet}
           hasCheatSheet={selectedFeatures.cheatSheet}
-          formatAddress={formatAddress}
           kitPrefs={kitPrefs}
           onKitPrefChange={setKitPref}
           guestPrefs={guestPrefs}
-          onGuestPrefChange={(k: string, v: unknown) => setGuestPrefs(prev => ({ ...prev, [k]: v }))}
+          onGuestPrefChange={(k, v) => setGuestPrefs(prev => ({ ...prev, [k]: v }))}
           showcasesAvailable={hasShowcaseAccess(currentUser?.plan_tier)}
           guestPassAvailable={!isNoMls}
           afterSigninAvailable={isNoMls}
           similarAvailable={!isNoMls}
           ownListing={ownListing}
           onSimilarChange={(on: boolean) => {
-            setSelectedFeatures(prev => ({ ...prev, similarProperties: on }))
-            // Turned on with no homes picked yet - go pick them (Back returns here through the steps).
-            if (on && selectedSimilarPropertyIds.length === 0) {
-              returnToReview.current = true
-              setCurrentStep('PREFERENCES')
+            if (!on) {
+              setSelectedFeatures(prev => ({ ...prev, similarProperties: false }))
+              return
             }
+            // Including it again always goes back to the Similar Homes step to pick the homes
+            // again (never silently re-adds the old picks) - Next there returns here.
+            setSelectedFeatures(prev => ({ ...prev, similarProperties: true }))
+            returnToReview.current = true
+            setCurrentStep('PREFERENCES')
           }}
         />
       )}
@@ -1772,168 +1780,6 @@ const DraggablePreviewPhoto = memo(function DraggablePreviewPhoto({ photo, slotI
       ) : (
         <div className="flex h-full items-center justify-center text-[10px] font-black uppercase tracking-widest text-gray-400">Photo {slotIndex + 1}</div>
       )}
-    </div>
-  )
-})
-
-// On/off chip for a kit print option - same check / X language as the Documents window toggles.
-function KitOptionChip({ on, label, hint, onClick }: { on: boolean; label: string; hint: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={hint}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest transition-colors ${
-        on
-          ? 'border-emerald-500/40 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-500/10 dark:text-emerald-300'
-          : 'border-gray-200 bg-white text-gray-400 hover:text-gray-600 dark:border-gray-700 dark:bg-[#0B0B0B] dark:hover:text-gray-300'
-      }`}
-    >
-      {on ? (
-        <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 text-white"><Check className="h-2.5 w-2.5" strokeWidth={4} /></span>
-      ) : (
-        <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600"><X className="h-2.5 w-2.5" strokeWidth={3.5} /></span>
-      )}
-      {label}
-    </button>
-  )
-}
-
-// One guest setting on Review & Save - icon, what it does, and an on/off switch.
-function GuestPrefRow({ icon: Icon, title, body, on, onToggle }: { icon: React.ComponentType<{ className?: string }>; title: string; body: string; on: boolean; onToggle: () => void }) {
-  return (
-    <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-[#faf9f7] p-3 dark:border-gray-700 dark:bg-[#1a1a1c]">
-      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-300 ${on ? 'bg-[#C9A24D] text-[#111827]' : 'bg-gray-200 text-gray-400 dark:bg-white/10'}`}><Icon className="h-4 w-4" /></span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-black text-gray-800 dark:text-gray-100">{title} <span className={`ml-1 text-[10px] font-black uppercase tracking-wide transition-colors duration-300 ${on ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`}>{on ? 'On' : 'Off'}</span></p>
-        <p className="text-xs font-medium leading-relaxed text-gray-500 dark:text-gray-400">{body}</p>
-      </div>
-      <button type="button" role="switch" aria-checked={on} aria-label={title} onClick={onToggle}
-        className={`relative mt-1 inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-300 ${on ? 'bg-[#C9A24D] shadow-[0_0_0_4px_rgba(201,162,77,.15)]' : 'bg-gray-300 dark:bg-gray-600'}`}>
-        <motion.span
-          className="h-5 w-5 rounded-full bg-white shadow-md"
-          initial={false}
-          animate={{ x: on ? 20 : 0, scale: 1 }}
-          whileTap={{ scale: 0.9 }}
-          transition={{ type: 'spring', stiffness: 520, damping: 32 }}
-        />
-      </button>
-    </div>
-  )
-}
-
-// Light | Dark choice for the on-screen sign-in page - both options visible, the picked one filled
-// in its own theme's colors, so which one is set is never in doubt.
-function KitThemeChoice({ dark, onChange }: { dark: boolean; onChange: (dark: boolean) => void }) {
-  const base = 'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest transition-colors'
-  return (
-    <div className="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 p-0.5 dark:border-gray-700 dark:bg-[#0B0B0B]" title="Theme of the sign-in page guests see when they scan the QR code or use the kiosk. Doesn't change the printed flyer.">
-      <button type="button" onClick={() => onChange(false)} className={`${base} ${!dark ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200' : 'text-gray-400 hover:text-gray-600'}`}>
-        <Sun className={`h-3 w-3 ${!dark ? 'text-amber-500' : ''}`} strokeWidth={3} />Light
-      </button>
-      <button type="button" onClick={() => onChange(true)} className={`${base} ${dark ? 'bg-[#111111] text-white shadow-sm ring-1 ring-white/10' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}>
-        <Moon className="h-3 w-3" strokeWidth={3} />Dark
-      </button>
-    </div>
-  )
-}
-
-const SaveOpenHouseDialog = memo(function SaveOpenHouseDialog({ address, selectedImage, qrCode, onSave, onCancel, onPreviewFlyer, onPreviewRecommendations, onPreviewBragSheet, onPreviewCheatSheet, hasRecommendations, hasBragSheet, hasCheatSheet, formatAddress, kitPrefs, onKitPrefChange, guestPrefs, onGuestPrefChange, showcasesAvailable, guestPassAvailable, afterSigninAvailable, similarAvailable, ownListing, onSimilarChange }: any) {
-  const kitLabel = ['Sign In', hasRecommendations && 'Similar Homes', hasBragSheet && 'Brag Sheet', hasCheatSheet && 'Cheat Sheet'].filter(Boolean).join(', ')
-  const [isSaving, setIsSaving] = useState(false)
-  const handleSave = async () => {
-    setIsSaving(true)
-    try {
-      await onSave()
-    } finally {
-      setIsSaving(false)
-    }
-  }
-  return (
-    <div className="fixed inset-0 bg-black/60 flex justify-center overflow-y-auto z-50 p-4 print:hidden">
-      <div className="my-auto bg-[#FAFAF7] dark:bg-[#151517] rounded-[2rem] shadow-2xl max-w-2xl w-full overflow-hidden border border-white/50 dark:border-gray-800">
-        <div className="px-6 py-5 sm:px-8 border-b border-gray-200/50 dark:border-gray-800 bg-white/50 dark:bg-[#0B0B0B]/50"><h3 className="text-2xl font-black text-[#0B0B0B] dark:text-white tracking-tight">Review & Save</h3><p className="text-[#6B7280] dark:text-gray-400 text-sm mt-2 font-medium">{formatAddress(address)}</p></div>
-        <div className="p-6 sm:p-8">
-          <div className="flex items-center space-x-5 mb-6">
-            <div className="w-24 h-24 bg-white dark:bg-[#0B0B0B] rounded-2xl overflow-hidden relative shadow-inner border border-gray-100 dark:border-gray-800">{selectedImage && <Image src={selectedImage.url} alt="Selected cover" fill sizes="96px" className="object-cover" />}</div>
-            <div className="flex-1"><p className="text-base font-bold text-[#0B0B0B] dark:text-white">Kit Ready to Generate</p><p className="text-sm text-[#6B7280] dark:text-gray-400 mt-1 font-light leading-relaxed">Includes {kitLabel}.</p></div>
-          </div>
-          <div className="bg-white/80 dark:bg-[#0B0B0B]/80 rounded-2xl p-5 mb-5 border border-gray-100 dark:border-gray-800 shadow-sm"><h4 className="text-sm font-bold text-[#C9A24D] uppercase tracking-wider mb-3">Your Kit Includes</h4>
-            <div className="space-y-3">
-              <div className="p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center justify-between"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Sign In</span></div><button onClick={onPreviewFlyer} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>
-                <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-6"><KitOptionChip on={kitPrefs.flyerBrand} label="Brand" hint="Adds your photo, name, and brokerage to the printed sign-in flyer - the same pill as the top of the on-screen sign-in page." onClick={() => onKitPrefChange('flyerBrand', !kitPrefs.flyerBrand)} /><KitThemeChoice dark={kitPrefs.qrDark} onChange={(dark: boolean) => onKitPrefChange('qrDark', dark)} /></div>
-              </div>
-              {similarAvailable && !hasRecommendations && <div className="p-3 bg-white dark:bg-[#151517] rounded-lg border border-dashed border-gray-200 dark:border-gray-700"><div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center"><span className="text-gray-300 dark:text-gray-600 mr-3 font-bold">–</span><span className="text-sm font-medium text-gray-400 dark:text-gray-500">Similar Homes <span className="text-xs font-bold text-gray-400">· off{ownListing ? ' (your listing)' : ''}</span></span></div><KitOptionChip on={false} label="Include" hint="Adds the Similar Homes sheet to this kit and shows those homes on each guest's Guest Pass. You'll pick the homes next." onClick={() => onSimilarChange?.(true)} /></div></div>}
-              {hasRecommendations && <div className="p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center justify-between"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Similar Homes</span></div><button onClick={onPreviewRecommendations} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>
-                <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-6"><KitOptionChip on={kitPrefs.matchScore} label="Match %" hint="Shows the % Match badge on each home and sorts best match first." onClick={() => onKitPrefChange('matchScore', !kitPrefs.matchScore)} />{similarAvailable && onSimilarChange && <KitOptionChip on label="Include" hint="Included: the Similar Homes sheet prints with this kit and guests see these homes on their Guest Pass. Tap to leave it out - guests stay focused on this home." onClick={() => onSimilarChange(false)} />}</div>
-              </div>}
-              {hasBragSheet && <div className="flex items-center justify-between p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Brag Sheet</span></div><button onClick={onPreviewBragSheet} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>}
-              {hasCheatSheet && <div className="p-3 bg-[#faf9f7] dark:bg-[#1a1a1c] rounded-lg border border-gray-100 dark:border-gray-700"><div className="flex items-center justify-between"><div className="flex items-center"><span className="text-[#C9A24D] mr-3 font-bold">✓</span><span className="text-sm font-medium text-gray-700 dark:text-gray-300">Cheat Sheet</span></div><button onClick={onPreviewCheatSheet} className="text-xs font-bold text-[#111827] dark:text-white underline hover:text-[#8b7355] transition-colors">Preview PDF</button></div>
-                <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-6"><KitOptionChip on={kitPrefs.recap} label="Recap" hint="Replaces the long MLS description with a short AI 'Highlights of [address]' paragraph (3 lines max)." onClick={() => onKitPrefChange('recap', !kitPrefs.recap)} /></div>
-              </div>}
-            </div>
-          </div>
-          {(guestPassAvailable || showcasesAvailable || afterSigninAvailable) && guestPrefs && (
-            <div className="bg-white/80 dark:bg-[#0B0B0B]/80 rounded-2xl p-5 mb-6 border border-gray-100 dark:border-gray-800 shadow-sm">
-              <h4 className="text-sm font-bold text-[#C9A24D] uppercase tracking-wider mb-1">After a guest signs in</h4>
-              <p className="mb-3 text-xs font-medium text-gray-500 dark:text-gray-400">You can change these any time on this open house&apos;s card.</p>
-              {ownListing && showcasesAvailable && (
-                <p className="mb-3 rounded-xl border border-[#C9A24D]/25 bg-[#fbf6ea] px-3 py-2 text-xs font-bold text-[#8b7355] dark:border-[#C9A24D]/20 dark:bg-[#C9A24D]/[0.06] dark:text-[#e8c97a]">You&apos;re the listing agent here, so Guest Showcases start off - guests stay focused on your listing instead of shopping other homes.</p>
-              )}
-              <div className="space-y-2.5">
-                {guestPassAvailable && (
-                  <GuestPrefRow
-                    icon={Ticket}
-                    title="Guest Pass"
-                    body={`Their phone opens this home, your ${hasRecommendations ? 'Similar Homes + ' : ''}Cheat Sheet as web pages, and one-tap disclosure / second tour requests. Never on a Kiosk tablet.`}
-                    on={guestPrefs.guestPass}
-                    onToggle={() => onGuestPrefChange('guestPass', !guestPrefs.guestPass)}
-                  />
-                )}
-                {showcasesAvailable && (
-                  <GuestPrefRow
-                    icon={Sparkles}
-                    title="Guest Showcases"
-                    body="Everyone who signs in without an agent gets their own Showcase of similar homes (and a Showcase button on their Guest Pass). Off: no Showcases from this open house."
-                    on={guestPrefs.autoShowcase}
-                    onToggle={() => onGuestPrefChange('autoShowcase', !guestPrefs.autoShowcase)}
-                  />
-                )}
-                {afterSigninAvailable && (
-                  <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-[#faf9f7] p-3 dark:border-gray-700 dark:bg-[#1a1a1c]">
-                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#111827] text-[#e8c97a] dark:bg-white/10"><MonitorPlay className="h-4 w-4" /></span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-black text-gray-800 dark:text-gray-100">After sign-in, open</p>
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Your Agent Hub (once it&apos;s set up), or just the thank-you screen. Never on a Kiosk tablet.</p>
-                    </div>
-                    <div className="inline-flex shrink-0 rounded-full border border-gray-200 bg-white p-0.5 dark:border-gray-700 dark:bg-[#0B0B0B]">
-                      {(['hub', 'none'] as const).map(v => (
-                        <button key={v} type="button" onClick={() => onGuestPrefChange('afterSignin', v)}
-                          className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide transition ${guestPrefs.afterSignin === v ? 'bg-[#C9A24D] text-[#111827]' : 'text-gray-400 hover:text-gray-600'}`}>
-                          {v === 'hub' ? 'Agent Hub' : 'Nothing'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button onClick={onCancel} disabled={isSaving} className="flex-1 px-6 py-3.5 bg-white dark:bg-[#0B0B0B] text-[#111827] dark:text-white rounded-xl font-bold border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-[#151515] transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">Back</button>
-            <button onClick={handleSave} disabled={isSaving} className="flex flex-[2] items-center justify-center gap-2 px-6 py-3.5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-bold hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] transform transition-all duration-300 shadow-[0_10px_20px_-5px_rgba(17,24,39,0.2)] active:scale-95 disabled:opacity-80 disabled:cursor-wait disabled:hover:bg-[#111827] dark:disabled:hover:bg-white">
-              {isSaving ? (
-                <>
-                  <span className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                  Generating Kit...
-                </>
-              ) : (
-                'Save & Finish'
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   )
 })
