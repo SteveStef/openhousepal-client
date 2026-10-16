@@ -40,7 +40,9 @@ export const SHOWCASE_FORMS: Record<string, Info> = {
     ],
   },
   how_can_i_help: {
-    badge: 'Builds a Showcase for buyers',
+    // Short enough to sit on the card's line beside the question count; the hover + the form's own
+    // window say it's buyers without an agent only.
+    badge: 'Builds a Showcase',
     title: 'Only buyers without an agent get a Showcase from this form',
     lead: 'How Can We Help asks if they\'re buying or selling. Buyers who aren\'t working with an agent get a Showcase built quietly from their answers - your follow-up message introduces it.',
     yes: [
@@ -61,7 +63,7 @@ export function ShowcaseFormBadge({ formType }: { formType?: string | null }) {
   const info = formType ? SHOWCASE_FORMS[formType] : undefined
   if (!info) return null
   return (
-    <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/20">
+    <span title={info.title} className="inline-flex h-5 items-center gap-1 rounded-full bg-emerald-50 px-2 text-[10px] font-black uppercase leading-none tracking-wider text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/20">
       <Sparkles className="h-3 w-3" /> {info.badge}
     </span>
   )

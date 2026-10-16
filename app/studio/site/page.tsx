@@ -1895,8 +1895,11 @@ function AgentHubContent() {
               <div className="min-w-0">
                 <p className="truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white">{form.title}</p>
                 <p className={`mt-1 text-xs font-medium leading-snug text-gray-500 dark:text-gray-400 ${big ? '' : 'line-clamp-2'}`}>{form.description || meta.description}</p>
-                <p className="mt-2 inline-flex items-center rounded-full bg-[#C9A24D]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#8b7355] dark:bg-[#C9A24D]/15 dark:text-[#e8cf8a]">{form.questions.length} questions</p>
-                <ShowcaseFormBadge formType={form.form_type} />
+                {/* question count and Showcase badge: one row, the same pill size */}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex h-5 items-center rounded-full bg-[#C9A24D]/10 px-2 text-[10px] font-black uppercase leading-none tracking-wider text-[#8b7355] ring-1 ring-[#C9A24D]/20 dark:bg-[#C9A24D]/15 dark:text-[#e8cf8a]">{form.questions.length} questions</span>
+                  <ShowcaseFormBadge formType={form.form_type} />
+                </div>
               </div>
             </button>
             <div className="flex shrink-0 items-center gap-1">
@@ -2020,8 +2023,11 @@ function AgentHubContent() {
               <div className="min-w-0">
                 <p className="truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white">{form.title}</p>
                 <p className={`mt-1 text-xs font-medium leading-snug text-gray-500 dark:text-gray-400 ${big ? '' : 'line-clamp-2'}`}>{form.description || meta.description}</p>
-                <p className="mt-2 inline-flex items-center rounded-full bg-[#C9A24D]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#8b7355] dark:bg-[#C9A24D]/15 dark:text-[#e8cf8a]">{form.questions.length} questions</p>
-                <ShowcaseFormBadge formType={form.form_type} />
+                {/* question count and Showcase badge: one row, the same pill size */}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex h-5 items-center rounded-full bg-[#C9A24D]/10 px-2 text-[10px] font-black uppercase leading-none tracking-wider text-[#8b7355] ring-1 ring-[#C9A24D]/20 dark:bg-[#C9A24D]/15 dark:text-[#e8cf8a]">{form.questions.length} questions</span>
+                  <ShowcaseFormBadge formType={form.form_type} />
+                </div>
               </div>
             </button>
           </div>
@@ -2191,8 +2197,11 @@ function AgentHubContent() {
           <div className="min-w-0 flex-1">
             <p className="truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white">{form.title}</p>
             <p className={`mt-1 text-xs font-medium leading-snug text-gray-500 dark:text-gray-400 ${big ? '' : 'line-clamp-2'}`}>{form.description || meta.description}</p>
-            <p className="mt-2 inline-flex items-center rounded-full bg-[#C9A24D]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#8b7355] dark:bg-[#C9A24D]/15 dark:text-[#e8cf8a]">{form.questions.length} questions</p>
-            <ShowcaseFormBadge formType={form.form_type} />
+            {/* question count and Showcase badge: one row, the same pill size */}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex h-5 items-center rounded-full bg-[#C9A24D]/10 px-2 text-[10px] font-black uppercase leading-none tracking-wider text-[#8b7355] ring-1 ring-[#C9A24D]/20 dark:bg-[#C9A24D]/15 dark:text-[#e8cf8a]">{form.questions.length} questions</span>
+              <ShowcaseFormBadge formType={form.form_type} />
+            </div>
             {form.additional_campaign_count > 0 && (
               <p className="mt-0.5 truncate text-[11px] font-bold text-[#8b7355] dark:text-[#e8cf8a]">
                 General + {form.additional_campaign_count} more campaign{form.additional_campaign_count === 1 ? '' : 's'}

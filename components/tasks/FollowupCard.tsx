@@ -230,15 +230,24 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
   const first = client.split(' ')[0] || 'them'
   const times = t.requested_times || []
   // The picked times have their own block - don't repeat "They'd also like another tour: …" below.
-  const notes = compact ? '' : extraNotes(t).split('\n').filter(l => !(times.length && l.startsWith("They'd also like"))).join('\n').trim()
+  // ...and never twice: a Guest Pass copy of a question the card already shows is dropped.
+  const squash = (v: string) => v.toLowerCase().replace(/["“”]/g, '').replace(/\s+/g, ' ').trim()
+  const toldValues = new Set((t.details || []).map(l => squash(l.replace(/^[^:]{1,60}:\s+/, ''))))
+  const notes = compact ? '' : extraNotes(t).split('\n')
+    .filter(l => !(times.length && l.startsWith("They'd also like")))
+    .filter(l => { const q = l.match(/^Asked on their Guest Pass:\s*(.+)$/); return !(q && toldValues.has(squash(q[1]))) })
+    .join('\n').trim()
   const [street, ...rest] = (t.property?.address || '').split(', ')
 
   // "Label: value" / "Question? answer" lines -> rows; the home's own address is already on the tile.
   const streetLc = (street || '').toLowerCase()
+  // A question typed on their Guest Pass reads as exactly that.
+  const fromGuestPass = /Guest Pass/.test(`${t.context || ''}\n${t.notes || ''}`)
   const told = (t.details || []).map(line => {
     // "Label: answer" first (a message can itself contain "?"), then "Question? answer".
     const m = line.match(/^([^:?]{1,60}):\s+(.+)$/) || line.match(/^(.{1,90}?\?)\s+(.+)$/)
-    return m ? { label: m[1].replace(/:$/, ''), value: m[2] } : { label: '', value: line }
+    const row = m ? { label: m[1].replace(/:$/, ''), value: m[2] } : { label: '', value: line }
+    return fromGuestPass && row.label === 'Their question' ? { ...row, label: 'Asked on their Guest Pass' } : row
   }).filter(row => !(streetLc && row.value.toLowerCase().startsWith(streetLc)))
   const [showAllTold, setShowAllTold] = useState(false)
   const [photoOk, setPhotoOk] = useState(true)
