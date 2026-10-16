@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
-  ArrowRight, Bath, Bed, Check, Eye, ExternalLink, Globe, Home, Inbox, Loader2, Maximize, Plus, Sparkles, Trash2, Users, X,
+  Bath, Bed, Check, Eye, ExternalLink, Globe, Home, Inbox, Loader2, Maximize, Plus, Sparkles, Trash2, Users, X,
 } from 'lucide-react'
 import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
@@ -17,6 +17,7 @@ import LuxeHero, { LuxeStats, luxePill } from '@/components/ui/LuxeHero'
 import type { LinkedProperty, MarketingListing, PropertyWebsite, PropertyWebsiteAnalytics } from '@/types'
 import { statusInfo, STATUS_COLORS } from '@/components/property-sites/spotlight/model'
 import { motion } from 'framer-motion'
+import SpotlightPicks from '@/components/property-sites/SpotlightPicks'
 
 const EMPTY_STATS: { unique_visitors: number; total_views: number; leads?: number } = { unique_visitors: 0, total_views: 0 }
 
@@ -34,8 +35,7 @@ function PropertySitesPage() {
   useEffect(() => {
     api.agentHub.marketingMoments().then(res => { if (res.success && res.data) setReady(res.data.needs_spotlight) })
   }, [])
-  // Recommendations: brand-new listings first, then the most recently listed (three show, the rest behind "more").
-  const [showAllPicks, setShowAllPicks] = useState(false)
+  // Recommendations: brand-new listings first, then the most recently listed (SpotlightPicks lays them out).
   const picks = useMemo(() => ready
     .filter(l => !sites.some(s => s.listing_key === l.listing_key))
     .sort((a, b) => Number(b.is_new) - Number(a.is_new) || (a.days_on_market ?? 9999) - (b.days_on_market ?? 9999)), [ready, sites])
@@ -160,81 +160,7 @@ function PropertySitesPage() {
           onCreate={() => setShowCreate(true)}
         />
 
-        {picks.length > 0 && (() => {
-          // One home takes the whole row, two share it, three fill it; past three the rest wait
-          // behind a "more" toggle so the row never wraps into a wall of cards.
-          const shown = showAllPicks ? picks : picks.slice(0, 3)
-          const extra = picks.length - 3
-          const solo = picks.length === 1
-          return (
-          <section className="mt-6">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#C9A24D] opacity-70" /><span className="relative inline-flex h-2 w-2 rounded-full bg-[#C9A24D]" /></span>
-              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#8b7355] dark:text-[#e8c97a]">Ready for a Spotlight</p>
-              <span className="h-px flex-1 bg-gradient-to-r from-[#C9A24D]/40 to-transparent" />
-              {extra > 0 && (
-                <button onClick={() => setShowAllPicks(v => !v)} className="group/more inline-flex shrink-0 items-center gap-1 rounded-full border border-[#C9A24D]/40 bg-white/80 px-3 py-1 text-[11px] font-black text-[#8b6a2b] shadow-sm transition hover:border-[#C9A24D] dark:bg-white/[0.06] dark:text-[#e8c97a]">
-                  {showAllPicks ? 'Show less' : `${extra} more`}
-                  <ArrowRight className={`h-3.5 w-3.5 transition-transform duration-300 ${showAllPicks ? '-rotate-90' : 'group-hover/more:translate-x-0.5'}`} />
-                </button>
-              )}
-            </div>
-            <div className={`grid gap-3 sm:gap-4 ${solo ? '' : picks.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-3'}`}>
-              {shown.map((l, i) => {
-                const st = statusInfo(l.status)
-                const col = st ? STATUS_COLORS[st.kind] : null
-                const cityLine = [l.city, l.state].filter(Boolean).join(', ')
-                return (
-                  <motion.div
-                    key={l.listing_key}
-                    initial={{ opacity: 0, y: 16, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: i * 0.07, duration: 0.5, ease: [0.22, 0.61, 0.36, 1] }}
-                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#e8c97a]/80 via-[#C9A24D]/25 to-[#C9A24D]/70 p-px shadow-[0_24px_50px_-34px_rgba(139,115,85,.9)] transition duration-500 hover:-translate-y-1 hover:shadow-[0_30px_60px_-30px_rgba(201,162,77,.85)] dark:from-[#C9A24D]/50 dark:via-white/5 dark:to-[#C9A24D]/40"
-                  >
-                    <div className={`relative flex h-full overflow-hidden rounded-[23px] bg-[radial-gradient(120%_140%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#fffdf8,#fbf6ec)] dark:bg-[radial-gradient(120%_140%_at_100%_0%,rgba(201,162,77,.14),transparent_55%),linear-gradient(140deg,#0b0f0e,#111827_60%,#1d1810)] ${solo ? 'flex-col sm:flex-row' : 'flex-col'}`}>
-                      <div className={`relative shrink-0 overflow-hidden bg-gray-100 dark:bg-white/5 ${solo ? 'aspect-[16/9] sm:aspect-auto sm:w-[46%] sm:min-h-[200px]' : 'aspect-[16/9]'}`}>
-                        {l.image ? <img src={l.image} alt="" className="sp-crop absolute inset-0 h-full w-full object-cover transition duration-[1.4s] ease-out group-hover:scale-[1.07]" /> : <Home className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-gray-300" />}
-                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-black/10" />
-                        <span aria-hidden className="sp-sweep pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-                        <div className="absolute left-2.5 top-2.5 flex gap-1.5">
-                          {l.is_new && <span className="sp-chip whitespace-nowrap rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-2 py-0.5 text-[9px] font-black uppercase leading-none tracking-wide text-[#111827] shadow">New</span>}
-                          {st && col && <span className="sp-chip whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-black uppercase leading-none tracking-wide shadow" style={{ background: col.bg, color: col.fg }}>{st.label}</span>}
-                        </div>
-                        {l.price ? <span className="absolute bottom-2.5 left-3 font-serif text-lg font-black text-white drop-shadow-[0_2px_8px_rgba(0,0,0,.5)]">${Number(l.price).toLocaleString()}</span> : null}
-                      </div>
-                      <div className={`relative flex min-w-0 flex-1 flex-col ${solo ? 'justify-center p-5 sm:p-7' : 'p-4'}`}>
-                        <span aria-hidden className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-[#e8c97a] to-transparent" />
-                        {solo && <p className="mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-[#8b7355] dark:text-[#e8c97a]"><span className="h-px w-6 bg-[#C9A24D]" />Your newest listing</p>}
-                        <p className={`truncate whitespace-nowrap font-serif font-black text-[#111827] dark:text-white ${solo ? 'text-2xl sm:text-3xl' : 'text-base'}`}>{l.address}</p>
-                        <p className={`truncate font-bold text-gray-500 dark:text-white/55 ${solo ? 'mt-1 text-sm' : 'text-[12px]'}`}>
-                          {cityLine}
-                          {l.days_on_market != null && <span className="text-gray-400"> · {l.days_on_market === 0 ? 'Listed today' : `${l.days_on_market}d on market`}</span>}
-                        </p>
-                        {solo && (l.beds || l.baths || l.sqft) ? (
-                          <div className="mt-3 flex flex-wrap gap-1.5">
-                            {l.beds ? <span className="inline-flex items-center gap-1 rounded-full bg-[#C9A24D]/12 px-2.5 py-1 text-[11px] font-black text-[#6b5320] dark:text-[#e8c97a]"><Bed className="h-3 w-3" />{l.beds} bd</span> : null}
-                            {l.baths ? <span className="inline-flex items-center gap-1 rounded-full bg-[#C9A24D]/12 px-2.5 py-1 text-[11px] font-black text-[#6b5320] dark:text-[#e8c97a]"><Bath className="h-3 w-3" />{l.baths} ba</span> : null}
-                            {l.sqft ? <span className="inline-flex items-center gap-1 rounded-full bg-[#C9A24D]/12 px-2.5 py-1 text-[11px] font-black text-[#6b5320] dark:text-[#e8c97a]"><Maximize className="h-3 w-3" />{Number(l.sqft).toLocaleString()} sq ft</span> : null}
-                          </div>
-                        ) : null}
-                        <motion.button
-                          onClick={() => startFor(l)}
-                          whileHover={{ y: -2, scale: 1.02 }}
-                          whileTap={{ scale: 0.95 }}
-                          transition={{ type: 'spring', stiffness: 500, damping: 26 }}
-                          className={`lx-shine group/sb relative mt-auto inline-flex items-center justify-center gap-1.5 overflow-hidden rounded-2xl bg-gradient-to-r from-[#b8913f] via-[#C9A24D] to-[#e8c97a] font-black text-[#111827] shadow-lg shadow-[#C9A24D]/30 transition-shadow hover:shadow-[0_14px_30px_-10px_rgba(201,162,77,.95)] ${solo ? 'mt-5 self-start px-6 py-3 text-sm' : 'mt-3 w-full px-3 py-2.5 text-[12px]'}`}
-                        >
-                          <Plus className="h-4 w-4 transition-transform duration-300 group-hover/sb:rotate-90" /> Spotlight
-                          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/sb:translate-x-1" />
-                        </motion.button>
-                      </div>
-                    </div>
-                  </motion.div>
-                )
-              })}
-            </div>
-          </section>
-          )
-        })()}
+        <SpotlightPicks picks={picks} onStart={startFor} />
 
         {loading ? (
           <div className="mt-10 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
@@ -431,17 +357,43 @@ function SpotlightHero({ covers, stats, onCreate }: { covers: string[]; stats: {
       subtitle="A cinematic website for every listing - built for you in seconds."
       covers={covers}
       aside={
-        <>
-          {stats.length > 0 && (
+        stats.length > 0 ? (
+          <>
             <LuxeStats
               large
               stats={stats.map(st => ({ label: st.label, value: <Count to={st.value} />, icon: st.icon }))}
             />
-          )}
-          <button onClick={onCreate} className={`${luxePill(true)} ${stats.length ? 'mt-4' : ''}`}>
-            <Plus className="h-4 w-4" /> New Spotlight page
-          </button>
-        </>
+            <button onClick={onCreate} className={`${luxePill(true)} mt-4`}>
+              <Plus className="h-4 w-4" /> New Spotlight page
+            </button>
+          </>
+        ) : (
+          // No pages yet: how it works, then the button - instead of a lone button floating in space.
+          <div className="w-full rounded-2xl border border-gray-200/80 bg-white/80 p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.06]">
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#8b7355] dark:text-[#e8c97a]">Your first page in 3 steps</p>
+            <ol className="mt-3 space-y-2.5">
+              {([
+                [Home, 'Pick a listing', 'Yours, or any address.'],
+                [Sparkles, 'We build the page', 'Photos, story and the town - written for you.'],
+                [Globe, 'Publish and share', 'One link for texts, emails and social.'],
+              ] as const).map(([Icon, title, text], i) => (
+                <li key={title} className="flex items-start gap-3">
+                  <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#e8c97a] to-[#b8913f] text-[#111827] shadow-sm">
+                    <Icon className="h-4 w-4" />
+                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#111827] text-[9px] font-black text-white dark:bg-white dark:text-[#111827]">{i + 1}</span>
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-black text-[#111827] dark:text-white">{title}</span>
+                    <span className="block text-[12px] font-semibold text-gray-500 dark:text-gray-400">{text}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <button onClick={onCreate} className={`${luxePill(true)} mt-4 w-full justify-center`}>
+              <Plus className="h-4 w-4" /> New Spotlight page
+            </button>
+          </div>
+        )
       }
     />
   )

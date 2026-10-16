@@ -312,8 +312,8 @@ export function CreateOpenHouseWizard({
       }
 
       setIsLoadingSuggestions(true)
-      // An open house can only be hosted for an active for-sale listing - excludes rentals and
-      // anything pending/under contract/closed/off-market.
+      // Kits are for for-sale homes - Active or Coming Soon - never rentals or anything
+      // pending/under contract/closed/off-market.
       const { success, data } = await api.properties.address(query, { activeOnly: true, excludeRentals: true })
       if (success && data?.results) {
         const baseResults = data.results

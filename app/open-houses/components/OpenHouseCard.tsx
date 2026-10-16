@@ -4,7 +4,7 @@ import { memo, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Bath, Bed, BoxSelect, ChevronDown, Layers, MapPin, MonitorPlay, Plus, Sparkles, Tablet, Ticket, Trash2, Mail } from 'lucide-react'
+import { Bath, Bed, BoxSelect, ChevronDown, MapPin, MonitorPlay, Plus, Sparkles, Tablet, Ticket, Trash2, Mail } from 'lucide-react'
 import { AfterSignin, GuestSettingsPatch, OpenHouse } from '@/types'
 
 interface OpenHouseCardProps {
@@ -169,7 +169,6 @@ export const OpenHouseCard = memo(function OpenHouseCard({
             icon={<Sparkles className="h-3 w-3" />}
             label="Guest Showcases"
             shortLabel="Showcases"
-            short
             fit={fit}
             hint={showcasesOn
               ? 'ON - everyone who signs in without an agent gets their own Showcase of similar homes (and a Showcase button on their Guest Pass). Starts OFF when it\'s your own listing, so guests aren\'t sent shopping other homes.'
@@ -177,27 +176,14 @@ export const OpenHouseCard = memo(function OpenHouseCard({
             onToggle={() => onGuestSettings(openHouse, { autoShowcase: !showcasesOn })}
           />
           )}
-          {similarAvailable && (
-            <GuestSwitch
-              on={similarOn}
-              icon={<Layers className="h-3 w-3" />}
-              label="Similar Homes"
-              shortLabel="Similar"
-              short
-              fit={fit}
-              hint={similarOn
-                ? 'ON - your kit includes the Similar Homes sheet, and guests see those homes on their Guest Pass. Starts OFF when it\'s your own listing, so guests stay focused on this home.'
-                : 'OFF - no Similar Homes sheet in your kit and no similar homes on the Guest Pass, so guests stay focused on this home. Your picked homes are kept if you turn it back on.'}
-              onToggle={() => onGuestSettings(openHouse, { similarHomes: !similarOn })}
-            />
-          )}
+          {/* Similar Homes on/off lives in the kit flow and on the Documents screen (next to Refresh),
+              not on this card (user, 10/16) - leaves room for every switch's full name. */}
           {passAvailable && (
             <GuestSwitch
               on={passOn}
               icon={<Ticket className="h-3 w-3" />}
               label="Guest Pass"
               shortLabel="Guest Pass"
-              short
               fit={fit}
               hint={passOn
                 ? 'ON - right after signing in, each guest\'s phone opens their Guest Pass: this home, ' + (similarAvailable && similarOn ? 'your Similar Homes + ' : 'your ') + 'Cheat Sheet as web pages, one-tap seller disclosure / second tour requests' + (openHouse.showcasesAvailable && showcasesOn ? ', their Showcase' : '') + (openHouse.ownSpotlightUrl ? ', and your Spotlight up top' : '') + '. (Not on a Kiosk tablet - it stays ready for the next guest.)'
@@ -209,9 +195,8 @@ export const OpenHouseCard = memo(function OpenHouseCard({
             <GuestSwitch
               on={passSigOn}
               icon={<Mail className="h-3 w-3" />}
-              label="Pass footer: my signature"
+              label="Signature Footer"
               shortLabel="Signature"
-              short
               fit={fit}
               hint={passSigOn
                 ? "ON - the bottom of each guest's Guest Pass is your email signature card (your photo, buttons, latest listing or sales, socials) instead of the plain agent card. Edit it under Studio -> Signature."
@@ -333,8 +318,8 @@ function GuestSwitch({ on, icon, label, shortLabel, short, fit = 0, hint, onTogg
       }`}
     >
       <span className={compact ? 'contents' : fit === 1 ? 'hidden' : 'hidden sm:contents'}>{icon}</span>
-      {!compact && <span className={short ? '' : 'sm:hidden'}>{shortLabel}</span>}
-      {!compact && !short && <span className="hidden sm:inline">{label}</span>}
+      {fit === 0 && <span>{short ? shortLabel : label}</span>}
+      {fit === 1 && <span>{shortLabel}</span>}
       <span className={`relative ml-0.5 inline-flex h-3.5 shrink-0 rounded-full transition-colors ${fit === 0 ? 'w-6' : 'w-5'} ${on ? 'bg-[#C9A24D]' : 'bg-gray-300 dark:bg-gray-600'}`}>
         <span className={`absolute top-0.5 h-2.5 w-2.5 rounded-full bg-white shadow transition-all ${on ? (fit === 0 ? 'left-3' : 'left-2') : 'left-0.5'}`} />
       </span>

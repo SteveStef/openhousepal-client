@@ -381,14 +381,6 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
                 hint: 'Similar Homes is OFF for this open house: no Similar Homes sheet, and no similar homes on guests’ Guest Pass - guests stay focused on this home. Tap to include it again (your picked homes are kept).',
                 onClick: onToggleSimilarHomes!,
               }] : [
-                ...(similarSwitchable ? [{
-                  key: 'include',
-                  label: 'Include',
-                  active: true,
-                  showInfo: true,
-                  hint: 'Similar Homes is ON: the Similar Homes sheet prints with your kit, and guests see these homes on their Guest Pass. Tap to turn it off for this open house (e.g. sitting your own listing).',
-                  onClick: onToggleSimilarHomes!,
-                }] : []),
                 ...(!hasComps && onEditRecommendations ? [{
                   key: 'choose',
                   label: 'Choose Homes',
@@ -414,14 +406,25 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
                     active: Boolean(showMatchScore),
                   }] : []),
                 ]] : []),
-                ...(hasComps && onReloadRecommendations ? [{
-                  key: 'reload',
-                  label: 'Refresh Listings',
-                  hint: 'Does: re-checks each listing shown here against the database - updates its price if changed, and removes it automatically if it has sold or is no longer active.',
-                  onClick: onReloadRecommendations,
-                  loading: isReloadingRecommendations,
-                  icon: 'reload' as const,
-                }] : []),
+                // The on/off sits next to Refresh (not up with Edit and Match %) - user, 10/16.
+                ...((similarSwitchable || (hasComps && onReloadRecommendations)) ? [[
+                  ...(similarSwitchable ? [{
+                    key: 'include',
+                    label: 'Include',
+                    active: true,
+                    showInfo: true,
+                    hint: 'Similar Homes is ON: the Similar Homes sheet prints with your kit, and guests see these homes on their Guest Pass. Tap to turn it off for this open house (e.g. sitting your own listing).',
+                    onClick: onToggleSimilarHomes!,
+                  }] : []),
+                  ...(hasComps && onReloadRecommendations ? [{
+                    key: 'reload',
+                    label: 'Refresh',
+                    hint: 'Does: re-checks each listing shown here against the database - updates its price if changed, and removes it automatically if it has sold or is no longer active.',
+                    onClick: onReloadRecommendations,
+                    loading: isReloadingRecommendations,
+                    icon: 'reload' as const,
+                  }] : []),
+                ]] : []),
               ]}
             />
           )}
