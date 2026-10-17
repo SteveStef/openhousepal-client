@@ -1677,6 +1677,18 @@ const AmenityCategory = ({ label, places, maxItems, showCity }: { label: string;
   );
 };
 
+type PackTile = { icon: keyof typeof ICONS; label: string; value: string; wide?: boolean; tight?: boolean; maxLines?: number };
+/** Two half-width tiles per row; a half tile that would sit alone (before a full-width tile, or last)
+ *  becomes full width instead of leaving an empty half. */
+function packFactTiles(tiles: PackTile[]): PackTile[] {
+  const out = tiles.map(t => ({ ...t }));
+  let run: number[] = [];
+  const flush = () => { if (run.length % 2 === 1) out[run[run.length - 1]].wide = true; run = []; };
+  out.forEach((t, i) => { if (t.wide) flush(); else run.push(i); });
+  flush();
+  return out;
+}
+
 type CheatSheetProps = { property: CheatSheetProperty; agent: CheatSheetAgent; amenities?: CheatSheetAmenities };
 
 const pdfPageCount = async (el: React.ReactElement) => {
@@ -1798,35 +1810,16 @@ export const OpenHouseCheatSheetDocument = ({ property, agent, amenities, fit = 
             <InfoLineRow items={propertyInfoLine} />
           </View>
 
-          {(hasAssignedSchools || hasSchoolTownship) && (
-            <View style={[styles.factTileGrid, { marginTop: 10 }]} wrap={false}>
-              {hasAssignedSchools && (
-                <FactTile
-                  icon="gradCap"
-                  label="Public Schools - (Elementary, Middle, High)"
-                  value={publicSchoolsDisplayValue}
-                  wide={!canPairSchoolTiles}
-                  tight
-                  maxLines={canPairSchoolTiles ? 2 : 3}
-                  fit={f}
-                />
-              )}
-              {hasSchoolTownship && (
-                <FactTile
-                  icon="gradCap"
-                  label="School District / Township"
-                  value={cleanedSchoolTownship}
-                  wide={hasAssignedSchools && !canPairSchoolTiles}
-                  tight
-                  maxLines={canPairSchoolTiles ? 2 : 2}
-                  fit={f}
-                />
-              )}
-            </View>
-          )}
-
-          <View style={styles.factTileGrid} wrap={false}>
-            {propertyInfo.map(fact => <FactTile key={fact.label} icon={fact.icon} label={fact.label} value={fact.value} wide={fact.wide} fit={f} />)}
+          {/* Every fact tile in one grid, two to a row (user, 10/17 - 1330 N Avignon had no assigned
+              schools, so the district tile sat alone in its own row with an empty half beside it, and
+              HOA Covers was left alone under HOA Fee). A half-width tile that would end up alone on its
+              row is stretched full width, so there is never a gap. */}
+          <View style={[styles.factTileGrid, { marginTop: 10 }]} wrap={false}>
+            {packFactTiles([
+              ...(hasAssignedSchools ? [{ icon: 'gradCap' as const, label: 'Public Schools - (Elementary, Middle, High)', value: publicSchoolsDisplayValue, wide: !canPairSchoolTiles, tight: true, maxLines: canPairSchoolTiles ? 2 : 3 }] : []),
+              ...(hasSchoolTownship ? [{ icon: 'gradCap' as const, label: 'School District / Township', value: cleanedSchoolTownship, tight: true, maxLines: 2 }] : []),
+              ...propertyInfo.map(fact => ({ icon: fact.icon, label: fact.label, value: fact.value, wide: !!fact.wide })),
+            ]).map(t => <FactTile key={t.label} icon={t.icon} label={t.label} value={t.value} wide={t.wide} tight={t.tight} maxLines={t.maxLines} fit={f} />)}
           </View>
           {hasAssignedSchools && f.disclaimer && (
             <Text style={styles.schoolDisclaimer}>
