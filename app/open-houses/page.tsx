@@ -15,6 +15,7 @@ import { EditCheatSheetPhotosModal } from '@/components/EditCheatSheetPhotosModa
 import PDFPreviewModal from '@/components/PDFPreviewModal'
 import { GuestSettingsPatch, OpenHouse, StatSummary } from '@/types'
 import { buildBragSheetData, buildCheatSheetAgentData } from '@/lib/bragSheetData'
+import { cheatSheetSqft } from '@/lib/cheatSheetContent'
 import MissedShowcasesBanner from '@/components/MissedShowcasesBanner'
 import { computeMatchScore } from '@/lib/matchScore'
 import { readPrintPref, writePrintPref } from '@/lib/printPrefs'
@@ -508,7 +509,7 @@ function OpenHouseContent() {
         price: targetOH.ListPrice || targetOH.price || 0,
         beds: targetOH.BedroomsTotal || targetOH.bedrooms || 0,
         baths: targetOH.BathroomsTotal || targetOH.bathrooms || 0,
-        sqft: targetOH.LivingArea || targetOH.livingArea || 0,
+        sqft: targetOH.LivingArea || targetOH.livingArea || cheatSheetSqft((targetOH as any).cheatSheetSnapshot?.property) || 0,
         brand: await buildCheatSheetAgentData(currentUser),
         coverImage: targetOH.coverImageUrl,
         coverImagePosition: (targetOH as any).coverImagePosition || { x: 50, y: 50 },
@@ -541,7 +542,7 @@ function OpenHouseContent() {
             price: targetOH.ListPrice || targetOH.price || 0,
             beds: targetOH.BedroomsTotal || targetOH.bedrooms || 0,
             baths: targetOH.BathroomsTotal || targetOH.bathrooms || 0,
-            sqft: targetOH.LivingArea || targetOH.livingArea || 0,
+            sqft: targetOH.LivingArea || targetOH.livingArea || cheatSheetSqft((targetOH as any).cheatSheetSnapshot?.property) || 0,
             schoolDistrict,
             // Always fetched fresh (name/photo/brokerage can change in Settings any time).
             brand: readPrintPref('flyerBrand') ? await buildCheatSheetAgentData(currentUser) : null,
@@ -658,8 +659,23 @@ function OpenHouseContent() {
         sqft: p.living_area || p.LivingArea,
       },
       agent: freshAgent,
-      // amenities/photos intentionally left untouched - no new Google Places request here
-    };
+      // amenities/photos left as they are - except missing assigned schools (below)
+    } as any;
+    // A sheet saved without all three assigned schools: ask again. The listing's places are cached
+    // (no new Google charge); the server fills missing levels from a one-time web lookup (user,
+    // 10/17 - 1330 N Avignon had no schools).
+    {
+      const levels = ['Elementary School', 'Middle School', 'High School']
+      const sp = existingSnapshot?.property || {}
+      const own = [sp.elementarySchool, sp.middleSchool, sp.highSchool]
+      const schools: any[] = existingSnapshot?.amenities?.schools || []
+      const covered = levels.filter((l, i) => own[i] || schools.some(s => s?.place_type === l)).length
+      if (covered < 3) {
+        const am = await api.properties.getNearbyAmenities(targetOH.listingKey)
+        const fresh: any[] = am.success && am.data ? (am.data as any).schools || [] : []
+        if (fresh.length > schools.length) updatedSnapshot.amenities = { ...(existingSnapshot?.amenities || {}), schools: fresh, available: true }
+      }
+    }
     // The listing's description: picked up only when it actually changed in the MLS. Then (and only
     // then) a Recap that's on is rewritten from the new text - one AI call, after which the new
     // description is the saved one, so refreshing again costs nothing. A Recap that's switched off
@@ -1043,28 +1059,32 @@ function OpenHouseContent() {
         {visitorsFor && (
           <motion.div
             key="visitors"
-            className="fixed inset-0 z-[70] flex items-end justify-center bg-[#0b0f0e]/65 sm:items-center sm:p-6"
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0b0f0e]/65 p-3 sm:p-6"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
             onClick={closeVisitors}
           >
+            {/* A centered pop-up on phones too (not a slide-up sheet), and the X floats over the
+                corner instead of taking a column - so nothing gets pushed left (user, 10/17). */}
             <motion.div
               role="dialog" aria-modal="true" aria-label="Visitors"
               onClick={e => e.stopPropagation()}
-              initial={{ opacity: 0, y: 48, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: 0.42, ease: [0.16, 1, 0.3, 1] } }}
-              exit={{ opacity: 0, y: 28, scale: 0.97, transition: { duration: 0.22, ease: [0.4, 0, 1, 1] } }}
+              initial={{ opacity: 0, y: 24, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 380, damping: 32 } }}
+              exit={{ opacity: 0, y: 16, scale: 0.97, transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } }}
               style={{ willChange: 'transform, opacity' }}
-              className="relative max-h-[92vh] min-h-[60vh] w-full max-w-6xl overflow-y-auto overscroll-contain rounded-t-3xl bg-[#faf9f7] shadow-2xl dark:bg-[#0B0B0B] sm:rounded-3xl"
+              className="relative flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-[#faf9f7] shadow-2xl dark:bg-[#0B0B0B] sm:max-h-[92vh]"
             >
               <button
                 onClick={closeVisitors}
                 aria-label="Close"
-                className="sticky right-4 top-4 z-10 float-right mr-4 mt-4 flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-md transition hover:rotate-90 hover:text-[#111827] dark:border-gray-700 dark:bg-[#151517] dark:hover:text-white"
+                className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-gray-500 shadow-md transition hover:rotate-90 hover:text-[#111827] dark:border-gray-700 dark:bg-[#151517] dark:hover:text-white sm:right-4 sm:top-4"
               >
                 <X className="h-4 w-4" />
               </button>
-              <OpenHouseVisitors openHouseEventId={visitorsFor} onClose={closeVisitors} />
+              <div className="min-h-[40vh] overflow-y-auto overscroll-contain">
+                <OpenHouseVisitors openHouseEventId={visitorsFor} onClose={closeVisitors} />
+              </div>
             </motion.div>
           </motion.div>
         )}

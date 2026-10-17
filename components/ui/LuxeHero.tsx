@@ -17,7 +17,7 @@ import type { LucideIcon } from 'lucide-react'
 // gold aurora, a faint architectural grid, a gold sweep along the top edge, a few twinkling
 // sparkles and a shimmer through the gold title words. All of it stops under reduced-motion.
 export default function LuxeHero({
-  kicker, icon: Icon, title, subtitle, badge, kickerNote, aside, actions, tabs, covers = [], compact = false, className = '', backHref, backLabel, asideClassName = 'lg:w-[400px]', centered = false, titleClassName, subtitleClassName,
+  kicker, icon: Icon, title, subtitle, badge, kickerNote, aside, actions, tabs, covers = [], compact = false, className = '', backHref, backLabel, asideClassName = 'lg:w-[400px]', actionsClassName = '', centered = false, titleClassName, subtitleClassName,
 }: {
   kicker: string
   icon?: LucideIcon
@@ -42,6 +42,8 @@ export default function LuxeHero({
   backLabel?: string
   /** Width of the right-hand column on desktop (default 400px). */
   asideClassName?: string
+  /** Extra classes on the actions row's wrapper (e.g. 'max-sm:hidden'). */
+  actionsClassName?: string
   /** Everything centered, `actions` front and center, `aside` underneath (Opens' address bar). */
   centered?: boolean
   /** Overrides the title's text size (e.g. a bigger title on a compact header). */
@@ -89,8 +91,10 @@ export default function LuxeHero({
       {SPARKS.map((sp, k) => <span key={k} className="lx-spark pointer-events-none absolute" style={{ left: sp[0], top: sp[1], animationDelay: `${sp[2]}s` }} />)}
       </div>
       <div className={`relative ${compact ? 'p-4 sm:px-6 sm:py-4' : 'p-5 sm:p-8 lg:p-10'}`}>
-        <div className={`flex flex-wrap items-center gap-2 ${centered ? 'justify-center' : 'justify-between'}`}>
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-black uppercase tracking-[0.32em] text-[#8b7355] dark:text-[#e8c97a]">
+        {/* Phones (user, 10/17): back arrow, kicker and the stat pills share ONE line - the pills sit
+            right after the kicker and slide sideways if they don't fit - so headers stay short. */}
+        <div className={`flex items-center gap-2 ${badge ? 'flex-nowrap sm:flex-wrap' : 'flex-wrap'} ${centered ? 'justify-center' : 'justify-between'}`}>
+          <p className={`flex items-center gap-x-2 gap-y-1 text-[10px] ${badge ? 'shrink-0 flex-nowrap sm:flex-wrap' : 'flex-wrap'} font-black uppercase tracking-[0.2em] sm:tracking-[0.32em] text-[#8b7355] dark:text-[#e8c97a]`}>
             {backHref && (
               <BackArrow fallbackHref={backHref} label={backLabel} className="-my-1.5 mr-1 flex h-6 w-6 items-center justify-center rounded-full border border-[#C9A24D]/30 bg-white/80 text-[#8b7355] shadow-sm transition hover:-translate-x-0.5 hover:border-[#C9A24D] dark:border-white/15 dark:bg-white/[0.06] dark:text-[#e8c97a]" />
             )}
@@ -100,7 +104,7 @@ export default function LuxeHero({
           </p>
           {/* Negative margin like the back arrow - a chip or stat pill here never makes the line taller. */}
           {/* Phones: its own single row that slides sideways (never wraps into the title). */}
-          {badge && <div className="-mx-1 flex w-full min-w-0 items-center overflow-x-auto px-1 py-0.5 [scrollbar-width:none] sm:-my-2 sm:mx-0 sm:w-auto sm:overflow-visible sm:px-0 sm:py-0">{badge}</div>}
+          {badge && <div className="-my-1.5 flex min-w-0 flex-1 items-center justify-end overflow-x-auto py-0.5 [scrollbar-width:none] max-sm:[&>*]:origin-right max-sm:[&>*]:scale-[0.9] sm:-my-2 sm:flex-none sm:overflow-visible sm:py-0">{badge}</div>}
         </div>
         <div className={`flex flex-col gap-4 ${centered ? 'items-center text-center' : 'lg:flex-row lg:items-start lg:justify-between'} ${compact ? 'mt-1.5' : 'mt-3 gap-5'}`}>
           <div className="min-w-0">
@@ -109,7 +113,7 @@ export default function LuxeHero({
           </div>
           {aside && !centered && <div className={`flex min-w-0 shrink-0 flex-col items-center ${asideClassName}`}>{aside}</div>}
         </div>
-        {actions && <div className={`${compact ? 'mt-4' : 'mt-6'} ${centered ? 'flex flex-col items-center' : ''}`}>{actions}</div>}
+        {actions && <div className={`${compact ? 'mt-4' : 'mt-6'} ${centered ? 'flex flex-col items-center' : ''} ${actionsClassName}`}>{actions}</div>}
         {aside && centered && <div className="mt-4 flex justify-center">{aside}</div>}
       </div>
       {/* A tabs row that comes and goes (e.g. Signature's re-copy warning) unfolds and folds

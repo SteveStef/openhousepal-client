@@ -113,7 +113,10 @@ export async function buildBragSheetData(currentUser: User | null, similarProper
   }
   // ...and only when this open house gives guests Showcases (a listing agent at their own listing
   // turns them off - no page sending guests to shop other homes).
-  const withShowcase = hasShowcaseAccess(planTier) && opts?.showcases !== false
+  // ...and only when there's a Similar Homes sheet with homes on it (user, 10/17): the back of the
+  // sheet pitches Showcases using those homes, so with Showcases off, the sheet skipped, or no homes
+  // picked, the back is left blank (the PDF is one page).
+  const withShowcase = hasShowcaseAccess(planTier) && opts?.showcases !== false && (similarProperties?.length ?? 0) > 0
   const withHub = hasAgentHubAccess(planTier)
 
   const [hubRes, formsRes, siteRes, domainsRes] = await Promise.all([

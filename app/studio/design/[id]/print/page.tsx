@@ -10,6 +10,7 @@ import { getTemplate } from '@/lib/studio/designTemplates'
 import { designAgentFrom } from '@/lib/studio/designAgent'
 import DesignCanvas, { DesignCanvasContext } from '@/components/studio/design/DesignCanvas'
 import { AgentFormConfig, BrandKit, CampaignLookup, DesignColorMode, DesignProject, DesignStyleId, OpenHouse, User } from '@/types'
+import { qrCenterReady, setQrOwner } from '@/lib/qr'
 
 // A bare, chrome-less render of a single design at full resolution - not reachable through normal
 // navigation. Exists for exactly one consumer: the backend's PDF export (see
@@ -49,6 +50,8 @@ function DesignPrintPageInner() {
       ])
       if (cancelled) return
       if (!designRes) { setFailed(true); return }
+      // The QR in the design uses this agent's centre logo choice - wait for it before painting.
+      if (user?.id) { setQrOwner(user.id); await qrCenterReady() }
       const format = getDesignFormat(designRes.design_type)
       if (!format) { setFailed(true); return }
 

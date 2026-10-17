@@ -4280,6 +4280,7 @@ function VideoLinksPanel({ items, setItems, channelUrl, setChannelUrl, carousel,
         <label className="block">
           <span className="text-xs font-black uppercase tracking-widest text-gray-400">YouTube channel link</span>
           <input value={draftChannelUrl} onChange={event => setDraftChannelUrl(event.target.value)} placeholder="https://www.youtube.com/@example" className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#C9A24D]" />
+          <span className="mt-1.5 block text-[11px] font-semibold leading-snug text-gray-500">Your channel&apos;s address, not one video: on YouTube tap your profile picture → <b>View your channel</b> and copy the link (it looks like youtube.com/@yourname). The blog writer suggests these videos for your articles too.</span>
         </label>
         <div className="mt-3 flex flex-wrap gap-2">
           <button onClick={saveChannelUrl} disabled={!draftChannelUrl.trim()} className={`rounded-xl px-4 py-3 text-sm font-black ${channelIsSaved ? 'border border-emerald-200 bg-emerald-50 text-emerald-700' : 'border border-gray-200 bg-[#fbfaf7] text-gray-700'}`}>

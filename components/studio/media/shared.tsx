@@ -7,6 +7,7 @@
 // meant the list's own polling/rendering kept running underneath the (much heavier) wizard, which
 // is the real cause of the reported lag - not just a cosmetic "should be its own page like CMA".
 
+import PhotoGridGate from '@/components/ui/PhotoGridGate'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Clock, Download, Film, Lightbulb, Loader2, Maximize, Moon, Sofa, Sparkles, Trash2, Video, X } from 'lucide-react'
 import type { StudioEnhancement, StudioImageEffect, StudioMediaAsset, StudioRoomType, StudioStagingStyle } from '@/types'
@@ -404,8 +405,9 @@ export function PhotoGrid({ photos, kind, isVideo, videoPhotos, selectedUrl, upl
 
   return (
     <>
+      <PhotoGridGate urls={photos.slice(0, 16)}>
       <div
-        className="grid max-h-[520px] grid-cols-3 gap-2.5 overflow-y-auto pr-1 sm:grid-cols-4"
+        className="ohp-reveal grid max-h-[520px] grid-cols-3 gap-2.5 overflow-y-auto pr-1 sm:grid-cols-4"
         style={{ overscrollBehavior: 'auto' }}
       >
         {photos.map((url) => {
@@ -429,6 +431,7 @@ export function PhotoGrid({ photos, kind, isVideo, videoPhotos, selectedUrl, upl
           )
         })}
       </div>
+      </PhotoGridGate>
       {inspectUrl && <ImageInspectModal url={inspectUrl} onClose={() => setInspectUrl(null)} />}
     </>
   )

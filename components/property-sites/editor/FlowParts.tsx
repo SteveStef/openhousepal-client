@@ -231,6 +231,17 @@ export function PreviewOverlay({ template, siteId, names, onClose, onUse, initia
 
 // The real page, shrunk: a 1440px-wide iframe of the preview route scaled to fit its box, so
 // what the agent sees in the editor is exactly what visitors get. Loads once it scrolls near.
+//
+// Phones (user, 10/17 - an iPhone showed "A problem repeatedly occurred" on a Spotlight draft):
+// a 1440px page drawn at 3x is a ~4300px-wide layer per preview, and the Design step shows
+// several at once - more than iOS Safari allows a tab, so it crashed, reloaded and crashed again.
+// On a phone each preview is the phone-width page instead (what a visitor's phone shows anyway),
+// only ONE preview is live at a time, and after a crash the editor opens with tap-to-load previews.
+let livePhonePreview: ((v: boolean) => void) | null = null
+const phoneScreen = () => typeof window !== 'undefined' && window.innerWidth < 768
+export function spotlightLiteMode(): boolean {
+  try { return typeof window !== 'undefined' && sessionStorage.getItem('sp-lite') === '1' } catch { return false }
+}
 export const ScaledPreview = forwardRef<HTMLIFrameElement, {
   src: string
   aspect?: number // height / width of the visible box (0.625 = 16:10)
@@ -242,17 +253,27 @@ export const ScaledPreview = forwardRef<HTMLIFrameElement, {
   const [w, setW] = useState(0)
   const [near, setNear] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const [phone] = useState(phoneScreen)
+  const [lite] = useState(() => phoneScreen() && spotlightLiteMode())
+  const [tapped, setTapped] = useState(false)
   useEffect(() => {
     const el = boxRef.current
     if (!el) return
     const ro = new ResizeObserver(([e]) => setW(e.contentRect.width))
     ro.observe(el)
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setNear(true); io.disconnect() } }, { rootMargin: '300px' })
+    // Phones: live only while (nearly) on screen, and only one at a time.
+    const io = new IntersectionObserver(([e]) => {
+      if (!phone) { if (e.isIntersecting) { setNear(true); io.disconnect() } return }
+      if (e.isIntersecting) { livePhonePreview?.(false); livePhonePreview = setNear; setNear(true) }
+      else setNear(false)
+    }, { rootMargin: phone ? '0px' : '300px', threshold: phone ? 0.35 : 0 })
     io.observe(el)
-    return () => { ro.disconnect(); io.disconnect() }
-  }, [])
+    return () => { ro.disconnect(); io.disconnect(); if (livePhonePreview === setNear) livePhonePreview = null }
+  }, [phone])
   useEffect(() => { setLoaded(false) }, [src])
-  const scale = w / 1440
+  useEffect(() => { if (!near) setLoaded(false) }, [near])
+  const base = phone ? 430 : 1440
+  const scale = w / base
   return (
     <div className={`overflow-hidden rounded-xl border border-gray-200 bg-[#0b0b0c] shadow-lg dark:border-white/10 ${className}`}>
       <div className="flex items-center gap-1.5 border-b border-gray-100 bg-gray-50 px-3 py-2 dark:border-white/10 dark:bg-[#1c1c1e]">
@@ -260,7 +281,7 @@ export const ScaledPreview = forwardRef<HTMLIFrameElement, {
         <span className="ml-2 truncate rounded-md bg-white px-2 py-0.5 text-[9px] font-semibold text-gray-400 dark:bg-black/30">{label || 'your-listing.openhousepal.com'}</span>
       </div>
       <div ref={boxRef} className="relative overflow-hidden" style={{ height: w ? w * aspect : undefined, aspectRatio: w ? undefined : `${1 / aspect}` }}>
-        {near && w > 0 && (
+        {near && w > 0 && (!lite || tapped) && (
           <iframe
             ref={ref}
             key={src}
@@ -270,10 +291,15 @@ export const ScaledPreview = forwardRef<HTMLIFrameElement, {
             onLoad={() => { setLoaded(true); onLoad?.() }}
             className="pointer-events-none absolute left-0 top-0 origin-top-left border-0 transition-opacity duration-500"
             // +3 css px of overscan so a rounding gap never shows a sliver under the page
-            style={{ width: 1440, height: (w * aspect) / scale + 3, transform: `scale(${scale})`, opacity: loaded ? 1 : 0 }}
+            style={{ width: base, height: (w * aspect) / scale + 3, transform: `scale(${scale})`, opacity: loaded ? 1 : 0 }}
           />
         )}
-        {!loaded && (
+        {lite && !tapped && (
+          <button type="button" onClick={() => setTapped(true)} className="absolute inset-0 z-[1] flex items-center justify-center bg-[#0b0b0c] text-[11px] font-black uppercase tracking-wide text-white/80">
+            Tap to load the preview
+          </button>
+        )}
+        {!loaded && !(lite && !tapped) && (
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="fp-shimmer absolute inset-0" />
             <Loader2 className="relative h-5 w-5 animate-spin text-[#C9A24D]" />

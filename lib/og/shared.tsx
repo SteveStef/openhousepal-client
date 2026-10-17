@@ -51,8 +51,9 @@ export async function ogFetch<T = any>(pathname: string): Promise<T | null> {
     const res = await fetch(`${API_BASE}${pathname}`, {
       headers: { accept: 'application/json' },
       // A shared preview image doesn't need to be second-fresh; 10 min cache keeps repeated
-      // unfurls (and crawler retries) off the backend.
-      next: { revalidate: 600 },
+      // unfurls (and crawler retries) off the backend. Showcases: 2 min, so a link copied right
+      // after new homes land shows them.
+      next: { revalidate: pathname.startsWith('/collections/shared/') ? 120 : 600 },
     })
     if (!res.ok) return null
     return (await res.json()) as T
@@ -288,16 +289,19 @@ export function PhotoCard({
             'linear-gradient(0deg, rgba(9,7,4,0.95) 0%, rgba(9,7,4,0.35) 52%, rgba(9,7,4,0.5) 100%), linear-gradient(90deg, rgba(9,7,4,0.78) 0%, rgba(9,7,4,0.12) 55%, rgba(9,7,4,0.3) 100%)',
         }}
       />
-      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: 72, color: '#fff' }}>
-        <Eyebrow>{eyebrow}</Eyebrow>
-        <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: 68, lineHeight: 1.04, marginTop: 18, maxWidth: 1000 }}>
-          {headline}
-        </div>
-        {sub ? (
-          <div style={{ display: 'flex', fontSize: 30, fontWeight: 400, color: C.sub, marginTop: 16 }}>{sub}</div>
-        ) : null}
-        <div style={{ display: 'flex', marginTop: 40 }}>
+      {/* The agent first - their headshot top-left - so the link reads as theirs (user, 10/17) */}
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', padding: '56px 72px 66px', color: '#fff' }}>
+        <div style={{ display: 'flex', alignSelf: 'flex-start', padding: '10px 26px 10px 10px', borderRadius: 999, backgroundColor: 'rgba(9,7,4,0.55)', border: '1px solid rgba(234,208,154,0.35)' }}>
           <AgentChip name={agentName} brokerage={agentBrokerage} photo={agentPhoto} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', marginTop: 'auto' }}>
+          <Eyebrow>{eyebrow}</Eyebrow>
+          <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: headline.length > 44 ? 56 : 68, lineHeight: 1.04, marginTop: 16, maxWidth: 1050 }}>
+            {headline}
+          </div>
+          {sub ? (
+            <div style={{ display: 'flex', fontSize: 30, fontWeight: 400, color: C.sub, marginTop: 14 }}>{sub}</div>
+          ) : null}
         </div>
       </div>
     </div>

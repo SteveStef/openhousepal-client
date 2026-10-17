@@ -11,6 +11,8 @@ import Footer from '@/components/Footer'
 import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import NotesThread from '@/components/leads/NotesThread'
+import { OhpSpinner } from '@/components/brand/OhpLoader'
+import { createPortal } from 'react-dom'
 import { copyText } from '@/lib/copyText'
 
 // The Visitor Insights view. As its own page (/open-houses/visitors/[id]) it reads the id from the
@@ -73,7 +75,8 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
     ])
 
     if (visitorsResult.success && visitorsResult.data) {
-      setVisitors(visitorsResult.data)
+      // Newest sign-in first (user, 10/17) - the person who just walked in is on top.
+      setVisitors([...visitorsResult.data].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)))
     } else {
       setError(visitorsResult.error || 'Failed to load visitors')
     }
@@ -83,7 +86,7 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
     setIsLoading(false)
   }
 
-  // Same calendar day as the visitor before them (list is oldest-first) - drives the "connected"
+  // Same calendar day as the visitor before them (list is newest-first) - drives the "connected"
   // vs "gapped" spacing so visitors from one day read as a cluster, distinct from other days.
   const isSameDayAsPrevious = (visitor, index) => {
     if (index === 0) return false
@@ -218,7 +221,7 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
           {/* Header Section */}
           <div className={embedded ? 'mb-6' : 'mb-8'}>
             {embedded ? (
-              <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-gray-800 p-6 sm:p-8 transition-colors">
+              <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-gray-800 p-5 pr-14 sm:p-8 sm:pr-16 transition-colors">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:justify-between">
                   <div className="flex items-center min-w-0">
                     {openHouse?.coverImageUrl ? (
@@ -235,7 +238,7 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
                       </div>
                     )}
                     <div className="min-w-0">
-                      <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight">Visitor Insights</h1>
+                      <h1 className="text-xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight">Visitor Insights</h1>
                       {openHouse?.address ? (
                         <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1 font-light truncate">
                           {toTitleCase(String(openHouse?.address || '').split(',')[0])}{openHouse.price ? ` · $${Number(openHouse.price).toLocaleString()}` : ''}
@@ -281,8 +284,7 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
             {isLoading ? (
               <div className="flex items-center justify-center py-24 bg-white dark:bg-[#151517] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
                 <div className="text-center">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 dark:border-white mx-auto mb-4"></div>
-                  <p className="text-gray-500 dark:text-gray-400 font-medium">Loading visitor data...</p>
+                  <OhpSpinner size={30} label="Loading visitors" />
                 </div>
               </div>
             ) : error ? (
@@ -458,15 +460,16 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
 
       {!embedded && <Footer />}
 
-      {/* Note Modal */}
-      <AnimatePresence>
+      {/* Note Modal - portaled to <body>: inside the pop-up (a transformed, scrolling box) a
+          "fixed" window was pinned to the top of the list instead of the screen. */}
+      {typeof document !== 'undefined' && createPortal(<AnimatePresence>
       {isNoteModalOpen && selectedVisitorForNote && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 bg-[#111827]/60 z-[80] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-[#111827]/60 z-[120] flex items-center justify-center p-4"
         >
           <motion.div
             initial={{ opacity: 0, y: 12, scale: 0.97 }}
@@ -543,7 +546,7 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
           </motion.div>
         </motion.div>
       )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
     </div>
   )
 }

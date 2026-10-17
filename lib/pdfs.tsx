@@ -10,10 +10,11 @@ import {
   Svg,
   Path,
   Circle,
+  pdf,
 } from '@react-pdf/renderer';
 import type { Style } from '@react-pdf/types';
 import { normalizeImageUrl } from '@/lib/utils';
-import { buildCheatSheetContent, cityFromAddress, formatCurrencyCompact, type AmenityPlace, type CheatSheetAmenities, type CheatSheetPhoto } from '@/lib/cheatSheetContent';
+import { buildCheatSheetContent, cityFromAddress, formatCurrencyCompact, truncateAtCleanSentence, type AmenityPlace, type CheatSheetAmenities, type CheatSheetPhoto } from '@/lib/cheatSheetContent';
 import { fitBio } from '@/lib/agentBio';
 import { CmaComparable, CmaFinalStatus, CmaReport, CmaSubjectProperty } from '@/types';
 
@@ -1473,18 +1474,38 @@ const InfoLineRow = ({ items }: { items: { icon: keyof typeof ICONS; label: stri
   </View>
 );
 
-const FactTile = ({ icon, label, value, wide, tight, maxLines = 2 }: { icon: keyof typeof ICONS; label: string; value: string; wide?: boolean; tight?: boolean; maxLines?: number }) => {
+const FactTile = ({ icon, label, value, wide, tight, maxLines = 2, fit }: { icon: keyof typeof ICONS; label: string; value: string; wide?: boolean; tight?: boolean; maxLines?: number; fit?: CheatFit }) => {
   const Icon = ICONS[icon];
+  const f = fit || CHEAT_FIT[0];
+  const tile = { paddingVertical: f.tilePad, marginBottom: f.tileGap };
+  const circle = { width: f.icon, height: f.icon, borderRadius: f.icon / 2 };
+  const valueSize = { fontSize: tight ? f.value - 1.1 : f.value };
   return (
-    <View style={wide ? [styles.factTile, styles.factTileWide] : styles.factTile} wrap={false}>
-      <View style={styles.factIconCircle}><Icon /></View>
+    <View style={wide ? [styles.factTile, styles.factTileWide, tile] : [styles.factTile, tile]} wrap={false}>
+      <View style={[styles.factIconCircle, circle]}><Icon /></View>
       <View style={styles.factTileText}>
         <Text style={styles.factLabel}>{label}</Text>
-        <Text style={tight ? styles.factValueTight : styles.factValue} {...({ numberOfLines: maxLines } as any)}>{value}</Text>
+        <Text style={[tight ? styles.factValueTight : styles.factValue, valueSize]} {...({ numberOfLines: maxLines } as any)}>{value}</Text>
       </View>
     </View>
   );
 };
+
+// The Cheat Sheet is ALWAYS exactly 2 pages (user, 10/17: page 2's bottom printed onto a 3rd page -
+// "this can never happen"). Four sizes, from roomy to compact: a little tighter tiles, a shorter
+// description, fewer "What's Nearby" items, a smaller QR row. fitCheatSheetLevel() renders the
+// sheet and uses the first size that comes out at 2 pages; on top of that, page 2 itself is locked
+// to one page (its content area is a fixed height and the QR row always sits at its bottom), so even
+// an unmeasured sheet can never spill onto a third page.
+type CheatFit = { tilePad: number; tileGap: number; icon: number; value: number; desc: number; descChars: number | null; amenityDrop: number; actionH: number; qr: number; disclaimer: boolean; headGap: number };
+const CHEAT_FIT: CheatFit[] = [
+  { tilePad: 7, tileGap: 8, icon: 26, value: 9.5, desc: 8.8, descChars: null, amenityDrop: 0, actionH: 148, qr: 80, disclaimer: true, headGap: 16 },
+  { tilePad: 5, tileGap: 6, icon: 22, value: 9, desc: 8.3, descChars: 260, amenityDrop: 0, actionH: 140, qr: 74, disclaimer: true, headGap: 12 },
+  { tilePad: 4, tileGap: 5, icon: 20, value: 8.6, desc: 8, descChars: 210, amenityDrop: 1, actionH: 128, qr: 66, disclaimer: false, headGap: 10 },
+  { tilePad: 3, tileGap: 4, icon: 18, value: 8.2, desc: 7.6, descChars: 150, amenityDrop: 2, actionH: 116, qr: 58, disclaimer: false, headGap: 8 },
+];
+const LETTER_H = 792;
+const SHEET_PAD = 35;
 
 interface CheatSheetProperty {
   id?: string | number | null;
@@ -1656,14 +1677,64 @@ const AmenityCategory = ({ label, places, maxItems, showCity }: { label: string;
   );
 };
 
-export const OpenHouseCheatSheetDocument = ({ property, agent, amenities }: { property: CheatSheetProperty; agent: CheatSheetAgent; amenities?: CheatSheetAmenities }) => {
+type PackTile = { icon: keyof typeof ICONS; label: string; value: string; wide?: boolean; tight?: boolean; maxLines?: number };
+/** Two half-width tiles per row; a half tile that would sit alone (before a full-width tile, or last)
+ *  becomes full width instead of leaving an empty half. */
+function packFactTiles(tiles: PackTile[]): PackTile[] {
+  const out = tiles.map(t => ({ ...t }));
+  let run: number[] = [];
+  const flush = () => { if (run.length % 2 === 1) out[run[run.length - 1]].wide = true; run = []; };
+  out.forEach((t, i) => { if (t.wide) flush(); else run.push(i); });
+  flush();
+  return out;
+}
+
+type CheatSheetProps = { property: CheatSheetProperty; agent: CheatSheetAgent; amenities?: CheatSheetAmenities };
+
+const pdfPageCount = async (el: React.ReactElement) => {
+  const text = await (await pdf(el as any).toBlob()).text();
+  return (text.match(/\/Type\s*\/Page(?![s\w])/g) || []).length;
+};
+
+const fitCache = new WeakMap<object, Promise<number>>();
+/** The roomiest Cheat Sheet size that prints on exactly 2 pages (0 = normal ... 3 = most compact). */
+export function fitCheatSheetLevel(props: CheatSheetProps): Promise<number> {
+  const key = props.property as object;
+  const hit = key && fitCache.get(key);
+  if (hit) return hit;
+  const run = (async () => {
+    for (let level = 0; level < CHEAT_FIT.length; level++) {
+      try {
+        if (await pdfPageCount(<OpenHouseCheatSheetDocument {...props} fit={level} measure />) <= 2) return level;
+      } catch {
+        return CHEAT_FIT.length - 1;
+      }
+    }
+    return CHEAT_FIT.length - 1;
+  })();
+  if (key) fitCache.set(key, run);
+  return run;
+}
+
+export const OpenHouseCheatSheetDocument = ({ property, agent, amenities, fit = 0, measure = false }: CheatSheetProps & {
+  /** Size level (see CHEAT_FIT) - pick it with fitCheatSheetLevel(). */
+  fit?: number
+  /** Internal: lay page 2 out freely so fitCheatSheetLevel can see whether it spills. */
+  measure?: boolean
+}) => {
+  const f = CHEAT_FIT[Math.max(0, Math.min(CHEAT_FIT.length - 1, fit))];
   // What the sheet shows is worked out in lib/cheatSheetContent.ts - shared with the Guest Pass's
   // web version of this same Cheat Sheet, so the two always match.
   const {
     coverPhoto, detailPhotoOne, detailPhotoTwo, heroAddress, staticMapUrl, basicInfo, propertyInfoLine, propertyInfo,
     highlights, descriptionText, hasAssignedSchools, hasSchoolTownship, canPairSchoolTiles, publicSchoolsDisplayValue,
-    cleanedSchoolTownship, hasAmenities, amenityItemCap,
+    cleanedSchoolTownship, hasAmenities, amenityItemCap: baseAmenityCap,
   } = buildCheatSheetContent(property, amenities);
+  const amenityItemCap = Math.max(1, baseAmenityCap - f.amenityDrop);
+  const description = descriptionText && f.descChars ? truncateAtCleanSentence(descriptionText, f.descChars) : descriptionText;
+  const descStyle = { fontSize: f.desc, lineHeight: f.desc < 8.5 ? 1.38 : 1.45 };
+  // Page 2's content area: whatever the page holds above the QR row.
+  const flowHeight = LETTER_H - SHEET_PAD * 2 - f.actionH - 16;
   const disclosureUrl = propertyActionUrl(property, agent, 'disclosure');
   const tourUrl = propertyActionUrl(property, agent, 'tour');
 
@@ -1715,23 +1786,23 @@ export const OpenHouseCheatSheetDocument = ({ property, agent, amenities }: { pr
         </View>
       </Page>
 
-      <Page size="LETTER" style={styles.sheetPage}>
-        <View style={styles.pageTwoFlowContent}>
+      <Page size="LETTER" style={styles.sheetPage} wrap={measure}>
+        <View style={measure ? styles.pageTwoFlowContent : [styles.pageTwoFlowContent, { height: flowHeight, overflow: 'hidden' }]}>
           <View style={styles.backHeaderRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.sheetHeading}>{heroAddress}</Text>
-              <Text style={styles.sheetSubheading}>Open House Guide</Text>
+              <Text style={[styles.sheetSubheading, { marginBottom: f.headGap }]}>Open House Guide</Text>
             </View>
-            {!!property.price && <Text style={styles.backHeaderPrice}>${Number(property.price).toLocaleString()}</Text>}
+            {!!property.price && <Text style={[styles.backHeaderPrice, { marginBottom: f.headGap }]}>${Number(property.price).toLocaleString()}</Text>}
           </View>
 
           {highlights ? (
-            <Text style={[styles.descriptionText, styles.highlightsParagraph]} wrap={false}>
+            <Text style={[styles.descriptionText, styles.highlightsParagraph, descStyle]} wrap={false}>
               <Text style={styles.highlightsParagraphLabel}>{highlights.prefix}</Text>
               {highlights.body}
             </Text>
           ) : (
-            descriptionText && <Text style={styles.descriptionText} wrap={false}>{descriptionText}</Text>
+            description && <Text style={[styles.descriptionText, descStyle]} wrap={false}>{description}</Text>
           )}
 
           <View style={styles.sectionBlock} wrap={false}>
@@ -1739,35 +1810,18 @@ export const OpenHouseCheatSheetDocument = ({ property, agent, amenities }: { pr
             <InfoLineRow items={propertyInfoLine} />
           </View>
 
-          {(hasAssignedSchools || hasSchoolTownship) && (
-            <View style={[styles.factTileGrid, { marginTop: 10 }]} wrap={false}>
-              {hasAssignedSchools && (
-                <FactTile
-                  icon="gradCap"
-                  label="Public Schools - (Elementary, Middle, High)"
-                  value={publicSchoolsDisplayValue}
-                  wide={!canPairSchoolTiles}
-                  tight
-                  maxLines={canPairSchoolTiles ? 2 : 3}
-                />
-              )}
-              {hasSchoolTownship && (
-                <FactTile
-                  icon="gradCap"
-                  label="School District / Township"
-                  value={cleanedSchoolTownship}
-                  wide={hasAssignedSchools && !canPairSchoolTiles}
-                  tight
-                  maxLines={canPairSchoolTiles ? 2 : 2}
-                />
-              )}
-            </View>
-          )}
-
-          <View style={styles.factTileGrid} wrap={false}>
-            {propertyInfo.map(fact => <FactTile key={fact.label} icon={fact.icon} label={fact.label} value={fact.value} wide={fact.wide} />)}
+          {/* Every fact tile in one grid, two to a row (user, 10/17 - 1330 N Avignon had no assigned
+              schools, so the district tile sat alone in its own row with an empty half beside it, and
+              HOA Covers was left alone under HOA Fee). A half-width tile that would end up alone on its
+              row is stretched full width, so there is never a gap. */}
+          <View style={[styles.factTileGrid, { marginTop: 10 }]} wrap={false}>
+            {packFactTiles([
+              ...(hasAssignedSchools ? [{ icon: 'gradCap' as const, label: 'Public Schools - (Elementary, Middle, High)', value: publicSchoolsDisplayValue, wide: !canPairSchoolTiles, tight: true, maxLines: canPairSchoolTiles ? 2 : 3 }] : []),
+              ...(hasSchoolTownship ? [{ icon: 'gradCap' as const, label: 'School District / Township', value: cleanedSchoolTownship, tight: true, maxLines: 2 }] : []),
+              ...propertyInfo.map(fact => ({ icon: fact.icon, label: fact.label, value: fact.value, wide: !!fact.wide })),
+            ]).map(t => <FactTile key={t.label} icon={t.icon} label={t.label} value={t.value} wide={t.wide} tight={t.tight} maxLines={t.maxLines} fit={f} />)}
           </View>
-          {hasAssignedSchools && (
+          {hasAssignedSchools && f.disclaimer && (
             <Text style={styles.schoolDisclaimer}>
               School assignments are based on available attendance-boundary data and should be verified with the local school district.
             </Text>
@@ -1792,14 +1846,14 @@ export const OpenHouseCheatSheetDocument = ({ property, agent, amenities }: { pr
           )}
         </View>
 
-        <View style={styles.pageTwoActionRow} wrap={false}>
-          <View style={styles.qrActionCard}>
+        <View style={[styles.pageTwoActionRow, { height: f.actionH }]} wrap={false}>
+          <View style={[styles.qrActionCard, { height: f.actionH }]}>
             <Text style={styles.qrActionEyebrow}>Documents</Text>
-            <Image src={qrCodeUrl(disclosureUrl)} style={styles.qrActionImage} />
+            <Image src={qrCodeUrl(disclosureUrl)} style={[styles.qrActionImage, { width: f.qr, height: f.qr }]} />
             <Text style={styles.qrActionLabel}>Request Seller Disclosure</Text>
             <Text style={styles.qrActionHint}>Scan for disclosure and property docs</Text>
           </View>
-          <View style={styles.areaMapCard}>
+          <View style={[styles.areaMapCard, { height: f.actionH }]}>
             {staticMapUrl ? (
               <Image src={staticMapUrl} style={styles.areaMapImage} />
             ) : (
@@ -1808,9 +1862,9 @@ export const OpenHouseCheatSheetDocument = ({ property, agent, amenities }: { pr
               </View>
             )}
           </View>
-          <View style={styles.qrActionCard}>
+          <View style={[styles.qrActionCard, { height: f.actionH }]}>
             <Text style={styles.qrActionEyebrow}>Visit Again</Text>
-            <Image src={qrCodeUrl(tourUrl)} style={styles.qrActionImage} />
+            <Image src={qrCodeUrl(tourUrl)} style={[styles.qrActionImage, { width: f.qr, height: f.qr }]} />
             <Text style={styles.qrActionLabel}>Schedule a Second Visit</Text>
             <Text style={styles.qrActionHint}>Scan to request another showing</Text>
           </View>
@@ -2512,7 +2566,6 @@ function CmaComparisonTablePage({ report, comparables, agent }: { report: CmaRep
     { label: 'Annual Taxes', subject: s.annual_taxes ? formatMoney(s.annual_taxes) : '—', comp: c => c.annual_taxes ? formatMoney(c.annual_taxes) : '—' },
     { label: 'Days on Market', subject: String(s.days_on_market ?? '—'), comp: c => String(c.days_on_market ?? '—') },
     { label: 'Distance', subject: '—', comp: c => c.distance_miles != null ? `${c.distance_miles} miles` : '—' },
-    { label: 'Sale Date', subject: '—', comp: c => formatDate(c.sale_date) },
     { label: 'School District', subject: pdfDistrict(s.school_district) || '\u2014', comp: c => pdfDistrict(c.school_district) || '\u2014' },
     { label: 'Water Source', subject: formatCmaUtilityValue(s.water_source), comp: c => formatCmaUtilityValue(c.water_source) },
     { label: 'Sewer / Septic', subject: formatCmaUtilityValue(s.sewer), comp: c => formatCmaUtilityValue(c.sewer) },
@@ -2741,8 +2794,8 @@ function CmaBarChart({ title, subjectLabel, subjectValue, bars, formatValue }: {
 }
 
 function CmaChartsPage({ report, comparables, agent }: { report: CmaReport; comparables: CmaComparable[]; agent: CmaPdfAgent }) {
-  const psfBars = comparables.map((c, i) => ({ label: `#${i + 1}`, value: pricePerSqft(effectiveCompPrice(c), c.sqft) ?? 0 }));
-  const saleBars = comparables.map((c, i) => ({ label: `#${i + 1}`, value: effectiveCompPrice(c) ?? 0 }));
+  const psfBars = comparables.map((c, i) => ({ label: `#${i + 1}`, value: pricePerSqft(effectiveCompPrice(c) ?? compDisplayPrice(c).value, c.sqft) ?? 0 }));
+  const saleBars = comparables.map((c, i) => ({ label: `#${i + 1}`, value: effectiveCompPrice(c) ?? compDisplayPrice(c).value ?? 0 }));
   const subjectPsf = report.subject.list_price && report.subject.sqft ? pricePerSqft(report.subject.list_price, report.subject.sqft) : null;
   // Authoritative backend stats (ai_estimate.comp_stats) when present; computeMarketMetrics only
   // as the fallback for pre-comp_stats reports. metricsWeighted === metricsAll (the "weighted"
@@ -2753,18 +2806,14 @@ function CmaChartsPage({ report, comparables, agent }: { report: CmaReport; comp
   if (!metricsAll.enoughForStats) return null;
   return (
     <Page size="LETTER" style={cma.page}>
-      <CmaPdfHeader label="Bringing It Together" title="Market Analysis" subtitle="Comparable ranges, averages, and price-per-square-foot support" />
+      <CmaPdfHeader label="Bringing It Together" title="Market Analysis" subtitle="What the most comparable homes sold for" />
       <View style={cma.marketStatsPanel}>
         <Text style={{ fontSize: 6.4, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.5, color: '#8b7355', marginBottom: 5 }}>
-          {`Based on ${metricsAll.count} valuation comp${metricsAll.count === 1 ? '' : 's'} of ${metricsAll.totalShown} shown — ${metricsAll.method || 'verified prices only'}`}
+          {`Based on the ${metricsAll.count} most comparable ${metricsAll.count === 1 ? 'sale' : 'sales'} near ${report.subject.street_address || 'this home'}`}
         </Text>
         <View style={cma.marketStatsGrid}>
-          <CmaMarketFact label="Raw Comparable Price Range" value={formatCompactMoneyRange(metricsAll.saleMin, metricsAll.saleMax)} />
-          <CmaMarketFact label={`${metricsAll.avgLabel} / Median Sale Price`} value={`${formatMoney(metricsAll.saleAvg, { compact: true })} / ${formatMoney(metricsAll.saleMedian, { compact: true })}`} />
-          <CmaFact label="$/Sqft Range" value={metricsAll.psfMin != null && metricsAll.psfMax != null ? `$${metricsAll.psfMin} – $${metricsAll.psfMax}` : '—'} />
-          <CmaFact label={`${metricsAll.avgLabel} / Median $/Sqft`} value={metricsAll.psfAvg != null ? `$${Math.round(metricsAll.psfAvg)} / $${metricsAll.psfMedian != null ? Math.round(metricsAll.psfMedian) : '—'}` : '—'} />
-          <CmaFact label="Valuation-Weighted $/Sqft Range" value={metricsWeighted.psfMin != null && metricsWeighted.psfMax != null ? `$${metricsWeighted.psfMin} – $${metricsWeighted.psfMax}` : '—'} />
-          <CmaFact label="Subject $/Sqft (List)" value={subjectPsf ? `$${subjectPsf}` : '—'} />
+          <CmaMarketFact label="Typical Comparable Sale" value={formatMoney(metricsAll.saleMedian ?? metricsAll.saleAvg, { compact: true })} />
+          <CmaMarketFact label="Typical Price Per Sq Ft" value={(metricsAll.psfMedian ?? metricsAll.psfAvg) != null ? `$${Math.round((metricsAll.psfMedian ?? metricsAll.psfAvg) as number)}` : '-'} />
         </View>
       </View>
       <View style={{ height: 18 }} />
@@ -2782,8 +2831,8 @@ function CmaChartsPage({ report, comparables, agent }: { report: CmaReport; comp
 }
 
 function CmaChartsPageV2({ report, comparables, agent }: { report: CmaReport; comparables: CmaComparable[]; agent: CmaPdfAgent }) {
-  const psfBars = comparables.map((c, i) => ({ label: `#${i + 1}`, value: pricePerSqft(effectiveCompPrice(c), c.sqft) ?? 0 }));
-  const saleBars = comparables.map((c, i) => ({ label: `#${i + 1}`, value: effectiveCompPrice(c) ?? 0 }));
+  const psfBars = comparables.map((c, i) => ({ label: `#${i + 1}`, value: pricePerSqft(effectiveCompPrice(c) ?? compDisplayPrice(c).value, c.sqft) ?? 0 }));
+  const saleBars = comparables.map((c, i) => ({ label: `#${i + 1}`, value: effectiveCompPrice(c) ?? compDisplayPrice(c).value ?? 0 }));
   const subjectPsf = report.subject.list_price && report.subject.sqft ? pricePerSqft(report.subject.list_price, report.subject.sqft) : null;
   // Authoritative backend stats (ai_estimate.comp_stats) when present; computeMarketMetrics only
   // as the fallback for pre-comp_stats reports. metricsWeighted === metricsAll (the "weighted"
@@ -2796,18 +2845,14 @@ function CmaChartsPageV2({ report, comparables, agent }: { report: CmaReport; co
   if (!metricsAll.enoughForStats) return null;
   return (
     <Page size="LETTER" style={cma.page}>
-      <CmaPdfHeader label="Bringing It Together" title="Market Analysis" subtitle="Comparable ranges, averages, and price-per-square-foot support" />
+      <CmaPdfHeader label="Bringing It Together" title="Market Analysis" subtitle="What the most comparable homes sold for" />
       <View style={cma.marketStatsPanel}>
         <Text style={{ fontSize: 6.4, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.5, color: '#8b7355', marginBottom: 5 }}>
-          {`Based on ${metricsAll.count} valuation comp${metricsAll.count === 1 ? '' : 's'} of ${metricsAll.totalShown} shown — ${metricsAll.method || 'verified prices only'}`}
+          {`Based on the ${metricsAll.count} most comparable ${metricsAll.count === 1 ? 'sale' : 'sales'} near ${report.subject.street_address || 'this home'}`}
         </Text>
         <View style={cma.marketStatsGrid}>
-          <CmaMarketFact label="Raw Comparable Price Range" value={formatCompactMoneyRange(metricsAll.saleMin, metricsAll.saleMax)} />
-          <CmaMarketFact label={`${metricsAll.avgLabel} / Median Sale Price`} value={`${formatMoney(metricsAll.saleAvg, { compact: true })} / ${formatMoney(metricsAll.saleMedian, { compact: true })}`} />
-          <CmaMarketFact label="$/Sqft Range" value={metricsAll.psfMin != null && metricsAll.psfMax != null ? `$${metricsAll.psfMin} - $${metricsAll.psfMax}` : '-'} />
-          <CmaMarketFact label={`${metricsAll.avgLabel} / Median $/Sqft`} value={metricsAll.psfAvg != null ? `$${Math.round(metricsAll.psfAvg)} / $${metricsAll.psfMedian != null ? Math.round(metricsAll.psfMedian) : '-'}` : '-'} />
-          <CmaMarketFact label="Valuation-Weighted $/Sqft Range" value={metricsWeighted.psfMin != null && metricsWeighted.psfMax != null ? `$${metricsWeighted.psfMin} - $${metricsWeighted.psfMax}` : '-'} />
-          <CmaMarketFact label="Subject $/Sqft (List)" value={subjectPsf ? `$${subjectPsf}` : '-'} />
+          <CmaMarketFact label="Typical Comparable Sale" value={formatMoney(metricsAll.saleMedian ?? metricsAll.saleAvg, { compact: true })} />
+          <CmaMarketFact label="Typical Price Per Sq Ft" value={(metricsAll.psfMedian ?? metricsAll.psfAvg) != null ? `$${Math.round((metricsAll.psfMedian ?? metricsAll.psfAvg) as number)}` : '-'} />
         </View>
       </View>
       <View style={{ height: 14 }} />

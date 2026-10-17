@@ -1,5 +1,6 @@
 'use client'
 
+import { OhpSpinner } from '@/components/brand/OhpLoader'
 import AuthLuxeStyle, { AuthKicker, GoldPal } from '@/components/auth/AuthLuxeStyle'
 import Link from 'next/link'
 import { useState, useEffect, Suspense } from 'react'
@@ -396,7 +397,7 @@ export default function ResetPasswordPage() {
           <div className="ohp-auth-card relative bg-white dark:bg-[#151517] rounded-3xl p-8 border border-gray-100 dark:border-gray-800 shadow-xl">
             <div className="text-center space-y-4">
               <div className="flex justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355]"></div>
+                <OhpSpinner size={34} />
               </div>
               <p className="text-gray-600 dark:text-gray-400">Loading...</p>
             </div>

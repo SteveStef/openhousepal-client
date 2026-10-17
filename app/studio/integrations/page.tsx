@@ -19,7 +19,6 @@ import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import StudioPageHeader from '@/components/studio/StudioPageHeader'
 import { copyText } from '@/lib/copyText'
-import SendAsPanel from '@/components/integrations/SendAsPanel'
 import { notify } from '@/contexts/ToastContext'
 
 // "2m ago" / "3h ago" / "5d ago" for a past ISO timestamp.
@@ -162,6 +161,12 @@ function IntegrationsPageInner() {
   }
 
   useEffect(() => {
+    // "Send from your own email" moved to Tools -> Email (user, 10/17) - old links land there.
+    if (window.location.hash === '#send-as' || new URLSearchParams(window.location.search).get('mailbox')) {
+      const m = new URLSearchParams(window.location.search).get('mailbox')
+      window.location.replace(`/studio/email${m ? `?mailbox=${m}` : ''}`)
+      return
+    }
     api.integrations.get().then(r => { if (r.success && r.data) apply(r.data); setLoading(false) })
   }, [])
 
@@ -238,7 +243,7 @@ function IntegrationsPageInner() {
       <div className="mx-auto max-w-6xl px-4 py-4 sm:py-6">
         <StudioPageHeader
           icon={Plug}
-          kicker="Integrations"
+          kicker="CRM"
           title={<>Every lead, <em>where it belongs.</em></>}
           subtitle="Send new leads to your CRM, and pull in leads forwarded from Zillow, Realtor.com and more."
         />
@@ -419,12 +424,6 @@ function IntegrationsPageInner() {
                   </AnimatePresence>
                 </StepBlock>
               </div>
-            </motion.section>
-
-            {/* ---------- Guest emails from the agent's own address ---------- */}
-            <motion.section id="send-as" variants={rise} className="scroll-mt-24 overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-white shadow-sm dark:border-white/[0.07] dark:bg-[#121214]">
-              <LuxeSectionHeader icon={MailCheck} kicker="Your email" title={<>Send from <em>your own email</em></>} subtitle="Emails to your guests and clients come from your real address - so they land in the inbox, not junk." />
-              <div className="p-5 sm:p-6"><SendAsPanel /></div>
             </motion.section>
 
             {/* ---------- Leads IN: portal forwarding ---------- */}

@@ -3,8 +3,10 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, BarChart3, Check, ClipboardList, Eye, FileText, Home, Layers, Loader2, Moon, MonitorPlay, Percent, Sparkles, Sun, Ticket, Trophy, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BarChart3, CalendarClock, Check, ClipboardList, Eye, FileText, Home, Layers, Loader2, Moon, MonitorPlay, Percent, Sparkles, Sun, Ticket, Trophy, X } from 'lucide-react'
 import type { PrintPref } from '@/lib/printPrefs'
+import { pdfFirstPageImage } from '@/lib/pdfImages'
+import api from '@/lib/api-service'
 
 // The last part of "Generate Kit", in two steps (user, 10/16):
 //   1. Your kit - every document with its settings on the same line as its name, and a live
@@ -17,7 +19,7 @@ import type { PrintPref } from '@/lib/printPrefs'
 
 export type KitDocMode = 'flyer' | 'recommendations' | 'bragSheet' | 'cheatSheet'
 
-type GuestPrefs = { autoShowcase: boolean; guestPass: boolean; afterSignin: 'hub' | 'none' }
+type GuestPrefs = { autoShowcase: boolean; guestPass: boolean; afterSignin: 'hub' | 'none'; followupsMode?: 'on' | 'no_calendar' | 'off' }
 
 const DOC_TITLE: Record<KitDocMode, string> = { flyer: 'Sign-In Flyer', recommendations: 'Similar Homes', bragSheet: 'Brag Sheet', cheatSheet: 'Cheat Sheet' }
 
@@ -112,7 +114,7 @@ function GuestPassPhone({ prefs, photo, street, similar }: { prefs: GuestPrefs; 
                 <div className={row}><ClipboardList className="h-3 w-3 text-[#C9A24D]" />Request the disclosure</div>
                 <div className={row}><Home className="h-3 w-3 text-[#C9A24D]" />Book a second tour</div>
                 <AnimatePresence initial={false}>
-                  {prefs.autoShowcase && (
+                  {prefs.autoShowcase && similar && (
                     <motion.div key="sc" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3 }}
                       className="flex h-7 items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#b8913f] to-[#e8c97a] px-2 text-[8.5px] font-black text-[#111827]">
                       <Sparkles className="h-3 w-3" />Your Showcase of homes
@@ -135,45 +137,13 @@ function GuestPassPhone({ prefs, photo, street, similar }: { prefs: GuestPrefs; 
   )
 }
 
-// pdf.js (loaded once, only when the Review step opens) draws the real PDF page as a picture - an
-// embedded PDF shows blank on phones (Android Chrome won't show one inside a page) and in some
-// browsers' settings, a picture shows everywhere.
-const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174'
-let pdfjsLoading: Promise<any> | null = null
-function loadPdfJs(): Promise<any> {
-  const w = window as any
-  if (w.pdfjsLib) return Promise.resolve(w.pdfjsLib)
-  if (!pdfjsLoading) {
-    pdfjsLoading = new Promise((resolve, reject) => {
-      const tag = document.createElement('script')
-      tag.src = `${PDFJS}/pdf.min.js`
-      tag.async = true
-      tag.onload = () => { w.pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS}/pdf.worker.min.js`; resolve(w.pdfjsLib) }
-      tag.onerror = () => { pdfjsLoading = null; reject(new Error('pdf.js did not load')) }
-      document.head.appendChild(tag)
-    })
-  }
-  return pdfjsLoading
-}
-async function pdfFirstPageImage(blob: Blob, cssWidth: number): Promise<string> {
-  const lib = await loadPdfJs()
-  const doc = await lib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise
-  try {
-    const page = await doc.getPage(1)
-    const base = page.getViewport({ scale: 1 })
-    const viewport = page.getViewport({ scale: (cssWidth * Math.min(2, window.devicePixelRatio || 1)) / base.width })
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.round(viewport.width)
-    canvas.height = Math.round(viewport.height)
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise
-    return canvas.toDataURL('image/jpeg', 0.9)
-  } finally {
-    doc.destroy()
-  }
-}
+// pdf.js draws the real PDF page as a picture (lib/pdfImages) - an embedded PDF shows blank on
+// phones (Android Chrome won't show one inside a page) and in some browsers' settings.
 
 // The live preview: the real PDF page (rendered in the browser, same documents as "Preview PDF").
-function LivePage({ mode, build, prefs, onError }: {
+function LivePage({ mode, build, prefs, onError, variant = '' }: {
+  /** Anything else the document depends on (Showcases on/off, Similar Homes picked) - a change re-draws it. */
+  variant?: string
   mode: KitDocMode
   build: (mode: KitDocMode, opts?: { brand?: boolean }) => Promise<any | null>
   prefs: Record<PrintPref, boolean>
@@ -186,14 +156,14 @@ function LivePage({ mode, build, prefs, onError }: {
   const cache = useRef<Record<string, any>>({})
   const lastUrl = useRef<string | null>(null)
   useEffect(() => { setUrl(null) }, [mode])
-  const dep = mode === 'flyer' ? `flyer:${prefs.flyerBrand}` : mode === 'recommendations' ? `rec:${prefs.matchScore}` : mode === 'bragSheet' ? `brag:${prefs.bragStats}` : 'cheat'
+  const dep = (mode === 'flyer' ? `flyer:${prefs.flyerBrand}` : mode === 'recommendations' ? `rec:${prefs.matchScore}` : mode === 'bragSheet' ? `brag:${prefs.bragStats}` : 'cheat') + `|${variant}`
   useEffect(() => {
     let alive = true
     setBusy(true)
     setFailed(false)
     const t = setTimeout(async () => {
       try {
-        const key = mode === 'flyer' ? `flyer:${prefs.flyerBrand}` : mode
+        const key = (mode === 'flyer' ? `flyer:${prefs.flyerBrand}` : mode) + `|${variant}`
         if (!(key in cache.current)) cache.current[key] = await build(mode, { brand: prefs.flyerBrand })
         const data = cache.current[key]
         if (!alive) return
@@ -202,7 +172,7 @@ function LivePage({ mode, build, prefs, onError }: {
         const el = mode === 'flyer' ? <docs.OpenHouseFlyerDocument data={data} />
           : mode === 'recommendations' ? <docs.SimilarPropertiesDocument properties={data.properties} address={data.address} openHouseEventId={data.openHouseEventId} showMatchScore={prefs.matchScore} />
           : mode === 'bragSheet' ? <docs.AgentBragSheetDocument agent={data.agent} recentSales={data.recentSales} showcaseSampleProperties={data.showcaseSampleProperties} showcaseQrUrl={data.showcaseQrUrl} showSalesStats={prefs.bragStats} stats={data.stats} />
-          : <docs.OpenHouseCheatSheetDocument property={data.property} agent={data.agent} amenities={data.amenities} />
+          : <docs.OpenHouseCheatSheetDocument property={data.property} agent={data.agent} amenities={data.amenities} fit={await docs.fitCheatSheetLevel(data)} />
         const blob = await pdf(el).toBlob()
         if (!alive) return
         try {
@@ -294,7 +264,8 @@ export default function KitReviewDialog({
   const [focus, setFocus] = useState<KitDocMode>('flyer')
   const [saving, setSaving] = useState(false)
   const [note, setNote] = useState<string>('')
-  const hasGuestStep = (guestPassAvailable || showcasesAvailable || afterSigninAvailable) && !!guestPrefs
+  // Every plan gets step 2 now: the follow-ups switch for this open house is on it (user, 10/17).
+  const hasGuestStep = !!guestPrefs
   const photo = selectedImage?.url
 
   // A setting changed: show that document and say what changed on it.
@@ -375,7 +346,7 @@ export default function KitReviewDialog({
                   </div>
                   {/* the flyer, with the guest's on-screen sign-in page beside it (Light / Dark) */}
                   <div className={focus === 'flyer' ? 'flex items-end gap-3' : ''}>
-                    <div className="min-w-0 flex-1"><LivePage mode={focus} build={buildDocData} prefs={kitPrefs} /></div>
+                    <div className="min-w-0 flex-1"><LivePage mode={focus} build={buildDocData} prefs={kitPrefs} variant={`${guestPrefs?.autoShowcase !== false}:${hasRecommendations}`} /></div>
                     {focus === 'flyer' && (
                       <motion.div key={String(kitPrefs.qrDark)} initial={{ scale: 0.92, opacity: 0.6 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                         className="hidden shrink-0 sm:block" title="What guests see on screen when they scan the QR code or use the kiosk">
@@ -429,12 +400,13 @@ export default function KitReviewDialog({
                       </div>
                     </motion.div>
                   )}
+                  <FollowupsRow mode={guestPrefs.followupsMode || 'on'} onChange={m => onGuestPrefChange('followupsMode', m)} />
                 </div>
               </div>
               {guestPassAvailable && (
                 <div className="flex flex-col items-center rounded-3xl border border-gray-200/80 bg-gradient-to-b from-[#f1efe9] to-[#e9e5dc] p-5 shadow-inner dark:border-white/10 dark:from-[#0f0f11] dark:to-[#0B0B0B]">
                   <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">What guests get</p>
-                  <GuestPassPhone prefs={guestPrefs} photo={photo} street={street} similar={hasRecommendations} />
+                  <GuestPassPhone prefs={guestPrefs} photo={photo} street={street} similar={hasRecommendations && guestPrefs.autoShowcase !== false} />
                 </div>
               )}
             </motion.div>
@@ -496,6 +468,51 @@ export default function KitReviewDialog({
       </motion.div>
     </motion.div>,
     document.body,
+  )
+}
+
+// Follow-ups for this one open house (user, 10/17): an agent expecting 100 guests may not want 100
+// follow-ups - or not on their calendar. On = normal. "Keep off my calendar" = they still land on the
+// Follow-ups page, but nothing goes to Google / Outlook. Off = no follow-ups from this open house.
+function FollowupsRow({ mode, onChange }: { mode: 'on' | 'no_calendar' | 'off'; onChange: (m: 'on' | 'no_calendar' | 'off') => void }) {
+  const [calendar, setCalendar] = useState<boolean | null>(null)
+  useEffect(() => {
+    api.integrations.get().then(r => setCalendar(!!(r.success && r.data && (r.data.google_calendar || r.data.microsoft_calendar)))).catch(() => setCalendar(false))
+  }, [])
+  const on = mode !== 'off'
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16, duration: 0.4, ease: [0.22, 0.61, 0.36, 1] }}
+      className={`rounded-2xl border p-4 transition-colors duration-300 ${on ? 'border-[#C9A24D]/40 bg-white dark:bg-[#1a1a1c]' : 'border-gray-100 bg-[#faf9f7] dark:border-gray-800 dark:bg-[#141416]'}`}>
+      <div className="flex items-start gap-3">
+        <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors duration-300 ${on ? 'bg-gradient-to-br from-[#e8c97a] to-[#b8913f] text-[#111827]' : 'bg-gray-200 text-gray-400 dark:bg-white/10'}`}><CalendarClock className="h-4 w-4" /></span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-black text-gray-800 dark:text-gray-100">Follow-ups <span className={`ml-1 text-[10px] font-black uppercase tracking-wide transition-colors duration-300 ${on ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`}>{on ? 'On' : 'Off'}</span></p>
+          <p className="text-xs font-medium leading-relaxed text-gray-500 dark:text-gray-400">
+            {on ? 'A "reach out" reminder for each guest without an agent, with a ready-to-send text.' : 'No follow-ups from this open house - handy for a busy one. Guests still land in Leads.'}
+          </p>
+        </div>
+        <button type="button" role="switch" aria-checked={on} aria-label="Follow-ups for this open house" onClick={() => onChange(on ? 'off' : 'on')}
+          className={`relative mt-1 inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-300 ${on ? 'bg-[#C9A24D] shadow-[0_0_0_4px_rgba(201,162,77,.15)]' : 'bg-gray-300 dark:bg-gray-600'}`}>
+          <motion.span className="h-5 w-5 rounded-full bg-white shadow-md" initial={false} animate={{ x: on ? 20 : 0 }} transition={{ type: 'spring', stiffness: 520, damping: 32 }} />
+        </button>
+      </div>
+      <AnimatePresence initial={false}>
+        {on && calendar && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25 }} className="overflow-hidden">
+            <div className="mt-3 flex items-center gap-3 border-t border-gray-100 pt-3 pl-12 dark:border-gray-800">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-black text-gray-700 dark:text-gray-200">Put them on my calendar</p>
+                <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">{mode === 'no_calendar' ? 'Off - they stay on your Follow-ups page only, nothing buzzes your phone.' : 'On - each one also lands on your calendar with an alert.'}</p>
+              </div>
+              <button type="button" role="switch" aria-checked={mode === 'on'} aria-label="Put this open house's follow-ups on my calendar" onClick={() => onChange(mode === 'on' ? 'no_calendar' : 'on')}
+                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors duration-300 ${mode === 'on' ? 'bg-[#C9A24D]' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                <motion.span className="h-4 w-4 rounded-full bg-white shadow" initial={false} animate={{ x: mode === 'on' ? 16 : 0 }} transition={{ type: 'spring', stiffness: 520, damping: 32 }} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   )
 }
 

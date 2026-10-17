@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PDFViewer, PDFDownloadLink, pdf } from '@react-pdf/renderer';
-import { X, Download, RefreshCw, Pencil, Info, Loader2, Check, Printer } from 'lucide-react';
+import { X, Download, RefreshCw, Pencil, Info, Loader2, Check, Printer, Share2 } from 'lucide-react';
+import { pdfPageImages, sharePdf } from '@/lib/pdfImages';
+import { OhpSpinner } from '@/components/brand/OhpLoader';
 
 import { useBodyScrollLock } from '@/lib/useBodyScrollLock';
 import ThemeSwitch from '@/components/ThemeSwitch';
@@ -18,7 +20,7 @@ const ToggleMark = ({ on }: { on: boolean }) => on ? (
 const toggleClass = (on: boolean) => on
   ? 'bg-emerald-500/[0.08] text-emerald-300 shadow-[inset_0_-2px_0_0_rgba(52,211,153,0.9)] hover:bg-emerald-500/[0.14]'
   : 'bg-white/5 text-gray-400 hover:bg-white/10';
-import { OpenHouseFlyerDocument, SimilarPropertiesDocument, AgentBragSheetDocument, OpenHouseCheatSheetDocument, PaperSignInSheetDocument } from '@/lib/pdfs';
+import { OpenHouseFlyerDocument, SimilarPropertiesDocument, AgentBragSheetDocument, OpenHouseCheatSheetDocument, PaperSignInSheetDocument, fitCheatSheetLevel } from '@/lib/pdfs';
 
 const FILE_NAME_PREFIX: Record<string, string> = { paperSignIn: 'Clipboard-Sign-In', flyer: 'Flyer', recommendations: 'COMPS', bragSheet: 'Brag-Sheet', cheatSheet: 'Cheat-Sheet' };
 
@@ -102,6 +104,18 @@ export default function PDFPreviewModal({
     return () => window.removeEventListener('keydown', onKey, true);
   }, [isOpen, onClose]);
 
+  // Cheat Sheet: the size that prints on exactly 2 pages (measured once per sheet, see lib/pdfs).
+  const [cheatFit, setCheatFit] = useState<number | null>(null);
+  useEffect(() => {
+    if (type !== 'cheatSheet' || !data?.property) { setCheatFit(null); return; }
+    let alive = true;
+    setCheatFit(null);
+    fitCheatSheetLevel({ property: data.property, agent: data.agent, amenities: data.amenities })
+      .then(level => { if (alive) setCheatFit(level); })
+      .catch(() => { if (alive) setCheatFit(3); });
+    return () => { alive = false; };
+  }, [type, data]);
+
   const document = useMemo(() => {
     if (!data) return null;
     
@@ -118,13 +132,13 @@ export default function PDFPreviewModal({
     }
 
     if (type === 'cheatSheet') {
-      return <OpenHouseCheatSheetDocument property={data.property} agent={data.agent} amenities={data.amenities} />;
+      return <OpenHouseCheatSheetDocument property={data.property} agent={data.agent} amenities={data.amenities} fit={cheatFit ?? 0} />;
     }
 
     // Recommendations case: data is the array of properties
     const properties = Array.isArray(data) ? data : (data.properties || []);
     return <SimilarPropertiesDocument properties={properties} agentId={agentId} address={address} openHouseEventId={openHouseEventId || data?.openHouseEventId} showMatchScore={showMatchScore} />;
-  }, [data, type, agentId, address, openHouseEventId, showMatchScore]);
+  }, [data, type, agentId, address, openHouseEventId, showMatchScore, cheatFit]);
 
   const fileName = useMemo(() => {
     const baseAddress = (address || data?.address || data?.property?.address || 'Document').split(',')[0].replace(/\s+/g, '-');
@@ -135,7 +149,7 @@ export default function PDFPreviewModal({
   // the rendered PDF goes into a hidden frame and that frame prints.
   const [printing, setPrinting] = useState(false);
   const printNow = async () => {
-    if (!document || printing) return;
+    if (!document || printing || (type === 'cheatSheet' && cheatFit === null)) return;
     setPrinting(true);
     try {
       const blob = await pdf(document).toBlob();
@@ -154,7 +168,149 @@ export default function PDFPreviewModal({
     }
   };
 
+  // Phones (user, 10/17): the embedded PDF viewer opened zoomed-in with the buttons off screen, and
+  // a downloaded PDF had no way to be saved or sent. So on a phone the preview is the real pages as
+  // pictures (fit to the screen width), and the bottom bar is Print / Share / Save - Share opens the
+  // phone's share sheet with the PDF attached (Mail, Messages, Save to Files, Print...).
+  const [isPhone, setIsPhone] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const on = () => setIsPhone(mq.matches);
+    on(); mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  const [pages, setPages] = useState<string[] | null>(null);
+  const [pagesFailed, setPagesFailed] = useState(false);
+  const blobRef = useRef<Blob | null>(null);
+  useEffect(() => {
+    if (!isOpen || !isPhone || !document) return;
+    let alive = true;
+    setPages(null); setPagesFailed(false); blobRef.current = null;
+    const t = window.setTimeout(async () => {
+      try {
+        const blob = await pdf(document).toBlob();
+        if (!alive) return;
+        blobRef.current = blob;
+        const imgs = await pdfPageImages(blob, Math.min(window.innerWidth, 560) - 24);
+        if (alive) setPages(imgs);
+      } catch {
+        if (alive) setPagesFailed(true);
+      }
+    }, 150);
+    return () => { alive = false; window.clearTimeout(t); };
+  }, [isOpen, isPhone, document]);
+  const [sharing, setSharing] = useState<'' | 'share' | 'save' | 'print'>('');
+  const blobNow = async () => blobRef.current || (blobRef.current = await pdf(document!).toBlob());
+  const sharePhone = async (why: 'share' | 'save' | 'print') => {
+    if (!document || sharing) return;
+    setSharing(why);
+    try {
+      const blob = await blobNow();
+      const r = await sharePdf(blob, fileName, title);
+      if (r === false) {
+        // No file sharing here (older phone / desktop): open the PDF itself - the phone's own
+        // viewer has Share and Print.
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank') || (window.location.href = url);
+        window.setTimeout(() => URL.revokeObjectURL(url), 120000);
+      }
+    } finally {
+      setSharing('');
+    }
+  };
+
   if (!isOpen) return null;
+
+  if (isPhone) {
+    const tools = (
+      <>
+        {type === 'flyer' && onToggleFlyerBrand && (
+          <button onClick={onToggleFlyerBrand} className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-widest ${toggleClass(flyerBrand)}`}>
+            <ToggleMark on={flyerBrand} /> Brand
+          </button>
+        )}
+        {type === 'flyer' && onToggleQrDarkMode && (
+          <button onClick={onToggleQrDarkMode} className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${qrDarkMode ? 'bg-black text-white ring-1 ring-white/25' : 'bg-white text-gray-900'}`}>
+            <ThemeSwitch dark={Boolean(qrDarkMode)} /> {qrDarkMode ? 'Dark' : 'Light'}
+          </button>
+        )}
+        {showStatsToggle && onToggleStats && (
+          <button onClick={onToggleStats} className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-widest ${toggleClass(statsEnabled)}`}>
+            <ToggleMark on={statsEnabled} /> Sold Stats
+          </button>
+        )}
+        {showHighlightsToggle && onToggleHighlights && (
+          <button onClick={onToggleHighlights} disabled={highlightsLoading} className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-widest disabled:opacity-60 ${toggleClass(highlightsEnabled)}`}>
+            {highlightsLoading ? <Loader2 size={13} className="animate-spin" /> : <ToggleMark on={highlightsEnabled} />} {highlightsLoading ? 'Writing...' : 'Recap'}
+          </button>
+        )}
+        {type === 'recommendations' && (
+          <button onClick={toggleMatchScore} className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-widest ${toggleClass(showMatchScore)}`}>
+            <ToggleMark on={showMatchScore} /> Match %
+          </button>
+        )}
+        {onEdit && (
+          <button onClick={onEdit} className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-200">
+            <Pencil size={13} /> Edit
+          </button>
+        )}
+        {onRefresh && (
+          <button onClick={onRefresh} disabled={isRefreshing} className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-200 disabled:opacity-50">
+            <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} /> {isRefreshing ? 'Working...' : refreshLabel}
+          </button>
+        )}
+      </>
+    );
+    const hasTools = Boolean((type === 'flyer' && (onToggleFlyerBrand || onToggleQrDarkMode)) || (showStatsToggle && onToggleStats) || (showHighlightsToggle && onToggleHighlights) || type === 'recommendations' || onEdit || onRefresh);
+    return (
+      <div className="fixed inset-0 z-[100] flex flex-col bg-[#0B0B0B] animate-fadeIn" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="flex items-center gap-3 border-b border-white/10 bg-[#151517] px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-[16px] font-black text-white">{title}</h3>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Print-ready PDF</p>
+          </div>
+          <button onClick={onClose} aria-label="Close preview" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-gray-200 active:scale-95">
+            <X size={20} />
+          </button>
+        </div>
+        {hasTools && (
+          <div className="flex gap-2 overflow-x-auto border-b border-white/5 bg-[#151517] px-4 py-2.5 [scrollbar-width:none]">{tools}</div>
+        )}
+        <div className="flex-1 overflow-y-auto overscroll-contain bg-[#1c1c1e] px-3 py-4">
+          {!document || (!pages && !pagesFailed) ? (
+            <div className="flex h-full min-h-[50vh] items-center justify-center"><OhpSpinner size={34} label="Drawing the pages" /></div>
+          ) : pagesFailed ? (
+            <div className="flex h-full min-h-[50vh] flex-col items-center justify-center gap-3 px-6 text-center">
+              <p className="text-sm font-bold text-gray-300">The preview couldn&apos;t be drawn here, but the PDF is ready.</p>
+              <button onClick={() => sharePhone('share')} className="rounded-xl bg-[#C9A24D] px-4 py-2.5 text-xs font-black text-[#111827]">Open the PDF</button>
+            </div>
+          ) : (
+            <div className="mx-auto flex max-w-[560px] flex-col gap-3">
+              {pages!.map((src, i) => (
+                <img key={i} src={src} alt={`Page ${i + 1}`} className="w-full rounded-lg bg-white shadow-xl ring-1 ring-white/10" />
+              ))}
+              {pages!.length > 1 && <p className="pb-1 text-center text-[10px] font-bold uppercase tracking-widest text-gray-500">{pages!.length} pages</p>}
+            </div>
+          )}
+        </div>
+        <div className="grid grid-cols-3 gap-2 border-t border-white/10 bg-[#151517] px-3 pt-3" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+          <button onClick={() => sharePhone('print')} disabled={!document || !!sharing}
+            className="flex flex-col items-center justify-center gap-1 rounded-2xl bg-white py-2.5 text-[11px] font-black text-[#111827] active:scale-95 disabled:opacity-50">
+            {sharing === 'print' ? <Loader2 size={18} className="animate-spin" /> : <Printer size={18} />} Print
+          </button>
+          <button onClick={() => sharePhone('share')} disabled={!document || !!sharing}
+            className="flex flex-col items-center justify-center gap-1 rounded-2xl bg-[#C9A24D] py-2.5 text-[11px] font-black text-[#111827] active:scale-95 disabled:opacity-50">
+            {sharing === 'share' ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />} Share
+          </button>
+          <button onClick={() => sharePhone('save')} disabled={!document || !!sharing}
+            className="flex flex-col items-center justify-center gap-1 rounded-2xl bg-white/10 py-2.5 text-[11px] font-black text-white active:scale-95 disabled:opacity-50">
+            {sharing === 'save' ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />} Save
+          </button>
+          <p className="col-span-3 pb-0.5 text-center text-[10px] font-semibold text-gray-500">Print, Share and Save open your phone&apos;s share menu - pick Print, Mail, Messages or Save to Files.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 md:p-10 bg-black/80 animate-fadeIn">
@@ -266,7 +422,7 @@ export default function PDFPreviewModal({
               </button>
             )}
 
-            {document && type === 'paperSignIn' && (
+            {document && (
               <button
                 onClick={printNow}
                 disabled={printing}
@@ -317,8 +473,7 @@ export default function PDFPreviewModal({
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <div className="flex flex-col items-center gap-4">
-                <div className="w-12 h-12 border-4 border-[#C9A24D] border-t-transparent rounded-full animate-spin" />
-                <p className="text-gray-400 font-medium uppercase tracking-widest text-[10px]">Generating Preview...</p>
+                <OhpSpinner size={34} label="Generating preview" />
               </div>
             </div>
           )}
@@ -327,7 +482,7 @@ export default function PDFPreviewModal({
         {/* Footer Info */}
         <div className="px-8 py-4 bg-[#1c1c1e] border-t border-white/5 flex items-center justify-center">
           <p className="text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em]">
-            Use the browser's built-in controls to Print or Download
+            Print sends it straight to your printer - Download saves the PDF
           </p>
         </div>
       </div>

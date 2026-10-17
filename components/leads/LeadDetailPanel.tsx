@@ -1,5 +1,6 @@
 'use client'
 
+import { OhpSpinner } from '@/components/brand/OhpLoader'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
@@ -238,7 +239,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
   const rows = useMemo(() => foldViews(filtered), [filtered])
 
   if (loading) {
-    return <div className="flex min-h-[40vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>
+    return <div className="flex min-h-[40vh] items-center justify-center"><OhpSpinner size={28} /></div>
   }
   if (!lead) {
     return (
@@ -322,9 +323,10 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
                   )}
                 </div>
                 {/* The number + email, each with its own copy button. */}
-                <div className="mt-2.5 flex flex-col items-start gap-1.5 text-[13px] font-semibold text-gray-500 dark:text-gray-400 sm:mt-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4">
+                <div className="mt-2.5 flex min-w-0 flex-nowrap items-center gap-x-3 text-[12.5px] font-semibold text-gray-500 dark:text-gray-400 sm:mt-2 sm:flex-wrap sm:gap-x-4 sm:text-[13px]">
+                  {/* One line on phones too: the number keeps its width, the email shortens if needed. */}
                   {([['phone', lead.phone ? formatPhone(lead.phone) : null, Phone, 'Phone number'], ['email', lead.email, Mail, 'Email']] as const).filter(([, v]) => !!v).map(([kind, value, Icon, what]) => (
-                    <span key={kind} className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                    <span key={kind} className={`inline-flex max-w-full items-center gap-1.5 ${kind === 'phone' ? 'shrink-0' : 'min-w-0'}`}>
                       <Icon className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{value}</span>
                       <button onClick={() => copy(value as string, what)} title={`Copy ${what.toLowerCase()}`} aria-label={`Copy ${what.toLowerCase()}`}
                         className="grid h-6 w-6 shrink-0 place-items-center rounded-md border border-gray-200 text-gray-400 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/10 dark:hover:text-[#e8c97a]">

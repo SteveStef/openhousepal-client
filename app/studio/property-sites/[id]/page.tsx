@@ -216,6 +216,20 @@ function PropertySiteEditorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
+  // Crash guard (phones): a flag set while this editor is open and cleared when it closes
+  // normally. Still set on the next open = the tab crashed in here last time (iOS shows "A problem
+  // repeatedly occurred") - so this time the previews wait for a tap (ScaledPreview lite mode).
+  useEffect(() => {
+    const key = `sp-open:${id}`
+    try {
+      if (sessionStorage.getItem(key) === '1') sessionStorage.setItem('sp-lite', '1')
+      sessionStorage.setItem(key, '1')
+    } catch { /* private mode */ }
+    const clear = () => { try { sessionStorage.removeItem(key) } catch { /* */ } }
+    window.addEventListener('pagehide', clear)
+    return () => { window.removeEventListener('pagehide', clear); clear() }
+  }, [id])
+
   useEffect(() => {
     api.mediaLab.listAssets({ limit: 60 }).then(({ success, data }) => {
       if (success && data) setVideos(data.assets.filter(a => a.kind === 'video' && a.status === 'succeeded'))

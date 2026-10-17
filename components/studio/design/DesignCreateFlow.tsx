@@ -22,6 +22,7 @@ import LuxeFinishPicker from '@/components/studio/design/LuxeFinishPicker'
 import { isLuxeDesign } from '@/lib/studio/designCompositions'
 import LuxeUpgradePitch from '@/components/ui/LuxeUpgradePitch'
 import { designAgentFrom, DesignAgentInfo, SAMPLE_DESIGN_AGENT } from '@/lib/studio/designAgent'
+import PhotoGridGate from '@/components/ui/PhotoGridGate'
 import PropertySelector from '@/components/studio/PropertySelector'
 import ProfileGate from '@/components/studio/design/ProfileGate'
 import { PROPERTY_RULE_ATTEST, profileGaps, propertyRuleFor } from '@/lib/studio/designCompliance'
@@ -1149,7 +1150,8 @@ function PhotoPicker({ title, hint, photos, selected, onSelect, onUpload, upload
     <section>
       <SectionLabel>{title}</SectionLabel>
       <p className="mt-1 text-xs font-semibold text-gray-400">{hint}</p>
-      <div className="mt-3 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-5">
+      <PhotoGridGate urls={photos.slice(0, 30)}>
+      <div className="ohp-reveal mt-3 grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-5">
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
@@ -1184,6 +1186,7 @@ function PhotoPicker({ title, hint, photos, selected, onSelect, onUpload, upload
           )
         })}
       </div>
+      </PhotoGridGate>
       {error && <p className="mt-2 text-xs font-bold text-red-500">{error}</p>}
       <input
         ref={inputRef}

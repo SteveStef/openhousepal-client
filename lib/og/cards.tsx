@@ -139,10 +139,12 @@ export async function renderShowcaseCard(shareToken: string, fonts: Fonts): Prom
     const isOrig = (p: any) => (origKey && String(p?.ListingKey || '') === origKey) || (origStreet && String(p?.FullStreetAddress || '').trim().toLowerCase() === origStreet)
     const live = all.filter(p => !isOrig(p) && isPropertyAvailableStatus(p?.MlsStatus || p?.StandardStatus))
     const pool = live.length >= 3 ? live : all.filter(p => !isOrig(p))
-    // The same "X% Match" the client sees on their cards - best three first.
+    // The three NEWEST homes in their Showcase (user, 10/17) - so a link copied today shows what just
+    // came in - each still wearing the same "X% Match" the client sees on their cards.
     const subject = data?.preferences?.show_match_score !== false ? data?.originalProperty : null
     const scored = pool.map(p => ({ p, match: subject ? computeMatchScore(p, subject, pool) : null }))
-    if (subject) scored.sort((a, b) => (b.match ?? 0) - (a.match ?? 0))
+    const t = (p: any) => Date.parse(p?.AddedAt || '') || Date.parse(p?.MLSListDate || p?.ListingContractDate || '') || 0
+    scored.sort((a, b) => (t(b.p) - t(a.p)) || ((b.match ?? 0) - (a.match ?? 0)))
     const top = scored.filter(s => s.p?.ListPictureURL).slice(0, 3)
     const [agentPhoto, ...photos] = await Promise.all([
       imgToDataUri(data?.agentPhotoUrl),
@@ -415,7 +417,10 @@ export async function renderPropertyCard(agentId: string, listingKey: string, fo
     const data = await ogFetch<any>(`/api/properties/agent/${encodeURIComponent(agentId)}/listing/${encodeURIComponent(listingKey)}`)
     const p = data?.property || {}
     const address = [p.street_address || p.FullStreetAddress || p.address, p.city || p.City].filter(Boolean).map(titleCase).join(', ') || 'A home worth seeing'
-    const photo = await imgToDataUri(p.ListPictureURL || p.img_src || p.image || (Array.isArray(p.photos) ? p.photos[0] : null))
+    const [photo, agentPhoto] = await Promise.all([
+      imgToDataUri(p.ListPictureURL || p.img_src || p.image || (Array.isArray(p.photos) ? p.photos[0] : null), 5000),
+      imgToDataUri(data?.agent_photo_url),
+    ])
     const bits = [
       p.bedrooms || p.BedroomsTotal ? `${p.bedrooms || p.BedroomsTotal} bd` : null,
       p.bathrooms || p.BathroomsTotal ? `${p.bathrooms || p.BathroomsTotal} ba` : null,
@@ -429,8 +434,8 @@ export async function renderPropertyCard(agentId: string, listingKey: string, fo
         headline={address}
         sub={sub}
         agentName={data?.agentName || data?.agent_name || p.list_agent_full_name || 'Your agent'}
-        agentBrokerage={p.ListOfficeName || p.list_office_name || null}
-        agentPhoto={null}
+        agentBrokerage={data?.agent_brokerage || null}
+        agentPhoto={agentPhoto}
       />,
       fonts,
     )
@@ -439,24 +444,156 @@ export async function renderPropertyCard(agentId: string, listingKey: string, fo
   }
 }
 
+// --- Agent Hub + IDX website -------------------------------------------------------------
+// The agent as the brand (user, 10/17: "Agent Hub preview elevated", "IDX sites don't have a stunning
+// preview"): one of their homes full-bleed behind, a big gold-ringed headshot, the name in serif,
+// title / brokerage / market, and a row of real numbers from their pages.
+
+export function AgentCard({
+  bg, photo, name, eyebrow, credential, market, stats, site,
+}: {
+  bg: string | null
+  photo: string | null
+  name: string
+  eyebrow: string
+  credential: string | null
+  market: string | null
+  stats: { v: string; l: string }[]
+  site: string | null
+}) {
+  return (
+    <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', color: '#fff', backgroundColor: C.bgBot,
+      backgroundImage: `radial-gradient(1100px 560px at 80% 10%, ${C.bgTop} 0%, ${C.bgMid} 52%, ${C.bgBot} 100%)`, overflow: 'hidden' }}>
+      {bg ? <img src={bg} style={{ position: 'absolute', top: 0, right: 0, width: 760, height: 630, objectFit: 'cover' }} /> : null}
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex',
+        backgroundImage: 'linear-gradient(90deg, rgba(12,10,7,1) 0%, rgba(12,10,7,0.97) 40%, rgba(12,10,7,0.55) 62%, rgba(12,10,7,0.2) 100%), linear-gradient(0deg, rgba(12,10,7,0.75) 0%, rgba(12,10,7,0) 40%)' }} />
+      <div style={{ position: 'absolute', top: 24, left: 24, right: 24, bottom: 24, display: 'flex', border: '1px solid rgba(232,201,122,0.3)', borderRadius: 6 }} />
+
+      <div style={{ position: 'absolute', top: 0, left: 0, width: 820, height: '100%', display: 'flex', flexDirection: 'column', padding: '64px 0 60px 72px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 34 }}>
+          <div style={{ display: 'flex', padding: 6, borderRadius: 999, backgroundImage: `linear-gradient(140deg, ${C.goldLight}, ${C.gold} 60%, #8B6A2B)`, boxShadow: '0 24px 60px -18px rgba(201,162,77,0.65)' }}>
+            {photo
+              ? <img src={photo} width={176} height={176} style={{ width: 176, height: 176, borderRadius: 999, objectFit: 'cover', border: '4px solid #120f0a' }} />
+              : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 176, height: 176, borderRadius: 999, backgroundColor: '#120f0a', color: C.goldLight, fontSize: 64, fontWeight: 900 }}>{initialsOf(name)}</div>}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', maxWidth: 520 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 17, fontWeight: 900, letterSpacing: 5, textTransform: 'uppercase', color: C.goldLight }}>
+              <div style={{ display: 'flex', width: 30, height: 2, backgroundColor: C.gold }} />{eyebrow}
+            </div>
+            <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: name.length > 18 ? 58 : 72, lineHeight: 1.0, letterSpacing: -1.2, marginTop: 12 }}>{name}</div>
+            {credential ? <div style={{ display: 'flex', fontSize: 20, fontWeight: 900, letterSpacing: 2.5, textTransform: 'uppercase', color: C.gold, marginTop: 14 }}>{credential}</div> : null}
+          </div>
+        </div>
+        {market ? <div style={{ display: 'flex', fontFamily: 'Playfair', fontSize: 34, fontWeight: 400, color: C.cream, marginTop: 34, maxWidth: 700 }}>{market}</div> : null}
+        <div style={{ display: 'flex', alignItems: 'center', marginTop: 'auto' }}>
+          {stats.map((st, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
+              {i > 0 ? <div style={{ display: 'flex', width: 1, height: 44, backgroundColor: 'rgba(232,201,122,0.45)', margin: '0 26px' }} /> : null}
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', fontSize: 34, fontWeight: 900, color: '#fff' }}>{st.v}</div>
+                <div style={{ display: 'flex', fontSize: 13, fontWeight: 900, letterSpacing: 2.5, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>{st.l}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {site ? (
+        <div style={{ position: 'absolute', right: 56, bottom: 50, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', borderRadius: 999, backgroundColor: 'rgba(12,10,7,0.72)', border: '1px solid rgba(232,201,122,0.4)', fontSize: 18, fontWeight: 900, color: C.goldLight }}>
+          {site}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+const pickImg = (items: any[]): string | null => {
+  for (const it of items || []) {
+    const u = it?.image || it?.photo || it?.imageUrl || it?.image_url || it?.photo_url || (Array.isArray(it?.photos) ? photoUrl(it.photos[0]) : null)
+    if (u) return u
+  }
+  return null
+}
+
 export async function renderHubCard(agentSlug: string, fonts: Fonts): Promise<ImageResponse> {
   try {
     const data = await ogFetch<any>(`/agent-hub/public/${encodeURIComponent(agentSlug)}`)
-    const profile = data?.config?.profile || {}
+    const cfg = data?.config || {}
+    const profile = cfg.profile || {}
     const name: string = profile.name || 'Real Estate Agent'
-    const photo = await imgToDataUri(data?.config?.profilePhotoUrl || profile.photoUrl || profile.photo_url)
+    const listings: any[] = Array.isArray(cfg.myListings) ? cfg.myListings : []
+    const sales: any[] = Array.isArray(cfg.recentSales) ? cfg.recentSales : []
+    const [photo, bg] = await Promise.all([
+      imgToDataUri(cfg.profilePhotoUrl || profile.photoUrl || profile.photo_url),
+      imgToDataUri(pickImg(listings) || pickImg(sales), 5000),
+    ])
+    const stats = [
+      listings.length ? { v: String(listings.length), l: listings.length === 1 ? 'Home for sale' : 'Homes for sale' } : null,
+      sales.length ? { v: String(sales.length), l: sales.length === 1 ? 'Recent sale' : 'Recent sales' } : null,
+    ].filter(Boolean) as { v: string; l: string }[]
     return IR(
-      <IdentityCard
-        photo={photo}
-        name={name}
-        eyebrow={profile.title ? String(profile.title) : 'Real Estate'}
-        headline={name}
-        credential={profile.brokerage ? String(profile.brokerage) : null}
-        support={profile.market ? String(profile.market) : null}
-      />,
+      <AgentCard bg={bg} photo={photo} name={name} eyebrow={profile.title ? String(profile.title).replace('®', '') : 'Real Estate'}
+        credential={profile.brokerage ? String(profile.brokerage) : null} market={profile.market ? String(profile.market) : null}
+        stats={stats} site={`openhousepal.com/${agentSlug}`} />,
       fonts,
     )
   } catch {
-    return IR(<IdentityCard photo={null} name="Real Estate Agent" eyebrow="Real Estate" headline="Let's work together" credential={null} support={null} />, fonts)
+    return IR(<AgentCard bg={null} photo={null} name="Real Estate Agent" eyebrow="Real Estate" credential={null} market={null} stats={[]} site={null} />, fonts)
+  }
+}
+
+/** The agent's IDX website (home page and any page without its own image). */
+export async function renderSiteCard(siteId: string, host: string, fonts: Fonts): Promise<ImageResponse> {
+  try {
+    const [profile, featured, areas] = await Promise.all([
+      ogFetch<any>(`/public/sites/${encodeURIComponent(siteId)}/profile`),
+      ogFetch<any>(`/public/sites/${encodeURIComponent(siteId)}/properties?limit=12`),
+      ogFetch<any>(`/public/sites/${encodeURIComponent(siteId)}/areas`),
+    ])
+    const homes: any[] = Array.isArray(featured) ? featured : Array.isArray(featured?.items) ? featured.items : []
+    const towns: any[] = Array.isArray(areas) ? areas : []
+    const name: string = profile?.name || 'Real Estate Agent'
+    const [photo, bg] = await Promise.all([
+      imgToDataUri(profile?.photo_url),
+      imgToDataUri(pickImg(homes) || pickImg(towns), 5000),
+    ])
+    const stats = [
+      homes.length ? { v: String(homes.length), l: homes.length === 1 ? 'Featured home' : 'Featured homes' } : null,
+      towns.length ? { v: String(towns.length), l: towns.length === 1 ? 'Neighborhood guide' : 'Neighborhood guides' } : null,
+    ].filter(Boolean) as { v: string; l: string }[]
+    const credential = [profile?.title ? String(profile.title).replace('®', '') : null, profile?.brokerage].filter(Boolean).join(' · ') || null
+    return IR(
+      <AgentCard bg={bg} photo={photo} name={name} eyebrow="Homes for sale" credential={credential}
+        market={profile?.market ? String(profile.market) : towns.length ? towns.slice(0, 3).map(t => t.name).join(' · ') : null}
+        stats={stats} site={host || null} />,
+      fonts,
+    )
+  } catch {
+    return IR(<AgentCard bg={null} photo={null} name="Real Estate Agent" eyebrow="Homes for sale" credential={null} market={null} stats={[]} site={host || null} />, fonts)
+  }
+}
+
+/** A home on the agent's IDX website - the same card as a Showcase property link (user, 10/17:
+ *  "the IDX one is very bland"). `own` = one of the agent's featured homes, else a search result. */
+export async function renderIdxListingCard(siteId: string, listingKey: string, own: boolean, fonts: Fonts): Promise<ImageResponse> {
+  try {
+    const base = `/public/sites/${encodeURIComponent(siteId)}`
+    const [p, profile] = await Promise.all([
+      ogFetch<any>(`${base}/${own ? 'properties' : 'search/properties'}/${encodeURIComponent(listingKey)}`),
+      ogFetch<any>(`${base}/profile`),
+    ])
+    if (!p) throw new Error('no listing')
+    const address = [p.address || p.street_address, p.city].filter(Boolean).map(titleCase).join(', ') || 'A home worth seeing'
+    const [photo, agentPhoto] = await Promise.all([
+      imgToDataUri((Array.isArray(p.photos) && photoUrl(p.photos[0])) || p.photo, 5000),
+      imgToDataUri(profile?.photo_url),
+    ])
+    const beds = num(p.beds ?? p.bedrooms), baths = num(p.baths ?? p.bathrooms), sqft = num(p.sqft ?? p.living_area)
+    const bits = [beds != null ? `${fmtN(beds)} bd` : null, baths != null ? `${fmtN(baths)} ba` : null, sqft ? `${Math.round(sqft).toLocaleString('en-US')} sqft` : null].filter(Boolean)
+    const sub = [money(num(p.price)), bits.join('  ·  ')].filter(Boolean).join('   ·   ') || undefined
+    const st = String(p.status || '').toUpperCase()
+    const eyebrow = st.includes('CLOSED') || st === 'SOLD' ? 'Sold' : st.includes('PENDING') || st.includes('CONTRACT') ? 'Under Contract' : st.includes('COMING') ? 'Coming Soon' : 'For Sale'
+    return IR(<PhotoCard photo={photo} eyebrow={eyebrow} headline={address} sub={sub} agentName={profile?.name || 'Your agent'} agentBrokerage={profile?.brokerage || null} agentPhoto={agentPhoto} />, fonts)
+  } catch {
+    return IR(<PhotoCard photo={null} eyebrow="For Sale" headline="A home worth seeing" agentName="Your agent" />, fonts)
   }
 }

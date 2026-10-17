@@ -61,6 +61,9 @@ export const NOTIFICATION_META: Record<string, { icon: React.ComponentType<{ cla
   // _notify_video_done in studio_media_service.py.
   STUDIO_MEDIA_VIDEO_READY: { icon: Film, label: 'AI Video Ready', className: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800' },
   STUDIO_MEDIA_VIDEO_FAILED: { icon: XCircle, label: 'AI Video Failed', className: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700' },
+  // The AI blog writer finished (or couldn't finish) an article in the background - blog_routes._run_blog_ai_job.
+  BLOG_AI_READY: { icon: Newspaper, label: 'Article Ready', className: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800' },
+  BLOG_AI_FAILED: { icon: XCircle, label: 'Article Not Finished', className: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/30' },
   // A client opened / clicked one of your emails (one row per person per day - client_email_service).
   EMAIL_ACTIVITY: { icon: MailOpen, label: 'Email Opened', className: 'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30' },
   // Automatic emails to a client went weekly / stopped / came back on (the inbox-protection rules).
@@ -79,7 +82,7 @@ export const NOTIFICATION_META: Record<string, { icon: React.ComponentType<{ cla
 // itself), it should disappear from both the bell and Activity entirely rather than just gray
 // out like every other notification type (see NotificationBell.tsx / app/activity/page.tsx /
 // app/studio/media/page.tsx for the three "seen" triggers that mark these read).
-export const AUTO_HIDE_WHEN_READ_TYPES = new Set(['STUDIO_MEDIA_VIDEO_READY', 'STUDIO_MEDIA_VIDEO_FAILED'])
+export const AUTO_HIDE_WHEN_READ_TYPES = new Set(['STUDIO_MEDIA_VIDEO_READY', 'STUDIO_MEDIA_VIDEO_FAILED', 'BLOG_AI_READY', 'BLOG_AI_FAILED'])
 
 export function visibleNotifications<T extends { type: string; isRead: boolean }>(list: T[]): T[] {
   return list.filter(n => !(AUTO_HIDE_WHEN_READ_TYPES.has(n.type) && n.isRead))

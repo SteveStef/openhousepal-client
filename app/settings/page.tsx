@@ -34,6 +34,7 @@ import BillingPanel from '@/components/settings/BillingPanel'
 import { useSettingsCompleteness } from '@/hooks/useSettingsCompleteness'
 import { toJpeg } from '@/components/setup/SetupUi'
 import { getBrokeragePhone, getOfficePhone, upgradeHubPhones } from '@/lib/hubPhones'
+import QrBrandPicker from '@/components/settings/QrBrandPicker'
 
 // The "IDX Website" settings tab (IDX plan only). Answers three real questions for an IDX agent
 // in one glance - is my site actually live, what's my address, and is my custom domain's DNS
@@ -832,6 +833,10 @@ export default function SettingsPage() {
                   incomplete={salesIncomplete}
                 />
                 </HubPanelsOpen.Provider>
+                {/* The middle of every QR code (OpenHousePal house, or IDX: your logo / initials). */}
+                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
+                  <QrBrandPicker />
+                </div>
               </div>
             )}
 
@@ -978,7 +983,7 @@ function ToolsStatusSection({ planTier }: { planTier?: string }) {
   const rows: { id: string; icon: typeof CalendarClock; iconClass?: string; title: string; blurb: string; status: string; ok: boolean; href: string; locked?: boolean }[] = [
     { id: 'calendar', icon: CalendarClock, iconClass: 'ohp-icon-assemble-calendar', title: 'Calendar', blurb: 'Tasks and open houses on your calendar.', status: calendarStatus, ok: calendarOk, href: '/studio/calendar' },
     { id: 'reviews', icon: Star, title: 'Reviews', blurb: 'Collect client reviews and post the best ones.', status: reviewsStatus, ok: reviewsOk, href: '/studio/reviews', locked: !reviewsAvailable },
-    { id: 'integrations', icon: Plug, iconClass: 'ohp-icon-assemble-plug', title: 'Integrations', blurb: 'Send leads to your CRM, pull leads from portals.', status: integrationsStatus, ok: integrationsOk, href: '/studio/integrations' },
+    { id: 'integrations', icon: Plug, iconClass: 'ohp-icon-assemble-plug', title: 'CRM', blurb: 'Send leads to your CRM, pull leads from portals.', status: integrationsStatus, ok: integrationsOk, href: '/studio/integrations' },
   ]
 
   return (

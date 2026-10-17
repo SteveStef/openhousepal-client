@@ -1,5 +1,6 @@
 'use client'
 
+import { OhpSpinner } from '@/components/brand/OhpLoader'
 import { useEffect, useState } from 'react'
 import { OpenHouse } from '@/types'
 import { CheatSheetPhotoSelectionView } from '@/app/open-houses/components/CreateOpenHouseWizard'
@@ -61,7 +62,7 @@ export function EditCheatSheetPhotosModal({ isOpen, onClose, openHouse, onSucces
       <div className="relative flex max-h-[85vh] w-full max-w-5xl flex-col overflow-y-auto animate-fadeIn transition-all duration-300">
         {isLoading ? (
           <div className="flex items-center justify-center rounded-2xl bg-white p-16 dark:bg-[#151517]">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#C9A24D] border-t-transparent" />
+            <OhpSpinner size={24} />
           </div>
         ) : !propertyData ? (
           <div className="rounded-2xl bg-white p-10 text-center dark:bg-[#151517]">

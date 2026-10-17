@@ -10,6 +10,7 @@ import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { buildBragSheetData, buildCheatSheetAgentData, planHasBragSheet } from '@/lib/bragSheetData'
+import { cheatSheetSqft } from '@/lib/cheatSheetContent'
 import { hasMlsAccess, hasShowcaseAccess } from '@/lib/navAccess'
 import { useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
 import { computeMatchScore, isSameSchoolDistrict } from '@/lib/matchScore'
@@ -63,7 +64,7 @@ export function CreateOpenHouseWizard({
   // time (lib/printPrefs), and every change is remembered for next time.
   const [kitPrefs, setKitPrefs] = useState<Record<PrintPref, boolean>>({ flyerBrand: true, qrDark: true, matchScore: true, recap: true, bragStats: true })
   // What happens when a guest signs in - same switches as each open house card, picked up front.
-  const [guestPrefs, setGuestPrefs] = useState<{ autoShowcase: boolean; guestPass: boolean; afterSignin: 'hub' | 'none' }>({ autoShowcase: true, guestPass: true, afterSignin: 'none' })
+  const [guestPrefs, setGuestPrefs] = useState<{ autoShowcase: boolean; guestPass: boolean; afterSignin: 'hub' | 'none'; followupsMode: 'on' | 'no_calendar' | 'off' }>({ autoShowcase: true, guestPass: true, afterSignin: 'none', followupsMode: 'on' })
   // You're this home's listing agent: Showcases + Similar Homes start off (guests stay focused on
   // your listing instead of being sent to shop other homes). Set from the server once a home is picked.
   const [ownListing, setOwnListing] = useState(false)
@@ -202,7 +203,7 @@ export function CreateOpenHouseWizard({
         price: propertyData?.ListPrice || 0,
         beds: propertyData?.BedroomsTotal || 0,
         baths: propertyData?.BathroomsTotal || 0,
-        sqft: propertyData?.LivingArea || propertyData?.livingArea || 0,
+        sqft: propertyData?.LivingArea || propertyData?.livingArea || cheatSheetSqft({ aboveGradeSqft: propertyData?.AboveGradeFinishedArea, belowGradeSqft: propertyData?.BelowGradeFinishedArea }) || 0,
         schoolDistrict: propertyData?.SchoolDistrictName || propertyData?.school_district_name || undefined,
         // The Review step's Brand choice (same remembered setting as the Documents window's).
         brand: (opts.brand ?? kitPrefs.flyerBrand) ? await buildCheatSheetAgentData(currentUser) : null,
@@ -664,6 +665,8 @@ export function CreateOpenHouseWizard({
       if (createdId) {
         const patch: Record<string, unknown> = {}
         if (isNoMls && guestPrefs.afterSignin === 'hub') patch.after_signin = 'hub'
+        // Follow-ups for this open house: off entirely, or kept off the calendar (kit Review step 2).
+        if (guestPrefs.followupsMode !== 'on') patch.followups_mode = guestPrefs.followupsMode
         if (Object.keys(patch).length) await api.openHouses.updateGuestSettings(createdId, patch as any)
       }
       await onSuccess()
@@ -675,7 +678,7 @@ export function CreateOpenHouseWizard({
       setQrCode('')
       setGeneratedOpenHouseId('')
       setSelectedFeatures({ signinSheet: true, similarProperties: true, bragSheet: bragSheetAvailable, cheatSheet: !isNoMls })
-      setGuestPrefs({ autoShowcase: true, guestPass: true, afterSignin: 'none' })
+      setGuestPrefs({ autoShowcase: true, guestPass: true, afterSignin: 'none', followupsMode: 'on' })
       setOwnListing(false)
       setSelectedSimilarPropertyIds([])
       setCheatSheetPhotos([])

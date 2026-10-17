@@ -1,5 +1,6 @@
 'use client'
 
+import { OhpSpinner } from '@/components/brand/OhpLoader'
 import { useEffect, useRef, useState } from 'react'
 import { X, FileText, Mail, Phone, User, MapPin, Trash2, ArrowLeft, ChevronLeft, ChevronRight, Copy, Check, CalendarCheck, Hourglass, Loader2 } from 'lucide-react'
 import { AgentFormConfig, FormSubmissionAnswer, FormSubmissionListItem } from '@/types'
@@ -359,7 +360,7 @@ export default function FormResultsModal({ isOpen, onClose, form, submissions, i
         <div className="flex-1 overflow-y-auto bg-[#FAFAF7] dark:bg-[#0B0B0B]">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-[#111827] dark:border-white"></div>
+              <OhpSpinner size={34} />
             </div>
           ) : submissions.length === 0 ? (
             <div className="py-12 text-center">

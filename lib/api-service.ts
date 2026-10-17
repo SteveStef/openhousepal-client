@@ -52,6 +52,9 @@ export function resolveMediaUrl(url?: string | null): string {
 }
 
 class ApiService {
+  // The Showcase's own agent opened the client link while signed in: their likes / comments /
+  // requests there go out signed (the server files them as the agent's, not the client's).
+  private publicAsOwner = false
 
   private async request<T>(endpoint: string, options: RequestInit = {}, includeToken: boolean = true): Promise<ApiResponse<T>> {
     const url = `${API_BASE_URL}${endpoint}`;
@@ -106,6 +109,7 @@ class ApiService {
         return {
           success: false,
           error: errorMessage,
+          status: response.status,
         };
       }
 
@@ -402,7 +406,7 @@ class ApiService {
 
     // Per open house: auto-build Showcases for guests without an agent, and where a guest's phone
     // goes after they sign in (their Spotlight / Agent Hub / nothing). Either field alone is fine.
-    updateGuestSettings: (id: string, settings: { auto_showcase?: boolean; similar_homes?: boolean; after_signin?: 'hub' | 'none'; guest_pass?: boolean; pass_signature?: boolean }) =>
+    updateGuestSettings: (id: string, settings: { auto_showcase?: boolean; similar_homes?: boolean; after_signin?: 'hub' | 'none'; guest_pass?: boolean; pass_signature?: boolean; followups_mode?: 'on' | 'no_calendar' | 'off' }) =>
       this.request<{ success: boolean; auto_showcase: boolean; similar_homes: boolean; after_signin: string | null; guest_pass: boolean; pass_signature: boolean }>(`/api/open-houses/${id}/guest-settings`, {
         method: 'PUT',
         body: JSON.stringify(settings),
@@ -1644,7 +1648,17 @@ class ApiService {
       this.request<{ blog_id: string; status: 'running'; stage: string; engine: string }>('/studio/blogs/ai/generate-job', { method: 'POST', body: JSON.stringify(brief) }),
     aiFinished: (blogId: string) => this.request<Blog>(`/studio/blogs/${blogId}/ai-finished`, { method: 'POST' }),
     aiJob: (blogId: string) =>
-      this.request<{ status: 'running' | 'done' | 'failed'; stage?: string; error?: string; result?: BlogAiGenerateResult }>(`/studio/blogs/ai/jobs/${blogId}`),
+      this.request<{ status: 'interview' | 'running' | 'done' | 'failed'; stage?: string; error?: string; brief?: any; step?: number; result?: BlogAiGenerateResult }>(`/studio/blogs/ai/jobs/${blogId}`),
+    // Town Spotlight for any town (shared town database; a new town is researched once - poll).
+    townCard: (body: { name: string; state?: string }) =>
+      this.request<{ status: 'ready' | 'researching'; card?: any; slug?: string; name?: string }>('/studio/blogs/ai/town-card', { method: 'POST', body: JSON.stringify(body) }),
+    // AI cover picture: what one costs, then make it ({idea}) or change the last one ({comment}, 2x).
+    aiCoverEstimate: () => this.request<{ usd: number; percent: number | null; allowed: boolean; max_revisions: number }>('/studio/blogs/ai/cover-estimate'),
+    aiCover: (blogId: string, body: { idea?: string; comment?: string }) =>
+      this.request<{ url: string; revisions_left: number; cost_usd: number }>(`/studio/blogs/${blogId}/ai-cover`, { method: 'POST', body: JSON.stringify(body) }),
+    // Autosave of the writer's answers - the first save creates the DRAFT article it belongs to.
+    saveAiBrief: (body: { blog_id?: string | null; brief: any; step: number; category_hint?: string }) =>
+      this.request<{ blog_id: string | null; saved_at?: string }>('/studio/blogs/ai/brief-draft', { method: 'PUT', body: JSON.stringify(body) }),
     aiGenerate: (brief: BlogAiBrief) =>
       this.request<BlogAiGenerateResult>('/studio/blogs/ai/generate', { method: 'POST', body: JSON.stringify(brief) }),
     aiRefineSection: (body: { title: string; section_blocks: BlogBlock[]; article_blocks: BlogBlock[]; action: BlogAiRefineAction; instruction?: string }) =>
@@ -1656,6 +1670,8 @@ class ApiService {
    * activity, showing requests, and property comments - see backend app/api/lead_routes.py)
    */
   public leads = {
+    /** Clear every lead's red 'new since you last looked' dot (Leads -> Mark all seen). */
+    markAllSeen: () => this.request<{ success: boolean; count: number }>('/leads/mark-all-seen', { method: 'POST' }),
     list: (filters?: { source?: LeadSourceFilter; status?: string; represented?: string; search?: string; sort?: LeadSort; limit?: number; openHouseEventId?: string; hidden?: boolean; needsAttention?: boolean }) => {
       const params = new URLSearchParams();
       if (filters?.source) params.set('source', filters.source);
@@ -1774,6 +1790,18 @@ class ApiService {
     },
     setPerson: (email: string, on: boolean) =>
       this.request<EmailPerson>('/client-emails/people', { method: 'PUT', body: JSON.stringify({ email, on }) }),
+  };
+
+  // The middle of the agent's QR codes (backend qr_brand_routes).
+  public qrBrand = {
+    get: () => this.request<{ kind: string; choice: 'ohp' | 'logo' | 'initials'; allowed: boolean; initials?: string; logo?: string; has_logo: boolean }>('/me/qr-brand', { cache: 'no-store' }),
+    set: (choice: 'ohp' | 'logo' | 'initials') => this.request<{ kind: string; choice: 'ohp' | 'logo' | 'initials'; allowed: boolean; initials?: string; logo?: string; has_logo: boolean }>('/me/qr-brand', { method: 'PUT', body: JSON.stringify({ choice }) }),
+  };
+
+  // Studio -> Email: this agent's own email settings (backend email_settings_service).
+  public emailSettings = {
+    get: () => this.request<EmailSettings>('/api/v1/email-settings', { cache: 'no-store' }),
+    update: (patch: EmailSettingsPatch) => this.request<EmailSettings>('/api/v1/email-settings', { method: 'PUT', body: JSON.stringify(patch) }),
   };
 
   public ai = {
@@ -1901,7 +1929,9 @@ class ApiService {
 
     share: (id: string) => this.request<CmaShareResponse>(`/api/cma/${id}/share`, { method: 'POST' }),
 
-    generateAiAnalysis: (id: string, payload: { max_photos_per_property?: number, include_map_images?: boolean, force_regenerate?: boolean } = {}) =>
+    /** What one AI analysis usually uses of the monthly AI allowance (shown by the button). */
+    aiEstimate: () => this.request<{ usd: number; percent: number | null; max_percent: number | null }>('/api/cma/ai-estimate'),
+    generateAiAnalysis: (id: string, payload: { max_photos_per_property?: number, include_map_images?: boolean, force_regenerate?: boolean, background?: boolean } = {}) =>
       this.request<CmaReport>(`/api/cma/${id}/generate-ai-analysis`, { method: 'POST', body: JSON.stringify(payload) }),
 
     // Re-runs the deterministic evidence/confidence/value-drivers pipeline plus one lightweight
@@ -2056,6 +2086,12 @@ class ApiService {
     guestPassShowcase: (token: string) =>
       this.request<{ url: string }>(`/guest-pass/${encodeURIComponent(token)}/showcase`, { method: 'POST' }, false),
 
+    setActingAsOwner: (v: boolean) => { this.publicAsOwner = v },
+
+    /** A personal email's Showcase link was opened (?ce=<id>) - one click on that email. */
+    trackEmailVisit: (trackId: string) =>
+      this.request<any>(`/e/v/${encodeURIComponent(trackId)}`, { method: 'POST' }, false),
+
     getSharedShowcase: (shareToken: string) =>
       this.request<any>(`/collections/shared/${shareToken}`, {}, false),
 
@@ -2078,13 +2114,13 @@ class ApiService {
       this.request<any>(`/collections/${collectionId}/properties/${propertyId}/interact`, {
         method: 'POST',
         body: JSON.stringify({ interaction_type: interactionType, value }),
-      }, false),
+      }, this.publicAsOwner),
 
     addPropertyComment: (collectionId: string, propertyId: string, content: string, visitorName: string) =>
       this.request<any>(`/collections/${collectionId}/properties/${propertyId}/comments`, {
         method: 'POST',
         body: JSON.stringify({ content, visitor_name: visitorName }),
-      }, false),
+      }, this.publicAsOwner),
 
     getPropertyComments: (collectionId: string, propertyId: string) =>
       this.request<any[]>(`/collections/${collectionId}/properties/${propertyId}/comments`, {}, false),
@@ -2101,7 +2137,7 @@ class ApiService {
       this.request<any>(`/collections/${collectionId}/refine-request`, {
         method: 'POST',
         body: JSON.stringify({ message }),
-      }, false),
+      }, this.publicAsOwner),
 
     /** The Showcase agent's busy blocks (start/end only) for the showing window. */
     getShowcaseBusy: async (collectionId: string) => {
@@ -2359,4 +2395,23 @@ export interface LinkableAreas {
   reason: 'no_plan' | 'no_site' | 'site_off' | 'not_published' | 'no_areas' | null
   site_url: string | null
   areas: { slug: string; name: string; state?: string | null; photo?: string | null; median_price?: number | null; active_count?: number | null; url?: string | null }[]
+}
+
+export interface EmailSettingsClientRow {
+  key: string; tier: 1 | 2; label: string; help: string; delay?: boolean; modes?: string[]
+  on: boolean; via: 'mine' | 'openhousepal'; mode?: 'daily' | 'weekly'
+}
+export interface EmailSettings {
+  client: EmailSettingsClientRow[]
+  invite_delay: number; invite_delays: number[]
+  briefing_time: string; briefing_times: string[]
+  mailbox: { connected: boolean; account_email: string | null; provider: 'google' | 'microsoft' | null; status: string | null }
+  receive: { tier: number; title: string; blurb: string; categories: { id: string; label: string; help: string; email: boolean }[] }[]
+  always_on: string[]
+}
+export interface EmailSettingsPatch {
+  client?: Record<string, Partial<Pick<EmailSettingsClientRow, 'on' | 'via' | 'mode'>>>
+  invite_delay?: number
+  briefing_time?: string
+  receive?: Record<string, boolean>
 }

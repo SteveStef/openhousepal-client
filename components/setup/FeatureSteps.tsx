@@ -27,6 +27,7 @@ import { ACCENT_COLORS } from '@/lib/accentSwatches'
 import { BRAND_ACCENT_COLORS, BRAND_MAIN_COLORS } from '@/lib/brandSwatches'
 import { BigToggle, ChoiceCard, Field, isLight, PinnedPreview, StepCtx, SubHead, Swatches, toJpeg, useGate } from './SetupUi'
 import ZillowLinkHelp, { ZILLOW_REVIEW_PLACEHOLDER } from '@/components/reviews/ZillowLinkHelp'
+import QrBrandPicker from '@/components/settings/QrBrandPicker'
 
 const METAL_SWATCHES = LUXE_METAL_ORDER.map(m => ({ color: LUXE_METALS[m].base, label: m[0].toUpperCase() + m.slice(1) }))
 
@@ -178,6 +179,10 @@ export function BrandStep({ ctx }: { ctx: StepCtx }) {
           <span className="ml-auto rounded-full px-4 py-2 text-[13px] font-black" style={{ background: kit.secondary_color, color: '#111827' }}>Contact me</span>
         </div>
         <p className="bg-white px-5 py-2.5 text-[12px] font-bold text-gray-500 dark:bg-[#141416]">A quick look at your colors together</p>
+      </div>
+      <div>
+        <SubHead sub="What sits in the middle of every QR code you print or share. Codes you already printed keep working.">Your QR codes</SubHead>
+        <QrBrandPicker compact key={kit.personal_logo_url || 'none'} />
       </div>
     </div>
   )

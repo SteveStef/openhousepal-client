@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import type { ComponentType, ReactNode } from 'react'
 import { Check, ChevronDown, Loader2, RotateCcw, Star, Upload } from 'lucide-react'
 import api from '@/lib/api-service'
@@ -31,8 +32,8 @@ export function Card({ icon: Icon, title, hint, open, onToggle, flash, children,
 }) {
   return (
     <section className={`overflow-hidden rounded-2xl border bg-white transition-shadow duration-500 dark:bg-[#151517] ${open ? 'border-[#C9A24D] shadow-[0_18px_40px_-28px_rgba(201,162,77,.9)]' : 'border-gray-200 dark:border-white/10'} ${flash ? 'ring-4 ring-[#C9A24D]/30' : 'ring-0 ring-transparent'}`}>
-      <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
-        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition ${open ? 'bg-[#C9A24D] text-white' : 'bg-[#111827] text-[#e8c97a] dark:bg-white/10'}`}><Icon className="h-4 w-4" /></span>
+      <button type="button" onClick={onToggle} className="group flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[#C9A24D]/[0.04] active:bg-[#C9A24D]/[0.08]">
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-300 group-hover:-translate-y-0.5 ${open ? 'scale-105 bg-[#C9A24D] text-white shadow-[0_8px_18px_-8px_rgba(201,162,77,.9)]' : 'bg-[#111827] text-[#e8c97a] dark:bg-white/10'}`}><Icon className="h-4 w-4" /></span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
             <span className="text-[15px] font-black text-[#111827] dark:text-white">{title}</span>
@@ -40,9 +41,16 @@ export function Card({ icon: Icon, title, hint, open, onToggle, flash, children,
           </span>
           {hint && !open && <span className="block truncate text-xs font-semibold text-gray-400">{hint}</span>}
         </span>
-        <ChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180 text-[#8b7355]' : ''}`} />
+        <ChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform duration-300 ${open ? 'rotate-180 text-[#8b7355]' : ''}`} />
       </button>
-      {open && <div className="space-y-4 border-t border-gray-100 px-4 pb-5 pt-4 dark:border-white/5">{children}</div>}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div key="body" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+            transition={{ height: { duration: 0.32, ease: [0.16, 1, 0.3, 1] }, opacity: { duration: 0.22 } }} className="overflow-hidden">
+            <motion.div initial={{ y: -6 }} animate={{ y: 0 }} transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }} className="space-y-4 border-t border-gray-100 px-4 pb-5 pt-4 dark:border-white/5">{children}</motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   )
 }
@@ -54,8 +62,8 @@ export function Toggle({ label, hint, on, onChange, disabled }: { label: string;
         <span className="block text-sm font-black text-[#111827] dark:text-white">{label}</span>
         {hint && <span className="block text-[11px] font-semibold text-gray-400">{hint}</span>}
       </span>
-      <span className={`relative h-6 w-11 shrink-0 rounded-full transition ${on ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-white/15'}`}>
-        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${on ? 'left-[22px]' : 'left-0.5'}`} />
+      <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-300 ${on ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-white/15'}`}>
+        <motion.span initial={false} animate={{ x: on ? 20 : 0 }} transition={{ type: 'spring', stiffness: 520, damping: 32 }} className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow" />
       </span>
     </button>
   )
@@ -63,15 +71,17 @@ export function Toggle({ label, hint, on, onChange, disabled }: { label: string;
 
 // A row of equally-sized choices - the "approved options" pattern (sizes, positions, labels).
 export function Seg<T extends string>({ value, options, onChange, columns }: { value: T; options: { value: T; label: string; hint?: string }[]; onChange: (v: T) => void; columns?: number }) {
+  const id = useId()
   return (
     <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${columns || options.length}, minmax(0, 1fr))` }}>
       {options.map(o => {
         const on = o.value === value
         return (
-          <button key={o.value} type="button" onClick={() => onChange(o.value)} className={`rounded-xl border px-2 py-2 text-center transition ${on ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#111827] dark:text-white' : 'border-gray-200 text-gray-500 hover:border-[#C9A24D]/60 dark:border-white/10 dark:text-gray-300'}`}>
-            <span className="block text-[12px] font-black">{o.label}</span>
-            {o.hint && <span className="block text-[10px] font-semibold text-gray-400">{o.hint}</span>}
-          </button>
+          <motion.button key={o.value} type="button" whileTap={{ scale: 0.96 }} onClick={() => onChange(o.value)} className={`relative rounded-xl border px-2 py-2 text-center transition-colors duration-200 ${on ? 'border-[#C9A24D] text-[#111827] dark:text-white' : 'border-gray-200 text-gray-500 hover:border-[#C9A24D]/60 dark:border-white/10 dark:text-gray-300'}`}>
+            {on && <motion.span layoutId={`seg-${id}`} transition={{ type: 'spring', stiffness: 480, damping: 36 }} className="absolute inset-0 rounded-[11px] bg-[#C9A24D]/10" />}
+            <span className="relative block text-[12px] font-black">{o.label}</span>
+            {o.hint && <span className="relative block text-[10px] font-semibold text-gray-400">{o.hint}</span>}
+          </motion.button>
         )
       })}
     </div>
@@ -85,9 +95,9 @@ export function Chips({ options, value, onPick }: { options: string[]; value: st
       {options.map(o => {
         const on = o.trim().toLowerCase() === value.trim().toLowerCase()
         return (
-          <button key={o} type="button" onClick={() => onPick(o)} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${on ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355]' : 'border-gray-200 text-gray-500 hover:border-[#C9A24D]/60 dark:border-white/10 dark:text-gray-300'}`}>
-            {o}
-          </button>
+          <motion.button key={o} type="button" whileTap={{ scale: 0.94 }} onClick={() => onPick(o)} className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-black transition duration-200 hover:-translate-y-0.5 ${on ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355] shadow-[0_6px_14px_-10px_rgba(201,162,77,.9)]' : 'border-gray-200 text-gray-500 hover:border-[#C9A24D]/60 dark:border-white/10 dark:text-gray-300'}`}>
+            {on && <Check className="h-3 w-3" />}{o}
+          </motion.button>
         )
       })}
     </div>

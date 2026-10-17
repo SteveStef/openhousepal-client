@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server'
 import { ogFontsSafe } from '@/lib/og/shared'
 import {
   renderShowcaseCard, renderCmaCard, renderOpenHouseCard,
-  renderBlogCard, renderFormCard, renderHubCard, renderSpotlightCard, renderPropertyCard,
+  renderBlogCard, renderFormCard, renderHubCard, renderSpotlightCard, renderPropertyCard, renderSiteCard, renderIdxListingCard,
 } from '@/lib/og/cards'
 
 export const runtime = 'nodejs'
@@ -42,6 +42,10 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ kind: strin
       return renderSpotlightCard(q.get('host') || '', q.get('path') || '', fonts)
     case 'property':
       return renderPropertyCard(q.get('agent') || '', q.get('listing') || '', fonts)
+    case 'site':
+      return renderSiteCard(q.get('site') || '', q.get('host') || '', fonts)
+    case 'idxlisting':
+      return renderIdxListingCard(q.get('site') || '', q.get('listing') || '', q.get('own') === '1', fonts)
     default:
       return new Response('unknown card kind', { status: 404 })
   }

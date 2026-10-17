@@ -241,6 +241,12 @@ export function SocialsStep({ ctx }: { ctx: StepCtx }) {
         )
       })}
       <p className="text-[13px] font-medium text-gray-500 sm:col-span-2 dark:text-gray-400">LinkedIn goes on your Save Contact card. The others show as icons on your pages.</p>
+      <div className="flex gap-2.5 rounded-2xl border border-[#FF0000]/15 bg-[#FF0000]/[0.03] px-4 py-3 sm:col-span-2">
+        <Youtube className="mt-0.5 h-4 w-4 shrink-0 text-[#FF0000]" />
+        <p className="text-[13px] font-medium leading-snug text-gray-600 dark:text-gray-300">
+          <span className="font-black text-[#111827] dark:text-white">YouTube: use your channel&apos;s link</span>, not a single video. On YouTube, tap your profile picture, then <span className="font-bold">View your channel</span>, and copy the address - it looks like <span className="font-mono text-[12px]">youtube.com/@yourname</span>. Your newest videos then show on your Agent Hub, and the blog writer suggests the ones that fit each article.
+        </p>
+      </div>
     </div>
     </WithCard>
   )

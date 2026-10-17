@@ -7,11 +7,17 @@
 // themselves, and pads for the vanished scrollbar so nothing jumps sideways.
 import { useEffect } from 'react'
 
-const CANDIDATES = '[class*="fixed"], [style*="position: fixed"], [role="dialog"], [aria-modal="true"], dialog[open]'
+const CANDIDATES = '[class*="fixed"], [style*="position: fixed"], [role="dialog"], [aria-modal="true"], dialog[open], [data-scroll-lock="on"]'
+
+function tinted(cs: CSSStyleDeclaration): boolean {
+  const bg = cs.backgroundColor
+  return (!!bg && bg !== 'transparent' && !/rgba?\([^)]*,\s*0(\.0+)?\)$/.test(bg)) || cs.backgroundImage !== 'none' || (!!cs.backdropFilter && cs.backdropFilter !== 'none')
+}
 
 function isOverlay(el: Element): boolean {
   if (el.closest('[data-scroll-lock="off"]')) return false
   const cs = getComputedStyle(el)
+  if (el.getAttribute('data-scroll-lock') === 'on') return cs.display !== 'none' && cs.visibility !== 'hidden'
   if (cs.position !== 'fixed' || cs.display === 'none' || cs.visibility === 'hidden' || cs.pointerEvents === 'none' || Number(cs.opacity) === 0) return false
   // page backgrounds sit behind the content - only layers stacked above it count
   const z = parseInt(cs.zIndex, 10)
@@ -19,10 +25,15 @@ function isOverlay(el: Element): boolean {
   const r = el.getBoundingClientRect()
   if (r.width < window.innerWidth * 0.95 || r.height < window.innerHeight * 0.9) return false
   if (el.getAttribute('aria-modal') === 'true' || el.getAttribute('role') === 'dialog' || el.tagName === 'DIALOG') return true
-  // a real pop-up dims or covers the page; an invisible click-catcher behind a dropdown doesn't
-  const bg = cs.backgroundColor
-  const tinted = !!bg && bg !== 'transparent' && !/rgba?\([^)]*,\s*0(\.0+)?\)$/.test(bg)
-  return tinted || cs.backgroundImage !== 'none' || (cs.backdropFilter && cs.backdropFilter !== 'none') || false
+  // a real pop-up dims or covers the page; an invisible click-catcher behind a dropdown doesn't.
+  // (Its dimmed backdrop can also be its own full-size first child - the phone menu is built so.)
+  if (tinted(cs)) return true
+  const first = el.firstElementChild as HTMLElement | null
+  if (first) {
+    const fr = first.getBoundingClientRect()
+    if (fr.width >= window.innerWidth * 0.95 && fr.height >= window.innerHeight * 0.9 && tinted(getComputedStyle(first))) return true
+  }
+  return false
 }
 
 export default function ScrollLockWatcher() {
@@ -30,6 +41,12 @@ export default function ScrollLockWatcher() {
     const html = document.documentElement
     let locked = false
     let timer: number | undefined
+    // Phones (user, 10/17): iOS Safari scrolls the page under a pop-up even with overflow hidden
+    // on <html>, so on touch screens the page itself is pinned in place (position: fixed at the
+    // current scroll) and put back exactly where it was when the pop-up closes.
+    const touch = window.matchMedia('(pointer: coarse)').matches
+    let savedY = 0
+    const body = document.body
     const apply = (on: boolean) => {
       if (on === locked) return
       locked = on
@@ -37,9 +54,25 @@ export default function ScrollLockWatcher() {
         const gap = window.innerWidth - html.clientWidth
         html.style.overflow = 'hidden'
         if (gap > 0) html.style.paddingRight = `${gap}px`
+        if (touch) {
+          savedY = window.scrollY
+          body.style.position = 'fixed'
+          body.style.top = `-${savedY}px`
+          body.style.left = '0'
+          body.style.right = '0'
+          body.style.width = '100%'
+        }
       } else {
         html.style.overflow = ''
         html.style.paddingRight = ''
+        if (touch && body.style.position === 'fixed') {
+          body.style.position = ''
+          body.style.top = ''
+          body.style.left = ''
+          body.style.right = ''
+          body.style.width = ''
+          window.scrollTo(0, savedY)
+        }
       }
     }
     const check = () => {

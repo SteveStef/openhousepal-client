@@ -50,6 +50,8 @@ export interface Property {
   agentBrokerage?: string;
   spotlightUrl?: string;
   agentPhotoUrl?: string | null;
+  /** The hosting agent - whose QR centre logo the Sign-In Sheet draws. */
+  agentId?: string;
 
   DaysOnMarket?: number;
   YearBuilt?: number;
@@ -849,6 +851,8 @@ export interface ApiResponse<T> {
   data?: T;
   message?: string;
   error?: string;
+  /** HTTP status of a failed request (none = it never got an answer, e.g. offline). */
+  status?: number;
 }
 
 // Backend notification response (snake_case from API)
@@ -1612,6 +1616,8 @@ export interface StudioVideoTestGridResponse {
 // AI tool combined. `percent` is null for a tier with no configured monthly budget (render no
 // meter). `used_usd` is only for the temporary exact-dollar readout during testing.
 export interface MonthlyAiUsage {
+  /** This month's spend by feature (share of the allowance). */
+  breakdown?: { label: string; usd: number; percent: number | null }[]
   tier: string;
   used_usd: number;
   limit_usd: number | null;
@@ -1984,8 +1990,15 @@ export interface Blog {
 
 // The AI pipeline's Verified report (backend ai_blog_pipeline_service) - private to the agent.
 export interface BlogAiReview {
-  status?: 'running' | 'done' | 'failed'
+  /** 'interview' = the writer's answers are autosaved but it hasn't been written yet. */
+  status?: 'interview' | 'running' | 'done' | 'failed'
   stage?: string
+  /** A brand-new article the AI is (or was) writing - not a rewrite of an existing one. */
+  new?: boolean
+  /** The writer's saved answers + the step the agent was on (unfinished drafts). */
+  brief?: any
+  step?: number
+  error?: string
   /** The agent went through (or skipped) the writer's Finish step. */
   finished?: boolean
   engine?: 'max' | 'lean'
@@ -2027,6 +2040,7 @@ export interface BlogListItem {
   updated_at?: string | null;
   created_at: string;
   view_count: number;
+  ai_state?: 'interview' | 'running' | 'failed' | null;
 }
 
 export interface BlogAnalytics {
@@ -2082,6 +2096,7 @@ export interface PublicBlogDetail {
   agentName: string;
   agentBrokerage: string;
   agentPhotoUrl?: string | null;
+  agentId?: string | null;
   agentTitle?: string | null;
   agentMarket?: string | null;
 }
@@ -2210,6 +2225,9 @@ export interface Lead {
   has_liked_property?: boolean;
   has_disliked_property?: boolean;
   needs_attention?: boolean;
+  /** The agent left a note on them (has_note / when the newest one was written). */
+  has_note?: boolean;
+  note_at?: string | null;
   // The showcase this lead's pending attention item lives in, if any - see getLeadAttentionLink.
   attention_collection_id?: string | null;
   created_at: string;
@@ -2271,6 +2289,9 @@ export interface ClientEmailRow {
   kind: 'auto' | 'personal';
   via?: 'mailbox' | 'openhousepal' | null;
   status: 'sent' | 'failed';
+  /** Why it didn't go through, in plain words (failed only). */
+  error?: string | null;
+  created_at?: string | null;
   sent_at?: string | null;
   opened_at?: string | null;
   open_count: number;
@@ -3198,6 +3219,8 @@ export interface CmaReport {
   // app/studio/cma/[id]/page.tsx's resumed-generation effect.
   generation_status?: 'generating' | 'complete' | 'failed' | null;
   generation_started_at?: string | null;
+  /** Why the last AI run did not finish (a usage limit, an error). */
+  generation_error?: string | null;
   created_at: string;
   updated_at?: string | null;
 }

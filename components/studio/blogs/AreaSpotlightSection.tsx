@@ -14,6 +14,8 @@ export type AreaCard = {
   slug: string; name: string; state?: string; county?: string | null
   photo?: string | null; photos?: { url: string; credit?: string }[]
   summary?: string | null; median_price?: number | null; active_count?: number | null; min_price?: number | null; max_price?: number | null
+  /** 'sold_2y' = the middle 90% of homes sold in the last two years (older snapshots: today's listings). */
+  price_range_basis?: string | null
   school_districts?: ({ name?: string } | string)[]
   nearby?: { market?: string[]; downtown?: string[]; parks?: string[]; restaurants_shopping?: string[]; transportation?: string[]; standout?: string[] }
   as_of?: string
@@ -29,7 +31,9 @@ export default function AreaSpotlightSection({ area, accent = '#C9A24D' }: { are
   const stats = [
     { icon: TrendingUp, label: 'Median list price', value: money(area.median_price) },
     { icon: Home, label: 'Homes for sale now', value: area.active_count != null ? String(area.active_count) : null },
-    { icon: TrendingUp, label: 'Price range', value: area.min_price && area.max_price && area.min_price >= 50_000 ? `${money(area.min_price)} - ${money(area.max_price)}` : null },
+    // Older articles saved the min/max of whatever was listed (Radnor read $148K - $10M): those
+    // only show when the spread is believable.
+    { icon: TrendingUp, label: area.price_range_basis === 'sold_2y' ? 'Typical sales, 2 yrs' : 'Price range', value: area.min_price && area.max_price && area.min_price >= 50_000 && (area.price_range_basis === 'sold_2y' || area.max_price / area.min_price <= 20) ? `${money(area.min_price)} - ${money(area.max_price)}` : null },
   ].filter(s => s.value)
   const nearby = [
     { icon: Store, label: 'Downtown', items: n.downtown },

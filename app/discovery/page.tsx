@@ -1,5 +1,6 @@
 'use client'
 
+import { OhpSpinner } from '@/components/brand/OhpLoader'
 import React, { useState, memo, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
@@ -1834,7 +1835,7 @@ export default function OpenHouseDiscovery() {
                 <div id="discovery-results" className="p-4 md:p-8 space-y-4 scroll-mt-4">
                   {isLoading ? (
                     <div className="flex flex-col items-center justify-center py-20">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#C9A24D] mb-4"></div>
+                      <div className="mb-4"><OhpSpinner size={34} /></div>
                       <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Searching for listings...</p>
                     </div>
                   ) : (Array.isArray(filteredListings) && filteredListings.length > 0) ? (

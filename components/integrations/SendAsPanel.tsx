@@ -14,7 +14,9 @@ import api, { type MailboxInfo } from '@/lib/api-service'
 
 const GUEST_EMAILS = ['Showcase invites', 'New homes for your clients', 'Tour confirmations', 'Your replies to comments', 'Listing alerts']
 
-export default function SendAsPanel({ back, onChange, big = false }: { back?: 'setup' | 'emails'; onChange?: (m: MailboxInfo) => void; big?: boolean }) {
+export default function SendAsPanel({ back, onChange, big = false, hideRules = false }: { back?: 'setup' | 'emails'; onChange?: (m: MailboxInfo) => void; big?: boolean
+  /** Studio -> Email shows the rules in its own fold-out instead. */
+  hideRules?: boolean }) {
   const [info, setInfo] = useState<MailboxInfo | null>(null)
   const [busy, setBusy] = useState<'' | 'google' | 'microsoft' | 'toggle' | 'test' | 'disconnect'>('')
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
@@ -99,7 +101,7 @@ export default function SendAsPanel({ back, onChange, big = false }: { back?: 's
         </p>
         <Chips />
         {msg && <p className={`text-[14px] font-bold ${msg.ok ? 'text-emerald-600' : 'text-rose-600'}`}>{msg.text}</p>}
-        <InboxRules />
+        {!hideRules && <InboxRules />}
       </div>
     )
   }
@@ -155,7 +157,7 @@ export default function SendAsPanel({ back, onChange, big = false }: { back?: 's
       </div>
       {msg && <p className={`flex items-start gap-2 text-[14px] font-bold ${msg.ok ? 'text-emerald-600' : 'text-rose-600'}`}>{msg.ok ? <Check className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}{msg.text}</p>}
       <Chips />
-      <InboxRules />
+      {!hideRules && <InboxRules />}
     </div>
   )
 }

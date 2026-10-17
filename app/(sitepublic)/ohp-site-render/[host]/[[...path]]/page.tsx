@@ -210,10 +210,10 @@ async function baseMetadata({
     return { title: 'Media', alternates: canonical ? { canonical } : undefined }
   }
   if (path?.[0] === 'properties' && path[1]) {
-    return listingMetadata(await fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/properties/${encodeURIComponent(path[1])}`), canonical)
+    return listingMetadata(await fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/properties/${encodeURIComponent(path[1])}`), canonical, ogCard('idxlisting', { site: resolved.site_id, listing: path[1], own: '1' }))
   }
   if (path?.[0] === 'search' && path[1] === 'properties' && path[2]) {
-    return listingMetadata(await fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/search/properties/${encodeURIComponent(path[2])}`), canonical)
+    return listingMetadata(await fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/search/properties/${encodeURIComponent(path[2])}`), canonical, ogCard('idxlisting', { site: resolved.site_id, listing: path[2] }))
   }
   if (path?.[0] === 'properties') {
     return { title: 'Properties', alternates: canonical ? { canonical } : undefined }
@@ -413,8 +413,10 @@ function applySiteSeo(meta: Metadata, resolved: ResolveResponse, path: string[] 
       ...(title ? { title: title as string } : {}),
       ...(description ? { description: description as string } : {}),
       ...(siteName ? { siteName } : {}),
-      ...(share && !(meta.openGraph as any)?.images ? { images: [{ url: share }] } : {}),
+      // No image of its own: the agent's own image if they set one, else the designed site card (user, 10/17).
+      ...(!(meta.openGraph as any)?.images ? { images: [{ url: share || ogCard('site', { site: resolved.site_id, host: resolved.subdomain_slug ? `${resolved.subdomain_slug}.${OHP_BASE_DOMAIN}` : undefined }), width: 1200, height: 630 }] } : {}),
     },
+    ...(!(meta.openGraph as any)?.images ? { twitter: { card: 'summary_large_image' as const, images: [share || ogCard('site', { site: resolved.site_id })] } } : {}),
   }
 }
 
@@ -620,10 +622,11 @@ function ownPageMetadata(title: string, canonical?: string, opts?: { description
 // A home's page: "239 Windham Dr, Exton, PA 19341 - $1,300,000" + a facts description + its photo -
 // what Google and a text message preview show. A home whose seller withheld the address is named
 // by its town only (the API already replaced the street).
-function listingMetadata(p: any, canonical?: string): Metadata {
+function listingMetadata(p: any, canonical?: string, card?: string): Metadata {
   if (!p) return {}
   const { title, description } = autoListingMeta(p)
-  const photo = (Array.isArray(p.photos) && p.photos[0]) || p.photo
+  // The designed share card (photo + the agent, like a Showcase property link); the raw photo only if there's no card.
+  const photo = card || (Array.isArray(p.photos) && p.photos[0]) || p.photo
   return {
     title,
     description,

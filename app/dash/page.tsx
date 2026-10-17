@@ -177,7 +177,7 @@ export default function DashPage() {
       api.leads.list({ needsAttention: true, sort: 'newest' }),
       // Backfill pool so the panel never goes empty just because everything's been addressed - see
       // the merge below, which only pulls from this to pad up to a 5-card floor.
-      api.leads.list({ sort: 'newest', limit: 10 }),
+      api.leads.list({ sort: 'newest', limit: 30 }),
       // Same source and 30-day window as the notification bell, not a leads query - this panel
       // is meant to mirror the bell's "what actually happened recently" feed, not a leads
       // priority list (that mismatch was the point of this change: it used to show each of the
@@ -193,7 +193,13 @@ export default function DashPage() {
 
     if (statsRes.success && statsRes.data) setStatSummary(statsRes.data)
     if (attentionLeadsRes.success && attentionLeadsRes.data) {
-      const attentionLeads = attentionLeadsRes.data
+      // Brand-new guests WITHOUT an agent lead the panel (user, 10/17); someone with an agent only
+      // shows here when you left a note on them recently. The server already only flags a
+      // represented lead when it has a note you haven't looked at since.
+      const recentNote = (l: Lead) => !!l.note_at && Date.now() - new Date(l.note_at).getTime() < 14 * 864e5
+      const belongs = (l: Lead) => l.represented !== 'yes' || recentNote(l)
+      const attentionLeads = attentionLeadsRes.data.filter(belongs)
+        .sort((a, b) => Number(a.represented === 'yes') - Number(b.represented === 'yes'))
       setNewLeadsCount(attentionLeads.length)
       const MIN_DISPLAY = 5
       if (attentionLeads.length >= MIN_DISPLAY || !recentLeadsRes.success || !recentLeadsRes.data) {
@@ -204,7 +210,7 @@ export default function DashPage() {
         // still reads as a real feed instead of going empty/near-empty the moment everything's
         // been addressed.
         const seen = new Set(attentionLeads.map(l => l.id))
-        const padding = recentLeadsRes.data.filter(l => !seen.has(l.id))
+        const padding = recentLeadsRes.data.filter(l => !seen.has(l.id) && belongs(l))
         setNewLeads([...attentionLeads, ...padding].slice(0, MIN_DISPLAY))
       }
     }
@@ -416,7 +422,10 @@ export default function DashPage() {
             kickerNote={updatedAgo && (
               <><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 dark:bg-emerald-400" /> Updated {updatedAgo}</>
             )}
-            asideClassName="lg:w-[400px] lg:-mt-6"
+            // Phones: no stat tiles or quick-create pills up here (user, 10/17) - screen space goes
+            // to what needs attention; the same links live in the menu.
+            asideClassName="max-sm:hidden lg:w-[400px] lg:-mt-6"
+            actionsClassName="max-sm:hidden"
             aside={
               <LuxeStats
                 stats={[
@@ -452,7 +461,7 @@ export default function DashPage() {
 
         {/* KPI strip */}
         {statSummary && (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="mt-4 grid min-w-0 grid-cols-3 gap-1.5 sm:gap-2.5 lg:grid-cols-6">
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="mt-4 grid min-w-0 grid-cols-3 gap-1.5 max-sm:hidden sm:gap-2.5 lg:grid-cols-6">
             {statDrag.order.map(metric => {
               const card = STAT_CARDS.find(c => c.metric === metric)
               if (!card) return null

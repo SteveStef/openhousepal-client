@@ -20,6 +20,9 @@ import { isPropertyAvailableStatus, haversineMiles } from '@/lib/utils'
 import { computeMatchScore } from '@/lib/matchScore'
 import OhpLoader from '@/components/brand/OhpLoader'
 import { todayLocal } from '@/lib/relativeDays'
+import { useAuth } from '@/contexts/AuthContext'
+import Link from 'next/link'
+import { Eye } from 'lucide-react'
 
 export default function CustomerShowcasePage() {
   return (
@@ -34,6 +37,7 @@ function ShowcaseContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { showToast } = useToast()
+  const { user } = useAuth()
   const [showcase, setShowcase] = useState<Collection | null>(null)
   const [matchedProperties, setMatchedProperties] = useState<Property[]>([])
   // When the Showcase was last pulled from the server (the header's "Live" chip).
@@ -86,6 +90,29 @@ function ShowcaseContent() {
   }, [showcase, searchParams])
 
   const shareToken = params.shareToken as string
+
+  // This Showcase's own agent opened the client link while signed in (e.g. from a calendar
+  // follow-up): nothing they do here may count as the client's activity - no view tracking, and
+  // likes / comments go out signed so the server files them as the agent's. A slim bar says so and
+  // offers the agent view. Anyone else (the client, or whoever they forward it to) sees it normally.
+  const ownerViewing = !!(user?.id && (showcase as any)?.ownerId && user.id === (showcase as any).ownerId)
+  useEffect(() => {
+    api.public.setActingAsOwner(ownerViewing)
+    return () => api.public.setActingAsOwner(false)
+  }, [ownerViewing])
+
+  // Opened from a personal email's own link (?ce=<id>): report the visit once (a click + open on
+  // that email), then take the marker out of the address bar so a copied link stays clean.
+  const emailMarker = searchParams.get('ce')
+  useEffect(() => {
+    if (!emailMarker || !showcase) return
+    if (!ownerViewing) api.public.trackEmailVisit(emailMarker)
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('ce')
+      window.history.replaceState(window.history.state, '', url.pathname + (url.search || '') + url.hash)
+    } catch { /* old browser - harmless */ }
+  }, [emailMarker, showcase, ownerViewing])
 
   // Check authentication status on component mount
   useEffect(() => {
@@ -536,7 +563,7 @@ function ShowcaseContent() {
   // Handle the async parts of property viewing (tracking, fetching details)
   const loadPropertyDetails = useCallback(async (property: Property) => {
     // Track property view
-    if (showcase?.id && property.id) {
+    if (showcase?.id && property.id && !ownerViewing) {
       const { success } = await api.public.trackPropertyView(showcase.id, String(property.id))
       if (success) {
         setMatchedProperties(prev => prev.map(p =>
@@ -565,7 +592,7 @@ function ShowcaseContent() {
     if (property.id && !isNaN(propertyIdAsNumber)) {
       fetchPropertyComments(propertyIdAsNumber)
     }
-  }, [showcase?.id])
+  }, [showcase?.id, ownerViewing])
 
   const handlePropertyClick = useCallback((property: Property) => {
     isInternalSyncRef.current = true
@@ -897,6 +924,19 @@ function ShowcaseContent() {
 
   return (
     <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col transition-colors">
+      {ownerViewing && (
+        <div className="sticky top-0 z-40 border-b border-[#C9A24D]/30 bg-[#111827] text-white">
+          <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2 sm:px-6">
+            <Eye className="h-4 w-4 shrink-0 text-[#e8c97a]" />
+            <p className="min-w-0 flex-1 text-[12px] font-semibold leading-snug sm:text-[13px]">
+              You&apos;re seeing {visitorFirstName && visitorFirstName !== 'Anonymous' ? `${visitorFirstName}'s` : 'this'} Showcase the way they do. <span className="text-white/60">Your clicks here don&apos;t count as theirs.</span>
+            </p>
+            <Link href={`/showcases?showcase=${showcase.id}`} className="shrink-0 rounded-full bg-[#C9A24D] px-3 py-1.5 text-[11px] font-black text-[#111827] transition hover:bg-[#e8c97a]">
+              Agent view
+            </Link>
+          </div>
+        </div>
+      )}
       <div className="flex-1 p-4 sm:p-6 pb-20">
         <div className="max-w-7xl mx-auto">
           {/* Your Upcoming Tours */}

@@ -190,6 +190,10 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
             </p>
           )}
           <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-white/10 px-6 pt-3">
+            {(agent as any).photo_url || (agent as any).headshot_url ? (
+              <img src={normalizeImageUrl((agent as any).photo_url || (agent as any).headshot_url)} alt={agent.name || ''}
+                className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-[#C9A24D] ring-offset-2 ring-offset-[#111827] print:hidden" />
+            ) : null}
             <p className="text-sm font-black">{agent.name}</p>
             {agent.brokerage && <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 print:text-gray-500">{agent.brokerage}</p>}
             <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 print:text-gray-500">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
@@ -280,11 +284,14 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
                 column's own max-width lets the browser squeeze all of Subject + up to 5 comps
                 into whatever width is actually available instead, so the whole table is visible
                 on the page without needing to scroll to see the rest of it. */}
-            <div className="w-full overflow-hidden">
-              <table className="w-full table-fixed border-collapse text-sm">
+            {/* Phones (user, 10/17): the table keeps readable columns and slides sideways (the row
+                names stay pinned on the left) instead of squeezing six columns into the screen. */}
+            <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-gray-400 sm:hidden">Swipe to see every comparable →</p>
+            <div className="-mx-6 w-auto overflow-x-auto px-6 pb-1 [scrollbar-width:thin] sm:mx-0 sm:w-full sm:overflow-hidden sm:px-0">
+              <table className="w-full min-w-[620px] border-collapse text-[13px] sm:min-w-0 sm:table-fixed sm:text-sm">
                 <thead>
                   <tr className="border-b-2 border-[#111827] dark:border-white print:border-black">
-                    <th className="w-[15%] py-2 text-left text-[10px] font-black uppercase tracking-wide text-gray-400"></th>
+                    <th className="sticky left-0 z-[1] w-[110px] bg-[#faf9f7] py-2 text-left text-[10px] font-black uppercase tracking-wide text-gray-400 dark:bg-[#0B0B0B] sm:static sm:w-[15%] sm:bg-transparent sm:dark:bg-transparent"></th>
                     <th className="py-2 pr-2 text-left align-bottom text-[11px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">
                       <span className="block truncate">Subject</span>
                       <span className="mt-0.5 block truncate text-[9px] normal-case tracking-normal text-gray-400" title={subject.street_address || undefined}>({subject.street_address || 'Address unavailable'})</span>
@@ -309,7 +316,6 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
                   <OverviewRow index={6} label="Year Built" subjectValue={String(subject.year_built ?? '—')} comparables={comparables} get={c => String(c.year_built ?? '—')} />
                   <OverviewRow index={7} label="Annual Taxes" subjectValue={subject.annual_taxes ? formatMoney(subject.annual_taxes) : '—'} comparables={comparables} get={c => c.annual_taxes ? formatMoney(c.annual_taxes) : '—'} />
                   <OverviewRow index={8} label="Distance" subjectValue="—" comparables={comparables} get={c => c.distance_miles != null ? `${c.distance_miles} miles` : '—'} />
-                  <OverviewRow index={9} label="Sale Date" subjectValue="—" comparables={comparables} get={c => formatDate(c.sale_date)} />
                   <OverviewRow index={10} label="Days on Market" subjectValue={String(authoritativeDom ?? '—')} comparables={comparables} get={c => String(c.days_on_market ?? '—')} />
                   <OverviewRow index={11} label="School District" subjectValue={subject.school_district || '\u2014'} comparables={comparables} get={c => c.school_district || '\u2014'} />
                   <OverviewRow index={12} label="Water Source" subjectValue={formatUtilityValue(subject.water_source)} comparables={comparables} get={c => formatUtilityValue(c.water_source)} />
@@ -343,20 +349,21 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
             )}
             {metricsAll.enoughForStats && (
               <>
-                <p className="mb-3 text-[11px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">
-                  Based on {metricsAll.count} valuation comp{metricsAll.count === 1 ? '' : 's'} of {metricsAll.totalShown} shown · {metricsAll.method || 'verified prices only'}
+                {/* Client-facing (user, 10/17): one plain sentence and ONE price number (+ the matching
+                    $/sq ft) - the median of the sales the value is built on. The six-number grid and
+                    "normalized valuation-anchor weights" read like internal working. */}
+                <p className="mb-3 text-sm font-semibold text-gray-600 dark:text-gray-300">
+                  Based on the {metricsAll.count} most comparable {metricsAll.count === 1 ? 'sale' : 'sales'} near {subject.street_address || 'this home'}.
                 </p>
-                <FactsGrid>
-                  <Fact label="Raw Comparable Price Range" value={formatCompactMoneyRange(metricsAll.saleMin, metricsAll.saleMax)} />
-                  <Fact label="Weighted Avg Sale" value={formatMoney(metricsAll.saleAvg, { compact: true })} />
-                  <Fact label="Median (relevant)" value={formatMoney(metricsAll.saleMedian, { compact: true })} />
-                  <Fact label="$/Sqft Range" value={metricsAll.psfMin != null && metricsAll.psfMax != null ? `$${metricsAll.psfMin} – $${metricsAll.psfMax}` : '—'} />
-                  <Fact label="Weighted Avg $/Sqft" value={metricsAll.psfAvg != null ? `$${Math.round(metricsAll.psfAvg)}` : '—'} />
-                  <Fact label="Strong $/Sqft" value={metricsWeighted.psfMin != null && metricsWeighted.psfMax != null ? `$${metricsWeighted.psfMin} – $${metricsWeighted.psfMax}` : '—'} />
-                </FactsGrid>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Fact label="Typical comparable sale" value={formatMoney(metricsAll.saleMedian ?? metricsAll.saleAvg, { compact: true })} />
+                  <Fact label="Typical price per sq ft" value={(metricsAll.psfMedian ?? metricsAll.psfAvg) != null ? `$${Math.round((metricsAll.psfMedian ?? metricsAll.psfAvg) as number)}` : '—'} />
+                </div>
                 <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2">
-                  <BarChart title="Price Per Square Foot" subjectValue={subject.list_price && subject.sqft ? pricePerSqft(subject.list_price, subject.sqft) : null} bars={comparables.map((c, i) => ({ label: `#${i + 1}`, value: pricePerSqft(effectiveCompPrice(c), c.sqft) ?? 0 }))} formatValue={v => `$${v}`} />
-                  <BarChart title="Comparable Sale Prices" subjectValue={subject.list_price} bars={comparables.map((c, i) => ({ label: `#${i + 1}`, value: effectiveCompPrice(c) ?? 0 }))} formatValue={v => formatMoney(v, { compact: true })} />
+                  {/* A sold home whose closing price couldn't be confirmed shows its list price (the
+                      same number its card shows) instead of an empty bar. */}
+                  <BarChart title="Price Per Square Foot" subjectValue={subject.list_price && subject.sqft ? pricePerSqft(subject.list_price, subject.sqft) : null} bars={comparables.map((c, i) => ({ label: `#${i + 1}`, value: pricePerSqft(effectiveCompPrice(c) ?? compDisplayPrice(c).value, c.sqft) ?? 0 }))} formatValue={v => `$${v}`} />
+                  <BarChart title="Comparable Sale Prices" subjectValue={subject.list_price} bars={comparables.map((c, i) => ({ label: `#${i + 1}`, value: effectiveCompPrice(c) ?? compDisplayPrice(c).value ?? 0 }))} formatValue={v => formatMoney(v, { compact: true })} />
                 </div>
               </>
             )}
@@ -557,6 +564,10 @@ function SubjectShowcaseCard({ subject }: { subject: CmaPublicResponse['subject'
   const [photoIndex, setPhotoIndex] = useState(0)
   const [showDetails, setShowDetails] = useState(false)
   const currentPhoto = photos[photoIndex] || photos[0]
+  // The photo that was showing before - kept underneath while the next one fades in.
+  const [prevPhoto, setPrevPhoto] = useState<string | null>(null)
+  const lastPhoto = useRef<string | null>(null)
+  useEffect(() => { setPrevPhoto(lastPhoto.current); lastPhoto.current = currentPhoto || null }, [currentPhoto])
   const subjectPsf = subject.list_price && subject.sqft ? pricePerSqft(subject.list_price, subject.sqft) : null
   const stats = [
     subject.beds != null ? { icon: BedDouble, label: 'Beds', value: String(subject.beds) } : null,
@@ -608,12 +619,17 @@ function SubjectShowcaseCard({ subject }: { subject: CmaPublicResponse['subject'
             className="relative block h-[clamp(260px,34vw,430px)] w-full overflow-hidden text-left"
           >
               {currentPhoto ? (
-                <img
-                  key={currentPhoto}
-                  src={currentPhoto}
-                  alt={subject.street_address || 'Subject property'}
-                  className="absolute inset-0 h-full w-full object-cover cma-hero-zoom-in"
-                />
+                <>
+                  {prevPhoto && prevPhoto !== currentPhoto && (
+                    <img key={`prev-${prevPhoto}`} src={prevPhoto} alt="" aria-hidden className="cma-hero-still absolute inset-0 h-full w-full object-cover" />
+                  )}
+                  <img
+                    key={currentPhoto}
+                    src={currentPhoto}
+                    alt={subject.street_address || 'Subject property'}
+                    className="cma-hero-crossfade absolute inset-0 h-full w-full object-cover"
+                  />
+                </>
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
                   <Home className="h-12 w-12 text-gray-300" />
@@ -794,11 +810,11 @@ function MiniSubjectFact({ label, value }: { label: string, value: string | numb
 function OverviewRow({ index, label, subjectValue, comparables, get }: { index: number, label: string, subjectValue: string, comparables: CmaComparable[], get: (c: CmaComparable) => string }) {
   return (
     <tr className={`border-b border-gray-100 transition-colors hover:bg-[#C9A24D]/10 dark:border-gray-800 dark:hover:bg-[#C9A24D]/10 print:border-gray-200 ${index % 2 === 1 ? 'bg-black/[0.03] dark:bg-white/[0.03]' : ''}`}>
-      <td className="truncate py-2 pr-2 text-[11px] font-bold text-gray-500 sm:text-xs">{label}</td>
-      <td className="truncate py-2 pr-2 text-[11px] font-black text-[#111827] dark:text-white print:text-black sm:text-xs" title={subjectValue}>{subjectValue}</td>
+      <td className="sticky left-0 z-[1] w-[112px] whitespace-normal leading-tight bg-[#faf9f7] py-2.5 pr-2 text-[12px] font-bold text-gray-500 dark:bg-[#0B0B0B] sm:static sm:w-auto sm:truncate sm:bg-transparent sm:py-2 sm:text-xs sm:dark:bg-transparent">{label}</td>
+      <td className="truncate py-2.5 pr-3 text-[12.5px] font-black text-[#111827] dark:text-white print:text-black sm:py-2 sm:pr-2 sm:text-xs" title={subjectValue}>{subjectValue}</td>
       {comparables.map(c => {
         const value = get(c)
-        return <td key={c.id} className="truncate py-2 pr-2 text-[11px] font-semibold text-gray-700 dark:text-gray-300 sm:text-xs" title={value}>{value}</td>
+        return <td key={c.id} className="truncate py-2.5 pr-3 text-[12.5px] font-semibold text-gray-700 dark:text-gray-300 sm:py-2 sm:pr-2 sm:text-xs" title={value}>{value}</td>
       })}
     </tr>
   )
@@ -898,16 +914,16 @@ function ComparableSection({ comp, index, onOpen }: { comp: CmaComparable, index
               Sold are gone from here now that they live on the photo itself or the status badge,
               which is what leaves room for School District + Basement to move down into this
               column below the grid. */}
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="mt-3 grid grid-cols-4 gap-1.5 sm:grid-cols-3 sm:gap-2">
             <MiniFact icon={BedDouble} label="Beds" value={comp.beds ?? '-'} />
             <MiniFact icon={Bath} label="Baths" value={comp.baths ?? '-'} />
             <MiniFact icon={LandPlot} label="Acres" value={formatAcresFromSqft(comp.lot_size)} />
             <MiniFact icon={Building2} label="Built" value={comp.year_built ?? '-'} />
             <MiniFact icon={Gauge} label="$/Sqft" value={psf ? `$${psf}` : '-'} />
             <MiniFact icon={Car} label="Garage" value={comp.garage || '-'} />
-            <MiniFact icon={Droplets} label="Water / Sewer" value={`${formatUtilityValue(comp.water_source)} / ${formatUtilityValue(comp.sewer)}`} className="sm:hidden" />
+            <MiniFact icon={Droplets} label="Water / Sewer" value={`${formatUtilityValue(comp.water_source)} / ${formatUtilityValue(comp.sewer)}`} className="col-span-4 order-1 sm:hidden" />
             <MiniFact icon={Droplets} label="Water" value={formatUtilityValue(comp.water_source)} className="hidden sm:flex" />
-            <MiniFact icon={DollarSign} label="Taxes" value={comp.annual_taxes ? formatMoney(comp.annual_taxes) : '-'} />
+            <MiniFact icon={DollarSign} label="Taxes" value={comp.annual_taxes ? formatMoney(comp.annual_taxes) : '-'} className="max-sm:col-span-2" />
             <MiniFact icon={Waves} label="Sewer" value={formatUtilityValue(comp.sewer)} className="hidden sm:flex" />
           </div>
           {/* flex-1 + each row flex-1 (not a plain grid) - grows to fill whatever's left of the
@@ -915,8 +931,8 @@ function ComparableSection({ comp, index, onOpen }: { comp: CmaComparable, index
               "Compared With the Subject" section on the right, the same trick the old
               Distance-from-Subject bar used to handle before it moved onto the photo. */}
           <div className="mt-2 flex flex-1 flex-col gap-2">
-            <WideCompFact icon={Building2} label="School District" value={comp.school_district || '-'} compact className="flex-1" />
-            <WideCompFact icon={Layers} label="Basement" value={comp.basement || '-'} compact className="flex-1" />
+            <WideCompFact icon={Building2} label="School District" value={comp.school_district || '-'} compact className="flex-1 max-sm:justify-center max-sm:text-center" />
+            <WideCompFact icon={Layers} label="Basement" value={comp.basement || '-'} compact className="flex-1 max-sm:justify-center max-sm:text-center" />
           </div>
         </div>
 
@@ -1044,7 +1060,7 @@ function ComparableQualitySection({ comp }: { comp: CmaComparable }) {
 
 function MiniFact({ icon: Icon, label, value, className = '' }: { icon: any, label: string, value: string | number, className?: string }) {
   return (
-    <div className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-gray-100 bg-[#faf9f7] px-2 py-2.5 text-center dark:border-gray-800 dark:bg-[#0B0B0B] ${className}`}>
+    <div className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-gray-100 bg-[#faf9f7] px-1 py-2 text-center dark:border-gray-800 dark:bg-[#0B0B0B] sm:px-2 sm:py-2.5 ${className}`}>
       <Icon className="h-3.5 w-3.5 text-[#C9A24D]" />
       <span className="max-w-full break-words text-center text-[11px] font-black leading-tight text-[#111827] dark:text-white">{value}</span>
       <span className="text-[8px] font-black uppercase tracking-wide text-gray-400">{label}</span>

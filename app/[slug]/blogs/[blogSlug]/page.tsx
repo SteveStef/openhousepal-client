@@ -7,6 +7,7 @@ import api from '@/lib/api-service'
 import { PublicBlogDetail } from '@/types'
 import BlogArticleBody from '@/components/studio/blogs/BlogArticleBody'
 import { BlogThemedArticle, blogAccent, blogSignatureMatch } from '@/components/studio/blogs/BlogThemes'
+import { setQrOwner } from '@/lib/qr'
 
 export default function PublicBlogArticlePage() {
   const params = useParams<{ slug: string; blogSlug: string }>()
@@ -52,6 +53,7 @@ export default function PublicBlogArticlePage() {
       signatureOn={!!blog.signatureCard}
       metal={blog.luxeMetal}
     >
+      {blog.agentId && <QrOwner id={blog.agentId} />}
       <BlogArticleBody
         // Every article ends with the agent's related articles, unless it already places them itself.
         blocks={blog.blocks.some(b => b.type === 'related_articles') ? blog.blocks : [...blog.blocks, { id: 'auto-related', type: 'related_articles', data: {} }]}
@@ -73,4 +75,10 @@ export default function PublicBlogArticlePage() {
       />
     </BlogThemedArticle>
   )
+}
+
+// The article's QR codes use its author's centre logo choice.
+function QrOwner({ id }: { id: string }) {
+  setQrOwner(id)
+  return null
 }

@@ -4,7 +4,8 @@ import { Suspense, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, Clock, Eye, Loader2, Lock, Newspaper, Plus, Search, Star, Trash2 } from 'lucide-react'
+import { ArrowLeft, Check, Clock, ExternalLink, Eye, Loader2, Lock, Newspaper, Plus, Search, Share2, Sparkles, Star, Trash2 } from 'lucide-react'
+import { copyText } from '@/lib/copyText'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { BlogListItem, BlogStatus, StatSummary } from '@/types'
@@ -53,6 +54,26 @@ function BlogsDashboardInner() {
   useEffect(() => {
     api.stats.getSummary().then(response => { if (response.success && response.data) setStatSummary(response.data) })
   }, [])
+
+  // Where a published article lives (user, 10/17 - Share and Open on every card): IDX agents' own
+  // site (/blog/<slug>), everyone else their Agent Hub (/<hub>/blogs/<slug>) - same rule as the editor.
+  const [hubSlug, setHubSlug] = useState<string | null>(null)
+  const [idxBase, setIdxBase] = useState<string | null>(null)
+  const [shared, setShared] = useState<string | null>(null)
+  useEffect(() => {
+    api.agentHub.getMine().then(r => { if (r.success && r.data) setHubSlug(r.data.slug) })
+    if (user?.plan_tier === 'IDX') api.sites.getPublicBaseUrl().then(r => { if (r.success && r.data && r.data.is_idx_site !== false) setIdxBase(r.data.base_url) })
+  }, [user?.plan_tier])
+  const liveUrl = (b: BlogListItem) => idxBase ? `${idxBase}/blog/${b.slug}` : hubSlug ? `${window.location.origin}/${hubSlug}/blogs/${b.slug}` : null
+  const shareBlog = async (b: BlogListItem) => {
+    const url = liveUrl(b)
+    if (!url) return
+    const nav = navigator as any
+    if (nav.share && window.matchMedia('(pointer: coarse)').matches) {
+      try { await nav.share({ title: b.title, url }); return } catch (e: any) { if (e?.name === 'AbortError') return }
+    }
+    if (await copyText(url)) { setShared(b.id); window.setTimeout(() => setShared(s => (s === b.id ? null : s)), 1800) }
+  }
 
   useEffect(() => {
     api.blogs.getMine().then(response => {
@@ -186,7 +207,13 @@ function BlogsDashboardInner() {
                     <div className="relative mt-2 h-0.5 w-10 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a]" />
                   </div>
                 )}
-                <span className="absolute left-3 top-3 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white">{blog.status.toLowerCase()}</span>
+                {blog.ai_state ? (
+                  <span className={`absolute left-3 top-3 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide shadow ${blog.ai_state === 'failed' ? 'bg-rose-600 text-white' : 'bg-[#C9A24D] text-[#111827]'}`}>
+                    {blog.ai_state === 'running' ? <><Loader2 className="h-2.5 w-2.5 animate-spin" /> AI is writing</> : blog.ai_state === 'failed' ? "AI couldn't finish" : 'Unfinished AI draft'}
+                  </span>
+                ) : (
+                  <span className="absolute left-3 top-3 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white">{blog.status.toLowerCase()}</span>
+                )}
                 {blog.agent_hub_featured && <Star className="absolute right-3 top-3 h-4 w-4 fill-[#C9A24D] text-[#C9A24D] drop-shadow" />}
               </div>
               <div className="flex flex-1 flex-col p-4">
@@ -202,6 +229,31 @@ function BlogsDashboardInner() {
                 </div>
               </div>
             </Link>
+              {/* Open it (live page once published, the preview while it's a draft) and share it. */}
+              <div className="flex items-center gap-2 border-t border-[#C9A24D]/15 px-4 py-2.5 dark:border-white/[0.06]">
+                {blog.ai_state && blog.ai_state !== 'running' ? (
+                  <Link href={`/studio/blogs/${blog.id}`}
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#C9A24D] px-3 py-2 text-[11.5px] font-black text-[#111827] transition hover:-translate-y-0.5 active:scale-95">
+                    <Sparkles className="h-3.5 w-3.5" /> {blog.ai_state === 'failed' ? 'Try again' : 'Finish with AI'}
+                  </Link>
+                ) : blog.status === 'PUBLISHED' ? (
+                  <a href={liveUrl(blog) || '#'} target="_blank" rel="noopener" onClick={e => { if (!liveUrl(blog)) e.preventDefault() }}
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#111827] px-3 py-2 text-[11.5px] font-black text-white transition hover:-translate-y-0.5 active:scale-95 dark:bg-white dark:text-[#111827]">
+                    <ExternalLink className="h-3.5 w-3.5" /> View live
+                  </a>
+                ) : (
+                  <Link href={`/studio/blogs/${blog.id}?preview=1`}
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[11.5px] font-black text-[#111827] transition hover:-translate-y-0.5 hover:border-[#C9A24D] active:scale-95 dark:border-white/10 dark:bg-white/[0.04] dark:text-white">
+                    <Eye className="h-3.5 w-3.5" /> Preview
+                  </Link>
+                )}
+                {blog.status === 'PUBLISHED' && (
+                  <motion.button type="button" whileTap={{ scale: 0.94 }} onClick={() => shareBlog(blog)} disabled={!liveUrl(blog)}
+                    className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-[11.5px] font-black transition hover:-translate-y-0.5 disabled:opacity-50 ${shared === blog.id ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-[#C9A24D]/40 bg-[#fffaf0] text-[#8b7355] hover:border-[#C9A24D] dark:bg-[#C9A24D]/10 dark:text-[#e8c97a]'}`}>
+                    {shared === blog.id ? <><Check className="h-3.5 w-3.5" /> Link copied</> : <><Share2 className="h-3.5 w-3.5" /> Share</>}
+                  </motion.button>
+                )}
+              </div>
               <div className="flex items-center gap-2 border-t border-[#C9A24D]/15 px-4 py-2.5 dark:border-white/[0.06]">
                 <span className="mr-auto whitespace-nowrap text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">Shows on</span>
                 <PlacementSwitch label="Agent Hub" icon={UserRound} on={blog.agent_hub_visible} onToggle={() => togglePlacement(blog, 'agent_hub_visible')} />

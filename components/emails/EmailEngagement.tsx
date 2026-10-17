@@ -92,9 +92,9 @@ export function EmailRowLine({ e, showTo = false }: { e: ClientEmailRow; showTo?
           {sentence(e.label)} · {e.via === 'mailbox' ? 'from your email' : 'from OpenHousePal'}
         </p>
         <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] font-bold">
-          <span className="text-gray-400">Sent {timeAgo(e.sent_at) || '-'}</span>
+          <span className="text-gray-400">{e.status === 'failed' ? 'Tried' : 'Sent'} {timeAgo(e.sent_at || e.created_at) || '-'}</span>
           {e.status === 'failed'
-            ? <span className="text-rose-600 dark:text-rose-300">Didn&apos;t go through</span>
+            ? <span className="text-rose-600 dark:text-rose-300" title={e.error || undefined}>Didn&apos;t go through{e.error ? ` - ${e.error}` : ''}</span>
             : e.opened_at
               ? <span className="text-emerald-600 dark:text-emerald-300">Opened {timeAgo(e.opened_at)}{e.open_count > 1 ? ` · ${e.open_count}×` : ''}</span>
               : <span className="text-gray-400">Not opened yet</span>}
@@ -139,7 +139,7 @@ export function LeadEmailCard({ email, initial }: { email?: string | null; initi
         </div>
       )}
       <Link href={`/leads/emails?email=${encodeURIComponent(email)}`} className="mt-3 inline-flex text-[11px] font-black text-[#8b7355] hover:underline dark:text-[#e8c97a]">
-        All emails & how the rules work →
+        All emails →
       </Link>
     </section>
   )

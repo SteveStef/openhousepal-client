@@ -1,6 +1,51 @@
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
-import { styledQrSvgString } from './qrStyle'
+import { styledQrSvgString, type QrCenter } from './qrStyle'
+
+// ---- What goes in the middle of every QR (user, 10/17): the OpenHousePal house logo by default;
+// IDX agents can pick their Brand Kit logo or initials (backend qr_brand_routes). The page tells us
+// whose code it is drawing - the signed-in agent (AuthContext) or, on a guest page, the agent who
+// owns it - and every code drawn afterwards uses that agent's choice.
+let activeOwner: string | null = null
+let activeCenter: QrCenter = { kind: 'ohp' }
+let activeLoad: Promise<QrCenter> = Promise.resolve(activeCenter)
+const centerByOwner = new Map<string, Promise<QrCenter>>()
+const listeners = new Set<() => void>()
+const API = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
+
+export function setQrOwner(ownerId: string | null | undefined, opts: { refresh?: boolean } = {}): void {
+  if (!ownerId) return
+  if (ownerId === activeOwner && !opts.refresh) return
+  activeOwner = ownerId
+  if (opts.refresh) centerByOwner.delete(ownerId)
+  let p = centerByOwner.get(ownerId)
+  if (!p) {
+    p = fetch(`${API}/qr-brand/${encodeURIComponent(ownerId)}`, { cache: 'no-store' })
+      .then(r => (r.ok ? r.json() : null))
+      .then((b): QrCenter => b?.kind === 'logo' && b.logo ? { kind: 'logo', logo: b.logo }
+        : b?.kind === 'initials' && b.initials ? { kind: 'initials', initials: b.initials } : { kind: 'ohp' })
+      .catch((): QrCenter => ({ kind: 'ohp' }))
+    centerByOwner.set(ownerId, p)
+  }
+  activeLoad = p.then(c => {
+    if (activeOwner === ownerId) { activeCenter = c; cache.clear(); listeners.forEach(f => f()) }
+    return c
+  })
+}
+/** The centre in use right now (synchronous - for SVG drawn inline, e.g. Studio designs). */
+export function currentQrCenter(): QrCenter { return activeCenter }
+/** Re-render when the centre changes (a hook-friendly subscribe). */
+export function onQrCenterChange(f: () => void): () => void { listeners.add(f); return () => { listeners.delete(f) } }
+/** Wait (briefly) for the agent's choice before drawing - never longer than `ms`. */
+export function qrCenterReady(ms = 2500): Promise<QrCenter> { return centerReady(ms) }
+function centerReady(ms = 1500): Promise<QrCenter> {
+  return Promise.race([activeLoad, new Promise<QrCenter>(r => setTimeout(() => r(activeCenter), ms))])
+}
+export function useQrCenter(): QrCenter {
+  const [c, setC] = useState<QrCenter>(activeCenter)
+  useEffect(() => onQrCenterChange(() => setC(activeCenter)), [])
+  return c
+}
 
 // Every QR code the app draws (printed kits, kiosk, Similar Homes cards) is generated right here
 // in the browser - never by an outside QR website, so a kit can't print without its code because
@@ -22,9 +67,10 @@ export type QrOptions = {
 
 // The house style (lib/qrStyle) drawn to a PNG through a canvas - browser only; anywhere without a
 // DOM (or if drawing fails) falls back to the plain code so a kit never prints without one.
-function styledPng(text: string, o: QrOptions): Promise<string> {
-  const svg = styledQrSvgString(text, { dot: o.dark, eye: o.eye, margin: o.margin ?? 1, light: o.light })
-  if (!svg || typeof document === 'undefined') return Promise.reject(new Error('no dom'))
+async function styledPng(text: string, o: QrOptions): Promise<string> {
+  const center = await centerReady()
+  const svg = styledQrSvgString(text, { dot: o.dark, eye: o.eye, margin: o.margin ?? 1, light: o.light, center })
+  if (!svg || typeof document === 'undefined') throw new Error('no dom')
   const size = o.size ?? 300
   return new Promise((resolve, reject) => {
     const img = new Image()
@@ -47,7 +93,7 @@ const cache = new Map<string, Promise<string>>()
 
 /** PNG data URL for `text`. Cached, so re-rendering a document doesn't re-encode the same code. */
 export function qrDataUrl(text: string, o: QrOptions = {}): Promise<string> {
-  const key = JSON.stringify([text, o.size, o.margin, o.ecc, o.dark, o.light, o.eye, o.styled])
+  const key = JSON.stringify([text, o.size, o.margin, o.ecc, o.dark, o.light, o.eye, o.styled, activeOwner])
   let p = cache.get(key)
   if (!p) {
     const plain = () => QRCode.toDataURL(text, {
@@ -71,7 +117,8 @@ export function qrPdfSrc(text: string, o: QrOptions = {}) {
 /** For a plain <img>: '' until the code is ready (a moment on first render). */
 export function useQrDataUrl(text: string | null | undefined, o: QrOptions = {}): string {
   const [src, setSrc] = useState('')
-  const key = JSON.stringify([text, o.size, o.margin, o.ecc, o.dark, o.light, o.eye, o.styled])
+  const center = useQrCenter()
+  const key = JSON.stringify([text, o.size, o.margin, o.ecc, o.dark, o.light, o.eye, o.styled, center.kind, center.kind === 'logo' ? center.logo.length : center.kind === 'initials' ? center.initials : ''])
   useEffect(() => {
     let live = true
     if (!text) { setSrc(''); return }

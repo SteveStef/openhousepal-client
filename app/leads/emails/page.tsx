@@ -5,20 +5,19 @@
 // the engagement rules in backend client_email_service.
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
-import { ArrowRight, ArrowUpDown, CalendarClock, Gauge, Mail, MailCheck, MailOpen, MailX, MousePointerClick, Search, Send, Users, X } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { ArrowRight, ArrowUpDown, CalendarClock, Mail, MailCheck, MailOpen, MailX, MousePointerClick, Search, Send, Users, X } from 'lucide-react'
 import api from '@/lib/api-service'
 import LuxeHero, { LuxeStats, LuxeTabs } from '@/components/ui/LuxeHero'
 import Pager from '@/components/ui/Pager'
 import { ModePill, PersonSwitch, rateTone, sentence } from '@/components/emails/EmailEngagement'
 import LuxeSelect from '@/components/ui/LuxeSelect'
 import { AnimatePresence, motion } from 'framer-motion'
-import SendAsPanel, { InboxRules } from '@/components/integrations/SendAsPanel'
 import { timeAgo } from '@/lib/leadActivity'
 import type { ClientEmailRow, EmailMode, EmailPerson } from '@/types'
 import type { LucideIcon } from 'lucide-react'
 
-type Tab = 'people' | 'sent' | 'sender' | 'rules'
+type Tab = 'people' | 'sent'
 type ModeFilter = 'all' | EmailMode
 type PeopleSort = 'recent' | 'most' | 'least' | 'name'
 const PAGE = 25
@@ -30,9 +29,13 @@ export default function EmailsPage() {
 function EmailsInner() {
   const params = useSearchParams()
   const focusEmail = params.get('email') || ''
-  const [tab, setTab] = useState<Tab>(params.get('tab') === 'sender' ? 'sender' : focusEmail ? 'sent' : 'people')
-  // Back from connecting Gmail / Outlook (?mailbox=connected|error...).
-  const mailboxResult = params.get('mailbox')
+  const [tab, setTab] = useState<Tab>(focusEmail ? 'sent' : 'people')
+  // "Sending from" and "How it works" moved to Studio -> Email (user, 10/17) - old links land there.
+  const router = useRouter()
+  useEffect(() => {
+    const t = params.get('tab')
+    if (t === 'sender' || t === 'rules' || params.get('mailbox')) router.replace(`/studio/email${params.get('mailbox') ? `?mailbox=${params.get('mailbox')}` : ''}`)
+  }, [params, router])
   const [people, setPeople] = useState<EmailPerson[] | null>(null)
   const [totals, setTotals] = useState({ people: 0, daily: 0, weekly: 0, off: 0 })
   const [stats, setStats] = useState<{ sent: number; open_rate: number | null; click_rate: number | null } | null>(null)
@@ -109,8 +112,6 @@ function EmailsInner() {
               items={[
                 { id: 'people', label: `People ${totals.people}`, icon: Users },
                 { id: 'sent', label: 'Sent emails', icon: Send },
-                { id: 'sender', label: 'Sending from', icon: MailCheck },
-                { id: 'rules', label: 'How it works', icon: Gauge },
               ]} />
           }
         />
@@ -224,11 +225,11 @@ function EmailsInner() {
                         {sentence(e.label)} · {e.via === 'mailbox' ? 'from your email' : 'from OpenHousePal'}
                       </p>
                       <p className="mt-0.5 flex items-center gap-1 text-[11px] font-bold text-[#8b7355] dark:text-[#d7b974]">
-                        <Send className="h-3 w-3" /> Sent {when(e.sent_at)}
+                        <Send className="h-3 w-3" /> {e.status === 'failed' ? 'Tried' : 'Sent'} {when(e.sent_at || e.created_at)}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {e.status === 'failed'
-                          ? <Chip tone="rose" icon={MailX}>Didn&apos;t go through</Chip>
+                          ? <Chip tone="rose" icon={MailX}>Didn&apos;t go through{e.error ? ` - ${e.error}` : ''}</Chip>
                           : e.opened_at
                             ? <Chip tone="emerald" icon={MailOpen}>Opened {when(e.opened_at)}{e.open_count > 1 ? ` · ${e.open_count}×` : ''}</Chip>
                             : <Chip tone="gray" icon={Mail}>Not opened yet</Chip>}
@@ -243,41 +244,6 @@ function EmailsInner() {
           </div>
         )}
 
-        {tab === 'sender' && (
-          <div className="mx-auto mt-4 max-w-3xl">
-            <div className="rounded-3xl border border-[#C9A24D]/25 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#151517] sm:p-6">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8b7355] dark:text-[#e8c97a]">Your client emails</p>
-              <h2 className="mt-1 font-serif text-2xl font-black text-[#111827] dark:text-white">Send from your own email</h2>
-              <p className="mb-4 mt-1 text-[13.5px] font-medium leading-relaxed text-gray-500 dark:text-gray-400">
-                Connect Gmail or Outlook and the emails your clients get come from your address, land in their inbox and show in your Sent folder. Your own alerts still come from OpenHousePal.
-              </p>
-              {mailboxResult && (
-                <p className={`mb-4 flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-bold ${mailboxResult === 'connected' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300'}`}>
-                  {mailboxResult === 'connected' ? <MailCheck className="h-4 w-4" /> : <MailX className="h-4 w-4" />}
-                  {mailboxResult === 'connected' ? 'Connected - your client emails now go out from you.' : "That didn't connect - please try again."}
-                </p>
-              )}
-              <SendAsPanel back="emails" />
-            </div>
-          </div>
-        )}
-
-        {tab === 'rules' && (
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <InboxRules />
-            <div className="rounded-2xl border border-gray-200 bg-white p-4 text-[13px] font-medium leading-relaxed text-gray-600 dark:border-white/10 dark:bg-[#151517] dark:text-gray-300">
-              <p className="text-[12px] font-black uppercase tracking-[0.16em] text-gray-400">Good to know</p>
-              <ul className="mt-2 list-disc space-y-1.5 pl-4">
-                <li><b>Opened</b> means their email app loaded the email. Some apps (Apple Mail) open every email for privacy, so a few opens may be automatic. A <b>click</b> is always real.</li>
-                <li>Clicks and opens show on the person&apos;s lead and in your bell: one alert per person per day, so it never floods.</li>
-                <li>You can turn automatic emails off for anyone, or back on. Turning someone back on starts the count fresh.</li>
-                <li>If an address bounces or someone marks an email as spam, we stop emailing them right away. That protects you most of all.</li>
-                <li>Your own Gmail or Outlook sends at most 60 an hour; past that, OpenHousePal sends the rest so nothing waits.</li>
-              </ul>
-              <button type="button" onClick={() => setTab('sender')} className="mt-3 inline-flex items-center gap-1 font-black text-[#8b7355] hover:underline dark:text-[#e8c97a]">Send from your own email →</button>
-            </div>
-          </div>
-        )}
         </motion.div>
         </AnimatePresence>
       </div>

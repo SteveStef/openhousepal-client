@@ -11,9 +11,14 @@ export type QrStyle = {
   dot?: string
   /** Colour of the three corner eyes + the house mark. Darkened automatically if too light. */
   eye?: string
-  /** Show the house mark in the middle (default true). */
+  /** Show the centre mark (default true). */
   mark?: boolean
+  /** What sits in the middle (user, 10/17): the OpenHousePal house logo (default), or - IDX agents -
+   *  their own Brand Kit logo (a PNG data URL) or their initials. */
+  center?: QrCenter
 }
+
+export type QrCenter = { kind: 'ohp' } | { kind: 'logo'; logo: string } | { kind: 'initials'; initials: string }
 
 const DEFAULT_EYE = '#5C431A' // deep OpenHousePal bronze - ~9:1 on white
 
@@ -36,8 +41,13 @@ export function scanSafe(color: string | undefined, fallback = DEFAULT_EYE): str
   return `#${[r, g, b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('')}`
 }
 
-// lucide "house" outline, 24-unit box
-const HOUSE = 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'
+// The OpenHousePal house logo (components/brand/OhpLoader), in its 40 x 44 box (viewBox 0 3 40 44):
+// roof + walls in the eye colour, the round window and the open door in gold.
+const OHP_ROOF = 'M3.5 22.5 L20 8 L36.5 22.5'
+const OHP_WALLS = 'M7 20 V43 H14.5 M25.5 43 H33 V20'
+const OHP_DOOR = 'M25.5 46 V29.5 L19.5 31.8 V46 Z'
+const GOLD = '#B8913F'
+const esc = (t: string) => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string))
 
 export type QrSvgParts = { size: number; body: string }
 
@@ -75,10 +85,25 @@ export function styledQrSvg(text: string, style: QrStyle = {}): QrSvgParts | nul
   if (hole) {
     const pad = 0.5
     const x = h0 - 1 + pad, w = hole + 2 - pad * 2
-    const k = (hole * 0.78) / 24
-    const ox = h0 + (hole - 24 * k) / 2, oy = h0 + (hole - 24 * k) / 2
-    body += `<rect x="${x}" y="${x}" width="${w}" height="${w}" rx="${w * 0.22}" fill="#FFFFFF" stroke="${eye}" stroke-width="0.35"/>` +
-      `<path d="${HOUSE}" transform="translate(${ox} ${oy}) scale(${k})" fill="none" stroke="${eye}" stroke-width="${2.1}" stroke-linejoin="round" stroke-linecap="round"/>`
+    const c = style.center || { kind: 'ohp' }
+    body += `<rect x="${x}" y="${x}" width="${w}" height="${w}" rx="${w * 0.22}" fill="#FFFFFF" stroke="${eye}" stroke-width="0.35"/>`
+    if (c.kind === 'logo') {
+      const inset = w * 0.12
+      body += `<image href="${c.logo}" x="${x + inset}" y="${x + inset}" width="${w - inset * 2}" height="${w - inset * 2}" preserveAspectRatio="xMidYMid meet"/>`
+    } else if (c.kind === 'initials') {
+      const t = esc((c.initials || '').slice(0, 3))
+      const fs = w * (t.length > 2 ? 0.36 : 0.46)
+      body += `<text x="${x + w / 2}" y="${x + w / 2}" dy="0.36em" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="${fs}" fill="${eye}">${t}</text>`
+    } else {
+      // OpenHousePal house: 40 x 44 box scaled into the tile
+      const k = (hole * 0.8) / 44
+      const ox = h0 + (hole - 40 * k) / 2, oy = h0 + (hole - 44 * k) / 2 - 3 * k
+      body += `<g transform="translate(${ox} ${oy}) scale(${k})">` +
+        `<path d="${OHP_ROOF}" fill="none" stroke="${eye}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>` +
+        `<path d="${OHP_WALLS}" fill="none" stroke="${eye}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>` +
+        `<circle cx="20" cy="18.6" r="2.6" fill="${GOLD}"/>` +
+        `<path d="${OHP_DOOR}" fill="${GOLD}"/></g>`
+    }
   }
   return { size: n, body }
 }

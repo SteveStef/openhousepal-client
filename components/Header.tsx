@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import { useState, useEffect, type ComponentType, type CSSProperties } from 'react'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { Home, Moon, Sun, Menu, X, LogOut, Settings, Layout, ShieldCheck, Palette, LayoutDashboard, Users, AlertCircle, ChevronDown, Globe, Link2, ClipboardList, Newspaper, Search, Building2, Calculator, Lock, HelpCircle, Clapperboard, Mail, ToolCase, CalendarClock, Activity as ActivityIcon, Plug, Star, ListChecks, FileClock } from 'lucide-react'
+import { Home, Moon, Sun, Menu, X, LogOut, Settings, Layout, ShieldCheck, Palette, LayoutDashboard, Users, AlertCircle, ChevronDown, Globe, Link2, ClipboardList, Newspaper, Search, Building2, Calculator, Lock, HelpCircle, Clapperboard, Mail, ToolCase, CalendarClock, Activity as ActivityIcon, Plug, Send, Star, ListChecks, FileClock } from 'lucide-react'
 import api from '@/lib/api-service'
 import { hasValidSubscription } from '@/lib/auth-helpers'
 import { useAuth } from '@/contexts/AuthContext'
@@ -176,7 +176,8 @@ export default function Header({ mode = 'app' }: HeaderProps) {
     { href: '/studio/property-sites', label: 'Listing Spotlight', icon: SpotlightIcon, feature: 'listing_spotlight' },
     { href: '/studio/email-signature', label: 'Signature', icon: Mail, iconClass: 'ohp-icon-assemble-mail', feature: 'email_signature' },
     // The connect-a-service tools (their own row on the Tools page).
-    { href: '/studio/integrations', label: 'Integrations', icon: Plug, iconClass: 'ohp-icon-assemble-plug' },
+    { href: '/studio/integrations', label: 'CRM', icon: Plug, iconClass: 'ohp-icon-assemble-plug' },
+    { href: '/studio/email', label: 'Email', icon: Send },
     { href: '/studio/calendar', label: 'Calendar', icon: CalendarClock, iconClass: 'ohp-icon-assemble-calendar' },
     { href: '/studio/reviews', label: 'Reviews', icon: Star },
   ]
@@ -637,7 +638,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div data-scroll-lock="on" className="fixed inset-0 z-50 overscroll-contain md:hidden">
           {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-black/60 "

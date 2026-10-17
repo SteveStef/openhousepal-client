@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useRef, ReactNode, useC
 import { User } from '@/types'
 import api from '@/lib/api-service'
 import { getToken } from '@/lib/token'
+import { setQrOwner } from '@/lib/qr'
 
 interface AuthContextType {
   user: User | null
@@ -33,6 +34,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { success, data } = await api.auth.me()
       if (success && data) {
         setUser(data)
+        // Every QR code drawn in the app from now on uses this agent's centre logo choice.
+        setQrOwner(data.id)
       } else {
         setUser(null)
       }

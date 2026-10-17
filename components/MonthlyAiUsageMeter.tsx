@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useCallback, useRef, useState } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, ChevronDown } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import api from '@/lib/api-service'
 import type { MonthlyAiUsage } from '@/types'
 import { useAiActivity } from '@/lib/aiActivity'
@@ -122,6 +123,7 @@ export default function MonthlyAiUsageMeter({
   className?: string
 }) {
   const [data, setData] = useState<MonthlyAiUsage | null>(null)
+  const [why, setWhy] = useState(false)
   const aiActive = useAiActivity()
 
   const load = useCallback(() => {
@@ -183,6 +185,25 @@ export default function MonthlyAiUsageMeter({
           You&apos;re close to this month&apos;s AI limit.
         </p>
       ) : null}
+      {(data.breakdown?.length || 0) > 0 && (
+        <div className="mt-1.5">
+          <button type="button" onClick={() => setWhy(v => !v)} className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wide ${labelColor} hover:opacity-80`}>
+            What used it <ChevronDown className={`h-3 w-3 transition-transform ${why ? 'rotate-180' : ''}`} />
+          </button>
+          <AnimatePresence initial={false}>
+            {why && (
+              <motion.ul initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="mt-1 space-y-0.5 overflow-hidden">
+                {data.breakdown!.map(r => (
+                  <li key={r.label} className={`flex items-center justify-between gap-3 text-[11px] font-bold ${labelColor}`}>
+                    <span className="truncate">{r.label}</span>
+                    <span className={`shrink-0 tabular-nums ${pctColor}`}>{r.percent == null ? '' : r.percent < 1 ? '<1%' : `${Math.round(r.percent)}%`}</span>
+                  </li>
+                ))}
+              </motion.ul>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
       {showSpend && (
         <p className={`mt-1 text-[10px] font-bold ${spendColor}`}>
           ${data.used_usd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} used this month

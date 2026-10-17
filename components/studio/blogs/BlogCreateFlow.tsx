@@ -66,6 +66,8 @@ export default function BlogCreateFlow({ onClose }: { onClose: () => void }) {
         initialCategory={template?.category}
         titleBased
         onClose={() => setShowAi(false)}
+        // Left while it writes: back to Blogs, where the article shows "AI is writing".
+        onLeave={() => { onClose(); window.location.assign('/studio/blogs') }}
         onDone={result => router.push(`/studio/blogs/${result.blog.id}?ai=1`)}
       />
     )

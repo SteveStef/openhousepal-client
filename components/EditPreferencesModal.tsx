@@ -1,5 +1,6 @@
 'use client'
 
+import { OhpSpinner } from '@/components/brand/OhpLoader'
 import { useState, useEffect, useRef } from 'react'
 import { Collection, CollectionPreferences } from '@/types'
 import api from '@/lib/api-service'
@@ -174,7 +175,7 @@ export default function EditPreferencesModal({
         
         {isLoadingPreferences ? (
           <div className="p-20 flex flex-col items-center justify-center space-y-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8b7355]"></div>
+            <OhpSpinner size={34} />
             <p className="text-gray-500 font-medium">Loading current preferences...</p>
           </div>
         ) : (

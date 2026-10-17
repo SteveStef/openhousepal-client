@@ -111,7 +111,7 @@ export function YouCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open: 
         <button type="button" onClick={() => ctl.addBlock({ id: blockId('agent_info'), type: 'agent_info', hidden: false, data: {}, overrides: {} })} className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-gray-300 px-3.5 py-2 text-xs font-black text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/15"><Plus className="h-3.5 w-3.5" /> Add my name & contact details</button>
       )}
 
-      <div>
+      {ctl.draws?.logo !== false && <div>
         <p className={labelCls}>Logo</p>
         {logos.length === 0 ? (
           <Note>No logos yet. <a href="/studio/brand-kit" className="font-black text-[#8b7355] hover:underline">Add your logo in Brand Kit</a> and it will appear on every design.</Note>
@@ -141,7 +141,7 @@ export function YouCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open: 
             <a href="/studio/brand-kit" className="mt-2 inline-block text-[11px] font-black text-[#8b7355] hover:underline dark:text-[#d7b974]">Manage logos in Brand Kit →</a>
           </>
         )}
-      </div>
+      </div>}
 
       {agent && (ctl.format.isPrint || ctl.leadGen) && (
         <Field label="Fine print" hint="Printed and mailed pieces carry a short disclaimer. Blank uses your Brand Kit disclaimer, or the standard Equal Housing line." action={agent.data?.disclaimer !== undefined ? <button type="button" onClick={() => ctl.updateBlock(agent.id, b => { const d = { ...b.data }; delete d.disclaimer; return { ...b, data: d } })} className="text-[10px] font-black text-[#8b7355] hover:underline">Use the default</button> : undefined}>
@@ -359,9 +359,8 @@ export function LeadsCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open
               {formId && (
                 <div>
                   <p className={labelCls}>Campaign</p>
-                  <div className="mt-1.5 space-y-1.5">
-                    {loading && <p className="text-[11px] font-semibold text-gray-400">Loading…</p>}
-                    {!loading && campaigns.filter(c => !c.is_general && c.id).map(c => (
+                  <div className={`mt-1.5 space-y-1.5 transition-opacity duration-200 ${loading ? 'opacity-50' : 'opacity-100'}`}>
+                    {campaigns.filter(c => !c.is_general && c.id).map(c => (
                       <button key={c.id!} type="button" onClick={() => { ctl.changeCampaign(c.id!); setPicking(false) }} className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-xs font-black transition ${ctl.design.campaign_id === c.id ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#111827] dark:text-white' : 'border-gray-200 text-gray-600 hover:border-[#C9A24D]/60 dark:border-white/10 dark:text-gray-300'}`}>
                         <span>{c.name}</span><span className="text-[10px] font-semibold text-gray-400">{c.leads} lead{c.leads === 1 ? '' : 's'}</span>
                       </button>

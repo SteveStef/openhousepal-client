@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle, ArrowRight, ArrowUpDown, BellRing, ChevronDown, Flame, ListChecks, CalendarClock, CalendarDays, Check, Compass, Download, Eye, EyeOff, Home, Loader2, Mail, MailX,
-  MessageCircle, MoreHorizontal, Phone, Search, ShieldCheck, Sparkles, Tag, Trash2, Users, X,
+  CheckCheck, MessageCircle, MoreHorizontal, Phone, Search, ShieldCheck, Sparkles, Tag, Trash2, UserCheck, Users, X,
 } from 'lucide-react'
 import { copyText } from '@/lib/copyText'
 import LuxeSelect from '@/components/ui/LuxeSelect'
@@ -24,16 +24,19 @@ import { useFollowupsEnabled } from '@/components/tasks/FollowupsSwitch'
 import { activityMeta, dialable, ORIGIN_META, TONE_CLASSES, timeAgo, todoWhen } from '@/lib/leadActivity'
 import { formatPhone } from '@/lib/leadEventDetails'
 import Pager from '@/components/ui/Pager'
+import { OhpSpinner } from '@/components/brand/OhpLoader'
 
-// The tabs: what needs the agent, then the pipeline, then the two side piles.
-type View = 'needs' | 'all' | 'new' | 'contacted' | 'in_talks' | 'signed' | 'has_agent' | 'hidden'
+// The tabs (user, 10/17): what needs the agent, then everyone without an agent (the default -
+// plus anyone with an agent you left a note on), then the pipeline, then All next to the two side piles.
+type View = 'needs' | 'no_agent' | 'all' | 'new' | 'contacted' | 'in_talks' | 'signed' | 'has_agent' | 'hidden'
 const VIEWS: { id: View; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'needs', label: 'Needs you', icon: BellRing },
-  { id: 'all', label: 'All', icon: Users },
+  { id: 'no_agent', label: 'No agent', icon: UserCheck },
   { id: 'new', label: 'New', icon: Sparkles },
   { id: 'contacted', label: 'Contacted', icon: MessageCircle },
   { id: 'in_talks', label: 'In talks', icon: CalendarClock },
   { id: 'signed', label: 'Signed', icon: Check },
+  { id: 'all', label: 'All', icon: Users },
   { id: 'has_agent', label: 'Has agent', icon: ShieldCheck },
   { id: 'hidden', label: 'Hidden', icon: EyeOff },
 ]
@@ -76,6 +79,7 @@ function inView(l: Lead, v: View): boolean {
   if (status === 'hidden') return false
   if (v === 'all') return true
   if (v === 'has_agent') return l.represented === 'yes'
+  if (v === 'no_agent') return l.represented !== 'yes' || !!l.has_note  // noted ones stay here too
   if (l.represented === 'yes') return false  // someone else's client - only under "Has an agent"
   if (v === 'needs') return !!l.needs_you
   return status === v
@@ -106,11 +110,26 @@ function LeadsPageInner() {
   const [page, setPage] = useState(1)
   const [period, setPeriod] = useState<StatPeriod>('30d')
   const [followupCount, setFollowupCount] = useState<number | null>(null)
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(params.get('lead'))
+  const [selectedLeadId, setSelectedLeadIdRaw] = useState<string | null>(params.get('lead'))
+  // The address bar follows the open lead (?lead=<id>): reload with one open reopens it, and backing
+  // out of it takes the id off - so a reload after closing shows the list, not that lead again.
+  const setSelectedLeadId = useCallback((id: string | null) => {
+    setSelectedLeadIdRaw(id)
+    try {
+      const url = new URL(window.location.href)
+      if (id) url.searchParams.set('lead', id); else url.searchParams.delete('lead')
+      window.history.replaceState(window.history.state, '', url.pathname + (url.search || '') + url.hash)
+    } catch { /* harmless */ }
+  }, [])
   const [menuFor, setMenuFor] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Lead | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [confirmSeenAll, setConfirmSeenAll] = useState(false)
+  const [narrow, setNarrow] = useState(false)
+  useEffect(() => { setNarrow(window.innerWidth < 640) }, [])
+  const [pageDir, setPageDir] = useState(0)
+  const listTopRef = useRef<HTMLDivElement>(null)
   const deleteShown = useLastValue(confirmDelete)  // stays on screen while the window closes
 
   const load = useCallback(async () => {
@@ -142,9 +161,9 @@ function LeadsPageInner() {
     return c
   }, [leads, hiddenLeads])
 
-  // First visit lands on "Needs you" when something is waiting, otherwise every lead.
-  useEffect(() => { if (view === null && !loading) setView(counts.needs > 0 ? 'needs' : 'all') }, [view, loading, counts.needs])
-  const activeView: View = view || 'all'
+  // Lands on "No agent" - the people worth working (user, 10/17).
+  useEffect(() => { if (view === null && !loading) setView('no_agent') }, [view, loading])
+  const activeView: View = view || 'no_agent'
   useEffect(() => { setPage(1) }, [activeView, search, origin, tag, openHouseId, sort])
 
   const originsPresent = useMemo(() => {
@@ -188,6 +207,14 @@ function LeadsPageInner() {
 
   const pages = Math.max(1, Math.ceil(visible.length / PAGE))
   const curPage = Math.min(page, pages)
+  const unseenCount = leads.filter(l => l.needs_attention).length
+  const markAllSeen = async () => {
+    setConfirmSeenAll(false)
+    setLeads(prev => prev.map(l => ({ ...l, needs_attention: false })))
+    const r = await api.leads.markAllSeen()
+    if (r.success) { showToast('All leads marked as seen', 'success'); window.dispatchEvent(new Event('leads-notification-count:refresh')) }
+    else { showToast(r.error || "Couldn't mark them seen - try again", 'error'); load() }
+  }
   const since = periodStart(period)
   const newInPeriod = leads.filter(l => new Date(l.created_at).getTime() >= since).length
   const emailsSlowed = leads.filter(l => l.email_engagement && l.email_engagement.mode !== 'daily' && l.email_engagement.code !== 'unsubscribed' && !l.unsubscribed).length
@@ -278,7 +305,7 @@ function LeadsPageInner() {
                 </span>
               </div>
               {/* The numbers - just to read, not buttons (the tabs below do the switching). */}
-              <div className="flex w-fit max-w-full items-center gap-2 self-end rounded-full border border-[#C9A24D]/25 bg-white/70 py-1 pl-3.5 pr-1 shadow-sm dark:border-white/10 dark:bg-white/[0.05] sm:gap-2.5 sm:pl-4">
+              <div className="flex w-fit max-w-full items-center gap-2 self-center rounded-full sm:self-end border border-[#C9A24D]/25 bg-white/70 py-1 pl-3.5 pr-1 shadow-sm dark:border-white/10 dark:bg-white/[0.05] sm:gap-2.5 sm:pl-4">
                 <span className={`flex min-w-0 items-center gap-1.5 rounded-full ${counts.needs > 0 ? 'text-red-600 dark:text-red-300' : 'text-[#111827] dark:text-white'}`} title="Leads waiting on you">
                   <span className="relative hidden h-3.5 w-3.5 shrink-0 sm:block">
                     <BellRing className={`h-3.5 w-3.5 ${counts.needs > 0 ? 'text-red-500' : 'text-[#8b7355] dark:text-[#e8c97a]'}`} />
@@ -316,15 +343,30 @@ function LeadsPageInner() {
         />
 
         {/* ── find someone: search, where they came from, order, export */}
-        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-gray-200 bg-white p-2.5 shadow-sm dark:border-white/[0.08] dark:bg-[#151517]">
-          <div className="relative min-w-[200px] flex-[2]">
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-2xl border border-gray-200 bg-white p-2.5 shadow-sm dark:border-white/[0.08] dark:bg-[#151517] sm:flex sm:flex-wrap">
+          <div className="relative min-w-0 sm:min-w-[200px] sm:flex-[2]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, email or phone"
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={narrow ? "Search leads" : "Search name, email or phone"}
               className="w-full rounded-xl border border-gray-200 bg-[#faf9f7] py-2.5 pl-9 pr-8 text-sm font-semibold outline-none transition focus:border-[#C9A24D] focus:bg-white dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white" />
             {search && <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>}
           </div>
+          <LuxeSelect<string>
+            className="w-[104px] sm:w-auto sm:min-w-[140px] sm:flex-1 [&>button]:py-2.5 [&_ul]:max-h-[320px] [&_ul]:!overflow-y-auto"
+            ariaLabel="Tags"
+            icon={<Tag className="h-3.5 w-3.5" />}
+            value={tag}
+            placeholderValue=""
+            onChange={setTag}
+            menuWidth={240}
+            options={[
+              { value: '', label: 'Tags', hint: tagsPresent.length ? undefined : 'Add tags inside a lead' },
+              ...tagsPresent.map(([t, n]) => ({ value: t, label: t, hint: `${n} ${n === 1 ? 'lead' : 'leads'}`, icon: <Tag className="h-3.5 w-3.5" /> })),
+            ]}
+          />
+          {/* Row 2 on phones; part of the same wrapping row from sm: up (sm:contents). */}
+          <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-2 sm:contents">
           <LuxeSelect<LeadOriginGroup | 'any'>
-            className="min-w-[150px] flex-1 [&>button]:py-2.5"
+            className="min-w-0 flex-1 sm:min-w-[150px] [&>button]:py-2.5"
             ariaLabel="Came in from"
             icon={<Compass className="h-3.5 w-3.5" />}
             value={origin}
@@ -337,19 +379,6 @@ function LeadsPageInner() {
                 const Icon = ORIGIN_META[g].icon
                 return { value: g, label: ORIGIN_META[g].label, hint: `${n} ${n === 1 ? 'lead' : 'leads'}`, icon: <Icon className="h-3.5 w-3.5" /> }
               }),
-            ]}
-          />
-          <LuxeSelect<string>
-            className="min-w-[140px] flex-1 [&>button]:py-2.5 [&_ul]:max-h-[320px] [&_ul]:!overflow-y-auto"
-            ariaLabel="Tags"
-            icon={<Tag className="h-3.5 w-3.5" />}
-            value={tag}
-            placeholderValue=""
-            onChange={setTag}
-            menuWidth={240}
-            options={[
-              { value: '', label: 'Tags: all', hint: tagsPresent.length ? undefined : 'Add tags inside a lead' },
-              ...tagsPresent.map(([t, n]) => ({ value: t, label: t, hint: `${n} ${n === 1 ? 'lead' : 'leads'}`, icon: <Tag className="h-3.5 w-3.5" /> })),
             ]}
           />
           <AnimatePresence initial={false}>
@@ -377,7 +406,7 @@ function LeadsPageInner() {
           </AnimatePresence>
           {/* How the list is ordered. */}
           <LuxeSelect<Sort>
-            className="min-w-[170px] flex-1 [&>button]:py-2.5"
+            className="min-w-0 flex-1 sm:min-w-[170px] [&>button]:py-2.5"
             ariaLabel="Order"
             icon={<ArrowUpDown className="h-3.5 w-3.5" />}
             value={sort}
@@ -390,18 +419,37 @@ function LeadsPageInner() {
             className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2.5 text-xs font-black text-[#111827] transition hover:border-[#C9A24D] disabled:opacity-50 dark:border-gray-700 dark:text-white">
             {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} <span className="hidden sm:inline">Export</span>
           </button>
+          </div>
         </div>
+
+        {/* "Mark all seen" - clears every red "new" dot at once (follow-ups and requests stay). */}
+        <AnimatePresence initial={false}>
+          {unseenCount > 0 && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+              <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-red-100 bg-red-50/60 px-3.5 py-2 dark:border-red-500/20 dark:bg-red-500/[0.06]">
+                <p className="text-[12.5px] font-bold text-red-700 dark:text-red-300">
+                  <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-red-500 align-middle" />
+                  {unseenCount} {unseenCount === 1 ? 'lead has' : 'leads have'}{' '}something new you haven&apos;t opened
+                </p>
+                <button type="button" onClick={() => setConfirmSeenAll(true)}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-[12px] font-black text-[#111827] ring-1 ring-red-200 transition hover:ring-red-400 dark:bg-white/10 dark:text-white dark:ring-red-500/30">
+                  <CheckCheck className="h-3.5 w-3.5" /> Mark all seen
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* What "Warmest first" means - shown with that sort, foldable, remembered. */}
         {sort === 'warmth' && <WarmthExplainer />}
 
         {/* ── the list */}
-        <div className="mt-4 space-y-2.5">
+        <div ref={listTopRef} className="mt-4 scroll-mt-24 space-y-2.5">
           {loading && (
-            <div className="flex items-center justify-center gap-2 py-16 text-sm font-bold text-gray-400"><Loader2 className="h-5 w-5 animate-spin" /> Loading leads...</div>
+            <div className="flex items-center justify-center py-16"><OhpSpinner size={26} label="Loading leads" /></div>
           )}
           {!loading && activeView === 'hidden' && hiddenLeads === null && (
-            <div className="flex items-center justify-center gap-2 py-16 text-sm font-bold text-gray-400"><Loader2 className="h-5 w-5 animate-spin" /></div>
+            <div className="flex items-center justify-center py-16"><OhpSpinner size={26} /></div>
           )}
           {!loading && visible.length === 0 && !(activeView === 'hidden' && hiddenLeads === null) && (
             <EmptyState view={activeView} filtered={!!search || origin !== 'any' || !!tag || !!openHouseId} noLeads={leads.length === 0}
@@ -409,11 +457,11 @@ function LeadsPageInner() {
           )}
           <AnimatePresence mode="popLayout" initial={false}>
             {visible.slice((curPage - 1) * PAGE, curPage * PAGE).map((lead, i) => (
-              <motion.div key={lead.id} layout
+              <motion.div key={`${curPage}:${lead.id}`} layout
                 // The open row's menu has to sit over the rows below it (each row is its own layer).
                 style={{ position: 'relative', zIndex: menuFor === lead.id ? 30 : 0 }}
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.15 } }}
-                transition={{ type: 'spring', stiffness: 420, damping: 36, delay: Math.min(i * 0.02, 0.2) }}>
+                initial={{ opacity: 0, y: 14, x: pageDir * 18 }} animate={{ opacity: 1, y: 0, x: 0 }} exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.12 } }}
+                transition={{ type: 'spring', stiffness: 420, damping: 36, delay: Math.min(i * 0.025, 0.3) }}>
                 <LeadRow lead={lead} busy={busyId === lead.id} activeTag={tag} onTag={setTag} menuOpen={menuFor === lead.id} showRate={sort === 'email_most' || sort === 'email_least'} showWarmth={sort === 'warmth'}
                   onOpen={() => setSelectedLeadId(lead.id)}
                   onMenu={open => setMenuFor(open ? lead.id : null)}
@@ -427,7 +475,7 @@ function LeadsPageInner() {
               <p className="mb-2 text-center text-[11px] font-bold text-gray-400">
                 {(curPage - 1) * PAGE + 1}-{Math.min(curPage * PAGE, visible.length)} of {visible.length} leads
               </p>
-              <Pager page={curPage} pages={pages} onChange={n => { setPage(Math.min(Math.max(1, n), pages)); window.scrollTo({ top: 0, behavior: 'smooth' }) }} />
+              <Pager page={curPage} pages={pages} onChange={n => { const next = Math.min(Math.max(1, n), pages); setPageDir(next > curPage ? 1 : -1); setPage(next); listTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} />
             </div>
           )}
           {!loading && pages === 1 && visible.length > 5 && (
@@ -435,6 +483,20 @@ function LeadsPageInner() {
           )}
         </div>
       </div>
+
+      <MotionModal open={confirmSeenAll} onBackdropClick={() => setConfirmSeenAll(false)}>
+        <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl dark:bg-[#151517]">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-500 dark:bg-red-500/10"><CheckCheck className="h-6 w-6" /></span>
+          <h3 className="mt-3 font-serif text-xl font-black text-[#111827] dark:text-white">Mark all {unseenCount} as seen?</h3>
+          <p className="mt-1.5 text-[13px] font-medium leading-relaxed text-gray-500 dark:text-gray-400">
+            Their red &ldquo;new&rdquo; dots clear, as if you opened each one. Follow-ups and requests that still need doing stay in &ldquo;Needs you&rdquo;. This can&apos;t be undone.
+          </p>
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setConfirmSeenAll(false)} className="rounded-xl border border-gray-200 py-2.5 text-sm font-black text-gray-600 dark:border-white/10 dark:text-gray-300">Cancel</button>
+            <button type="button" onClick={markAllSeen} className="rounded-xl bg-[#111827] py-2.5 text-sm font-black text-white dark:bg-white dark:text-[#111827]">Mark all seen</button>
+          </div>
+        </div>
+      </MotionModal>
 
       <MotionModal open={!!confirmDelete} onBackdropClick={() => setConfirmDelete(null)}>
         {deleteShown && (
@@ -557,16 +619,16 @@ function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, a
 
   return (
     <div role="button" tabIndex={0} onClick={onOpen} onKeyDown={e => { if (e.key === 'Enter') onOpen() }}
-      className={`group relative flex flex-col gap-3 rounded-2xl border bg-white p-3.5 shadow-sm transition hover:-translate-y-px hover:border-[#C9A24D]/50 hover:shadow-md dark:bg-[#151517] sm:flex-row sm:items-center sm:gap-4 sm:p-4 ${
+      className={`group relative flex flex-col gap-2.5 rounded-2xl border bg-white p-3 shadow-sm transition hover:-translate-y-px hover:border-[#C9A24D]/50 hover:shadow-md dark:bg-[#151517] sm:flex-row sm:items-center sm:gap-4 sm:p-4 ${
         fresh ? 'border-l-4 border-red-200 border-l-red-500 hover:border-l-red-500 dark:border-red-500/25 dark:border-l-red-500'
         : 'border-gray-200 dark:border-white/[0.08]'} ${busy ? 'opacity-60' : ''}`}>
       <div className="flex min-w-0 flex-1 items-start gap-3">
-        <div className="relative mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#111827] text-sm font-black text-[#C9A24D] dark:bg-white dark:text-[#8b7355]">
+        <div className="relative mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#111827] text-sm font-black sm:h-10 sm:w-10 text-[#C9A24D] dark:bg-white dark:text-[#8b7355]">
           {(lead.name || lead.email || '?').charAt(0).toUpperCase()}
           {fresh && <span title={lead.needs_you ? 'Waiting on you' : 'Something new since you last opened them'} className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#151517]" />}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 max-sm:min-h-9">
             <p className={`truncate text-[15px] text-[#111827] dark:text-white ${lead.needs_attention ? 'font-black' : 'font-bold'}`}>{lead.name || lead.email || 'No name given'}</p>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ring-inset ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
             {lead.represented === 'yes' && <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black text-gray-500 dark:bg-white/[0.06] dark:text-gray-400"><ShieldCheck className="h-3 w-3" /> Has an agent</span>}
@@ -604,6 +666,7 @@ function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, a
             )}
             {!!lead.showcase_new_matches && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"><Sparkles className="h-3 w-3" /> {lead.showcase_new_matches} new {lead.showcase_new_matches === 1 ? 'match' : 'matches'}</span>}
           </div>
+          <div className="max-sm:-ml-12">
           {origin && om && (
             <p className="mt-1 flex min-w-0 items-start gap-1.5 text-[12.5px] leading-5 text-gray-600 dark:text-gray-300" title={origin.came_from || undefined}>
               <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${TONE_CLASSES[om.tone]}`}><om.icon className="h-3 w-3" /></span>
@@ -625,27 +688,32 @@ function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, a
             </p>
           )}
           {todos.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="mt-2 hidden flex-wrap gap-1.5 sm:flex">
               {todos.slice(0, 2).map((t, k) => <TodoChip key={k} t={t} />)}
               {todos.length > 2 && <span className="rounded-full px-1.5 py-0.5 text-[11px] font-bold text-gray-400">+{todos.length - 2} more</span>}
             </div>
           )}
+          </div>
         </div>
       </div>
 
       {/* Reach them in one tap, or change where they stand. */}
-      <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-center" onClick={stop}>
+      <div className="flex shrink-0 items-center gap-1.5 max-sm:w-full sm:self-center" onClick={stop}>
+        <div className="flex min-w-0 flex-1 flex-wrap gap-1.5 sm:hidden">
+          {todos.slice(0, 1).map((t, k) => <TodoChip key={k} t={t} />)}
+          {todos.length > 1 && <span className="self-center text-[11px] font-bold text-gray-400">+{todos.length - 1}</span>}
+        </div>
         {lead.phone && (
           <>
             <a href={`tel:${dialable(lead.phone)}`} title={`Call ${formatPhone(lead.phone)}`} aria-label="Call"
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/10 dark:text-gray-300"><Phone className="h-4 w-4" /></a>
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/10 dark:text-gray-300 sm:h-9 sm:w-9"><Phone className="h-4 w-4" /></a>
             <a href={`sms:${dialable(lead.phone)}`} title={`Text ${formatPhone(lead.phone)}`} aria-label="Text"
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/10 dark:text-gray-300"><MessageCircle className="h-4 w-4" /></a>
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/10 dark:text-gray-300 sm:h-9 sm:w-9"><MessageCircle className="h-4 w-4" /></a>
           </>
         )}
         {lead.email && (
           <button type="button" onClick={copyEmail} title={`Copy ${lead.email}`} aria-label={copied ? 'Email copied' : 'Copy email'}
-            className={`relative flex h-9 w-9 items-center justify-center rounded-xl border transition ${copied ? 'border-emerald-300 bg-emerald-50 text-emerald-600 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-gray-200 text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/10 dark:text-gray-300'}`}>
+            className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border transition sm:h-9 sm:w-9 ${copied ? 'border-emerald-300 bg-emerald-50 text-emerald-600 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-gray-200 text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/10 dark:text-gray-300'}`}>
             <AnimatePresence mode="wait" initial={false}>
               <motion.span key={copied ? 'y' : 'n'} initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.4, opacity: 0 }} transition={{ duration: 0.14 }}>
                 {copied ? <Check className="h-4 w-4" strokeWidth={3} /> : <Mail className="h-4 w-4" />}
@@ -664,7 +732,7 @@ function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, a
         )}
         <div ref={menuRef} className="relative">
           <button onClick={() => onMenu(!menuOpen)} aria-label="More" title="Change status, hide or delete"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-[#C9A24D] hover:text-[#111827] dark:border-white/10 dark:text-gray-300 dark:hover:text-white">
+            className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-[#C9A24D] hover:text-[#111827] dark:border-white/10 dark:text-gray-300 dark:hover:text-white sm:h-9 sm:w-9">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
           </button>
           <AnimatePresence>

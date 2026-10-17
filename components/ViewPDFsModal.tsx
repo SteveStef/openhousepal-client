@@ -144,7 +144,7 @@ function ActionButton({ action }: { action: CardAction }) {
       }}
       disabled={action.loading}
       title={action.hint}
-      className={`flex flex-1 items-center justify-center gap-1 px-1 py-1.5 text-[8px] font-black uppercase tracking-[0.1em] transition-colors duration-150 disabled:opacity-60 sm:gap-1.5 sm:px-1.5 sm:py-2 sm:text-[9px] sm:tracking-[0.1em] md:py-2.5 ${
+      className={`flex flex-1 items-center justify-center gap-1 px-1 py-2.5 text-[10px] font-black uppercase tracking-[0.08em] transition-colors duration-150 disabled:opacity-60 sm:gap-1.5 sm:px-1.5 sm:py-2 sm:text-[9px] sm:tracking-[0.1em] md:py-2.5 ${
         action.active !== undefined
           ? action.active
             ? 'bg-emerald-50/70 text-emerald-700 shadow-[inset_0_-2px_0_0_#10b981] hover:bg-emerald-50 dark:bg-emerald-500/[0.07] dark:text-emerald-300 dark:shadow-[inset_0_-2px_0_0_rgba(52,211,153,0.85)] dark:hover:bg-emerald-500/[0.12]'
@@ -209,18 +209,23 @@ function DocumentCard({
   actions?: (CardAction | CardAction[])[];
 }) {
   return (
-    <div className="group relative flex min-h-[130px] w-[calc(50%-0.25rem)] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-800 dark:bg-[#1c1c1e] sm:min-h-[184px] sm:w-auto sm:min-w-0 sm:max-w-[12.5rem] sm:flex-1 sm:basis-0 sm:rounded-2xl">
+    // Phones (user, 10/17): one document per row - a wide bar (icon, name, what it is, a ">"), with
+    // all its options in one roomy strip underneath - instead of two cramped tiles per row.
+    <div className="group relative flex w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-800 dark:bg-[#1c1c1e] sm:min-h-[184px] sm:w-auto sm:min-w-0 sm:max-w-[12.5rem] sm:flex-1 sm:basis-0">
       <button
         onClick={onView}
-        className="flex flex-1 flex-col items-center justify-center gap-1.5 p-2.5 text-center active:scale-[0.98] sm:gap-2.5 sm:p-3.5 md:gap-3 md:p-4"
+        className="flex flex-1 flex-row items-center justify-start gap-3 p-3.5 text-left active:scale-[0.99] sm:flex-col sm:justify-center sm:gap-2.5 sm:p-3.5 sm:text-center md:gap-3 md:p-4"
       >
-        <div className={`flex h-9 w-9 items-center justify-center rounded-lg border border-gray-100 bg-[#faf9f7] shadow-sm transition-all duration-150 dark:border-gray-800 dark:bg-[#0B0B0B] sm:h-12 sm:w-12 sm:rounded-xl md:h-14 md:w-14 ${off ? 'opacity-40 grayscale' : ''}`}>
-          <div className="h-5 w-5 text-[#8b7355] dark:text-[#C9A24D] sm:h-6 sm:w-6 md:h-7 md:w-7">{icon}</div>
+        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-100 bg-[#faf9f7] shadow-sm transition-all duration-150 dark:border-gray-800 dark:bg-[#0B0B0B] sm:h-12 sm:w-12 md:h-14 md:w-14 ${off ? 'opacity-40 grayscale' : ''}`}>
+          <div className="h-6 w-6 text-[#8b7355] dark:text-[#C9A24D] md:h-7 md:w-7">{icon}</div>
         </div>
-        <div>
-          <h4 className={`text-[11px] font-bold leading-tight sm:text-sm md:text-base ${off ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>{title}</h4>
-          <p className={`mt-1 text-[9px] font-bold uppercase leading-relaxed tracking-widest sm:block ${off ? 'text-amber-600 dark:text-amber-400' : 'hidden text-gray-400'}`}>{subtitle}</p>
+        <div className="min-w-0 flex-1 sm:flex-none">
+          <h4 className={`text-[15px] font-black leading-tight sm:text-sm sm:font-bold md:text-base ${off ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>{title}</h4>
+          <p className={`mt-0.5 text-[10px] font-bold uppercase leading-snug tracking-wider sm:mt-1 sm:text-[9px] sm:leading-relaxed sm:tracking-widest ${off ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 sm:hidden md:block'}`}>{subtitle}</p>
         </div>
+        <svg className="h-4 w-4 shrink-0 text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-[#8b7355] sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+        </svg>
         {showViewHint && !off && (
           <div className="hidden items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-gray-300 transition-colors group-hover:text-[#8b7355] dark:group-hover:text-[#C9A24D] sm:mt-1 sm:flex">
             View
@@ -231,13 +236,18 @@ function DocumentCard({
         )}
       </button>
 
+      {actions.length > 0 && (
+        <div className="flex divide-x divide-gray-100 border-t border-gray-100 dark:divide-gray-800 dark:border-gray-800 sm:hidden">
+          {actions.flat().map(action => <ActionButton key={action.key} action={action} />)}
+        </div>
+      )}
       {actions.map((entry, index) =>
         Array.isArray(entry) ? (
-          <div key={entry.map(a => a.key).join('+')} className="flex divide-x divide-gray-100 border-t border-gray-100 dark:divide-gray-800 dark:border-gray-800">
+          <div key={entry.map(a => a.key).join('+')} className="hidden divide-x divide-gray-100 border-t border-gray-100 dark:divide-gray-800 dark:border-gray-800 sm:flex">
             {entry.map(action => <ActionButton key={action.key} action={action} />)}
           </div>
         ) : (
-          <div key={entry.key} className="flex border-t border-gray-100 dark:border-gray-800">
+          <div key={entry.key} className="hidden border-t border-gray-100 dark:border-gray-800 sm:flex">
             <ActionButton action={entry} />
           </div>
         )
@@ -295,12 +305,13 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
   // The Brag Sheet only exists on plans with a sales source, and its Showcase pitch page only on
   // Showcase plans - the card's subtitle says exactly what this agent's copy contains.
   const hasBragSheet = planHasBragSheet(user?.plan_tier);
-  const bragSheetSubtitle = hasShowcaseAccess(user?.plan_tier) && showcasesOn !== false ? 'Bio, Your Sales, & Showcase Pitch' : 'Bio & Your Recent Sales';
+  // The pitch (page 2) needs Showcases on AND a Similar Homes sheet with homes (lib/bragSheetData).
+  const bragSheetSubtitle = hasShowcaseAccess(user?.plan_tier) && showcasesOn !== false && similarOn && hasComps ? 'Bio, Your Sales, & Showcase Pitch' : 'Bio & Your Recent Sales';
   const canReloadFlyerPrice = Boolean(onReloadFlyerPrice && openHouse.listingKey);
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-3 sm:p-4 print:hidden animate-fadeIn">
-      <div className="bg-[#FAFAF7] dark:bg-[#151517] rounded-2xl sm:rounded-[2.5rem] shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-y-auto border border-white/50 dark:border-gray-800 transform transition-all relative">
+      <div className="bg-[#FAFAF7] dark:bg-[#151517] rounded-3xl sm:rounded-[2.5rem] shadow-2xl max-w-4xl w-full max-h-[88dvh] overflow-y-auto overscroll-contain border border-white/50 dark:border-gray-800 transform transition-all relative">
         {/* Decorative Top Bar */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#8b7355] via-[#C9A24D] to-[#8b7355]" />
 
@@ -314,7 +325,7 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
           </div>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-2 p-4 sm:flex-nowrap sm:gap-3 sm:p-6 md:gap-4">
+        <div className="flex flex-col gap-2.5 p-3.5 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-3 sm:p-6 md:flex-nowrap md:gap-4">
           <DocumentCard
             onView={onViewFlyer}
             title="Sign In"

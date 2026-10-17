@@ -9,6 +9,7 @@
 // every figure it used is listed back, and any it can't trace to the brief is flagged to verify.
 
 import VerifiedPanel from './VerifiedPanel'
+import AiCoverMaker from './AiCoverMaker'
 import BlogFinishStep, { applyFinish, emptyFinish, type FinishChoices } from './BlogFinishStep'
 import NeighborhoodLinksPicker, { articleTextOf } from './NeighborhoodLinksPicker'
 import { youtubeIdOf } from './ShowcaseBlocks'
@@ -19,20 +20,20 @@ import { luxeBlogAllowed, luxeBlogUpgrade } from '@/lib/navAccess'
 import LuxeUpgradePitch from '@/components/ui/LuxeUpgradePitch'
 import type { BlogThemeId } from '@/types'
 import { hasEmailSignatureAccess } from '@/lib/navAccess'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, Check, Clapperboard, ClipboardCopy, Home, Link2, Loader2, MapPin, PenLine, Play, Plus,
-  ShieldCheck, Sparkles, Target, Users, Wand2, X,
+  AlertTriangle, ArrowLeft, ArrowRight, Check, Clapperboard, CloudCheck, Home, Link2, Loader2, MapPin, PenLine, Play, Plus,
+  RotateCcw, Search, ShieldCheck, Sparkles, Star, Target, Users, Wand2, X,
 } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import { startAiActivity, endAiActivity } from '@/lib/aiActivity'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
+import { OhpSpinner } from '@/components/brand/OhpLoader'
 import type { BlogAiBrief, BlogAiContext, BlogAiGenerateResult, BlogAiLength, BlogAiPropertyRef, BlogAiTone, LinkedProperty } from '@/types'
 import { BLOG_CTA_FORMS } from '@/lib/studio/blogTopics'
-import { copyText } from '@/lib/copyText'
 
 const AUDIENCES = ['Buyers', 'Sellers', 'First-time buyers', 'Move-up buyers', 'Luxury buyers', 'Investors', 'Relocating', 'Homeowners']
 
@@ -55,8 +56,10 @@ const LENGTHS: { id: BlogAiLength; label: string; hint: string }[] = [
 const CTAS = BLOG_CTA_FORMS.map(f => ({ id: f.formType, label: f.label }))
 
 // The researched article's real steps (backend ai_blog_pipeline_service stages), in order.
+// The first step's detail depends on the plan (user, 10/17 - a non-IDX agent was told about "your
+// IDX pages"): see gatheringDetail().
 const WRITING_STAGES: { key: string; label: string; detail: string }[] = [
-  { key: 'gathering', label: 'Gathering what we know about your towns', detail: 'Your sales, live Bright MLS numbers and the town research behind your IDX pages' },
+  { key: 'gathering', label: 'Gathering what we know about your towns', detail: '' },
   { key: 'research', label: 'Researching what is missing', detail: 'Official sources only - county, school districts, Freddie Mac, the state' },
   { key: 'write', label: 'Writing in your voice', detail: 'Every fact tied to a dated source, your publishing rules applied' },
   { key: 'fact_check', label: 'Fact-checking every claim', detail: 'Numbers, dates, geography, Fair Housing and anything about your experience' },
@@ -64,6 +67,36 @@ const WRITING_STAGES: { key: string; label: string; detail: string }[] = [
 ]
 
 const STEPS = ['Topic', 'Audience', 'Substance', 'Style'] as const
+
+function gatheringDetail(plan?: string | null) {
+  if (plan === 'IDX') return 'Your sales, live Bright MLS numbers and the town research behind your IDX pages'
+  if (plan && plan.includes('NO_MLS')) return 'What you told us, plus verified research on the towns you picked'
+  return 'Your sales, live Bright MLS numbers and verified research on your towns'
+}
+
+// Common words that say nothing about which video fits an article.
+const VIDEO_STOP = new Set(['what', 'when', 'where', 'which', 'with', 'your', 'about', 'that', 'this', 'from', 'into', 'know', 'should', 'have', 'they', 'their', 'there', 'than', 'then', 'them', 'will', 'just', 'more', 'most', 'some', 'like', 'make', 'need', 'want', 'every', 'before', 'after', 'over', 'home', 'homes', 'house', 'buyer', 'buyers', 'seller', 'sellers', 'real', 'estate', 'guide', 'tips', 'things', 'here', 'look', 'feel', 'year', 'this', 'it\'s'])
+
+// Up to this many of the agent's own sales can be referenced in one article (user, 10/17).
+const MAX_SALES = 4
+// Towns one article can be about (and spotlight) - user, 10/17.
+const MAX_TOWNS = 5
+const SALES_PAGE = 8
+
+// A textarea that grows with what's typed (no scrollbar inside a one-line box).
+function AutoGrow({ value, onChange, className, ...rest }: { value: string; onChange: (v: string) => void; className?: string; placeholder?: string; rows?: number; autoFocus?: boolean }) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight + 2}px`
+  }, [value])
+  return <textarea ref={ref} value={value} onChange={e => onChange(e.target.value)} rows={rest.rows ?? 1} className={`${className} resize-none overflow-hidden`} {...rest} />
+}
+
+/** What the writer saves as the agent goes (and what a resumed draft starts from). */
+export type BlogAiResume = { draftId: string; brief: any; step?: number; error?: string }
 
 function money(n?: number | null) {
   return n ? `$${Math.round(n).toLocaleString()}` : ''
@@ -110,8 +143,12 @@ function Question({ icon: Icon, title, hint, children }: { icon: typeof Target; 
 const inputCls = 'w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-[#111827] outline-none placeholder:font-medium placeholder:text-gray-300 focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white dark:placeholder:text-gray-600'
 
 export default function BlogAiWriter({
-  blogId, initialTopic = '', initialCategory, initialTheme, titleBased = false, onClose, onDone,
+  blogId, initialTopic = '', initialCategory, initialTheme, titleBased = false, onClose, onDone, onLeave, resume,
 }: {
+  /** An unfinished AI draft being picked back up (its saved answers, the step, a failure). */
+  resume?: BlogAiResume
+  /** "Leave it writing" while the AI works - defaults to onClose. */
+  onLeave?: () => void
   /** The article's look to start from (the editor's current one; new articles start on Luxe). */
   initialTheme?: BlogThemeId
   // Set = rewrite this article in place (editor's "Draft with AI"); omitted = create a new draft.
@@ -127,39 +164,57 @@ export default function BlogAiWriter({
   const { user } = useAuth()
   const [ctx, setCtx] = useState<BlogAiContext | null>(null)
   const [ctxError, setCtxError] = useState('')
-  const [step, setStep] = useState(0)
-  const [phase, setPhase] = useState<'interview' | 'writing' | 'done'>('interview')
+  // Rewrites keep their in-progress answers on this device; new articles are saved to the server.
+  const localKey = blogId ? `blog-ai-brief:${blogId}` : null
+  const [rb] = useState<any>(() => {
+    if (resume?.brief) return resume.brief
+    if (!localKey) return {}
+    try { return JSON.parse(localStorage.getItem(localKey) || '{}') || {} } catch { return {} }
+  })
+  const [step, setStep] = useState(() => Math.max(0, Math.min(STEPS.length - 1, resume?.step ?? rb.__step ?? 0)))
+  const [phase, setPhase] = useState<'interview' | 'writing' | 'done' | 'failed'>(resume?.error ? 'failed' : 'interview')
   const [stage, setStage] = useState(0)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(resume?.error || '')
+  // The DRAFT article these answers are saved on (created by the first autosave of a new article).
+  const [draftId, setDraftId] = useState<string | null>(resume?.draftId || null)
+  const [savedAt, setSavedAt] = useState<number | null>(null)
+  const alive = useRef(true)
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   const [result, setResult] = useState<BlogAiGenerateResult | null>(null)
   const [finish, setFinish] = useState<FinishChoices>(emptyFinish(true))
   // IDX neighborhood pages this article links (saved with the Finish step).
   const [linkedAreas, setLinkedAreas] = useState<string[]>([])
   const [finishing, setFinishing] = useState(false)
-  const [copied, setCopied] = useState(false)
+  // The finished draft is a short flow (user, 10/17): 0 = how it shows on Google, 1 = its look,
+  // 2 = the fact-check (folded) + how it ends.
+  const [doneStep, setDoneStep] = useState(0)
+  const [doneDir, setDoneDir] = useState(1)
+  const goDone = (n: number) => { setDoneDir(n > doneStep ? 1 : -1); setDoneStep(n) }
 
   // Brief
-  const [topic, setTopic] = useState(initialTopic)
-  const [goal, setGoal] = useState('')
-  const [audiences, setAudiences] = useState<string[]>([])
-  const [areas, setAreas] = useState<string[]>([])
+  const [topic, setTopic] = useState<string>(rb.topic || initialTopic)
+  const [goal, setGoal] = useState<string>(rb.goal || '')
+  const [audiences, setAudiences] = useState<string[]>(rb.audiences || [])
+  const [areas, setAreas] = useState<string[]>(rb.areas || [])
   const [areaDraft, setAreaDraft] = useState('')
-  const [keyPoints, setKeyPoints] = useState('')
-  const [personalTake, setPersonalTake] = useState('')
-  const [facts, setFacts] = useState('')
-  const [saleIds, setSaleIds] = useState<string[]>([])
-  const [listingIds, setListingIds] = useState<string[]>([])
-  const [tone, setTone] = useState<BlogAiTone>('warm')
-  const [length, setLength] = useState<BlogAiLength>('standard')
-  const [cta, setCta] = useState('how_can_i_help')
+  const [keyPoints, setKeyPoints] = useState<string>(rb.key_points || '')
+  const [personalTake, setPersonalTake] = useState<string>(rb.personal_take || '')
+  const [facts, setFacts] = useState<string>(rb.facts || '')
+  const [saleIds, setSaleIds] = useState<string[]>((rb.sale_ids || []).slice(0, MAX_SALES))
+  const [listingIds, setListingIds] = useState<string[]>(rb.listing_ids || (rb.listings || []).map((l: any) => l.listing_key).filter(Boolean))
+  const [tone, setTone] = useState<BlogAiTone>(rb.tone || 'warm')
+  const [length, setLength] = useState<BlogAiLength>(rb.length || 'standard')
+  const [cta, setCta] = useState<string>(rb.cta || 'how_can_i_help')
   // A video to tie in (asked before writing, so the AI gives it a section of its own).
-  const [video, setVideo] = useState<{ url: string; title?: string } | null>(null)
+  const [video, setVideo] = useState<{ url: string; title?: string } | null>(rb.video || null)
   // The look, picked on the finished draft (a real example, not sample text).
   const [look, setLook] = useState<BlogThemeId>(initialTheme || 'luxe')
   const [hoverLook, setHoverLook] = useState<BlogThemeId | null>(null)
   const [lookPeek, setLookPeek] = useState(false)
   const canLuxe = luxeBlogAllowed(user?.plan_tier)
   const [videoDraft, setVideoDraft] = useState('')
+  // Where a video picked before writing goes: its own section the AI writes (default), or a fixed spot.
+  const [videoPos, setVideoPos] = useState<string>(rb.video_pos || 'section')
 
   useEffect(() => {
     api.blogs.aiContext().then(res => {
@@ -175,19 +230,54 @@ export default function BlogAiWriter({
   // recent - newest first either way, shown 10 at a time.
   const [salePage, setSalePage] = useState(0)
   // Town Spotlight: the picked towns that are towns the agent serves (verified Areas data on hand).
-  const [spotlightOn, setSpotlightOn] = useState(true)
+  const [spotlightOn, setSpotlightOn] = useState<boolean>(rb.spotlight_on ?? true)
+  // Town Spotlight (user, 10/17): any plan, any town - the agent's own areas come with the context;
+  // other towns come from the shared town database (researched once, then free for everyone).
+  const [townCards, setTownCards] = useState<Record<string, any>>({})
+  const townKey = (a: string) => a.toLowerCase().split(',')[0].trim()
+  useEffect(() => {
+    if (!ctx || !spotlightOn) return
+    const known = new Set((((ctx as any).area_cards || []) as any[]).map(c => String(c.name || '').toLowerCase()))
+    const todo = areas.filter(a => !known.has(townKey(a)) && !(townKey(a) in townCards))
+    if (!todo.length) return
+    setTownCards(cur => ({ ...cur, ...Object.fromEntries(todo.map(a => [townKey(a), 'researching'])) }))
+    for (const a of todo) {
+      let tries = 0
+      const ask = async () => {
+        const r = await api.blogs.townCard({ name: a })
+        if (!alive.current) return
+        if (r.success && r.data?.status === 'ready' && r.data.card) setTownCards(cur => ({ ...cur, [townKey(a)]: r.data!.card }))
+        else if (r.success && r.data?.status === 'researching' && ++tries < 40) window.setTimeout(ask, 6000)
+        else setTownCards(cur => ({ ...cur, [townKey(a)]: 'none' }))
+      }
+      ask()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx, areas, spotlightOn])
   const spotlightCards = useMemo(() => {
     const cards: any[] = (ctx as any)?.area_cards || []
-    const picked = areas.map(a => a.toLowerCase().split(',')[0].trim())
-    return cards.filter(c => picked.includes(String(c.name || '').toLowerCase())).slice(0, 3)
-  }, [ctx, areas])
+    return areas.map(a => cards.find(c => String(c.name || '').toLowerCase() === townKey(a)) || (typeof townCards[townKey(a)] === 'object' ? townCards[townKey(a)] : null))
+      .filter(Boolean).slice(0, MAX_TOWNS)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx, areas, townCards])
+  const researching = areas.filter(a => townCards[townKey(a)] === 'researching')
+  // Sales (user, 10/17): the agent's sales in the towns they picked are recommended up top; "View all"
+  // opens every sale with a search box and pages; up to MAX_SALES picked.
+  const [saleSearch, setSaleSearch] = useState('')
+  const [allSales, setAllSales] = useState(false)
   const salePool = useMemo(() => {
     const all = ctx?.recent_sales || []
     const wanted = areas.map(a => a.toLowerCase().split(',')[0].trim()).filter(Boolean)
     const inTown = wanted.length ? all.filter(s => s.city && wanted.some(w => s.city!.toLowerCase().includes(w) || w.includes(s.city!.toLowerCase()))) : []
-    return inTown.length > 3 ? { list: inTown, inTown: true, key: wanted.join('|') } : { list: all, inTown: false, key: 'all' }
-  }, [ctx, areas])
+    const q = saleSearch.trim().toLowerCase()
+    const found = q ? all.filter(s => `${s.address} ${s.city || ''} ${s.state || ''}`.toLowerCase().includes(q)) : all
+    return { all, recommended: inTown.slice(0, 6), found, key: `${wanted.join('|')}::${q}` }
+  }, [ctx, areas, saleSearch])
   useEffect(() => { setSalePage(0) }, [salePool.key])
+  const pickSale = (id: string) => {
+    if (!saleIds.includes(id) && saleIds.length >= MAX_SALES) return
+    toggle(saleIds, setSaleIds, id)
+  }
   const firstArea = areas[0] || ctx?.served_areas[0] || ctx?.agent.market || 'your area'
   // Angles on the title the agent wrote in the step before (new-article flow), instead of generic ideas.
   const baseTitle = initialTopic.trim().replace(/[.?!]+$/, '')
@@ -228,21 +318,25 @@ export default function BlogAiWriter({
   const toggle = (list: string[], set: (v: string[]) => void, value: string) =>
     set(list.includes(value) ? list.filter(v => v !== value) : [...list, value])
 
+  const [areaWarn, setAreaWarn] = useState(false)
+  const pickArea = (v: string) => {
+    if (areas.includes(v)) { setAreas(areas.filter(x => x !== v)); return }
+    if (areas.length >= MAX_TOWNS) { setAreaWarn(true); window.setTimeout(() => setAreaWarn(false), 2600); return }
+    setAreas([...areas, v])
+  }
   const addArea = () => {
     const v = areaDraft.trim()
-    if (v && !areas.includes(v)) setAreas([...areas, v])
+    if (v && !areas.includes(v)) pickArea(v)
     setAreaDraft('')
   }
 
   const canNext = step === 0 ? topic.trim().length >= 4 : true
   const blocked = ctx && !ctx.ai_available
 
-  const generate = async () => {
-    setError('')
-    setPhase('writing')
+  const buildBrief = (): BlogAiBrief => {
     const sales = (ctx?.recent_sales || [])
     const listings = (ctx?.listings || []).filter(l => listingIds.includes(l.id)).map(toLinked)
-    const brief: BlogAiBrief = {
+    return {
       topic: topic.trim(),
       goal: goal.trim() || undefined,
       audiences,
@@ -259,20 +353,57 @@ export default function BlogAiWriter({
       length,
       cta,
       category_hint: initialCategory,
-      blog_id: blogId,
+      blog_id: blogId || draftId || undefined,
     }
+  }
+
+  // Autosave (user, 10/17: "save every single step ... you can exit out and it saves everything you
+  // put into the flow as a draft to finish later"): a moment after any answer changes, and on every
+  // step change. A new article's answers live on its DRAFT (shown in Blogs as "Unfinished AI draft");
+  // a rewrite's stay on this device. The extra fields put the picker state back exactly.
+  const saving = useRef<Promise<unknown> | null>(null)
+  const saveKey = JSON.stringify([topic, goal, audiences, areas, keyPoints, personalTake, facts, saleIds, listingIds, tone, length, cta, video, spotlightOn, videoPos, step])
+  useEffect(() => {
+    if (!ctx || phase !== 'interview' || topic.trim().length < 4) return
+    const t = window.setTimeout(async () => {
+      const brief = { ...buildBrief(), listing_ids: listingIds, spotlight_on: spotlightOn, video_pos: videoPos }
+      if (localKey) {
+        try { localStorage.setItem(localKey, JSON.stringify({ ...brief, __step: step })); setSavedAt(Date.now()) } catch { /* private mode */ }
+        return
+      }
+      if (saving.current) await saving.current
+      const req = api.blogs.saveAiBrief({ blog_id: draftId, brief, step, category_hint: initialCategory })
+      saving.current = req
+      const res = await req
+      saving.current = null
+      if (!alive.current) return
+      if (res.success && res.data?.blog_id) { setDraftId(res.data.blog_id); setSavedAt(Date.now()) }
+    }, 700)
+    return () => window.clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveKey, ctx, phase])
+
+  const generate = async () => {
+    setError('')
+    setPhase('writing')
+    if (saving.current) await saving.current
+    const brief = buildBrief()
     startAiActivity()
     const fail = (msg?: string) => {
       endAiActivity()
-      setError(msg || 'The AI writer could not finish this draft. Nothing was saved.')
-      setPhase('interview')
+      if (!alive.current) return
+      setError(msg || 'The AI writer could not finish this draft.')
+      setPhase('failed')
     }
     // Researched article: runs in the background (a few minutes) - start it, then follow its steps.
     const started = await api.blogs.aiGenerateJob({ ...brief, engine: 'max' })
     if (!started.success || !started.data) return fail(started.error)
     const jobId = started.data.blog_id
+    if (!blogId) setDraftId(jobId)
+    if (localKey) { try { localStorage.removeItem(localKey) } catch { /* */ } }
     for (let misses = 0; ;) {
       await new Promise(r => setTimeout(r, 3000))
+      if (!alive.current) return
       const res = await api.blogs.aiJob(jobId)
       if (!res.success || !res.data) {
         if (++misses > 5) return fail(res.error)
@@ -287,6 +418,7 @@ export default function BlogAiWriter({
       if (res.data.status === 'failed' || !res.data.result) return fail(res.data.error)
       endAiActivity()
       setResult(res.data.result)
+      setDoneStep(0)
       setPhase('done')
       return
     }
@@ -297,8 +429,9 @@ export default function BlogAiWriter({
     if (!result) return
     setFinishing(true)
     let blog = result.blog
-    const blocks = applyFinish(blog.blocks, finish, ctx, areas)
-    if (blocks.length !== blog.blocks.length) {
+    const choices = { ...finish, moveVideo: finish.moveVideo || (videoPos !== 'section' ? videoPos : null) }
+    const blocks = applyFinish(blog.blocks, choices, ctx, areas)
+    if (JSON.stringify(blocks) !== JSON.stringify(blog.blocks)) {
       const r = await api.blogs.update(blog.id, { blocks })
       if (r.success && r.data) blog = r.data
     }
@@ -320,14 +453,23 @@ export default function BlogAiWriter({
     onDone({ ...result, blog })
   }
 
-  const copyCover = async () => {
-    if (!result?.cover_image_idea) return
-    await copyText(result.cover_image_idea)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1800)
+  // The agent leaves while it writes: stop following here - the bell says when it's done.
+  const leaveWriting = () => {
+    alive.current = false
+    endAiActivity()
+    ;(onLeave || onClose)()
   }
-
-  const hasMediaLab = user?.plan_tier === 'IDX' || user?.plan_tier === 'PRO_NO_MLS'
+  const pastedVideo = video && !(ctx?.videos || []).some(v => v.url === video.url) ? video : null
+  // The agent's own videos (Agent Hub + their YouTube channel), the ones whose titles share words
+  // with what this article is about first (user, 10/17: "look for a couple keywords").
+  const { suggestedVideos, otherVideos } = useMemo(() => {
+    const yt = (ctx?.videos || []).filter(v => youtubeIdOf(v.url))
+    const words = Array.from(new Set(([topic, goal, keyPoints, ...areas].join(' ').toLowerCase().match(/[a-z][a-z'-]{3,}/g) || [])))
+      .filter(w => !VIDEO_STOP.has(w))
+    const scored = yt.map(v => ({ v, n: words.filter(w => (v.title || '').toLowerCase().includes(w)).length }))
+    const top = scored.filter(x => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 3).map(x => x.v)
+    return { suggestedVideos: top, otherVideos: yt.filter(v => !top.includes(v)) }
+  }, [ctx, topic, goal, keyPoints, areas])
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={phase === 'writing' ? undefined : onClose}>
@@ -348,7 +490,7 @@ export default function BlogAiWriter({
                   AI Blog Writer{phase === 'interview' && !blocked && ctx ? ` · Step ${step + 1} of ${STEPS.length}` : ''}
                 </p>
                 <h2 className="font-serif text-xl font-black text-white">
-                  {phase === 'done' ? 'Your draft is ready' : phase === 'writing' ? 'Writing your article…' : blogId ? 'Rewrite this article with AI' : 'Write an article with AI'}
+                  {phase === 'done' ? 'Your draft is ready' : phase === 'writing' ? 'Writing your article…' : phase === 'failed' ? "This one didn't finish" : blogId ? 'Rewrite this article with AI' : resume ? 'Finish your article with AI' : 'Write an article with AI'}
                 </h2>
               </div>
             </div>
@@ -356,6 +498,16 @@ export default function BlogAiWriter({
               <button onClick={onClose} className="rounded-full p-2 text-gray-300 hover:bg-white/10 hover:text-white"><X className="h-5 w-5" /></button>
             )}
           </div>
+          {phase === 'done' && result && (
+            <div className="relative mt-3 flex gap-1.5">
+              {['On Google', 'Its look', 'Finish'].map((label, i) => (
+                <button key={label} type="button" disabled={i > doneStep} onClick={() => goDone(i)} className="flex-1 text-left disabled:cursor-default">
+                  <div className={`h-1 rounded-full transition-colors ${i <= doneStep ? 'bg-[#C9A24D]' : 'bg-white/15'}`} />
+                  <p className={`mt-1 text-[9px] font-black uppercase tracking-widest ${i <= doneStep ? 'text-[#f1d58b]' : 'text-white/30'}`}>{label}</p>
+                </button>
+              ))}
+            </div>
+          )}
           {phase === 'interview' && !blocked && ctx && (
             <div className="relative mt-3 flex gap-1.5">
               {STEPS.map((label, i) => (
@@ -412,7 +564,7 @@ export default function BlogAiWriter({
                       </div>
                     </Question>
                     <Question icon={Target} title="What should a reader walk away knowing — or doing?" hint="Optional, but it sharpens the whole article.">
-                      <input value={goal} onChange={e => setGoal(e.target.value)} placeholder="e.g. Feel confident about the inspection steps before making an offer" className={inputCls} />
+                      <AutoGrow value={goal} onChange={setGoal} placeholder="e.g. Feel confident about the inspection steps before making an offer" className={inputCls} />
                     </Question>
                   </>
                 )}
@@ -426,18 +578,25 @@ export default function BlogAiWriter({
                     </Question>
                     <Question icon={MapPin} title="What area are you writing about?" hint="The towns or neighborhoods it's about, roughly. Naming them is what makes it rank locally - and what the AI needs to get the details right.">
                       <div className="flex flex-wrap gap-1.5">
-                        {areaOptions.map(a => <Chip key={a} on={areas.includes(a)} onClick={() => toggle(areas, setAreas, a)}>{a}</Chip>)}
+                        {areaOptions.map(a => <Chip key={a} on={areas.includes(a)} onClick={() => pickArea(a)}>{a}</Chip>)}
                       </div>
+                      <AnimatePresence>
+                        {areaWarn && (
+                          <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-2 flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> Up to {MAX_TOWNS} towns per article - tap one to remove it first.
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
                       <div className="mt-2 flex gap-2">
                         <input value={areaDraft} onChange={e => setAreaDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addArea() } }} placeholder="Add a town or neighborhood" className={inputCls} />
                         <button type="button" onClick={addArea} className="shrink-0 rounded-xl border border-gray-200 px-3 text-gray-500 hover:border-[#C9A24D] dark:border-gray-700"><Plus className="h-4 w-4" /></button>
                       </div>
-                      {spotlightCards.length > 0 && (
+                      {(spotlightCards.length > 0 || researching.length > 0) && (
                         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-3 rounded-2xl border border-[#C9A24D]/30 bg-[#fffaf0] p-3 dark:bg-[#C9A24D]/[0.06]">
                           <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-xs font-black text-[#111827] dark:text-white">Add a Town Spotlight for {spotlightCards.map(c => c.name).join(' & ')}</p>
-                              <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Photos, live market numbers, schools and what&apos;s nearby - verified data from your Areas, cited with a date.</p>
+                            <div className="min-w-0">
+                              <p className="text-xs font-black text-[#111827] dark:text-white">Add a Town Spotlight{spotlightCards.length === 1 ? ` for ${spotlightCards[0].name}` : ` for ${spotlightCards.length || researching.length} towns`}</p>
+                              <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">A photo, live market numbers, schools and what&apos;s nearby for each town - verified and dated.</p>
                             </div>
                             <button type="button" role="switch" aria-checked={spotlightOn} onClick={() => setSpotlightOn(v => !v)} className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${spotlightOn ? 'bg-[#C9A24D]' : 'bg-gray-300 dark:bg-gray-700'}`}>
                               <span className={`h-[18px] w-[18px] rounded-full bg-white shadow transition-transform duration-300 ${spotlightOn ? 'translate-x-[22px]' : 'translate-x-[3px]'}`} />
@@ -446,13 +605,24 @@ export default function BlogAiWriter({
                           <AnimatePresence initial={false}>
                             {spotlightOn && (
                               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-                                  {spotlightCards.flatMap(c => (c.photos || []).slice(0, 3).map((ph: any, k: number) => (
-                                    <motion.span key={`${c.slug}-${k}`} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: k * 0.05 }} className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-cover bg-center ring-1 ring-black/10" style={{ backgroundImage: `url(${resolveMediaUrl(ph.url)})` }}>
-                                      {k === 0 && <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1.5 py-0.5 text-[9px] font-black text-white">{c.name}</span>}
+                                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                  {spotlightCards.map((c: any, k: number) => (
+                                    <motion.span key={c.slug} layout initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: k * 0.05 }}
+                                      className="relative block aspect-[16/10] overflow-hidden rounded-xl bg-[#111827] bg-cover bg-center ring-1 ring-black/10"
+                                      style={c.photo || c.photos?.[0]?.url ? { backgroundImage: `url(${resolveMediaUrl(c.photo || c.photos[0].url)})` } : undefined}>
+                                      <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+                                      {!(c.photo || c.photos?.[0]?.url) && <MapPin className="absolute left-1/2 top-[38%] h-5 w-5 -translate-x-1/2 text-[#e8c97a]/60" />}
+                                      <span className="absolute inset-x-0 bottom-0 truncate px-2 py-1.5 text-[11px] font-black text-white">{c.name}</span>
                                     </motion.span>
-                                  )))}
+                                  ))}
+                                  {researching.map(a => (
+                                    <span key={`r-${a}`} className="flex aspect-[16/10] flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-[#C9A24D]/50 bg-white/60 text-center dark:bg-white/[0.03]">
+                                      <OhpSpinner size={22} />
+                                      <span className="px-2 text-[10px] font-black leading-tight text-[#8b7355] dark:text-[#e8c97a]">Looking up {a.split(',')[0]}</span>
+                                    </span>
+                                  ))}
                                 </div>
+                                {researching.length > 0 && <p className="mt-2 text-[10px] font-semibold text-gray-400">A town we haven&apos;t covered yet takes a minute or two the first time - you can keep going.</p>}
                               </motion.div>
                             )}
                           </AnimatePresence>
@@ -478,22 +648,51 @@ export default function BlogAiWriter({
                         {ctx.recent_sales.length > 0 && (
                           <>
                             <p className="mb-1.5 flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-gray-400">
-                              <span>{salePool.inTown ? `Your sales in ${areas.join(', ')}` : 'Your most recent sales'}</span>
-                              <span className="normal-case tracking-normal">{saleIds.length ? `${saleIds.length} picked · ` : ''}{salePool.list.length} total</span>
+                              <span>Your sales <span className="normal-case tracking-normal">· pick up to {MAX_SALES}</span></span>
+                              <span className={`normal-case tracking-normal ${saleIds.length >= MAX_SALES ? 'text-[#8b7355] dark:text-[#e8c97a]' : ''}`}>{saleIds.length} of {MAX_SALES} picked</span>
                             </p>
-                            <AnimatePresence mode="wait" initial={false}>
-                              <motion.div key={`${salePool.key}-${salePage}`} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.18 }} className="flex flex-wrap gap-1.5">
-                                {salePool.list.slice(salePage * 10, salePage * 10 + 10).map(s => <Chip key={s.id} on={saleIds.includes(s.id)} onClick={() => { if (!saleIds.includes(s.id) && saleIds.length >= 10) return; toggle(saleIds, setSaleIds, s.id) }}>{propLine(s)}{s.sold_date ? ` · ${String(s.sold_date).slice(0, 7)}` : ''}</Chip>)}
-                              </motion.div>
-                            </AnimatePresence>
-                            {salePool.list.length > 10 && (
-                              <div className="mt-2 flex items-center justify-between">
-                                <button type="button" disabled={salePage === 0} onClick={() => setSalePage(p => p - 1)} className="rounded-lg px-2 py-1 text-[11px] font-black text-[#8b7355] transition hover:bg-[#C9A24D]/10 disabled:opacity-30 dark:text-[#e8c97a]">&larr; Newer</button>
-                                <span className="text-[10px] font-bold text-gray-400">{salePage * 10 + 1}-{Math.min(salePool.list.length, salePage * 10 + 10)} of {salePool.list.length}</span>
-                                <button type="button" disabled={(salePage + 1) * 10 >= salePool.list.length} onClick={() => setSalePage(p => p + 1)} className="rounded-lg px-2 py-1 text-[11px] font-black text-[#8b7355] transition hover:bg-[#C9A24D]/10 disabled:opacity-30 dark:text-[#e8c97a]">Next 10 &rarr;</button>
+                            {/* Picked ones always stay in view */}
+                            {saleIds.length > 0 && (
+                              <div className="mb-2 flex flex-wrap gap-1.5">
+                                {saleIds.map(id => salePool.all.find(x => x.id === id)).filter(Boolean).map(s => (
+                                  <Chip key={`p-${s!.id}`} on onClick={() => pickSale(s!.id)}>{propLine(s!)}</Chip>
+                                ))}
                               </div>
                             )}
-                            {saleIds.length >= 10 && <p className="mt-1.5 text-[10px] font-bold text-amber-600">The article can reference up to 10 sales.</p>}
+                            {salePool.recommended.filter(x => !saleIds.includes(x.id)).length > 0 && (
+                              <div className="mb-2 rounded-xl border border-[#C9A24D]/30 bg-[#fffaf0] p-2.5 dark:bg-[#C9A24D]/[0.06]">
+                                <p className="mb-1.5 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]"><Star className="h-3 w-3 fill-current" /> Recommended - your sales in {areas.join(', ')}</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {salePool.recommended.filter(x => !saleIds.includes(x.id)).map(s => <Chip key={`r-${s.id}`} on={false} onClick={() => pickSale(s.id)}>{propLine(s)}{s.sold_date ? ` · ${String(s.sold_date).slice(0, 7)}` : ''}</Chip>)}
+                                </div>
+                              </div>
+                            )}
+                            {!allSales ? (
+                              <button type="button" onClick={() => setAllSales(true)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-black text-[#8b7355] transition hover:bg-[#C9A24D]/10 dark:text-[#e8c97a]">
+                                View all {salePool.all.length} of your sales <ArrowRight className="h-3 w-3" />
+                              </button>
+                            ) : (
+                              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="overflow-hidden">
+                                <div className="relative mb-2">
+                                  <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                                  <input value={saleSearch} onChange={e => setSaleSearch(e.target.value)} placeholder="Search by street or town" className={`${inputCls} py-2 pl-8 text-xs`} />
+                                </div>
+                                <AnimatePresence mode="wait" initial={false}>
+                                  <motion.div key={`${salePool.key}-${salePage}`} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.18 }} className="flex flex-wrap gap-1.5">
+                                    {salePool.found.slice(salePage * SALES_PAGE, salePage * SALES_PAGE + SALES_PAGE).map(s => <Chip key={s.id} on={saleIds.includes(s.id)} onClick={() => pickSale(s.id)}>{propLine(s)}{s.sold_date ? ` · ${String(s.sold_date).slice(0, 7)}` : ''}</Chip>)}
+                                    {salePool.found.length === 0 && <p className="text-[11px] font-semibold text-gray-400">No sales match &ldquo;{saleSearch}&rdquo;.</p>}
+                                  </motion.div>
+                                </AnimatePresence>
+                                {salePool.found.length > SALES_PAGE && (
+                                  <div className="mt-2 flex items-center justify-between">
+                                    <button type="button" disabled={salePage === 0} onClick={() => setSalePage(p => p - 1)} className="rounded-lg px-2 py-1 text-[11px] font-black text-[#8b7355] transition hover:bg-[#C9A24D]/10 disabled:opacity-30 dark:text-[#e8c97a]">&larr; Newer</button>
+                                    <span className="text-[10px] font-bold text-gray-400">{salePage * SALES_PAGE + 1}-{Math.min(salePool.found.length, salePage * SALES_PAGE + SALES_PAGE)} of {salePool.found.length}</span>
+                                    <button type="button" disabled={(salePage + 1) * SALES_PAGE >= salePool.found.length} onClick={() => setSalePage(p => p + 1)} className="rounded-lg px-2 py-1 text-[11px] font-black text-[#8b7355] transition hover:bg-[#C9A24D]/10 disabled:opacity-30 dark:text-[#e8c97a]">Older &rarr;</button>
+                                  </div>
+                                )}
+                              </motion.div>
+                            )}
+                            {saleIds.length >= MAX_SALES && <p className="mt-1.5 text-[10px] font-bold text-[#8b7355] dark:text-[#e8c97a]">That&apos;s {MAX_SALES} - the most one article uses. Tap a picked sale to swap it.</p>}
                           </>
                         )}
                         {ctx.listings.length > 0 && (
@@ -507,30 +706,65 @@ export default function BlogAiWriter({
                       </Question>
                     )}
                     <Question icon={Clapperboard} title="Tie in one of your videos?" hint="Optional. Pick one and the AI writes a section around it - the video sits right in that section.">
-                      {(ctx.videos || []).filter(v => youtubeIdOf(v.url)).length > 0 && (
-                        <div className="flex gap-2 overflow-x-auto pb-1">
-                          {(ctx.videos || []).filter(v => youtubeIdOf(v.url)).slice(0, 12).map(v => {
-                            const on = video?.url === v.url
-                            return (
-                              <motion.button key={v.id} type="button" whileTap={{ scale: 0.95 }} title={v.title}
-                                onClick={() => { setVideo(on ? null : { url: v.url, title: v.title }); setVideoDraft('') }}
-                                className={`relative w-36 shrink-0 overflow-hidden rounded-xl border-2 text-left transition ${on ? 'border-[#C9A24D] shadow-[0_10px_24px_-14px_rgba(201,162,77,.9)]' : 'border-transparent opacity-80 hover:opacity-100'}`}>
-                                <span className="relative block aspect-video bg-gray-100 dark:bg-white/5">
-                                  <img src={v.image || `https://i.ytimg.com/vi/${youtubeIdOf(v.url)}/mqdefault.jpg`} alt="" loading="lazy" className="h-full w-full object-cover" />
-                                  <Play className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 fill-white text-white drop-shadow" />
-                                  {on && <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#C9A24D] text-[#111827]"><Check className="h-3 w-3" /></span>}
-                                </span>
-                                <span className="block truncate bg-white px-2 py-1.5 text-[11px] font-black text-[#111827] dark:bg-[#151517] dark:text-white">{v.title || (v.kind === 'tour' ? 'House tour' : 'Video')}</span>
-                              </motion.button>
-                            )
-                          })}
-                        </div>
+                      {suggestedVideos.length + otherVideos.length > 0 ? (
+                        <>
+                          {suggestedVideos.length > 0 && <p className="mb-1.5 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]"><Star className="h-3 w-3 fill-current" /> Suggested for this article</p>}
+                          <div className="flex gap-2 overflow-x-auto pb-1">
+                            {[...suggestedVideos, ...otherVideos].slice(0, 12).map(v => {
+                              const on = video?.url === v.url
+                              const fits = suggestedVideos.includes(v)
+                              return (
+                                <motion.button key={v.id} type="button" whileTap={{ scale: 0.95 }} title={v.title}
+                                  onClick={() => { setVideo(on ? null : { url: v.url, title: v.title }); setVideoDraft('') }}
+                                  className={`relative w-36 shrink-0 overflow-hidden rounded-xl border-2 text-left transition ${on ? 'border-[#C9A24D] shadow-[0_10px_24px_-14px_rgba(201,162,77,.9)]' : fits ? 'border-[#C9A24D]/40' : 'border-transparent opacity-80 hover:opacity-100'}`}>
+                                  <span className="relative block aspect-video bg-gray-100 dark:bg-white/5">
+                                    <img src={v.image || `https://i.ytimg.com/vi/${youtubeIdOf(v.url)}/mqdefault.jpg`} alt="" loading="lazy" className="h-full w-full object-cover" />
+                                    <Play className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 fill-white text-white drop-shadow" />
+                                    {fits && !on && <span className="absolute left-1.5 top-1.5 rounded-full bg-[#C9A24D] px-1.5 text-[8px] font-black uppercase leading-[14px] text-[#111827]">Fits</span>}
+                                    {on && <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#C9A24D] text-[#111827]"><Check className="h-3 w-3" /></span>}
+                                  </span>
+                                  <span className="block truncate bg-white px-2 py-1.5 text-[11px] font-black text-[#111827] dark:bg-[#151517] dark:text-white">{v.title || (v.kind === 'tour' ? 'House tour' : 'Video')}</span>
+                                </motion.button>
+                              )
+                            })}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="rounded-xl bg-[#fbfaf7] px-3 py-2 text-[11px] font-semibold text-gray-500 dark:bg-white/[0.03] dark:text-gray-400">
+                          Link your YouTube channel in <Link href="/studio/site" className="font-black text-[#8b7355] underline-offset-2 hover:underline dark:text-[#e8c97a]">Agent Hub → Videos</Link> and your videos show up here, with the ones that fit each article suggested first.
+                        </p>
                       )}
                       <div className="relative mt-2">
                         <Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                         <input value={videoDraft} onChange={e => { const url = e.target.value.trim(); setVideoDraft(e.target.value); setVideo(youtubeIdOf(url) ? { url } : null) }} placeholder="Or paste a YouTube link" className={`${inputCls} pl-9`} />
                       </div>
-                      {video && <p className="mt-1.5 flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400"><Check className="h-3.5 w-3.5" /> The article will have a section for {video.title ? <>&ldquo;{video.title}&rdquo;</> : 'this video'}.</p>}
+                      {pastedVideo && youtubeIdOf(pastedVideo.url) && (
+                        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-2 flex items-center gap-3 rounded-xl border border-[#C9A24D]/40 bg-[#fffaf0] p-2 dark:bg-[#C9A24D]/[0.06]">
+                          <span className="relative block aspect-video w-32 shrink-0 overflow-hidden rounded-lg bg-black">
+                            <img src={`https://i.ytimg.com/vi/${youtubeIdOf(pastedVideo.url)}/mqdefault.jpg`} alt="" className="h-full w-full object-cover" />
+                            <Play className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 fill-white text-white drop-shadow" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-xs font-black text-[#111827] dark:text-white">{pastedVideo.title || 'Your YouTube video'}</span>
+                            <span className="block truncate text-[10px] font-semibold text-gray-500 dark:text-gray-400">{pastedVideo.url.replace(/^https?:\/\/(www\.)?/, '')}</span>
+                          </span>
+                          <button type="button" onClick={() => { setVideo(null); setVideoDraft('') }} aria-label="Remove video" className="shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-black/5 hover:text-[#111827] dark:hover:bg-white/10 dark:hover:text-white"><X className="h-4 w-4" /></button>
+                        </motion.div>
+                      )}
+                      {video && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-2 overflow-hidden">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Where it goes</p>
+                          <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+                            {([['section', 'Its own section', 'The AI writes about it'], ['after_intro', 'After the intro', 'First thing readers see'], ['before_end', 'Near the end', 'Right before you sign off']] as const).map(([id, label, hint]) => (
+                              <button key={id} type="button" onClick={() => setVideoPos(id)} className={`rounded-xl border-2 px-2 py-2 text-left transition ${videoPos === id ? 'border-[#C9A24D] bg-[#C9A24D]/10' : 'border-gray-200 hover:border-gray-300 dark:border-gray-700'}`}>
+                                <span className="block text-[11px] font-black text-[#111827] dark:text-white">{label}</span>
+                                <span className="block text-[10px] font-semibold leading-tight text-gray-400">{hint}</span>
+                              </button>
+                            ))}
+                          </div>
+                          <p className="mt-1.5 flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400"><Check className="h-3.5 w-3.5" /> {video.title ? <>&ldquo;{video.title}&rdquo;</> : 'This video'} goes in the article - you can move it once it&apos;s written.</p>
+                        </motion.div>
+                      )}
                     </Question>
                   </>
                 )}
@@ -566,7 +800,6 @@ export default function BlogAiWriter({
                   </>
                 )}
 
-                {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600 dark:bg-red-900/20 dark:text-red-400">{error}</p>}
               </motion.div>
             </AnimatePresence>
           )}
@@ -597,7 +830,7 @@ export default function BlogAiWriter({
                     <span className="mt-0.5">{i < stage ? <Check className="h-4 w-4 text-emerald-500" /> : i === stage ? <Loader2 className="h-4 w-4 animate-spin text-[#C9A24D]" /> : <span className="block h-4 w-4 rounded-full border-2 border-gray-200 dark:border-gray-700" />}</span>
                     <span className="min-w-0">
                       <span className="block text-[#111827] dark:text-white">{s.label}</span>
-                      {i === stage && <motion.span initial={{ opacity: 0, y: -2 }} animate={{ opacity: 1, y: 0 }} className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{s.detail}</motion.span>}
+                      {i === stage && <motion.span initial={{ opacity: 0, y: -2 }} animate={{ opacity: 1, y: 0 }} className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{s.key === 'gathering' ? gatheringDetail(user?.plan_tier) : s.detail}</motion.span>}
                     </span>
                   </motion.div>
                 ))}
@@ -607,12 +840,32 @@ export default function BlogAiWriter({
                 {[92, 100, 85, 97, 60].map((w, i) => <div key={i} className="h-2.5 animate-pulse rounded bg-gray-100 dark:bg-gray-800" style={{ width: `${w}%`, animationDelay: `${i * 120}ms` }} />)}
               </div>
               <p className="mt-3 text-center text-[11px] font-semibold text-gray-400">Usually 2-4 minutes - it researches and fact-checks before you see it. Uses your monthly AI usage.</p>
-              <p className="mt-1 text-center text-[11px] font-semibold text-gray-400">You can leave this page - it keeps writing and will be waiting in your Blogs list.</p>
+              <div className="mt-4 flex flex-col items-center gap-1.5">
+                <button type="button" onClick={leaveWriting} className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-black text-[#111827] transition hover:-translate-y-0.5 hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.04] dark:text-white">
+                  Keep working - let me know when it&apos;s done <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+                <p className="text-center text-[11px] font-semibold text-gray-400">It keeps writing. Your bell lights up when it&apos;s ready, and it waits in your Blogs list.</p>
+              </div>
             </div>
           )}
 
+          {phase === 'failed' && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 py-4 text-center">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300"><AlertTriangle className="h-7 w-7" /></span>
+              <h3 className="font-serif text-2xl font-black text-[#111827] dark:text-white">The AI couldn&apos;t finish this article</h3>
+              <p className="mx-auto max-w-md rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">{error || 'Something went wrong while it was writing.'}</p>
+              <p className="mx-auto flex max-w-md items-center justify-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                <CloudCheck className="h-4 w-4 shrink-0" /> {blogId ? 'Your article is unchanged and your answers are still here.' : 'Everything you answered is saved as a draft in your Blogs list - nothing was lost.'}
+              </p>
+              {!/charged/i.test(error) && <p className="text-[11px] font-semibold text-gray-400">A try that fails is never charged.</p>}
+            </motion.div>
+          )}
+
           {phase === 'done' && result && (
-            <div className="space-y-4">
+            <AnimatePresence mode="wait" custom={doneDir} initial={false}>
+              <motion.div key={doneStep} initial={{ opacity: 0, x: doneDir * 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: doneDir * -18 }} transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }} className="space-y-4">
+                {doneStep === 0 && (
+                  <>
               <div className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
                 {result.blog.category && <p className="text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">{result.blog.category}</p>}
                 <h3 className="mt-1 font-serif text-2xl font-black leading-tight text-[#111827] dark:text-white">{result.blog.title}</h3>
@@ -627,7 +880,10 @@ export default function BlogAiWriter({
                 )}
                 <p className="mt-3 text-[11px] font-bold text-gray-400">{result.blog.blocks.length} blocks · saved as a draft — nothing is published until you say so.</p>
               </div>
-
+                  </>
+                )}
+                {doneStep === 1 && (
+                  <>
               {/* Its look - picked on the real draft, every style shown live */}
               <div className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
                 <p className="flex items-center gap-1.5 text-xs font-black text-[#111827] dark:text-white"><Sparkles className="h-4 w-4 text-[#C9A24D]" /> Pick its look</p>
@@ -668,13 +924,17 @@ export default function BlogAiWriter({
                 </div>
                 {lookPeek && !canLuxe && <LuxeUpgradePitch feature="Luxe article theme" className="mt-3" tier={luxeBlogUpgrade(user?.plan_tier).tier} tierLabel={luxeBlogUpgrade(user?.plan_tier).label} text={`Luxe gives your articles a cinematic cover, gold light and motion - it's part of ${luxeBlogUpgrade(user?.plan_tier).label}. Your article keeps the look you picked.`} />}
               </div>
-
+                  </>
+                )}
+                {doneStep === 2 && (
+                  <>
               {result.verification && result.verification.checked !== false && <VerifiedPanel review={result.verification} />}
 
-              <BlogFinishStep ctx={ctx} blocks={result.blog.blocks} areas={areas} value={finish} onChange={setFinish} canSignature={hasEmailSignatureAccess(user?.plan_tier)} videoInArticle={result.blog.blocks.some(b => b.type === 'youtube')} />
+              <BlogFinishStep ctx={ctx} blocks={result.blog.blocks} areas={areas} value={finish} onChange={setFinish} canSignature={hasEmailSignatureAccess(user?.plan_tier)} videoInArticle={result.blog.blocks.some(b => b.type === 'youtube')} usedSales={saleIds.length > 0} usedListings={listingIds.length > 0} />
 
               <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#151517]">
-                <NeighborhoodLinksPicker value={linkedAreas} onChange={setLinkedAreas} articleText={articleTextOf(result.blog.blocks)} autoPick />
+                <NeighborhoodLinksPicker value={linkedAreas} articleText={articleTextOf(result.blog.blocks)} autoPick
+                  onChange={slugs => { setLinkedAreas(slugs); api.blogs.updateHubVisibility(result.blog.id, { linked_areas: slugs }) }} />
               </div>
 
               {result.numbers_to_verify.length > 0 ? (
@@ -698,19 +958,15 @@ export default function BlogAiWriter({
                 </details>
               )}
 
-              {result.cover_image_idea && (
-                <div className="rounded-xl border border-dashed border-gray-300 p-3 dark:border-gray-700">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Cover photo idea</p>
-                  <p className="mt-1 text-xs font-semibold text-gray-600 dark:text-gray-300">{result.cover_image_idea}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <button onClick={copyCover} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-[11px] font-black text-gray-500 hover:border-[#C9A24D] dark:border-gray-700">
-                      {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <ClipboardCopy className="h-3 w-3" />} {copied ? 'Copied' : 'Copy'}
-                    </button>
-                    {hasMediaLab && <Link href="/studio/media/new" className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-[11px] font-black text-gray-500 hover:border-[#C9A24D] dark:border-gray-700"><Sparkles className="h-3 w-3" /> Open Media Lab</Link>}
-                  </div>
-                </div>
-              )}
-            </div>
+              <AiCoverMaker blogId={result.blog.id} idea={result.cover_image_idea} coverUrl={result.blog.cover_image_url}
+                onUse={async url => {
+                  const r = await api.blogs.update(result.blog.id, { cover_image_url: url })
+                  if (r.success && r.data) setResult(cur => (cur ? { ...cur, blog: { ...cur.blog, cover_image_url: url } } : cur))
+                }} />
+                  </>
+                )}
+              </motion.div>
+            </AnimatePresence>
           )}
         </div>
 
@@ -721,6 +977,11 @@ export default function BlogAiWriter({
               <ArrowLeft className="h-4 w-4" /> {step === 0 ? 'Cancel' : 'Back'}
             </button>
             <div className="flex items-center gap-3">
+              {savedAt && (
+                <motion.span key={savedAt} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="hidden items-center gap-1 text-[10px] font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-400 sm:inline-flex">
+                  <CloudCheck className="h-3.5 w-3.5" /> {localKey ? 'Saved' : 'Saved as draft'}
+                </motion.span>
+              )}
               {step > 0 && step < STEPS.length - 1 && (
                 <button onClick={() => setStep(STEPS.length - 1)} className="text-xs font-black text-gray-400 hover:text-[#111827] dark:hover:text-white">Skip to style</button>
               )}
@@ -736,12 +997,34 @@ export default function BlogAiWriter({
             </div>
           </div>
         )}
+        {phase === 'failed' && (
+          <div className="grid shrink-0 grid-cols-2 items-center gap-2 border-t border-gray-100 px-4 py-4 dark:border-gray-800 sm:flex sm:justify-between sm:px-6">
+            <button onClick={() => { setError(''); setPhase('interview') }} className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-gray-200 px-3 py-2.5 dark:border-white/10 sm:border-transparent text-sm font-black text-gray-500 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-white/10 dark:hover:text-white">
+              <PenLine className="h-4 w-4" /> Edit answers
+            </button>
+            <button onClick={generate} disabled={!topic.trim()} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-[#C9A24D] px-5 py-2.5 text-sm font-black text-[#111827] shadow-md transition hover:brightness-105 disabled:opacity-40">
+              <RotateCcw className="h-4 w-4" /> Try again
+            </button>
+          </div>
+        )}
         {phase === 'done' && result && (
           <div className="flex shrink-0 items-center justify-between gap-3 border-t border-gray-100 px-6 py-4 dark:border-gray-800">
-            <p className="text-[11px] font-semibold text-gray-400">Always review before publishing. Refine any section with ✦ in the editor.</p>
-            <motion.button whileTap={{ scale: 0.96 }} onClick={finishAndOpen} disabled={finishing} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#111827] px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-black disabled:opacity-60 dark:bg-white dark:text-[#111827]">
-              {finishing ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Finish &amp; open in editor <ArrowRight className="h-4 w-4" />
-            </motion.button>
+            {doneStep > 0 ? (
+              <button onClick={() => goDone(doneStep - 1)} className="inline-flex items-center gap-1.5 text-sm font-black text-gray-400 hover:text-[#111827] dark:hover:text-white">
+                <ArrowLeft className="h-4 w-4" /> Back
+              </button>
+            ) : (
+              <p className="hidden text-[11px] font-semibold text-gray-400 sm:block">Saved as a draft - nothing is published until you say so.</p>
+            )}
+            {doneStep < 2 ? (
+              <motion.button whileTap={{ scale: 0.96 }} onClick={() => goDone(doneStep + 1)} className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#111827] px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-black dark:bg-white dark:text-[#111827]">
+                {doneStep === 0 ? 'Pick its look' : 'Finish up'} <ArrowRight className="h-4 w-4" />
+              </motion.button>
+            ) : (
+              <motion.button whileTap={{ scale: 0.96 }} onClick={finishAndOpen} disabled={finishing} className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#111827] px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-black disabled:opacity-60 dark:bg-white dark:text-[#111827]">
+                {finishing ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Open in editor <ArrowRight className="h-4 w-4" />
+              </motion.button>
+            )}
           </div>
         )}
       </motion.div>

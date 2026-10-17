@@ -12,6 +12,7 @@ import { enqueueSignIn, queueCount, startQueueFlusher } from '@/lib/kioskQueue'
 import OhpLoader from '@/components/brand/OhpLoader'
 import { useQrDataUrl } from '@/lib/qr'
 import { MlsUpdatedText } from '@/components/MLSComplianceFooter'
+import { setQrOwner } from '@/lib/qr'
 
 // Auto-reset delay after a guest submits, before Kiosk mode clears back to a blank form for
 // the next one.
@@ -253,6 +254,8 @@ function PhotoLayer({ photos, photoIndex, withBottomGradient }: { photos: string
 // distinct, purpose-built layouts (not one squeezed into both shapes) and switches between them
 // live via CSS orientation media queries, so physically rotating the tablet just works.
 function SignInSheetDisplay({ property, signInUrl }: { property: Property; signInUrl: string }) {
+  // The QR's centre is the hosting agent's choice (OpenHousePal house, or IDX: their logo / initials).
+  if (property.agentId) setQrOwner(property.agentId)
   const photos = property.photos?.length ? property.photos : (property.ListPictureURL ? [property.ListPictureURL] : [])
   const [photoIndex, setPhotoIndex] = useState(0)
 

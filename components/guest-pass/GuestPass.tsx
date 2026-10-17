@@ -229,7 +229,12 @@ export default function GuestPass({ token, openHouseEventId }: { token: string; 
               <span className="truncate">{street}</span>
             </button>
           </div>
-          <a ref={rightRef} href="#agent" onClick={(e) => { if (!onHome) { e.preventDefault(); goHome() } }} className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+          {/* The agent's photo + name open their Agent Hub (user, 10/17); without a hub it jumps to
+              the agent card at the bottom like before. */}
+          <a ref={rightRef} href={agent.hub_url || '#agent'} target={agent.hub_url ? '_blank' : undefined} rel={agent.hub_url ? 'noopener' : undefined}
+            onClick={(e) => { if (agent.hub_url) return; if (!onHome) { e.preventDefault(); goHome() } }}
+            title={agent.hub_url ? `${agent.name} - open my page` : undefined}
+            className="flex shrink-0 items-center justify-end gap-1.5 transition-opacity hover:opacity-80 sm:gap-2">
             {/* The whole name, always: first name over last name on phones (never cut off). */}
             <span className="text-right leading-[1.1]">
               <span className="block whitespace-nowrap text-[11px] font-black text-[#0B0B0B] dark:text-white">

@@ -1,6 +1,6 @@
 'use client'
 
-import OhpLoader from '@/components/brand/OhpLoader'
+import OhpLoader, { OhpSpinner } from '@/components/brand/OhpLoader'
 
 import { hasEmailSignatureAccess } from '@/lib/navAccess'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -10,7 +10,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { smartBackClick } from '@/lib/navHistory'
 import {
   AlertTriangle, ArrowLeft, ArrowUpDown, Bath, Bed, Building2, Calculator, Calendar, Car, Check, ChevronLeft,
-  ChevronRight, Copy, DollarSign, Download, Droplets, GraduationCap, GripVertical, Home, LandPlot, Layers,
+  ChevronRight, ChevronsLeft, ChevronsRight, Copy, DollarSign, Download, Droplets, GraduationCap, GripVertical, Home, LandPlot, Layers,
   Image as ImageIcon, Loader2, MapPin, Moon, Plus, RefreshCw, Ruler, Scale, Search, Share2, ShieldAlert, Sparkles, Sun, Trash2, Waves, X,
 } from 'lucide-react'
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer'
@@ -411,16 +411,17 @@ function CmaWorkspacePageInner() {
     <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]">
       {/* Nice arrival instead of the whole workspace just popping in - same entrance keyframe the
           step content below already reuses on every step change (see key={step} further down). */}
-      <div className="mx-auto max-w-6xl animate-step-in px-5 py-8">
+      <div className="mx-auto max-w-6xl animate-step-in px-4 py-4 sm:px-5 sm:py-8">
         {/* Row 1: back arrow + subject/client, and on mobile the status pill sits top-right here.
             On desktop the step progress stretches inline in this same row, ahead of the status pill. */}
-        <div className="flex flex-wrap items-center gap-4">
+        {/* Phones (user, 10/17): one line - back, address, and the status tag at the far right. */}
+        <div className="flex flex-nowrap items-center gap-2.5 sm:gap-4 lg:flex-wrap">
           <Link href="/studio/cma" onClick={smartBackClick(router)} title="Back" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-400 transition hover:border-[#C9A24D] hover:text-[#111827] dark:border-gray-700 dark:text-gray-500 dark:hover:text-white">
             <ArrowLeft className="h-4 w-4" />
           </Link>
 
-          <div className="flex min-w-0 items-center gap-2.5 lg:max-w-[260px] xl:max-w-[320px]">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#C9A24D]/10 text-[#C9A24D]"><Calculator className="h-4.5 w-4.5" /></div>
+          <div className="flex min-w-0 flex-1 items-center gap-2.5 lg:max-w-[260px] lg:flex-none xl:max-w-[320px]">
+            <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#C9A24D]/10 text-[#C9A24D] sm:flex"><Calculator className="h-4.5 w-4.5" /></div>
             <div className="min-w-0">
               <h1 className="truncate font-serif text-lg font-black leading-tight text-[#111827] dark:text-white sm:text-xl">
                 {report.subject?.street_address || 'New CMA'}
@@ -447,28 +448,28 @@ function CmaWorkspacePageInner() {
                 the bar's own resize-driven width measurement, causing a visible wobble right as it
                 was supposed to smoothly advance. Reserving the space at all times keeps the row's
                 width - and the bar's measurement - stable through a save. */}
-            <span className={`flex items-center gap-1.5 text-xs font-bold ${saving ? 'text-gray-400' : savedFlash ? 'text-emerald-600 dark:text-emerald-400' : 'invisible'}`}>
+            <span className={`items-center gap-1.5 text-xs font-bold ${saving || savedFlash ? 'flex' : 'hidden lg:flex'} ${saving ? 'text-gray-400' : savedFlash ? 'text-emerald-600 dark:text-emerald-400' : 'invisible'}`}>
               {saving ? <><Loader2 className="h-3 w-3 animate-spin" /> Saving…</> : <><Check className="h-3 w-3" /> Saved</>}
             </span>
-            <span className={`inline-flex h-9 items-center justify-center whitespace-nowrap rounded-xl px-3.5 text-[10px] font-black uppercase leading-none tracking-wide ${CMA_STATUS_STYLES[report.status]}`}>{report.status.toLowerCase()}</span>
+            <span className={`inline-flex h-7 items-center justify-center whitespace-nowrap rounded-lg px-2.5 text-[10px] font-black uppercase leading-none tracking-wide sm:h-9 sm:rounded-xl sm:px-3.5 ${CMA_STATUS_STYLES[report.status]}`}>{report.status.toLowerCase()}</span>
           </div>
         </div>
 
         {/* Row 2: step progress on mobile - full width, with labels, own line */}
-        <CmaStepper step={step} setStep={setStep} completed={report.status === 'READY' || report.status === 'SHARED'} className="mt-5 flex lg:hidden" stretch showLabels />
+        <CmaStepper step={step} setStep={setStep} completed={report.status === 'READY' || report.status === 'SHARED'} className="mt-3 flex sm:mt-5 lg:hidden" stretch showLabels />
 
         {/* key={step} forces a fresh mount on every step switch so animate-step-in always
             replays, instead of relying on the conditional children below to happen to unmount/
             remount on their own. Analysis is the exception - it renders in its own always-mounted
             container below so a running AI generation isn't torn down when the agent tabs away. */}
-        <div key={step} className={`mt-6 animate-step-in ${step === 'analysis' ? 'hidden' : ''}`}>
+        <div key={step} className={`mt-4 animate-step-in sm:mt-6 ${step === 'analysis' ? 'hidden' : ''}`}>
           {step === 'subject' && <SubjectStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('comps')} />}
           {step === 'comps' && <CompsStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('analysis')} />}
           {step === 'pricing' && <PricingStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('summary')} />}
           {step === 'summary' && <SummaryStep report={report} onSave={save} onReportUpdated={applyReport} onJump={setStep} onDeleted={() => router.push('/studio/cma')} />}
         </div>
         {(analysisMounted || step === 'analysis') && (
-          <div className={step === 'analysis' ? 'mt-6 animate-step-in' : 'hidden'}>
+          <div className={step === 'analysis' ? 'mt-4 animate-step-in sm:mt-6' : 'hidden'}>
             <AnalysisStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('pricing')} />
           </div>
         )}
@@ -1130,13 +1131,13 @@ function chipValueTextClass(value: string | number, compact?: boolean): string {
 // 2-column span, independent of dynamicSpan/chipSpan) instead of silently picking one. Every
 // other chip on this page never sets `secondary`, so this is a strict opt-in with no effect on
 // any other stat type.
-function CmaFactChip({ icon: Icon, value, label, compact, dynamicSpan, secondary }: {
+function CmaFactChip({ icon: Icon, value, label, compact, dynamicSpan, secondary, className = '' }: {
   icon: any, value: string | number, label: string, compact?: boolean, dynamicSpan?: boolean,
-  secondary?: { value: string | number, label: string },
+  secondary?: { value: string | number, label: string }, className?: string,
 }) {
   return (
     <div
-      className={`flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white text-center dark:border-gray-800 dark:bg-[#0B0B0B] ${compact ? 'gap-0.5 px-0.5 py-1.5' : 'gap-1 py-2'}`}
+      className={`flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white text-center dark:border-gray-800 dark:bg-[#0B0B0B] ${compact ? 'gap-0.5 px-0.5 py-1.5' : 'gap-1 py-2'} ${className}`}
       style={secondary ? { gridColumn: 'span 2 / span 2' } : dynamicSpan ? { gridColumn: `span ${chipSpan(value)} / span ${chipSpan(value)}` } : undefined}
     >
       <Icon className={compact ? 'h-3 w-3 text-[#C9A24D]' : 'h-3.5 w-3.5 text-[#C9A24D]'} />
@@ -1607,9 +1608,10 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-[#151517]">
-        <button type="button" onClick={() => setPopup({ type: 'subject' })} className="flex min-w-0 items-center gap-3 text-left">
-          <div className="h-14 w-16 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800">
+      {/* Phones (user, 10/17): the home on one line, then results / added / Refine as one even row. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white p-3 dark:border-gray-800 dark:bg-[#151517] sm:gap-4 sm:p-4">
+        <button type="button" onClick={() => setPopup({ type: 'subject' })} className="flex w-full min-w-0 items-center gap-3 text-left sm:w-auto">
+          <div className="h-12 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800 sm:h-14 sm:w-16">
             {subjectPhotos.length > 0 ? <img src={normalizeImageUrl(subjectPhotos[0])} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Home className="h-5 w-5 text-gray-300" /></div>}
           </div>
           <div className="min-w-0">
@@ -1617,17 +1619,17 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
             <p className="text-xs font-semibold text-gray-400">{[subject.city, subject.state].filter(Boolean).join(', ') || '—'} · {radius} mi radius</p>
           </div>
         </button>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex items-center rounded-2xl border border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-[#0B0B0B]">
-            <span className="mr-2 text-[10px] font-black uppercase tracking-wide text-gray-400">Results</span>
-            <span className="text-lg font-black text-[#111827] dark:text-white">{results.length}</span>
+        <div className="grid w-full grid-cols-3 items-center gap-2 sm:flex sm:w-auto sm:flex-wrap">
+          <div className="inline-flex items-center justify-center rounded-2xl border border-gray-200 bg-white px-2 py-1.5 dark:border-gray-700 dark:bg-[#0B0B0B] sm:px-4 sm:py-2">
+            <span className="mr-1.5 text-[9px] font-black uppercase tracking-wide text-gray-400 sm:mr-2 sm:text-[10px]">Results</span>
+            <span className="text-base font-black text-[#111827] dark:text-white sm:text-lg">{results.length}</span>
           </div>
-          <div className="inline-flex items-center rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-2 dark:border-emerald-900/30 dark:bg-emerald-900/10">
-            <span className="mr-2 text-[10px] font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Added</span>
-            <span className="text-lg font-black text-emerald-700 dark:text-emerald-300">{comparables.length}</span>
+          <div className="inline-flex items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50 px-2 py-1.5 dark:border-emerald-900/30 dark:bg-emerald-900/10 sm:px-4 sm:py-2">
+            <span className="mr-1.5 text-[9px] font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-400 sm:mr-2 sm:text-[10px]">Added</span>
+            <span className="text-base font-black text-emerald-700 dark:text-emerald-300 sm:text-lg">{comparables.length}</span>
           </div>
-          <button type="button" onClick={() => setRefineOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-4 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
-            <Search className="h-3.5 w-3.5" /> Refine Your Search
+          <button type="button" onClick={() => setRefineOpen(true)} className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#111827] px-3 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827] sm:gap-2 sm:px-4">
+            <Search className="h-3.5 w-3.5" /> <span className="sm:hidden">Refine</span><span className="hidden sm:inline">Refine Your Search</span>
           </button>
         </div>
       </div>
@@ -1662,13 +1664,13 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
             // step is what actually stops the grid from flashing a different result set on every
             // step before it finally settles.
             <div className="mt-4 flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-100 bg-white py-16 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
-              <Loader2 className="h-7 w-7 animate-spin text-[#C9A24D]" />
+              <OhpSpinner size={36} />
               <p className="text-sm font-black text-gray-600 dark:text-gray-300">Finding the best comparables...</p>
               <p className="text-xs font-semibold text-gray-400">Widening the search until there are enough strong matches to work with.</p>
             </div>
           ) : searching ? (
             <div className="mt-4 flex items-center justify-center gap-3 rounded-2xl border border-dashed border-gray-200 py-12 text-sm font-bold text-gray-400 dark:border-gray-800">
-              <Loader2 className="h-5 w-5 animate-spin text-[#C9A24D]" /> Searching...
+              <OhpSpinner size={24} label="Searching" />
             </div>
           ) : statuses.length === 0 ? (
             <div className="mt-4 rounded-2xl border border-dashed border-gray-200 p-10 text-center dark:border-gray-800">
@@ -1772,6 +1774,8 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
             open={!!popup}
             onClose={() => setPopup(null)}
             data={popupProps}
+            compAdded={addedKeys.has(popup.candidate.listing_key)}
+            onToggleComp={() => toggleAdd(popup.candidate)}
             onPrev={i > 0 ? () => setPopup({ type: 'candidate', candidate: sortedResults[i - 1] }) : undefined}
             onNext={i >= 0 && i < sortedResults.length - 1 ? () => setPopup({ type: 'candidate', candidate: sortedResults[i + 1] }) : undefined}
           />
@@ -2104,7 +2108,11 @@ function PropertyLocationMap({ lat, lng, label, road }: { lat: number, lng: numb
 // Same pop-open, click-to-zoom pattern as the Showcases property detail view
 // (components/PropertyDetailsModal.tsx) - photo + filmstrip picture-selector below it, then the
 // full fact set - a lighter version scoped to what a CMA comp actually has.
-function PropertyPopupModal({ open, onClose, data, onPrev, onNext }: { open: boolean, onClose: () => void, data: PropertyPopupData | null, onPrev?: () => void, onNext?: () => void }) {
+function PropertyPopupModal({ open, onClose, data, onPrev, onNext, compAdded, onToggleComp }: {
+  open: boolean, onClose: () => void, data: PropertyPopupData | null, onPrev?: () => void, onNext?: () => void
+  /** Comps step: whether this home is one of the report's comps, and the add / remove toggle. */
+  compAdded?: boolean, onToggleComp?: () => void
+}) {
   const [index, setIndex] = useState(0)
   // Toggled by the mini map button next to the photo counter - swaps the photo area for an
   // interactive Google map of THIS property's location, stays open until toggled back.
@@ -2142,20 +2150,24 @@ function PropertyPopupModal({ open, onClose, data, onPrev, onNext }: { open: boo
         <button
           type="button"
           onClick={e => { e.stopPropagation(); onPrev() }}
-          aria-label="Previous property"
-          className="absolute left-1 top-1/2 z-[101] -translate-y-1/2 rounded-full bg-white/15 p-2 text-white transition hover:bg-white/30 sm:left-4 sm:p-3"
+          aria-label="Previous home"
+          title="Previous home"
+          className="absolute left-1 top-1/2 z-[101] flex -translate-y-1/2 flex-col items-center gap-0.5 rounded-2xl bg-[#C9A24D] px-1.5 py-2.5 text-[#111827] shadow-xl shadow-black/40 ring-2 ring-white/70 transition hover:-translate-x-0.5 hover:bg-[#e0b85f] sm:left-4 sm:px-2.5 sm:py-3 lg:left-[calc(50%-24rem-5rem)]"
         >
-          <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+          <ChevronsLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+          <span className="hidden text-[9px] font-black uppercase tracking-wide sm:block">Prev home</span>
         </button>
       )}
       {onNext && (
         <button
           type="button"
           onClick={e => { e.stopPropagation(); onNext() }}
-          aria-label="Next property"
-          className="absolute right-1 top-1/2 z-[101] -translate-y-1/2 rounded-full bg-white/15 p-2 text-white transition hover:bg-white/30 sm:right-4 sm:p-3"
+          aria-label="Next home"
+          title="Next home"
+          className="absolute right-1 top-1/2 z-[101] flex -translate-y-1/2 flex-col items-center gap-0.5 rounded-2xl bg-[#C9A24D] px-1.5 py-2.5 text-[#111827] shadow-xl shadow-black/40 ring-2 ring-white/70 transition hover:translate-x-0.5 hover:bg-[#e0b85f] sm:right-4 sm:px-2.5 sm:py-3 lg:right-[calc(50%-24rem-5rem)]"
         >
-          <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+          <ChevronsRight className="h-5 w-5 sm:h-6 sm:w-6" />
+          <span className="hidden text-[9px] font-black uppercase tracking-wide sm:block">Next home</span>
         </button>
       )}
       <div className="relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-[#151517]" onClick={e => e.stopPropagation()}>
@@ -2200,16 +2212,27 @@ function PropertyPopupModal({ open, onClose, data, onPrev, onNext }: { open: boo
                 <button onClick={() => setIndex(i => (i + 1) % pics.length)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white hover:bg-black/60"><ChevronRight className="h-5 w-5" /></button>
               </>
             )}
-            {/* bottom-right cluster: labelled open-map toggle, then the photo counter */}
+            {/* Comps step: is it one of the report's comps - and add / remove it right here. */}
+            {onToggleComp && (
+              <button
+                type="button"
+                onClick={onToggleComp}
+                className={`absolute bottom-3 left-1/2 z-[2] inline-flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-wide shadow-lg transition active:scale-95 ${compAdded ? 'bg-emerald-600 text-white ring-2 ring-white/80' : 'bg-white text-[#111827] ring-2 ring-[#C9A24D] hover:bg-[#fffaf0]'}`}
+              >
+                {compAdded ? <><Check className="h-3.5 w-3.5" strokeWidth={3} /> In your comps</> : <><Plus className="h-3.5 w-3.5" strokeWidth={3} /> Add as comp</>}
+              </button>
+            )}
+            {/* bottom-right cluster: the open-map BUTTON (white, so it reads as tappable), then the
+                photo counter (dark, just information) */}
             <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
               {hasGeo && (
                 <button
                   type="button"
                   onClick={() => setShowMap(v => !v)}
                   aria-label={showMap ? 'Back to photos' : 'Open location map'}
-                  className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white hover:bg-black/80"
+                  className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-[#111827] shadow-md ring-1 ring-black/10 transition hover:-translate-y-0.5 hover:bg-[#fffaf0] active:scale-95"
                 >
-                  {showMap ? <><ImageIcon className="h-3 w-3" /> Photos</> : <><MapPin className="h-3 w-3" /> Map</>}
+                  {showMap ? <><ImageIcon className="h-3.5 w-3.5 text-[#C9A24D]" /> Photos</> : <><MapPin className="h-3.5 w-3.5 text-[#C9A24D]" /> Map</>}
                 </button>
               )}
               {!showMap && pics.length > 1 && (
@@ -2222,7 +2245,7 @@ function PropertyPopupModal({ open, onClose, data, onPrev, onNext }: { open: boo
               part of the same scroll flow as the details below it. */}
           {!showMap && pics.length > 1 && (
             <div className="flex items-center gap-2 bg-white p-2.5 dark:bg-[#151517]">
-              <button onClick={() => setIndex(i => (i - 1 + pics.length) % pics.length)} className="shrink-0 rounded-full border border-gray-200 bg-white p-1.5 text-gray-500 hover:border-[#C9A24D] hover:text-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B]"><ChevronLeft className="h-3.5 w-3.5" /></button>
+              <button onClick={() => setIndex(i => (i - 1 + pics.length) % pics.length)} className="hidden shrink-0 rounded-full border border-gray-200 bg-white p-1.5 text-gray-500 hover:border-[#C9A24D] hover:text-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] sm:block"><ChevronLeft className="h-3.5 w-3.5" /></button>
               <div className="scrollbar-hide flex flex-1 gap-1.5 overflow-x-auto">
                 {pics.map((p, i) => (
                   <button
@@ -2234,7 +2257,7 @@ function PropertyPopupModal({ open, onClose, data, onPrev, onNext }: { open: boo
                   </button>
                 ))}
               </div>
-              <button onClick={() => setIndex(i => (i + 1) % pics.length)} className="shrink-0 rounded-full border border-gray-200 bg-white p-1.5 text-gray-500 hover:border-[#C9A24D] hover:text-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B]"><ChevronRight className="h-3.5 w-3.5" /></button>
+              <button onClick={() => setIndex(i => (i + 1) % pics.length)} className="hidden shrink-0 rounded-full border border-gray-200 bg-white p-1.5 text-gray-500 hover:border-[#C9A24D] hover:text-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] sm:block"><ChevronRight className="h-3.5 w-3.5" /></button>
             </div>
           )}
           <div className="p-5 sm:p-6">
@@ -2266,11 +2289,12 @@ function PropertyPopupModal({ open, onClose, data, onPrev, onNext }: { open: boo
               for its Basement/School tiles, just at a smaller `compact` size. */}
           <div className="mt-4 grid grid-flow-row-dense grid-cols-3 gap-2 sm:grid-cols-4">
             {data.facts.map((f, i) => (
-              <CmaFactChip key={i} icon={f.icon} value={f.value} label={f.label} dynamicSpan={!f.fixedSpan} secondary={f.secondary} />
+              <CmaFactChip key={i} icon={f.icon} value={f.value} label={f.label} dynamicSpan={!f.fixedSpan} secondary={f.secondary}
+                className={f.label === 'Basement' ? 'max-sm:!col-span-full' : ''} />
             ))}
             {data.schoolDistrict && (
               <div
-                className="relative flex flex-col items-center justify-center gap-1 rounded-xl border border-gray-200 bg-white py-2 text-center dark:border-gray-800 dark:bg-[#0B0B0B]"
+                className="relative flex flex-col items-center justify-center gap-1 rounded-xl border border-gray-200 bg-white py-2 text-center dark:border-gray-800 dark:bg-[#0B0B0B] max-sm:!col-span-full"
                 style={{ gridColumn: `span ${chipSpan(data.schoolDistrict)} / span ${chipSpan(data.schoolDistrict)}` }}
               >
                 {data.sameSchool && (
@@ -2618,16 +2642,48 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
     return completed
   }
 
+  // The run happens on the server in the background (user, 10/17): this asks it to start, then
+  // checks every few seconds until it's done - so a dropped connection, a locked phone or leaving
+  // the page can never turn a finished report into "Network error". If even the start request is
+  // lost, the report itself says whether it's running.
+  const [genError, setGenError] = useState<string | null>(null)
+  const [aiEstimate, setAiEstimate] = useState<{ percent: number | null; max_percent: number | null } | null>(null)
+  useEffect(() => { api.cma.aiEstimate().then(r => { if (r.success && r.data) setAiEstimate(r.data) }) }, [])
+  const pollUntilDone = () => {
+    if (resumePollRef.current) clearInterval(resumePollRef.current)
+    let misses = 0
+    resumePollRef.current = setInterval(async () => {
+      const polled = await api.cma.get(report.id)
+      if (!polled.success || !polled.data) { if (++misses > 45) finish(null, 'We lost touch with the server - refresh to see if it finished.'); return }
+      misses = 0
+      if (polled.data.generation_status === 'generating') return
+      finish(polled.data, polled.data.generation_status === 'complete' ? null : (polled.data.generation_error || "The AI analysis didn't finish - please try again."))
+    }, 4000)
+    const finish = (data: CmaReport | null, error: string | null) => {
+      if (resumePollRef.current) { clearInterval(resumePollRef.current); resumePollRef.current = null }
+      stopProgressSimulation()
+      if (data && !error) { applyGeneratedReport(data); setGenError(null) }
+      else {
+        if (data) onReportUpdated(data)
+        setGenError(error)
+        showToast(error || "The AI analysis didn't finish - please try again.", 'error')
+      }
+    }
+  }
   const handleGenerate = async () => {
     setGenerating(true)
+    setGenError(null)
+    setJustGenerated(false)
     startProgressSimulation(Date.now())
-    const response = await api.cma.generateAiAnalysis(report.id, { force_regenerate: false, include_map_images: true })
-    stopProgressSimulation()
-    if (response.success && response.data) {
-      applyGeneratedReport(response.data)
-    } else {
-      showToast(response.error || 'Could not generate the AI analysis.', 'error')
+    const response = await api.cma.generateAiAnalysis(report.id, { force_regenerate: false, include_map_images: true, background: true })
+    if (!response.success && (response.status === 429 || response.status === 403 || response.status === 404)) {
+      stopProgressSimulation()
+      setGenError(response.error || 'Could not start the AI analysis.')
+      showToast(response.error || 'Could not start the AI analysis.', 'error')
+      return
     }
+    // Started (or the answer got lost on the way back) - either way, follow the report itself.
+    pollUntilDone()
   }
 
   // The generation request keeps running server-side regardless of whether this page is open -
@@ -2641,20 +2697,14 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
     setGenerating(true)
     const startedAtMs = report.generation_started_at ? new Date(report.generation_started_at).getTime() : Date.now()
     startProgressSimulation(startedAtMs)
-    resumePollRef.current = setInterval(async () => {
-      const polled = await api.cma.get(report.id)
-      if (!polled.success || !polled.data || polled.data.generation_status === 'generating') return
-      if (resumePollRef.current) { clearInterval(resumePollRef.current); resumePollRef.current = null }
-      stopProgressSimulation()
-      if (polled.data.generation_status === 'complete') {
-        applyGeneratedReport(polled.data)
-      } else {
-        onReportUpdated(polled.data)
-        showToast("The AI analysis didn't finish - click Create AI Analysis to try again.", 'error')
-      }
-    }, 4000)
+    pollUntilDone()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [report.id, report.generation_status])
+  // Came back to a run that failed while away: say why on the button's card.
+  useEffect(() => {
+    if (report.generation_status === 'failed' && report.generation_error && !generating) setGenError(report.generation_error)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [report.id])
 
   // Re-runs the deterministic evidence/confidence/value-drivers pipeline plus one lightweight
   // (no-photo) AI call, so the value/methodology stay consistent with any strength reclassification
@@ -2820,7 +2870,9 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
               justify-between. sm:flex-nowrap + the heading block's min-w-0 / clamped description
               keep it on ONE row - if space gets tight the description ellipsizes instead of the
               meter + button wrapping to a second line. */}
-          <div className="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-3 sm:flex-nowrap">
+          {/* Phones (user, 10/17): title + what it does, then the usage meter, then one full-width
+              button with what this run will use under it. Wide screens: one row, like before. */}
+          <div className="relative grid grid-cols-1 gap-3 sm:flex sm:flex-nowrap sm:items-center sm:justify-between sm:gap-x-4">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#C9A24D] shadow-lg shadow-[#C9A24D]/40">
                 <Sparkles className="h-5 w-5 text-white" />
@@ -2830,16 +2882,28 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
                 <p className="text-xs font-semibold leading-snug text-gray-500 dark:text-gray-400">Reads every comp's photos and data, rates strength/quality, and proposes a value estimate.</p>
               </div>
             </div>
-            <MonthlyAiUsageMeter variant="inline" compact className="shrink-0" refreshKey={generating ? 'gen' : 'idle'} />
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e0b85f] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#C9A24D]/40 transition hover:shadow-xl hover:shadow-[#C9A24D]/50 disabled:opacity-70"
-            >
-              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {generating ? 'Analyzing…' : 'Create AI Analysis'}
-            </button>
+            <MonthlyAiUsageMeter variant="inline" compact className="w-full shrink-0 sm:w-auto" refreshKey={generating ? 'gen' : 'idle'} />
+            <div className="flex shrink-0 flex-col items-stretch gap-1 sm:items-end">
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e0b85f] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#C9A24D]/40 transition hover:shadow-xl hover:shadow-[#C9A24D]/50 disabled:opacity-70 sm:w-auto"
+              >
+                {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {generating ? 'Analyzing…' : genError ? 'Try again' : 'Create AI Analysis'}
+              </button>
+              {!generating && aiEstimate?.percent != null && (
+                <span className="text-center text-[10.5px] font-bold text-[#8b7355] dark:text-[#d7b974] sm:text-right">
+                  Uses about {aiEstimate.percent < 1 ? '<1' : Math.round(aiEstimate.percent)}% of your monthly AI{aiEstimate.max_percent != null && aiEstimate.max_percent > (aiEstimate.percent || 0) + 0.5 ? ` (never over ${Math.round(aiEstimate.max_percent)}%)` : ''}
+                </span>
+              )}
+            </div>
           </div>
+          {genError && !generating && (
+            <p className="relative mt-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {genError}
+            </p>
+          )}
           {generating && (
             <div className="relative mt-4">
               <div
@@ -3151,20 +3215,20 @@ function SideBySidePanel({ subject, comp, index, total, onUpdate, onUpdateStreng
       {/* Grid instead of a two-way flex split, so the Prev/1-of-N/Next comp nav lands truly
           centered in the row (equal 1fr side columns) instead of stuck to the left next to the
           title with nothing balancing it on the right. */}
-      <div className="grid grid-cols-1 items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800 sm:grid-cols-[1fr_auto_1fr]">
-        <p className="truncate text-lg font-black text-[#111827] dark:text-white">Comparing Subject vs. Comp #{index + 1}</p>
-        <div className="flex items-center justify-center gap-1">
+      <div className="grid grid-cols-[auto_1fr] items-center gap-2 border-b border-gray-100 px-3 py-3 dark:border-gray-800 sm:grid-cols-[1fr_auto_1fr] sm:px-4">
+        <p className="col-span-2 truncate text-base font-black text-[#111827] dark:text-white sm:col-span-1 sm:text-lg">Comparing Subject vs. Comp #{index + 1}</p>
+        <div className="flex items-center justify-start gap-1 sm:justify-center">
           <button onClick={onPrev} disabled={index <= 0} className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:text-[#111827] disabled:opacity-30 dark:border-gray-700 dark:hover:text-white"><ChevronLeft className="h-4 w-4" /></button>
           <span className="px-1 text-[10px] font-black text-gray-400">{index + 1} / {total}</span>
           <button onClick={onNext} disabled={index >= total - 1} className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:text-[#111827] disabled:opacity-30 dark:border-gray-700 dark:hover:text-white"><ChevronRight className="h-4 w-4" /></button>
         </div>
-        <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
+        <div className="flex flex-nowrap items-center justify-end gap-1.5 sm:flex-wrap sm:gap-2">
           {(compHasGeo || subjectHasGeo) && (
             <button
               type="button"
               onClick={() => setShowMaps(v => !v)}
               title={showMaps ? 'Back to photos on both panes' : 'Swap both panes to a map — stays on as you flip through comps so you can compare locations'}
-              className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-black uppercase tracking-wide transition ${
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-2 text-xs font-black uppercase tracking-wide transition sm:px-3.5 ${
                 showMaps
                   ? 'border-[#C9A24D] bg-[#C9A24D] text-white shadow-sm shadow-[#C9A24D]/30'
                   : 'border-gray-200 bg-white text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:bg-transparent dark:text-gray-400 dark:hover:text-[#d7b974]'
@@ -3173,13 +3237,61 @@ function SideBySidePanel({ subject, comp, index, total, onUpdate, onUpdateStreng
               {showMaps ? <><ImageIcon className="h-3.5 w-3.5" /> Photos</> : <><MapPin className="h-3.5 w-3.5" /> Maps</>}
             </button>
           )}
-          <button onClick={onContinueClick} className="inline-flex items-center gap-1.5 rounded-xl bg-[#111827] px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
-            Continue to Pricing <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+          <button onClick={onContinueClick} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#111827] px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827] sm:px-4">
+            <span className="sm:hidden">Pricing</span><span className="hidden sm:inline">Continue to Pricing</span> <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 divide-y divide-gray-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 dark:divide-gray-800">
+      {/* Phones (user, 10/17): one head-to-head instead of two tall stacked panes - the two photos
+          side by side, then every fact in one table with the subject and this comp next to each
+          other, so the differences read at a glance without scrolling between them. */}
+      <div className="sm:hidden">
+        <div className="grid grid-cols-2 gap-2 p-3">
+          {[{ who: 'Subject', addr: subject.street_address, geo: subjectHasGeo, lat: subject.latitude, lng: subject.longitude, photos: subject.photos, fallback: subject.photo_url, key: 'subject', open: onOpenSubjectDetails, onIdx: onSubjectIndexChange, pos: subjectPhotoPos },
+            { who: `Comp #${index + 1}`, addr: comp.street_address, geo: compHasGeo, lat: comp.latitude, lng: comp.longitude, photos: comp.photos, fallback: comp.photo_url, key: comp.id, open: onOpenCompDetails, onIdx: onCompIndexChange, pos: compPhotoPos }].map(p => (
+            <div key={p.who} className="min-w-0">
+              <p className="mb-1 flex items-baseline justify-between gap-1 text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">
+                <span className="truncate">{p.who}</span>
+                {!showMaps && p.pos.total > 1 && <span className="shrink-0 font-semibold text-gray-400">{p.pos.index + 1}/{p.pos.total}</span>}
+              </p>
+              <div className="overflow-hidden rounded-xl [&_img]:!object-cover">
+                {showMaps && p.geo ? (
+                  <PaneMap lat={p.lat as number} lng={p.lng as number} label={p.addr || p.who} />
+                ) : (
+                  <PropertyPhotoCarousel resetKey={`m-${p.key}`} photos={p.photos} fallbackUrl={p.fallback} onIndexChange={p.onIdx} onPhotoClick={p.open} />
+                )}
+              </div>
+              <p className="mt-1 truncate text-[11px] font-black text-[#111827] dark:text-white">{p.addr}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mx-3 mb-3 overflow-hidden rounded-xl border border-gray-100 dark:border-gray-800">
+          <div className="grid grid-cols-[1fr_1fr_1fr] bg-[#fbfaf7] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-gray-400 dark:bg-white/[0.03]">
+            <span></span><span className="text-right">Subject</span><span className="text-right">Comp #{index + 1}</span>
+          </div>
+          {([
+            ['Price', formatMoney(subject.list_price, { compact: true }), formatMoney(comp.sale_price ?? comp.list_price, { compact: true })],
+            ['$ / Sq ft', subjectPsf ? `$${Math.round(subjectPsf)}` : '—', psf ? `$${Math.round(psf)}` : '—'],
+            ['Sq ft', subject.sqft ? subject.sqft.toLocaleString() : '—', comp.sqft ? comp.sqft.toLocaleString() : '—'],
+            ['Beds', subject.beds ?? '—', comp.beds ?? '—'],
+            ['Baths', subject.baths ?? '—', comp.baths ?? '—'],
+            ['Acres', subject.lot_size ? sqftToAcres(subject.lot_size) : '—', comp.lot_size ? sqftToAcres(comp.lot_size) : '—'],
+            ['Built', subject.year_built ?? '—', comp.year_built ?? '—'],
+            ['Basement', basementFactValue(subject.basement, subject.below_grade_finished_area, subject.sqft, subject.above_grade_finished_area) || '—', basementFactValue(comp.basement, comp.below_grade_finished_area, comp.sqft, comp.above_grade_finished_area) || '—'],
+            ['School', subject.school_district || '—', comp.school_district || '—'],
+            ['Days on market', subject.days_on_market ?? '—', comp.days_on_market ?? '—'],
+          ] as [string, React.ReactNode, React.ReactNode][]).map(([label, a, b], i) => (
+            <div key={label} className={`grid grid-cols-[1fr_1fr_1fr] items-center gap-2 px-3 py-2 text-[12.5px] ${i % 2 ? 'bg-[#fbfaf7]/60 dark:bg-white/[0.015]' : ''}`}>
+              <span className="text-[10px] font-black uppercase tracking-wide text-gray-400">{label}</span>
+              <span className="min-w-0 truncate text-right font-black text-[#111827] dark:text-white" title={String(a)}>{a}</span>
+              <span className={`min-w-0 truncate text-right font-black ${String(a) !== String(b) ? 'text-[#8b6a2b] dark:text-[#e8c97a]' : 'text-[#111827] dark:text-white'}`} title={String(b)}>{b}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="hidden grid-cols-1 divide-y divide-gray-100 sm:grid sm:grid-cols-2 sm:divide-x sm:divide-y-0 dark:divide-gray-800">
         <div className="p-4">
           <div className="mb-2 flex items-baseline justify-between gap-2">
             <p className="min-w-0 truncate text-sm font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">
@@ -3809,7 +3921,7 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
   const [sharing, setSharing] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [readyState, setReadyState] = useState<'idle' | 'saving' | 'done'>('idle')
+  const [readyState, setReadyState] = useState<'idle' | 'saving' | 'done'>(() => (report.status === 'READY' || report.status === 'SHARED' ? 'done' : 'idle'))
 
   useEffect(() => {
     Promise.allSettled([api.studio.getBrandKit(), api.agentHub.getMine()]).then(([brandResult, hubResult]) => {
@@ -4047,52 +4159,54 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
 
       <SectionCard title="Complete & Send" subtitle="Preview the PDF, copy the client link, or open the live CMA in a new tab.">
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Publish cluster - the actual "finish and send" actions, grouped in one pill
-              so they read as one feature instead of four unrelated buttons. */}
-          <div className="flex flex-wrap items-center gap-1 rounded-xl border border-[#C9A24D]/25 bg-[#C9A24D]/[0.06] p-1">
+          {/* Mark Ready is THE action here (user, 10/17 - it blended in with PDF): its own big gold
+              button, full width on phones; PDF / Download / Share sit together under it. */}
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <button
               onClick={markReady}
               disabled={readyState !== 'idle'}
-              className={`group relative inline-flex h-8 shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-lg px-3 text-[10px] font-black uppercase tracking-wide transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-default disabled:hover:translate-y-0 ${
+              className={`group relative inline-flex h-12 w-full shrink-0 items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-2xl px-6 text-sm font-black uppercase tracking-wide shadow-lg transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-default disabled:hover:translate-y-0 sm:h-11 sm:w-auto ${
                 readyState === 'done'
-                  ? 'scale-105 bg-emerald-600 text-white shadow-lg shadow-emerald-600/25'
+                  ? 'bg-emerald-600 text-white shadow-emerald-600/30'
                   : readyState === 'saving'
-                    ? 'bg-[#C9A24D]/15 text-[#8b7355] shadow-sm dark:text-[#d7b974]'
-                    : 'text-[#8b7355] hover:bg-[#C9A24D]/15 dark:text-[#d7b974]'
+                    ? 'bg-[#C9A24D]/70 text-white shadow-[#C9A24D]/20'
+                    : 'bg-gradient-to-r from-[#b8913f] via-[#C9A24D] to-[#e0b85f] text-white shadow-[#C9A24D]/40 hover:shadow-xl hover:shadow-[#C9A24D]/50'
               }`}
             >
-              <span className={`absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/35 to-transparent transition-transform duration-700 ${readyState === 'done' ? 'translate-x-full' : 'group-hover:translate-x-full'}`} />
+              <span className={`absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 ${readyState === 'done' ? 'translate-x-full' : 'group-hover:translate-x-full'}`} />
+              {readyState === 'idle' && <span aria-hidden className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-[#C9A24D]/50 animate-pulse" />}
               {readyState === 'saving' ? (
-                <Loader2 className="relative h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="relative h-4 w-4 animate-spin" />
               ) : readyState === 'done' ? (
-                <Check className="relative h-3.5 w-3.5 animate-bounce" />
+                <Check className="relative h-4 w-4" strokeWidth={3} />
               ) : (
-                <Sparkles className="relative h-3.5 w-3.5 transition group-hover:rotate-12 group-hover:scale-110" />
+                <Sparkles className="relative h-4 w-4 transition group-hover:rotate-12 group-hover:scale-110" />
               )}
-              <span className="relative">{readyState === 'saving' ? 'Marking Ready...' : readyState === 'done' ? 'Ready' : 'Mark Ready'}</span>
+              <span className="relative">{readyState === 'saving' ? 'Marking Ready...' : readyState === 'done' ? 'Ready to send' : 'Mark Ready'}</span>
             </button>
-            <span className="h-5 w-px shrink-0 bg-[#C9A24D]/20" />
-            <button
-              onClick={() => setShowPdf(true)}
-              disabled={!agent}
-              title="Generate PDF"
-              className="inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-[10px] font-black uppercase tracking-wide text-[#8b7355] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#C9A24D]/15 hover:shadow-md disabled:opacity-50 disabled:hover:translate-y-0 dark:text-[#d7b974]"
-            >
-              <Layers className="h-3.5 w-3.5" /> PDF
-            </button>
-            {agent && (
-              <PDFDownloadLink document={<CmaPresentationDocument report={report} agent={agent} />} fileName={`CMA-${(report.subject.street_address || 'Report').replace(/[^a-z0-9]+/gi, '-')}.pdf`}>
-                {({ loading }) => (
-                  <span className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-[10px] font-black uppercase tracking-wide text-[#8b7355] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#C9A24D]/15 hover:shadow-md dark:text-[#d7b974]">
-                    {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
-                    Download
-                  </span>
-                )}
-              </PDFDownloadLink>
-            )}
-            <button onClick={handleShare} disabled={sharing} title="Share Link" className="inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-[#C9A24D] px-3 text-[10px] font-black uppercase tracking-wide text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0">
-              {sharing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />} Share
-            </button>
+            <div className="grid w-full grid-cols-3 items-center gap-1 rounded-xl border border-[#C9A24D]/25 bg-[#C9A24D]/[0.06] p-1 sm:flex sm:w-auto">
+              <button
+                onClick={() => setShowPdf(true)}
+                disabled={!agent}
+                title="Generate PDF"
+                className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-[10px] font-black uppercase tracking-wide text-[#8b7355] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#C9A24D]/15 hover:shadow-md disabled:opacity-50 disabled:hover:translate-y-0 dark:text-[#d7b974]"
+              >
+                <Layers className="h-3.5 w-3.5" /> PDF
+              </button>
+              {agent ? (
+                <PDFDownloadLink document={<CmaPresentationDocument report={report} agent={agent} />} fileName={`CMA-${(report.subject.street_address || 'Report').replace(/[^a-z0-9]+/gi, '-')}.pdf`} className="flex">
+                  {({ loading }) => (
+                    <span className="inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-[10px] font-black uppercase tracking-wide text-[#8b7355] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#C9A24D]/15 hover:shadow-md dark:text-[#d7b974]">
+                      {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                      Download
+                    </span>
+                  )}
+                </PDFDownloadLink>
+              ) : <span />}
+              <button onClick={handleShare} disabled={sharing} title="Share Link" className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#111827] px-3 text-[10px] font-black uppercase tracking-wide text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 dark:bg-white dark:text-[#111827]">
+                {sharing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />} Share
+              </button>
+            </div>
           </div>
 
           {/* Web version only: end the shared page with the agent's Email Signature card instead of

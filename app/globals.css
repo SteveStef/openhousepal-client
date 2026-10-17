@@ -1186,6 +1186,21 @@ input:-webkit-autofill:active {
   will-change: opacity, transform;
 }
 
+/* CMA subject photo (user, 10/17): a real cross-fade - the new photo fades in over the old one
+   (no blink between them) - and every photo is zoomed in from the top-right, so the MLS watermark
+   in the bottom-left corner is cropped away. */
+@keyframes cma-hero-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cma-hero-drift { from { transform: scale(1.13); } to { transform: scale(1.2); } }
+.cma-hero-crossfade {
+  transform-origin: 72% 26%;
+  animation: cma-hero-fade 1.1s ease both, cma-hero-drift 6s linear both;
+  will-change: opacity, transform;
+}
+.cma-hero-still { transform-origin: 72% 26%; transform: scale(1.165); }
+@media (prefers-reduced-motion: reduce) {
+  .cma-hero-crossfade { animation: none; transform: scale(1.15); }
+}
+
 @keyframes cma-comp-photo-in {
   0% {
     opacity: 0.82;
@@ -1758,3 +1773,35 @@ div[role="button"]:active {
 @keyframes hubLxSoldDot { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,.55); } 60% { box-shadow: 0 0 0 5px rgba(255,255,255,0); } }
 @keyframes ohpSoldShine { 0%, 55% { transform: translateX(-100%); } 85%, 100% { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) { .hub-lx-sold, .hub-lx-sold::after, .hub-lx-sold-dot { animation: none; } }
+
+
+/* Photo grids that waited for every photo (components/ui/PhotoGridGate.tsx): tiles rise in, one after
+   another. */
+@keyframes ohp-reveal-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
+.ohp-reveal > * { animation: ohp-reveal-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.ohp-reveal > *:nth-child(n + 25) { animation-delay: 950ms; }
+.ohp-reveal > *:nth-child(1) { animation-delay: 0ms; }
+.ohp-reveal > *:nth-child(2) { animation-delay: 45ms; }
+.ohp-reveal > *:nth-child(3) { animation-delay: 90ms; }
+.ohp-reveal > *:nth-child(4) { animation-delay: 135ms; }
+.ohp-reveal > *:nth-child(5) { animation-delay: 180ms; }
+.ohp-reveal > *:nth-child(6) { animation-delay: 225ms; }
+.ohp-reveal > *:nth-child(7) { animation-delay: 270ms; }
+.ohp-reveal > *:nth-child(8) { animation-delay: 315ms; }
+.ohp-reveal > *:nth-child(9) { animation-delay: 360ms; }
+.ohp-reveal > *:nth-child(10) { animation-delay: 405ms; }
+.ohp-reveal > *:nth-child(11) { animation-delay: 450ms; }
+.ohp-reveal > *:nth-child(12) { animation-delay: 495ms; }
+.ohp-reveal > *:nth-child(13) { animation-delay: 540ms; }
+.ohp-reveal > *:nth-child(14) { animation-delay: 585ms; }
+.ohp-reveal > *:nth-child(15) { animation-delay: 630ms; }
+.ohp-reveal > *:nth-child(16) { animation-delay: 675ms; }
+.ohp-reveal > *:nth-child(17) { animation-delay: 720ms; }
+.ohp-reveal > *:nth-child(18) { animation-delay: 765ms; }
+.ohp-reveal > *:nth-child(19) { animation-delay: 810ms; }
+.ohp-reveal > *:nth-child(20) { animation-delay: 855ms; }
+.ohp-reveal > *:nth-child(21) { animation-delay: 900ms; }
+.ohp-reveal > *:nth-child(22) { animation-delay: 900ms; }
+.ohp-reveal > *:nth-child(23) { animation-delay: 900ms; }
+.ohp-reveal > *:nth-child(24) { animation-delay: 900ms; }
+@media (prefers-reduced-motion: reduce) { .ohp-reveal > * { animation: none; } }

@@ -180,11 +180,11 @@ function DesignStudioDashboardInner() {
           subtitle="Flyers, social posts, brochures & campaigns from your listing data."
           asideClassName="w-full lg:w-auto lg:max-w-[560px] lg:self-center lg:-translate-y-3"
           actions={
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
               <StorageMeter variant="inline" compact />
               <button
                 onClick={() => { setPendingSeed(null); setShowCreate(true) }}
-                className="group relative inline-flex items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-5 py-3 text-sm font-black text-[#111827] shadow-lg shadow-[#C9A24D]/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
+                className="group relative inline-flex shrink-0 items-center gap-2 overflow-hidden whitespace-nowrap rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-5 py-3 text-sm font-black text-[#111827] shadow-lg shadow-[#C9A24D]/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
               >
                 <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
                 <Plus className="relative h-4 w-4 transition-transform duration-300 group-hover:rotate-90" /> <span className="relative">Create a Design</span>
@@ -216,7 +216,10 @@ function DesignStudioDashboardInner() {
                 </button>
               )}
             </div>
-            <div className={`grid gap-3 sm:gap-4 ${solo ? '' : picks.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-3'}`}>
+            {/* Phones: compact cards, two to a row. Wider screens: a horizontal card - photo on the
+                left, the home and its button on the right, the button well clear of the town line
+                (user, 10/17: the hover lift used to cover the city). */}
+            <div className={`grid grid-cols-2 gap-2.5 sm:gap-4 ${solo ? 'sm:grid-cols-1' : picks.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-3'}`}>
               <AnimatePresence initial={false}>
               {shown.map((item, i) => {
                 const sit = getSituation(item.kind === 'sale' ? 'just_sold' : listingSituation(item.status))
@@ -227,39 +230,36 @@ function DesignStudioDashboardInner() {
                     layout
                     initial={{ opacity: 0, y: 16, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
                     transition={{ delay: i * 0.06, duration: 0.45, ease: [0.22, 0.61, 0.36, 1] }}
-                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#e8c97a]/80 via-[#C9A24D]/25 to-[#C9A24D]/70 p-px shadow-[0_24px_50px_-34px_rgba(139,115,85,.9)] transition duration-500 hover:-translate-y-1 hover:shadow-[0_30px_60px_-30px_rgba(201,162,77,.85)] dark:from-[#C9A24D]/50 dark:via-white/5 dark:to-[#C9A24D]/40"
+                    className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#e8c97a]/80 via-[#C9A24D]/25 to-[#C9A24D]/70 p-px shadow-[0_20px_44px_-34px_rgba(139,115,85,.9)] transition duration-500 hover:-translate-y-1 hover:shadow-[0_28px_56px_-30px_rgba(201,162,77,.85)] dark:from-[#C9A24D]/50 dark:via-white/5 dark:to-[#C9A24D]/40 sm:rounded-3xl ${solo ? 'col-span-2 sm:col-span-1' : ''}`}
                   >
-                    <div className={`relative flex h-full overflow-hidden rounded-[23px] bg-[radial-gradient(120%_140%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#fffdf8,#fbf6ec)] dark:bg-[radial-gradient(120%_140%_at_100%_0%,rgba(201,162,77,.14),transparent_55%),linear-gradient(140deg,#0b0f0e,#111827_60%,#1d1810)] ${solo ? 'flex-col sm:flex-row' : 'flex-col'}`}>
-                      <div className={`relative shrink-0 overflow-hidden bg-gray-100 dark:bg-white/5 ${solo ? 'aspect-[16/9] sm:aspect-auto sm:min-h-[190px] sm:w-[44%]' : 'aspect-[16/9]'}`}>
+                    <div className={`relative flex h-full overflow-hidden rounded-[15px] bg-[radial-gradient(120%_140%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#fffdf8,#fbf6ec)] dark:bg-[radial-gradient(120%_140%_at_100%_0%,rgba(201,162,77,.14),transparent_55%),linear-gradient(140deg,#0b0f0e,#111827_60%,#1d1810)] sm:rounded-[23px] ${solo ? 'flex-row' : 'flex-col sm:flex-row'}`}>
+                      <div className={`relative shrink-0 overflow-hidden bg-gray-100 dark:bg-white/5 ${solo ? 'w-[42%] sm:w-[40%]' : 'aspect-[16/10] sm:aspect-auto sm:w-[42%]'} sm:min-h-[168px]`}>
                         {item.image ? <img src={item.image} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-[1.4s] ease-out [scale:1.1] [transform-origin:78%_14%] group-hover:scale-[1.07]" /> : <Palette className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-gray-300" />}
                         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-black/10" />
-                        <span className={`absolute left-2.5 top-2.5 inline-flex cursor-default items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide shadow transition duration-300 hover:-translate-y-px hover:scale-110 hover:shadow-lg ${item.kind === 'sale' ? 'bg-rose-600 text-white' : 'bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] text-[#111827]'}`}>{item.kind === 'sale' ? 'Just sold' : sit?.label || 'New listing'}</span>
-                        {item.price ? <span className="absolute bottom-2.5 left-3 font-serif text-lg font-black text-white drop-shadow-[0_2px_8px_rgba(0,0,0,.5)]">${Number(item.price).toLocaleString()}</span> : null}
+                        <span className={`absolute left-2 top-2 inline-flex cursor-default items-center gap-1 rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-wide shadow sm:text-[9px] ${item.kind === 'sale' ? 'bg-rose-600 text-white' : 'bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] text-[#111827]'}`}>{item.kind === 'sale' ? 'Just sold' : sit?.label || 'New listing'}</span>
+                        {item.price ? <span className="absolute bottom-2 left-2.5 font-serif text-sm font-black text-white drop-shadow-[0_2px_8px_rgba(0,0,0,.5)] sm:text-lg">${Number(item.price).toLocaleString()}</span> : null}
                       </div>
                       <button
                         onClick={() => dismissPick(item.key)}
                         title="Not now - don't suggest this one again"
                         aria-label="Dismiss"
-                        className="absolute right-2.5 top-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white/90 opacity-0 transition hover:bg-black/70 group-hover:opacity-100 focus:opacity-100"
+                        className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white/90 transition hover:bg-black/70 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
-                      <div className={`relative flex min-w-0 flex-1 flex-col ${solo ? 'justify-center p-5 sm:p-7' : 'p-4'}`}>
+                      <div className={`relative flex min-w-0 flex-1 flex-col ${solo ? 'justify-center p-4 sm:p-6' : 'p-2.5 sm:p-5'}`}>
                         <span aria-hidden className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-[#e8c97a] to-transparent" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#8b7355] dark:text-[#e8c97a]">{item.kind === 'sale' ? 'Your latest sale' : 'Your new listing'}</p>
-                        <p className={`mt-1 truncate whitespace-nowrap font-serif font-black text-[#111827] dark:text-white ${solo ? 'text-2xl sm:text-3xl' : 'text-base'}`}>{item.address}</p>
-                        <p className={`truncate font-bold text-gray-500 dark:text-white/55 ${solo ? 'mt-1 text-sm' : 'text-[12px]'}`}>{[item.city, item.state].filter(Boolean).join(', ')}</p>
-                        <motion.button
+                        <p className="hidden text-[10px] font-black uppercase tracking-[0.22em] text-[#8b7355] dark:text-[#e8c97a] sm:block">{item.kind === 'sale' ? 'Your latest sale' : 'Your new listing'}</p>
+                        <p className={`line-clamp-2 font-serif font-black leading-tight sm:mt-1 text-[#111827] dark:text-white ${solo ? 'text-lg sm:text-2xl' : 'text-[13px] sm:text-lg'}`}>{item.address}</p>
+                        <p className={`truncate font-bold text-gray-500 dark:text-white/55 ${solo ? 'mt-1 text-xs sm:text-sm' : 'mt-0.5 text-[11px] sm:text-[12px]'}`}>{[item.city, item.state].filter(Boolean).join(', ')}</p>
+                        <button
                           onClick={() => openPick(item)}
                           disabled={!!openingShortcut}
-                          whileHover={{ y: -2, scale: 1.02 }}
-                          whileTap={{ scale: 0.95 }}
-                          transition={{ type: 'spring', stiffness: 500, damping: 26 }}
-                          className={`lx-shine relative mt-auto inline-flex items-center justify-center gap-1.5 overflow-hidden rounded-2xl bg-gradient-to-r from-[#b8913f] via-[#C9A24D] to-[#e8c97a] font-black text-[#111827] shadow-lg shadow-[#C9A24D]/30 transition-shadow hover:shadow-[0_14px_30px_-10px_rgba(201,162,77,.9)] disabled:opacity-70 ${solo ? 'mt-5 self-start px-6 py-3 text-sm' : 'mt-3 w-full px-3 py-2.5 text-[12px]'}`}
+                          className={`lx-shine relative mt-auto inline-flex items-center justify-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-[#b8913f] via-[#C9A24D] to-[#e8c97a] font-black text-[#111827] shadow-md shadow-[#C9A24D]/25 transition-[box-shadow,filter] duration-300 hover:shadow-[0_12px_26px_-10px_rgba(201,162,77,.9)] hover:brightness-105 active:scale-[0.97] disabled:opacity-70 ${solo ? 'mt-4 self-start px-5 py-2.5 text-sm' : 'mt-3 w-full px-2 py-2 text-[11px] sm:mt-4 sm:text-[12px]'}`}
                         >
-                          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />} {sit?.label || 'Design'} post
-                          <ArrowRight className="h-3.5 w-3.5" />
-                        </motion.button>
+                          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-3.5 w-3.5 transition-transform duration-300 group-hover:rotate-90" />} <span className="truncate">{sit?.label || 'Design'} post</span>
+                          <ArrowRight className="hidden h-3.5 w-3.5 sm:block" />
+                        </button>
                       </div>
                     </div>
                   </motion.div>

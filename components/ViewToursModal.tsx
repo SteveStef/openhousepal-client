@@ -1,5 +1,6 @@
 'use client'
 
+import { OhpSpinner } from '@/components/brand/OhpLoader'
 import MotionModal from '@/components/ui/MotionModal'
 import { useState } from 'react'
 import Image from 'next/image'
@@ -128,7 +129,7 @@ export default function ViewToursModal({
         <div className="flex-1 overflow-y-auto p-3 bg-[#FAFAF7] dark:bg-[#0B0B0B]">
           {isLoading ? (
             <div className="flex items-center justify-center py-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#111827] dark:border-white"></div>
+              <OhpSpinner size={28} />
             </div>
           ) : tours.length === 0 ? (
             <div className="text-center py-10">

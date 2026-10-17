@@ -95,19 +95,23 @@ const formatRange = (min?: number | null, max?: number | null, decimals = 0) => 
 
 // "2500" -> "2,500" - sqft gets large enough that the comma is the difference between reading
 // it and not.
-const formatSqftValue = (v: number) => Math.round(v).toLocaleString()
+// Compact once it's big (user, 10/17 - long numbers pushed the lot size off the card on phones):
+// 13,062 -> "13K", 2,540 stays "2,540".
+const formatSqftValue = (v: number) => (v >= 10000 ? `${Math.round(v / 1000)}K` : Math.round(v).toLocaleString())
 const formatSqftRange = (min?: number | null, max?: number | null) => {
   if (min == null && max == null) return null
-  if (min != null && max != null && min !== max) return `${formatSqftValue(min)}-${formatSqftValue(max)}`
+  // A range is always short: "2.5K-13K" (two full numbers never fit the chip on a phone).
+  const k = (v: number) => (v >= 1000 ? `${v >= 10000 ? Math.round(v / 1000) : (v / 1000).toFixed(1).replace(/\.0$/, '')}K` : String(Math.round(v)))
+  if (min != null && max != null && min !== max) return `${k(min)}-${k(max)}`
   return formatSqftValue((min ?? max) as number)
 }
 
 // "0.05" -> ".05" and "1.00" -> "1" - trailing/leading zeros just add clutter at this scale.
+// 1 decimal from 1 acre up ("1.44" -> "1.4"), 2 below it (".59").
 const formatAcreValue = (v: number) => {
-  const s = v.toFixed(2)
+  const s = v >= 1 ? v.toFixed(v >= 10 ? 0 : 1) : v.toFixed(2)
   if (s.startsWith('0.')) return s.slice(1)
-  if (s.endsWith('.00')) return s.slice(0, -3)
-  return s
+  return s.replace(/\.0+$/, '')
 }
 const formatAcreRange = (min?: number | null, max?: number | null) => {
   if (min == null && max == null) return null

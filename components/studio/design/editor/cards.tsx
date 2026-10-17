@@ -10,6 +10,7 @@ import type { DesignFormatDef } from '@/types'
 import { ADDABLE_FACT_FIELDS, DEFAULT_FACT_FIELDS, blockId } from '@/lib/studio/designFormats'
 import { SITUATION_HEADLINES } from '@/lib/studio/designTemplates'
 import { AiWriteButton, ComplianceChips } from '@/components/ai/AiWriteButton'
+import PhotoGridGate from '@/components/ui/PhotoGridGate'
 import { Card, Chips, Field, Note, PhotoTile, ResetLink, Seg, Toggle, UploadTile, digitsOnly, inputCls, labelCls, money, prettyDigits, useDraftValue } from './ui'
 import YourHomesPhotos from './YourHomesPhotos'
 import api from '@/lib/api-service'
@@ -45,6 +46,8 @@ export interface EditorCtl {
   focusBlockId: string | null
   /** The exact context the preview renders with - the Look card's thumbnails reuse it. */
   ctx: DesignCanvasContext
+  /** Whether this design draws the social button / a logo at all (DesignFeatureProbe); null = not checked yet. */
+  draws: { button: boolean; logo: boolean } | null
   isIdx: boolean
   setBrandingMode: (mode: DesignProject['branding_mode']) => void
   changeLook: (patch: { template_id?: string; style_id?: DesignStyleId; color_mode?: DesignColorMode }) => void
@@ -167,7 +170,8 @@ export function PhotoCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open
         <div>
           <p className={labelCls}>{ctl.property ? 'Main photo' : 'Or pick a photo'}</p>
           <p className="mt-0.5 text-[11px] font-semibold text-gray-400">{ctl.property ? 'Tap any listing photo to make it the main one.' : ctl.leadGen ? 'A photo chosen for this message - or use your own.' : 'Upload a photo for this design.'}</p>
-          <div className="mt-2.5 grid grid-cols-3 gap-2">
+          <PhotoGridGate urls={choices.slice(0, 9)} minHeight={140}>
+          <div className="ohp-reveal mt-2.5 grid grid-cols-3 gap-2">
             <UploadTile onUploaded={url => { setUploads(u => [url, ...u]); setMain(url) }} />
             {ctl.leadGen && (
               <button type="button" onClick={() => hero && ctl.updateBlock(hero.id, b => ({ ...b, overrides: { ...b.overrides, image_url: '' } }))} className={`flex aspect-[4/3] flex-col items-center justify-center gap-1.5 rounded-xl border-2 text-[11px] font-black transition ${hero.overrides?.image_url === '' ? 'border-[#C9A24D] bg-[#C9A24D]/[0.06] text-[#8b7355]' : 'border-gray-200 text-gray-400 hover:border-gray-300 dark:border-white/10'}`}>
@@ -184,6 +188,7 @@ export function PhotoCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open
               />
             ))}
           </div>
+          </PhotoGridGate>
           {choices.length > 9 && (
             <button type="button" onClick={() => setShowAllPhotos(v => !v)}
               className="mt-2 w-full rounded-xl border border-gray-200 py-2 text-[11px] font-black text-[#8b7355] transition hover:border-[#C9A24D] dark:border-white/10 dark:text-[#d7b974]">
@@ -393,10 +398,10 @@ export function WordsCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open
         </button>
       )}
 
-      {headline && !ctl.format.isPrint && (
+      {headline && !ctl.format.isPrint && ctl.draws?.button && (
         <div>
-          <p className={labelCls}>Instagram button</p>
-          <p className="mt-0.5 text-[11px] font-semibold text-gray-400">What the button on the post says - the same wording as Instagram&apos;s ad buttons.</p>
+          <p className={labelCls}>Button on the post <span className="normal-case tracking-normal text-gray-400">· optional</span></p>
+          <p className="mt-0.5 text-[11px] font-semibold text-gray-400">Off unless you pick one - an Instagram-style button like &ldquo;Learn More&rdquo;, drawn right on this design.</p>
           <Chips options={['Learn More', 'Contact Us', 'Send Message', 'Call Now', 'Get Quote', 'Sign Up', 'Book Now', 'Request Time', 'Get Directions', 'No button']} value={!headline.data?.socialButton || headline.data?.socialButton === 'none' ? 'No button' : headline.data?.socialButton} onPick={v => setData(ctl, headline.id, { socialButton: v === 'No button' ? 'none' : v })} />
         </div>
       )}

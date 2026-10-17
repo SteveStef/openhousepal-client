@@ -16,7 +16,7 @@ import AreaSpotlightSection, { type AreaCard } from '@/components/studio/blogs/A
 import { MapPin as MapPinIcon, Lock } from 'lucide-react'
 import {
   AlignCenter, AlignLeft, ArrowLeft, Archive, Bold, Calendar, Check, ChevronDown, Crown, Eye, EyeOff, GripVertical,
-  ImagePlus, Italic, Link2, Loader2, Mail, Newspaper, Plus, QrCode as QrCodeIcon, Quote as QuoteIcon,
+  ExternalLink, ImagePlus, Italic, Link2, Loader2, Mail, Newspaper, Palette, PenLine, Plus, QrCode as QrCodeIcon, Quote as QuoteIcon,
   Save, Search, Share2, ShieldAlert, ShieldCheck, Sparkles, Strikethrough, Trash2, Underline, User as UserIcon, Video, Wand2, X,
 } from 'lucide-react'
 import { ClipboardList as ClipboardListIcon } from 'lucide-react'
@@ -34,6 +34,8 @@ import BlogArticleBody, { PropertyCardDisplay } from '@/components/studio/blogs/
 import { BLOG_THEMES, BlogThemedArticle, blogAccent, blogSignatureMatch, blogTheme } from '@/components/studio/blogs/BlogThemes'
 import LuxeUpgradePitch from '@/components/ui/LuxeUpgradePitch'
 import VerifiedPanel from '@/components/studio/blogs/VerifiedPanel'
+import AiCoverMaker from '@/components/studio/blogs/AiCoverMaker'
+import ConfirmationModal from '@/components/ConfirmationModal'
 import { PropertyShowcase, VideoShowcase } from '@/components/studio/blogs/ShowcaseBlocks'
 import BlogFinishStep, { applyFinish, emptyFinish, type FinishChoices } from '@/components/studio/blogs/BlogFinishStep'
 import { luxeBlogAllowed, luxeBlogUpgrade } from '@/lib/navAccess'
@@ -118,82 +120,6 @@ function SectionRefineMenu({ onRun, onClose, busy }: { onRun: (action: BlogAiRef
         <p className="px-2 pb-1 text-[9px] font-semibold text-gray-400">Uses your monthly AI credits. Never adds new numbers.</p>
       </div>
     </>
-  )
-}
-
-// Whole-article Fair Housing / MLS wording check (the existing advisory /ai/compliance-check).
-// "Use" swaps the phrase everywhere it appears in the title, subtitle and every text block.
-function ArticleCompliancePanel({ blog, onApply, aiDraft, numbersToVerify }: {
-  blog: Blog
-  onApply: (next: Blog) => void
-  aiDraft: boolean
-  numbersToVerify: string[]
-}) {
-  const [flags, setFlags] = useState<{ phrase: string; issue: string; suggestion: string }[] | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState('')
-  const text = [blog.title, blog.subtitle || '', ...blog.blocks.map(blockPlainText)].join('\n')
-
-  const run = async () => {
-    setBusy(true); setErr('')
-    startAiActivity()
-    const res = await api.ai.complianceCheck(text.slice(0, 11500))
-    endAiActivity()
-    setBusy(false)
-    if (res.success && res.data) setFlags(res.data.flags)
-    else setErr(res.error || 'Could not run the check.')
-  }
-
-  const apply = (phrase: string, suggestion: string) => {
-    const swap = (v: string) => v.split(phrase).join(suggestion)
-    onApply({
-      ...blog,
-      title: swap(blog.title),
-      subtitle: blog.subtitle ? swap(blog.subtitle) : blog.subtitle,
-      blocks: blog.blocks.map(b => {
-        const d = { ...(b.data || {}) }
-        let changed = false
-        for (const k of ['html', 'text', 'label']) if (typeof d[k] === 'string' && d[k].includes(phrase)) { d[k] = swap(d[k]); changed = true }
-        if (Array.isArray(d.items) && d.items.some((i: string) => i.includes(phrase))) { d.items = d.items.map((i: string) => swap(i)); changed = true }
-        // new id only for touched blocks, so their contentEditable re-seeds with the corrected text
-        return changed ? { ...b, id: `${b.type}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, data: d } : b
-      }),
-    })
-    setFlags(f => (f || []).filter(x => x.phrase !== phrase))
-  }
-
-  return (
-    <div className="mb-6 rounded-2xl border border-[#C9A24D]/30 bg-[#C9A24D]/[0.06] p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="flex items-center gap-1.5 text-xs font-black text-[#8b7355] dark:text-[#d7b974]">
-          <Sparkles className="h-3.5 w-3.5" /> {aiDraft ? 'AI draft — review it, then publish when it sounds like you' : 'Hover any heading and tap Refine to improve that section with AI'}
-        </p>
-        <button onClick={run} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-black uppercase tracking-wide text-gray-600 hover:border-[#C9A24D]/60 disabled:opacity-50 dark:border-gray-700 dark:bg-[#151517] dark:text-gray-300">
-          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />} Check Fair Housing wording
-        </button>
-      </div>
-      {numbersToVerify.length > 0 && (
-        <p className="mt-2 text-[11px] font-bold text-amber-700 dark:text-amber-300">Double-check before publishing: {numbersToVerify.join(', ')}</p>
-      )}
-      {err && <p className="mt-2 text-[11px] font-bold text-red-500">{err}</p>}
-      {flags && flags.length === 0 && <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400"><ShieldCheck className="h-3.5 w-3.5" /> No risky phrases found. Your judgment still applies.</p>}
-      {flags && flags.length > 0 && (
-        <div className="mt-2 space-y-1.5">
-          {flags.map(f => (
-            <div key={f.phrase} className="flex items-start gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-2 dark:border-amber-900/50 dark:bg-amber-900/15">
-              <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
-              <div className="min-w-0 flex-1 text-xs font-bold text-amber-900 dark:text-amber-200">
-                “{f.phrase}” <span className="font-semibold">— {f.issue}</span>
-                <div className="mt-1 flex gap-1.5">
-                  <button onClick={() => apply(f.phrase, f.suggestion)} className="rounded-md bg-amber-600 px-2 py-0.5 text-[10px] font-black uppercase text-white hover:bg-amber-700">Use “{f.suggestion}”</button>
-                  <button onClick={() => setFlags(x => (x || []).filter(y => y.phrase !== f.phrase))} className="rounded-md px-2 py-0.5 text-[10px] font-black uppercase text-amber-700 hover:bg-amber-100 dark:text-amber-300">Ignore</button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -456,6 +382,12 @@ function BlogEditorPageInner() {
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
   const [uploadingCover, setUploadingCover] = useState(false)
+  // The editor is three tabs instead of one long scroll (user, 10/17): the fact-check + finishing
+  // touches, the look + cover, and the writing itself.
+  const [tab, setTab] = useState<'finish' | 'look' | 'write'>('write')
+  const tabFor = useRef<string | null>(null)
+  const [liveLink, setLiveLink] = useState<string | null>(null)
+  const [confirmRewrite, setConfirmRewrite] = useState(false)
   const [copied, setCopied] = useState(false)
   const bodyRef = useRef<HTMLDivElement>(null)
   const blockRefs = useRef<Record<string, HTMLDivElement | null>>({})
@@ -476,6 +408,19 @@ function BlogEditorPageInner() {
     return `${origin}/${agentHubSlug}/blogs/${blog.slug}`
   }
 
+  // First open of an article: an AI draft not finished yet starts on its finishing tab.
+  useEffect(() => {
+    if (!blog || tabFor.current === blog.id) return
+    tabFor.current = blog.id
+    setTab(blog.ai_review?.status === 'done' && !blog.ai_review.finished ? 'finish' : 'write')
+  }, [blog])
+  // Published: "View live" opens the real page (IDX site or Agent Hub).
+  useEffect(() => {
+    if (blog?.status !== 'PUBLISHED' || !agentHubSlug) { setLiveLink(null); return }
+    resolveBlogLink().then(setLiveLink)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blog?.status, blog?.slug, agentHubSlug])
+
   const handleCopyLink = async () => {
     const link = await resolveBlogLink()
     if (!link) return
@@ -489,6 +434,8 @@ function BlogEditorPageInner() {
       if (blogRes.success && blogRes.data) setBlog(blogRes.data)
       if (brandKitRes.success && brandKitRes.data) setBrandKit(brandKitRes.data)
       if (hubRes.success && hubRes.data) setAgentHubSlug(hubRes.data.slug)
+      // "Preview" on a draft's card in the Blogs list opens straight into the preview.
+      try { if (new URLSearchParams(window.location.search).get('preview') === '1') setShowPreview(true) } catch { /* no window */ }
       setLoading(false)
     })
     api.forms.getMine().then(res => {
@@ -506,7 +453,13 @@ function BlogEditorPageInner() {
       const res = await api.blogs.aiJob(blog.id)
       if (!alive || !res.success || !res.data) return
       if (res.data.status === 'done' && res.data.result) { setBlog(res.data.result.blog); setAiDraft(true) }
-      else if (res.data.status === 'failed') router.push('/studio/blogs')
+      // Didn't finish: a new article becomes an unfinished AI draft (the writer opens on the
+      // failure, answers intact); a rewrite goes back to the article as it was.
+      else if (res.data.status === 'failed') {
+        const fresh = await api.blogs.get(blog.id)
+        if (fresh.success && fresh.data) setBlog(fresh.data)
+        else router.push('/studio/blogs')
+      }
       else setBlog(b => (b ? { ...b, ai_review: { ...(b.ai_review || {}), stage: res.data!.stage } } : b))
     }
     const t = setInterval(tick, 4000)
@@ -655,6 +608,22 @@ function BlogEditorPageInner() {
   if (loading || !blog) {
     return <OhpLoader />
   }
+  // An unfinished AI draft (answers autosaved, or a run that failed): straight back into the writer,
+  // on the step the agent left (user, 10/17).
+  if (blog.ai_review?.new && (blog.ai_review.status === 'interview' || blog.ai_review.status === 'failed')) {
+    return (
+      <div className="min-h-screen bg-[#f7f5f1] dark:bg-[#0B0B0B]">
+        <BlogAiWriter
+          resume={{ draftId: blog.id, brief: blog.ai_review.brief || { topic: blog.title }, step: blog.ai_review.step, error: blog.ai_review.status === 'failed' ? (blog.ai_review.error || 'The AI writer could not finish this draft.') : undefined }}
+          initialTopic={blog.title}
+          initialCategory={blog.category || undefined}
+          onClose={() => router.push('/studio/blogs')}
+          onLeave={() => router.push('/studio/blogs')}
+          onDone={result => { setBlog(result.blog); setNumbersToVerify(result.numbers_to_verify); setAiDraft(true) }}
+        />
+      </div>
+    )
+  }
   if (blog.ai_review?.status === 'running') {
     const steps = [['gathering', 'Gathering what we know'], ['research', 'Researching what is missing'], ['write', 'Writing in your voice'], ['fact_check', 'Fact-checking every claim'], ['finishing', 'Fixing and finishing']]
     const at = Math.max(0, steps.findIndex(([k]) => k === blog.ai_review?.stage))
@@ -671,7 +640,7 @@ function BlogEditorPageInner() {
               </p>
             ))}
           </div>
-          <p className="mt-5 text-[11px] font-semibold text-white/55">It opens here on its own when it's done - usually a few minutes.</p>
+          <p className="mt-5 text-[11px] font-semibold text-white/55">It opens here on its own when it's done - usually a few minutes. You can leave: your bell lights up when it's ready.</p>
         </LuxeSurface>
       </div>
     )
@@ -690,18 +659,20 @@ function BlogEditorPageInner() {
           onChange={persist}
           onStatusChange={handleStatusChange}
           onPreview={() => { setShowPublish(false); setShowPreview(true) }}
+          liveLink={liveLink}
           onClose={() => { setShowPublish(false); window.scrollTo({ top: 0 }) }}
         />
       )}
       <div className={showPublish ? 'hidden' : undefined}>
       {/* Top bar */}
-      <div className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-gray-200 bg-[#fbfaf7]/90 px-3 py-3 sm:gap-3 sm:px-5 dark:border-gray-800 dark:bg-[#0B0B0B]/90">
+      <div className="sticky top-0 z-30 border-b border-gray-200 bg-[#fbfaf7]/90 dark:border-gray-800 dark:bg-[#0B0B0B]/90">
+      <div className="flex items-center justify-between gap-2 px-3 py-3 sm:gap-3 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <button onClick={() => smartBack(router, '/studio/blogs')} className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white">
             <ArrowLeft className="h-4 w-4" />
           </button>
           <p className="truncate text-sm font-black text-gray-400">{blog.title || 'Untitled Article'}</p>
-          <StatusBadge status={blog.status} />
+          <span className="hidden sm:inline-flex"><StatusBadge status={blog.status} /></span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <span className="hidden text-xs font-semibold text-gray-400 sm:inline-flex sm:items-center sm:gap-1.5">
@@ -710,12 +681,18 @@ function BlogEditorPageInner() {
             {saveStatus === 'error' && <span className="text-red-500">Save failed</span>}
             {saveStatus === 'idle' && lastSavedAt && `Last saved ${lastSavedAt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`}
           </span>
-          <button onClick={() => { if (blog.blocks.some(b => blockPlainText(b).trim()) && !confirm("The AI writer will replace this article's current content with a new draft. Continue?")) return; setShowAiDraft(true) }} aria-label="Draft with AI" title="Draft with AI" className="inline-flex items-center gap-2 rounded-xl border border-[#C9A24D]/40 bg-[#C9A24D]/10 px-3 py-2 sm:px-4 text-sm font-black text-[#8b7355] hover:bg-[#C9A24D]/20 dark:text-[#d7b974] transition hover:-translate-y-0.5 active:scale-95">
+          <button onClick={() => { if (blog.blocks.some(b => blockPlainText(b).trim())) setConfirmRewrite(true); else setShowAiDraft(true) }} aria-label="Draft with AI" title="Draft with AI" className="inline-flex items-center gap-2 rounded-xl border border-[#C9A24D]/40 bg-[#C9A24D]/10 px-3 py-2 sm:px-4 text-sm font-black text-[#8b7355] hover:bg-[#C9A24D]/20 dark:text-[#d7b974] transition hover:-translate-y-0.5 active:scale-95">
             <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline">Draft with AI</span>
           </button>
-          <button onClick={() => setShowPreview(true)} aria-label="Preview" title="Preview" className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 sm:px-4 text-sm font-black text-[#111827] hover:border-[#C9A24D] dark:border-gray-700 dark:text-white transition hover:-translate-y-0.5 active:scale-95">
-            <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Preview</span>
-          </button>
+          {blog.status === 'PUBLISHED' && liveLink ? (
+            <a href={liveLink} target="_blank" rel="noopener" aria-label="View live" title="Open the live article" className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 sm:px-4 text-sm font-black text-[#111827] hover:border-[#C9A24D] dark:border-gray-700 dark:text-white transition hover:-translate-y-0.5 active:scale-95">
+              <ExternalLink className="h-4 w-4" /> <span className="hidden sm:inline">View live</span>
+            </a>
+          ) : (
+            <button onClick={() => setShowPreview(true)} aria-label="Preview" title="Preview" className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 sm:px-4 text-sm font-black text-[#111827] hover:border-[#C9A24D] dark:border-gray-700 dark:text-white transition hover:-translate-y-0.5 active:scale-95">
+              <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Preview</span>
+            </button>
+          )}
           {blog.status === 'PUBLISHED' && (
             <button onClick={handleCopyLink} aria-label="Copy link" title="Copy link" className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 sm:px-4 text-sm font-black text-[#111827] hover:border-[#C9A24D] dark:border-gray-700 dark:text-white transition hover:-translate-y-0.5 active:scale-95">
               {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Link2 className="h-4 w-4" />} <span className="hidden sm:inline">{copied ? 'Copied!' : 'Copy Link'}</span>
@@ -735,26 +712,63 @@ function BlogEditorPageInner() {
           </button>
         </div>
       </div>
+      {/* Tabs */}
+      <div className="mx-auto flex max-w-4xl gap-1 overflow-x-auto px-3 pb-2 [scrollbar-width:none] sm:px-6">
+        {([
+          ...(blog.ai_review?.status === 'done' ? [{ id: 'finish', label: 'Fact-check & finish', short: 'Finish', icon: ShieldCheck, dot: !blog.ai_review.finished && !finishDismissed }] : []),
+          { id: 'look', label: 'Look & cover', short: 'Look', icon: Palette, dot: !blog.cover_image_url },
+          { id: 'write', label: 'Write', short: 'Write', icon: PenLine, dot: false },
+        ] as const).map(t => {
+          const on = tab === t.id
+          const Icon = t.icon
+          return (
+            <button key={t.id} type="button" onClick={() => { setTab(t.id as 'finish' | 'look' | 'write'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+              className={`relative inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-black transition-colors ${on ? 'text-white dark:text-[#111827]' : 'text-gray-500 hover:bg-gray-100 hover:text-[#111827] dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white'}`}>
+              {on && <motion.span layoutId="blog-editor-tab" transition={{ type: 'spring', stiffness: 420, damping: 34 }} className="absolute inset-0 rounded-xl bg-[#111827] dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a]" />}
+              <Icon className={`relative h-3.5 w-3.5 ${on ? 'text-[#e8c97a] dark:text-[#111827]' : ''}`} />
+              <span className="relative sm:hidden">{t.short}</span>
+              <span className="relative hidden sm:inline">{t.label}</span>
+              {t.dot && <span className="relative h-1.5 w-1.5 rounded-full bg-[#C9A24D]" />}
+            </button>
+          )
+        })}
+      </div>
+      </div>
 
-      {/* Document */}
-      <div className="mx-auto max-w-2xl px-6 pb-32 pt-10">
-        {blog.ai_review && blog.ai_review.status !== 'failed' && <VerifiedPanel review={blog.ai_review} className="mb-4" />}
-        <AnimatePresence>
-          {!finishDismissed && blog.ai_review?.status === 'done' && !blog.ai_review.finished && (
-            <EditorFinishCard blog={blog}
-              onApply={next => { persist({ ...next, ai_review: { ...(next.ai_review || {}), finished: true } }); setFinishDismissed(true); api.blogs.aiFinished(blog.id) }}
-              onDismiss={() => { setFinishDismissed(true); api.blogs.aiFinished(blog.id) }} />
-          )}
-        </AnimatePresence>
-        <ArticleCompliancePanel blog={blog} onApply={persist} aiDraft={aiDraft} numbersToVerify={numbersToVerify} />
+      {/* Document - one tab at a time */}
+      <div className="mx-auto max-w-4xl px-4 pb-32 pt-8 sm:px-8">
         {refineError && <p className="mb-4 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600 dark:bg-red-900/20 dark:text-red-400">{refineError}</p>}
+        <AnimatePresence mode="wait" initial={false}>
+        <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}>
+        {tab === 'finish' && blog.ai_review && (
+          <div className="space-y-5">
+            <VerifiedPanel review={blog.ai_review} />
+            {numbersToVerify.length > 0 && (
+              <p className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/15 dark:text-amber-200">Double-check before publishing: {numbersToVerify.join(', ')}</p>
+            )}
+            <AnimatePresence>
+              {!finishDismissed && !blog.ai_review.finished ? (
+                <EditorFinishCard key="fin" blog={blog}
+                  onApply={next => { persist({ ...next, ai_review: { ...(next.ai_review || {}), finished: true } }); setFinishDismissed(true); api.blogs.aiFinished(blog.id); setTab('look') }}
+                  onDismiss={() => { setFinishDismissed(true); api.blogs.aiFinished(blog.id); setTab('look') }} />
+              ) : (
+                <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-900/15">
+                  <p className="flex items-center gap-2 text-sm font-bold text-emerald-800 dark:text-emerald-300"><Check className="h-4 w-4" /> Finishing touches are in. Edit anything on the Write tab.</p>
+                  <button type="button" onClick={() => setTab('write')} className="inline-flex items-center gap-1 rounded-xl bg-[#111827] px-3 py-2 text-xs font-black text-white dark:bg-white dark:text-[#111827]">Go to writing <ChevronRightIcon className="h-3.5 w-3.5" /></button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
 
+        {tab === 'look' && (
+          <div className="space-y-6">
         {/* Cover */}
-        <div className="group relative mb-8 overflow-hidden rounded-2xl">
+        <div className="group relative overflow-hidden rounded-2xl">
           {blog.cover_image_url ? (
             <img src={resolveMediaUrl(blog.cover_image_url)} alt="" className="aspect-[16/9] w-full object-cover" />
           ) : (
-            <button type="button" onClick={() => coverInputRef.current?.click()} className="group/cv relative flex aspect-[16/9] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-dashed border-[#C9A24D]/40 bg-[radial-gradient(110%_130%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(135deg,#fffdf8,#fbf6ec)] transition hover:border-[#C9A24D] dark:bg-[radial-gradient(110%_130%_at_100%_0%,rgba(201,162,77,.14),transparent_55%),linear-gradient(135deg,#121214,#17140f)]">
+            <button type="button" onClick={() => coverInputRef.current?.click()} className="group/cv relative flex aspect-[16/9] sm:aspect-[5/2] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-dashed border-[#C9A24D]/40 bg-[radial-gradient(110%_130%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(135deg,#fffdf8,#fbf6ec)] transition hover:border-[#C9A24D] dark:bg-[radial-gradient(110%_130%_at_100%_0%,rgba(201,162,77,.14),transparent_55%),linear-gradient(135deg,#121214,#17140f)]">
               <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-lg transition group-hover/cv:-translate-y-1 group-hover/cv:rotate-[-4deg]"><ImagePlus className="h-6 w-6" /></span>
               <span className="font-serif text-lg font-black text-[#111827] dark:text-white">Add a cover photo</span>
               <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">It leads the article, your Hub card and every share - a wide JPG works best.</span>
@@ -769,11 +783,13 @@ function BlogEditorPageInner() {
           </button>
           <input ref={coverInputRef} type="file" accept="image/jpeg" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleCoverUpload(f) }} />
         </div>
-
+            <AiCoverMaker blogId={blog.id} idea={(blog.ai_review as any)?.cover_image_idea || blog.title} coverUrl={blog.cover_image_url}
+              onUse={url => persist({ ...blog, cover_image_url: url })} />
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#151517]">
         {/* Category + the article's look on the Agent Hub */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <CategoryPicker value={blog.category} onChange={category => persist({ ...blog, category })} />
-          <div className="relative flex items-center gap-1.5" role="radiogroup" aria-label="Article theme" onMouseLeave={() => setHoverLook(null)}>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2"><span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Category</span><CategoryPicker value={blog.category} onChange={category => persist({ ...blog, category })} /></div>
+          <div className="relative flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Article theme" onMouseLeave={() => setHoverLook(null)}>
             <span className="mr-1 text-[10px] font-black uppercase tracking-widest text-gray-400">Look</span>
             {BLOG_THEMES.map(t => {
               const on = blogTheme(blog.theme).id === t.id
@@ -795,15 +811,6 @@ function BlogEditorPageInner() {
                 </button>
               )
             })}
-            <AnimatePresence>
-              {hoverLook && (
-                <motion.div key="look-pop" initial={{ opacity: 0, y: 6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 4 }} transition={{ duration: 0.18 }}
-                  className="pointer-events-none absolute right-0 top-full z-40 mt-2 w-[360px] overflow-hidden rounded-2xl border border-[#C9A24D]/30 bg-white shadow-[0_30px_60px_-24px_rgba(17,24,39,.55)] dark:border-white/10 dark:bg-[#121214]">
-                  <p className="border-b border-gray-100 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:border-white/10">Live example · {blogTheme(hoverLook).label}</p>
-                  <BlogThemeLivePreview theme={hoverLook} title={blog.title} category={blog.category} coverUrl={blog.cover_image_url ? resolveMediaUrl(blog.cover_image_url) : null} agentName={`${user?.first_name || ''} ${user?.last_name || ''}`.trim()} agentPhoto={user?.photo_url ? resolveMediaUrl(user.photo_url) : null} height={240} />
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         </div>
 
@@ -823,13 +830,46 @@ function BlogEditorPageInner() {
             })}
           </motion.div>
         )}
+              <div className="mt-4 overflow-hidden rounded-xl border border-gray-200 dark:border-white/10">
+                <p className="border-b border-gray-100 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:border-white/10">Live example · {blogTheme(hoverLook || blog.theme).label}</p>
+                <BlogThemeLivePreview theme={hoverLook || blog.theme || 'luxe'} title={blog.title} category={blog.category} coverUrl={blog.cover_image_url ? resolveMediaUrl(blog.cover_image_url) : null} agentName={`${user?.first_name || ''} ${user?.last_name || ''}`.trim()} agentPhoto={user?.photo_url ? resolveMediaUrl(user.photo_url) : null} height={320} />
+              </div>
+            </div>
+        {/* Sections at a glance - tap to keep or remove a whole section */}
+        {sections.headings.length > 1 && (
+          <div className="rounded-2xl border border-gray-200 bg-white/70 p-3 dark:border-gray-800 dark:bg-white/[0.02]">
+            <p className="mb-2 flex items-center gap-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
+              Sections <span className="font-semibold normal-case tracking-normal text-gray-400">- tap one to remove it from the article or add it back</span>
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {sections.headings.map((h, i) => {
+                const off = !!h.data?.hidden
+                return (
+                  <motion.button key={h.id} type="button" layout whileTap={{ scale: 0.94 }} onClick={() => setSectionHidden(h.id, !off)}
+                    title={off ? 'Add this section back' : 'Remove this section from the article'}
+                    className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black transition hover:-translate-y-0.5 ${off ? 'border-dashed border-gray-300 text-gray-400 line-through decoration-gray-300 dark:border-gray-700' : 'border-[#C9A24D]/50 bg-[#C9A24D]/10 text-[#111827] dark:text-white'}`}>
+                    <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] ${off ? 'bg-gray-200 text-gray-500 dark:bg-gray-800' : 'bg-[#C9A24D] text-[#111827]'}`}>{off ? <EyeOffIcon className="h-2.5 w-2.5" /> : i + 1}</span>
+                    <span className="truncate">{headingText(h)}</span>
+                  </motion.button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+            <div className="flex justify-end">
+              <button type="button" onClick={() => { setTab('write'); window.scrollTo({ top: 0 }) }} className="inline-flex items-center gap-1.5 rounded-xl bg-[#111827] px-4 py-2.5 text-xs font-black text-white transition hover:-translate-y-0.5 dark:bg-white dark:text-[#111827]">Next: write <ChevronRightIcon className="h-3.5 w-3.5" /></button>
+            </div>
+          </div>
+        )}
 
+        {tab === 'write' && (
+          <div>
         {/* Title & subtitle */}
         <AutoGrowTextarea
           value={blog.title}
           onChange={title => persist({ ...blog, title })}
           placeholder="Untitled Article"
-          className="mt-3 font-serif text-4xl font-black leading-[1.1] text-[#111827] dark:text-white sm:text-5xl"
+          className="font-serif text-4xl font-black leading-[1.1] text-[#111827] dark:text-white sm:text-5xl"
         />
         <AutoGrowTextarea
           value={blog.subtitle || ''}
@@ -916,10 +956,24 @@ function BlogEditorPageInner() {
 
           <AddBlockMenu onAdd={type => insertBlockAt(blog.blocks.length, type)} full />
         </div>
+          </div>
+        )}
+        </motion.div>
+        </AnimatePresence>
       </div>
 
       <FloatingTextToolbar containerRef={bodyRef} />
       </div>
+
+      <ConfirmationModal
+        isOpen={confirmRewrite}
+        onClose={() => setConfirmRewrite(false)}
+        onConfirm={() => { setConfirmRewrite(false); setShowAiDraft(true) }}
+        title="Rewrite this article with AI?"
+        message="The AI writer will replace this article's current text with a new draft. Your title and look stay until it's done."
+        confirmText="Rewrite it"
+        cancelText="Keep my article"
+      />
 
       {showAiDraft && (
         <BlogAiWriter
@@ -991,7 +1045,8 @@ function EditorFinishCard({ blog, onApply, onDismiss }: { blog: Blog; onApply: (
     <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} className="mb-6 overflow-hidden rounded-2xl border border-[#C9A24D]/35 bg-[#fffdf8] p-4 shadow-[0_24px_50px_-36px_rgba(201,162,77,.9)] dark:bg-[#151517]">
       {ctx ? <BlogFinishStep ctx={ctx} blocks={blog.blocks} areas={areas} value={choices} onChange={setChoices} canSignature={canSig} /> : <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-gray-400" /></div>}
       <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#151517]">
-        <NeighborhoodLinksPicker value={linkedAreas} onChange={setLinkedAreas} articleText={articleTextOf(blog.blocks)} autoPick />
+        <NeighborhoodLinksPicker value={linkedAreas} articleText={articleTextOf(blog.blocks)} autoPick
+          onChange={slugs => { setLinkedAreas(slugs); api.blogs.updateHubVisibility(blog.id, { linked_areas: slugs }) }} />
       </div>
       <div className="mt-4 flex items-center justify-end gap-2">
         <button type="button" onClick={onDismiss} className="rounded-xl px-3 py-2 text-xs font-black text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5">Not now</button>
@@ -1177,8 +1232,9 @@ function StatusBadge({ status }: { status: Blog['status'] }) {
 
 // Substack-style publishing step: writing and publishing are deliberately separate screens, so the
 // main canvas never has to carry SEO/social/visibility fields alongside the actual prose.
-function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClose }: {
+function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClose, liveLink }: {
   blog: Blog
+  liveLink?: string | null
   busy: boolean
   onChange: (blog: Blog) => void
   onStatusChange: (status: Blog['status'], scheduledAt?: string) => void
@@ -1187,7 +1243,7 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
 }) {
   const { user } = useAuth()
   const [slugInput, setSlugInput] = useState(blog.slug)
-  const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'saved'>('idle')
+  const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'saved' | 'confirm'>('idle')
   const [tagInput, setTagInput] = useState('')
   const [scheduleValue, setScheduleValue] = useState('')
   const [uploadingSocial, setUploadingSocial] = useState(false)
@@ -1195,9 +1251,10 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
   const inputClass = 'mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#C9A24D] focus:shadow-[0_0_0_4px_rgba(201,162,77,.14)] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white'
   const labelClass = 'flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/50'
 
-  const handleSlugSave = async () => {
+  // A published article's link change asks first, right here (user, 10/17 - not a browser pop-up).
+  const handleSlugSave = async (confirmed = false) => {
     if (slugInput === blog.slug) return
-    if (blog.status === 'PUBLISHED' && !confirm('This article is published. Changing its link may break existing shares and search results. Continue?')) return
+    if (blog.status === 'PUBLISHED' && !confirmed) { setSlugStatus('confirm'); return }
     setSlugStatus('checking')
     const check = await api.blogs.checkSlug(blog.id, slugInput)
     if (!check.success || !check.data?.available) { setSlugStatus('taken'); return }
@@ -1243,9 +1300,15 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
             <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" /> Back to writing
           </motion.button>
           <p className="hidden font-serif text-lg font-black text-[#111827] dark:text-white sm:block">Review <em className="font-light text-[#a8803a] dark:text-[#e8c97a]">&amp; Publish</em></p>
-          <motion.button whileTap={{ scale: 0.95 }} onClick={onPreview} className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-black text-[#111827] transition hover:-translate-y-0.5 hover:border-[#C9A24D] dark:border-gray-700 dark:bg-transparent dark:text-white">
-            <Eye className="h-3.5 w-3.5" /> Full preview
-          </motion.button>
+          {blog.status === 'PUBLISHED' && liveLink ? (
+            <a href={liveLink} target="_blank" rel="noopener" className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-3.5 py-2 text-xs font-black text-white transition hover:-translate-y-0.5 dark:bg-white dark:text-[#111827]">
+              <ExternalLink className="h-3.5 w-3.5" /> View live
+            </a>
+          ) : (
+            <motion.button whileTap={{ scale: 0.95 }} onClick={onPreview} className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-black text-[#111827] transition hover:-translate-y-0.5 hover:border-[#C9A24D] dark:border-gray-700 dark:bg-transparent dark:text-white">
+              <Eye className="h-3.5 w-3.5" /> Full preview
+            </motion.button>
+          )}
         </div>
       </div>
 
@@ -1326,9 +1389,19 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
           <PubSection icon={Link2} title="Article link" hint="The last part of the address - keep it short and readable.">
             <div className="mt-1 flex items-center overflow-hidden rounded-xl border border-gray-200 transition focus-within:border-[#C9A24D] focus-within:shadow-[0_0_0_4px_rgba(201,162,77,.14)] dark:border-gray-700">
               <span className="shrink-0 border-r border-gray-200 bg-gray-50 px-3 py-3 text-xs font-bold text-gray-400 dark:border-gray-700 dark:bg-white/[0.03]">/blogs/</span>
-              <input value={slugInput} onChange={e => { setSlugInput(e.target.value); setSlugStatus('idle') }} onBlur={handleSlugSave} className="min-w-0 flex-1 bg-white px-3 py-3 text-sm font-semibold outline-none dark:bg-[#0B0B0B] dark:text-white" />
+              <input value={slugInput} onChange={e => { setSlugInput(e.target.value); setSlugStatus('idle') }} onBlur={() => handleSlugSave()} className="min-w-0 flex-1 bg-white px-3 py-3 text-sm font-semibold outline-none dark:bg-[#0B0B0B] dark:text-white" />
             </div>
             <AnimatePresence mode="wait">
+              {slugStatus === 'confirm' && (
+                <motion.div key="w" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-900/15">
+                  <p className="flex items-center gap-1.5 text-xs font-black text-amber-900 dark:text-amber-200"><ShieldAlert className="h-4 w-4" /> This article is live</p>
+                  <p className="mt-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300">Changing its link breaks links people already shared and resets where it shows in Google.</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => handleSlugSave(true)} className="rounded-lg bg-amber-600 px-3 py-1.5 text-[11px] font-black text-white hover:bg-amber-700">Change the link</button>
+                    <button type="button" onClick={() => { setSlugInput(blog.slug); setSlugStatus('idle') }} className="rounded-lg px-3 py-1.5 text-[11px] font-black text-amber-800 hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-900/30">Keep the old link</button>
+                  </div>
+                </motion.div>
+              )}
               {slugStatus === 'checking' && <motion.p key="c" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-1.5 text-[11px] font-bold text-gray-400">Checking...</motion.p>}
               {slugStatus === 'taken' && <motion.p key="t" initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="mt-1.5 text-[11px] font-bold text-red-500">You already have an article with this link.</motion.p>}
               {slugStatus === 'saved' && <motion.p key="s" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600"><Check className="h-3 w-3" /> Updated</motion.p>}
@@ -1555,7 +1628,7 @@ function BlockContent({ block, onUpdate, onEnterAtEnd, onBackspaceAtStart, onSla
         <div>
           <TextStyleToolbar data={data} onChange={setData} />
           <div className="rounded-xl border border-[#C9A24D]/30 bg-[#C9A24D]/10 p-4">
-            <RichTextBlock key={rtKey} html={richInitialHtml(data)} placeholder="A callout worth noticing..." className="text-[#111827]" onChangeHtml={html => setData('html', html)} onEnterAtEnd={onEnterAtEnd} onBackspaceAtStart={onBackspaceAtStart} />
+            <RichTextBlock key={rtKey} html={richInitialHtml(data)} placeholder="A callout worth noticing..." className="text-[#111827] dark:text-white" onChangeHtml={html => setData('html', html)} onEnterAtEnd={onEnterAtEnd} onBackspaceAtStart={onBackspaceAtStart} />
           </div>
         </div>
       )

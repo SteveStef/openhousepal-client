@@ -1,8 +1,10 @@
 'use client'
 
-// Every agent page opens the same way: the OpenHousePal house loader holds the screen (the header
-// stays) until the page is really ready - all its API calls answered, fonts in, the photos on
-// screen loaded - and only then does the page rise in, section by section. No half-loaded pages.
+// Every agent page opens the same way: nothing half-loaded is ever shown - the page appears once it
+// is really ready (all its API calls answered, fonts in, the photos on screen loaded) and rises in,
+// section by section. The OpenHousePal house loader only appears when that takes a moment: a page
+// that's ready right away just appears - no logo, no forced wait (user, 10/17 - it used to hold
+// every page at least 1.2s so the house could finish drawing).
 //
 // "Ready" is measured, not guessed: every fetch to the API is counted (window.fetch is wrapped
 // once), and the page counts as loaded once nothing has been in flight for a moment. It starts on
@@ -14,8 +16,9 @@ import OhpLoader from '@/components/brand/OhpLoader'
 import { API_BASE_URL } from '@/lib/api-service'
 import { isGatedAppPage } from '@/lib/appChrome'
 
-const QUIET_MS = 350      // nothing in flight for this long = the data is in
-const MIN_MS = 1200       // long enough for the house to draw itself - never a skipped flash
+const QUIET_MS = 160      // nothing in flight for this long = the data is in
+const GRACE_MS = 280      // ready within this = the page just appears (the loader never shows)
+const MIN_SHOWN_MS = 450  // once the loader IS up, keep it this long so it never flickers
 const MAX_MS = 9000       // a slow / stuck request never holds the page hostage
 const IMAGES_MAX_MS = 2500
 const NAV_WAIT_MS = 5000  // a clicked link that never navigates lets go after this...
@@ -52,7 +55,7 @@ async function untilQuiet(alive: () => boolean, started: number) {
   while (alive()) {
     const now = Date.now()
     if (pending === 0) { if (!quietSince) quietSince = now } else quietSince = 0
-    if ((quietSince && now - quietSince >= QUIET_MS && now - started >= MIN_MS) || now - started > MAX_MS) return
+    if ((quietSince && now - quietSince >= QUIET_MS) || now - started > MAX_MS) return
     await sleep(50)
   }
 }
@@ -112,14 +115,16 @@ const LABELS: [string, string][] = [
 ]
 const labelFor = (p: string) => LABELS.find(([prefix]) => p === prefix || p.startsWith(prefix + '/'))?.[1]
 
-type Phase = 'loading' | 'leaving' | 'done'
+// pending = page held back but no loader yet (the first GRACE_MS); loading = the loader is up.
+// waiting = a link was clicked: the old page stays as it is until the new one arrives.
+type Phase = 'waiting' | 'pending' | 'loading' | 'leaving' | 'done'
 // ohp-gate-hold / ohp-gate-cover (globals.css): the hidden page + the loader are server-rendered,
 // so if the page's JavaScript never starts, pure CSS steps the loader aside after 10s - it can never
 // trap anyone.
 
 export default function PageGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || '/'
-  const [phase, setPhase] = useState<Phase>(() => (isGatedAppPage(pathname) ? 'loading' : 'done'))
+  const [phase, setPhase] = useState<Phase>(() => (isGatedAppPage(pathname) ? 'pending' : 'done'))
   const [label, setLabel] = useState(() => labelFor(pathname))
   const root = useRef<HTMLDivElement>(null)
   const run = useRef(0)
@@ -130,18 +135,31 @@ export default function PageGate({ children }: { children: React.ReactNode }) {
     if (navTimer.current) { clearTimeout(navTimer.current); navTimer.current = null }
     if (!isGatedAppPage(path)) { setPhase('done'); return }
     setLabel(labelFor(path))
-    setPhase('loading')
     const alive = () => run.current === id
     const started = Date.now()
+    let shownAt = 0
+    // Not ready by the end of the grace period -> now (and only now) the loader comes up.
+    setPhase(p => (p === 'loading' ? p : 'pending'))
+    const grace = setTimeout(() => { if (alive()) { shownAt = Date.now(); setPhase('loading') } }, GRACE_MS)
     await sleep(0)
     await untilQuiet(alive, started)
-    if (!alive()) return
+    if (!alive()) { clearTimeout(grace); return }
     await untilImagesIn(root.current)
+    clearTimeout(grace)
     if (!alive()) return
-    setPhase('leaving')
-    requestAnimationFrame(() => reveal(root.current))
-    await sleep(420)
-    if (alive()) setPhase('done')
+    if (shownAt) {
+      const left = MIN_SHOWN_MS - (Date.now() - shownAt)
+      if (left > 0) await sleep(left)
+      if (!alive()) return
+      setPhase('leaving')
+      requestAnimationFrame(() => reveal(root.current))
+      await sleep(420)
+      if (alive()) setPhase('done')
+    } else {
+      // Ready before the loader was needed: the page just appears (a quick rise, no logo).
+      setPhase('done')
+      requestAnimationFrame(() => reveal(root.current))
+    }
   }, [])
 
   // Every new page (first load, link, router.push, back / forward). Layout effect: the loader is
@@ -163,7 +181,10 @@ export default function PageGate({ children }: { children: React.ReactNode }) {
       if (!isGatedAppPage(url.pathname)) return
       run.current++
       setLabel(labelFor(url.pathname))
-      setPhase('loading')
+      // Hold the old page still; the loader only appears if the new one takes a moment.
+      setPhase('waiting')
+      const clickRun = run.current
+      setTimeout(() => { if (run.current === clickRun) setPhase(p => (p === 'waiting' ? 'loading' : p)) }, GRACE_MS)
       if (navTimer.current) clearTimeout(navTimer.current)
       // The link never went anywhere (an unsaved-changes prompt, a button-like link...) - let go.
       // A slow page that does arrive later is simply covered again by the path change.
@@ -183,10 +204,10 @@ export default function PageGate({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div ref={root} className={`flex flex-1 flex-col ${phase === 'loading' ? 'ohp-gate-hold' : ''}`}>
+      <div ref={root} className={`flex flex-1 flex-col ${phase === 'loading' || phase === 'pending' ? 'ohp-gate-hold' : ''}`}>
         {children}
       </div>
-      {phase !== 'done' && (
+      {(phase === 'loading' || phase === 'leaving') && (
         <div aria-hidden={phase === 'leaving'}
           className={`fixed inset-0 z-40 transition-all duration-[400ms] ease-out ${phase === 'leaving' ? 'pointer-events-none scale-[1.03] opacity-0' : 'ohp-gate-cover opacity-100'}`}>
           <OhpLoader label={label} />

@@ -74,3 +74,20 @@ export default function OhpLoader({ label, fullScreen = true, className = '', gu
     </div>
   )
 }
+
+/** The same house, small and inline - in place of a plain spinning circle (buttons, a list that's
+ * loading, a panel that's fetching). Only shown while something is actually loading. */
+export function OhpSpinner({ size = 20, className = '', label }: { size?: number; className?: string; label?: string }) {
+  return (
+    <span role="status" aria-label={label || 'Loading'} className="ohp-ld inline-flex items-center gap-2">
+      <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      <svg viewBox="0 3 40 44" className={`ohp-ld-house shrink-0 text-[#111827] dark:text-white ${className}`} style={{ animation: 'none', height: size, width: 'auto' }} aria-hidden="true">
+        <path className="r" pathLength={1} d="M3.5 22.5 L20 8 L36.5 22.5" fill="none" stroke="currentColor" strokeWidth={5.5} strokeLinecap="round" strokeLinejoin="round" />
+        <path className="w" pathLength={1} d="M7 20 V43 H14.5 M25.5 43 H33 V20" fill="none" stroke="currentColor" strokeWidth={5.5} strokeLinecap="round" strokeLinejoin="round" />
+        <circle className="win" cx="20" cy="18.6" r="2.6" fill="var(--g)" />
+        <path className="door" d="M25.5 46 V29.5 L19.5 31.8 V46 Z" fill="var(--g)" />
+      </svg>
+      {label && <span className="text-sm font-bold text-gray-400">{label}</span>}
+    </span>
+  )
+}

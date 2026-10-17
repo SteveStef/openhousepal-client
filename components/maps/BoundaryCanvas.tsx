@@ -177,7 +177,21 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
     const out: { b: CanvasBadge; x: number; y: number; mode: 'full' | 'title' | 'icon'; w: number; h: number }[] = []
     const step = Math.max(14, Math.min(28, (view.x1 - view.x0) / 40))
     const obstacles = [...dots, ...avoid.map(a => ({ p: P(a.lng, a.lat) }))]
+    // Zoomed in so one area fills the view (user, 10/17): its badge moves to the top-left corner,
+    // under the layer tabs, instead of sitting in the middle of what they're looking at - and it
+    // switches to whichever area they pan into.
+    const cx0 = (view.x0 + view.x1) / 2, cy0 = (view.y0 + view.y1) / 2
+    const corners = [[view.x0, view.y0], [view.x1, view.y0], [view.x0, view.y1], [view.x1, view.y1]]
+    const filling = badges.find(b => {
+      const rings = px.get(b.shapeId)
+      return !!rings?.length && pip(cx0, cy0, rings) && corners.filter(([x, y]) => pip(x, y, rings)).length >= 3
+    })
+    if (filling) {
+      const w = Math.min(260, 66 + Math.max(filling.title.length * 8, (filling.sub || '').length * 7.2))
+      out.push({ b: filling, x: view.x0 + w / 2, y: view.y0 + 46 + 27, mode: 'full', w, h: 54 })
+    }
     for (const b of badges) {
+      if (b === filling) continue
       const rings = px.get(b.shapeId)
       if (!rings?.length) continue
       // needIn: how many of the 8 edge probes must be inside the shape; minClear: px from any dot.

@@ -4,6 +4,7 @@ import OhpLoader from '@/components/brand/OhpLoader'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Download, Loader2, Minus, Move, MousePointerClick, Plus, Printer, Redo2, Smartphone, Square, Undo2, X } from 'lucide-react'
 import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
@@ -22,6 +23,7 @@ import ProfileGate from '@/components/studio/design/ProfileGate'
 import { profileGaps, propertyRuleFor } from '@/lib/studio/designCompliance'
 import { BLOCK_TO_CARD, CardId, DetailsCard, EditorCtl, PhotoCard, Reposition, WordsCard, find } from './cards'
 import { LeadsCard, LookCard, PropertyCard, YouCard } from './cardsMore'
+import DesignFeatureProbe, { type DesignDraws } from './DesignFeatureProbe'
 
 // The one design editor. Big live preview on the left - click anything on it to change it; a
 // short stack of plain-English cards on the right (Photos, Words, Price & facts, You, Look,
@@ -80,6 +82,8 @@ export default function DesignEditor({ designId }: { designId: string }) {
   const [flashCard, setFlashCard] = useState<CardId | null>(null)
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
   const [reposition, setReposition] = useState<Reposition | null>(null)
+  // Whether this design draws the social button / a logo (the Words + You cards hide what it doesn't).
+  const [draws, setDraws] = useState<DesignDraws | null>(null)
   const [showPropertyPicker, setShowPropertyPicker] = useState(false)
   const [zoom, setZoom] = useState(1)
 
@@ -412,6 +416,7 @@ export default function DesignEditor({ designId }: { designId: string }) {
     else ctxRef.current = ctx
   }
   const ctl: EditorCtl = {
+    draws,
     design, blocks: design.blocks, property: design.linked_property || null, situation: design.situation || null, leadGen, format, fam, composition, agent, brandKit, agentForms, linkedOpenHouses,
     libraryPhotos: situationDef?.photoLibrary || [], updateBlock, addBlock, removeBlock, reposition, setReposition, focusBlockId: selectedBlockId, ctx, isIdx,
     setBrandingMode, changeLook, openPropertyPicker: () => setShowPropertyPicker(true), resetToListing, campaignInfo, trackingUrl, changeCampaign,
@@ -425,7 +430,8 @@ export default function DesignEditor({ designId }: { designId: string }) {
   const canUndo = history.current.past.length > 0
   const canRedo = history.current.future.length > 0
   const cardProps = (id: CardId) => ({ ctl, open: openCard === id, onToggle: () => setOpenCard(openCard === id ? null : id), flash: flashCard === id })
-  const cards: CardId[] = ['photo', 'words', 'details', 'you', 'look', ...(leadGen ? [] : ['property' as const]), 'leads']
+  // Leads (the form picker) only on pieces that carry a QR code, or a lead-gen post whose link is the point (user, 10/17).
+  const cards: CardId[] = ['photo', 'words', 'details', 'you', 'look', ...(leadGen ? [] : ['property' as const]), ...(format.isPrint || leadGen ? ['leads' as const] : [])]
   const showDetails = !leadGen || !!find(design.blocks, 'open_house_details')
 
   return (
@@ -535,11 +541,11 @@ export default function DesignEditor({ designId }: { designId: string }) {
         <aside className={`w-full shrink-0 overflow-y-auto border-t border-black/5 bg-[#faf9f6] p-3 transition-transform duration-300 ease-in dark:border-white/10 dark:bg-[#0d0d0f] lg:w-[420px] lg:border-l lg:border-t-0 lg:p-4 ${closing ? 'lg:translate-x-8' : ''}`}>
           <p className="mb-3 px-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974]">What would you like to change?</p>
           <div className="space-y-2.5">
-            {cards.map(id => {
+            {cards.map((id, i) => {
               if (id === 'details' && !showDetails) return null
               const props = cardProps(id)
               return (
-                <div key={id} id={`card-${id}`}>
+                <motion.div key={id} id={`card-${id}`} layout="position" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(i * 0.04, 0.24), ease: [0.16, 1, 0.3, 1] }}>
                   {id === 'photo' && <PhotoCard {...props} />}
                   {id === 'words' && <WordsCard {...props} />}
                   {id === 'details' && <DetailsCard {...props} />}
@@ -547,13 +553,15 @@ export default function DesignEditor({ designId }: { designId: string }) {
                   {id === 'look' && <LookCard {...props} />}
                   {id === 'property' && <PropertyCard {...props} />}
                   {id === 'leads' && <LeadsCard {...props} />}
-                </div>
+                </motion.div>
               )
             })}
           </div>
           <p className="mt-4 px-1 text-[11px] font-semibold leading-relaxed text-gray-400">Everything saves automatically. Changed your mind? Undo is the arrow at the top (or Ctrl+Z).</p>
         </aside>
       </div>
+
+      <DesignFeatureProbe blocks={design.blocks} ctx={ctx} brandKit={brandKit} onResult={setDraws} />
 
       {/* Off-screen full-resolution render target for the browser-side fallback export */}
       {exportCopy && (

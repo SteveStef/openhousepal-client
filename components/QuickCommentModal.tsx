@@ -1,5 +1,6 @@
 'use client'
 
+import { OhpSpinner } from '@/components/brand/OhpLoader'
 import { AnimatePresence, motion } from 'framer-motion'
 import { backdropMotion, panelMotion, useEscapeToClose, useLastValue } from '@/components/ui/windowMotion'
 import { useState, useRef, useEffect } from 'react'
@@ -81,7 +82,7 @@ function QuickCommentWindow({ property, isOpen, onClose, onAddComment, isLoading
         <div ref={listRef} className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[160px]">
           {isLoading ? (
             <div className="flex items-center justify-center py-10">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#C9A24D]" />
+              <OhpSpinner size={24} />
             </div>
           ) : property.comments && property.comments.length > 0 ? (
             property.comments.map((comment) => (

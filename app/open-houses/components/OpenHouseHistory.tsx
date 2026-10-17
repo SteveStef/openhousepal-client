@@ -88,8 +88,10 @@ export function OpenHouseHistory({
 
   return (
     <div className="mt-8">
-      <div className="flex flex-wrap items-center justify-between gap-y-2 gap-x-4 mb-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-y-3 gap-x-4 mb-3">
+        {/* Phones: title left, the listing count on the far right of the same line; the stats and
+            the search box centered under it (user, 10/17). */}
+        <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-start">
           <h2 className="font-serif text-2xl font-black text-[#111827] dark:text-white">Your Opens</h2>
           <span className="rounded-full border border-[#C9A24D]/30 bg-[#C9A24D]/10 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#e8c97a]">
             {openHouses.length} Listings
@@ -98,7 +100,7 @@ export function OpenHouseHistory({
 
         {/* Sign-in stats - only sign-ins/guests scanned from an actual open house */}
         {statSummary && (
-          <div className="flex flex-col items-center gap-1">
+          <div className="flex w-full flex-col items-center gap-1 sm:w-auto">
             <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7355]/80 dark:text-[#e8c97a]/70">
               Last 30 Days
             </span>
@@ -130,7 +132,7 @@ export function OpenHouseHistory({
         )}
 
         {/* Opens Filter Search */}
-        <div className="relative max-w-md w-full sm:w-80">
+        <div className="relative mx-auto w-full max-w-md sm:mx-0 sm:w-80">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />

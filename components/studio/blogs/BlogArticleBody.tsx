@@ -517,7 +517,7 @@ function NeighborhoodLinksRow({ links, accentColor, onOpen }: { links: Neighborh
         {links.map(l => (
           <a key={l.slug} href={l.url} target="_blank" rel="noopener" onClick={() => onOpen?.(l.slug)}
             className="group relative flex h-28 items-end overflow-hidden rounded-2xl text-white no-underline shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
-            <span className="absolute inset-0 bg-cover bg-center transition duration-700 group-hover:scale-105" style={{ backgroundImage: l.photo ? `url(${l.photo})` : undefined, backgroundColor: '#1f2937' }} />
+            <span className="absolute inset-0 bg-cover bg-center transition duration-700 group-hover:scale-105" style={{ backgroundImage: l.photo ? `url(${resolveMediaUrl(l.photo)})` : undefined, backgroundColor: '#1f2937' }} />
             <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
             <span className="relative flex w-full items-end justify-between gap-3 p-4">
               <span className="min-w-0">

@@ -11,6 +11,7 @@ import { DesignTheme, resolveDesignTheme } from '@/lib/studio/designTheme'
 import { DESIGN_FONTS } from '@/lib/studio/designFonts'
 import { compositionFromLegacy, DesignCompositionId, DesignFamily, formatFamily } from '@/lib/studio/designCompositions'
 import { getSituation } from '@/lib/studio/designSituations'
+import { useQrCenter } from '@/lib/qr'
 
 export interface DesignCanvasContext {
   format: DesignFormatDef
@@ -1154,7 +1155,7 @@ function Logo({ c, t, ink, height, maxWidth, chip }: { c: Content; t: DesignThem
   // Most brokerage logos are dark marks on transparent - on a photo or a dark panel they vanish, so
   // they sit on a small white card there.
   const needsChip = chip ?? (ink.onPhoto || t.isDark)
-  const img = <img src={c.logo} alt="" crossOrigin="anonymous" style={{ display: 'block', maxHeight: u(h), maxWidth: u(w), width: 'auto', height: 'auto' }} />
+  const img = <img data-probe="logo" src={c.logo} alt="" crossOrigin="anonymous" style={{ display: 'block', maxHeight: u(h), maxWidth: u(w), width: 'auto', height: 'auto' }} />
   if (!needsChip) return img
   return <div style={{ background: '#fff', padding: `${u(height * 0.22)} ${u(height * 0.34)}`, borderRadius: u(height * 0.12), display: 'inline-flex', flexShrink: 0 }}>{img}</div>
 }
@@ -1162,7 +1163,8 @@ function Logo({ c, t, ink, height, maxWidth, chip }: { c: Content; t: DesignThem
 // The site-wide QR look (lib/qrStyle): rounded modules, rounded eyes + a house mark in the theme's
 // accent (darkened until scanners read it), error correction H.
 function QrSvg({ url, eye }: { url: string; eye?: string }) {
-  const parts = useMemo(() => styledQrSvg(url, { eye }), [url, eye])
+  const center = useQrCenter()
+  const parts = useMemo(() => styledQrSvg(url, { eye, center }), [url, eye, center])
   if (!parts) return null
   return <svg viewBox={`0 0 ${parts.size} ${parts.size}`} style={{ display: 'block', width: '100%', height: '100%' }} dangerouslySetInnerHTML={{ __html: parts.body }} />
 }
@@ -1972,12 +1974,49 @@ function placeName(c: Content): string {
 const SHORT_FACT: Record<string, string> = { Beds: 'BD', Bed: 'BD', Baths: 'BA', Bath: 'BA', 'Sq Ft': 'SF', Acres: 'AC', 'Sq Ft Lot': 'SF LOT', Built: 'BUILT', Type: '' }
 
 // "6 BD   9 BA   10,706 SF" - the compact listing line social posts use.
-function FactsLine({ c, t, ink, size, sel, weight = 600, font, nowrap = false }: { c: Content; t: DesignTheme; ink: Ink; size: number; sel: Sel; weight?: number; font?: string; nowrap?: boolean }) {
+// Beds / baths / sq ft stay on ONE line (user, 10/17: "if the beds, baths and square foot is too long
+// it puts it to the next line... we cannot have that with any designs - make the numbers a little
+// smaller"). The row is measured where it sits and its text scaled down to fit (to 62% at most);
+// only a row that still can't fit at that size wraps.
+const FACTS_MIN_K = 0.62
+function FactsLine({ c, t, ink, size, sel, weight = 600, font }: { c: Content; t: DesignTheme; ink: Ink; size: number; sel: Sel; weight?: number; font?: string; nowrap?: boolean }) {
   const f = findFacts(c)
+  const ref = useRef<HTMLDivElement>(null)
+  const [k, setK] = useState(1)
+  const [wrap, setWrap] = useState(false)
+  const text = f ? f.items.map(i => i.value).join('|') : ''
+  const baseFs = f ? size * f.o.k : size
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    // Measure at full size every time (a shrunk row inside a hug-its-content box would otherwise
+    // only ever see its own shrunk width and never grow back), then apply the scale directly.
+    const apply = (kk: number) => { el.style.fontSize = u(baseFs * kk); el.style.columnGap = u(size * 1.1 * kk) }
+    const measure = () => {
+      const was = el.style.flexWrap
+      el.style.flexWrap = 'nowrap'
+      apply(1)
+      const cw = el.clientWidth, sw = el.scrollWidth
+      if (!cw) { el.style.flexWrap = was; return }
+      const fitK = Math.min(1, (cw / sw) * 0.985)
+      const kk = Math.max(FACTS_MIN_K, fitK)
+      apply(kk)
+      el.style.flexWrap = fitK < FACTS_MIN_K ? 'wrap' : 'nowrap'
+      setK(prev => (Math.abs(prev - kk) > 0.005 ? kk : prev))
+      setWrap(fitK < FACTS_MIN_K)
+    }
+    measure()
+    let raf = 0
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(measure) }) : null
+    if (el.parentElement) ro?.observe(el.parentElement)
+    if (el.parentElement?.parentElement) ro?.observe(el.parentElement.parentElement)
+    document.fonts?.ready.then(measure).catch(() => {})
+    return () => { ro?.disconnect(); cancelAnimationFrame(raf) }
+  }, [text, size, baseFs])
   if (!f) return null
   return (
     <Pick id={f.id} sel={sel}>
-      <div style={{ display: 'flex', flexWrap: nowrap ? 'nowrap' : 'wrap', columnGap: u(size * 1.1), rowGap: u(size * 0.3), fontFamily: font || t.fonts.label, fontWeight: weight, fontSize: u(size * f.o.k), letterSpacing: '0.04em', color: ink.ink, lineHeight: 1.1, whiteSpace: 'nowrap', ...f.o.css }}>
+      <div ref={ref} data-k={k} style={{ display: 'flex', flexWrap: wrap ? 'wrap' : 'nowrap', maxWidth: '100%', minWidth: 0, overflow: 'hidden', columnGap: u(size * 1.1 * k), rowGap: u(size * 0.3), fontFamily: font || t.fonts.label, fontWeight: weight, fontSize: u(baseFs * k), letterSpacing: '0.04em', color: ink.ink, lineHeight: 1.1, whiteSpace: 'nowrap', ...f.o.css }}>
         {f.items.map(i => <span key={i.key}>{i.value}{SHORT_FACT[i.label] !== '' ? ` ${SHORT_FACT[i.label] ?? i.label.toUpperCase()}` : ''}</span>)}
       </div>
     </Pick>
@@ -2047,7 +2086,7 @@ function SocialButton({ c, t, ink, S, sel, fam, label, style }: { c: Content; t:
   const k = fam === 'story' ? 0.85 : 1
   return (
     <Pick id={c.title?.id} sel={sel} style={style}>
-      <div style={{ background: ink.fill, color: ink.fillInk, display: 'flex', alignItems: 'center', gap: u(S.facts * 0.5 * k), padding: `${u(S.facts * 0.6 * k)} ${u(S.facts * 1.2 * k)}`, borderRadius: u(S.facts * 0.25), boxShadow: '0 0.5cqmin 1.2cqmin rgba(0,0,0,0.16)' }}>
+      <div data-probe="social-btn" style={{ background: ink.fill, color: ink.fillInk, display: 'flex', alignItems: 'center', gap: u(S.facts * 0.5 * k), padding: `${u(S.facts * 0.6 * k)} ${u(S.facts * 1.2 * k)}`, borderRadius: u(S.facts * 0.25), boxShadow: '0 0.5cqmin 1.2cqmin rgba(0,0,0,0.16)' }}>
         <span style={{ fontFamily: t.fonts.label, fontWeight: 800, textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1.1, letterSpacing: '0.14em', fontSize: u(S.facts * 0.95 * k) }}>{label}</span>
         <svg viewBox="0 0 12 12" fill="none" stroke={ink.fillInk} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ width: u(S.facts * 0.75 * k), height: u(S.facts * 0.75 * k) }}><path d="M4 2 L8.5 6 L4 10" /></svg>
       </div>
@@ -5155,7 +5194,7 @@ function Slant({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
   }
   const ctaPill = social && c.socialButton && (
     <Pick id={c.title?.id} sel={sel} style={{ alignSelf: 'flex-start' }}>
-      <div style={{ background: gold, color: goldInk, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: u(S.facts * 0.55), padding: `${u(S.facts * 0.68)} ${u(S.facts * 1.35)}`, clipPath: 'polygon(0 0, calc(100% - 2.2cqmin) 0, 100% 2.5cqmin, 100% 100%, 0 100%)', boxShadow: '0 0.6cqmin 1.4cqmin rgba(0,0,0,0.18)' }}>
+      <div data-probe="social-btn" style={{ background: gold, color: goldInk, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: u(S.facts * 0.55), padding: `${u(S.facts * 0.68)} ${u(S.facts * 1.35)}`, clipPath: 'polygon(0 0, calc(100% - 2.2cqmin) 0, 100% 2.5cqmin, 100% 100%, 0 100%)', boxShadow: '0 0.6cqmin 1.4cqmin rgba(0,0,0,0.18)' }}>
         <span style={{ ...caps, letterSpacing: '0.14em', fontSize: u(S.facts * 1.02) }}>{c.socialButton}</span>
         <svg viewBox="0 0 12 12" fill="none" stroke={goldInk} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ width: u(S.facts * 0.8), height: u(S.facts * 0.8) }}><path d="M4 2 L8.5 6 L4 10" /></svg>
       </div>
@@ -5175,7 +5214,7 @@ function Slant({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
           </div>
         )}
         {btn && (
-          <div style={{ flex: '0 0 auto', width: u(w * (askCta ? 0.27 : 1)), background: gold, color: goldInk, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: u(S.facts * 0.55), padding: `${u(S.gap)} ${u(S.gap * 0.5)}`, boxSizing: 'border-box' }}>
+          <div data-probe="social-btn" style={{ flex: '0 0 auto', width: u(w * (askCta ? 0.27 : 1)), background: gold, color: goldInk, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: u(S.facts * 0.55), padding: `${u(S.gap)} ${u(S.gap * 0.5)}`, boxSizing: 'border-box' }}>
             {btn.split(/\s+/).map((wd, k) => <span key={k} style={{ ...caps, letterSpacing: '0.14em', fontSize: u(fit(wd, S.facts * 1.05, 6, 0.55)), lineHeight: 1.1 }}>{wd}</span>)}
             <svg viewBox="0 0 24 12" fill="none" stroke={goldInk} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ width: u(S.facts * 1.5), height: u(S.facts * 0.75), marginTop: u(S.facts * 0.15) }}><path d="M2 6 H21" /><path d="M16 1.5 L21 6 L16 10.5" /></svg>
           </div>
@@ -5840,9 +5879,9 @@ function Postage({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
             {false && news && !oh && <Pick id={c.big?.id || c.kicker?.id} sel={sel}><span style={{ display: 'inline-block', background: accent, color: t.isDark ? '#15161A' : '#FFFFFF', fontFamily: t.fonts.label, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.16em', fontSize: u(S.facts * 0.72 * k), padding: `${u(S.facts * 0.3)} ${u(S.facts * 0.7)}` }}>{news}</span></Pick>}
             {!split && !c.townOnly && c.title && <span style={{ fontFamily: t.fonts.label, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: u(S.facts * 0.72 * k), color: accent, whiteSpace: c.title.text.length > 28 ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: c.title.text.length > 28 ? (centered ? '86%' : '100%') : '100%', minWidth: 0, flexShrink: c.title.text.length <= 28 ? 0 : 1, textAlign: align, textWrap: 'balance' as any, lineHeight: 1.45 }}>{c.title.text}</span>}
           </div>
-          {!split && !panel && <div style={{ display: 'flex', alignItems: 'baseline', gap: u(S.gap), flexWrap: 'wrap', justifyContent: centered ? 'center' : 'flex-start', marginTop: u(S.gap * 0.3), ...(true ? { background: accent, outline: `${hair} solid ${hexA(t.isDark ? '#15161A' : '#FFFFFF', 0.55)}`, outlineOffset: u(-1.1), padding: `${u(S.gap * 0.7)} ${u(S.gap * 2.6)}`, marginTop: u(S.gap * 0.8), boxShadow: '0 0.6cqmin 1.6cqmin rgba(0,0,0,0.16)', display: 'grid', justifyItems: 'center', rowGap: u(S.gap * 0.3), width: 'fit-content', alignSelf: centered ? 'center' : 'flex-start', whiteSpace: 'nowrap' } : {}) }}>
+          {!split && !panel && <div style={{ display: 'flex', alignItems: 'baseline', gap: u(S.gap), flexWrap: 'wrap', justifyContent: centered ? 'center' : 'flex-start', marginTop: u(S.gap * 0.3), ...(true ? { background: accent, outline: `${hair} solid ${hexA(t.isDark ? '#15161A' : '#FFFFFF', 0.55)}`, outlineOffset: u(-1.1), padding: `${u(S.gap * 0.7)} ${u(S.gap * 1.6)}`, marginTop: u(S.gap * 0.8), boxShadow: '0 0.6cqmin 1.6cqmin rgba(0,0,0,0.16)', display: 'grid', justifyItems: 'center', rowGap: u(S.gap * 0.3), width: centered ? 'fit-content' : '100%', maxWidth: '100%', minWidth: centered ? 0 : undefined, boxSizing: 'border-box', alignSelf: centered ? 'center' : 'stretch', whiteSpace: 'nowrap' } : {}) }}>
             <PriceText c={c} t={t} ink={bandInk} size={S.price * 0.82 * k} sel={sel} showLabel={c.isPrint} />
-            {facts && <FactsLine c={c} t={t} ink={bandInk} size={S.facts * (centered ? 0.95 : 0.78) * k} sel={sel} />}
+            {facts && <FactsLine c={c} t={t} ink={bandInk} size={S.facts * (centered ? 0.95 : 1.02) * k} sel={sel} />}
           </div>}
         </>
       )}

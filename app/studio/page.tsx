@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useInView } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import {
   AlertCircle, ArrowRight, BellRing, Calculator, CalendarClock, Check, Clapperboard, ClipboardList, FileEdit, Link2, Layers, Lock, Mail, Minus, Moon, Newspaper,
-  FileClock, Palette, Play, Plug, Plus, Star, ToolCase, Wand2,
+  FileClock, Palette, Play, Plug, Plus, Send, Sparkles, Star, ToolCase, Wand2,
 } from 'lucide-react'
 import api from '@/lib/api-service'
 import { SpotlightIcon } from '@/components/icons/CustomIcons'
@@ -211,17 +212,28 @@ export default function StudioHomePage() {
           )}
         </div>
 
-        {/* Secondary links: the connect-a-service tools (Integrations, Calendar, Reviews) as compact
+        {/* Secondary links: the connect-a-service tools (CRM, Email, Calendar, Reviews) as compact
             horizontal bars, each with its live status (green working / red needs setup / grey not on
-            plan) and one line of detail, plus the next one on the way. Follow-ups lives under Leads
-            now. Brand Kit moved to the header's top-right. */}
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <ToolLinkCard href="/studio/integrations" icon={Plug} iconClass="ohp-icon-assemble-plug" title="Integrations" subtitle="Send leads to your CRM, pull in portal leads" status={toolStatus.loading ? undefined : toolStatus.integrationsStatus} tone={toolStatus.integrationsTone} detail={toolStatus.integrationsDetail} delay={0.45} />
-          <ToolLinkCard href="/studio/calendar" icon={CalendarClock} iconClass="ohp-icon-assemble-calendar" title="Calendar" subtitle="Two-way sync with Google or Outlook" status={toolStatus.loading ? undefined : toolStatus.calendarStatus} tone={toolStatus.calendarTone} detail={toolStatus.calendarDetail} delay={0.5} />
-          <ToolLinkCard href="/studio/reviews" icon={Star} title="Reviews" subtitle="Turn happy clients into 5-star reviews" status={toolStatus.loading ? undefined : toolStatus.reviewsStatus} tone={toolStatus.reviewsTone} detail={toolStatus.reviewsDetail} delay={0.55} />
-          {/* Next up (Future Feature Ideas on the launch checklist): AI contract deadlines - took texting's
-              spot (follow-up texts now open the agent's own Messages app, one tap from the calendar). */}
-          <ToolLinkCard comingSoon icon={FileClock} iconClass="ohp-icon-assemble-deadline" title="Deadlines" subtitle="Contract dates on your calendar" detail="Upload the agreement of sale - AI adds every deadline" delay={0.6} />
+            plan) and one line of detail. Then, under a divider of its own, what's coming next.
+            Brand Kit lives in the header's top-right. */}
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <ToolLinkCard href="/studio/integrations" icon={Plug} iconClass="ohp-icon-assemble-plug" title="CRM" subtitle="Send leads to your CRM, pull in portal leads" status={toolStatus.loading ? undefined : toolStatus.integrationsStatus} tone={toolStatus.integrationsTone} detail={toolStatus.integrationsDetail} delay={0.45} />
+          <ToolLinkCard href="/studio/email" icon={Send} title="Email" subtitle="What goes out, from which address" status={toolStatus.loading ? undefined : toolStatus.emailStatus} tone={toolStatus.emailTone} detail={toolStatus.emailDetail} delay={0.5} />
+          <ToolLinkCard href="/studio/calendar" icon={CalendarClock} iconClass="ohp-icon-assemble-calendar" title="Calendar" subtitle="Two-way sync with Google or Outlook" status={toolStatus.loading ? undefined : toolStatus.calendarStatus} tone={toolStatus.calendarTone} detail={toolStatus.calendarDetail} delay={0.55} />
+          <ToolLinkCard href="/studio/reviews" icon={Star} title="Reviews" subtitle="Turn happy clients into 5-star reviews" status={toolStatus.loading ? undefined : toolStatus.reviewsStatus} tone={toolStatus.reviewsTone} detail={toolStatus.reviewsDetail} delay={0.6} />
+        </div>
+
+        {/* Coming soon - on its own level, under a divider (Future Feature Ideas on the launch
+            checklist): AI contract deadlines. */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.62 }} className="mt-7 flex items-center gap-3">
+          <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#C9A24D]/40 to-[#C9A24D]/40" />
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.24em] text-[#8b7355] dark:text-[#e8c97a]">
+            <Sparkles className="h-3 w-3" /> Coming soon
+          </span>
+          <span className="h-px flex-1 bg-gradient-to-l from-transparent via-[#C9A24D]/40 to-[#C9A24D]/40" />
+        </motion.div>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <ToolLinkCard comingSoon icon={FileClock} iconClass="ohp-icon-assemble-deadline" title="Deadlines" subtitle="Contract dates on your calendar" detail="Upload the agreement of sale - AI adds every deadline" delay={0.66} />
         </div>
       </div>
     </div>
@@ -241,13 +253,13 @@ function BrandKitButton() {
     <Link
       href="/studio/brand-kit"
       title={hasLogo === false ? 'Add your logo - every design pulls from your Brand Kit' : 'Logos, colors & fonts shared across Studio & Blogs'}
-      className="group inline-flex items-center gap-3 whitespace-nowrap rounded-2xl border border-gray-200 bg-white py-2 pl-2 pr-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#C9A24D] hover:shadow-md dark:border-gray-700 dark:bg-[#151517]"
+      className="group flex w-full items-center gap-3 rounded-2xl border border-gray-200 bg-white py-2 pl-2 pr-4 text-left shadow-sm sm:inline-flex sm:w-auto sm:whitespace-nowrap transition hover:-translate-y-0.5 hover:border-[#C9A24D] hover:shadow-md dark:border-gray-700 dark:bg-[#151517]"
     >
       <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#C9A24D] to-[#8b7355] text-white shadow-sm transition-transform group-hover:scale-105">
         <Wand2 className="h-[18px] w-[18px]" />
         {hasLogo === false && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#151517]" />}
       </span>
-      <span className="leading-tight">
+      <span className="min-w-0 flex-1 leading-tight sm:flex-none">
         <span className="flex items-center gap-1.5 text-sm font-black text-[#111827] dark:text-white">
           Brand Kit
           {hasLogo === true && <Check className="h-3.5 w-3.5 text-emerald-500" />}
@@ -292,6 +304,7 @@ function ToolLinkCard({ href, icon: Icon, iconClass, title, subtitle, status, to
   const Shell = (comingSoon || !href ? 'div' : Link) as React.ElementType
   return (
     <motion.div
+      className="min-w-0"
       initial={{ opacity: 0, y: 16, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: 'spring', stiffness: 260, damping: 24, delay }}
@@ -299,13 +312,13 @@ function ToolLinkCard({ href, icon: Icon, iconClass, title, subtitle, status, to
       <Shell
         {...(comingSoon || !href ? { 'aria-disabled': true, title: `${title} - coming soon` } : { href })}
         onMouseMove={trackGlow}
-        className={`lx-hero group/lx group relative flex h-full ${comingSoon ? 'opacity-[0.82] saturate-[0.55] hover:opacity-95 hover:saturate-[0.8]' : ''} items-center justify-between gap-4 overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-[radial-gradient(120%_160%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#fffdf8_0%,#fbf6ec_60%,#f6eddb_100%)] px-5 py-4 shadow-[0_18px_40px_-32px_rgba(139,115,85,.6)] transition duration-300 hover:-translate-y-1 hover:border-[#C9A24D]/60 hover:shadow-[0_26px_50px_-30px_rgba(201,162,77,.7)] dark:border-white/[0.08] dark:bg-[radial-gradient(120%_160%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#0b0f0e_0%,#111827_60%,#1d1810_100%)]`}
+        className={`lx-hero group/lx group relative flex h-full w-full min-w-0 ${comingSoon ? 'opacity-[0.82] saturate-[0.55] hover:opacity-95 hover:saturate-[0.8]' : ''} items-center justify-between gap-4 overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-[radial-gradient(120%_160%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#fffdf8_0%,#fbf6ec_60%,#f6eddb_100%)] px-5 py-4 shadow-[0_18px_40px_-32px_rgba(139,115,85,.6)] transition duration-300 hover:-translate-y-1 hover:border-[#C9A24D]/60 hover:shadow-[0_26px_50px_-30px_rgba(201,162,77,.7)] dark:border-white/[0.08] dark:bg-[radial-gradient(120%_160%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#0b0f0e_0%,#111827_60%,#1d1810_100%)]`}
       >
         <div aria-hidden className="ohp-tool-grid pointer-events-none absolute inset-0" />
         <CardAlive seed={delay * 10} />
         <div aria-hidden className="ohp-tool-edge pointer-events-none absolute inset-x-0 top-0 h-[2px] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
         <Icon aria-hidden className="lx-mark pointer-events-none absolute -bottom-6 right-12 h-24 w-24 text-[#C9A24D]/[0.10] dark:text-[#e8c97a]/[0.07]" />
-        <div className="relative flex min-w-0 items-center gap-4">
+        <div className="relative flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
           <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-md ring-1 ring-[#C9A24D]/30 transition-transform duration-300 group-hover:scale-110 group-hover:shadow-[0_6px_20px_-2px_rgba(201,162,77,0.6)] dark:from-[#e8c97a] dark:to-[#C9A24D] dark:text-[#111827]">
             <Icon className={`ohp-icon-draw ${iconClass || ''} h-5 w-5`} />
             {!!badge && badge > 0 && (
@@ -325,17 +338,17 @@ function ToolLinkCard({ href, icon: Icon, iconClass, title, subtitle, status, to
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#C9A24D]" />
                   <span className="truncate">Coming soon</span>
                 </p>
-                {detail && <p className="mt-1 truncate text-[11px] font-semibold text-gray-500 dark:text-white/50">{detail}</p>}
+                {detail && <p className="mt-1 line-clamp-2 text-[11px] font-semibold text-gray-500 dark:text-white/50 sm:truncate">{detail}</p>}
               </>
             ) : status === undefined ? (
               <div className="mt-1.5 h-4 w-44 animate-pulse rounded-full bg-[#C9A24D]/15" />
             ) : (
               <>
-                <p className={`mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-black ring-1 ${t.pill}`}>
-                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${t.dot}`} />
-                  <span className="truncate">{status}</span>
+                <p className={`mt-1 inline-flex max-w-full items-start gap-1.5 rounded-xl px-2 py-0.5 text-[11px] font-black leading-snug ring-1 sm:items-center sm:rounded-full ${t.pill}`}>
+                  <span className={`mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full sm:mt-0 ${t.dot}`} />
+                  <span className="min-w-0 sm:truncate">{status}</span>
                 </p>
-                {detail && <p className="mt-1 truncate text-[11px] font-semibold text-gray-500 dark:text-white/50">{detail}</p>}
+                {detail && <p className="mt-1 line-clamp-2 text-[11px] font-semibold text-gray-500 dark:text-white/50 sm:truncate">{detail}</p>}
               </>
             )}
           </div>
@@ -394,14 +407,29 @@ function ProductCard({ href, icon: Icon, iconClass, eyebrow, title, description,
 }) {
   const [hovered, setHovered] = useState(false)
   const primaryAction = actions[0]
+  const router = useRouter()
+  // Phones have no hover: the preview plays while the card is on screen instead.
+  const cardRef = useRef<HTMLDivElement>(null)
+  const inView = useInView(cardRef, { amount: 0.55 })
+  const eyebrowMr = previewShort ? (eyebrowMarginClass === 'mr-28' ? 'sm:mr-28' : 'sm:mr-48') : preview ? 'sm:mr-28' : ''
+  // The whole card opens the tool (its own buttons still go where they say).
+  const open = (e: React.MouseEvent) => {
+    if (comingSoon || (e.target as HTMLElement).closest('a,button')) return
+    router.push(locked ? (upgradeHref || href) : href)
+  }
   return (
     <div
+      ref={cardRef}
+      role="link"
+      tabIndex={comingSoon ? -1 : 0}
+      onClick={open}
+      onKeyDown={e => { if (e.key === 'Enter' && !comingSoon && e.target === e.currentTarget) router.push(locked ? (upgradeHref || href) : href) }}
       aria-disabled={comingSoon || undefined}
       title={comingSoon ? 'Coming soon' : locked ? 'Upgrade to unlock' : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onMouseMove={trackGlow}
-      className={`lx-hero group/lx group relative flex h-full flex-col overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#fffdf8_0%,#fbf6ec_60%,#f6eddb_100%)] dark:bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#0b0f0e_0%,#111827_60%,#1d1810_100%)] p-5 shadow-[0_20px_44px_-32px_rgba(139,115,85,.6)] transition duration-300 dark:border-white/[0.08] ${
+      className={`lx-hero group/lx group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-white dark:bg-[#111214] sm:bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#fffdf8_0%,#fbf6ec_60%,#f6eddb_100%)] sm:dark:bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#0b0f0e_0%,#111827_60%,#1d1810_100%)] p-5 shadow-[0_20px_44px_-32px_rgba(139,115,85,.6)] transition duration-300 dark:border-white/[0.08] ${
         comingSoon ? 'grayscale opacity-60 pointer-events-none' : locked ? '' : 'hover:-translate-y-1 hover:border-[#C9A24D]/60 hover:shadow-[0_28px_56px_-30px_rgba(201,162,77,.75)]'
       }`}
     >
@@ -430,9 +458,19 @@ function ProductCard({ href, icon: Icon, iconClass, eyebrow, title, description,
           color (only the Unlock button and the top-center Locked badge read as "muted/disabled") -
           it's still the best pitch for what unlocking gets you. */}
       {preview && (
-        <div className={`absolute right-4 top-4 z-[1] ${locked ? 'pointer-events-none' : ''}`}>
+        <div className={`absolute right-4 top-4 z-[1] hidden sm:block ${locked ? 'pointer-events-none' : ''}`}>
           <div className="relative">
             {preview(hovered)}
+          </div>
+        </div>
+      )}
+      {/* Phones: the preview gets its own stage across the top of the card, bigger and playing
+          while the card is on screen - so each tool reads as itself, not as another header. */}
+      {preview && (
+        <div className="pointer-events-none relative -mx-5 -mt-5 mb-1 flex h-[150px] items-center justify-center overflow-hidden border-b border-[#C9A24D]/20 bg-[radial-gradient(90%_120%_at_50%_0%,rgba(201,162,77,.22),transparent_60%),linear-gradient(160deg,#fffdf8_0%,#f6eddb_100%)] dark:border-white/[0.06] dark:bg-[radial-gradient(90%_120%_at_50%_0%,rgba(201,162,77,.18),transparent_60%),linear-gradient(160deg,#0b0f0e_0%,#1d1810_100%)] sm:hidden">
+          <div aria-hidden className="ohp-tool-grid absolute inset-0 opacity-70" />
+          <div className="relative origin-center scale-[1.32]">
+            {preview(inView)}
           </div>
         </div>
       )}
@@ -451,14 +489,14 @@ function ProductCard({ href, icon: Icon, iconClass, eyebrow, title, description,
             description both run the card's full width underneath it, not squeezed to half the
             card for their whole height. */}
         <div>
-          <p className={`mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974] ${previewShort ? (eyebrowMarginClass || 'mr-48') : preview ? 'mr-28' : ''}`}>{eyebrow}</p>
+          <p className={`mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974] ${eyebrowMr}`}>{eyebrow}</p>
           {/* Title keeps the same margin as the eyebrow for the square/phone graphics (unlike
               CMA's short-wide one, they don't fully clear above the title - they're absolutely
               positioned, so text doesn't wrap around them, it just renders underneath and gets
               visually painted over at narrower card widths without this) - so it never runs
               under the graphic, even once cards get narrow enough that the title needs the width
               the graphic would otherwise sit in. */}
-          <h2 className={`mt-1 font-serif text-lg font-black text-[#111827] dark:text-white ${preview && !previewShort ? 'mr-28' : ''}`}><GoldLastWord text={title} /></h2>
+          <h2 className={`mt-1 font-serif text-lg font-black text-[#111827] dark:text-white ${preview && !previewShort ? 'sm:mr-28' : ''}`}><GoldLastWord text={title} /></h2>
           <p className="mt-1.5 text-xs font-semibold leading-relaxed text-gray-500 dark:text-gray-400">{description}</p>
         </div>
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import api from './api-service'
+import api, { type MailboxInfo } from './api-service'
 import type { FollowupSettings, IntegrationsInfo, TaskCounts } from '@/types'
 
 // Gates whether the Reviews status links to the real tool or reads as plan-gated - matches the
@@ -33,6 +33,9 @@ export type ToolConnectionStatus = {
   followupsDetail: string
   /** Follow-ups due today or overdue - the red count on the Tools page's Follow-ups card. */
   followupsDue: number
+  emailStatus: string
+  emailTone: ToolTone
+  emailDetail: string
 }
 
 function ago(iso?: string | null): string {
@@ -52,6 +55,7 @@ export function useToolConnectionStatus(planTier?: string): ToolConnectionStatus
   const [reviewsSummary, setReviewsSummary] = useState<{ destinations: number; received: number; names: string[] } | null>(null)
   const [counts, setCounts] = useState<TaskCounts | null>(null)
   const [rules, setRules] = useState<FollowupSettings | null>(null)
+  const [mailbox, setMailbox] = useState<MailboxInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const reviewsAvailable = REVIEWS_TIERS.includes(planTier || '')
 
@@ -61,6 +65,7 @@ export function useToolConnectionStatus(planTier?: string): ToolConnectionStatus
       api.integrations.get().then(r => { if (alive && r.success && r.data) setInfo(r.data) }),
       api.tasks.counts().then(r => { if (alive && r.success && r.data) setCounts(r.data) }),
       api.tasks.autoRules().then(r => { if (alive && r.success && r.data) setRules(r.data) }),
+      api.integrations.mailbox().then(r => { if (alive && r.success && r.data) setMailbox(r.data) }),
     ]
     if (reviewsAvailable) {
       loads.push(
@@ -132,8 +137,19 @@ export function useToolConnectionStatus(planTier?: string): ToolConnectionStatus
       : `${onRules} of ${totalRules} automatic situations on · phone alerts`
   const followupsDetail = `${counts?.open_total ?? 0} open · ${due} due today${counts?.overdue ? ` (${counts.overdue} overdue)` : ''}`
 
+  // ---- Email (Tools -> Email)
+  const mailboxOk = !!(mailbox?.connected && mailbox.enabled && mailbox.status === 'ok')
+  const emailStatus = mailboxOk
+    ? `Client emails come from ${mailbox!.account_email || 'your email'}`
+    : mailbox?.connected && mailbox.status === 'needs_reconnect' ? 'Stopped sending from your email - reconnect'
+      : 'Sending from OpenHousePal - connect your email'
+  const emailDetail = 'Choose which emails go out, and which come to you'
+
   return {
     loading,
+    emailStatus,
+    emailTone: mailboxOk ? 'ok' : 'warn',
+    emailDetail,
     calendarStatus,
     calendarOk,
     calendarTone: calendarOk ? 'ok' : 'warn',
