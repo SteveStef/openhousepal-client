@@ -10,6 +10,7 @@ import PropertyDetailsModal from '@/components/PropertyDetailsModal'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { buildBragSheetData, buildCheatSheetAgentData, planHasBragSheet } from '@/lib/bragSheetData'
+import { cheatSheetSqft } from '@/lib/cheatSheetContent'
 import { hasMlsAccess, hasShowcaseAccess } from '@/lib/navAccess'
 import { useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
 import { computeMatchScore, isSameSchoolDistrict } from '@/lib/matchScore'
@@ -202,7 +203,7 @@ export function CreateOpenHouseWizard({
         price: propertyData?.ListPrice || 0,
         beds: propertyData?.BedroomsTotal || 0,
         baths: propertyData?.BathroomsTotal || 0,
-        sqft: propertyData?.LivingArea || propertyData?.livingArea || 0,
+        sqft: propertyData?.LivingArea || propertyData?.livingArea || cheatSheetSqft({ aboveGradeSqft: propertyData?.AboveGradeFinishedArea, belowGradeSqft: propertyData?.BelowGradeFinishedArea }) || 0,
         schoolDistrict: propertyData?.SchoolDistrictName || propertyData?.school_district_name || undefined,
         // The Review step's Brand choice (same remembered setting as the Documents window's).
         brand: (opts.brand ?? kitPrefs.flyerBrand) ? await buildCheatSheetAgentData(currentUser) : null,

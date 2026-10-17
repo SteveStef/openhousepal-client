@@ -144,6 +144,16 @@ export const staticMapUrlFor = (property: any, size = '640x210'): string | null 
   return `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=${size}&scale=2&maptype=roadmap&markers=${marker}&key=${apiKey}`
 }
 
+// Some listings have no total Sq Ft in the MLS, only the above/below-grade finished areas (user,
+// 10/17 - 1330 N Avignon had 7,003 above grade and no total). Total first, else their sum.
+export function cheatSheetSqft(property: any): number | null {
+  const n = (v: any) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : 0)
+  const total = n(property?.sqft)
+  if (total) return total
+  const parts = n(property?.aboveGradeSqft) + n(property?.belowGradeSqft)
+  return parts || null
+}
+
 export function buildCheatSheetContent(property: any, amenities?: CheatSheetAmenities | null) {
   const coverPhoto = photoAt(property.photos, 0)
   const detailPhotoOne = photoAt(property.photos, 1)
@@ -152,7 +162,8 @@ export function buildCheatSheetContent(property: any, amenities?: CheatSheetAmen
   const staticMapUrl = staticMapUrlFor(property)
   // Only worth its own tile if it tells guests something the total Sq Ft (shown in Basic Info) doesn't already.
   const hasBelowGrade = !!property.belowGradeSqft && property.belowGradeSqft > 0
-  const hasDistinctAboveGrade = !!property.aboveGradeSqft && property.sqft != null && property.aboveGradeSqft !== property.sqft
+  const sqft = cheatSheetSqft(property)
+  const hasDistinctAboveGrade = !!property.aboveGradeSqft && sqft != null && property.aboveGradeSqft !== sqft
   const showSqftSplit = hasBelowGrade || hasDistinctAboveGrade
   const sqftSplit = [
     property.aboveGradeSqft ? `${Number(property.aboveGradeSqft).toLocaleString()} above` : null,
@@ -163,7 +174,7 @@ export function buildCheatSheetContent(property: any, amenities?: CheatSheetAmen
   const basicInfo: CheatSheetFact[] = [
     { icon: 'bed', label: 'Beds', value: property.beds != null ? String(property.beds) : '—' },
     { icon: 'bath', label: 'Baths', value: property.baths != null ? String(property.baths) : '—' },
-    { icon: 'ruler', label: 'Sq Ft', value: property.sqft ? Number(property.sqft).toLocaleString() : '—' },
+    { icon: 'ruler', label: 'Sq Ft', value: sqft ? sqft.toLocaleString() : '—' },
     { icon: 'calendar', label: 'Build Year', value: property.yearBuilt ? String(property.yearBuilt) : '—' },
     { icon: 'landPlot', label: 'Acres', value: property.acres ? String(property.acres) : '—' },
   ]

@@ -15,6 +15,7 @@ import { EditCheatSheetPhotosModal } from '@/components/EditCheatSheetPhotosModa
 import PDFPreviewModal from '@/components/PDFPreviewModal'
 import { GuestSettingsPatch, OpenHouse, StatSummary } from '@/types'
 import { buildBragSheetData, buildCheatSheetAgentData } from '@/lib/bragSheetData'
+import { cheatSheetSqft } from '@/lib/cheatSheetContent'
 import MissedShowcasesBanner from '@/components/MissedShowcasesBanner'
 import { computeMatchScore } from '@/lib/matchScore'
 import { readPrintPref, writePrintPref } from '@/lib/printPrefs'
@@ -508,7 +509,7 @@ function OpenHouseContent() {
         price: targetOH.ListPrice || targetOH.price || 0,
         beds: targetOH.BedroomsTotal || targetOH.bedrooms || 0,
         baths: targetOH.BathroomsTotal || targetOH.bathrooms || 0,
-        sqft: targetOH.LivingArea || targetOH.livingArea || 0,
+        sqft: targetOH.LivingArea || targetOH.livingArea || cheatSheetSqft((targetOH as any).cheatSheetSnapshot?.property) || 0,
         brand: await buildCheatSheetAgentData(currentUser),
         coverImage: targetOH.coverImageUrl,
         coverImagePosition: (targetOH as any).coverImagePosition || { x: 50, y: 50 },
@@ -541,7 +542,7 @@ function OpenHouseContent() {
             price: targetOH.ListPrice || targetOH.price || 0,
             beds: targetOH.BedroomsTotal || targetOH.bedrooms || 0,
             baths: targetOH.BathroomsTotal || targetOH.bathrooms || 0,
-            sqft: targetOH.LivingArea || targetOH.livingArea || 0,
+            sqft: targetOH.LivingArea || targetOH.livingArea || cheatSheetSqft((targetOH as any).cheatSheetSnapshot?.property) || 0,
             schoolDistrict,
             // Always fetched fresh (name/photo/brokerage can change in Settings any time).
             brand: readPrintPref('flyerBrand') ? await buildCheatSheetAgentData(currentUser) : null,
