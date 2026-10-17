@@ -18,7 +18,7 @@ const ToggleMark = ({ on }: { on: boolean }) => on ? (
 const toggleClass = (on: boolean) => on
   ? 'bg-emerald-500/[0.08] text-emerald-300 shadow-[inset_0_-2px_0_0_rgba(52,211,153,0.9)] hover:bg-emerald-500/[0.14]'
   : 'bg-white/5 text-gray-400 hover:bg-white/10';
-import { OpenHouseFlyerDocument, SimilarPropertiesDocument, AgentBragSheetDocument, OpenHouseCheatSheetDocument, PaperSignInSheetDocument } from '@/lib/pdfs';
+import { OpenHouseFlyerDocument, SimilarPropertiesDocument, AgentBragSheetDocument, OpenHouseCheatSheetDocument, PaperSignInSheetDocument, fitCheatSheetLevel } from '@/lib/pdfs';
 
 const FILE_NAME_PREFIX: Record<string, string> = { paperSignIn: 'Clipboard-Sign-In', flyer: 'Flyer', recommendations: 'COMPS', bragSheet: 'Brag-Sheet', cheatSheet: 'Cheat-Sheet' };
 
@@ -102,6 +102,18 @@ export default function PDFPreviewModal({
     return () => window.removeEventListener('keydown', onKey, true);
   }, [isOpen, onClose]);
 
+  // Cheat Sheet: the size that prints on exactly 2 pages (measured once per sheet, see lib/pdfs).
+  const [cheatFit, setCheatFit] = useState<number | null>(null);
+  useEffect(() => {
+    if (type !== 'cheatSheet' || !data?.property) { setCheatFit(null); return; }
+    let alive = true;
+    setCheatFit(null);
+    fitCheatSheetLevel({ property: data.property, agent: data.agent, amenities: data.amenities })
+      .then(level => { if (alive) setCheatFit(level); })
+      .catch(() => { if (alive) setCheatFit(3); });
+    return () => { alive = false; };
+  }, [type, data]);
+
   const document = useMemo(() => {
     if (!data) return null;
     
@@ -118,13 +130,13 @@ export default function PDFPreviewModal({
     }
 
     if (type === 'cheatSheet') {
-      return <OpenHouseCheatSheetDocument property={data.property} agent={data.agent} amenities={data.amenities} />;
+      return <OpenHouseCheatSheetDocument property={data.property} agent={data.agent} amenities={data.amenities} fit={cheatFit ?? 0} />;
     }
 
     // Recommendations case: data is the array of properties
     const properties = Array.isArray(data) ? data : (data.properties || []);
     return <SimilarPropertiesDocument properties={properties} agentId={agentId} address={address} openHouseEventId={openHouseEventId || data?.openHouseEventId} showMatchScore={showMatchScore} />;
-  }, [data, type, agentId, address, openHouseEventId, showMatchScore]);
+  }, [data, type, agentId, address, openHouseEventId, showMatchScore, cheatFit]);
 
   const fileName = useMemo(() => {
     const baseAddress = (address || data?.address || data?.property?.address || 'Document').split(',')[0].replace(/\s+/g, '-');
@@ -135,7 +147,7 @@ export default function PDFPreviewModal({
   // the rendered PDF goes into a hidden frame and that frame prints.
   const [printing, setPrinting] = useState(false);
   const printNow = async () => {
-    if (!document || printing) return;
+    if (!document || printing || (type === 'cheatSheet' && cheatFit === null)) return;
     setPrinting(true);
     try {
       const blob = await pdf(document).toBlob();

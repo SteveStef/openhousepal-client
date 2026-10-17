@@ -202,7 +202,7 @@ function LivePage({ mode, build, prefs, onError }: {
         const el = mode === 'flyer' ? <docs.OpenHouseFlyerDocument data={data} />
           : mode === 'recommendations' ? <docs.SimilarPropertiesDocument properties={data.properties} address={data.address} openHouseEventId={data.openHouseEventId} showMatchScore={prefs.matchScore} />
           : mode === 'bragSheet' ? <docs.AgentBragSheetDocument agent={data.agent} recentSales={data.recentSales} showcaseSampleProperties={data.showcaseSampleProperties} showcaseQrUrl={data.showcaseQrUrl} showSalesStats={prefs.bragStats} stats={data.stats} />
-          : <docs.OpenHouseCheatSheetDocument property={data.property} agent={data.agent} amenities={data.amenities} />
+          : <docs.OpenHouseCheatSheetDocument property={data.property} agent={data.agent} amenities={data.amenities} fit={await docs.fitCheatSheetLevel(data)} />
         const blob = await pdf(el).toBlob()
         if (!alive) return
         try {
