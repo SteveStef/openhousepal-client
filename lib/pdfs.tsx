@@ -157,8 +157,8 @@ const styles = StyleSheet.create({
   flyerSchoolStripBalanced: { paddingRight: 12 + 12 + 7 },
   // Brand upgrade: the SAME hosting-agent pill the on-screen Sign-In kiosk floats over its photo
   // (black/40 glass, white/20 hairline, gold-ringed headshot, heavy serif name, caps brokerage),
-  // pinned bottom-left of the print's photo, the same distance in from the left and bottom edges.
-  flyerBrandWrap: { position: 'absolute', bottom: 30, left: 30 },
+  // pinned bottom-left of the print's photo, sitting close to the photo's bottom edge.
+  flyerBrandWrap: { position: 'absolute', bottom: 15, left: 30 },
   // react-pdf paints any translucent border color (rgba / 8-digit hex) solid green, so the white/20
   // hairline is a 1pt translucent-white ring (outer View) around the black glass (inner View).
   flyerBrandRing: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 999, padding: 1 },
