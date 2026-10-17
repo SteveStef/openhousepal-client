@@ -658,8 +658,23 @@ function OpenHouseContent() {
         sqft: p.living_area || p.LivingArea,
       },
       agent: freshAgent,
-      // amenities/photos intentionally left untouched - no new Google Places request here
-    };
+      // amenities/photos left as they are - except missing assigned schools (below)
+    } as any;
+    // A sheet saved without all three assigned schools: ask again. The listing's places are cached
+    // (no new Google charge); the server fills missing levels from a one-time web lookup (user,
+    // 10/17 - 1330 N Avignon had no schools).
+    {
+      const levels = ['Elementary School', 'Middle School', 'High School']
+      const sp = existingSnapshot?.property || {}
+      const own = [sp.elementarySchool, sp.middleSchool, sp.highSchool]
+      const schools: any[] = existingSnapshot?.amenities?.schools || []
+      const covered = levels.filter((l, i) => own[i] || schools.some(s => s?.place_type === l)).length
+      if (covered < 3) {
+        const am = await api.properties.getNearbyAmenities(targetOH.listingKey)
+        const fresh: any[] = am.success && am.data ? (am.data as any).schools || [] : []
+        if (fresh.length > schools.length) updatedSnapshot.amenities = { ...(existingSnapshot?.amenities || {}), schools: fresh, available: true }
+      }
+    }
     // The listing's description: picked up only when it actually changed in the MLS. Then (and only
     // then) a Recap that's on is rewritten from the new text - one AI call, after which the new
     // description is the saved one, so refreshing again costs nothing. A Recap that's switched off
