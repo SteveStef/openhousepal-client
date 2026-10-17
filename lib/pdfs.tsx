@@ -86,10 +86,13 @@ const FLYER_WARM = {
   deep: '#6B5740',
 };
 
-// Sign-In flyer's one margin. Agents slide the sheet into a stand holder that hides its edges, so
-// the QR panel's gap to the right and bottom edges and the left column's start all use this same
-// distance.
+// Sign-In flyer's side margin. Agents slide the sheet into a stand holder that hides its edges, so
+// the QR panel's gap to the right edge and the left column's start use this same distance. The
+// bottom margin is deeper - the holder's lip covers more of the bottom - and the hero photo is
+// kept short enough to leave the content (and a large QR) room above it.
 const FLYER_INSET = 34;
+const FLYER_BOTTOM = 54;
+const FLYER_HERO_H = 330;
 
 const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: COLORS.line, width: '100%', marginVertical: 12 },
@@ -99,7 +102,7 @@ const styles = StyleSheet.create({
   // hierarchy and thin rules, so it reads as a commanding luxury one-pager rather than a form.
   flyerPage: { flexDirection: 'column', backgroundColor: COLORS.white, fontFamily: 'Montserrat' },
   // Taller hero (was 286) - the photo is the page's star; objectFit cover trims more of the sides.
-  heroSection: { height: 372, width: '100%', position: 'relative', overflow: 'hidden' },
+  heroSection: { height: FLYER_HERO_H, width: '100%', position: 'relative', overflow: 'hidden' },
   coverImage: { width: '100%', height: '100%', objectFit: 'cover' },
   // Sign-In flyer only: the photo is drawn oversized (zoomed in ~12%) and clipped by the hero, with
   // the extra trimmed mostly off the bottom + left - where MLS photo tags ("Bright MLS") are stamped.
@@ -109,7 +112,7 @@ const styles = StyleSheet.create({
   // Left column: identity block up top (eyebrow -> address -> city), a hairline, the facts on
   // one line, then the price anchored to the bottom edge with its own rule. Per-element
   // margins set the rhythm - no forced even spread.
-  flyerContent: { flexDirection: 'row', paddingHorizontal: FLYER_INSET, paddingTop: 16, paddingBottom: FLYER_INSET, gap: 30, height: 792 - 372 },
+  flyerContent: { flexDirection: 'row', paddingHorizontal: FLYER_INSET, paddingTop: 16, paddingBottom: FLYER_BOTTOM, gap: 30, height: 792 - FLYER_HERO_H },
   leftCol: { flex: 1.85, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' },
 
   addressBlock: { marginTop: 0, width: '100%', display: 'flex', flexDirection: 'column' },
@@ -153,7 +156,7 @@ const styles = StyleSheet.create({
   // Brand upgrade: the SAME hosting-agent pill the on-screen Sign-In kiosk floats over its photo
   // (black/40 glass, white/20 hairline, gold-ringed headshot, heavy serif name, caps brokerage),
   // pinned top-left of the print's photo.
-  flyerBrandWrap: { position: 'absolute', top: 24, left: 26 },
+  flyerBrandWrap: { position: 'absolute', top: 28, left: 30 },
   // react-pdf paints any translucent border color (rgba / 8-digit hex) solid green, so the white/20
   // hairline is a 1pt translucent-white ring (outer View) around the black glass (inner View).
   flyerBrandRing: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 999, padding: 1 },
@@ -204,7 +207,7 @@ const styles = StyleSheet.create({
   rightCol: { flex: 1, backgroundColor: FLYER_WARM.panel, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: FLYER_WARM.border, borderStyle: 'solid', alignItems: 'center', justifyContent: 'flex-start' },
   qrHeader: { fontSize: 18, fontWeight: 700, marginTop: 5, marginBottom: 8, color: COLORS.text },
   qrDescription: { fontSize: 9, color: COLORS.subtext, textAlign: 'center', lineHeight: 1.4, paddingHorizontal: 8 },
-  qrContainer: { backgroundColor: 'white', padding: 10, borderRadius: 12, border: `1 solid ${COLORS.line}`, marginTop: 20 },
+  qrContainer: { backgroundColor: 'white', padding: 9, borderRadius: 12, border: `1 solid ${COLORS.line}`, marginTop: 16 },
   // Fills the space under the QR card and centers "Quick & Easy" in it. The negative bottom margin
   // cancels rightCol's 20pt padding so that space runs to the panel's actual bottom edge.
   qrFooterWrapper: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', width: '100%', marginBottom: -20 },
@@ -783,7 +786,9 @@ function pdfDistrict(v?: string | null): string | undefined {
 
 export const OpenHouseFlyerDocument = ({ data }: { data: any }) => {
   const url = `${process.env.NEXT_PUBLIC_CLIENT_URL || "https://openhousepal.com"}${data.openHouseUrl}`;
-  const qrUrl = qrPdfSrc(url, { size: 300 });
+  // No built-in quiet zone: the white QR card's padding (styles.qrContainer) is the code's margin,
+  // so the code itself fills the card instead of floating in blank white.
+  const qrUrl = qrPdfSrc(url, { size: 360, margin: 0 });
   const propertyAddress = data?.address || "Address Not Available";
   // Split "Street, City" into its own street line + a lighter city/state line below it.
   const [flyerStreetRaw, ...flyerRest] = String(propertyAddress).split(',');
@@ -882,7 +887,7 @@ export const OpenHouseFlyerDocument = ({ data }: { data: any }) => {
               <Text style={styles.qrDescription}>Complete our online sign-in form to register your visit.</Text>
             </View>
             <View style={styles.qrContainer}>
-              <Image src={qrUrl} style={{ width: 132, height: 132 }} />
+              <Image src={qrUrl} style={{ width: 172, height: 172 }} />
             </View>
             <View style={styles.qrFooterWrapper}>
               <Text style={styles.quickEasyText}>Quick & Easy</Text>

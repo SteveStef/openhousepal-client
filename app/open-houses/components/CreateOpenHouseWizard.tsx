@@ -1606,8 +1606,8 @@ const SignInSheetLivePreview = memo(function SignInSheetLivePreview({ propertyDa
         {pending && <p className="text-[10px] font-bold text-[#8b7355] dark:text-[#C9A24D]">Drag Photo</p>}
       </div>
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-[#151517]">
-        {/* 612/320 matches the real flyer's LETTER-page hero (styles.heroSection in lib/pdfs.tsx) so this crop preview isn't misleadingly short */}
-        <DraggablePreviewPhoto photo={pending} slotIndex={0} aspectRatio="612 / 320" onPhotoPositionChange={onPhotoPositionChange} />
+        {/* 612/330 matches the real flyer's LETTER-page hero (FLYER_HERO_H in lib/pdfs.tsx) so this crop preview isn't misleadingly short */}
+        <DraggablePreviewPhoto photo={pending} slotIndex={0} aspectRatio="612 / 330" onPhotoPositionChange={onPhotoPositionChange} />
         <div className="p-4">
           <p className="text-[8px] font-black uppercase tracking-[0.3em] text-gray-400">Welcome</p>
           <p className="font-serif text-lg font-black uppercase tracking-wide text-gray-900 dark:text-white">Open House</p>
