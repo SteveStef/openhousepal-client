@@ -113,7 +113,9 @@ const styles = StyleSheet.create({
   // one line, then the price anchored to the bottom edge with its own rule. Per-element
   // margins set the rhythm - no forced even spread.
   flyerContent: { flexDirection: 'row', paddingHorizontal: FLYER_INSET, paddingTop: 16, paddingBottom: FLYER_BOTTOM, gap: 30, height: 792 - FLYER_HERO_H },
-  leftCol: { flex: 1.85, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' },
+  // paddingBottom lifts the address, stats and price above the QR panel's bottom edge; "Open House"
+  // stays put at the top.
+  leftCol: { flex: 1.85, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', paddingBottom: 12 },
 
   addressBlock: { marginTop: 0, width: '100%', display: 'flex', flexDirection: 'column' },
   welcomeLabel: { fontSize: 11, fontFamily: 'Playfair Display', textTransform: 'uppercase', letterSpacing: 4, color: COLORS.muted, marginBottom: 3 },
@@ -155,8 +157,8 @@ const styles = StyleSheet.create({
   flyerSchoolStripBalanced: { paddingRight: 12 + 12 + 7 },
   // Brand upgrade: the SAME hosting-agent pill the on-screen Sign-In kiosk floats over its photo
   // (black/40 glass, white/20 hairline, gold-ringed headshot, heavy serif name, caps brokerage),
-  // pinned top-left of the print's photo.
-  flyerBrandWrap: { position: 'absolute', top: 28, left: 30 },
+  // pinned bottom-left of the print's photo, the same distance in from the left and bottom edges.
+  flyerBrandWrap: { position: 'absolute', bottom: 30, left: 30 },
   // react-pdf paints any translucent border color (rgba / 8-digit hex) solid green, so the white/20
   // hairline is a 1pt translucent-white ring (outer View) around the black glass (inner View).
   flyerBrandRing: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 999, padding: 1 },
@@ -201,7 +203,7 @@ const styles = StyleSheet.create({
   priceBlock: { display: 'flex', flexDirection: 'column', paddingTop: 13, borderTopWidth: 1, borderTopColor: FLYER_WARM.border, borderTopStyle: 'solid' },
   priceLabel: { fontSize: 8, fontFamily: 'Montserrat', fontWeight: 600, color: COLORS.accent, textTransform: 'uppercase', letterSpacing: 3, marginBottom: 6 },
   // Negative bottom margin drops the figure's baseline (not its empty descender space) onto the
-  // column's bottom edge, so the price visibly ends level with the bottom of the QR panel.
+  // column's bottom edge, so the price's visible bottom is measured from its digits.
   priceValue: { fontSize: 30, fontFamily: 'Montserrat', fontWeight: 700, color: COLORS.text, marginBottom: -4 },
 
   rightCol: { flex: 1, backgroundColor: FLYER_WARM.panel, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: FLYER_WARM.border, borderStyle: 'solid', alignItems: 'center', justifyContent: 'flex-start' },
@@ -887,7 +889,7 @@ export const OpenHouseFlyerDocument = ({ data }: { data: any }) => {
               <Text style={styles.qrDescription}>Complete our online sign-in form to register your visit.</Text>
             </View>
             <View style={styles.qrContainer}>
-              <Image src={qrUrl} style={{ width: 172, height: 172 }} />
+              <Image src={qrUrl} style={{ width: 155, height: 155 }} />
             </View>
             <View style={styles.qrFooterWrapper}>
               <Text style={styles.quickEasyText}>Quick & Easy</Text>
