@@ -98,6 +98,7 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
   const [status, setStatus] = useState<ShowingStatus | null>(null)
   const [statusOpen, setStatusOpen] = useState(false)
   const sentId = useRef<string | null>(null)
+  const autoPick = useRef<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const agentFirst = (form.agentName || '').trim().split(' ')[0]
@@ -128,6 +129,9 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
         price: lp.price, beds: lp.beds, baths: lp.baths, sqft: lp.sqft,
       })
     } else if (prefillAddress) {
+      // Opened from a home's own Tour / Showing button: that home is picked for them - they never
+      // type an address OpenHousePal already knows (user, 10/18).
+      autoPick.current = prefillAddress.trim()
       setQuery(prefillAddress)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -141,7 +145,16 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
     const t = window.setTimeout(async () => {
       const r = await api.properties.addressesPublic(q, form.formId)
       if (cancelled) return
-      setResults(r.success && r.data ? r.data.results : [])
+      const found = r.success && r.data ? r.data.results : []
+      if (autoPick.current && autoPick.current === q) {
+        autoPick.current = null
+        const street = (q.split(',')[0] || '').trim().toLowerCase()
+        const match = found.find(x => (x.street || x.address.split(',')[0] || '').trim().toLowerCase() === street) || (found.length === 1 ? found[0] : null)
+        setSearching(false)
+        choose(match ? homeFromSuggestion(match) : homeFromTyped(q))
+        return
+      }
+      setResults(found)
       setSearched(q)
       setSearching(false)
     }, 200)
@@ -223,7 +236,7 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
   const showTyped = !home && q.length >= 4 && searched === q && !searching
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col items-center overflow-x-hidden px-4 pb-16 pt-6 sm:pt-10">
+    <div className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-x-hidden px-4 pb-20 pt-8 sm:pb-16 sm:pt-10">
       <style>{SHOWING_CSS}</style>
       {/* the lit backdrop */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
@@ -298,14 +311,11 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
                           <motion.li key={s.address} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
                             <button type="button" onClick={() => choose(h)}
                               className="group flex w-full items-center gap-3.5 rounded-2xl p-2 text-left transition hover:bg-[#C9A24D]/[0.08] focus:bg-[#C9A24D]/[0.08] focus:outline-none">
-                              <span className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-white/[0.06]">
+                              <span className="relative h-14 w-16 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-white/[0.06] sm:h-16 sm:w-24">
                                 {h.photo ? <img src={h.photo} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <MapPin className="absolute inset-0 m-auto h-5 w-5 text-gray-300" />}
                               </span>
                               <span className="min-w-0 flex-1">
-                                <span className="flex items-center gap-2">
-                                  <span className="truncate font-serif text-[17px] font-black text-[#111827] dark:text-white">{h.street}</span>
-                                  {h.mine && <span className="shrink-0 rounded-full bg-[#C9A24D] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#111827]">{agentFirst ? `${agentFirst}’s listing` : 'Featured'}</span>}
-                                </span>
+                                <span className="block font-serif text-[16px] font-black leading-snug text-[#111827] [overflow-wrap:anywhere] dark:text-white sm:text-[17px]">{h.street}</span>
                                 {h.place && <span className="block truncate text-xs font-semibold text-gray-500 dark:text-gray-400">{h.place}</span>}
                                 <span className="mt-1 flex flex-wrap items-center gap-x-3 text-[11px] font-black text-[#7a5f22] dark:text-[#e8c97a]">
                                   {money(h.price) && <span>{money(h.price)}</span>}
@@ -360,10 +370,10 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
 
         {!home && (
           <motion.ol initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-            className="mt-6 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
+            className="mt-6 flex items-center justify-center gap-1.5 whitespace-nowrap text-[9px] font-black uppercase tracking-[0.1em] text-gray-400 sm:gap-2 sm:text-[10px] sm:tracking-[0.18em]">
             {['Find the home', 'Pick your times', 'Get confirmed'].map((label, i) => (
-              <li key={label} className="flex items-center gap-2">
-                {i > 0 && <span className="h-px w-5 bg-gray-300 dark:bg-white/15" />}
+              <li key={label} className="flex items-center gap-1.5 sm:gap-2">
+                {i > 0 && <span className="hidden h-px w-5 bg-gray-300 dark:bg-white/15 sm:block" />}
                 <span className={`grid h-5 w-5 place-items-center rounded-full text-[9px] ${i === 0 ? 'bg-[#C9A24D] text-[#111827]' : 'bg-gray-200 text-gray-500 dark:bg-white/10 dark:text-gray-400'}`}>{i + 1}</span>
                 <span className={i === 0 ? 'text-[#111827] dark:text-white' : ''}>{label}</span>
               </li>
