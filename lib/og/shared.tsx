@@ -46,14 +46,14 @@ const API_BASE = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL
 
 /** Server-side fetch of a public backend endpoint. Never throws — returns null on any problem so
  *  the caller can fall back to a text-only card rather than 500 the whole unfurl. */
-export async function ogFetch<T = any>(pathname: string): Promise<T | null> {
+export async function ogFetch<T = any>(pathname: string, revalidate?: number): Promise<T | null> {
   try {
     const res = await fetch(`${API_BASE}${pathname}`, {
       headers: { accept: 'application/json' },
       // A shared preview image doesn't need to be second-fresh; 10 min cache keeps repeated
       // unfurls (and crawler retries) off the backend. Showcases: 2 min, so a link copied right
       // after new homes land shows them.
-      next: { revalidate: pathname.startsWith('/collections/shared/') ? 120 : 600 },
+      next: { revalidate: revalidate ?? (pathname.startsWith('/collections/shared/') ? 120 : 600) },
     })
     if (!res.ok) return null
     return (await res.json()) as T

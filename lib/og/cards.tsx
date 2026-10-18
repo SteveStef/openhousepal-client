@@ -557,7 +557,7 @@ function mixHex(a: string, b: string, t: number) {
 }
 function hubLook(cfg: any): HubLook {
   const dark = !!cfg?.visitorDarkMode
-  if (cfg?.hubTheme === 'luxe' || !cfg?.hubTheme) return { ...(LUXE[cfg?.hubLuxeMetal] || LUXE.gold), dark }
+  if (cfg?.hubTheme === 'luxe') return { ...(LUXE[cfg?.hubLuxeMetal] || LUXE.gold), dark }
   const accent = /^#[0-9a-f]{3,6}$/i.test(String(cfg?.hubAccent || '')) ? String(cfg.hubAccent) : '#C9A24D'
   return {
     base: accent, light: mixHex(accent, '#ffffff', 0.4), deep: mixHex(accent, '#111111', 0.35),
@@ -623,15 +623,31 @@ export function BusinessCard({ photo, name, title, brokerage, market, phone, ema
 
 export async function renderHubCard(agentSlug: string, fonts: Fonts): Promise<ImageResponse> {
   try {
-    const data = await ogFetch<any>(`/agent-hub/public/${encodeURIComponent(agentSlug)}`)
+    // Fresh within a minute of the agent saving their hub or Settings (name, photo, brokerage, look).
+    const [data, blogs] = await Promise.all([
+      ogFetch<any>(`/agent-hub/public/${encodeURIComponent(agentSlug)}`, 60),
+      ogFetch<any[]>(`/studio/blogs/public/${encodeURIComponent(agentSlug)}`, 300),
+    ])
     const cfg = data?.config || {}
     const profile = cfg.profile || {}
     const contact = cfg.contact || {}
     const photo = await imgToDataUri(cfg.profilePhotoUrl || profile.photoUrl || profile.photo_url)
     const title = profile.title ? String(profile.title).replace(/[®�]/g, '').trim() : ''
-    const has = (k: string) => Array.isArray(cfg[k]) && cfg[k].length > 0
-    const inside = [has('myListings') && 'Listings', has('recentSales') && 'Sales', (has('videoLinks') || has('houseTourLinks')) && 'Videos',
-      has('blogCards') && 'Articles', has('reviews') && 'Reviews'].filter(Boolean).slice(0, 4) as string[]
+    // What's on their page (user, 10/18): Sales first (never "Listings"), then Videos - or Info when
+    // there are none - then Blogs, or Home Tours when there are no blogs. Only sections the hub
+    // actually shows (switched on, with something in them).
+    const sections: { id: string; visible?: boolean }[] = Array.isArray(cfg.layoutSections) ? cfg.layoutSections : []
+    const shown = (id: string) => {
+      const sec = sections.find(x => x?.id === id)
+      if (sec) return sec.visible !== false
+      return Array.isArray(cfg.visibleSectionIds) ? cfg.visibleSectionIds.includes(id) : true
+    }
+    const items = (k: string) => (Array.isArray(cfg[k]) ? cfg[k] : []) as any[]
+    const hasSales = shown('sales') && items('recentSales').some(x => x && x.visible !== false)
+    const hasVideos = shown('videos') && items('videoLinks').some(x => String(x?.link || '').trim())
+    const hasBlogs = shown('blogs') && ((Array.isArray(blogs) && blogs.length > 0) || items('blogCards').some(x => String(x?.link || x?.title || '').trim()))
+    const hasTours = shown('tours') && (!!String(cfg.houseTourUrl || '').trim() || items('houseTourLinks').some(x => String(x?.link || '').trim()))
+    const inside = [hasSales && 'Sales', hasVideos ? 'Videos' : 'Info', hasBlogs ? 'Blogs' : hasTours ? 'Home Tours' : null].filter(Boolean) as string[]
     return IR(
       <BusinessCard photo={photo} name={profile.name || 'Real Estate Agent'}
         title={title ? (/^realtor$/i.test(title) ? 'Realtor®' : title) : null}
