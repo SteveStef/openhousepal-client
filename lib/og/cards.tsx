@@ -322,14 +322,14 @@ export function BlogCard({ photo, kind, category, title, summary, minutes, agent
 
       {/* the agent, top-left */}
       {/* the agent, top-left - big enough to read in a small preview (user, 10/18: "double the size") */}
-      <div style={{ position: 'absolute', top: 46, left: 52, display: 'flex', alignItems: 'center', gap: 22, padding: '10px 40px 10px 10px', borderRadius: 999,
+      <div style={{ position: 'absolute', top: 46, left: 52, display: 'flex', alignItems: 'center', gap: 17, padding: '8px 30px 8px 8px', borderRadius: 999,
         backgroundColor: 'rgba(8,8,10,0.62)', border: `1.5px solid ${look.light}66` }}>
         {agentPhoto
-          ? <img src={agentPhoto} width={112} height={112} style={{ width: 112, height: 112, borderRadius: 999, objectFit: 'cover', border: `3.5px solid ${look.light}` }} />
-          : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 112, height: 112, borderRadius: 999, backgroundColor: '#111', color: look.light, fontSize: 40, fontWeight: 900 }}>{initialsOf(agentName)}</div>}
+          ? <img src={agentPhoto} width={84} height={84} style={{ width: 84, height: 84, borderRadius: 999, objectFit: 'cover', border: `3px solid ${look.light}` }} />
+          : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 84, height: 84, borderRadius: 999, backgroundColor: '#111', color: look.light, fontSize: 30, fontWeight: 900 }}>{initialsOf(agentName)}</div>}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', fontSize: agentName.length > 20 ? 36 : 44, fontWeight: 900, lineHeight: 1.05 }}>{agentName}</div>
-          {agentBrokerage ? <div style={{ display: 'flex', fontSize: 22, fontWeight: 900, letterSpacing: 3, textTransform: 'uppercase', color: look.light, marginTop: 6 }}>{agentBrokerage}</div> : null}
+          <div style={{ display: 'flex', fontSize: agentName.length > 20 ? 27 : 33, fontWeight: 900, lineHeight: 1.05 }}>{agentName}</div>
+          {agentBrokerage ? <div style={{ display: 'flex', fontSize: 16.5, fontWeight: 900, letterSpacing: 2.5, textTransform: 'uppercase', color: look.light, marginTop: 4 }}>{agentBrokerage}</div> : null}
         </div>
       </div>
 
