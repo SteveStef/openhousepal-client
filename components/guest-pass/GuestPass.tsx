@@ -6,6 +6,7 @@
 // requests (we already have their info), a quick question to the host, their Showcase, and the
 // agent's Spotlight when there is one. Themed like the open house's sign-in screen (its dark/light
 // setting + accent color).
+import { atTime, busyAt, type BusyBlock } from '@/lib/agentBusy'
 import SignatureSiteCard from '@/components/studio/blogs/SignatureSiteCard'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -28,6 +29,9 @@ import OhpLoader from '@/components/brand/OhpLoader'
 type View = 'home' | 'similar' | 'cheat'
 
 export default function GuestPass({ token, openHouseEventId }: { token: string; openHouseEventId: string }) {
+  // The agent's busy times - read when the second-tour picker opens, so its suggestions skip them.
+  const [tourBusy, setTourBusy] = useState<BusyBlock[]>([])
+  const loadTourBusy = useCallback(() => { api.public.getGuestPassBusy(token).then(setTourBusy).catch(() => {}) }, [token])
   const router = useRouter()
   const searchParams = useSearchParams()
   const view = (searchParams.get('v') as View) || 'home'
@@ -138,7 +142,7 @@ export default function GuestPass({ token, openHouseEventId }: { token: string; 
   const [tourPicker, setTourPicker] = useState(false)
   const request = useCallback(async (kind: RequestKind, preferredTime?: string) => {
     if (!data || data.requested[kind] || sending) return
-    if (kind === 'second_visit' && preferredTime === undefined) { setTourPicker(true); return }
+    if (kind === 'second_visit' && preferredTime === undefined) { loadTourBusy(); setTourPicker(true); return }
     setSending(kind)
     setRequestError(null)
     const { success } = await api.public.guestPassRequest(token, kind, preferredTime)
@@ -309,6 +313,7 @@ export default function GuestPass({ token, openHouseEventId }: { token: string; 
       <ComplianceFooter />
       <SecondTourPicker
         open={tourPicker}
+        busy={tourBusy}
         agentFirst={agent.first_name}
         onClose={() => setTourPicker(false)}
         onSend={(times) => { setTourPicker(false); request('second_visit', times) }}
@@ -331,8 +336,10 @@ const EMPTY_PICK: TourPick = { day: null, part: null, time: null }
 // "When would you like to see it again?" - a day, a part of the day, then a suggested time. Option 1
 // ticks itself off and the sheet glides on to an optional backup (Option 2). Sent with the second-tour
 // request so the agent sees the times on the alert and in Leads.
-function SecondTourPicker({ open, agentFirst, onClose, onSend }: {
+function SecondTourPicker({ open, agentFirst, onClose, onSend, busy = [] }: {
   open: boolean; agentFirst: string; onClose: () => void; onSend: (times: string) => void
+  /** The agent's busy blocks - those suggested times are crossed out (user, 10/18). */
+  busy?: BusyBlock[]
 }) {
   const days = useMemo(() => Array.from({ length: 10 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() + i + 1); return d
@@ -460,11 +467,12 @@ function SecondTourPicker({ open, agentFirst, onClose, onSend }: {
                         className="mt-3 grid grid-cols-4 gap-1.5">
                         {[...part.times, ANY_TIME].map((t, i) => {
                           const on = cur.time === t
+                          const taken = t !== ANY_TIME && cur.day != null && busyAt(busy, atTime(days[cur.day], t))
                           return (
-                            <motion.button key={t} type="button" onClick={() => set({ time: t })}
+                            <motion.button key={t} type="button" onClick={() => set({ time: t })} disabled={taken} title={taken ? `${agentFirst} is busy then` : undefined}
                               initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.04, type: 'spring', stiffness: 520, damping: 30 }}
                               whileTap={{ scale: 0.92 }}
-                              className={`relative rounded-xl border py-2.5 text-[12px] font-black transition-colors ${on ? 'border-[#0B0B0B] bg-[#0B0B0B] text-white dark:border-white dark:bg-white dark:text-[#0B0B0B]' : 'border-black/[0.08] hover:border-[var(--gp)] dark:border-white/[0.1]'}`}>
+                              className={`relative rounded-xl border py-2.5 text-[12px] font-black transition-colors disabled:cursor-not-allowed disabled:opacity-30 disabled:line-through ${on ? 'border-[#0B0B0B] bg-[#0B0B0B] text-white dark:border-white dark:bg-white dark:text-[#0B0B0B]' : 'border-black/[0.08] hover:border-[var(--gp)] dark:border-white/[0.1]'}`}>
                               {t === ANY_TIME ? 'Any time' : t}
                               {on && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 600, damping: 20 }}
                                 className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-[var(--gp)] text-white"><Check className="h-2.5 w-2.5" strokeWidth={4} /></motion.span>}

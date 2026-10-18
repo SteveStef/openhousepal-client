@@ -5,6 +5,7 @@ import { ArrowRight, CalendarDays, Check, Loader2, MessageSquare, Video, Home } 
 import { visitSource } from '@/lib/visitSource'
 import { LEAD_EVENT, fmtDay, fmtPhone, fmtTimeRange, type PropertySiteAgent, type PropertySiteOpenHouse } from './model'
 import { TONE, type Tone } from './tone'
+import { atTime, busyAt, type BusyBlock } from '@/lib/agentBusy'
 
 // The one lead-capture form for both Spotlight templates. "Request info" and "Schedule a tour"
 // post to the same-origin proxies (app/api/website-property-sites/[siteId]/...) which create a
@@ -55,6 +56,22 @@ export default function LeadForm({
   // Client-only (dates depend on the visitor's own "today") - rendered after hydration.
   const [days, setDays] = useState<ReturnType<typeof nextDays>>([])
   useEffect(() => { setDays(nextDays(14)) }, [])
+  // The agent's busy times (their connected calendar): those hours are crossed out (user, 10/18).
+  const [busy, setBusy] = useState<BusyBlock[]>([])
+  useEffect(() => {
+    if (!allowTour || siteId === 'preview') return
+    fetch(`/api/website-property-sites/${siteId}/agent-busy`).then(r => r.json()).then(d => setBusy(Array.isArray(d?.busy) ? d.busy : [])).catch(() => {})
+  }, [siteId, allowTour])
+  const slotTaken = (slot: string) => {
+    if (!form.requested_date) return false
+    const at = atTime(form.requested_date, slot)
+    return !!at && (at.getTime() < Date.now() || busyAt(busy, at))
+  }
+  // A time picked first, then a day it's not free on: let it go rather than send a taken time.
+  useEffect(() => {
+    if (form.preferred_time && slotTaken(form.preferred_time)) setForm(f => ({ ...f, preferred_time: '' }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.requested_date, busy])
 
   // Where they came from (a QR, the Agent Hub, Google...) - captured on arrival, sent with the form.
   useEffect(() => { visitSource(`site:${siteId}`) }, [siteId])
@@ -231,16 +248,20 @@ export default function LeadForm({
           <div>
             <span className={t.label}>Preferred time</span>
             <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
-              {TIME_SLOTS.map(slot => (
-                <button
-                  key={slot} type="button"
-                  onClick={() => setForm(f => ({ ...f, preferred_time: f.preferred_time === slot ? '' : slot }))}
-                  className={`py-2 text-[11px] font-semibold transition ${form.preferred_time === slot ? t.chipOn : t.chip}`}
-                  aria-pressed={form.preferred_time === slot}
-                >
-                  {slot}
-                </button>
-              ))}
+              {TIME_SLOTS.map(slot => {
+                const taken = slotTaken(slot)
+                return (
+                  <button
+                    key={slot} type="button" disabled={taken}
+                    title={taken ? 'Not available' : undefined}
+                    onClick={() => setForm(f => ({ ...f, preferred_time: f.preferred_time === slot ? '' : slot }))}
+                    className={`py-2 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-30 disabled:line-through ${form.preferred_time === slot ? t.chipOn : t.chip}`}
+                    aria-pressed={form.preferred_time === slot}
+                  >
+                    {slot}
+                  </button>
+                )
+              })}
             </div>
           </div>
           {openHouses.length > 0 && (

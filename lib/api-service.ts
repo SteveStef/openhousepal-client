@@ -2139,6 +2139,18 @@ class ApiService {
         body: JSON.stringify({ message }),
       }, this.publicAsOwner),
 
+    /** An Agent Hub agent's busy blocks - the "Schedule a Showing" form only offers free times. */
+    getHubBusy: async (agentSlug: string) => {
+      const r = await this.request<{ busy: { start: string; end: string }[] }>(`/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/agent-busy`, {}, false)
+      return r.success && r.data ? r.data.busy : []
+    },
+
+    /** The agent behind a Guest Pass - its second-tour times skip ones they're busy. */
+    getGuestPassBusy: async (token: string) => {
+      const r = await this.request<{ busy: { start: string; end: string }[] }>(`/guest-pass/${encodeURIComponent(token)}/agent-busy`, {}, false)
+      return r.success && r.data ? r.data.busy : []
+    },
+
     /** The Showcase agent's busy blocks (start/end only) for the showing window. */
     getShowcaseBusy: async (collectionId: string) => {
       const r = await this.request<{ busy: { start: string; end: string }[] }>(`/collections/${collectionId}/busy`, {}, false)

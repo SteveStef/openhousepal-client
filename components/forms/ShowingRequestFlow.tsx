@@ -379,6 +379,8 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
         onSubmit={submit}
         showContactFields
         contactStyle="full"
+        // Only times the agent is free (their connected calendar) - user, 10/18.
+        loadBusy={() => api.public.getHubBusy(agentSlug)}
       />
       <TourStatusWindow
         tour={statusOpen ? status : null}
