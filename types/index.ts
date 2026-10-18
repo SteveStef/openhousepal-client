@@ -69,6 +69,8 @@ export interface Property {
   AddedToCollectionAt?: string | null;
   liked?: boolean;
   disliked?: boolean;
+  /** The agent's "I recommend this home for you" (Showcase) - tagged on the card, sorted first. */
+  agentRecommended?: boolean;
   viewed?: boolean;
   viewCount?: number;
   lastViewedAt?: string;

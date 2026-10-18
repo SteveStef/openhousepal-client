@@ -352,6 +352,20 @@ function ShowcaseContent() {
     }
   }
 
+  // "I recommend this home for you" - the client sees a gold Recommended banner and it sorts first.
+  const handleRecommend = async (property: Property) => {
+    if (!selectedCollection || property.id === undefined) return
+    const next = !(property.agentRecommended && !property.disliked)
+    setMatchedProperties(prev => prev.map(p => p.id === property.id ? { ...p, agentRecommended: next, ...(next ? { disliked: false } : {}) } : p))
+    const { success, error } = await api.collections.recommend(selectedCollection.id, String(property.id), next)
+    if (!success) {
+      setMatchedProperties(prev => prev.map(p => p.id === property.id ? { ...p, agentRecommended: !next } : p))
+      showToast(error || "Couldn't save that - try again", 'error')
+      return
+    }
+    showToast(next ? `Recommended - ${selectedCollection.customer.firstName || 'your client'} will see it at the top` : 'Recommendation removed', 'success')
+  }
+
   const handlePropertyDislike = async (propertyId: string | number, disliked: boolean) => {
     if (!selectedCollection) return
     const { success, data, error } = await api.collections.interact(selectedCollection.id, String(propertyId), 'dislike', disliked)
@@ -978,6 +992,7 @@ function ShowcaseContent() {
           onViewTours={() => handleViewTours()}
           onPropertyLike={handlePropertyLike}
           onPropertyDislike={handlePropertyDislike}
+          onRecommend={handleRecommend}
           onPropertyClick={handlePropertyClick}
           onAddComment={handleAddComment}
           selectedProperty={selectedProperty}

@@ -826,6 +826,13 @@ class ApiService {
 
     getProperties: (id: string) => this.request<any>(`/collections/${id}/properties`),
 
+    /** The agent's "I recommend this home" on one home in a client's Showcase (or taking it back). */
+    recommend: (collectionId: string, propertyId: string, recommended: boolean) =>
+      this.request<{ success: boolean; recommended: boolean }>(`/collections/${collectionId}/properties/${propertyId}/recommend`, {
+        method: 'PUT',
+        body: JSON.stringify({ recommended }),
+      }),
+
     interact: (collectionId: string, propertyId: string, interactionType: 'like' | 'dislike', value: boolean) =>
       this.request<any>(`/collections/${collectionId}/properties/${propertyId}/interact`, {
         method: 'POST',

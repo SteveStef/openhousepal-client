@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { Property } from '@/types'
 import { formatOpenHouse, formatOpenHouseDay, upcomingOpenHouses } from '@/lib/mlsOpenHouses'
-import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye, Bed, Bath, Square, Home, MapPin, School, Trees, Navigation } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye, Bed, Bath, Square, Home, MapPin, School, Trees, Navigation, Star } from 'lucide-react'
 import { cleanAddress, formatMlsStatus, formatPropertyFeature, isPropertyAvailableStatus, normalizeImageUrl, haversineMiles, googleMapsDirectionsUrl } from '@/lib/utils'
 
 // "Lower Merion Township School District" -> "Lower Merion": the words that only make the pill
@@ -40,9 +40,15 @@ interface PropertyCardProps {
   tourButtonVariant?: 'schedule' | 'requests'
   /** Agent's Showcase view: the photo sits a little closer in, so Bright's corner badge falls outside the card. */
   cropMlsBadge?: boolean
+  /** Agent's Showcase view: the "I recommend this home" star (left of the chat button). */
+  onRecommend?: (property: Property) => void
+  /** Who recommends it, for the gold banner ("Peter recommends this home"). */
+  recommendedBy?: string | null
 }
 
-const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, destination, matchScore, tourButtonVariant = 'schedule', cropMlsBadge = false }: PropertyCardProps) {
+const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, destination, matchScore, tourButtonVariant = 'schedule', cropMlsBadge = false, onRecommend, recommendedBy }: PropertyCardProps) {
+  // The agent's pick (user, 10/18) - impossible to miss on both sides; gone once the client passes on it.
+  const recommended = !!property.agentRecommended && !property.disliked
   // Memoize visitor interaction counts to avoid redundant filtering on every render
   const interactionCounts = useMemo(() => {
     if (!property.visitorInteractions) {
@@ -110,10 +116,18 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
   return (
     <div
       onClick={() => onPropertyClick?.(property)}
-      className={`bg-white dark:bg-[#151517] rounded-2xl overflow-hidden border-2 border-gray-200 dark:border-gray-800 transition-[border-color,box-shadow,transform] duration-300 ease-out flex flex-col h-full shadow-[0_2px_8px_rgba(0,0,0,0.02)] group hover:-translate-y-1 hover:border-[#C9A24D] dark:hover:border-[#C9A24D] hover:shadow-[0_24px_44px_-16px_rgba(0,0,0,0.22)] active:translate-y-0 active:scale-[0.99] cursor-pointer ${
+      className={`bg-white dark:bg-[#151517] rounded-2xl overflow-hidden border-2 transition-[border-color,box-shadow,transform] duration-300 ease-out flex flex-col h-full group hover:-translate-y-1 hover:border-[#C9A24D] dark:hover:border-[#C9A24D] hover:shadow-[0_24px_44px_-16px_rgba(0,0,0,0.22)] active:translate-y-0 active:scale-[0.99] cursor-pointer ${
+        recommended ? 'border-[#C9A24D] shadow-[0_0_0_3px_rgba(201,162,77,.18),0_22px_44px_-20px_rgba(201,162,77,.75)]' : 'border-gray-200 dark:border-gray-800 shadow-[0_2px_8px_rgba(0,0,0,0.02)]'
+      } ${
         !available ? 'opacity-75' : ''
       }`}
     >
+      {recommended && (
+        <div className="flex items-center justify-center gap-2 bg-gradient-to-r from-[#8b6a2b] via-[#C9A24D] to-[#8b6a2b] px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#111827]">
+          <Star size={13} className="fill-[#111827]" />
+          {recommendedBy ? `${recommendedBy} recommends this home` : 'Your agent recommends this home'}
+        </div>
+      )}
       {/* 70% Height - Rectangle Image (Landscape) */}
       <div className="relative bg-gray-100 dark:bg-[#0B0B0B] aspect-video overflow-hidden flex-[7]">
         {property.ListPictureURL ? (
@@ -229,6 +243,21 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
               )}
             </div>
             <div className="flex items-center space-x-1.5">
+              {onRecommend && (
+                <motion.button
+                  whileTap={{ scale: 0.8 }}
+                  whileHover={{ y: -1 }}
+                  title={recommended ? 'You recommend this home - tap to take it back' : 'Recommend this home to your client'}
+                  aria-label={recommended ? 'Recommended' : 'Recommend this home'}
+                  aria-pressed={recommended}
+                  onClick={(e) => { e.stopPropagation(); onRecommend(property) }}
+                  className={`p-1.5 rounded-lg transition-colors ${recommended ? 'text-[#C9A24D] bg-[#C9A24D]/15' : 'text-gray-300 hover:text-[#C9A24D]'}`}
+                >
+                  <motion.span key={recommended ? 'on' : 'off'} initial={recommended ? { scale: 0.3, rotate: -30 } : false} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 700, damping: 12 }} className="block">
+                    <Star size={18} fill={recommended ? 'currentColor' : 'none'} />
+                  </motion.span>
+                </motion.button>
+              )}
               {/* Message button - always visible; only highlighted while there's an unread
                   reply from the other side, and dims back down once it's actually been read */}
               <motion.button

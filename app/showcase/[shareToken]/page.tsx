@@ -306,6 +306,9 @@ function ShowcaseContent() {
           return 0
       }
 
+      // Homes your agent recommends lead, whatever the sort (user, 10/18).
+      const rec = (p: typeof a) => (p.agentRecommended && !p.disliked ? 1 : 0)
+      if (rec(a) !== rec(b)) return rec(b) - rec(a)
       if (sortOrder === 'asc') {
         return aValue - bValue
       } else {
@@ -931,9 +934,11 @@ function ShowcaseContent() {
             <p className="min-w-0 flex-1 text-[12px] font-semibold leading-snug sm:text-[13px]">
               You&apos;re seeing {visitorFirstName && visitorFirstName !== 'Anonymous' ? `${visitorFirstName}'s` : 'this'} Showcase the way they do. <span className="text-white/60">Your clicks here don&apos;t count as theirs.</span>
             </p>
-            <Link href={`/showcases?showcase=${showcase.id}`} className="shrink-0 rounded-full bg-[#C9A24D] px-3 py-1.5 text-[11px] font-black text-[#111827] transition hover:bg-[#e8c97a]">
+            {/* A full page load, not an in-app switch: opened from Gmail's built-in browser the switch could
+                hang on the loader until a refresh (user, 10/18). */}
+            <a href={`/showcases?showcase=${showcase.id}`} className="shrink-0 rounded-full bg-[#C9A24D] px-3 py-1.5 text-[11px] font-black text-[#111827] transition hover:bg-[#e8c97a]">
               Agent view
-            </Link>
+            </a>
           </div>
         </div>
       )}
@@ -1046,7 +1051,7 @@ function ShowcaseContent() {
                 { key: 'all', label: 'Matches', count: tabCounts.all },
                 { key: 'liked', label: 'Liked', count: tabCounts.liked },
                 { key: 'disliked', label: 'Disliked', count: tabCounts.disliked },
-                { key: 'sold_removed', label: 'Sold/Removed', count: tabCounts.soldRemoved }
+                { key: 'sold_removed', label: 'Sold/Removed', short: 'Sold', count: tabCounts.soldRemoved }
               ].map((tab) => (
                 <motion.button
                   key={tab.key}
@@ -1061,7 +1066,7 @@ function ShowcaseContent() {
                   {activeTab === tab.key && (
                     <motion.span layoutId="showcase-tab" className="absolute inset-0 bg-white shadow-[inset_0_3px_0_0_#C9A24D] dark:bg-[#151517]" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />
                   )}
-                  <span className="relative truncate">{tab.label}</span>
+                  <span className="relative truncate">{'short' in tab ? <><span className="sm:hidden">{tab.short}</span><span className="hidden sm:inline">{tab.label}</span></> : tab.label}</span>
                   <motion.span key={tab.count} initial={{ scale: 0.6, opacity: 0.4 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 600, damping: 18 }}
                     className={`relative shrink-0 px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] ${
                     activeTab === tab.key
@@ -1119,6 +1124,7 @@ function ShowcaseContent() {
               compareProperty={compareProperty}
               sortControl={sortControlNode}
               animationKey={activeTab}
+              recommendedBy={(showcase.agentFullName || showcase.agentName || '').split(' ')[0] || null}
             />
           </div>
 

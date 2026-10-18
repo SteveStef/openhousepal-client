@@ -39,6 +39,8 @@ interface DetailViewProps {
   // Property Actions
   onPropertyLike: (id: string | number, liked: boolean) => void;
   onPropertyDislike: (id: string | number, disliked: boolean) => void;
+  /** "I recommend this home for you" on one home (or taking it back). */
+  onRecommend?: (property: Property) => void;
   onPropertyClick: (property: Property) => void;
   onAddComment: (id: string | number, comment: string) => void;
   // Modal States
@@ -85,6 +87,7 @@ export const DetailView = memo(function DetailView({
   onViewTours,
   onPropertyLike,
   onPropertyDislike,
+  onRecommend,
   onPropertyClick,
   onAddComment,
   selectedProperty,
@@ -194,6 +197,9 @@ export const DetailView = memo(function DetailView({
     // other field here starts in - shows the highest score first without the agent also having
     // to flip the direction arrow the moment they pick "Best Match".
     else if (sortBy === 'bestMatch' && compareProperty) comparison = computeMatchScore(b, compareProperty, matchedProperties) - computeMatchScore(a, compareProperty, matchedProperties)
+    // The agent's recommended homes always lead, whatever the sort (user, 10/18).
+    const rec = (p: Property) => (p.agentRecommended && !p.disliked ? 1 : 0)
+    if (rec(a) !== rec(b)) return rec(b) - rec(a)
     return sortOrder === 'asc' ? comparison : -comparison
   })
 
@@ -237,10 +243,30 @@ export const DetailView = memo(function DetailView({
   const radiusContextNode = activeTab === 'all' && radiusSearchPreferences ? (
     <ShowcaseRadiusContextLine address={radiusSearchPreferences.address} radiusMiles={radiusSearchPreferences.diameter} onClick={() => openQuick('radius')} />
   ) : null
-  const matchedPropertiesHeaderInfoNode = compareInfoNode || radiusContextNode ? (
-    <div className="flex max-w-full flex-wrap items-center justify-center gap-2">
-      {compareInfoNode}
-      {radiusContextNode}
+  // The agent's search, in one compact bar (user, 10/18: the stacked "Comparing to" + "6 miles
+  // from" cards were too much on a phone): the home it's compared to (tap to change) and the
+  // radius chip (tap to change).
+  const radiusPrefs = activeTab === 'all' ? radiusSearchPreferences : null
+  const matchedPropertiesHeaderInfoNode = compareProperty || radiusPrefs ? (
+    <div className="flex w-full items-center gap-2.5 rounded-2xl border border-gray-200 bg-white p-1.5 pr-2 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
+      <button type="button" onClick={() => openQuick(compareProperty ? 'compare' : 'radius')} title="Change what these homes are compared to"
+        className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl p-0.5 text-left transition hover:bg-[#C9A24D]/5">
+        {compareProperty?.ListPictureURL
+          ? <img src={compareProperty.ListPictureURL} alt="" className="h-11 w-11 shrink-0 rounded-xl object-cover" />
+          : <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#C9A24D]/12 text-[#C9A24D]"><MapPin size={18} /></span>}
+        <span className="min-w-0">
+          <span className="block text-[9px] font-black uppercase tracking-[0.18em] text-[#C9A24D]">{compareProperty ? 'Comparing to' : 'Searching around'}</span>
+          <span className="block truncate text-[13px] font-black text-[#0B0B0B] dark:text-white">
+            {compareProperty ? formatAddressForTitle(compareProperty) : radiusPrefs?.address}
+          </span>
+        </span>
+      </button>
+      {radiusPrefs && (
+        <button type="button" onClick={() => openQuick('radius')} title="Change how far out the search goes"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#C9A24D]/40 bg-[#C9A24D]/10 px-3 py-1.5 text-[11px] font-black text-[#8b7355] transition hover:bg-[#C9A24D]/20 dark:text-[#e8cf8a]">
+          <MapPin size={12} /> {radiusPrefs.diameter} mi
+        </button>
+      )}
     </div>
   ) : null
 
@@ -248,7 +274,7 @@ export const DetailView = memo(function DetailView({
     { key: 'all', label: 'Matches', count: tabCounts.all },
     { key: 'liked', label: 'Liked', count: tabCounts.liked },
     { key: 'disliked', label: 'Disliked', count: tabCounts.disliked },
-    { key: 'sold_removed', label: 'Sold/Removed', count: tabCounts.soldRemoved }
+    { key: 'sold_removed', label: 'Sold/Removed', short: 'Sold', count: tabCounts.soldRemoved }
   ] as const
 
   const activeTabLabel = TABS.find(t => t.key === activeTab)?.label || 'Matches'
@@ -262,8 +288,8 @@ export const DetailView = memo(function DetailView({
 
           <div className="px-4 pt-3 pb-3 sm:px-6 sm:pt-4 sm:pb-4">
             <div className="-mt-2 mb-3 overflow-x-auto pb-3 pt-2 pr-1 border-b border-gray-200 dark:border-gray-800 text-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex min-w-full flex-wrap items-center justify-between gap-2 sm:min-w-0 sm:flex-1 sm:flex-nowrap sm:gap-3">
-                <div className="flex min-w-0 shrink items-center gap-1.5 sm:gap-3">
+              <div className="flex min-w-full items-center justify-between gap-2 sm:min-w-0 sm:flex-1 sm:gap-3">
+                <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none sm:gap-3">
                   <button
                     onClick={onBack}
                     title="Back to Showcases"
@@ -273,21 +299,19 @@ export const DetailView = memo(function DetailView({
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
                     </div>
                   </button>
-                  <span className="inline-flex min-w-0 shrink-0 items-center gap-1 font-black text-gray-900 dark:text-white sm:max-w-none sm:shrink sm:gap-1.5" title={customerFullName}>
+                  <span className="inline-flex min-w-0 flex-1 items-center gap-1.5 font-black text-gray-900 dark:text-white sm:flex-none sm:shrink" title={customerFullName}>
                     <User size={14} className="shrink-0 text-[#C9A24D]" />
-                  <span className="sm:hidden">{customerInitials || customerFullName}</span>
-                  <span className="hidden truncate sm:inline">{customerFullName}</span>
+                  <span className="truncate">{customerFullName || customerInitials}</span>
                 </span>
                 {selectedCollection.customer.email && (
                   <>
                   <button
                     onClick={() => handleCopyField('email', selectedCollection.customer.email)}
-                    className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 text-gray-500 transition-colors hover:border-[#C9A24D]/40 hover:text-[#C9A24D] dark:border-gray-800 dark:bg-white/5 dark:text-gray-400 sm:hidden"
+                    className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-[#C9A24D] transition-colors hover:border-[#C9A24D]/50 dark:border-gray-800 dark:bg-white/5 sm:hidden"
                     title={`Copy ${selectedCollection.customer.email}`}
                     aria-label="Copy email"
                   >
-                    <Mail size={13} className="text-[#C9A24D]" />
-                    {copiedField === 'email' ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedField === 'email' ? <Check size={15} className="text-emerald-500" /> : <Mail size={15} />}
                   </button>
                   <span className="hidden items-center gap-1.5 text-gray-500 dark:text-gray-400 font-medium sm:inline-flex">
                     <Mail size={14} className="text-[#C9A24D]" />
@@ -306,12 +330,11 @@ export const DetailView = memo(function DetailView({
                   <>
                   <button
                     onClick={() => handleCopyField('phone', selectedCollection.customer.phone)}
-                    className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 text-gray-500 transition-colors hover:border-[#C9A24D]/40 hover:text-[#C9A24D] dark:border-gray-800 dark:bg-white/5 dark:text-gray-400 sm:hidden"
+                    className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-[#C9A24D] transition-colors hover:border-[#C9A24D]/50 dark:border-gray-800 dark:bg-white/5 sm:hidden"
                     title={`Copy ${selectedCollection.customer.phone}`}
                     aria-label="Copy phone"
                   >
-                    <Phone size={13} className="text-[#C9A24D]" />
-                    {copiedField === 'phone' ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedField === 'phone' ? <Check size={15} className="text-emerald-500" /> : <Phone size={15} />}
                   </button>
                   <span className="hidden items-center gap-1.5 text-gray-500 dark:text-gray-400 font-medium sm:inline-flex">
                     <Phone size={14} className="text-[#C9A24D]" />
@@ -327,7 +350,7 @@ export const DetailView = memo(function DetailView({
                   </>
                 )}
                 </div>
-                <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+                <div className="ml-auto hidden shrink-0 items-center gap-1 sm:flex sm:gap-2">
                 <button
                   onClick={onViewTours}
                   title="View tours"
@@ -426,26 +449,39 @@ export const DetailView = memo(function DetailView({
                   </div>
                 )}
               </div>
-              <div className="grid shrink-0 grid-cols-3 items-center gap-2 sm:flex">
+              <div className="grid shrink-0 grid-cols-4 items-stretch gap-1.5 sm:flex sm:items-center sm:gap-2">
                 <motion.button
                   whileTap={{ scale: 0.94 }}
                   onClick={handleShare}
                   title={shareUrl ? 'Share this Showcase' : 'Turn on the link and share it'}
-                  className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs ${shared ? 'bg-emerald-500 text-white' : 'bg-[#111827] text-white hover:bg-[#C9A24D] hover:text-[#111827] dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D]'}`}
+                  className={`inline-flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[9.5px] font-black uppercase tracking-wider transition-all sm:flex-row sm:gap-2 sm:rounded-lg sm:px-4 sm:py-2.5 sm:text-xs sm:tracking-widest ${shared ? 'bg-emerald-500 text-white' : 'bg-[#111827] text-white hover:bg-[#C9A24D] hover:text-[#111827] dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D]'}`}
                 >
                   {shared ? <Check size={13} className="sm:h-3.5 sm:w-3.5" /> : <Share2 size={13} className="sm:h-3.5 sm:w-3.5" />}
-                  {shared ? 'Link copied' : 'Share'}
+                  {shared ? 'Copied' : 'Share'}
                 </motion.button>
                 <button
                   onClick={onEditShowcase}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#C9A24D]/30 bg-[#C9A24D]/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] transition-all hover:border-[#C9A24D] hover:bg-[#C9A24D]/15 dark:text-[#e8cf8a] sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs"
+                  className="inline-flex flex-col items-center justify-center gap-1 rounded-xl border border-[#C9A24D]/30 bg-[#C9A24D]/10 px-1 py-2 text-[9.5px] font-black uppercase tracking-wider text-[#8b7355] transition-all hover:border-[#C9A24D] hover:bg-[#C9A24D]/15 dark:text-[#e8cf8a] sm:flex-row sm:gap-2 sm:rounded-lg sm:px-4 sm:py-2.5 sm:text-xs sm:tracking-widest"
                 >
                   <SlidersHorizontal size={13} className="sm:h-3.5 sm:w-3.5" />
                   Edit
                 </button>
+                {/* Tours - on phones it sits in this row (bigger screens have it up top) */}
+                <button
+                  onClick={onViewTours}
+                  className="relative inline-flex flex-col items-center justify-center gap-1 rounded-xl border border-gray-200 bg-white px-1 py-2 text-[9.5px] font-black uppercase tracking-wider text-[#111827] transition-all dark:border-gray-800 dark:bg-white/5 dark:text-white sm:hidden"
+                >
+                  <Calendar size={13} />
+                  Tours
+                  {!!selectedCollection.stats.tourRequestedCount && (
+                    <span className="absolute -right-1 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[9px] font-black text-white dark:border-[#151517]">
+                      {selectedCollection.stats.tourRequestedCount}
+                    </span>
+                  )}
+                </button>
                 <button
                   onClick={() => onStatusToggle(selectedCollection.id)}
-                  className={`inline-flex shrink-0 items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black border transition-all hover:shadow-md whitespace-nowrap uppercase tracking-widest sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs ${
+                  className={`inline-flex shrink-0 flex-col items-center justify-center gap-1 whitespace-nowrap rounded-xl border px-1 py-2 text-[9.5px] font-black uppercase tracking-wider transition-all hover:shadow-md sm:flex-row sm:gap-2 sm:rounded-lg sm:px-4 sm:py-2.5 sm:text-xs sm:tracking-widest ${
                     selectedCollection.status === 'ACTIVE'
                       ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-900 hover:bg-green-100 dark:hover:bg-green-900/30'
                       : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -457,6 +493,25 @@ export const DetailView = memo(function DetailView({
               </div>
             </div>
 
+            {/* Phones: who gets emailed, in plain words (the "V / A" switches up top were unreadable). */}
+            <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-50/70 px-3 py-2 dark:border-gray-800 dark:bg-white/[0.03] sm:hidden">
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Emails</span>
+              <label className={`flex items-center gap-2 text-[11px] font-bold ${selectedCollection.isBlacklisted ? 'text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}>
+                To {selectedCollection.customer.firstName || 'client'}
+                <button type="button" aria-label="Emails to the client" disabled={selectedCollection.isBlacklisted}
+                  onClick={() => !selectedCollection.isBlacklisted && onNotificationToggle(selectedCollection.id, 'visitor')}
+                  className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${selectedCollection.isBlacklisted ? 'cursor-not-allowed bg-gray-200 dark:bg-gray-800' : (selectedCollection.notifyVisitor ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-gray-700')}`}>
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition ${selectedCollection.notifyVisitor && !selectedCollection.isBlacklisted ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </label>
+              <label className="flex items-center gap-2 text-[11px] font-bold text-gray-600 dark:text-gray-300">
+                To me
+                <button type="button" aria-label="Emails to me" onClick={() => onNotificationToggle(selectedCollection.id, 'agent')}
+                  className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${false ? 'cursor-not-allowed bg-gray-200 dark:bg-gray-800' : (selectedCollection.notifyAgent ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-gray-700')}`}>
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition ${selectedCollection.notifyAgent ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </label>
+            </div>
           </div>
 
           {/* Property Status Tabs - full-width bar built into the bottom edge of the card,
@@ -478,7 +533,7 @@ export const DetailView = memo(function DetailView({
                 {activeTab === tab.key && (
                   <motion.span layoutId="agent-showcase-tab" className="absolute inset-0 bg-white shadow-[inset_0_3px_0_0_#C9A24D] dark:bg-[#151517]" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />
                 )}
-                <span className="relative truncate">{tab.label}</span>
+                <span className="relative truncate">{'short' in tab ? <><span className="sm:hidden">{tab.short}</span><span className="hidden sm:inline">{tab.label}</span></> : tab.label}</span>
                 <motion.span key={tab.count} initial={{ scale: 0.6, opacity: 0.4 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 600, damping: 18 }}
                   className={`relative shrink-0 px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] ${
                   activeTab === tab.key
@@ -528,6 +583,9 @@ export const DetailView = memo(function DetailView({
               : undefined
           }
           compareInfo={matchedPropertiesHeaderInfoNode}
+          compactHeader
+          onRecommend={onRecommend}
+          recommendedBy={user?.first_name || null}
           sortControl={
             <div className="flex items-center gap-2">
               <div className="relative group w-44">

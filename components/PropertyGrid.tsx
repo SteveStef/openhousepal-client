@@ -48,9 +48,15 @@ interface PropertyGridProps {
   // real transition. Keyed separately from `properties` on purpose: a like/dislike also changes
   // `properties` but shouldn't replay the animation, only an actual tab change should.
   animationKey?: string | number
+  /** Agent's Showcase: no title block - the search bar (compareInfo) then sort + count on one row. */
+  compactHeader?: boolean
+  /** Agent's Showcase: the "I recommend this home" star on each card. */
+  onRecommend?: (property: Property) => void
+  /** Name on the "… recommends this home" banner. */
+  recommendedBy?: string | null
 }
 
-export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, sortControl, headerAction, alignHeaderLeftOnMobile = false, compareInfo, destination, compareProperty, tourButtonVariant, cropMlsBadge = false, highlightFirst = false, animationKey, emptyState }: PropertyGridProps) {
+export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, sortControl, headerAction, alignHeaderLeftOnMobile = false, compareInfo, destination, compareProperty, tourButtonVariant, cropMlsBadge = false, highlightFirst = false, animationKey, emptyState, compactHeader = false, onRecommend, recommendedBy }: PropertyGridProps) {
   const firstCardRef = useRef<HTMLDivElement>(null)
   const [isHighlighting, setIsHighlighting] = useState(false)
   const hasFiredRef = useRef(false)
@@ -113,12 +119,38 @@ export default function PropertyGrid({ properties, title = "Properties", onLike,
             matchScore={compareProperty ? computeMatchScore(property, compareProperty, properties) : undefined}
             tourButtonVariant={tourButtonVariant}
             cropMlsBadge={cropMlsBadge}
+            onRecommend={onRecommend}
+            recommendedBy={recommendedBy}
           />
         </motion.div>
       ))}
       </AnimatePresence>
     </div>
   )
+
+  const countPill = (
+    <span className="inline-flex shrink-0 items-center overflow-hidden rounded-full border border-[#C9A24D]/25 bg-white text-xs font-black uppercase tracking-wider shadow-sm dark:border-[#C9A24D]/20 dark:bg-[#151517]">
+      <span className="bg-[#C9A24D]/12 px-2.5 py-1.5 text-[#8b7355] dark:text-[#e8cf8a]">{properties.length}</span>
+      <span className="px-2.5 py-1.5 text-[#6B7280] dark:text-gray-400">{properties.length === 1 ? 'home' : 'homes'}</span>
+    </span>
+  )
+  if (compactHeader) {
+    return (
+      <div className="space-y-5">
+        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:gap-4">
+          {compareInfo && <div className="min-w-0 flex-1">{compareInfo}</div>}
+          <div className={`flex items-center gap-2 ${compareInfo ? '' : 'lg:ml-auto'}`}>{sortControl}<span className="ml-auto lg:ml-0">{countPill}</span></div>
+        </div>
+        {animationKey !== undefined ? (
+          <AnimatePresence mode="wait">
+            <motion.div key={animationKey} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
+              {grid}
+            </motion.div>
+          </AnimatePresence>
+        ) : grid}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
