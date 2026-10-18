@@ -1,5 +1,6 @@
 'use client'
 
+import AreaPicksMap from '@/components/maps/AreaPicksMap'
 import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -1155,6 +1156,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
               </motion.p>
             )}
           </AnimatePresence>
+          <AreaPicksMap cities={formData.cities || []} schoolDistricts={formData.school_districts || []} />
           {!removedHome && homeAddress && homeLat != null && homeLng != null && (
             <button type="button" onClick={() => setFormData(prev => ({ ...prev, cities: [], address: homeAddress, lat: homeLat!, long: homeLng!, diameter: prev.diameter || 6 }))}
               className="inline-flex items-center gap-1.5 text-[12px] font-black text-[#a8843a] hover:underline dark:text-[#e8c97a]">
@@ -1273,6 +1275,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
             </motion.p>
           )}
         </AnimatePresence>
+        {!isUsingAreaSearch() && <div className="mt-3"><AreaPicksMap cities={formData.cities || []} schoolDistricts={formData.school_districts || []} /></div>}
         {hasSummary && (
           <div className={`space-y-1.5 ${!isUsingAreaSearch() ? 'mt-4 border-t border-gray-100 pt-4 dark:border-white/[0.07]' : ''}`}>
             <p className="text-xs font-black text-gray-500">Also set by your agent</p>
@@ -1564,6 +1567,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
                         apiMethod={api.properties.schoolDistrictsPublic}
                         placeholder={isUsingAddressSearch() ? 'Narrow to a school district...' : 'Search school districts...'}
                       />
+                      <AreaPicksMap cities={formData.cities || []} schoolDistricts={formData.school_districts || []} />
                     </div>
                   </div>
                 ),
