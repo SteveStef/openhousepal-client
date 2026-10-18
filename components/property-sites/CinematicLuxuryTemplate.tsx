@@ -459,21 +459,22 @@ function Hero({ m, imgRef, onPhotos, allowTour }: { m: SpotlightModel; imgRef: R
 
         <div className="relative mt-4 flex flex-col gap-3.5 pt-4 sm:mt-8 sm:gap-6 sm:pt-6 lg:flex-row lg:items-end lg:justify-between">
           <span className="cl-hero-rule absolute inset-x-0 top-0 h-px bg-gradient-to-r from-[color:var(--sp-accent)] via-white/25 to-white/5" />
-          <div className="cl-hero-facts flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4 sm:gap-x-8">
+          {/* Phones: price, then beds / baths / sq ft on the same line, ruled off - no acres (user,
+              10/18). Wider screens keep the big ruled stats. */}
+          <div className="cl-hero-facts flex items-end gap-0 sm:flex-wrap sm:gap-4 sm:gap-x-8">
             {fmtMoney(p.price) && (
-              <div>
+              <div className="min-w-0 pr-3.5 sm:pr-0">
                 {/* Sold: the status pill above already says it (user, 10/18: two "Sold"s). */}
-                {m.status?.kind !== 'sold' && <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-white/50">Offered at</p>}
-                <p className="cl-gold-text sp-display mt-1 text-[2rem] font-normal leading-none tabular-nums sm:text-5xl">{fmtMoney(p.price)}</p>
+                {m.status?.kind !== 'sold' && <p className="text-[9px] font-medium uppercase tracking-[0.28em] text-white/50 sm:text-[10px] sm:tracking-[0.3em]">Offered at</p>}
+                <p className="cl-gold-text sp-display mt-1 whitespace-nowrap text-[1.7rem] font-normal leading-none tabular-nums sm:text-5xl">{fmtMoney(p.price)}</p>
               </div>
             )}
-            {facts.length > 0 && (
-              // Phones: one quiet line under the price, so the address can sit low over the photo
-              // (user, 10/17: the big spread-out numbers pushed everything up).
-              <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-white/75 sm:hidden">
-                {facts.map(f => `${f.v} ${f.l}`).join('  ·  ')}
-              </p>
-            )}
+            {facts.filter(f => f.l !== 'Acres').map(f => (
+              <div key={f.l} className="shrink-0 border-l border-white/20 px-2.5 last:pr-0 sm:hidden">
+                <p className="sp-display text-[1.05rem] leading-none tabular-nums">{f.v}</p>
+                <p className="mt-1 text-[8px] font-medium uppercase tracking-[0.18em] text-white/55">{f.l}</p>
+              </div>
+            ))}
             {facts.length > 0 && (
               // Wider: each stat after the price, ruled off.
               <div className="hidden sm:flex sm:gap-x-8">
@@ -555,7 +556,7 @@ function StatsMarquee({ m }: { m: SpotlightModel }) {
   return (
     // Solid bottom edge + 1px overlap: a blurred bar touching the hero's bottom let a hairline of the
     // photo bleed through under it (worst in the shrunk editor previews).
-    <div className="cl-mq relative z-10 -mb-px w-full shrink-0 overflow-hidden border-b-2 border-b-[#0A0A0A] bg-[#0A0A0A] py-2.5 sm:bg-transparent sm:bg-gradient-to-b sm:from-black/45 sm:to-black/70 sm:py-4" aria-hidden>
+    <div className="cl-mq relative z-10 -mb-px w-full shrink-0 overflow-hidden border-b-2 border-b-[#0A0A0A] bg-[#0A0A0A] py-2 sm:bg-transparent sm:bg-gradient-to-b sm:from-black/45 sm:to-black/70 sm:py-4" aria-hidden>
       <span className="cl-mq-edge pointer-events-none absolute inset-x-0 top-0 h-px" />
       <div className="cl-mq-a">
         <div className="flex w-max animate-marquee-x-slow will-change-transform">
@@ -567,10 +568,10 @@ function StatsMarquee({ m }: { m: SpotlightModel }) {
         </div>
       </div>
       {row2.length > 0 && (
-        <div className="cl-mq-b mt-1 sm:mt-2">
+        <div className="cl-mq-b mt-0.5 sm:mt-2">
           <div className="flex w-max animate-marquee-x-reverse-slow will-change-transform">
             {[...row2, ...row2, ...row2, ...row2].map((item, i) => (
-              <span key={i} className="sp-display shrink-0 whitespace-nowrap px-5 text-[15px] italic sm:px-6 sm:text-lg text-[color:color-mix(in_srgb,var(--sp-accent)_80%,white)]">{item}</span>
+              <span key={i} className="sp-display shrink-0 whitespace-nowrap px-5 text-[13px] italic sm:px-6 sm:text-lg text-[color:color-mix(in_srgb,var(--sp-accent)_80%,white)]">{item}</span>
             ))}
           </div>
         </div>
