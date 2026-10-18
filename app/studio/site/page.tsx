@@ -1,5 +1,6 @@
 'use client'
 
+import { salesAreRecent, salesWords } from '@/lib/salesWording'
 import { LeaveReviewButton, orderReviews, ProfileRatingChip, ProfileReviewButton, ReviewsBigCarousel, ReviewsDeskCard, ReviewsSummary, ReviewsTwoUp, type HubReviewsData } from '@/components/agent-hub/HubReviews'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
@@ -619,6 +620,7 @@ function PublicPreview({
   const iconGlyphSize = totalIconCount <= 4 ? (isCompactPreview ? 'h-4 w-4' : 'h-5 w-5') : totalIconCount <= 6 ? (isCompactPreview ? 'h-4 w-4' : 'h-4 w-4') : totalIconCount <= 8 ? (isCompactPreview ? 'h-3.5 w-3.5' : 'h-[15px] w-[15px]') : (isCompactPreview ? 'h-3 w-3' : 'h-[13px] w-[13px]')
   const iconGap = totalIconCount <= 4 ? 'gap-3' : totalIconCount <= 6 ? (isCompactPreview ? 'gap-1.5' : 'gap-2') : totalIconCount <= 8 ? (isCompactPreview ? 'gap-1' : 'gap-1.5') : 'gap-1'
   const saleSummary = getSaleSummary(recentSales)
+  const salesRecent = salesAreRecent(saleSummary.totalVolume)
   const buyingForm = agentForms.find(form => form.form_type === 'buying')
   const sellingForm = agentForms.find(form => form.form_type === 'selling')
   const homeValueForm = agentForms.find(form => form.form_type === 'home_value')
@@ -680,7 +682,7 @@ function PublicPreview({
       return (
         <div key={id} className="mt-4">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="border-l-4 border-[#d2b16f] pl-2 font-serif text-[22px] font-black text-[#111827] dark:text-white">My Recent Sales</h3>
+            <h3 className="border-l-4 border-[#d2b16f] pl-2 font-serif text-[22px] font-black text-[#111827] dark:text-white">{salesWords('My Recent Sales', salesRecent)}</h3>
             <span className="text-[11px] font-black uppercase text-[#caa65e] dark:text-[#d7b974]">View All &rsaquo;</span>
           </div>
           {salesCarousel && size === 'mobile' ? (

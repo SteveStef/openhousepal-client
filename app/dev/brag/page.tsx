@@ -10,7 +10,8 @@ export default function BragProof() {
   useEffect(() => {
     const agent = { name: 'Peter Stefanatos', title: 'Realtor', brokerage: 'Compass', bio: 'Helping buyers and sellers across the Main Line.', hubUrl: 'https://openhousepal.com/peterstefanatos', phone: '(610) 555-0100', email: 'peter@example.com' }
     const sales = [1, 2, 3].map(i => ({ id: String(i), address: `${100 + i} Oak St`, city: 'Wayne', state: 'PA', price: 800000 + i * 50000, beds: 4, baths: 3, sqft: 2800 }))
-    pdf(<AgentBragSheetDocument agent={agent} recentSales={sales} />).toBlob().then(async b => {
+    const vol = Number(new URLSearchParams(window.location.search).get('vol') || 2550000)
+    pdf(<AgentBragSheetDocument agent={agent} recentSales={sales} showSalesStats stats={{ totalSold: 3, totalVolume: vol, avgPrice: Math.round(vol / 3) }} />).toBlob().then(async b => {
       const buf = new Uint8Array(await b.arrayBuffer())
       let s = ''
       for (let i = 0; i < buf.length; i++) s += String.fromCharCode(buf[i])

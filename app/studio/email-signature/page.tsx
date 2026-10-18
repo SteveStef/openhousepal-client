@@ -293,11 +293,11 @@ export default function EmailSignaturePage() {
   // never disagree about content, only about the interactive-only extras (see signaturePreview.ts).
   const previewData = useMemo(() => {
     // Shared with the public card that closes every blog article (lib/signatureSiteData).
-    const { identity, socials, buttons, listing, saleCards, listingHref, salesHref, stats, rotation } = buildSignatureSiteInput({
+    const { identity, socials, buttons, listing, saleCards, listingHref, salesHref, stats, rotation, salesRecent } = buildSignatureSiteInput({
       config, hubConfig, agentHubSlug, ownerId: user?.id, forms: myForms,
       fallbackName: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(), fallbackPhoto: user?.photo_url || '',
     })
-    return { identity, socials, buttons, listing, saleCards, listingHref, salesHref, stats, rotation }
+    return { identity, socials, buttons, listing, saleCards, listingHref, salesHref, stats, rotation, salesRecent }
   }, [config, hubConfig, agentHubSlug, user, myForms])
 
   // The Live Preview is the actual downloaded design (real CSS animations, real flexbox, the

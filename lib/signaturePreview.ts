@@ -1,4 +1,5 @@
 import { LUXE_METALS, metalVars, type LuxeMetal } from '@/lib/luxeMetals'
+import { salesWords } from '@/lib/salesWording'
 // The exact "Gallery" signature design and CSS the user built and downloaded from v0
 // (animated-email-signature-design/app/page.tsx + app/globals.css), reused verbatim here for the
 // Studio builder's Live Preview. This is NOT the email-install HTML (see
@@ -580,8 +581,11 @@ export function buildDesignPreviewHtml(opts: {
   /** Stats with no listing/sales card beside them: a slim strip in the card's spot instead of the
    *  right-hand column (same as the email - email_signature_service.stats_as_strip). */
   statsStrip?: boolean
+  /** false once the agent's sales volume passes $50M: "Sold" instead of "Recently sold" (lib/salesWording). */
+  salesRecent?: boolean
 }): string {
-  const { identity, socials, buttons, listing, saleCards, listingHref, salesHref, stats, accent, fontFamily, dark, interactive = true, luxe = false, metal = 'gold', reportHeight = interactive, rotation = null, statsStrip = false } = opts
+  const { identity, socials, buttons, listing, saleCards, listingHref, salesHref, stats, accent, fontFamily, dark, interactive = true, luxe = false, metal = 'gold', reportHeight = interactive, rotation = null, statsStrip = false, salesRecent = true } = opts
+  const soldTag = salesWords('Recently Sold', salesRecent)
   const mp = LUXE_METALS[metal]
   // Same hex values as _theme_colors/CARD_BG_DARK in email_signature_service.py - kept in sync by
   // hand since one's Python and the other's TS, not a shared module.
@@ -699,7 +703,7 @@ export function buildDesignPreviewHtml(opts: {
       item.sqft ? `${Math.round(item.sqft).toLocaleString()} sq ft` : '',
       item.acres ? `${item.acres} ac` : '',
     ].filter(Boolean)
-    const kicker = chip.label === 'Coming Soon' ? 'Coming soon' : chip.label === 'Sold' ? 'Recent sale' : /just listed/i.test(item.kicker) ? item.kicker : 'Featured listing'
+    const kicker = chip.label === 'Coming Soon' ? 'Coming soon' : chip.label === 'Sold' ? salesWords('Recent sale', salesRecent) : /just listed/i.test(item.kicker) ? item.kicker : 'Featured listing'
     const ctaBg = `background:${accent};${accentTextStyle}`
     return `<div class="feat-card" style="--feat-accent:${accent};background:${_cardWashBg(accent, dark)};">
         <div class="feat-photo">
@@ -722,7 +726,7 @@ export function buildDesignPreviewHtml(opts: {
     rotationSlides.push(...rotation.listings.map(item => `<a href="${esc(item.href || rotation.listingsHref || '#')}" class="rot-slide" style="display:block;color:inherit;text-decoration:none;">${buildCardHtml(item)}</a>`))
     if (rotation.sales && rotation.sales.length) {
       const salesSlide = `<a href="${esc(rotation.salesHref || '#')}" class="rot-slide mini-bubble" style="border-color:${accent};background:${_cardWashBg(accent, dark)};color:inherit;text-decoration:none;">
-            <div class="mini-viewport"><div class="mini-track">${rotation.sales.map(it => `<div class="mini-slide" style="${it.image ? `background-image:url('${esc(it.image)}');` : `background:${accent};`}"><span class="mini-tag">Recently Sold</span><div class="mini-scrim">${it.city ? `<div class="mini-city">${esc(it.city)}</div>` : ''}${it.price ? `<div class="mini-price">${esc(it.price)}</div>` : ''}</div></div>`).join('')}</div></div>
+            <div class="mini-viewport"><div class="mini-track">${rotation.sales.map(it => `<div class="mini-slide" style="${it.image ? `background-image:url('${esc(it.image)}');` : `background:${accent};`}"><span class="mini-tag">${soldTag}</span><div class="mini-scrim">${it.city ? `<div class="mini-city">${esc(it.city)}</div>` : ''}${it.price ? `<div class="mini-price">${esc(it.price)}</div>` : ''}</div></div>`).join('')}</div></div>
           </a>`
       rotationSlides.splice(Math.max(0, Math.min(rotation.salesAt ?? rotationSlides.length, rotationSlides.length)), 0, salesSlide)
     }
@@ -747,7 +751,7 @@ export function buildDesignPreviewHtml(opts: {
             ${saleCards
               .map(
                 item => `<div class="mini-slide" style="${item.image ? `background-image:url('${esc(item.image)}');` : `background:${accent};`}">
-                  <span class="mini-tag">Recently Sold</span>
+                  <span class="mini-tag">${soldTag}</span>
                   <div class="mini-scrim">
                     ${item.city ? `<div class="mini-city">${esc(item.city)}</div>` : ''}
                     ${item.price ? `<div class="mini-price">${esc(item.price)}</div>` : ''}

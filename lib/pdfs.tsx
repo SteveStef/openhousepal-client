@@ -34,6 +34,7 @@ function pdfImageUrl(url?: string | null): string {
 }
 import { CmaGuidanceSection, buildCmaStaticMapUrl, clientCompStrength, cmaGuidanceSections, resolveCmaMarketMetrics, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_HEX, STRENGTH_LABEL, STRENGTH_TIER_HEX, compDisplayPrice, effectiveCompPrice } from '@/lib/cma';
 import { qrPdfSrc } from '@/lib/qr';
+import { salesAreRecent, salesWords } from '@/lib/salesWording'
 
 // 1. Register Fonts
 Font.registerHyphenationCallback(word => [word]);
@@ -1110,6 +1111,8 @@ interface BragSheetSale {
 
 export const AgentBragSheetDocument = ({ agent, recentSales, showcaseSampleProperties, showcaseQrUrl, showSalesStats, stats }: { agent: BragSheetAgent; recentSales: BragSheetSale[]; showcaseSampleProperties?: BragSheetSale[]; showcaseQrUrl?: string | null; showSalesStats?: boolean; stats?: { totalSold: number; totalVolume: number; avgPrice: number } }) => {
   const sortedSales = [...(recentSales || [])].sort((a, b) => (b.price || 0) - (a.price || 0)).slice(0, 9);
+  // "Recent" only under $50M in volume (lib/salesWording) - the same total the stats row shows.
+  const salesRecent = salesAreRecent(stats?.totalVolume ?? (recentSales || []).reduce((t, s) => t + (s.price || 0), 0));
   // The "What A Showcase Looks Like" example uses this specific open house's saved comps (same
   // data as the Property Recommendations PDF) - never the agent's own Recent Sales, since those
   // are a different, unrelated set of homes and would misrepresent what this open house's guests
@@ -1144,7 +1147,7 @@ export const AgentBragSheetDocument = ({ agent, recentSales, showcaseSamplePrope
 
           {showSalesStats && stats && (
             <View style={styles.topStatsWrap}>
-              <Text style={styles.topStatsEyebrow}>Recent Sales Figures</Text>
+              <Text style={styles.topStatsEyebrow}>{salesWords('Recent Sales Figures', salesRecent)}</Text>
               <View style={styles.topStatsCluster}>
                 <View style={styles.topStatPill}>
                   <Text style={styles.topStatValue}>{stats.totalSold}</Text>
@@ -1167,7 +1170,7 @@ export const AgentBragSheetDocument = ({ agent, recentSales, showcaseSamplePrope
 
         {sortedSales.length > 0 && (
           <>
-            <Text style={styles.bragSalesHeading}>Recent Sales</Text>
+            <Text style={styles.bragSalesHeading}>{salesWords('Recent Sales', salesRecent)}</Text>
             <View style={styles.salesGrid}>
               {sortedSales.map(sale => {
                 const streetAddress = toTitleCase(getSaleStreetOnly(sale.address));
@@ -1212,7 +1215,7 @@ export const AgentBragSheetDocument = ({ agent, recentSales, showcaseSamplePrope
                 <View style={styles.pageOneQrTextWrap}>
                   <Text style={styles.pageOneQrEyebrow}>{agent.name?.split(' ')[0] ? `${agent.name.split(' ')[0]}'s Agent Hub` : 'Agent Hub'}</Text>
                   <Text style={styles.pageOneQrTitle}>Scan To See More From Me</Text>
-                  <Text style={styles.pageOneQrSubtitle}>See all my listings, recent sales, and the easiest way to reach me — all in one place.</Text>
+                  <Text style={styles.pageOneQrSubtitle}>See all my listings, {salesRecent ? 'recent sales' : 'sales'}, and the easiest way to reach me — all in one place.</Text>
                 </View>
               </View>
             )}

@@ -6,6 +6,7 @@
 import { API_BASE_URL } from '@/lib/api-service'
 import { openHousePalPublicUrl } from '@/lib/publicResourceLinks'
 import { epochDayIndex, formatSaleStatus, getEligibleListings, getSalesRotationPool, getSaleSummary } from '@/lib/agentSales'
+import { salesAreRecent } from '@/lib/salesWording'
 import { metalOf, LUXE_METALS } from '@/lib/luxeMetals'
 
 export const SIGNATURE_FONT_OPTIONS: { id: string; label: string; stack: string }[] = [
@@ -176,10 +177,12 @@ export function buildSignatureSiteInput({ config, hubConfig, agentHubSlug, owner
 
   const luxe = !!config.luxe
   const metal = metalOf(config.luxeMetal)
+  // "Recently sold" stamps only under $50M in volume (lib/salesWording).
+  const salesRecent = salesAreRecent(getSaleSummary(hubConfig.recentSales || []).totalVolume)
   const statsStrip = !!stats && !listing && !saleCards && !rotation
   if (statsStrip && !salesHref && agentHubUrl) salesHref = `${agentHubUrl}/sales`
   return {
-    identity, socials, buttons, listing, saleCards, listingHref, salesHref, stats, rotation, statsStrip,
+    identity, socials, buttons, listing, saleCards, listingHref, salesHref, stats, rotation, statsStrip, salesRecent,
     accent: luxe ? LUXE_METALS[metal].base : (config.accentColor || '#B87943'),
     fontFamily: signatureFontStack(luxe ? 'georgia' : (config.fontFamily || 'system')),
     dark: !!config.darkMode,

@@ -1,5 +1,6 @@
 'use client'
 
+import { salesAreRecent, salesWords } from '@/lib/salesWording'
 import { glideRowByCard } from '@/lib/rowScroll'
 import ListingFeatureCard from '@/components/agent-hub/ListingFeatureCard'
 import BlogCoverArt from '@/components/BlogCoverArt'
@@ -501,6 +502,7 @@ export default function PublicAgentHubPage() {
   const iconFit = `min(${iconMaxPx}px, calc((100cqw - ${iconRowGapsPx}px) / ${Math.max(1, totalIconCount)}))`
   const iconBoxStyle = { width: iconFit, height: iconFit }
   const saleSummary = getSalesSummary(recentSales)
+  const salesRecent = salesAreRecent(saleSummary.totalVolume)
   // Hidden until there's at least one sale - a row of zeros makes a new agent look inactive.
   const showStats = showSalesStats && saleSummary.totalSold > 0
   const renderStatsSection = () => showStats && (
@@ -527,7 +529,7 @@ export default function PublicAgentHubPage() {
         return (
           <section key={id} className="mt-4">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="border-l-4 border-[#d2b16f] pl-2 font-serif text-[22px] font-black text-[#111827] dark:text-white">My Recent Sales</h2>
+              <h2 className="border-l-4 border-[#d2b16f] pl-2 font-serif text-[22px] font-black text-[#111827] dark:text-white">{salesWords('My Recent Sales', salesRecent)}</h2>
               <Link href={salesPath} onClick={() => recordAgentHubEvent({ type: 'click', label: 'My Recent Sales: View All' })} className="text-[11px] font-black uppercase tracking-wide text-[#caa65e] dark:text-[#d7b974]">View All &rsaquo;</Link>
             </div>
             <RecentSalesCarousel sales={eligibleSales} linkHref={salesPath} autoScroll={salesMotion} luxe={luxe} />
@@ -537,7 +539,7 @@ export default function PublicAgentHubPage() {
       const soloSale = eligibleSales.length === 1 ? eligibleSales[0] : null
       return (
         <div key={id}>
-          <HubShelf title="My Recent Sales" action="View All" actionHref={salesPath} sameTab itemCount={eligibleSales.length} autoScroll={salesMotion} sweep={luxe} scrollPulse={autoScrollStep?.id === id ? autoScrollStep.nonce : 0}
+          <HubShelf title={salesWords('My Recent Sales', salesRecent)} action="View All" actionHref={salesPath} sameTab itemCount={eligibleSales.length} autoScroll={salesMotion} sweep={luxe} scrollPulse={autoScrollStep?.id === id ? autoScrollStep.nonce : 0}
             feature={soloSale ? <ListingFeatureCard compact luxe={luxe} listing={soloSale} href={salesPath} onClick={() => recordAgentHubEvent({ type: 'click', label: `Recent Sale: ${soloSale.address}` })} /> : undefined}>
             {eligibleSales.map((sale) => luxe ? (
               <Link key={sale.id} href={salesPath} onClick={() => recordAgentHubEvent({ type: 'click', label: `Recent Sale: ${sale.address}` })} className={LUXE_HOME_CARD}>

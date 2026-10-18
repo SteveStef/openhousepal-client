@@ -331,6 +331,8 @@ interface FooterArea {
 
 interface FooterProfile {
   name?: string
+  /** false once the agent's sales volume passes $50M - "Sold" instead of "Recently Sold". */
+  sales_recent?: boolean
   phone?: string
   email?: string
   brokerage?: string
@@ -438,7 +440,7 @@ export function SiteFooter({
       <FooterColumn title="Homes" classic={classic}>
         <FooterLink href={`${basePrefix}/search`}>Search Homes</FooterLink>
         <FooterLink href={`${basePrefix}/properties`}>Featured Listings</FooterLink>
-        {hasSoldPage && <FooterLink href={`${basePrefix}/sold`}>Recently Sold</FooterLink>}
+        {hasSoldPage && <FooterLink href={`${basePrefix}/sold`}>{profile?.sales_recent === false ? 'Sold' : 'Recently Sold'}</FooterLink>}
         <FooterLink href={`${basePrefix}/create-showcase?site_chrome=1`}>Create My Showcase</FooterLink>
         <FooterLink href={`${basePrefix}/contact`} form="home_value">What&apos;s My Home Worth?</FooterLink>
       </FooterColumn>

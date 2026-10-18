@@ -1,5 +1,6 @@
 'use client'
 
+import { salesAreRecent, salesWords } from '@/lib/salesWording'
 import { Calendar, DollarSign, Facebook, Globe, Home as HomeIcon, Instagram, Mail, MapPin, Music2, Phone, TrendingUp, Youtube, type LucideIcon } from 'lucide-react'
 import { SiteTheme } from './types'
 import { fontClass } from './blocks/fontClass'
@@ -104,6 +105,7 @@ function HubMediaTile({ item, theme }: { item: HubItem; theme: SiteTheme }) {
 export default function AboutHubMirror({ data, theme, siteId, basePrefix = '' }: { data: AboutHubData; theme: SiteTheme; siteId?: string; basePrefix?: string }) {
   const p = data.profile || {}
   const stats = p.stats || {}
+  const salesRecent = salesAreRecent(stats.sold_volume ?? data.recent_sales.reduce((t, l: any) => t + (l.price || l.close_price || 0), 0))
   const statItems = [
     stats.active_listings ? { label: stats.active_listings === 1 ? 'Active Listing' : 'Active Listings', value: String(stats.active_listings) } : null,
     stats.sold_count ? { label: stats.sold_count === 1 ? 'Home Sold' : 'Homes Sold', value: String(stats.sold_count) } : null,
@@ -207,7 +209,7 @@ export default function AboutHubMirror({ data, theme, siteId, basePrefix = '' }:
           ),
           sales: data.recent_sales.length > 0 && (
             <section key="sales" className="mt-16">
-              <h2 className={`text-2xl font-black ${fontClass(theme.heading_font, 'font-serif')}`} style={{ color: 'var(--site-heading)' }}>Recent Sales</h2>
+              <h2 className={`text-2xl font-black ${fontClass(theme.heading_font, 'font-serif')}`} style={{ color: 'var(--site-heading)' }}>{salesWords('Recent Sales', salesRecent)}</h2>
               <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 {data.recent_sales.map(l => <ListingCard key={l.listing_key} listing={l} badge="Sold" theme={theme} siteId={undefined} basePrefix={basePrefix} />)}
               </div>
