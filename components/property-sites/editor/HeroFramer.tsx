@@ -81,11 +81,31 @@ export default function HeroFramer({ photo, frame, onChange, motion: mo, nudge =
       Math.round(Math.max(0, Math.min(100, ((clientY - r.top) / r.height) * 100))),
     )
   }
+  // Dragging moves the frame from wherever you grab it - the dot stays in the middle of the box
+  // instead of jumping under your finger (user, 10/17: grabbing low put the check at the bottom,
+  // cut off). A tap without a drag still drops the dot right there.
   const frameMoved = useRef(0)
+  const grab = useRef<{ x: number; y: number; sx: number; sy: number; moved: boolean } | null>(null)
+  const down = (e: React.PointerEvent) => {
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId)
+    grab.current = { x: e.clientX, y: e.clientY, sx: spot.x, sy: spot.y, moved: false }
+    setDragging(true)
+  }
   const move = (e: React.PointerEvent) => {
-    if (!dragging) return
-    const { clientX, clientY } = e
-    if (!frameMoved.current) frameMoved.current = requestAnimationFrame(() => { frameMoved.current = 0; setFrom(clientX, clientY) })
+    const g = grab.current
+    const r = boxRef.current?.getBoundingClientRect()
+    if (!dragging || !g || !r) return
+    const dx = e.clientX - g.x, dy = e.clientY - g.y
+    if (!g.moved && Math.hypot(dx, dy) < 5) return
+    g.moved = true
+    const x = Math.round(Math.max(0, Math.min(100, g.sx + (dx / r.width) * 100)))
+    const y = Math.round(Math.max(0, Math.min(100, g.sy + (dy / r.height) * 100)))
+    if (!frameMoved.current) frameMoved.current = requestAnimationFrame(() => { frameMoved.current = 0; setSpot(x, y) })
+  }
+  const up = (e: React.PointerEvent) => {
+    if (grab.current && !grab.current.moved) setFrom(e.clientX, e.clientY)
+    grab.current = null
+    setDragging(false)
   }
   const confirmSpot = () => {
     setSpot(spot.x, spot.y)
@@ -104,7 +124,7 @@ export default function HeroFramer({ photo, frame, onChange, motion: mo, nudge =
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#d7b974]"><Crosshair className="h-3.5 w-3.5" /> Frame your photo</p>
-          <p className="mt-0.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Set the center for a computer <b>and</b> a phone - drag the dot onto the home on each tab.</p>
+          <p className="mt-0.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Set the center for a computer <b>and</b> a phone - drag the box so the cross sits on the home, on each tab.</p>
         </div>
         <motion.button type="button" whileTap={{ scale: 0.94 }} onClick={() => setReplay(r => r + 1)}
           className="inline-flex items-center gap-1 rounded-full bg-[#111827] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-white transition hover:bg-[#C9A24D] hover:text-[#111827] dark:bg-white dark:text-[#111827]">
@@ -141,15 +161,26 @@ export default function HeroFramer({ photo, frame, onChange, motion: mo, nudge =
         {/* the whole photo: what this screen shows, and the dot */}
         <div>
           <div ref={boxRef}
-            className="relative w-full cursor-crosshair touch-none select-none overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800"
+            className={`relative w-full touch-none select-none overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800 ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
             style={{ aspectRatio: nat ? `${nat.w} / ${nat.h}` : '4 / 3' }}
-            onPointerDown={e => { (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId); setDragging(true); setFrom(e.clientX, e.clientY) }}
+            onPointerDown={down}
             onPointerMove={move}
-            onPointerUp={() => setDragging(false)} onPointerCancel={() => setDragging(false)}>
+            onPointerUp={up} onPointerCancel={() => { grab.current = null; setDragging(false) }}>
             <img src={photo} alt="" draggable={false} className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
             {win && (
-              <span className={`pointer-events-none absolute rounded-[3px] border-2 shadow-[0_0_0_9999px_rgba(10,10,12,.55)] transition-all duration-200 ${device === 'phone' ? 'border-[#e8c97a]' : 'border-white'}`}
+              <span className={`pointer-events-none absolute rounded-[3px] border-2 shadow-[0_0_0_9999px_rgba(10,10,12,.55)] ${dragging ? '' : 'transition-all duration-200'} ${device === 'phone' ? 'border-[#e8c97a]' : 'border-white'}`}
                 style={{ left: `${win.left}%`, top: `${win.top}%`, width: `${win.width}%`, height: `${win.height}%` }}>
+                {/* Center lines of what the screen shows - line the door up on the cross. */}
+                <AnimatePresence>
+                  {dragging && (
+                    <motion.span key="guides" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="absolute inset-0">
+                      <span className="absolute inset-y-0 left-1/2 w-0 -translate-x-1/2 border-l-[1.5px] border-dashed border-white/95 shadow-[0_0_3px_rgba(0,0,0,.6)]" />
+                      <span className="absolute inset-x-0 top-1/2 h-0 -translate-y-1/2 border-t-[1.5px] border-dashed border-white/95 shadow-[0_0_3px_rgba(0,0,0,.6)]" />
+                      <span className="absolute inset-y-0 left-1/3 w-px bg-white/25" /><span className="absolute inset-y-0 left-2/3 w-px bg-white/25" />
+                      <span className="absolute inset-x-0 top-1/3 h-px bg-white/25" /><span className="absolute inset-x-0 top-2/3 h-px bg-white/25" />
+                    </motion.span>
+                  )}
+                </AnimatePresence>
                 <span className={`absolute -top-px left-1.5 -translate-y-full whitespace-nowrap rounded-t px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#111827] ${device === 'phone' ? 'bg-[#e8c97a]' : 'bg-white'}`}>
                   {device === 'phone' ? <Smartphone className="mr-0.5 inline h-2.5 w-2.5" /> : <Monitor className="mr-0.5 inline h-2.5 w-2.5" />}{device === 'phone' ? 'Phone shows this' : 'Computer shows this'}
                 </span>
@@ -159,8 +190,8 @@ export default function HeroFramer({ photo, frame, onChange, motion: mo, nudge =
             <span className="pointer-events-none absolute bottom-0 left-0 flex items-end p-1" style={{ width: '18%', height: '10%', backgroundImage: 'repeating-linear-gradient(45deg, rgba(239,68,68,.35) 0 4px, transparent 4px 8px)' }}>
               <span className="whitespace-nowrap rounded bg-red-500 px-1 text-[8px] font-black uppercase text-white">MLS badge</span>
             </span>
-            <motion.span className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2"
-              animate={{ left: `${spot.x}%`, top: `${spot.y}%`, scale: dragging ? 1.15 : 1 }} transition={{ type: 'spring', stiffness: 600, damping: 40 }}>
+            <motion.span className="pointer-events-none absolute z-10" style={{ x: "-50%", y: "-50%" }}
+              animate={{ left: `${win ? win.left + win.width / 2 : spot.x}%`, top: `${win ? win.top + win.height / 2 : spot.y}%`, scale: dragging ? 0.8 : 1 }} transition={dragging ? { duration: 0 } : { type: 'spring', stiffness: 600, damping: 40 }}>
               {!isSet && <span className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full bg-[#C9A24D]/40" />}
               <span className={`relative grid h-7 w-7 place-items-center rounded-full border-[3px] border-white shadow-lg ${isSet ? 'bg-emerald-500' : 'bg-[#C9A24D]'}`}>
                 {isSet ? <Check className="h-3.5 w-3.5 text-white" strokeWidth={3.5} /> : <span className="h-1.5 w-1.5 rounded-full bg-white" />}
@@ -171,8 +202,8 @@ export default function HeroFramer({ photo, frame, onChange, motion: mo, nudge =
           {/* set this screen's spot */}
           <div className={`mt-2.5 flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2.5 transition-colors ${isSet ? 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-500/25 dark:bg-emerald-500/10' : 'border-[#C9A24D]/40 bg-[#fffaf0] dark:bg-[#1a1712]'}`}>
             <p className={`min-w-0 flex-1 text-[11.5px] font-bold ${isSet ? 'text-emerald-700 dark:text-emerald-300' : 'text-[#8b6a2b] dark:text-[#e8c97a]'}`}>
-              {isSet ? `${device === 'phone' ? 'Phone' : 'Computer'} center is set. Drag the dot any time to change it.`
-                : `Drag the dot onto the home for a ${device === 'phone' ? 'phone' : 'computer'} - or keep it where it is.`}
+              {isSet ? `${device === 'phone' ? 'Phone' : 'Computer'} center is set. Drag the box any time to change it.`
+                : `Drag the box so the cross sits on the home for a ${device === 'phone' ? 'phone' : 'computer'} - or keep it where it is.`}
             </p>
             {!isSet && (
               <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={confirmSpot}

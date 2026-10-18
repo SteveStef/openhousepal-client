@@ -408,10 +408,11 @@ function ProductCard({ href, icon: Icon, iconClass, eyebrow, title, description,
   const [hovered, setHovered] = useState(false)
   const primaryAction = actions[0]
   const router = useRouter()
-  // Phones have no hover: the preview plays while the card is on screen instead.
+  // Phones have no hover: the corner preview plays while the card is on screen instead.
   const cardRef = useRef<HTMLDivElement>(null)
   const inView = useInView(cardRef, { amount: 0.55 })
-  const eyebrowMr = previewShort ? (eyebrowMarginClass === 'mr-28' ? 'sm:mr-28' : 'sm:mr-48') : preview ? 'sm:mr-28' : ''
+  const [noHover, setNoHover] = useState(false)
+  useEffect(() => { setNoHover(window.matchMedia('(hover: none)').matches) }, [])
   // The whole card opens the tool (its own buttons still go where they say).
   const open = (e: React.MouseEvent) => {
     if (comingSoon || (e.target as HTMLElement).closest('a,button')) return
@@ -429,14 +430,16 @@ function ProductCard({ href, icon: Icon, iconClass, eyebrow, title, description,
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onMouseMove={trackGlow}
-      className={`lx-hero group/lx group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-white dark:bg-[#111214] sm:bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#fffdf8_0%,#fbf6ec_60%,#f6eddb_100%)] sm:dark:bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#0b0f0e_0%,#111827_60%,#1d1810_100%)] p-5 shadow-[0_20px_44px_-32px_rgba(139,115,85,.6)] transition duration-300 dark:border-white/[0.08] ${
+      className={`lx-hero group/lx group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#fffdf8_0%,#fbf6ec_60%,#f6eddb_100%)] dark:bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#0b0f0e_0%,#111827_60%,#1d1810_100%)] p-5 shadow-[0_20px_44px_-32px_rgba(139,115,85,.6)] transition duration-300 dark:border-white/[0.08] ${
         comingSoon ? 'grayscale opacity-60 pointer-events-none' : locked ? '' : 'hover:-translate-y-1 hover:border-[#C9A24D]/60 hover:shadow-[0_28px_56px_-30px_rgba(201,162,77,.75)]'
       }`}
     >
       <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${accent}`} />
       <div aria-hidden className="ohp-tool-grid pointer-events-none absolute inset-0" />
       {!comingSoon && <CardAlive seed={eyebrow.length + title.length} />}
-      <Icon aria-hidden className="lx-mark pointer-events-none absolute -bottom-10 -right-6 h-36 w-36 text-[#C9A24D]/[0.08] dark:text-[#e8c97a]/[0.06]" />
+      {/* The tool's own symbol, big and drifting behind the card (user, 10/17: it was too small - the
+          card looked plain). */}
+      <Icon aria-hidden className="lx-mark pointer-events-none absolute -bottom-14 -right-12 h-60 w-60 text-[#C9A24D]/[0.13] sm:-bottom-12 sm:-right-10 sm:h-52 sm:w-52 dark:text-[#e8c97a]/[0.09]" />
       <div aria-hidden className="ohp-tool-edge pointer-events-none absolute inset-x-0 top-0 h-[2px] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
       <div aria-hidden className="pointer-events-none absolute -bottom-20 -left-16 h-48 w-48 rounded-full bg-[#C9A24D]/0 blur-3xl transition-colors duration-700 group-hover:bg-[#C9A24D]/20" />
       {comingSoon && (
@@ -458,19 +461,9 @@ function ProductCard({ href, icon: Icon, iconClass, eyebrow, title, description,
           color (only the Unlock button and the top-center Locked badge read as "muted/disabled") -
           it's still the best pitch for what unlocking gets you. */}
       {preview && (
-        <div className={`absolute right-4 top-4 z-[1] hidden sm:block ${locked ? 'pointer-events-none' : ''}`}>
+        <div className={`absolute right-4 top-4 z-[1] ${locked ? 'pointer-events-none' : ''}`}>
           <div className="relative">
-            {preview(hovered)}
-          </div>
-        </div>
-      )}
-      {/* Phones: the preview gets its own stage across the top of the card, bigger and playing
-          while the card is on screen - so each tool reads as itself, not as another header. */}
-      {preview && (
-        <div className="pointer-events-none relative -mx-5 -mt-5 mb-1 flex h-[150px] items-center justify-center overflow-hidden border-b border-[#C9A24D]/20 bg-[radial-gradient(90%_120%_at_50%_0%,rgba(201,162,77,.22),transparent_60%),linear-gradient(160deg,#fffdf8_0%,#f6eddb_100%)] dark:border-white/[0.06] dark:bg-[radial-gradient(90%_120%_at_50%_0%,rgba(201,162,77,.18),transparent_60%),linear-gradient(160deg,#0b0f0e_0%,#1d1810_100%)] sm:hidden">
-          <div aria-hidden className="ohp-tool-grid absolute inset-0 opacity-70" />
-          <div className="relative origin-center scale-[1.32]">
-            {preview(inView)}
+            {preview(hovered || (noHover && inView))}
           </div>
         </div>
       )}
@@ -489,14 +482,14 @@ function ProductCard({ href, icon: Icon, iconClass, eyebrow, title, description,
             description both run the card's full width underneath it, not squeezed to half the
             card for their whole height. */}
         <div>
-          <p className={`mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974] ${eyebrowMr}`}>{eyebrow}</p>
+          <p className={`mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974] ${previewShort ? (eyebrowMarginClass || 'mr-48') : preview ? 'mr-28' : ''}`}>{eyebrow}</p>
           {/* Title keeps the same margin as the eyebrow for the square/phone graphics (unlike
               CMA's short-wide one, they don't fully clear above the title - they're absolutely
               positioned, so text doesn't wrap around them, it just renders underneath and gets
               visually painted over at narrower card widths without this) - so it never runs
               under the graphic, even once cards get narrow enough that the title needs the width
               the graphic would otherwise sit in. */}
-          <h2 className={`mt-1 font-serif text-lg font-black text-[#111827] dark:text-white ${preview && !previewShort ? 'sm:mr-28' : ''}`}><GoldLastWord text={title} /></h2>
+          <h2 className={`mt-1 font-serif text-lg font-black text-[#111827] dark:text-white ${preview && !previewShort ? 'mr-28' : ''}`}><GoldLastWord text={title} /></h2>
           <p className="mt-1.5 text-xs font-semibold leading-relaxed text-gray-500 dark:text-gray-400">{description}</p>
         </div>
 

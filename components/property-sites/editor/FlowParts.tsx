@@ -272,10 +272,13 @@ export const ScaledPreview = forwardRef<HTMLIFrameElement, {
   }, [phone])
   useEffect(() => { setLoaded(false) }, [src])
   useEffect(() => { if (!near) setLoaded(false) }, [near])
-  const base = phone ? 430 : 1440
+  // On a phone the box is phone-shaped too (user, 10/17: a short, wide box made the phone page
+  // look squished and tiny) - what a visitor's phone actually shows.
+  const base = phone ? 390 : 1440
+  if (phone) aspect = 1.9
   const scale = w / base
   return (
-    <div className={`overflow-hidden rounded-xl border border-gray-200 bg-[#0b0b0c] shadow-lg dark:border-white/10 ${className}`}>
+    <div className={`overflow-hidden rounded-xl border border-gray-200 bg-[#0b0b0c] shadow-lg dark:border-white/10 ${phone ? 'mx-auto w-full max-w-[300px] rounded-[1.6rem]' : ''} ${className}`}>
       <div className="flex items-center gap-1.5 border-b border-gray-100 bg-gray-50 px-3 py-2 dark:border-white/10 dark:bg-[#1c1c1e]">
         <span className="h-2 w-2 rounded-full bg-red-400" /><span className="h-2 w-2 rounded-full bg-amber-400" /><span className="h-2 w-2 rounded-full bg-emerald-400" />
         <span className="ml-2 truncate rounded-md bg-white px-2 py-0.5 text-[9px] font-semibold text-gray-400 dark:bg-black/30">{label || 'your-listing.openhousepal.com'}</span>

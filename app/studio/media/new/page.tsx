@@ -274,7 +274,7 @@ function CreateMediaPage() {
       </button>
       <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple hidden onChange={(e) => { if (e.target.files?.length) onUpload(e.target.files); e.currentTarget.value = '' }} />
       {uploadPhotos.length > 0 && (
-        <div className="mt-2.5 grid max-h-[300px] grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4 md:grid-cols-5">
+        <div className="mt-2.5 grid max-h-[300px] auto-rows-max grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4 md:grid-cols-5">
           {uploadAssets.map(a => a.result_url && (
             <div key={a.id} className="group relative aspect-[4/3] overflow-hidden rounded-lg border border-gray-200 transition hover:-translate-y-0.5 hover:border-[#C9A24D] hover:shadow-sm dark:border-gray-800">
               <img src={a.result_url} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />

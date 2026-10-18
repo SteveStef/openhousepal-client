@@ -96,7 +96,7 @@ export default function RoomsStep({ siteId, photos, chapters, onChange, descript
     return (
       <div className="grid items-start gap-6 lg:grid-cols-[1.1fr_1fr]">
         <style>{RS_CSS}</style>
-        <RoomMock photos={photos} />
+        <RoomMock />
         <div>
           <h3 className="font-serif text-2xl font-black leading-tight text-[#111827] dark:text-white">Walk buyers through the home, room by room</h3>
           <ul className="mt-3 space-y-1.5 text-[13px] font-semibold text-gray-600 dark:text-gray-300">
@@ -174,29 +174,34 @@ export default function RoomsStep({ siteId, photos, chapters, onChange, descript
   )
 }
 
-// What a room looks like on the page - built from the agent's own photos, gently animated.
-function RoomMock({ photos }: { photos: string[] }) {
-  const pick = photos.slice(1, 4).length ? photos.slice(1, 4) : photos.slice(0, 3)
+// What a room looks like on the page - an EXAMPLE with photos that match each room's name (user,
+// 10/17: "The grounds" over the agent's kitchen photo read as a mistake), never the agent's own.
+const EXAMPLE_ROOMS = [
+  { label: 'The grounds', copy: 'Nearly an acre of level lawn, mature trees and a putting green out back.', photos: ['/demos/media/40c8804f90b6.jpg', '/demos/media/5c03c65506de.jpg', '/demos/media/ebc976526b9c.jpg'] },
+  { label: 'Kitchen', copy: 'A long island with seating for five, quartz counters and a walk-in pantry.', photos: ['/demos/media/57c9d847016b.jpg'] },
+  { label: 'Living room', copy: 'Big windows, a gas fireplace and room for the whole family.', photos: ['/demos/media/9ea5e4632d53.jpg', '/demos/media/49e47b42cc1c.jpg'] },
+]
+function RoomMock() {
   const [i, setI] = useState(0)
   useEffect(() => {
-    if (pick.length < 2) return
-    const t = window.setInterval(() => setI(x => (x + 1) % pick.length), 2600)
+    const t = window.setInterval(() => setI(x => (x + 1) % EXAMPLE_ROOMS.length), 3200)
     return () => window.clearInterval(t)
-  }, [pick.length])
+  }, [])
+  const room = EXAMPLE_ROOMS[i]
   return (
     <div className="relative aspect-[16/10] overflow-hidden rounded-2xl bg-black shadow-xl">
-      {pick.map((u, j) => <img key={u} src={u} alt="" className={`absolute inset-0 h-full w-full object-cover transition-all duration-[1400ms] ${j === i ? 'scale-100 opacity-100' : 'scale-110 opacity-0'}`} />)}
+      {EXAMPLE_ROOMS.map((r, j) => <img key={r.label} src={r.photos[0]} alt="" className={`absolute inset-0 h-full w-full object-cover object-[60%_40%] transition-all duration-[1400ms] ${j === i ? 'scale-100 opacity-100' : 'scale-110 opacity-0'}`} />)}
       <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/40 to-transparent" />
-      <div className="absolute left-5 top-4 flex gap-1.5">
-        {['The grounds', 'Kitchen', 'Primary suite'].map((t, j) => <span key={t} className={`rounded-full border px-2 py-0.5 text-[8px] font-bold ${j === 0 ? 'border-[#C9A24D] text-[#C9A24D]' : 'border-white/25 text-white/60'}`}>{String(j + 1).padStart(2, '0')} {t}</span>)}
+      <div className="absolute left-5 top-4 flex flex-wrap gap-1.5 pr-20">
+        {EXAMPLE_ROOMS.map((r, j) => <span key={r.label} className={`rounded-full border px-2 py-0.5 text-[8px] font-bold transition-colors ${j === i ? 'border-[#C9A24D] text-[#C9A24D]' : 'border-white/25 text-white/60'}`}>{String(j + 1).padStart(2, '0')} {r.label}</span>)}
       </div>
-      <div className="absolute bottom-5 left-5 max-w-[60%] text-white">
-        <p className="font-serif text-5xl leading-none text-transparent" style={{ WebkitTextStroke: '1px rgba(201,162,77,.85)' }}>01</p>
-        <p className="mt-1 font-serif text-2xl font-light">The grounds</p>
-        <p className="mt-1 line-clamp-2 text-[10px] text-white/70">A few lines about this space, written from your listing description.</p>
-        <div className="mt-2 flex gap-1">{pick.map((u, j) => <span key={u} className={`block h-6 w-8 overflow-hidden rounded-sm ${j === i ? 'ring-1 ring-[#C9A24D]' : 'opacity-50'}`}><img src={u} alt="" className="h-full w-full object-cover" /></span>)}</div>
+      <div key={room.label} className="ohp-modal-pop absolute bottom-5 left-5 max-w-[60%] text-white">
+        <p className="hidden font-serif text-5xl leading-none text-transparent sm:block" style={{ WebkitTextStroke: '1px rgba(201,162,77,.85)' }}>{String(i + 1).padStart(2, '0')}</p>
+        <p className="mt-1 font-serif text-2xl font-light">{room.label}</p>
+        <p className="mt-1 line-clamp-2 text-[10px] text-white/70">{room.copy}</p>
+        <div className="mt-2 flex gap-1">{room.photos.map((u, j) => <span key={u} className={`block h-6 w-8 overflow-hidden rounded-sm ${j === 0 ? 'ring-1 ring-[#C9A24D]' : 'opacity-60'}`}><img src={u} alt="" className="h-full w-full object-cover" /></span>)}</div>
       </div>
-      <span className="absolute right-4 top-4 rounded-full bg-black/60 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-white/80 ">Preview</span>
+      <span className="absolute right-4 top-4 rounded-full bg-black/60 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-white/80">Example</span>
     </div>
   )
 }

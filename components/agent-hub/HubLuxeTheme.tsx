@@ -340,13 +340,13 @@ const CSS = `
   radial-gradient(50% 36% at 100% 62%, rgba(var(--j2-rgb),.19), transparent 72%),
   radial-gradient(60% 34% at 15% 100%, rgba(var(--j3-rgb),.18), transparent 72%),
   radial-gradient(40% 30% at 55% 45%, rgba(var(--m-light-rgb),.18), transparent 70%),
-  linear-gradient(160deg, #fffdf8 0%, var(--m-wash1) 42%, var(--m-wash2) 100%) !important; }
+  linear-gradient(160deg, #fffdf8 0%, var(--m-wash1) 42%, var(--m-wash2) 100%) var(--m-wash1) !important; }
 .dark .hub-luxe { background:
   radial-gradient(60% 42% at 100% 0%, rgba(var(--m-rgb),.26), transparent 70%),
   radial-gradient(55% 40% at 0% 30%, rgba(var(--j1-rgb),.30), transparent 72%),
   radial-gradient(50% 36% at 100% 62%, rgba(var(--j2-rgb),.26), transparent 72%),
   radial-gradient(60% 34% at 15% 100%, rgba(var(--j3-rgb),.20), transparent 72%),
-  linear-gradient(160deg, var(--m-ink0) 0%, var(--m-ink1) 55%, var(--m-night2) 100%) !important; }
+  linear-gradient(160deg, var(--m-ink0) 0%, var(--m-ink1) 55%, var(--m-night2) 100%) var(--m-ink1) !important; }
 .hub-luxe > *:not(.hub-lx-decor):not(.hub-lx-intro) { position: relative; z-index: 1; }
 .hub-lx-decor { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; border-radius: inherit; }
 .hub-lx-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(var(--m-deep-rgb),.08) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--m-deep-rgb),.08) 1px, transparent 1px); background-size: 40px 40px; -webkit-mask-image: radial-gradient(70% 55% at 80% 0%, #000, transparent 75%); mask-image: radial-gradient(70% 55% at 80% 0%, #000, transparent 75%); }

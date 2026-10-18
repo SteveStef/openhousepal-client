@@ -129,10 +129,20 @@ async function scrollToSection(el: HTMLElement) {
 // Removing: scroll there, outline it red, then fold it shut so everything below glides up, and only
 // then take it out. Adding: put it in folded shut, scroll there, open it up so the page below
 // glides down, then glow gold.
+// The page may still be loading the draft when the first change arrives - give it a moment.
+async function findSection(id: string, ms = 5000) {
+  for (let t = 0; t < ms; t += 100) {
+    const el = document.getElementById(id)
+    if (el) return el
+    await wait(100)
+  }
+  return null
+}
+
 async function playChange(c: { id: string; show: boolean; visibility: Record<string, boolean> }, apply: (v: Record<string, boolean>) => void) {
   const ease = 'cubic-bezier(.65,0,.35,1)'
   if (!c.show) {
-    const el = document.getElementById(c.id)
+    const el = await findSection(c.id)
     if (!el) { apply(c.visibility); return }
     await scrollToSection(el)
     el.classList.add('ohp-hl-out')
@@ -153,7 +163,7 @@ async function playChange(c: { id: string; show: boolean; visibility: Record<str
   document.head.appendChild(fold)
   apply(c.visibility)
   await frames(2)
-  const el = document.getElementById(c.id)
+  const el = await findSection(c.id, 3000)
   if (!el) { fold.remove(); return }
   await scrollToSection(el)
   el.style.height = '0px'
@@ -185,6 +195,10 @@ const HIGHLIGHT_CSS = `
 .ohp-hl-in::before,.ohp-hl-out::before{position:absolute;top:44px;left:50%;z-index:61;padding:14px 30px;border-radius:999px;font:800 26px/1 system-ui,sans-serif;letter-spacing:.02em;white-space:nowrap;pointer-events:none;transform:translateX(-50%)}
 .ohp-hl-in::before{content:"✓  Added to your page";background:#C9A24D;color:#111827;animation:ohpTag 3s ease both}
 .ohp-hl-out::before{content:"Removing from your page";background:#ef4444;color:#fff;animation:ohpTag 1.7s ease both}
+@media (max-width:600px){
+.ohp-hl-in::after,.ohp-hl-out::after{inset:6px;border-radius:16px;border-width:3px}
+.ohp-hl-in::before,.ohp-hl-out::before{top:22px;padding:8px 16px;font-size:13px}
+}
 @keyframes ohpHlIn{from{opacity:0;transform:translateY(60px) scale(.98);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
 @keyframes ohpHlOut{to{opacity:0;transform:scale(.96);filter:blur(4px) grayscale(1)}}
 @keyframes ohpGlow{0%{opacity:0}12%{opacity:1}30%{opacity:.5}48%{opacity:1}75%{opacity:1}100%{opacity:0}}

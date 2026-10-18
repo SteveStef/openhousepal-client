@@ -11,15 +11,33 @@
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 
+// A page painted with a gradient (no solid colour - e.g. the Luxe Agent Hub) reported "transparent"
+// and fell through to the plain body colour (user, 10/17: the hub's peach vs white past the edges).
+// Use its base gradient's middle colour stop - the colour most of the page reads as.
+function gradientColor(el: HTMLElement, cs: CSSStyleDeclaration): string | null {
+  const img = cs.backgroundImage
+  if (!img || img === 'none' || !/gradient\(/.test(img)) return null
+  if (el.getBoundingClientRect().width < window.innerWidth * 0.9) return null
+  const at = Math.max(img.lastIndexOf('linear-gradient('), img.lastIndexOf('radial-gradient('), img.lastIndexOf('conic-gradient('))
+  const stops = (img.slice(at).match(/rgba?\([^)]*\)/g) || []).filter(c => {
+    const m = /rgba\(\s*\d+,\s*\d+,\s*\d+,\s*([\d.]+)\s*\)/.exec(c)
+    return !m || parseFloat(m[1]) > 0.9
+  })
+  return stops.length ? stops[Math.floor((stops.length - 1) / 2)] : null
+}
+
 function bgAt(x: number, y: number): string | null {
   let el = document.elementFromPoint(x, y) as HTMLElement | null
   while (el) {
-    const c = getComputedStyle(el).backgroundColor
+    const cs = getComputedStyle(el)
+    const c = cs.backgroundColor
     if (c && c !== 'transparent' && !/rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\s*\)/.test(c)) {
       // a semi-transparent layer isn't the page colour - keep looking underneath
       const m = /rgba\(\s*\d+,\s*\d+,\s*\d+,\s*([\d.]+)\s*\)/.exec(c)
       if (!m || parseFloat(m[1]) > 0.9) return c
     }
+    const g = gradientColor(el, cs)
+    if (g) return g
     el = el.parentElement
   }
   return null

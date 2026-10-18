@@ -407,7 +407,7 @@ export function PhotoGrid({ photos, kind, isVideo, videoPhotos, selectedUrl, upl
     <>
       <PhotoGridGate urls={photos.slice(0, 16)}>
       <div
-        className="ohp-reveal grid max-h-[520px] grid-cols-3 gap-2.5 overflow-y-auto pr-1 sm:grid-cols-4"
+        className="ohp-reveal grid max-h-[520px] auto-rows-max grid-cols-3 gap-2.5 overflow-y-auto pr-1 sm:grid-cols-4"
         style={{ overscrollBehavior: 'auto' }}
       >
         {photos.map((url) => {

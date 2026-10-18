@@ -8,7 +8,7 @@ import { smartBackClick } from '@/lib/navHistory'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
-  ArrowLeft, CalendarDays, Check, ChevronLeft, ChevronRight, Clapperboard, Copy, Download, ExternalLink, Eye, EyeOff, Globe, Home,
+  ArrowLeft, CalendarDays, Check, ChevronLeft, ChevronRight, ChevronUp, Clapperboard, Copy, Download, ExternalLink, Eye, EyeOff, Globe, Home,
   Image as ImageIcon, Images, Loader2, Pencil, Plus, RefreshCw, Save, Sparkles, Trash2, Upload, Video, Wand2, X,
   Box, Calculator, FileText, LayoutTemplate, Mail, MessageSquare, PartyPopper,
 } from 'lucide-react'
@@ -151,6 +151,10 @@ function PropertySiteEditorPage() {
   const [clock, setClock] = useState(() => Date.now())
   const [autoPublishing, setAutoPublishing] = useState(false)
   const sectionsFrame = useRef<HTMLIFrameElement>(null)
+  const sectionsBox = useRef<HTMLDivElement>(null)
+  const sectionsList = useRef<HTMLDivElement>(null)
+  // A switch flipped while the (phone) preview wasn't loaded: it plays once the preview is up.
+  const pendingSection = useRef<{ prev: Record<string, boolean>; msg: object } | null>(null)
   // Only the agent-typed dates - Open House Manager / MLS open houses are read live on the
   // public page, never copied into the draft.
   const [openHouses, setOpenHouses] = useState<PropertyWebsiteOpenHouse[]>([])
@@ -657,14 +661,26 @@ function PropertySiteEditorPage() {
 
   // Sections step: tell the live preview what's shown and glide it to the section just changed.
   const toggleSectionLive = (key: string) => {
+    const prev = visibility
     const next: Record<string, boolean> = { ...visibility, [key]: !(visibility[key] !== false), ...(key === 'open_houses' ? { open_houses_by_agent: true } : {}) }
     setVisibility(next)
-    const win = sectionsFrame.current?.contentWindow
-    if (!win) return
-    // The preview plays it: scroll there, outline, then fold the section away / open it up.
+    // The preview plays it: scroll there, outline (red going / gold coming), then fold the section
+    // away / open it up - same as the website editor.
     const anchor = SECTION_ANCHORS[key]
-    if (!anchor) { win.postMessage({ type: 'ohp-preview', visibility: next }, window.location.origin); return }
-    win.postMessage({ type: 'ohp-preview', change: { id: anchor, show: next[key] !== false, visibility: next } }, window.location.origin)
+    const msg = anchor ? { type: 'ohp-preview', change: { id: anchor, show: next[key] !== false, visibility: next } } : { type: 'ohp-preview', visibility: next }
+    const frame = sectionsFrame.current
+    // Phones (and narrow windows) stack the preview under the switches: take them down to it first
+    // so they see what changes (user, 10/17). The phone preview only loads while it's on screen, so
+    // if it isn't up yet the change waits for it (see onLoad below).
+    const stacked = window.innerWidth < 1024
+    if (stacked) sectionsBox.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (frame?.contentWindow && frame.dataset.ohpLoaded === '1') {
+      const send = () => frame.contentWindow?.postMessage(msg, window.location.origin)
+      if (stacked) window.setTimeout(send, 450)
+      else send()
+    } else {
+      pendingSection.current = { prev: pendingSection.current?.prev || prev, msg }
+    }
   }
 
   const copyLink = () => {
@@ -733,7 +749,7 @@ function PropertySiteEditorPage() {
             </div>
             <div>
               <p className="mb-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Tap any photo to make it your header.</p>
-              <div className="grid max-h-[300px] grid-cols-4 gap-1.5 overflow-y-auto pr-1 [scrollbar-width:thin]">
+              <div className="grid max-h-[300px] auto-rows-max grid-cols-4 gap-1.5 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin]">
                 {(p.photos || []).map(url => (
                   <button key={url} onClick={() => { if (url !== heroImage) setHeader(h => ({ ...h, frame: null })); setHeroImage(url) }} className={`relative aspect-[4/3] overflow-hidden rounded-lg transition ${heroImage === url ? 'ring-[3px] ring-[#C9A24D] ring-offset-2 ring-offset-white dark:ring-offset-[#151517]' : 'opacity-80 hover:opacity-100'}`}>
                     <img src={url} alt="" className="h-full w-full object-cover" />
@@ -1237,7 +1253,7 @@ function PropertySiteEditorPage() {
             )}
           </div>
 
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             <FileList
               icon={LayoutTemplate} title="Floor plans" hint="JPG or PNG" accept="image/jpeg,image/png"
               rows={floorPlans.map(f => ({ label: f.label, url: f.image_url }))}
@@ -1262,7 +1278,7 @@ function PropertySiteEditorPage() {
         {step === 'sections' && (<>
         <EditorCard step={8} title="Show or Hide Sections" subtitle="Flip a switch and watch your page change on the right.">
           <div className="grid items-start gap-5 lg:grid-cols-[1fr_1.15fr]">
-            <div className="space-y-1.5">
+            <div ref={sectionsList} className="scroll-mt-28 space-y-1.5">
               {Object.entries(SECTION_LABELS).map(([key, label]) => {
                 const on = visibility[key] !== false
                 return (
@@ -1273,10 +1289,23 @@ function PropertySiteEditorPage() {
                 )
               })}
             </div>
-            <div className="lg:sticky lg:top-24">
+            <div ref={sectionsBox} className="lg:sticky lg:top-24">
               <ScaledPreview ref={sectionsFrame} src={`/spotlight-preview/${templateId}?site=${site.id}&embed=1`} aspect={1.25} label={`${site.slug}.openhousepal.com`}
-                onLoad={() => sectionsFrame.current?.contentWindow?.postMessage({ type: 'ohp-preview', visibility }, window.location.origin)} />
+                onLoad={() => {
+                  const frame = sectionsFrame.current
+                  if (!frame?.contentWindow) return
+                  frame.dataset.ohpLoaded = '1'
+                  const pend = pendingSection.current
+                  pendingSection.current = null
+                  // A change made before the preview was up: show the page as it was, then play it.
+                  frame.contentWindow.postMessage({ type: 'ohp-preview', visibility: pend ? pend.prev : visibility }, window.location.origin)
+                  if (pend) window.setTimeout(() => frame.contentWindow?.postMessage(pend.msg, window.location.origin), 700)
+                }} />
               <p className="mt-2 text-center text-[10px] font-semibold text-gray-400">Live preview - sections with nothing in them never show.</p>
+              <button type="button" onClick={() => sectionsList.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="mx-auto mt-3 flex items-center gap-1.5 rounded-full border border-gray-200 px-4 py-2 text-[11px] font-black text-gray-600 transition hover:border-[#C9A24D] dark:border-gray-700 dark:text-gray-300 lg:hidden">
+                <ChevronUp className="h-3.5 w-3.5" /> Back to the switches
+              </button>
             </div>
           </div>
         </EditorCard>
@@ -1643,12 +1672,12 @@ function FileList({ icon: Icon, title, hint, accept, rows, onChange, onUpload }:
     else setErr('Upload failed - check the file type and size.')
   }
   return (
-    <div className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+    <div className="min-w-0 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
       <div className="flex items-center gap-2">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#111827] text-[#C9A24D] dark:bg-white/10"><Icon className="h-4 w-4" /></span>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-black text-[#111827] dark:text-white">{title}{rows.length > 0 && <span className="ml-1.5 rounded-full bg-[#C9A24D]/15 px-1.5 py-0.5 text-[10px] text-[#8b7355]">{rows.length}</span>}</p>
-          <p className="truncate text-[10px] font-semibold text-gray-400">{hint}</p>
+          <p className="line-clamp-2 text-[10px] font-semibold leading-snug text-gray-400 sm:truncate">{hint}</p>
         </div>
         <label className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-[#C9A24D] px-3 py-2 text-[11px] font-black text-[#111827] transition hover:brightness-110">
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Upload

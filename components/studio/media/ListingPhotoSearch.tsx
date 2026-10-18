@@ -285,7 +285,7 @@ export default function ListingPhotoSearch({
       )}
 
       {tab === 'mine' && (
-        <div className={`grid gap-2 grid-cols-3 sm:grid-cols-4 md:grid-cols-5 ${fullHeight ? '' : 'max-h-[300px] overflow-y-auto pr-1'}`}>
+        <div className={`grid auto-rows-max gap-2 grid-cols-3 sm:grid-cols-4 md:grid-cols-5 ${fullHeight ? '' : 'max-h-[300px] overflow-y-auto pr-1'}`}>
           {loadingMine && (
             <div className="col-span-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 p-4 text-xs font-bold text-gray-400 dark:border-gray-700">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading your listings...
@@ -321,7 +321,7 @@ export default function ListingPhotoSearch({
       )}
 
       {tab === 'sales' && (
-        <div className={`grid gap-2 grid-cols-3 sm:grid-cols-4 md:grid-cols-5 ${fullHeight ? '' : 'max-h-[300px] overflow-y-auto pr-1'}`}>
+        <div className={`grid auto-rows-max gap-2 grid-cols-3 sm:grid-cols-4 md:grid-cols-5 ${fullHeight ? '' : 'max-h-[300px] overflow-y-auto pr-1'}`}>
           {loadingSales && (
             <div className="col-span-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 p-4 text-xs font-bold text-gray-400 dark:border-gray-700">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading your recent sales...
