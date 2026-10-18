@@ -231,23 +231,133 @@ export async function renderOpenHouseCard(eventId: string, fonts: Fonts): Promis
   }
 }
 
+// An article link (user, 10/18): the same look as the article cards on the Agent Hub - the cover
+// photo when there is one (uploaded or AI-made), otherwise the designed cover art picked by who
+// the article is for (key + doorway for buyers, sold sign for sellers...) - framed in the agent's
+// own metal / accent, the category chip, the agent, the title sized so it never gets cut off, an
+// automatic one-line summary that always ends on a whole word, and the reading time.
+type CoverKind = 'buyers' | 'sellers' | 'market' | 'community' | 'home' | 'general'
+function coverKindOf(category?: string | null, title?: string | null): CoverKind {
+  const s = `${category || ''} ${title || ''}`.toLowerCase()
+  if (/buy|first[- ]time|mortgage|offer|closing/.test(s)) return 'buyers'
+  if (/sell|list|staging|pricing|downsiz/.test(s)) return 'sellers'
+  if (/market|insight|update|trend|rate|data|report|forecast/.test(s)) return 'market'
+  if (/neighbo|communit|town|area|local|guide|school|living in/.test(s)) return 'community'
+  if (/home|lifestyle|design|renovat|garden|tips|maint/.test(s)) return 'home'
+  return 'general'
+}
+// Same palettes and line art as components/BlogCoverArt.tsx (the hub / IDX article cards).
+const COVER_PAL: Record<CoverKind, { a: string; b: string; glow: string }> = {
+  buyers: { a: '#0f2e26', b: '#1c5a49', glow: '232,201,122' },
+  sellers: { a: '#2a1a12', b: '#6e4426', glow: '219,164,124' },
+  market: { a: '#131a33', b: '#2a3466', glow: '201,162,77' },
+  community: { a: '#1a1510', b: '#3a2d1a', glow: '232,201,122' },
+  home: { a: '#0b0f0e', b: '#1d2b2a', glow: '201,162,77' },
+  general: { a: '#111827', b: '#2a2218', glow: '201,162,77' },
+}
+const COVER_MOTIF: Record<CoverKind, { d: string[]; circles?: [number, number, number][]; rects?: [number, number, number, number][] }> = {
+  buyers: { d: ['M8 40V18l16-11 16 11v22', 'M20 40V27h8v13', 'm33 17-9 9M27 23l2 2M25 25l2 2'], circles: [[36, 14, 4]] },
+  sellers: { d: ['M4 42h40', 'M10 42V22l10-8 10 8v20', 'M30 42V26l6-5 6 5v16', 'M23 17v5', 'M18 12.5h10'], rects: [[14, 8, 18, 9]] },
+  market: { d: ['M6 40h36', 'M8 34l9-10 7 6 8-11 8 5', 'm34 19 6 5v-7z', 'M10 40V30M19 40V26M27 40V32M35 40V26M43 40V22'] },
+  community: { d: ['M2 42h44', 'M5 42V26l6-5 6 5v16', 'M17 42V20h10v22', 'M27 42V30l7-6 7 6v12', 'M20 24h4M20 29h4M20 34h4M8 31h2M36 33h2'], circles: [[37, 10, 3.5]] },
+  home: { d: ['M12 30l12-11 12 11', 'M15 28v10h18V28', 'M21 38v-6h6v6'], rects: [[5, 5, 38, 38]] },
+  general: { d: ['M2 40h44', 'M6 40V28l6-5 6 5v12', 'M18 40V22l6-5 6 5v18', 'M30 40V30l6-5 6 5v10', 'M24 23v4M12 29v3M36 31v3'] },
+}
+function CoverMotif({ kind, size, color, width = 0.9 }: { kind: CoverKind; size: number; color: string; width?: number }) {
+  const m = COVER_MOTIF[kind]
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" stroke={color} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round">
+      {m.d.map((d, i) => <path key={i} d={d} />)}
+      {(m.circles || []).map(([cx, cy, r], i) => <circle key={`c${i}`} cx={cx} cy={cy} r={r} />)}
+      {(m.rects || []).map(([x, y, w, h], i) => <rect key={`r${i}`} x={x} y={y} width={w} height={h} rx={kind === 'home' ? 3 : 1.5} />)}
+    </svg>
+  )
+}
+
+/** The share line: written-for-sharing text first, trimmed to whole words (never "property ta"). */
+function shareLine(...cands: (string | null | undefined)[]): string | null {
+  const raw = cands.map(c => String(c || '').replace(/\s+/g, ' ').trim()).find(Boolean)
+  if (!raw) return null
+  const MAX = 150
+  if (raw.length <= MAX) return raw
+  const cut = raw.slice(0, MAX)
+  const sentence = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('? '), cut.lastIndexOf('! '))
+  if (sentence >= 80) return cut.slice(0, sentence + 1)
+  return cut.slice(0, cut.lastIndexOf(' ')).replace(/[,;:\-–—]+$/, '') + '…'
+}
+
+export function BlogCard({ photo, kind, category, title, summary, minutes, agentName, agentBrokerage, agentPhoto, look }: {
+  photo: string | null; kind: CoverKind; category: string; title: string; summary: string | null; minutes: number | null
+  agentName: string; agentBrokerage: string | null; agentPhoto: string | null; look: HubLook
+}) {
+  const pal = COVER_PAL[kind]
+  const glow = `rgb(${pal.glow})`
+  // Title steps down with length so it always fits (3 lines at most).
+  const tSize = title.length > 95 ? 46 : title.length > 72 ? 52 : title.length > 48 ? 60 : 70
+  return (
+    <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', color: '#fff', overflow: 'hidden',
+      backgroundColor: pal.a, backgroundImage: `radial-gradient(900px 640px at 100% 0%, rgba(${pal.glow},0.42), transparent 58%), linear-gradient(135deg, ${pal.a}, ${pal.b})` }}>
+      {photo ? <img src={photo} style={{ position: 'absolute', top: 0, left: 0, width: 1200, height: 630, objectFit: 'cover' }} /> : (
+        <div style={{ position: 'absolute', top: 0, left: 0, width: 1200, height: 630, display: 'flex' }}>
+          <div style={{ position: 'absolute', right: 70, top: 40, display: 'flex', opacity: 0.6 }}><CoverMotif kind={kind} size={380} color={glow} /></div>
+          <div style={{ position: 'absolute', left: -40, top: 250, display: 'flex', opacity: 0.14 }}><CoverMotif kind={kind} size={260} color={glow} /></div>
+        </div>
+      )}
+      {/* readable text over any photo */}
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex',
+        backgroundImage: photo
+          ? 'linear-gradient(0deg, rgba(7,10,15,0.96) 0%, rgba(7,10,15,0.78) 38%, rgba(7,10,15,0.25) 70%, rgba(7,10,15,0.35) 100%)'
+          : 'linear-gradient(0deg, rgba(7,10,15,0.85) 0%, rgba(7,10,15,0.35) 50%, rgba(7,10,15,0) 80%)' }} />
+      {/* the agent's metal / accent frame */}
+      <div style={{ position: 'absolute', top: 22, left: 22, right: 22, bottom: 22, display: 'flex', border: `2px solid ${look.light}`, borderRadius: 22, opacity: 0.75 }} />
+
+      <div style={{ position: 'absolute', top: 54, left: 62, display: 'flex', alignItems: 'center', padding: '9px 18px', borderRadius: 999, border: `1.5px solid ${look.light}`,
+        backgroundColor: 'rgba(0,0,0,0.38)', fontSize: 16, fontWeight: 900, letterSpacing: 3.5, textTransform: 'uppercase', color: '#F3ECDD' }}>{category}</div>
+      <div style={{ position: 'absolute', top: 46, right: 60, display: 'flex', alignItems: 'center', gap: 14, padding: '8px 22px 8px 8px', borderRadius: 999,
+        backgroundColor: 'rgba(8,8,10,0.62)', border: '1px solid rgba(255,255,255,0.14)' }}>
+        {agentPhoto
+          ? <img src={agentPhoto} width={50} height={50} style={{ width: 50, height: 50, borderRadius: 999, objectFit: 'cover', border: `2px solid ${look.light}` }} />
+          : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 50, height: 50, borderRadius: 999, backgroundColor: '#111', color: look.light, fontSize: 18, fontWeight: 900 }}>{initialsOf(agentName)}</div>}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', fontSize: 19, fontWeight: 900 }}>{agentName}</div>
+          {agentBrokerage ? <div style={{ display: 'flex', fontSize: 12, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', color: look.light }}>{agentBrokerage}</div> : null}
+        </div>
+      </div>
+
+      <div style={{ position: 'absolute', left: 62, right: 70, bottom: 56, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', width: 70, height: 3, backgroundImage: `linear-gradient(90deg, ${look.light}, rgba(0,0,0,0))` }} />
+        <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: tSize, lineHeight: 1.06, letterSpacing: -0.8, marginTop: 16, maxWidth: 1040 }}>{title}</div>
+        {summary ? <div style={{ display: 'flex', fontSize: 23, lineHeight: 1.38, color: 'rgba(243,236,221,0.86)', marginTop: 14, maxWidth: 1000 }}>{summary}</div> : null}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 18, fontSize: 15, fontWeight: 900, letterSpacing: 3.5, textTransform: 'uppercase', color: look.light }}>
+          Read the story
+          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={look.light} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
+          {minutes ? <div style={{ display: 'flex', color: 'rgba(255,255,255,0.55)' }}>·  {minutes} min read</div> : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export async function renderBlogCard(agentSlug: string, blogSlug: string, fonts: Fonts): Promise<ImageResponse> {
   try {
-    const data = await ogFetch<any>(`/studio/blogs/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(blogSlug)}?track=false`)
+    const [data, hub] = await Promise.all([
+      ogFetch<any>(`/studio/blogs/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(blogSlug)}?track=false`, 0),
+      ogFetch<any>(`/agent-hub/public/${encodeURIComponent(agentSlug)}`, 0),
+    ])
     const [photo, agentPhoto] = await Promise.all([
-      imgToDataUri(data?.socialImageUrl || data?.coverImageUrl),
+      imgToDataUri(data?.socialImageUrl || data?.coverImageUrl, 5000),
       imgToDataUri(data?.agentPhotoUrl),
     ])
+    // The article's own Luxe metal when it uses a Luxe look, else the agent's hub look.
+    const base = hubLook(hub?.config || null)
+    const look: HubLook = String(data?.theme || '').startsWith('luxe') && LUXE[data?.luxeMetal] ? { ...LUXE[data.luxeMetal], dark: base.dark } : base
+    const category = data?.category ? String(data.category) : 'Market Notes'
+    const title = String(data?.socialTitle || data?.title || 'From the blog')
     return IR(
-      <PhotoCard
-        photo={photo}
-        eyebrow={data?.category ? String(data.category) : 'Market Notes'}
-        headline={data?.title || 'Market Notes'}
-        sub={data?.subtitle ? String(data.subtitle).slice(0, 110) : undefined}
-        agentName={data?.agentName || 'Your agent'}
-        agentBrokerage={data?.agentBrokerage || null}
-        agentPhoto={agentPhoto}
-      />,
+      <BlogCard photo={photo} kind={coverKindOf(category, title)} category={category} title={title}
+        summary={shareLine(data?.socialDescription, data?.metaDescription, data?.subtitle)}
+        minutes={Number(data?.readingTimeMinutes) || null}
+        agentName={data?.agentName || 'Your agent'} agentBrokerage={data?.agentBrokerage || null} agentPhoto={agentPhoto} look={look} />,
       fonts,
     )
   } catch {
@@ -635,7 +745,7 @@ export async function renderHubCard(agentSlug: string, fonts: Fonts): Promise<Im
   try {
     // Fresh within a minute of the agent saving their hub or Settings (name, photo, brokerage, look).
     const [data, blogs] = await Promise.all([
-      ogFetch<any>(`/agent-hub/public/${encodeURIComponent(agentSlug)}`, 60),
+      ogFetch<any>(`/agent-hub/public/${encodeURIComponent(agentSlug)}`, 0),
       ogFetch<any[]>(`/studio/blogs/public/${encodeURIComponent(agentSlug)}`, 300),
     ])
     const cfg = data?.config || {}
