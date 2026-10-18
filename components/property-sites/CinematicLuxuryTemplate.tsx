@@ -452,14 +452,14 @@ function Hero({ m, imgRef, onPhotos, allowTour }: { m: SpotlightModel; imgRef: R
           )}
           {oh && <OpenHouseChip oh={oh} onClick={() => scrollToId('open-houses')} className="cl-hero-chip rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition hover:bg-white/20" />}
         </div>
-        {m.cityState && <p className="cl-hero-chip mt-4 text-[11px] font-medium sm:mt-6 uppercase tracking-[0.42em] text-white/70">{[p.city, p.state, p.zipcode].filter(Boolean).join(' · ')}</p>}
+        {m.cityState && <p className="cl-hero-chip mt-3 text-[10px] font-medium sm:mt-6 sm:text-[11px] uppercase tracking-[0.42em] text-white/70">{[p.city, p.state, p.zipcode].filter(Boolean).join(' · ')}</p>}
         <h1 className="sp-display mt-3 font-light leading-[0.9] tracking-[-0.02em]" style={fitLine(street, '8.4rem', 185)}>
           <span className="block overflow-hidden pb-[0.06em]"><span className="cl-hero-line cl-glint block">{street}</span></span>
         </h1>
 
-        <div className="relative mt-5 flex flex-col gap-4 pt-4 sm:mt-8 sm:gap-6 sm:pt-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative mt-4 flex flex-col gap-3.5 pt-4 sm:mt-8 sm:gap-6 sm:pt-6 lg:flex-row lg:items-end lg:justify-between">
           <span className="cl-hero-rule absolute inset-x-0 top-0 h-px bg-gradient-to-r from-[color:var(--sp-accent)] via-white/25 to-white/5" />
-          <div className="cl-hero-facts flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4 sm:gap-x-8">
+          <div className="cl-hero-facts flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4 sm:gap-x-8">
             {fmtMoney(p.price) && (
               <div>
                 <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-white/50">{m.status?.kind === 'sold' ? 'Sold' : 'Offered at'}</p>
@@ -467,8 +467,15 @@ function Hero({ m, imgRef, onPhotos, allowTour }: { m: SpotlightModel; imgRef: R
               </div>
             )}
             {facts.length > 0 && (
-              // Phones: one even row under the price. Wider: each stat after the price, ruled off.
-              <div className="grid sm:flex sm:gap-x-8" style={{ gridTemplateColumns: `repeat(${facts.length}, minmax(0, 1fr))` }}>
+              // Phones: one quiet line under the price, so the address can sit low over the photo
+              // (user, 10/17: the big spread-out numbers pushed everything up).
+              <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-white/75 sm:hidden">
+                {facts.map(f => `${f.v} ${f.l}`).join('  ·  ')}
+              </p>
+            )}
+            {facts.length > 0 && (
+              // Wider: each stat after the price, ruled off.
+              <div className="hidden sm:flex sm:gap-x-8">
                 {facts.map((f, i) => (
                   <div key={f.l} className={`border-white/15 sm:border-l sm:pl-8 ${i ? 'border-l pl-3' : ''}`}>
                     <p className="sp-display text-[1.4rem] leading-none tabular-nums sm:text-4xl"><CountUp value={f.v} /></p>

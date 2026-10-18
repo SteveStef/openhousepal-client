@@ -2281,6 +2281,7 @@ class ApiService {
     publicText: (code: string) => this.request<PublicFollowupText>(`/public/followups/${encodeURIComponent(code)}/text`),
     publicDone: (code: string) => this.request<PublicFollowup>(`/public/followups/${encodeURIComponent(code)}/done`, { method: 'POST' }),
     publicUndo: (code: string) => this.request<PublicFollowup>(`/public/followups/${encodeURIComponent(code)}/undo`, { method: 'POST' }),
+    publicView: (code: string) => this.request<PublicFollowup>(`/public/followups/${encodeURIComponent(code)}`),
   };
 
   /**

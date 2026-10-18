@@ -79,22 +79,35 @@ export default function MarkDonePage() {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [busy, setBusy] = useState<string | null>(null)
 
+  // Opening the link checks it off - once. After an Undo, opening or refreshing it again shows it
+  // as not done instead of quietly checking it off (and crossing it out on the calendar) again
+  // (user, 10/17: "it's ignoring my click").
+  const undoneKey = `ohp-undone:${code}`
+  const wasUndone = () => { try { return localStorage.getItem(undoneKey) === '1' } catch { return false } }
+  const rememberUndone = (v: boolean) => { try { if (v) localStorage.setItem(undoneKey, '1'); else localStorage.removeItem(undoneKey) } catch { /* private mode */ } }
+  const [failed, setFailed] = useState('')
+
   useEffect(() => {
     if (!code) return
-    api.tasks.publicDone(code).then(r => {
+    ;(async () => {
+      const r = wasUndone() ? await api.tasks.publicView(code) : await api.tasks.publicDone(code)
       if (r.success && r.data) {
         setTask(r.data)
         setOthers(r.data.others || [])
         setState('ready')
       } else setState('error')
-    })
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code])
 
   const toggleMain = async () => {
     if (!task) return
     setBusy(code)
-    const r = task.done ? await api.tasks.publicUndo(code) : await api.tasks.publicDone(code)
-    if (r.success && r.data) setTask(r.data)
+    setFailed('')
+    const undoing = task.done
+    const r = undoing ? await api.tasks.publicUndo(code) : await api.tasks.publicDone(code)
+    if (r.success && r.data) { setTask(r.data); rememberUndone(undoing) }
+    else setFailed(r.error || "That didn't go through - check your connection and tap again.")
     setBusy(null)
   }
 
@@ -160,6 +173,7 @@ export default function MarkDonePage() {
                 {busy === code ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : task.done ? <RotateCcw className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                 {task.done ? 'Undo' : 'Mark as done'}
               </button>
+              {failed && <p className="mt-2 text-xs font-bold text-red-600">{failed}</p>}
             </div>
 
             {task.contact && <ContactCard code={code} contact={task.contact} />}
