@@ -10,6 +10,7 @@ import {
   Eyebrow, AgentChip, PhotoCard, IdentityCard,
 } from './shared'
 import { computeMatchScore } from '@/lib/matchScore'
+import { hubAccentOf } from '@/components/agent-hub/HubClassicTheme'
 import { isPropertyAvailableStatus } from '@/lib/utils'
 
 type Fonts = ReturnType<typeof ogFonts>
@@ -555,12 +556,19 @@ function mixHex(a: string, b: string, t: number) {
   const h = (v: number) => Math.round(v).toString(16).padStart(2, '0')
   return `#${h(r1 + (r2 - r1) * t)}${h(g1 + (g2 - g1) * t)}${h(b1 + (b2 - b1) * t)}`
 }
+function lum(hex: string) {
+  const x = hex.replace('#', ''); const n = parseInt(x.length === 3 ? x.split('').map(c => c + c).join('') : x, 16)
+  return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255
+}
 function hubLook(cfg: any): HubLook {
   const dark = !!cfg?.visitorDarkMode
   if (cfg?.hubTheme === 'luxe') return { ...(LUXE[cfg?.hubLuxeMetal] || LUXE.gold), dark }
-  const accent = /^#[0-9a-f]{3,6}$/i.test(String(cfg?.hubAccent || '')) ? String(cfg.hubAccent) : '#C9A24D'
+  // Exactly the Classic accents the hub page accepts (anything else shows as Original there too).
+  const accent = hubAccentOf(cfg?.hubAccent)
+  // Navy / Charcoal / Black on a dark hub would vanish - lift them so lines and icons still show.
+  const lifted = dark && lum(accent) < 0.35 ? mixHex(accent, '#ffffff', 0.55) : accent
   return {
-    base: accent, light: mixHex(accent, '#ffffff', 0.4), deep: mixHex(accent, '#111111', 0.35),
+    base: lifted, light: mixHex(lifted, '#ffffff', 0.4), deep: dark ? lifted : mixHex(accent, '#111111', 0.35),
     wash: ['#ffffff', mixHex(accent, '#ffffff', 0.93), mixHex(accent, '#ffffff', 0.84)],
     night: ['#0b0b0c', '#141416', mixHex(accent, '#0b0b0c', 0.85)], dark,
   }
@@ -575,6 +583,8 @@ export function BusinessCard({ photo, name, title, brokerage, market, phone, ema
   const cardBg = look.dark ? `linear-gradient(135deg, ${look.night[0]} 0%, ${look.night[1]} 55%, ${look.night[2]} 100%)` : `linear-gradient(135deg, ${look.wash[0]} 0%, ${look.wash[1]} 55%, ${look.wash[2]} 100%)`
   const outer = look.dark ? `radial-gradient(900px 520px at 85% 0%, ${mixHex(look.base, '#000000', 0.7)} 0%, #0d0d0f 60%, #070708 100%)` : `radial-gradient(900px 520px at 85% 0%, ${mixHex(look.base, '#1a150d', 0.6)} 0%, #16120c 58%, #0d0b08 100%)`
   const label = look.dark ? look.light : look.deep
+  // Dark text on a light button, white on a dark one (Navy / Charcoal / Black accents).
+  const btnInk = lum(mixHex(look.light, look.base, 0.5)) < 0.5 ? '#ffffff' : '#16130e'
   return (
     <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: '#0d0b08',
       backgroundImage: outer, alignItems: 'center', justifyContent: 'center' }}>
@@ -609,9 +619,9 @@ export function BusinessCard({ photo, name, title, brokerage, market, phone, ema
               what this hub actually has (listings, sales, videos, articles, reviews). */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 28 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 50, padding: '0 22px', borderRadius: 999, fontSize: 18, fontWeight: 900, flexShrink: 0,
-              backgroundImage: `linear-gradient(135deg, ${look.light}, ${look.base})`, color: look.dark ? '#0b0b0c' : '#16130e', boxShadow: `0 12px 26px -14px ${look.deep}` }}>
+              backgroundImage: `linear-gradient(135deg, ${look.light}, ${look.base})`, color: btnInk, boxShadow: `0 12px 26px -14px ${look.deep}` }}>
               Visit my page
-              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={look.dark ? '#0b0b0c' : '#16130e'} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={btnInk} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
             </div>
             {inside.length ? <div style={{ display: 'flex', fontSize: 15, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: sub }}>{inside.join('  ·  ')}</div> : null}
           </div>
