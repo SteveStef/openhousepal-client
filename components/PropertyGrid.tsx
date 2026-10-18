@@ -50,13 +50,15 @@ interface PropertyGridProps {
   animationKey?: string | number
   /** Agent's Showcase: no title block - the search bar (compareInfo) then sort + count on one row. */
   compactHeader?: boolean
+  /** Client's Showcase: on phones, no title / hint - just sort + count on one slim row. */
+  phoneCompact?: boolean
   /** Agent's Showcase: the "I recommend this home" star on each card. */
   onRecommend?: (property: Property) => void
   /** Name on the "… recommends this home" banner. */
   recommendedBy?: string | null
 }
 
-export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, sortControl, headerAction, alignHeaderLeftOnMobile = false, compareInfo, destination, compareProperty, tourButtonVariant, cropMlsBadge = false, highlightFirst = false, animationKey, emptyState, compactHeader = false, onRecommend, recommendedBy }: PropertyGridProps) {
+export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, sortControl, headerAction, alignHeaderLeftOnMobile = false, compareInfo, destination, compareProperty, tourButtonVariant, cropMlsBadge = false, highlightFirst = false, animationKey, emptyState, compactHeader = false, phoneCompact = false, onRecommend, recommendedBy }: PropertyGridProps) {
   const firstCardRef = useRef<HTMLDivElement>(null)
   const [isHighlighting, setIsHighlighting] = useState(false)
   const hasFiredRef = useRef(false)
@@ -153,21 +155,23 @@ export default function PropertyGrid({ properties, title = "Properties", onLike,
   }
 
   return (
-    <div className="space-y-6">
-      <div className={`grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:justify-items-stretch lg:text-left ${alignHeaderLeftOnMobile ? 'justify-items-stretch text-left' : 'justify-items-center text-center'}`}>
-        <div className={`flex shrink-0 flex-col gap-1 ${alignHeaderLeftOnMobile ? 'items-start' : 'items-center'} lg:items-start`}>
+    <div className={phoneCompact ? 'space-y-3 sm:space-y-6' : 'space-y-6'}>
+      <div className={`grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:justify-items-stretch lg:text-left ${alignHeaderLeftOnMobile ? 'justify-items-stretch text-left' : phoneCompact ? 'justify-items-stretch sm:justify-items-center sm:text-center' : 'justify-items-center text-center'}`}>
+        <div className={`${phoneCompact ? 'hidden sm:flex' : 'flex'} shrink-0 flex-col gap-1 ${alignHeaderLeftOnMobile ? 'items-start' : 'items-center'} lg:items-start`}>
           <div className={`flex min-w-0 flex-wrap items-center gap-2 ${alignHeaderLeftOnMobile ? 'justify-start' : 'justify-center'} lg:justify-start`}>
             <h2 className="text-xl sm:text-2xl font-black text-[#0B0B0B] dark:text-white tracking-tight">{title}</h2>
             {headerAction && <div className="shrink-0">{headerAction}</div>}
           </div>
           <p className="text-[#6B7280] dark:text-gray-400 text-sm">Click on any property to view details or schedule tours</p>
         </div>
-        <div className="min-w-0 justify-self-center">{compareInfo}</div>
-        <div className="flex shrink-0 flex-wrap items-center justify-center gap-3 justify-self-center lg:justify-self-end">
+        <div className={`min-w-0 justify-self-center ${compareInfo ? "" : "hidden lg:block"}`}>{compareInfo}</div>
+        <div className={phoneCompact
+          ? 'flex shrink-0 items-center justify-between gap-2 sm:flex-wrap sm:justify-center sm:gap-3 sm:justify-self-center lg:justify-self-end'
+          : 'flex shrink-0 flex-wrap items-center justify-center gap-3 justify-self-center lg:justify-self-end'}>
           {sortControl}
-          <span className="inline-flex items-center overflow-hidden rounded-full border border-[#C9A24D]/25 bg-white text-xs font-black uppercase tracking-wider shadow-sm dark:border-[#C9A24D]/20 dark:bg-[#151517]">
+          <span className="inline-flex shrink-0 items-center overflow-hidden rounded-full border border-[#C9A24D]/25 bg-white text-xs font-black uppercase tracking-wider shadow-sm dark:border-[#C9A24D]/20 dark:bg-[#151517]">
             <span className="bg-[#C9A24D]/12 px-2.5 py-1.5 text-[#8b7355] dark:text-[#e8cf8a]">{properties.length}</span>
-            <span className="px-2.5 py-1.5 text-[#6B7280] dark:text-gray-400">{properties.length === 1 ? 'property' : 'properties'}</span>
+            <span className="px-2.5 py-1.5 text-[#6B7280] dark:text-gray-400">{phoneCompact ? (properties.length === 1 ? 'home' : 'homes') : properties.length === 1 ? 'property' : 'properties'}</span>
           </span>
         </div>
       </div>

@@ -1050,12 +1050,11 @@ async function AboutPage({ siteId, basePrefix, framed = false }: { siteId: strin
   )
 }
 
-async function ShowcaseAliasPage({ siteId, shareToken, basePrefix }: { siteId: string; shareToken: string; basePrefix: string }) {
+async function ShowcaseAliasPage({ siteId, shareToken, home, basePrefix }: { siteId: string; shareToken: string; home?: string; basePrefix: string }) {
   const data = await fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/showcase/${encodeURIComponent(shareToken)}`)
   if (!data) notFound()
-  const src = basePrefix.startsWith('/ohp-site-render/')
-    ? `/showcase/${encodeURIComponent(shareToken)}`
-    : `https://${OHP_BASE_DOMAIN}/showcase/${encodeURIComponent(shareToken)}`
+  const rest = `/showcase/${encodeURIComponent(shareToken)}${home ? `/${encodeURIComponent(home)}` : ''}`
+  const src = basePrefix.startsWith('/ohp-site-render/') ? rest : `https://${OHP_BASE_DOMAIN}${rest}`
   return (
     <main className="h-screen w-full overflow-hidden bg-[#f7f5f1]">
       <iframe src={src} title="Showcase" className="h-full w-full border-0" />
@@ -2588,14 +2587,9 @@ export default async function PublicSitePage({
   } else if (path?.[0] === 'create-showcase' && !path[1]) {
     content = <ShowcaseCreatorAliasPage siteId={resolved.site_id} basePrefix={basePrefix} forceLightMode={wantsSiteChrome} embeddedInSiteChrome={wantsSiteChrome} />
     exactExternalResource = !wantsSiteChrome
-  } else if ((path?.[0] === 'showcase' || path?.[0] === 'showcases') && path[1] && !path[2]) {
-    content = <ShowcaseAliasPage siteId={resolved.site_id} shareToken={path[1]} basePrefix={basePrefix} />
-    exactExternalResource = true
-  } else if (path?.[0] === 's' && path[1] && !path[2]) {
-    // Short personal Showcase link (/s/dana-k7q2) on the agent's own address.
-    const short = await fetchJson(`${INTERNAL_API_URL}/collections/short/${encodeURIComponent(path[1])}`)
-    if (!short?.share_token) notFound()
-    content = <ShowcaseAliasPage siteId={resolved.site_id} shareToken={short.share_token} basePrefix={basePrefix} />
+  } else if ((path?.[0] === 'showcase' || path?.[0] === 'showcases') && path[1] && !path[3]) {
+    // /showcase/dana-k7q2 (or the old long token), optionally /732-buck-ln for one home in it.
+    content = <ShowcaseAliasPage siteId={resolved.site_id} shareToken={path[1]} home={path[2]} basePrefix={basePrefix} />
     exactExternalResource = true
   } else if (path?.[0] === 'open-house' && path[1] && path.length <= 4) {
     content = <OpenHouseAliasPage rest={path.slice(1)} query={queryString(currentSearchParams)} basePrefix={basePrefix} />

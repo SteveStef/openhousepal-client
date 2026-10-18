@@ -63,12 +63,16 @@ export type QrOptions = {
   eye?: string
   /** false = the plain square code (no rounded dots, no centre mark). */
   styled?: boolean
+  /** Shown in place of the OpenHousePal logo on this one code (e.g. the agent's initials on their
+   *  Brag Sheet hub code). An agent's own Brand Kit logo choice still wins. */
+  personal?: QrCenter
 }
 
 // The house style (lib/qrStyle) drawn to a PNG through a canvas - browser only; anywhere without a
 // DOM (or if drawing fails) falls back to the plain code so a kit never prints without one.
 async function styledPng(text: string, o: QrOptions): Promise<string> {
-  const center = await centerReady()
+  const active = await centerReady()
+  const center = o.personal && active.kind === 'ohp' ? o.personal : active
   const svg = styledQrSvgString(text, { dot: o.dark, eye: o.eye, margin: o.margin ?? 1, light: o.light, center })
   if (!svg || typeof document === 'undefined') throw new Error('no dom')
   const size = o.size ?? 300
@@ -93,7 +97,7 @@ const cache = new Map<string, Promise<string>>()
 
 /** PNG data URL for `text`. Cached, so re-rendering a document doesn't re-encode the same code. */
 export function qrDataUrl(text: string, o: QrOptions = {}): Promise<string> {
-  const key = JSON.stringify([text, o.size, o.margin, o.ecc, o.dark, o.light, o.eye, o.styled, activeOwner])
+  const key = JSON.stringify([text, o.size, o.margin, o.ecc, o.dark, o.light, o.eye, o.styled, activeOwner, o.personal])
   let p = cache.get(key)
   if (!p) {
     const plain = () => QRCode.toDataURL(text, {

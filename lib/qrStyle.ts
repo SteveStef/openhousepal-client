@@ -41,12 +41,14 @@ export function scanSafe(color: string | undefined, fallback = DEFAULT_EYE): str
   return `#${[r, g, b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('')}`
 }
 
-// The OpenHousePal house logo (components/brand/OhpLoader), in its 40 x 44 box (viewBox 0 3 40 44):
-// roof + walls in the eye colour, the round window and the open door in gold.
+// The OpenHousePal logo exactly as the app icon draws it (public/icon-512.png, components/brand/
+// OhpBrand): a deep navy tile, the house in white with its ring window, the open door in gold.
+// (Before 10/18 it was a bronze house with a solid gold dot on white - it read as a generic house.)
 const OHP_ROOF = 'M3.5 22.5 L20 8 L36.5 22.5'
 const OHP_WALLS = 'M7 20 V43 H14.5 M25.5 43 H33 V20'
 const OHP_DOOR = 'M25.5 46 V29.5 L19.5 31.8 V46 Z'
-const GOLD = '#B8913F'
+const GOLD = '#C9A24D'
+const NAVY = '#121826'
 const esc = (t: string) => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string))
 
 export type QrSvgParts = { size: number; body: string }
@@ -86,22 +88,29 @@ export function styledQrSvg(text: string, style: QrStyle = {}): QrSvgParts | nul
     const pad = 0.5
     const x = h0 - 1 + pad, w = hole + 2 - pad * 2
     const c = style.center || { kind: 'ohp' }
-    body += `<rect x="${x}" y="${x}" width="${w}" height="${w}" rx="${w * 0.22}" fill="#FFFFFF" stroke="${eye}" stroke-width="0.35"/>`
+    const tile = (fill: string, stroke = 'none') =>
+      `<rect x="${x}" y="${x}" width="${w}" height="${w}" rx="${w * 0.24}" fill="${fill}"${stroke !== 'none' ? ` stroke="${stroke}" stroke-width="0.35"` : ''}/>`
     if (c.kind === 'logo') {
+      body += tile('#FFFFFF', eye)
       const inset = w * 0.12
       body += `<image href="${c.logo}" x="${x + inset}" y="${x + inset}" width="${w - inset * 2}" height="${w - inset * 2}" preserveAspectRatio="xMidYMid meet"/>`
     } else if (c.kind === 'initials') {
+      // A monogram seal: the eye colour, a fine gold ring just inside, the initials in white serif.
       const t = esc((c.initials || '').slice(0, 3))
-      const fs = w * (t.length > 2 ? 0.36 : 0.46)
-      body += `<text x="${x + w / 2}" y="${x + w / 2}" dy="0.36em" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="${fs}" fill="${eye}">${t}</text>`
+      const fs = w * (t.length > 2 ? 0.34 : 0.44)
+      const cx = x + w / 2, r = w / 2
+      body += `<circle cx="${cx}" cy="${cx}" r="${r}" fill="${eye}"/>` +
+        `<circle cx="${cx}" cy="${cx}" r="${r * 0.82}" fill="none" stroke="${GOLD}" stroke-width="${w * 0.035}"/>` +
+        `<text x="${cx}" y="${cx}" dy="0.35em" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" letter-spacing="${fs * 0.02}" font-size="${fs}" fill="#FFFFFF">${t}</text>`
     } else {
-      // OpenHousePal house: 40 x 44 box scaled into the tile
-      const k = (hole * 0.8) / 44
-      const ox = h0 + (hole - 40 * k) / 2, oy = h0 + (hole - 44 * k) / 2 - 3 * k
+      // The app icon: navy tile, white house (40 x 44 box) at ~64% of the tile.
+      body += tile(NAVY)
+      const k = (w * 0.64) / 44
+      const ox = x + (w - 40 * k) / 2, oy = x + (w - 44 * k) / 2 - 4 * k
       body += `<g transform="translate(${ox} ${oy}) scale(${k})">` +
-        `<path d="${OHP_ROOF}" fill="none" stroke="${eye}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>` +
-        `<path d="${OHP_WALLS}" fill="none" stroke="${eye}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>` +
-        `<circle cx="20" cy="18.6" r="2.6" fill="${GOLD}"/>` +
+        `<path d="${OHP_ROOF}" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>` +
+        `<path d="${OHP_WALLS}" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>` +
+        `<circle cx="20" cy="18.6" r="2.5" fill="none" stroke="#FFFFFF" stroke-width="2.4"/>` +
         `<path d="${OHP_DOOR}" fill="${GOLD}"/></g>`
     }
   }

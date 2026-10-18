@@ -1205,12 +1205,9 @@ export const AgentBragSheetDocument = ({ agent, recentSales, showcaseSamplePrope
             {agent.hubUrl && (
               <View style={styles.pageOneQrRow} wrap={false}>
                 <View style={styles.pageOneQrImageWrap}>
-                  <Image src={qrPdfSrc(agent.hubUrl, { size: 160, ecc: 'H' })} style={styles.pageOneQrImage} />
-                  <View style={styles.pageOneQrLogoWrap}>
-                    {/* Deliberately initials-only here, not the real photo - at 23px badged onto
-                        a QR code, a photo reads as an indistinct blur; the initials are legible. */}
-                    <AgentPhoto name={agent.name} size={23} />
-                  </View>
+                  {/* The agent's initials sit in the code's own centre seal (lib/qrStyle) - not a badge
+                      laid over the house logo, which drew a circle inside a circle. */}
+                  <Image src={qrPdfSrc(agent.hubUrl, { size: 220, personal: getInitials(agent.name) ? { kind: 'initials', initials: getInitials(agent.name) } : undefined })} style={styles.pageOneQrImage} />
                 </View>
                 <View style={styles.pageOneQrTextWrap}>
                   <Text style={styles.pageOneQrEyebrow}>{agent.name?.split(' ')[0] ? `${agent.name.split(' ')[0]}'s Agent Hub` : 'Agent Hub'}</Text>

@@ -1,6 +1,6 @@
 'use client'
 
-import { showcaseLinkPath } from '@/lib/showcaseLink'
+import { homeSlug, showcaseLinkPath } from '@/lib/showcaseLink'
 import { memo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
@@ -640,7 +640,7 @@ export const DetailView = memo(function DetailView({
           onRetryDetails={() => onPropertyClick(selectedProperty!)}
           isLoadingComments={isLoadingComments}
           commentsError={commentsError}
-          shareUrl={shareUrl ? `${shareUrl}?property=${selectedProperty?.id}` : null}
+          shareUrl={shareUrl ? `${shareUrl}/${homeSlug(selectedProperty?.FullStreetAddress) || ''}`.replace(/\/$/, '') : null}
           focusComments={focusComments}
         />
 

@@ -14,8 +14,8 @@ const CASES: { text: string; eye?: string; px: number }[] = [
   { text: 'https://openhousepal.com/d/FvaafDl-/text', eye: '#E8C97A', px: 110 },
 ]
 
-function SvgCase({ text, eye, px }: { text: string; eye?: string; px: number }) {
-  const p = styledQrSvg(text, { eye })
+function SvgCase({ text, eye, px, initials }: { text: string; eye?: string; px: number; initials?: string }) {
+  const p = styledQrSvg(text, { eye, center: initials ? { kind: 'initials', initials } : undefined })
   if (!p) return null
   return (
     <div data-qr style={{ width: px, height: px, padding: px * 0.06, background: '#fff', boxSizing: 'border-box' }}>
@@ -36,6 +36,8 @@ export default function QrProof() {
       <div data-form-qr><FormQrCode url="https://openhousepal.com/forms/test-form" size={168} onDownloadReady={fn => setDl(() => fn)} /></div>
       <button data-dl onClick={() => dl?.()}>download</button>
       {CASES.map((c, i) => <SvgCase key={`s${i}`} {...c} />)}
+      <SvgCase text="https://openhousepal.com/peterstefanatos" px={220} initials="PS" />
+      <SvgCase text="https://openhousepal.com/peterstefanatos" px={110} initials="PS" />
       {CASES.map((c, i) => <PngCase key={`p${i}`} {...c} />)}
       {CASES.map((c, i) => <PngCase key={`q${i}`} {...c} plain />)}
     </div>

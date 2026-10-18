@@ -703,7 +703,7 @@ function ShowcaseCard({ sc, onCopy }: { sc: LeadShowcase; onCopy: (text: string,
           <Building2 className="h-3.5 w-3.5" /> Open
         </Link>
         {sc.share_token && (
-          <button onClick={() => onCopy(`${window.location.origin}${sc.short_code ? `/s/${sc.short_code}` : `/showcase/${sc.share_token}`}`, 'Their Showcase link')}
+          <button onClick={() => onCopy(`${window.location.origin}/showcase/${sc.short_code || sc.share_token}`, 'Their Showcase link')}
             className="inline-flex items-center justify-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-black text-gray-600 hover:border-[#C9A24D] dark:border-white/10 dark:text-gray-300">
             <Copy className="h-3.5 w-3.5" /> Their link
           </button>

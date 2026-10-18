@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useLayoutEffect, useCallback, Suspense, useRef } from 'react'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { homeSlug } from '@/lib/showcaseLink'
 import { ArrowUpDown, MapPin, Calendar, SlidersHorizontal, Tag, BedDouble, GraduationCap, Home as HomeIcon } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Collection, CollectionPreferences, Property, Comment, TourRequest, PropertyTour } from '@/types'
@@ -90,6 +91,14 @@ function ShowcaseContent() {
   }, [showcase, searchParams])
 
   const shareToken = params.shareToken as string
+  // An open home lives in the path: /showcase/dana-k7q2/732-buck-ln (old links: ?property=<id>).
+  const pathname = usePathname()
+  const showcaseBase = `/showcase/${encodeURIComponent(shareToken)}`
+  const homeInPath = (() => {
+    const rest = (pathname || '').split('/').filter(Boolean)
+    return rest[0] === 'showcase' && rest[2] ? decodeURIComponent(rest[2]) : null
+  })()
+  const linkedHome = homeInPath || searchParams.get('property')
 
   // This Showcase's own agent opened the client link while signed in (e.g. from a calendar
   // follow-up): nothing they do here may count as the client's activity - no view tracking, and
@@ -601,9 +610,13 @@ function ShowcaseContent() {
     isInternalSyncRef.current = true
 
     const currentParams = new URLSearchParams(window.location.search)
-    if (currentParams.get('property') !== String(property.id)) {
-      currentParams.set('property', String(property.id))
-      window.history.pushState(null, '', `?${currentParams.toString()}`)
+    currentParams.delete('property')
+    const slug = homeSlug(property.FullStreetAddress)
+    const target = slug ? `${showcaseBase}/${slug}` : showcaseBase
+    if (!slug) currentParams.set('property', String(property.id))
+    const q = currentParams.toString()
+    if (`${target}${q ? `?${q}` : ''}` !== `${window.location.pathname}${window.location.search}`) {
+      window.history.pushState(null, '', `${target}${q ? `?${q}` : ''}`)
     }
 
     // Set state immediately
@@ -612,7 +625,7 @@ function ShowcaseContent() {
     loadPropertyDetails(property)
 
     setTimeout(() => { isInternalSyncRef.current = false }, 100)
-  }, [loadPropertyDetails])
+  }, [loadPropertyDetails, showcaseBase])
 
   const handleCloseModal = useCallback(() => {
     isInternalSyncRef.current = true
@@ -622,37 +635,37 @@ function ShowcaseContent() {
     setSelectedProperty(null)
 
     const currentParams = new URLSearchParams(window.location.search)
-    if (currentParams.has('property')) {
+    if (currentParams.has('property') || window.location.pathname !== showcaseBase) {
       currentParams.delete('property')
-      const newUrl = currentParams.toString() ? `?${currentParams.toString()}` : window.location.pathname
-      window.history.pushState(null, '', newUrl)
+      window.history.pushState(null, '', `${showcaseBase}${currentParams.toString() ? `?${currentParams.toString()}` : ''}`)
     }
 
     setTimeout(() => { isInternalSyncRef.current = false }, 100)
-  }, [])
+  }, [showcaseBase])
 
   // Handle URL sync for property details (Single Source of Truth)
   useEffect(() => {
     if (isInternalSyncRef.current) return
 
-    const propertyId = searchParams.get('property')
-    
-    if (propertyId && matchedProperties.length > 0) {
-      const property = matchedProperties.find(p => String(p.id) === propertyId)
+    const wanted = linkedHome
+
+    if (wanted && matchedProperties.length > 0) {
+      const property = matchedProperties.find(p => String(p.id) === wanted)
+        || matchedProperties.find(p => homeSlug(p.FullStreetAddress) === wanted)
       if (property) {
         // If it's a new property selection, update state and load details
-        if (!selectedProperty || String(selectedProperty.id) !== propertyId) {
+        if (!selectedProperty || String(selectedProperty.id) !== String(property.id)) {
           setSelectedProperty(property)
           setIsModalOpen(true)
           loadPropertyDetails(property)
         }
       }
-    } else if (!propertyId && isModalOpen) {
+    } else if (!wanted && isModalOpen) {
       // If URL cleared, close the modal
       setIsModalOpen(false)
       setSelectedProperty(null)
     }
-  }, [searchParams, matchedProperties, selectedProperty?.id, isModalOpen, loadPropertyDetails])
+  }, [linkedHome, matchedProperties, selectedProperty?.id, isModalOpen, loadPropertyDetails])
 
   // The buyer's newest showing request for a home (cancelled ones don't count).
   const latestTourFor = (propertyId?: string | number | null) =>
@@ -833,15 +846,15 @@ function ShowcaseContent() {
   )
 
   const sortControlNode = (
-    <div className="flex items-center gap-2">
-      <div className="relative group w-44">
+    <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
+      <div className="relative group min-w-0 flex-1 sm:w-44 sm:flex-none">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
           <ArrowUpDown size={14} />
         </div>
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as any)}
-          className="w-full pl-9 pr-8 py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-800 rounded-xl text-[#0B0B0B] dark:text-white text-sm font-medium focus:outline-none focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/5 transition-all appearance-none cursor-pointer"
+          className="w-full pl-9 pr-8 py-2 sm:py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-800 rounded-xl text-[#0B0B0B] dark:text-white text-sm font-medium focus:outline-none focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/5 transition-all appearance-none cursor-pointer"
         >
           {!!compareProperty && <option value="bestMatch">Best Match</option>}
           <option value="daysOnMarket">Days on Market</option>
@@ -864,7 +877,7 @@ function ShowcaseContent() {
         onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
         title={sortOrder === 'asc' ? 'Low to high' : 'High to low'}
         aria-label={sortOrder === 'asc' ? 'Sort ascending, click for descending' : 'Sort descending, click for ascending'}
-        className="shrink-0 p-2.5 bg-gray-50/50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-800 rounded-xl text-gray-500 dark:text-gray-400 hover:text-[#C9A24D] hover:border-[#C9A24D]/40 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/5 transition-all"
+        className="shrink-0 p-2 sm:p-2.5 bg-gray-50/50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-800 rounded-xl text-gray-500 dark:text-gray-400 hover:text-[#C9A24D] hover:border-[#C9A24D]/40 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/5 transition-all"
       >
         <svg className={`w-3.5 h-3.5 transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" /></svg>
       </button>
@@ -1080,8 +1093,8 @@ function ShowcaseContent() {
             </div>
           </div>
 
-          {/* Professional Separator */}
-          <div className="relative mb-4">
+          {/* Professional Separator (desktop only - on a phone the slim sort row says enough) */}
+          <div className="relative mb-4 hidden sm:block">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-200 dark:border-gray-800"></div>
             </div>
@@ -1123,6 +1136,7 @@ function ShowcaseContent() {
               destination={radiusSearchPrefs ? { address: radiusSearchPrefs.address, lat: radiusSearchPrefs.lat, lng: radiusSearchPrefs.long } : undefined}
               compareProperty={compareProperty}
               sortControl={sortControlNode}
+              phoneCompact
               animationKey={activeTab}
               recommendedBy={(showcase.agentFullName || showcase.agentName || '').split(' ')[0] || null}
             />
