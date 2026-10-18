@@ -66,8 +66,17 @@ button:hover>span>span>.ohp-dot{box-shadow:0 0 0 3px var(--dot),0 0 0 8px color-
 @media (prefers-reduced-motion:reduce){.ohp-ants,.ohp-badge-ring::before{animation:none}}
 `
 const ease = [0.16, 1, 0.3, 1] as const
-// An in-area label's footprint: UPPERCASE name (~9px a letter) over a smaller caption (~7px).
-const labelW = (b: CanvasBadge) => 12 + Math.max(b.title.length * 9, (b.sub || '').length * 7)
+// An area's name tag (user, 10/18): a small pill in the area's own line colour, so it never blends
+// into the map's printed place names - and it must fit inside its own lines.
+const labelW = (b: CanvasBadge) => 18 + b.title.length * 6.6
+const PILL_H = 20
+function inkOn(color: string): string {
+  const m = color.startsWith('#')
+    ? (color.length === 4 ? color.slice(1).split('').map(c => parseInt(c + c, 16)) : [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16)))
+    : (color.match(/\d+(\.\d+)?/g) || []).slice(0, 3).map(Number)
+  const [r, g, b] = m.length === 3 ? m : [0, 0, 0]
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62 ? '#111827' : '#ffffff'
+}
 
 type Pt = { x: number; y: number }
 
@@ -96,7 +105,7 @@ function edgeDist(x: number, y: number, rings: Pt[][], cap: number): number {
   return best
 }
 
-export default function BoundaryCanvas({ map, shapes, markers = [], badges = [], avoid = [], dark = false, animKey = '', activeMarker, onActiveMarker, highlight, topInset = 14 }: {
+export default function BoundaryCanvas({ map, shapes, markers = [], badges = [], avoid = [], dark = false, animKey = '', activeMarker, onActiveMarker, highlight, topInset = 14, home = null }: {
   map: google.maps.Map | null
   shapes: CanvasShape[]
   markers?: CanvasMarker[]
@@ -108,6 +117,7 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
   onActiveMarker?: (id: string | null) => void
   highlight?: string | null // a shape id to lift (legend hover)
   topInset?: number // px kept clear at the top for buttons floating over the map
+  home?: { lat: number; lng: number; color: string; label?: string } | null // a house marker + its name bubble
 }) {
   const [panes, setPanes] = useState<{ lines: HTMLDivElement; top: HTMLDivElement } | null>(null)
   const projRef = useRef<google.maps.MapCanvasProjection | null>(null)
@@ -192,7 +202,7 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
     })
     if (filling) {
       const w = labelW(filling)
-      out.push({ b: filling, x: view.x0 + w / 2, y: view.y0 + (topInset > 14 ? 0 : 46) + 16, mode: 'full', w, h: 32 })
+      out.push({ b: filling, x: view.x0 + w / 2, y: view.y0 + (topInset > 14 ? 0 : 46) + PILL_H / 2, mode: 'full', w, h: PILL_H })
     }
     for (const b of badges) {
       if (b === filling) continue
@@ -237,12 +247,10 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
         }
         continue
       }
-      // Biggest label that fits inside its own lines: name + caption, then the name alone.
+      // The name tag sits wholly inside its own lines - clear of the home and school dots if it can.
       const fullW = labelW(b)
-      const titleW = 12 + b.title.length * 9
-      tiers.push({ mode: 'full', w: fullW, h: 32, needIn: 8, minClear: 10 }, { mode: 'full', w: fullW, h: 32, needIn: 6, minClear: 5 },
-        { mode: 'title', w: titleW, h: 18, needIn: 6, minClear: 5 }, { mode: 'full', w: fullW, h: 32, needIn: 4, minClear: 4 },
-        { mode: 'title', w: titleW, h: 18, needIn: 3, minClear: 3 }, { mode: 'title', w: titleW, h: 18, needIn: 1, minClear: 0 })
+      tiers.push({ mode: 'full', w: fullW, h: PILL_H, needIn: 8, minClear: 10 }, { mode: 'full', w: fullW, h: PILL_H, needIn: 8, minClear: 3 },
+        { mode: 'full', w: fullW, h: PILL_H, needIn: 7, minClear: 0 }, { mode: 'full', w: fullW, h: PILL_H, needIn: 5, minClear: 0 })
       for (const tier of tiers) {
         const spot = tryFit(tier.w, tier.h, tier.needIn, tier.minClear)
         if (spot) { out.push({ b, x: spot.x, y: spot.y, mode: tier.mode, w: tier.w, h: tier.h }); break }
@@ -295,7 +303,7 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
         <div style={{ position: 'absolute', left: 0, top: 0 }}>
           {/* Badges - each inside its own lines, gliding to a fresh spot on every move */}
           <AnimatePresence>
-            {placed.map(({ b, x, y, mode }, i) => {
+            {placed.map(({ b, x, y }, i) => {
               return (
                 <motion.div key={`${animKey}:${b.id}`} className="pointer-events-none absolute left-0 top-0"
                   initial={{ opacity: 0, scale: 0.6, x, y }} animate={{ opacity: highlight && highlight !== b.shapeId ? 0.45 : 1, scale: 1, x, y }} exit={{ opacity: 0, scale: 0.8 }}
@@ -305,16 +313,33 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
                     {b.small ? (
                       <div className="whitespace-nowrap text-[10.5px] font-extrabold uppercase tracking-[0.08em]" style={{ color: card.muted, textShadow: card.halo }}>{b.title}</div>
                     ) : (
-                      <div className="whitespace-nowrap text-center leading-none" style={{ textShadow: card.halo }}>
-                        <div className="text-[12.5px] font-black uppercase tracking-[0.06em]" style={{ color: card.ink }}>{b.title}</div>
-                        {b.sub && mode === 'full' && <div className="mt-[3px] text-[9px] font-extrabold uppercase tracking-[0.14em]" style={{ color: b.color }}>{b.sub}</div>}
-                      </div>
+                      <div className="whitespace-nowrap rounded-full px-2 py-[3px] text-[10.5px] font-black leading-[14px] tracking-[0.01em] shadow-[0_3px_10px_-3px_rgba(0,0,0,.35)]"
+                        style={{ background: b.color, color: inkOn(b.color) }}>{b.title}</div>
                     )}
                   </div>
                 </motion.div>
               )
             })}
           </AnimatePresence>
+
+          {/* The home: a little house, and "This home" in a bubble under it, both in the page colour */}
+          {home && (() => {
+            const hp = P(home.lng, home.lat)
+            return (
+              <div className="pointer-events-none absolute left-0 top-0" style={{ transform: `translate(${hp.x}px, ${hp.y}px)`, zIndex: 25 }}>
+                <motion.div initial={{ opacity: 0, y: -6, scale: 0.7 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 20, delay: 0.3 }}
+                  className="flex -translate-x-1/2 -translate-y-1/2 flex-col items-center">
+                  <span className="grid h-7 w-7 place-items-center rounded-full border-2 border-white shadow-[0_6px_14px_-4px_rgba(0,0,0,.45)]" style={{ background: home.color }}>
+                    <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke={inkOn(home.color)} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 10.5 12 3l9 7.5" /><path d="M5.5 9v11h13V9" /><path d="M10 20v-5h4v5" />
+                    </svg>
+                  </span>
+                  <span className="mt-1 whitespace-nowrap rounded-full border bg-white px-2 py-[2px] text-[10px] font-black leading-[13px] shadow-[0_3px_10px_-3px_rgba(0,0,0,.3)]"
+                    style={{ color: home.color, borderColor: home.color, ...(dark ? { background: '#14161b' } : {}) }}>{home.label || 'This home'}</span>
+                </motion.div>
+              </div>
+            )
+          })()}
 
           {/* School dots */}
           <AnimatePresence>

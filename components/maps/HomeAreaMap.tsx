@@ -17,7 +17,6 @@ type Shape = { name: string; geoid: string; rings: number[][][] }
 type Areas = { municipality: Shape | null; neighbors: Shape[]; school_districts: Shape[] }
 type Layer = 'town' | 'schools'
 
-const NEIGHBOR = '#64748b'
 const DISTRICTS = ['#2563eb', '#059669', '#7c3aed']
 const LIGHT: google.maps.MapTypeStyle[] = [
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
@@ -38,10 +37,9 @@ const DARK: google.maps.MapTypeStyle[] = [
 ]
 
 const kindOf = (name: string) => name.match(/(Township|Borough|Town|City|Village)$/i)?.[1] || ''
-const bare = (name: string) => name.replace(/\s+(Township|Borough|Town|City|Village)$/i, '')
 const shortDistrict = (name: string) => name.replace(/\s+(School District|Sch Dist|SD)$/i, '').replace(/\s+Area$/i, ' Area')
 
-export default function HomeAreaMap({ latitude, longitude, address, accent: accentProp = '#C9A24D', dark: darkProp, className = 'h-full w-full', rounded = 'rounded-2xl' }: {
+export default function HomeAreaMap({ latitude, longitude, accent: accentProp = '#C9A24D', dark: darkProp, className = 'h-full w-full', rounded = 'rounded-2xl' }: {
   latitude: number
   longitude: number
   address?: string | null
@@ -96,10 +94,6 @@ export default function HomeAreaMap({ latitude, longitude, address, accent: acce
         mapTypeControl: false, streetViewControl: false, fullscreenControl: false, clickableIcons: false,
         zoomControl: true, gestureHandling: 'cooperative', styles: dark ? DARK : LIGHT,
       })
-      new google.maps.Marker({
-        map: m, position: { lat: latitude, lng: longitude }, title: address || 'Property location', zIndex: 999,
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: accent, fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 3 },
-      })
       setMap(m)
     }).catch(() => { if (!cancelled) setFailed(true) })
     return () => { cancelled = true }
@@ -113,7 +107,7 @@ export default function HomeAreaMap({ latitude, longitude, address, accent: acce
   return (
     <div ref={boxRef} className={`${placed ? '' : 'relative'} overflow-hidden ${rounded} ${className}`}>
       <div ref={divRef} className="h-full w-full" />
-      <HomeAreaOverlay map={map} latitude={latitude} longitude={longitude} accent={accent} dark={dark} />
+      <HomeAreaOverlay map={map} latitude={latitude} longitude={longitude} accent={accent} dark={dark} showHome />
     </div>
   )
 }
@@ -121,13 +115,16 @@ export default function HomeAreaMap({ latitude, longitude, address, accent: acce
 /** The lines + the layer switch, on any Google map already showing this home (HomeAreaMap's own,
  *  or the CMA's comparables map - fit={false} leaves that map's framing alone). Sits in the map's
  *  positioned box. */
-export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', dark = false, fit = true }: {
+export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', dark = false, fit = true, showHome = false, label }: {
   map: google.maps.Map | null
   latitude: number
   longitude: number
   accent?: string
   dark?: boolean
   fit?: boolean
+  /** Draw the home as a little house with "This home" under it (the CMA map has its own S pin). */
+  showHome?: boolean
+  label?: string
 }) {
   const [areas, setAreas] = useState<Areas | null>(null)
   const [layer, setLayer] = useState<Layer>('town')
@@ -140,7 +137,6 @@ export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', 
   }, [map, latitude, longitude])
 
   const muni = areas?.municipality || null
-  const neighbors = areas?.neighbors || []
   const districts = areas?.school_districts || []
   const layers = ([
     muni ? { id: 'town' as const, label: kindOf(muni.name) ? `${kindOf(muni.name)} lines` : 'Town lines', icon: Landmark } : null,
@@ -151,20 +147,14 @@ export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', 
   const shapes: CanvasShape[] = useMemo(() => {
     if (active === 'schools') return districts.map((d, i) => ({ id: `sd:${d.geoid}`, rings: d.rings, color: DISTRICTS[i % DISTRICTS.length], fill: 0.13, width: 3 }))
     if (!muni) return []
-    return [
-      ...neighbors.map(n => ({ id: `nb:${n.geoid}`, rings: n.rings, color: NEIGHBOR, fill: 0.035, width: 1.5 })),
-      { id: `mu:${muni.geoid}`, rings: muni.rings, color: accent, fill: 0.14, width: 3.5 },
-    ]
-  }, [active, muni, neighbors, districts, accent])
+    return [{ id: `mu:${muni.geoid}`, rings: muni.rings, color: accent, fill: 0.12, width: 3 }]
+  }, [active, muni, districts, accent])
 
   const badges: CanvasBadge[] = useMemo(() => {
-    if (active === 'schools') return districts.map((d, i) => ({ id: `b:sd:${d.geoid}`, shapeId: `sd:${d.geoid}`, title: shortDistrict(d.name), sub: 'School district', color: DISTRICTS[i % DISTRICTS.length], icon: 'school' as const }))
+    if (active === 'schools') return districts.map((d, i) => ({ id: `b:sd:${d.geoid}`, shapeId: `sd:${d.geoid}`, title: shortDistrict(d.name), color: DISTRICTS[i % DISTRICTS.length], icon: 'school' as const }))
     if (!muni) return []
-    return [
-      { id: `b:mu:${muni.geoid}`, shapeId: `mu:${muni.geoid}`, title: bare(muni.name), sub: `${kindOf(muni.name) || 'Town'} · this home`, color: accent, icon: 'gov' as const },
-      ...neighbors.map(n => ({ id: `b:nb:${n.geoid}`, shapeId: `nb:${n.geoid}`, title: bare(n.name), color: NEIGHBOR, icon: 'gov' as const, small: true })),
-    ]
-  }, [active, muni, neighbors, districts, accent])
+    return [{ id: `b:mu:${muni.geoid}`, shapeId: `mu:${muni.geoid}`, title: muni.name, color: accent, icon: 'gov' as const }]
+  }, [active, muni, districts, accent])
 
   // Camera: the home's own township (or district), the home always in view.
   useEffect(() => {
@@ -179,7 +169,8 @@ export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', 
 
   return (
     <>
-      <BoundaryCanvas map={map} shapes={shapes} badges={badges} dark={dark} animKey={active} avoid={[{ lat: latitude, lng: longitude }]} topInset={layers.length ? 58 : 14} />
+      <BoundaryCanvas map={map} shapes={shapes} badges={badges} dark={dark} animKey={active} avoid={[{ lat: latitude, lng: longitude }]} topInset={layers.length ? 58 : 14}
+        home={showHome ? { lat: latitude, lng: longitude, color: accent, label } : null} />
       {layers.length > 0 && (
         <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-2.5">
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}

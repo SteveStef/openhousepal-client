@@ -720,7 +720,7 @@ function HomeView({ data, token, street, onSimilar, onOpenSimilar, onCheat, onRe
         <section className="mt-8">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#a8843a] dark:text-[#e8c97a]">Where it is</p>
           <h3 className="mt-1 font-serif text-2xl font-black text-[#111827] dark:text-white">Town lines &amp; schools</h3>
-          <p className="mt-1 text-sm font-medium text-gray-500 dark:text-gray-400">The township {street} is in, the ones around it, and its school district.</p>
+          <p className="mt-1 text-sm font-medium text-gray-500 dark:text-gray-400">The township {street} is in, and its school district.</p>
           <div className="mt-4 overflow-hidden rounded-[24px] border border-black/[0.06] shadow-[0_18px_50px_-30px_rgba(0,0,0,0.4)] dark:border-white/[0.07]">
             <HomeAreaMap latitude={Number(data.home.latitude)} longitude={Number(data.home.longitude)} address={data.home.address} className="h-[300px] w-full sm:h-[380px]" rounded="" />
           </div>
