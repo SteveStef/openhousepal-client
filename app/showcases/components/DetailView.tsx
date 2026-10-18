@@ -1,5 +1,6 @@
 'use client'
 
+import { showcaseLinkPath } from '@/lib/showcaseLink'
 import { memo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
@@ -118,7 +119,7 @@ export const DetailView = memo(function DetailView({
 
   // The agent's own IDX site link when they have a published one, otherwise the OpenHousePal link.
   const shareUrl = selectedCollection.shareToken
-    ? websitePublicUrl(idxSite, idxDomains, `/showcase/${selectedCollection.shareToken}`) || openHousePalPublicUrl(`/showcase/${selectedCollection.shareToken}`)
+    ? websitePublicUrl(idxSite, idxDomains, showcaseLinkPath(selectedCollection)) || openHousePalPublicUrl(showcaseLinkPath(selectedCollection))
     : null
 
   const handleCopyLink = async () => {

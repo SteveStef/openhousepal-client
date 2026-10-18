@@ -2591,6 +2591,12 @@ export default async function PublicSitePage({
   } else if ((path?.[0] === 'showcase' || path?.[0] === 'showcases') && path[1] && !path[2]) {
     content = <ShowcaseAliasPage siteId={resolved.site_id} shareToken={path[1]} basePrefix={basePrefix} />
     exactExternalResource = true
+  } else if (path?.[0] === 's' && path[1] && !path[2]) {
+    // Short personal Showcase link (/s/dana-k7q2) on the agent's own address.
+    const short = await fetchJson(`${INTERNAL_API_URL}/collections/short/${encodeURIComponent(path[1])}`)
+    if (!short?.share_token) notFound()
+    content = <ShowcaseAliasPage siteId={resolved.site_id} shareToken={short.share_token} basePrefix={basePrefix} />
+    exactExternalResource = true
   } else if (path?.[0] === 'open-house' && path[1] && path.length <= 4) {
     content = <OpenHouseAliasPage rest={path.slice(1)} query={queryString(currentSearchParams)} basePrefix={basePrefix} />
     exactExternalResource = true

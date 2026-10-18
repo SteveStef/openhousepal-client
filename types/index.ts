@@ -799,6 +799,8 @@ export interface Collection {
     commentPropertyId?: string | null;
   };
   shareToken?: string;
+  /** Short personal link code - /s/<code> (e.g. "dana-k7q2"). */
+  shortCode?: string | null;
   sharedAt?: string;
   isPublic?: boolean;
   matchedProperties?: Property[];
@@ -2146,6 +2148,7 @@ export interface LeadShowcase {
   id: string;
   name?: string | null;
   share_token?: string | null;
+  short_code?: string | null;
   home_count: number;
   liked: number;
   disliked: number;

@@ -1,5 +1,6 @@
 'use client'
 
+import { showcaseLinkPath } from '@/lib/showcaseLink'
 import MotionModal from '@/components/ui/MotionModal'
 import { useLastValue } from '@/components/ui/windowMotion'
 import { useState } from 'react'
@@ -34,7 +35,7 @@ export default function ShareCollectionModal({
   if (!collection) return null
 
   const shareUrl = collection.shareToken
-    ? openHousePalUrl || openHousePalPublicUrl(`/showcase/${collection.shareToken}`)
+    ? openHousePalUrl || openHousePalPublicUrl(showcaseLinkPath(collection))
     : null
 
   const handleCopyLink = async (url: string, key: 'ohp' | 'website') => {

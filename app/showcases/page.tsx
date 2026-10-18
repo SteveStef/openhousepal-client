@@ -1,5 +1,6 @@
 'use client'
 
+import { showcaseLinkPath } from '@/lib/showcaseLink'
 import OhpLoader from '@/components/brand/OhpLoader'
 
 import { useState, useEffect, useMemo, useRef, Suspense, useCallback } from 'react'
@@ -214,6 +215,7 @@ function ShowcaseContent() {
         commentPropertyId: backendCollection.stats?.commentPropertyId || null
       },
       shareToken: backendCollection.share_token,
+      shortCode: backendCollection.short_code ?? null,
       sharedAt: backendCollection.created_at,
       isPublic: backendCollection.is_public || false,
       matchedProperties: backendCollection.matchedProperties || [],
@@ -643,7 +645,7 @@ function ShowcaseContent() {
       setIsShareModalOpen(true)
       return
     }
-    const link = websitePublicUrl(idxSite, idxDomains, `/showcase/${c.shareToken}`) || openHousePalPublicUrl(`/showcase/${c.shareToken}`)
+    const link = websitePublicUrl(idxSite, idxDomains, showcaseLinkPath(c)) || openHousePalPublicUrl(showcaseLinkPath(c))
     try {
       await copyText(link)
       showToast('Share link copied!', 'success')
@@ -1066,8 +1068,8 @@ function ShowcaseContent() {
         collection={selectedCollectionForShare}
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
-        openHousePalUrl={selectedCollectionForShare?.shareToken ? openHousePalPublicUrl(`/showcase/${selectedCollectionForShare.shareToken}`) : null}
-        websiteUrl={selectedCollectionForShare?.shareToken ? websitePublicUrl(idxSite, idxDomains, `/showcase/${selectedCollectionForShare.shareToken}`) : null}
+        openHousePalUrl={selectedCollectionForShare?.shareToken ? openHousePalPublicUrl(showcaseLinkPath(selectedCollectionForShare)) : null}
+        websiteUrl={selectedCollectionForShare?.shareToken ? websitePublicUrl(idxSite, idxDomains, showcaseLinkPath(selectedCollectionForShare)) : null}
         onGenerateShareLink={(id) => api.collections.share(id, { make_public: true }).then(fetchCollections)}
         onUpdateShareSettings={(id, isPub) => api.collections.share(id, { make_public: isPub }).then(fetchCollections)}
       />
