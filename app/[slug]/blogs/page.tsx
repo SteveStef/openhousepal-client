@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Clock, Newspaper } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { PublicBlogSummary } from '@/types'
+import HubFormLauncher from '@/components/agent-hub/HubFormLauncher'
 import BlogCard from '@/components/studio/blogs/BlogCard'
 
 const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '')
@@ -63,6 +64,7 @@ export default function PublicBlogListPage() {
 
   return (
     <main className="min-h-screen bg-[#faf7f0] dark:bg-[#0B0B0B]">
+      <HubFormLauncher hubSlug={params.slug} />
       {/* Header */}
       <header className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(110%_130%_at_100%_0%,rgba(201,162,77,.22),transparent_55%),linear-gradient(135deg,#fffdf8_0%,#fbf6ec_55%,#f4ead7_100%)] dark:bg-[radial-gradient(110%_130%_at_100%_0%,rgba(201,162,77,.2),transparent_55%),linear-gradient(135deg,#0b0f0e_0%,#111827_55%,#1d1810_100%)]" />

@@ -29,7 +29,7 @@ import {
   scrollToId, STATUS_COLORS, type PropertySiteAgent, type PropertySiteChapter, type SpotlightModel,
 } from './spotlight/model'
 import { onAccent, usableAccent } from './spotlight/tone'
-import HomeAreaMap from '@/components/maps/HomeAreaMap'
+import NearbyMap from '@/components/maps/NearbyMap'
 
 // Types + helpers now live in ./spotlight/model (shared with EditorialEstateTemplate); re-exported
 // here because the public site renderer imports the resolve type from this module.
@@ -106,8 +106,9 @@ export default function CinematicLuxuryTemplate({ data, publicUrl }: { data: Pro
       {has.floorPlans && <FloorPlansSection plans={m.floorPlans} onZoom={(i) => openPhotos(i, m.floorPlans.map(f => f.image_url), 'Floor plans')} />}
       {has.details && <DetailsSection m={m} />}
       {has.town && <TownSection m={m} />}
-      {has.location && <LocationSection m={m} />}
-      {has.nearby && m.p.latitude != null && m.p.longitude != null && (
+      {has.location && <LocationSection m={m} siteId={data.site_id} />}
+      {/* Explore Nearby lives on the Location map (NearbyMap); on its own only when that section is hidden. */}
+      {has.nearby && !(has.location && m.hasCoords) && m.p.latitude != null && m.p.longitude != null && (
         // Dark variant so it sits in the page's own palette - collapses to nothing (see .cl-nearby
         // in CL_CSS) when Explore Nearby decides it's unavailable and renders null.
         <section className="cl-nearby">
@@ -1000,16 +1001,20 @@ function TownSection({ m }: { m: SpotlightModel }) {
   )
 }
 
-function LocationSection({ m }: { m: SpotlightModel }) {
+function LocationSection({ m, siteId }: { m: SpotlightModel; siteId: string }) {
   const { p } = m
   return (
     <Section id="location" eyebrow="Location" title={<>{m.has.town ? <>On the <em className="italic text-white/80">map.</em></> : p.city ? <>Life in <em className="italic text-white/80">{p.city}.</em></> : 'Where you’ll live.'}</>} wide>
       <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
-        <div className="cl-reveal relative aspect-[16/11] overflow-hidden rounded-[2px] border border-white/[0.08] lg:aspect-auto lg:min-h-[480px]">
-          {m.hasCoords
-            ? <HomeAreaMap latitude={p.latitude!} longitude={p.longitude!} address={m.fullAddress} accent="var(--sp-accent)" dark className="absolute inset-0 h-full w-full" rounded="" />
-            : <iframe title={`Map of ${m.fullAddress}`} src={m.mapEmbedUrl} loading="lazy" className="cl-map absolute inset-0 h-full w-full border-0" referrerPolicy="no-referrer-when-downgrade" />}
-        </div>
+        {m.hasCoords ? (
+          <NearbyMap latitude={p.latitude!} longitude={p.longitude!} address={m.fullAddress} accent="var(--sp-accent)" dark tone="dark"
+            siteId={siteId} kind="property_site" nearbyOn={m.has.nearby} originLabel={p.address || 'the home'}
+            boxClassName="cl-reveal relative aspect-[4/3] overflow-hidden rounded-[2px] border border-white/[0.08] sm:aspect-[16/11] lg:aspect-auto lg:h-[480px]" />
+        ) : (
+          <div className="cl-reveal relative aspect-[16/11] overflow-hidden rounded-[2px] border border-white/[0.08] lg:aspect-auto lg:min-h-[480px]">
+            <iframe title={`Map of ${m.fullAddress}`} src={m.mapEmbedUrl} loading="lazy" className="cl-map absolute inset-0 h-full w-full border-0" referrerPolicy="no-referrer-when-downgrade" />
+          </div>
+        )}
         <div className="cl-reveal flex flex-col">
           <div className="flex items-start gap-3">
             <MapPin className="mt-1 h-4 w-4 shrink-0 text-[color:var(--sp-accent)]" />

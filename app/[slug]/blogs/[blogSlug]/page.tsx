@@ -8,6 +8,7 @@ import { PublicBlogDetail } from '@/types'
 import BlogArticleBody from '@/components/studio/blogs/BlogArticleBody'
 import { BlogThemedArticle, blogAccent, blogSignatureMatch } from '@/components/studio/blogs/BlogThemes'
 import { setQrOwner } from '@/lib/qr'
+import HubFormLauncher from '@/components/agent-hub/HubFormLauncher'
 
 export default function PublicBlogArticlePage() {
   const params = useParams<{ slug: string; blogSlug: string }>()
@@ -55,6 +56,7 @@ export default function PublicBlogArticlePage() {
       accent={blog.accentColor}
     >
       {blog.agentId && <QrOwner id={blog.agentId} />}
+      <HubFormLauncher hubSlug={params.slug} />
       <BlogArticleBody
         // Every article ends with the agent's related articles, unless it already places them itself.
         blocks={blog.blocks.some(b => b.type === 'related_articles') ? blog.blocks : [...blog.blocks, { id: 'auto-related', type: 'related_articles', data: {} }]}

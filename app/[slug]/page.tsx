@@ -2,6 +2,7 @@
 
 import { salesAreRecent, salesWords } from '@/lib/salesWording'
 import { glideRowByCard } from '@/lib/rowScroll'
+import HubFormLauncher from '@/components/agent-hub/HubFormLauncher'
 import ListingFeatureCard from '@/components/agent-hub/ListingFeatureCard'
 import BlogCoverArt from '@/components/BlogCoverArt'
 import { HubLuxeDecor, HubLuxeIntro, HubLuxeStyles, HubSplitHeader, HubAgentPhoto, isHubPhotoSet, LUXE_BLOG_CARD, LUXE_HOME_CARD, LUXE_VIDEO_CARD, LuxeBlogCardBody, LuxeHomeCardBody, LuxeVideoCardBody, hubLuxeMetalClass } from '@/components/agent-hub/HubLuxeTheme'
@@ -9,7 +10,7 @@ import { HUB_CLASSIC_DEFAULT_ACCENT, HubClassicStyles, hubAccentOf, hubAccentSty
 import { pinnedFirst } from '@/lib/hubPins'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { Children, cloneElement, isValidElement, useEffect, useRef, useState, type ReactElement } from 'react'
+import { Children, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react'
 import api, { API_BASE_URL } from '@/lib/api-service'
 import { PublicFormSummary, PublicBlogSummary } from '@/types'
 import RecentSalesCarousel from '@/components/agent-hub/RecentSalesCarousel'
@@ -204,6 +205,17 @@ const recordAgentHubEvent = (_event: Omit<AgentHubEvent, 'timestamp'>) => {
   api.public.trackAgentHubEvent(slug, 'interaction', getOrCreateVisitorId())
 }
 
+// This tab's copy of the hub (config, forms, blogs) - lets a return visit in the same session draw
+// instantly while the fresh copy loads behind it.
+const HUB_CACHE_KEY = 'ohp-hub-cache:'
+type HubCache = { config?: any; forms?: PublicFormSummary[]; blogs?: PublicBlogSummary[] }
+function readHubCache(slug: string): HubCache | null {
+  try { return JSON.parse(sessionStorage.getItem(HUB_CACHE_KEY + slug) || 'null') } catch { return null }
+}
+function writeHubCache(slug: string, part: HubCache) {
+  try { sessionStorage.setItem(HUB_CACHE_KEY + slug, JSON.stringify({ ...(readHubCache(slug) || {}), ...part })) } catch { /* full or private mode */ }
+}
+
 export default function PublicAgentHubPage() {
   const params = useParams<{ slug: string }>()
   const router = useRouter()
@@ -269,6 +281,9 @@ export default function PublicAgentHubPage() {
   const autoScrollStartedRef = useRef(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
   const [hubStatus, setHubStatus] = useState<'loading' | 'found' | 'not-found'>('loading')
+  // Back on the hub in the same visit (from Recent Sales, a blog...): shown at once from this tab's
+  // copy, no entrance animations or Luxe intro again (user, 10/18 - "quick and snappy").
+  const [returning, setReturning] = useState(false)
 
   useEffect(() => {
     if (forceLightMode) setVisitorDarkMode(false)
@@ -339,11 +354,25 @@ export default function PublicAgentHubPage() {
     }
   }
 
+  useLayoutEffect(() => {
+    if (!agentSlug || searchParams.get('preview') === '1') return
+    const cached = readHubCache(agentSlug)
+    if (!cached) return
+    setReturning(true)
+    setLuxeIntro(false)
+    if (cached.config) applyHubConfig(cached.config)
+    if (cached.forms) setPublicForms(cached.forms)
+    if (cached.blogs) setPublicBlogs(cached.blogs)
+    setHubStatus('found')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentSlug])
+
   useEffect(() => {
     if (!agentSlug) return
     let cancelled = false
     api.public.checkAgentHub(agentSlug).then(response => {
       if (cancelled) return
+      if (response.success && response.data?.slug === agentSlug) writeHubCache(agentSlug, { config: response.data.config || null })
       setHubStatus(response.success ? 'found' : 'not-found')
       // A hit via an old (rebranded-away-from) slug still resolves - see the backend's
       // previous_slugs fallback - but the URL bar should catch up to the canonical one so any
@@ -367,7 +396,7 @@ export default function PublicAgentHubPage() {
   useEffect(() => {
     if (!agentSlug) return
     api.public.getPublicForms(agentSlug).then(response => {
-      if (response.success && response.data) setPublicForms(response.data)
+      if (response.success && response.data) { setPublicForms(response.data); writeHubCache(agentSlug, { forms: response.data }) }
     })
   }, [agentSlug])
 
@@ -378,7 +407,7 @@ export default function PublicAgentHubPage() {
   useEffect(() => {
     if (!agentSlug) return
     api.public.getPublicBlogs(agentSlug).then(response => {
-      if (response.success && response.data) setPublicBlogs(response.data)
+      if (response.success && response.data) { setPublicBlogs(response.data); writeHubCache(agentSlug, { blogs: response.data }) }
     })
   }, [agentSlug])
 
@@ -783,11 +812,13 @@ export default function PublicAgentHubPage() {
 
   return (
     <div className={visitorDarkMode && !forceLightMode ? 'dark' : ''}>
-    <main data-page-edge className={`agent-hub-public relative min-h-screen overflow-hidden bg-[#f7f5f1] text-[#101827] dark:bg-[#0B0B0B] dark:text-[#F3F4F6] ${luxe ? `hub-luxe ${hubLuxeMetalClass(hubLuxeMetal)} ${luxeIntro ? 'hub-lx-intro-on' : ''}` : hubClassicClass(hubTheme, hubAccent)}`} style={luxe ? undefined : hubAccentStyle(hubAccent)}>
+    <main data-page-edge className={`agent-hub-public relative min-h-screen overflow-hidden bg-[#f7f5f1] text-[#101827] dark:bg-[#0B0B0B] dark:text-[#F3F4F6] ${luxe ? `hub-luxe ${hubLuxeMetalClass(hubLuxeMetal)} ${luxeIntro ? 'hub-lx-intro-on' : ''}` : hubClassicClass(hubTheme, hubAccent)}${returning ? ' hub-returning' : ''}`} style={luxe ? undefined : hubAccentStyle(hubAccent)}>
       {luxe ? <><HubLuxeStyles /><HubLuxeDecor /></> : <HubClassicStyles />}
       {luxe && luxeIntro && <HubLuxeIntro name={profile.name} kicker={[profile.title, profile.brokerage].filter(Boolean).join(' · ')} photoUrl={profilePhotoUrl} photoPosition={profilePhotoPosition} onDone={() => setLuxeIntro(false)} />}
       {/* Arrived straight from an open house sign-in (the sign-in link carries src=signin). */}
       <SignedInToast show={searchParams.get('src') === 'signin'} />
+      {/* Form buttons open in a window over the hub, not a new page. */}
+      <HubFormLauncher hubSlug={agentSlug} forms={publicForms} />
       {visitorDarkMode && !forceLightMode && (
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-white/5 to-transparent" />

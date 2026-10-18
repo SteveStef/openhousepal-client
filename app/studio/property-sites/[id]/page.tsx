@@ -40,6 +40,9 @@ const SECTION_LABELS: Record<string, string> = {
   open_houses: 'Open Houses', documents: 'Documents', agents: 'Listing Agent', town: 'About the Town',
   guest_tools: 'Follow this home & fact sheet', signature: 'My email signature card (in Listing Agent)',
 }
+// Off until the agent switches them on (user, 10/18: the signature card stays out of Spotlight by default).
+const SECTION_DEFAULT_OFF = new Set(['signature'])
+const sectionOn = (vis: Record<string, boolean>, key: string) => (vis[key] !== undefined ? vis[key] !== false : !SECTION_DEFAULT_OFF.has(key))
 // Which part of the page each switch controls (the Sections step's live preview glides there).
 const SECTION_ANCHORS: Record<string, string> = {
   story: 'story', gallery: 'photos', features: 'features', video: 'video', virtual_tour: 'tour', floor_plans: 'floor-plans',
@@ -662,7 +665,7 @@ function PropertySiteEditorPage() {
   // Sections step: tell the live preview what's shown and glide it to the section just changed.
   const toggleSectionLive = (key: string) => {
     const prev = visibility
-    const next: Record<string, boolean> = { ...visibility, [key]: !(visibility[key] !== false), ...(key === 'open_houses' ? { open_houses_by_agent: true } : {}) }
+    const next: Record<string, boolean> = { ...visibility, [key]: !sectionOn(visibility, key), ...(key === 'open_houses' ? { open_houses_by_agent: true } : {}) }
     setVisibility(next)
     // The preview plays it: scroll there, outline (red going / gold coming), then fold the section
     // away / open it up - same as the website editor.
@@ -1281,7 +1284,7 @@ function PropertySiteEditorPage() {
           <div className="grid items-start gap-5 lg:grid-cols-[1fr_1.15fr]">
             <div ref={sectionsList} className="scroll-mt-28 space-y-1.5">
               {Object.entries(SECTION_LABELS).map(([key, label]) => {
-                const on = visibility[key] !== false
+                const on = sectionOn(visibility, key)
                 return (
                   <button key={key} onClick={() => toggleSectionLive(key)} className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-left transition ${on ? 'border-gray-200 bg-white dark:border-gray-800 dark:bg-[#1A1A1C]' : 'border-dashed border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-transparent'}`}>
                     <span className={`text-xs font-black ${on ? 'text-[#111827] dark:text-white' : 'text-gray-400 line-through'}`}>{label}</span>

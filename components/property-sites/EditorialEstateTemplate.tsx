@@ -26,7 +26,7 @@ import {
   scrollToId, type PropertySiteChapter, type PropertySiteResolveResponse, type SpotlightModel,
 } from './spotlight/model'
 import { onAccent, usableAccent } from './spotlight/tone'
-import HomeAreaMap from '@/components/maps/HomeAreaMap'
+import NearbyMap from '@/components/maps/NearbyMap'
 
 const playfair = Playfair_Display({ subsets: ['latin'], weight: ['400', '500'], style: ['normal', 'italic'], variable: '--font-ee-display' })
 const dmMono = DM_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-ee-mono' })
@@ -121,8 +121,9 @@ export default function EditorialEstateTemplate({ data, publicUrl }: { data: Pro
       {has.floorPlans && <FloorPlans m={m} n={next()} onZoom={(i) => openPhotos(i, m.floorPlans.map(f => f.image_url), 'Floor plans')} />}
       {has.details && <Details m={m} n={next()} />}
       {has.town && <Town m={m} n={next()} />}
-      {has.location && <Location m={m} n={next()} />}
-      {has.nearby && p.latitude != null && p.longitude != null && (
+      {has.location && <Location m={m} n={next()} siteId={data.site_id} />}
+      {/* Explore Nearby lives on the Location map (NearbyMap); on its own only when that section is hidden. */}
+      {has.nearby && !(has.location && m.hasCoords) && p.latitude != null && p.longitude != null && (
         <section className="ee-paper pb-4 pt-2">
           <ExploreNearby
             siteId={data.site_id}
@@ -648,7 +649,7 @@ function Details({ m, n }: { m: SpotlightModel; n: string }) {
           {groups.map((g, i) => {
             const Icon = g.icon
             return (
-              <Reveal key={g.title} className="ee-spec group relative overflow-hidden border border-[#172522]/12 bg-[#f3efe6]/70 p-7 transition duration-500 hover:bg-[#f3efe6] sm:p-9" >
+              <Reveal key={g.title} className="ee-spec group relative overflow-hidden border border-[#172522]/[0.12] bg-[#f3efe6]/70 p-7 transition duration-500 hover:bg-[#f3efe6] sm:p-9" >
                 <div className="flex items-center justify-between">
                   <span className="ee-sig-icon"><Icon className="h-5 w-5" strokeWidth={1.4} /></span>
                   <span className="sp-mono text-[10px] opacity-45">{ROMAN[i]}</span>
@@ -656,7 +657,7 @@ function Details({ m, n }: { m: SpotlightModel; n: string }) {
                 <h3 className="sp-display mt-7 text-[2rem] leading-none">{g.title.split(' ').slice(0, -1).join(' ')} <i>{g.title.split(' ').slice(-1)}</i></h3>
                 <dl className="mt-6">
                   {g.facts.map(f => (
-                    <div key={f.label} className="flex items-baseline justify-between gap-6 border-t border-[#172522]/12 py-3">
+                    <div key={f.label} className="flex items-baseline justify-between gap-6 border-t border-[#172522]/[0.12] py-3">
                       <dt className="sp-mono shrink-0 text-[10px] uppercase tracking-[0.16em] opacity-60">{f.label}</dt>
                       <dd className="text-right text-[15px] leading-snug">{f.value}</dd>
                     </div>
@@ -688,7 +689,7 @@ function Town({ m, n }: { m: SpotlightModel; n: string }) {
   )
 }
 
-function Location({ m, n }: { m: SpotlightModel; n: string }) {
+function Location({ m, n, siteId }: { m: SpotlightModel; n: string; siteId: string }) {
   const { p } = m
   return (
     <section id="location" className="ee-paper scroll-mt-16 px-5 py-24 sm:px-10 sm:py-32">
@@ -696,11 +697,17 @@ function Location({ m, n }: { m: SpotlightModel; n: string }) {
         <SectionHead n={n} kicker="Location" title={p.city ? <>A private <i>latitude.</i></> : <>Where it <i>sits.</i></>}
           aside={m.hasCoords ? `${toDMS(p.latitude!, 'N', 'S')} / ${toDMS(p.longitude!, 'E', 'W')}` : [p.city, p.state].filter(Boolean).join(', ')} />
         <div className="grid gap-10 lg:grid-cols-[1.6fr_1fr]">
-          <Reveal className="relative aspect-[16/11] border border-[#172522]/15 lg:aspect-auto lg:min-h-[500px]">
-            {m.hasCoords
-              ? <HomeAreaMap latitude={p.latitude!} longitude={p.longitude!} address={m.fullAddress} accent="var(--sp-accent)" dark={false} className="absolute inset-0 h-full w-full" rounded="" />
-              : <iframe title={`Map of ${m.fullAddress}`} src={m.mapEmbedUrl} loading="lazy" className="ee-map absolute inset-0 h-full w-full border-0" referrerPolicy="no-referrer-when-downgrade" />}
-          </Reveal>
+          {m.hasCoords ? (
+            <Reveal className="min-w-0">
+              <NearbyMap latitude={p.latitude!} longitude={p.longitude!} address={m.fullAddress} accent="var(--sp-accent)" dark={false} tone="light"
+                siteId={siteId} kind="property_site" nearbyOn={m.has.nearby} originLabel={p.address || 'the home'}
+                boxClassName="relative aspect-[4/3] border border-[#172522]/15 sm:aspect-[16/11] lg:aspect-auto lg:h-[500px]" />
+            </Reveal>
+          ) : (
+            <Reveal className="relative aspect-[16/11] border border-[#172522]/15 lg:aspect-auto lg:min-h-[500px]">
+              <iframe title={`Map of ${m.fullAddress}`} src={m.mapEmbedUrl} loading="lazy" className="ee-map absolute inset-0 h-full w-full border-0" referrerPolicy="no-referrer-when-downgrade" />
+            </Reveal>
+          )}
           <Reveal>
             <p className="sp-display text-3xl leading-tight">{p.address}</p>
             <p className="sp-mono mt-2 text-[11px] uppercase tracking-[0.16em] opacity-65">{[p.city, [p.state, p.zipcode].filter(Boolean).join(' ')].filter(Boolean).join(', ')}</p>
@@ -716,7 +723,7 @@ function Location({ m, n }: { m: SpotlightModel; n: string }) {
                 <p className="sp-mono text-[10px] uppercase tracking-[0.18em] text-[color:var(--sp-accent)]">Assigned schools</p>
                 <ul className="mt-3">
                   {m.schools.map(s => (
-                    <li key={s.level} className="flex items-baseline justify-between gap-4 border-b border-[#172522]/12 py-3">
+                    <li key={s.level} className="flex items-baseline justify-between gap-4 border-b border-[#172522]/[0.12] py-3">
                       <span className="sp-display text-lg">{s.name}</span><span className="sp-mono text-[10px] uppercase tracking-[0.14em] opacity-55">{s.level}</span>
                     </li>
                   ))}

@@ -215,6 +215,8 @@ function PropertyHeroCard({ property, size = 'default', showCheckmark = false, a
 
 const CONFETTI_COLORS = ['#d2b16f', '#34d399', '#60a5fa', '#f472b6', '#fbbf24', '#816937']
 
+const EDGE_FADE = 'linear-gradient(to bottom, transparent 0, #000 72px, #000 calc(100% - 72px), transparent 100%)'
+
 function WelcomeMotionBackdrop({ accent, light = false, intro = false }: { accent: string; light?: boolean; intro?: boolean }) {
   // Forced light (an IDX site page): the outer page can still carry the app's `dark` class, so
   // every dark: style here is dropped instead of rendering dark panels on a light form.
@@ -246,6 +248,9 @@ function WelcomeMotionBackdrop({ accent, light = false, intro = false }: { accen
   // auto still paints ABOVE plain non-positioned siblings regardless of DOM order (the progress
   // bar/top bar/question content below are all plain non-positioned divs), which was letting this
   // decorative backdrop render on top of the real form content instead of behind it.
+  // The tint + grid fade out at the very top and bottom, so the page's edges are exactly its plain
+  // background - the colour a phone shows when you pull past them (user, 10/18: a line there).
+  const edgeFade = { maskImage: EDGE_FADE, WebkitMaskImage: EDGE_FADE }
   return (
     <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
       <motion.div
@@ -255,9 +260,10 @@ function WelcomeMotionBackdrop({ accent, light = false, intro = false }: { accen
         className="absolute inset-0"
         style={{
           background: `radial-gradient(circle at 22% 18%, ${accent}2E, transparent 32%), radial-gradient(circle at 82% 22%, ${accent}26, transparent 30%), radial-gradient(circle at 50% 92%, ${accent}1C, transparent 38%), linear-gradient(180deg, ${accent}12, transparent 52%)`,
+          ...edgeFade,
         }}
       />
-      <div className={lt('absolute inset-0 bg-[linear-gradient(90deg,rgba(17,24,39,0.055)_1px,transparent_1px),linear-gradient(180deg,rgba(17,24,39,0.055)_1px,transparent_1px)] bg-[size:44px_44px] opacity-80 dark:opacity-25')} />
+      <div className={lt('absolute inset-0 bg-[linear-gradient(90deg,rgba(17,24,39,0.055)_1px,transparent_1px),linear-gradient(180deg,rgba(17,24,39,0.055)_1px,transparent_1px)] bg-[size:44px_44px] opacity-80 dark:opacity-25')} style={edgeFade} />
 
       {/* Listing card: a little house with a warm glinting window and a rising-value tag */}
       <motion.div

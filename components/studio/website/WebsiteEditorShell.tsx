@@ -480,7 +480,7 @@ export default function WebsiteEditorShell({ onActionsChange, onBarEndChange, ta
 
   // Design tab: what each change points at.
   const themeSpot = (prev: SiteTheme, next: SiteTheme): SpotPlan | null => {
-    const sig = (t: SiteTheme) => t.footer_signature !== false
+    const sig = (t: SiteTheme) => t.footer_signature === true
     if (sig(prev) !== sig(next)) {
       const find = inPreview('[data-ohp-spot="footer-agent"]')
       return sig(next)

@@ -436,7 +436,7 @@ function SetupBackdrop() {
     <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
       <div className="absolute -left-40 top-24 h-[520px] w-[520px] rounded-full bg-[#e8c97a]/25 blur-[120px] dark:bg-[#C9A24D]/10" />
       <div className="absolute -right-32 top-[40%] h-[460px] w-[460px] rounded-full bg-[#1b6f58]/[0.07] blur-[110px] dark:bg-[#1b6f58]/15" />
-      <div className="absolute bottom-[-160px] left-1/3 h-[420px] w-[620px] rounded-full bg-[#C9A24D]/15 blur-[120px] dark:bg-[#2c4a96]/12" />
+      <div className="absolute bottom-[-160px] left-1/3 h-[420px] w-[620px] rounded-full bg-[#C9A24D]/15 blur-[120px] dark:bg-[#2c4a96]/[0.12]" />
       <div className="absolute inset-0 opacity-[0.5] [background-image:linear-gradient(rgba(139,106,43,.06)_1px,transparent_1px),linear-gradient(90deg,rgba(139,106,43,.06)_1px,transparent_1px)] [background-size:44px_44px] [mask-image:radial-gradient(70%_50%_at_50%_0%,#000,transparent)] dark:[background-image:linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px)]" />
     </div>
   )

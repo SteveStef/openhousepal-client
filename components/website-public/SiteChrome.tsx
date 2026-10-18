@@ -400,7 +400,8 @@ export function SiteFooter({
   const first = name.split(' ')[0]
   const serif = fontClass(theme.heading_font, 'font-serif')
   const tel = telOf(profile?.phone)
-  const sigSlug = theme.footer_signature === false ? null : (signatureSlug ?? profile?.signature_hub_slug ?? null)
+  // Off unless the agent switched it on (user, 10/18 - the footer already has the agent's details).
+  const sigSlug = theme.footer_signature !== true ? null : (signatureSlug ?? profile?.signature_hub_slug ?? null)
   const classic = theme.template === 'default'
   const rating = profile?.rating && profile.rating.average != null && profile.rating.count > 0 ? profile.rating : null
   // The signature card takes the site's colors: Luxe's metal, Classic's accent.

@@ -53,6 +53,11 @@ export function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // The app's own API routes (Explore Nearby's /api/website-nearby, link-preview images...) answer
+  // the same on every host - rewriting them into the site page returned HTML, which is why Explore
+  // Nearby never loaded on IDX sites or Spotlights (user, 10/18).
+  if (request.nextUrl.pathname.startsWith('/api/')) return NextResponse.next()
+
   const url = request.nextUrl.clone()
   url.pathname = `/ohp-site-render/${encodeURIComponent(rawHost)}${url.pathname}`
 

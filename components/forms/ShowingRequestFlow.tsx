@@ -165,11 +165,13 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
   }, [query, home, form.formId])
 
   const choose = (h: Home) => {
+    // Keyboard down first (on a phone it resizes the page), then the card lands, then the window.
+    inputRef.current?.blur()
     setHome(h)
     setResults([])
     onProgress?.(1, 'property_of_interest', false, { property_of_interest: h.address })
     // A beat to let the card land, then the window.
-    window.setTimeout(() => setTourOpen(true), 260)
+    window.setTimeout(() => setTourOpen(true), 480)
   }
 
   const changeHome = () => {
@@ -236,10 +238,13 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
   } : null, [status])
 
   const q = query.trim()
-  const showTyped = !home && q.length >= 4 && searched === q && !searching
+  // Stays put while the next letters are looked up (it used to blink off on every key, so the list jumped).
+  const showTyped = !home && q.length >= 4 && (searched === q || (searching && !!searched))
 
+  // Top-anchored, not centred: a centred page re-centred itself every time the suggestion list grew
+  // or shrank, so the search bar jumped while they typed (user, 10/18 - "glitchy").
   return (
-    <div className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-x-hidden px-4 pb-20 pt-8 sm:pb-16 sm:pt-10">
+    <div className="relative flex min-h-[100dvh] flex-col items-center justify-start overflow-x-hidden px-4 pb-20 pt-8 sm:pb-16 sm:pt-[9vh]">
       <style>{SHOWING_CSS}</style>
       {/* the lit backdrop */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
@@ -287,7 +292,7 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
       </div>
 
       {/* step 1: the home */}
-      <motion.div layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, type: 'spring', stiffness: 240, damping: 28 }}
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, type: 'spring', stiffness: 240, damping: 28 }}
         className="mt-8 w-full max-w-xl">
         <AnimatePresence mode="wait" initial={false}>
           {!home ? (
@@ -311,7 +316,7 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
                       {results.map((s, i) => {
                         const h = homeFromSuggestion(s)
                         return (
-                          <motion.li key={s.address} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
+                          <motion.li key={s.address} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16, delay: Math.min(i, 4) * 0.02 }}>
                             <button type="button" onClick={() => choose(h)}
                               className="group flex w-full items-center gap-3.5 rounded-2xl p-2 text-left transition hover:bg-[#C9A24D]/[0.08] focus:bg-[#C9A24D]/[0.08] focus:outline-none">
                               <span className="relative h-14 w-16 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-white/[0.06] sm:h-16 sm:w-24">

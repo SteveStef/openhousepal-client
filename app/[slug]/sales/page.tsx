@@ -7,6 +7,7 @@ import { ArrowLeft, Home, Mail, MapPin, TrendingUp } from 'lucide-react'
 import api from '@/lib/api-service'
 import { HubAgentPhoto, HubLuxeDecor, HubLuxeStyles, hubLuxeMetalClass, isHubPhotoSet } from '@/components/agent-hub/HubLuxeTheme'
 import { HUB_CLASSIC_DEFAULT_ACCENT, HubClassicStyles, hubAccentOf, hubAccentStyle, hubClassicClass } from '@/components/agent-hub/HubClassicTheme'
+import HubFormLauncher from '@/components/agent-hub/HubFormLauncher'
 import ListingFeatureCard from '@/components/agent-hub/ListingFeatureCard'
 import HubHomeGridCard from '@/components/agent-hub/HubHomeGridCard'
 import useHubColorMode, { useHubLookChanged } from '@/components/agent-hub/useHubColorMode'
@@ -161,6 +162,7 @@ export default function AgentHubSalesPage() {
     <div className={dark ? 'dark' : ''}>
     <main data-page-edge className={`relative min-h-screen overflow-hidden bg-[#f7f5f1] text-[#101827] dark:bg-[#0B0B0B] dark:text-[#F3F4F6] ${luxe ? `hub-luxe ${hubLuxeMetalClass(luxeMetal)}` : hubClassicClass('classic', hubAccent)}`} style={luxe ? undefined : hubAccentStyle(hubAccent)}>
       {luxe ? <><HubLuxeStyles /><HubLuxeDecor /></> : <HubClassicStyles />}
+      <HubFormLauncher hubSlug={agentSlug} forms={publicForms} />
       {dark && !luxe && (
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-white/5 to-transparent" />

@@ -108,30 +108,45 @@ export function MobileActionBar({ agent, price, tone, allowTour }: { agent?: Pro
     return () => { window.removeEventListener('scroll', update); io?.disconnect() }
   }, [])
 
+  // Solid (user, 10/18: the page's words showed through it - its '/92' see-through colour was never
+  // actually generated, so the bar had no background at all).
   const bar = tone === 'dark'
-    ? 'border-t border-white/10 bg-[#0b0b0b]/92 text-white'
-    : 'border-t border-[#172522]/15 bg-[#f3efe6]/95 text-[#172522]'
+    ? 'border-t border-white/10 bg-[#0b0b0b] text-white shadow-[0_-12px_30px_-12px_rgba(0,0,0,.8)]'
+    : 'border-t border-[#172522]/15 bg-[#f3efe6] text-[#172522] shadow-[0_-12px_30px_-14px_rgba(23,37,34,.35)]'
+  const icon = `inline-flex h-10 w-10 shrink-0 items-center justify-center ${t.ghostBtn}`
+  const textTo = agent?.text_phone || agent?.phone
   return (
     <div
       className={`fixed inset-x-0 bottom-0 z-[80] transition-transform duration-500 lg:hidden ${bar} ${visible ? 'translate-y-0' : 'translate-y-full'}`}
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       aria-hidden={!visible}
     >
-      <div className="flex items-center gap-2 px-4 py-3">
+      <div className="flex items-center gap-1.5 px-3 py-2.5 min-[400px]:gap-2 min-[400px]:px-4">
         <div className="min-w-0 flex-1">
           {fmtMoney(price) && <p className="truncate text-base font-semibold leading-tight tabular-nums">{fmtMoney(price)}</p>}
           {agent?.name && <p className={`truncate text-[11px] ${t.muted}`}>{agent.name}</p>}
         </div>
+        {/* Call · Text · Email - whichever the agent has */}
         {agent?.phone && (
-          <a href={telHref(agent.phone)} className={`inline-flex h-11 w-11 shrink-0 items-center justify-center ${t.ghostBtn}`} aria-label={`Call ${agent.name}`} tabIndex={visible ? 0 : -1}>
+          <a href={telHref(agent.phone)} className={icon} aria-label={`Call ${agent.name}`} tabIndex={visible ? 0 : -1}>
             <Phone className="h-4 w-4" />
+          </a>
+        )}
+        {textTo && (
+          <a href={telHref(textTo, 'sms')} className={icon} aria-label={`Text ${agent?.name || 'the agent'}`} tabIndex={visible ? 0 : -1}>
+            <MessageSquare className="h-4 w-4" />
+          </a>
+        )}
+        {agent?.email && (
+          <a href={`mailto:${agent.email}`} className={icon} aria-label={`Email ${agent.name}`} tabIndex={visible ? 0 : -1}>
+            <Mail className="h-4 w-4" />
           </a>
         )}
         <button
           type="button" onClick={() => openLeadForm(allowTour ? 'tour' : 'info')} tabIndex={visible ? 0 : -1}
-          className={`inline-flex h-11 shrink-0 items-center justify-center px-5 text-sm font-semibold ${t.primaryBtn}`}
+          className={`inline-flex h-10 shrink-0 items-center justify-center px-3.5 text-[13px] font-semibold min-[400px]:px-4 ${t.primaryBtn}`}
         >
-          {allowTour ? 'Book a tour' : 'Contact agent'}
+          {allowTour ? 'Book a tour' : 'Contact'}
         </button>
       </div>
     </div>

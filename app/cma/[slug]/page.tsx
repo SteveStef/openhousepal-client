@@ -637,7 +637,7 @@ function SubjectShowcaseCard({ subject }: { subject: CmaPublicResponse['subject'
                 </div>
               )}
               <div className="pointer-events-none absolute inset-0 bg-[#0b1220]/10" />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/76 via-black/22 to-white/8" />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/[0.76] via-black/[0.22] to-white/[0.08]" />
 
               <div className="absolute left-4 top-4 flex max-w-[70%] flex-wrap gap-2">
                 {hasStatus && (

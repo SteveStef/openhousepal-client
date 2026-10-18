@@ -25,11 +25,12 @@ export interface CanvasMarker {
   id: string
   lat: number
   lng: number
-  kind: 'public' | 'private'
+  kind: 'public' | 'private' | 'place' // place = an Explore Nearby result (a numbered pin)
   color: string // ring colour (public: its district's colour)
   glyph: string // one or two letters inside the dot (E / M / H / K-8 ...)
   title: string
   lines: string[] // tooltip detail lines
+  kicker?: string // the tooltip's small top line (schools: Public / Private school)
 }
 export interface CanvasBadge {
   id: string
@@ -62,6 +63,8 @@ const CANVAS_CSS = `
 .ohp-dot-private{border-radius:7px;width:22px;height:22px;background:var(--dot);box-shadow:0 0 0 2.5px #fff,0 6px 14px -4px rgba(0,0,0,.35)}
 .ohp-dot-core{font:900 9.5px/1 ui-sans-serif,system-ui,sans-serif;color:var(--dot);letter-spacing:-.02em}
 .ohp-dot-private .ohp-dot-core{color:#fff;font-size:10.5px}
+.ohp-dot-place{width:26px;height:26px;background:var(--dot);box-shadow:0 0 0 2.5px #fff,0 8px 16px -5px rgba(0,0,0,.45)}
+.ohp-dot-place .ohp-dot-core{color:var(--dot-ink,#fff);font-size:11px}
 .ohp-dot-ripple{position:absolute;inset:-3px;border-radius:inherit;border:2px solid var(--dot);opacity:0;animation:ohpRipple 1.3s ease-out 1 both}
 @keyframes ohpRipple{0%{opacity:.75;transform:scale(.6)}100%{opacity:0;transform:scale(2.3)}}
 button:hover>span>span>.ohp-dot{box-shadow:0 0 0 3px var(--dot),0 0 0 8px color-mix(in srgb,var(--dot) 22%,transparent),0 8px 18px -4px rgba(0,0,0,.4)}
@@ -349,18 +352,28 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
           {/* The home: a little house, and "This home" in a bubble under it, both in the page colour */}
           {home && (() => {
             const hp = P(home.lng, home.lat)
+            // The house's centre sits exactly on the home (user, 10/18: zoomed out it looked outside
+            // its own township). The pop-in animation lives on an inner element - framer's transform
+            // used to replace the centring classes, leaving the marker off to the side - and the
+            // marker shrinks as the map zooms out (its name only shows close in).
+            const z = map?.getZoom() ?? 14
+            const s = z >= 13 ? 1 : z >= 12 ? 0.85 : z >= 11 ? 0.72 : 0.58
             return (
-              <div className="pointer-events-none absolute left-0 top-0" style={{ transform: `translate(${hp.x}px, ${hp.y}px)`, zIndex: 25 }}>
-                <motion.div initial={{ opacity: 0, y: -6, scale: 0.7 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 20, delay: 0.3 }}
-                  className="flex -translate-x-1/2 -translate-y-1/2 flex-col items-center">
-                  <span className="grid h-7 w-7 place-items-center rounded-full border-2 border-white shadow-[0_6px_14px_-4px_rgba(0,0,0,.45)]" style={{ background: home.color }}>
-                    <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke={inkOn(home.color)} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 10.5 12 3l9 7.5" /><path d="M5.5 9v11h13V9" /><path d="M10 20v-5h4v5" />
-                    </svg>
-                  </span>
-                  <span className="mt-1 whitespace-nowrap rounded-full border bg-white px-2 py-[2px] text-[10px] font-black leading-[13px] shadow-[0_3px_10px_-3px_rgba(0,0,0,.3)]"
-                    style={{ color: home.color, borderColor: home.color, ...(dark ? { background: '#14161b' } : {}) }}>{home.label || 'This home'}</span>
-                </motion.div>
+              <div className="pointer-events-none absolute left-0 top-0" style={{ transform: `translate(${hp.x}px, ${hp.y}px) scale(${s})`, transformOrigin: '0 0', zIndex: 25 }}>
+                <div className="absolute left-0 top-[-14px] flex -translate-x-1/2 flex-col items-center">
+                  <motion.div initial={{ opacity: 0, y: -6, scale: 0.7 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 20, delay: 0.3 }}
+                    className="flex flex-col items-center" style={{ transformOrigin: '50% 14px' }}>
+                    <span className="grid h-7 w-7 place-items-center rounded-full border-2 border-white shadow-[0_6px_14px_-4px_rgba(0,0,0,.45)]" style={{ background: home.color }}>
+                      <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke={inkOn(home.color)} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 10.5 12 3l9 7.5" /><path d="M5.5 9v11h13V9" /><path d="M10 20v-5h4v5" />
+                      </svg>
+                    </span>
+                    {z >= 11 && (
+                      <span className="mt-1 whitespace-nowrap rounded-full border bg-white px-2 py-[2px] text-[10px] font-black leading-[13px] shadow-[0_3px_10px_-3px_rgba(0,0,0,.3)]"
+                        style={{ color: home.color, borderColor: home.color, ...(dark ? { background: '#14161b' } : {}) }}>{home.label || 'This home'}</span>
+                    )}
+                  </motion.div>
+                </div>
               </div>
             )
           })()}
@@ -378,7 +391,7 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
                   aria-label={mk.title}>
                   <span className="block -translate-x-1/2 -translate-y-1/2">
                     <motion.span className="block" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 420, damping: 15, delay: 0.5 + Math.min(i, 30) * 0.035 }}>
-                      <motion.span className={`ohp-dot ohp-dot-${mk.kind}`} style={{ ['--dot' as any]: mk.color }} animate={{ scale: on ? 1.3 : 1 }} transition={{ type: 'spring', stiffness: 500, damping: 22 }}>
+                      <motion.span className={`ohp-dot ohp-dot-${mk.kind}`} style={{ ['--dot' as any]: mk.color, ['--dot-ink' as any]: inkOn(mk.color) }} animate={{ scale: on ? 1.3 : 1 }} transition={{ type: 'spring', stiffness: 500, damping: 22 }}>
                         <span className="ohp-dot-ripple" style={{ animationDelay: `${0.55 + Math.min(i, 30) * 0.035}s` }} />
                         <span className="ohp-dot-core">{mk.glyph}</span>
                       </motion.span>
@@ -396,7 +409,7 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
                 initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.18 }}>
                 <div className="-translate-x-1/2 translate-y-[-100%] pb-5">
                   <div className="w-max max-w-[240px] rounded-2xl border px-3.5 py-2.5 shadow-2xl " style={{ background: card.bg, borderColor: card.line }}>
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em]" style={{ color: mk.color }}>{mk.kind === 'public' ? 'Public school' : 'Private school'}</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em]" style={{ color: mk.color }}>{mk.kicker || (mk.kind === 'public' ? 'Public school' : 'Private school')}</p>
                     <p className="mt-0.5 text-[13px] font-black leading-snug" style={{ color: card.ink }}>{mk.title}</p>
                     {mk.lines.filter(Boolean).map(l => <p key={l} className="text-[11.5px] font-semibold leading-snug" style={{ color: card.muted }}>{l}</p>)}
                   </div>

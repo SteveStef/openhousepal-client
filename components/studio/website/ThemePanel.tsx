@@ -302,7 +302,7 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
       {/* 6. Signature in the footer */}
       <label className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 px-3 py-2.5 dark:border-gray-800">
         <span className="min-w-0 pr-3"><span className="block text-xs font-black text-[#111827] dark:text-white">My email signature in the footer</span><span className="block text-[10px] font-semibold text-gray-400">Your signature card is the agent block at the bottom of every page (Studio → Email Signature). Off = plain name &amp; contact details.</span></span>
-        <OhpSwitch on={theme.footer_signature !== false} onChange={v => set({ footer_signature: v })} testId="site-footer-signature-switch" />
+        <OhpSwitch on={theme.footer_signature === true} onChange={v => set({ footer_signature: v })} testId="site-footer-signature-switch" />
       </label>
 
       <button type="button" onClick={matchBrandKit} disabled={resetting} className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-[#8b7355] hover:underline disabled:opacity-50 dark:text-[#C9A24D]">

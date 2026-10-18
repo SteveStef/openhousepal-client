@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { GraduationCap, Landmark } from 'lucide-react'
 import { googleMapsLoader } from '@/lib/googleMapsLoader'
 import api from '@/lib/api-service'
-import BoundaryCanvas, { CanvasBadge, CanvasShape } from './BoundaryCanvas'
+import BoundaryCanvas, { CanvasBadge, CanvasMarker, CanvasShape } from './BoundaryCanvas'
 
 // One home on a map with the real lines around it (user, 10/18): the township / borough / city it
 // sits in, the ones it borders, and its school district - drawn by the same animated BoundaryCanvas
@@ -39,7 +39,7 @@ const DARK: google.maps.MapTypeStyle[] = [
 const kindOf = (name: string) => name.match(/(Township|Borough|Town|City|Village|County)$/i)?.[1] || ''
 const shortDistrict = (name: string) => name.replace(/\s+(School District|Sch Dist|SD)$/i, '').replace(/\s+Area$/i, ' Area')
 
-export default function HomeAreaMap({ latitude, longitude, accent: accentProp = '#C9A24D', dark: darkProp, className = 'h-full w-full', rounded = 'rounded-2xl' }: {
+export default function HomeAreaMap({ latitude, longitude, accent: accentProp = '#C9A24D', dark: darkProp, className = 'h-full w-full', rounded = 'rounded-2xl', places, activePlace, onActivePlace, showHome = true, homeLabel }: {
   latitude: number
   longitude: number
   address?: string | null
@@ -49,6 +49,13 @@ export default function HomeAreaMap({ latitude, longitude, accent: accentProp = 
   dark?: boolean
   className?: string
   rounded?: string
+  /** Explore Nearby's places for the picked category - numbered pins; the map frames them + the home. */
+  places?: CanvasMarker[]
+  activePlace?: string | null
+  onActivePlace?: (id: string | null) => void
+  /** The house marker at the point (off for a town page, where the point is the town, not a home). */
+  showHome?: boolean
+  homeLabel?: string
 }) {
   const boxRef = useRef<HTMLDivElement>(null)
   const divRef = useRef<HTMLDivElement>(null)
@@ -107,7 +114,8 @@ export default function HomeAreaMap({ latitude, longitude, accent: accentProp = 
   return (
     <div ref={boxRef} className={`${placed ? '' : 'relative'} overflow-hidden ${rounded} ${className}`}>
       <div ref={divRef} className="h-full w-full" />
-      <HomeAreaOverlay map={map} latitude={latitude} longitude={longitude} accent={accent} dark={dark} showHome />
+      <HomeAreaOverlay map={map} latitude={latitude} longitude={longitude} accent={accent} dark={dark} showHome={showHome} label={homeLabel}
+        markers={places} activeMarker={activePlace} onActiveMarker={onActivePlace} />
     </div>
   )
 }
@@ -115,7 +123,7 @@ export default function HomeAreaMap({ latitude, longitude, accent: accentProp = 
 /** The lines + the layer switch, on any Google map already showing this home (HomeAreaMap's own,
  *  or the CMA's comparables map - fit={false} leaves that map's framing alone). Sits in the map's
  *  positioned box. */
-export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', dark = false, fit = true, showHome = false, label }: {
+export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', dark = false, fit = true, showHome = false, label, markers, activeMarker, onActiveMarker }: {
   map: google.maps.Map | null
   latitude: number
   longitude: number
@@ -125,6 +133,9 @@ export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', 
   /** Draw the home as a little house with "This home" under it (the CMA map has its own S pin). */
   showHome?: boolean
   label?: string
+  markers?: CanvasMarker[]
+  activeMarker?: string | null
+  onActiveMarker?: (id: string | null) => void
 }) {
   const [areas, setAreas] = useState<Areas | null>(null)
   const [layer, setLayer] = useState<Layer>('town')
@@ -156,20 +167,31 @@ export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', 
     return [{ id: `b:mu:${muni.geoid}`, shapeId: `mu:${muni.geoid}`, title: muni.name, short: muni.name.replace(/\s+(Township|Borough|Town|City|Village|County)$/i, ''), color: accent, icon: 'gov' as const }]
   }, [active, muni, districts, accent])
 
-  // Camera: the home's own township (or district), the home always in view.
+  // Camera: the home's own township (or district), the home always in view. With nearby places
+  // showing, the home + those places instead (and back to the township when they're cleared).
+  const placesKey = (markers || []).map(m => m.id).join('|')
   useEffect(() => {
     if (!map || !fit) return
+    if (markers?.length) {
+      const b = new google.maps.LatLngBounds()
+      markers.forEach(mk => b.extend({ lat: mk.lat, lng: mk.lng }))
+      b.extend({ lat: latitude, lng: longitude })
+      map.fitBounds(b, { top: 64, bottom: 28, left: 28, right: 28 })
+      return
+    }
     const focus = active === 'schools' ? districts : muni ? [muni] : []
     if (!focus.length) return
     const b = new google.maps.LatLngBounds()
     focus.forEach(s => s.rings.forEach(r => r.forEach(([lng, lat]) => b.extend({ lat, lng }))))
     b.extend({ lat: latitude, lng: longitude })
     map.fitBounds(b, { top: 52, bottom: 8, left: 8, right: 8 })
-  }, [map, fit, active, muni, districts, latitude, longitude])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, fit, active, muni, districts, latitude, longitude, placesKey])
 
   return (
     <>
       <BoundaryCanvas map={map} shapes={shapes} badges={badges} dark={dark} animKey={active} avoid={[{ lat: latitude, lng: longitude }]} topInset={layers.length ? 58 : 14}
+        markers={markers || []} activeMarker={activeMarker} onActiveMarker={onActiveMarker}
         home={showHome ? { lat: latitude, lng: longitude, color: accent, label } : null} />
       {layers.length > 0 && (
         <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-2.5">

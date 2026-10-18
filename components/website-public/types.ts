@@ -16,7 +16,7 @@ export const DEFAULT_SITE_THEME: SiteTheme = {
   template: 'luxe',
   mode: 'light',
   allow_mode_toggle: true,
-  footer_signature: true,
+  footer_signature: false,
 }
 
 // Every field a plain query string value (App Router's searchParams shape) - 'q' is the hero's

@@ -254,7 +254,7 @@ function ScheduleTourWindow({
             <div className="flex items-center justify-between gap-3 px-5 pb-1 pt-5 sm:px-8 sm:pt-7">
               <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-[0.26em] text-[#a8843a] dark:text-[#e8c97a]">Step {stepNo} of 2</p>
-                <h3 className="font-serif text-2xl font-black leading-tight text-[#111827] dark:text-white">{step === 'when' ? 'When works for you?' : showContactFields ? 'Where should we confirm?' : 'Anything to add?'}</h3>
+                <h3 className="font-serif text-2xl font-black leading-tight text-[#111827] dark:text-white">{step === 'when' ? 'When works for you?' : showContactFields ? 'Confirm your details' : 'Anything to add?'}</h3>
               </div>
               <button type="button" onClick={onClose} aria-label="Close" className="hidden h-9 w-9 shrink-0 place-items-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-white/10 dark:hover:text-white sm:grid"><X className="h-5 w-5" /></button>
             </div>

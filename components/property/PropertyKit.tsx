@@ -1056,7 +1056,7 @@ export function ShowingPicker({ onOpen, label = 'Schedule a showing', status, on
             <motion.button key={i} type="button" onClick={onOpen}
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.06 }}
               whileHover={{ y: -2 }} whileTap={{ scale: 0.94 }}
-              className="flex flex-col items-center rounded-2xl border border-white/12 bg-white/[0.06] py-2 transition-colors hover:border-[color:var(--pp-gold)] hover:bg-white/[0.1]">
+              className="flex flex-col items-center rounded-2xl border border-white/[0.12] bg-white/[0.06] py-2 transition-colors hover:border-[color:var(--pp-gold)] hover:bg-white/[0.1]">
               <span className="text-[9px] font-black uppercase tracking-widest text-white/55">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
               <span className="text-lg font-black leading-tight">{d.getDate()}</span>
             </motion.button>
@@ -1086,7 +1086,7 @@ export function ShowingPicker({ onOpen, label = 'Schedule a showing', status, on
           <motion.button key={i} type="button" onClick={onOpen}
             initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.06 }}
             whileHover={{ y: -2 }} whileTap={{ scale: 0.94 }}
-            className="flex flex-col items-center rounded-2xl border border-white/12 bg-white/[0.06] py-2 transition-colors hover:border-[color:var(--pp-gold)] hover:bg-white/[0.1]">
+            className="flex flex-col items-center rounded-2xl border border-white/[0.12] bg-white/[0.06] py-2 transition-colors hover:border-[color:var(--pp-gold)] hover:bg-white/[0.1]">
             <span className="text-[9px] font-black uppercase tracking-widest text-white/55">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
             <span className="text-lg font-black leading-tight">{d.getDate()}</span>
           </motion.button>
@@ -1182,7 +1182,7 @@ export function AskForm({ id, title, sub, agentFirst, agent, initial, onSend, em
     setBusy(false)
     if (ok) { setSent(true); setMessage('') } else setProblem('That didn’t go through - please try again.')
   }
-  const field = 'w-full rounded-2xl border border-white/12 bg-white/[0.06] px-4 py-3 text-sm font-medium text-white outline-none transition placeholder:text-white/35 focus:border-[color:var(--pp-gold)] focus:ring-4 focus:ring-white/10'
+  const field = 'w-full rounded-2xl border border-white/[0.12] bg-white/[0.06] px-4 py-3 text-sm font-medium text-white outline-none transition placeholder:text-white/35 focus:border-[color:var(--pp-gold)] focus:ring-4 focus:ring-white/10'
   const initials = String(agent?.name || '').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join('')
   return (
     <div id={id} className={embedded ? `relative scroll-mt-24 ${className}` : `relative isolate scroll-mt-24 overflow-hidden rounded-[26px] bg-[var(--pp-ink)] p-5 text-white shadow-[0_34px_70px_-40px_rgba(0,0,0,.85)] ring-1 ring-white/10 sm:p-6 ${className}`}>
@@ -1246,7 +1246,7 @@ export function AskForm({ id, title, sub, agentFirst, agent, initial, onSend, em
 export function PhoneBar({ photo, children }: { photo?: string | null; children: ReactNode }) {
   return (
     <div className="fixed inset-x-3 bottom-3 z-40 flex items-center gap-2 rounded-2xl bg-[var(--pp-ink)] p-2 shadow-[0_20px_40px_-12px_rgba(0,0,0,.5)] ring-1 ring-white/10 lg:hidden" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
-      {photo && <img src={photo} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-[color:var(--pp-gold)]" />}
+      {photo && <img src={photo} alt="" className="h-10 w-10 shrink-0 rounded-full max-[379px]:hidden object-cover ring-2 ring-[color:var(--pp-gold)]" />}
       {children}
     </div>
   )

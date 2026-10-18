@@ -2,7 +2,7 @@
 
 import { useVisitor } from '@/lib/visitor'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { ArrowRight, CalendarDays, MessageSquare, Phone, Sparkles } from 'lucide-react'
+import { ArrowRight, CalendarDays, Mail, MessageSquare, Phone, Sparkles } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/api-service'
 import { openHousePalPublicUrl } from '@/lib/publicResourceLinks'
 import { visitSource } from '@/lib/visitSource'
@@ -11,7 +11,7 @@ import {
   AboutHome, AgentPanel, AskForm, ShowingPicker, BrightNotice, EveryDetail, LocationBlock, OpenHouseList,
   PhoneBar, PriceHistory, HERO_COLS, HeroShareActions, PropertyHero, PropertySurface, SectionDivider, SectionTitle, hasDetails, homeFromIdx, pp,
 } from '@/components/property/PropertyKit'
-import PropertyLocationMap from './PropertyLocationMap'
+import NearbyMap from '@/components/maps/NearbyMap'
 import PaymentCalculator from './PaymentCalculator'
 import { fontClass } from './blocks/fontClass'
 import type { SiteTheme } from './types'
@@ -167,7 +167,13 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
                 <section id="location" className="scroll-mt-40">
                   <SectionDivider />
                   <SectionTitle kicker="Location" title="On the map" sub={home.fullAddress || undefined} />
-                  <LocationBlock home={home} map={<PropertyLocationMap latitude={home.lat} longitude={home.lng} address={p.address || ''} theme={theme} />}>
+                  {/* One map: the home + its lines, and Explore Nearby's places drop onto it (user, 10/18). */}
+                  <div className="mt-6">
+                    <NearbyMap latitude={home.lat} longitude={home.lng} address={p.address || ''} accent={theme.secondary_color || '#C9A24D'} tone="auto"
+                      siteId={siteId} kind="property" listingKey={p.listing_key} nearbyOn={!!p.listing_key} originLabel={home.street || 'this home'}
+                      boxClassName="relative h-[300px] w-full overflow-hidden rounded-[26px] border border-[color:var(--pp-gold-line)] shadow-[0_30px_60px_-40px_rgba(0,0,0,.6)] sm:h-[380px]" />
+                  </div>
+                  <LocationBlock home={home} map={null} mapClassName="hidden">
                     {matchedArea && (
                       <a href={`${basePrefix}/${matchedArea.slug}`} className="group mt-4 flex items-center justify-between gap-3 rounded-[22px] bg-[var(--pp-ink)] p-5 text-white shadow-[0_24px_50px_-30px_rgba(0,0,0,.6)] transition hover:-translate-y-0.5">
                         <span>
@@ -184,7 +190,8 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
             </div>
           </div>
 
-          {nearby && <div className="-mx-5 mt-16 sm:-mx-8">{nearby}</div>}
+          {/* Explore Nearby is on the Location map now; this only shows for a home without coordinates. */}
+          {nearby && (home.lat == null || home.lng == null) && <div className="-mx-5 mt-16 sm:-mx-8">{nearby}</div>}
 
           {similar && (
             <section id="similar" className="scroll-mt-40">
@@ -203,8 +210,11 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
           {comingSoonNoDate
             ? <button type="button" onClick={toAsk} className="flex-1 rounded-xl bg-[var(--pp-gold)] py-3 text-center text-[11px] font-black uppercase tracking-widest text-[color:var(--pp-ink)]">Notify me</button>
             : <button type="button" onClick={requestTour} className="flex-1 rounded-xl bg-[var(--pp-gold)] py-3 text-center text-[11px] font-black uppercase tracking-widest text-[color:var(--pp-ink)]">Request a tour</button>}
-          <button type="button" onClick={toAsk} className="rounded-xl border border-white/20 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-white">Ask</button>
+          {/* Call · Text · Email the agent (user, 10/18); the question box is in the page above. */}
           {agentTel && <a href={`tel:${agentTel}`} aria-label="Call" className="rounded-xl border border-white/20 px-3 py-3 text-white"><Phone className="h-4 w-4" /></a>}
+          {agentTextTel && <a href={`sms:${agentTextTel}`} aria-label="Text" className="rounded-xl border border-white/20 px-3 py-3 text-white"><MessageSquare className="h-4 w-4" /></a>}
+          {agent?.email ? <a href={`mailto:${agent.email}?subject=${encodeURIComponent(home.street || 'A home on your site')}`} aria-label="Email" className="rounded-xl border border-white/20 px-3 py-3 text-white"><Mail className="h-4 w-4" /></a>
+            : <button type="button" onClick={toAsk} className="rounded-xl border border-white/20 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-white">Ask</button>}
         </PhoneBar>
 
         <FormWindow url={tourOpen ? tourUrl : null} title="Request a tour" prefill={showing?.questionId ? { [showing.questionId]: home.fullAddress } : { property_of_interest: home.fullAddress }} onClose={() => setTourOpen(false)} />

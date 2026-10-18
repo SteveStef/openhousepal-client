@@ -398,7 +398,7 @@ export default function PropertyDetailsModal({
                                   onChange={(e) => setNewComment(e.target.value)}
                                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmitComment(e as any) } }}
                                   placeholder={viewer === 'agent' ? 'Write your reply...' : 'Type your question...'}
-                                  className="block w-full resize-none rounded-2xl border border-white/12 bg-white/[0.06] py-3 pl-4 pr-14 text-sm font-medium text-white outline-none transition placeholder:text-white/35 focus:border-[color:var(--pp-gold)] focus:ring-4 focus:ring-white/10"
+                                  className="block w-full resize-none rounded-2xl border border-white/[0.12] bg-white/[0.06] py-3 pl-4 pr-14 text-sm font-medium text-white outline-none transition placeholder:text-white/35 focus:border-[color:var(--pp-gold)] focus:ring-4 focus:ring-white/10"
                                   rows={2}
                                   disabled={isSubmittingComment}
                                 />

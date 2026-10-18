@@ -467,7 +467,8 @@ export function buildSpotlight(data: PropertySiteResolveResponse) {
     town: show('town', !!town) && !!town,
     agents: show('agents') && !!agent,
     // The agent's Email Signature card inside the Listing Agent section (own switch, default on).
-    signature: show('signature') && !!agent && !!data.signature_hub_slug,
+    // Off unless the agent switched it on (user, 10/18).
+    signature: show('signature', false) && !!agent && !!data.signature_hub_slug,
   }
 
   // Row 1: hard structured facts only - a field with no value is skipped entirely.

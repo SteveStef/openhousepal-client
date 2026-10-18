@@ -1154,6 +1154,8 @@ input:-webkit-autofill:active {
    premium reveal rather than a snappy UI transition. */
 @keyframes hub-section-enter { 0% { opacity: 0; transform: translateY(18px); } 100% { opacity: 1; transform: translateY(0); } }
 .hub-enter { animation: hub-section-enter 1.1s cubic-bezier(.22,.61,.36,1) both; }
+/* Coming back to the hub in the same visit: no entrance again (app/[slug]/page.tsx `returning`). */
+.agent-hub-public.hub-returning .hub-enter { animation: none !important; opacity: 1 !important; }
 @media (prefers-reduced-motion: reduce) {
   .hub-enter { animation: none; }
 }
