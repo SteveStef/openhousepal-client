@@ -31,7 +31,7 @@ const APP_HOSTNAMES = new Set([
 const RESERVED_APP_SEGMENTS = new Set([
   'activity', 'agenthub', 'admin', 'agent-hub', 'api', 'assistant', 'broker-authorization', 'cash-needed',
   'checkout', 'cma', 'dash', 'discovery', 'leads', 'net-sheet', 'open-houses',
-  'privacy', 'property', 'settings', 'setup', 'showcase', 'showcases', 'studio', 'terms', 'unsubscribe',
+  'gsi', 'privacy', 'property', 'settings', 'setup', 'showcase', 'showcases', 'studio', 'terms', 'unsubscribe',
   'upgrade-required', 'forgot-password', 'login', 'register', 'reset-password',
 ])
 
