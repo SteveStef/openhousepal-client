@@ -14,6 +14,7 @@ import {
 } from '@/lib/cma'
 import { CmaPresentationDocument } from '@/lib/pdfs'
 import { googleMapsLoader } from '@/lib/googleMapsLoader'
+import { HomeAreaOverlay } from '@/components/maps/HomeAreaMap'
 import { normalizeImageUrl } from '@/lib/utils'
 
 export default function PublicCmaPage() {
@@ -1263,6 +1264,7 @@ function CmaInteractiveMap({ subject, comparables, fallbackUrl, activeComparable
   const lastOpenedCompIdRef = useRef<string | null>(null)
   const [loadError, setLoadError] = useState(false)
   const [mapReadyKey, setMapReadyKey] = useState(0)
+  const [mapObj, setMapObj] = useState<google.maps.Map | null>(null)
   const mapDataKey = useMemo(() => [
     subject.latitude,
     subject.longitude,
@@ -1323,6 +1325,7 @@ function CmaInteractiveMap({ subject, comparables, fallbackUrl, activeComparable
         gestureHandling: 'greedy',
       })
       mapObjRef.current = map
+      setMapObj(map)
       const infoWindow = new google.maps.InfoWindow({ maxWidth: 180 })
       infoWindowRef.current = infoWindow
       infoWindow.addListener('closeclick', () => {
@@ -1400,7 +1403,16 @@ function CmaInteractiveMap({ subject, comparables, fallbackUrl, activeComparable
     return <img src={normalizeImageUrl(fallbackUrl)} alt="Map of subject and comparable locations" className="h-full w-full object-cover" />
   }
 
-  return <div ref={mapRef} className="h-full w-full" />
+  // The subject's township, the ones around it and its school district (user, 10/18) - over the
+  // comparables, without changing how the map frames them.
+  return (
+    <div className="relative h-full w-full">
+      <div ref={mapRef} className="h-full w-full" />
+      {subject.latitude != null && subject.longitude != null && (
+        <HomeAreaOverlay map={mapObj} latitude={subject.latitude} longitude={subject.longitude} fit={false} />
+      )}
+    </div>
+  )
 }
 
 // Same bordered-card treatment as Fact above, plus a border on the bar track itself - a flat

@@ -96,7 +96,7 @@ function edgeDist(x: number, y: number, rings: Pt[][], cap: number): number {
   return best
 }
 
-export default function BoundaryCanvas({ map, shapes, markers = [], badges = [], avoid = [], dark = false, animKey = '', activeMarker, onActiveMarker, highlight }: {
+export default function BoundaryCanvas({ map, shapes, markers = [], badges = [], avoid = [], dark = false, animKey = '', activeMarker, onActiveMarker, highlight, topInset = 14 }: {
   map: google.maps.Map | null
   shapes: CanvasShape[]
   markers?: CanvasMarker[]
@@ -107,6 +107,7 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
   activeMarker?: string | null
   onActiveMarker?: (id: string | null) => void
   highlight?: string | null // a shape id to lift (legend hover)
+  topInset?: number // px kept clear at the top for buttons floating over the map
 }) {
   const [panes, setPanes] = useState<{ lines: HTMLDivElement; top: HTMLDivElement } | null>(null)
   const projRef = useRef<google.maps.MapCanvasProjection | null>(null)
@@ -176,7 +177,7 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
     if (!bounds) return []
     const ne = P(bounds.getNorthEast().lng(), bounds.getNorthEast().lat())
     const sw = P(bounds.getSouthWest().lng(), bounds.getSouthWest().lat())
-    const view = { x0: sw.x + 14, x1: ne.x - 62, y0: ne.y + 14, y1: sw.y - 34 } // keep clear of zoom buttons / Google logo
+    const view = { x0: sw.x + 14, x1: ne.x - 62, y0: ne.y + topInset, y1: sw.y - 34 } // keep clear of zoom buttons / Google logo / top buttons
     const out: { b: CanvasBadge; x: number; y: number; mode: 'full' | 'title' | 'icon'; w: number; h: number }[] = []
     const step = Math.max(14, Math.min(28, (view.x1 - view.x0) / 40))
     const obstacles = [...dots, ...avoid.map(a => ({ p: P(a.lng, a.lat) }))]
@@ -191,7 +192,7 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
     })
     if (filling) {
       const w = Math.min(260, 66 + Math.max(filling.title.length * 8, (filling.sub || '').length * 7.2))
-      out.push({ b: filling, x: view.x0 + w / 2, y: view.y0 + 46 + 27, mode: 'full', w, h: 54 })
+      out.push({ b: filling, x: view.x0 + w / 2, y: view.y0 + (topInset > 14 ? 0 : 46) + 27, mode: 'full', w, h: 54 })
     }
     for (const b of badges) {
       if (b === filling) continue
@@ -249,7 +250,7 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
     }
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proj, tick, px, dots, badges, map, avoid])
+  }, [proj, tick, px, dots, badges, map, avoid, topInset])
 
   if (!panes || !proj) return null
   const path = (rings: Pt[][]) => rings.map(r => 'M' + r.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('L') + 'Z').join('')

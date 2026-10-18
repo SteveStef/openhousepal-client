@@ -26,6 +26,7 @@ import {
   scrollToId, type PropertySiteChapter, type PropertySiteResolveResponse, type SpotlightModel,
 } from './spotlight/model'
 import { onAccent, usableAccent } from './spotlight/tone'
+import HomeAreaMap from '@/components/maps/HomeAreaMap'
 
 const playfair = Playfair_Display({ subsets: ['latin'], weight: ['400', '500'], style: ['normal', 'italic'], variable: '--font-ee-display' })
 const dmMono = DM_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-ee-mono' })
@@ -696,7 +697,9 @@ function Location({ m, n }: { m: SpotlightModel; n: string }) {
           aside={m.hasCoords ? `${toDMS(p.latitude!, 'N', 'S')} / ${toDMS(p.longitude!, 'E', 'W')}` : [p.city, p.state].filter(Boolean).join(', ')} />
         <div className="grid gap-10 lg:grid-cols-[1.6fr_1fr]">
           <Reveal className="relative aspect-[16/11] border border-[#172522]/15 lg:aspect-auto lg:min-h-[500px]">
-            <iframe title={`Map of ${m.fullAddress}`} src={m.mapEmbedUrl} loading="lazy" className="ee-map absolute inset-0 h-full w-full border-0" referrerPolicy="no-referrer-when-downgrade" />
+            {m.hasCoords
+              ? <HomeAreaMap latitude={p.latitude!} longitude={p.longitude!} address={m.fullAddress} accent="var(--sp-accent)" dark={false} className="absolute inset-0 h-full w-full" rounded="" />
+              : <iframe title={`Map of ${m.fullAddress}`} src={m.mapEmbedUrl} loading="lazy" className="ee-map absolute inset-0 h-full w-full border-0" referrerPolicy="no-referrer-when-downgrade" />}
           </Reveal>
           <Reveal>
             <p className="sp-display text-3xl leading-tight">{p.address}</p>

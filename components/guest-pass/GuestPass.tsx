@@ -25,6 +25,7 @@ import {
   ComplianceFooter, GuestPassData, RequestKind, RequestState, cityLine, formatPhone, img, initials, money, possessive, streetOf,
 } from './shared'
 import OhpLoader from '@/components/brand/OhpLoader'
+import HomeAreaMap from '@/components/maps/HomeAreaMap'
 
 type View = 'home' | 'similar' | 'cheat'
 
@@ -713,6 +714,18 @@ function HomeView({ data, token, street, onSimilar, onOpenSimilar, onCheat, onRe
       <p className="mt-3 text-center text-[11px] font-medium text-gray-400 dark:text-gray-500">
         Requests go straight to {agent.name} with the info you signed in with.
       </p>
+
+      {/* Where it is: the home's township, the ones around it and its school district (user, 10/18). */}
+      {data.home.latitude != null && data.home.longitude != null && (
+        <section className="mt-8">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#a8843a] dark:text-[#e8c97a]">Where it is</p>
+          <h3 className="mt-1 font-serif text-2xl font-black text-[#111827] dark:text-white">Town lines &amp; schools</h3>
+          <p className="mt-1 text-sm font-medium text-gray-500 dark:text-gray-400">The township {street} is in, the ones around it, and its school district.</p>
+          <div className="mt-4 overflow-hidden rounded-[24px] border border-black/[0.06] shadow-[0_18px_50px_-30px_rgba(0,0,0,0.4)] dark:border-white/[0.07]">
+            <HomeAreaMap latitude={Number(data.home.latitude)} longitude={Number(data.home.longitude)} address={data.home.address} className="h-[300px] w-full sm:h-[380px]" rounded="" />
+          </div>
+        </section>
+      )}
 
       {data.similar.length === 0 && data.showcase && (
         <div className="mt-6"><ShowcaseCta data={data} onShowcase={onShowcase} building={buildingShowcase} error={showcaseError} /></div>

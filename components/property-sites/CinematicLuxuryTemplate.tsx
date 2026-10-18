@@ -29,6 +29,7 @@ import {
   scrollToId, STATUS_COLORS, type PropertySiteAgent, type PropertySiteChapter, type SpotlightModel,
 } from './spotlight/model'
 import { onAccent, usableAccent } from './spotlight/tone'
+import HomeAreaMap from '@/components/maps/HomeAreaMap'
 
 // Types + helpers now live in ./spotlight/model (shared with EditorialEstateTemplate); re-exported
 // here because the public site renderer imports the resolve type from this module.
@@ -1005,7 +1006,9 @@ function LocationSection({ m }: { m: SpotlightModel }) {
     <Section id="location" eyebrow="Location" title={<>{m.has.town ? <>On the <em className="italic text-white/80">map.</em></> : p.city ? <>Life in <em className="italic text-white/80">{p.city}.</em></> : 'Where you’ll live.'}</>} wide>
       <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
         <div className="cl-reveal relative aspect-[16/11] overflow-hidden rounded-[2px] border border-white/[0.08] lg:aspect-auto lg:min-h-[480px]">
-          <iframe title={`Map of ${m.fullAddress}`} src={m.mapEmbedUrl} loading="lazy" className="cl-map absolute inset-0 h-full w-full border-0" referrerPolicy="no-referrer-when-downgrade" />
+          {m.hasCoords
+            ? <HomeAreaMap latitude={p.latitude!} longitude={p.longitude!} address={m.fullAddress} accent="var(--sp-accent)" dark className="absolute inset-0 h-full w-full" rounded="" />
+            : <iframe title={`Map of ${m.fullAddress}`} src={m.mapEmbedUrl} loading="lazy" className="cl-map absolute inset-0 h-full w-full border-0" referrerPolicy="no-referrer-when-downgrade" />}
         </div>
         <div className="cl-reveal flex flex-col">
           <div className="flex items-start gap-3">

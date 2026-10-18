@@ -41,11 +41,11 @@ const kindOf = (name: string) => name.match(/(Township|Borough|Town|City|Village
 const bare = (name: string) => name.replace(/\s+(Township|Borough|Town|City|Village)$/i, '')
 const shortDistrict = (name: string) => name.replace(/\s+(School District|Sch Dist|SD)$/i, '').replace(/\s+Area$/i, ' Area')
 
-export default function HomeAreaMap({ latitude, longitude, address, accent = '#C9A24D', dark: darkProp, className = 'h-full w-full', rounded = 'rounded-2xl' }: {
+export default function HomeAreaMap({ latitude, longitude, address, accent: accentProp = '#C9A24D', dark: darkProp, className = 'h-full w-full', rounded = 'rounded-2xl' }: {
   latitude: number
   longitude: number
   address?: string | null
-  /** The page's accent (pin + the home's own township line). */
+  /** The page's accent (pin + the home's own township line) - a colour, or var(--x) of the page. */
   accent?: string
   /** Force light / dark; otherwise follows the page (<html class="dark">). */
   dark?: boolean
@@ -56,11 +56,16 @@ export default function HomeAreaMap({ latitude, longitude, address, accent = '#C
   const divRef = useRef<HTMLDivElement>(null)
   const [near, setNear] = useState(false)
   const [map, setMap] = useState<google.maps.Map | null>(null)
-  const [areas, setAreas] = useState<Areas | null>(null)
-  const [layer, setLayer] = useState<Layer>('town')
   const [failed, setFailed] = useState(false)
   const [pageDark, setPageDark] = useState(false)
   const dark = darkProp ?? pageDark
+  const [accent, setAccent] = useState(accentProp.startsWith('var(') ? '#C9A24D' : accentProp)
+  useEffect(() => {
+    const v = /^var\((--[\w-]+)\)$/.exec(accentProp)
+    if (!v) { setAccent(accentProp); return }
+    const got = boxRef.current ? getComputedStyle(boxRef.current).getPropertyValue(v[1]).trim() : ''
+    if (got) setAccent(got)
+  }, [accentProp])
 
   useEffect(() => {
     if (darkProp !== undefined) return
@@ -97,12 +102,42 @@ export default function HomeAreaMap({ latitude, longitude, address, accent = '#C
       })
       setMap(m)
     }).catch(() => { if (!cancelled) setFailed(true) })
-    api.properties.homeAreasPublic(latitude, longitude).then(r => { if (!cancelled && r.success && r.data) setAreas(r.data) }).catch(() => {})
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [near, latitude, longitude])
 
   useEffect(() => { map?.setOptions({ styles: dark ? DARK : LIGHT }) }, [map, dark])
+
+  const placed = className.split(' ').includes('absolute')   // the caller positions the box itself
+  if (failed) return <div className={`${className} flex items-center justify-center text-sm text-gray-400 dark:text-gray-500`}>Map unavailable right now.</div>
+  return (
+    <div ref={boxRef} className={`${placed ? '' : 'relative'} overflow-hidden ${rounded} ${className}`}>
+      <div ref={divRef} className="h-full w-full" />
+      <HomeAreaOverlay map={map} latitude={latitude} longitude={longitude} accent={accent} dark={dark} />
+    </div>
+  )
+}
+
+/** The lines + the layer switch, on any Google map already showing this home (HomeAreaMap's own,
+ *  or the CMA's comparables map - fit={false} leaves that map's framing alone). Sits in the map's
+ *  positioned box. */
+export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', dark = false, fit = true }: {
+  map: google.maps.Map | null
+  latitude: number
+  longitude: number
+  accent?: string
+  dark?: boolean
+  fit?: boolean
+}) {
+  const [areas, setAreas] = useState<Areas | null>(null)
+  const [layer, setLayer] = useState<Layer>('town')
+
+  useEffect(() => {
+    if (!map) return
+    let cancelled = false
+    api.properties.homeAreasPublic(latitude, longitude).then(r => { if (!cancelled && r.success && r.data) setAreas(r.data) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [map, latitude, longitude])
 
   const muni = areas?.municipality || null
   const neighbors = areas?.neighbors || []
@@ -133,20 +168,18 @@ export default function HomeAreaMap({ latitude, longitude, address, accent = '#C
 
   // Camera: the home's own township (or district), the home always in view.
   useEffect(() => {
-    if (!map) return
+    if (!map || !fit) return
     const focus = active === 'schools' ? districts : muni ? [muni] : []
     if (!focus.length) return
     const b = new google.maps.LatLngBounds()
     focus.forEach(s => s.rings.forEach(r => r.forEach(([lng, lat]) => b.extend({ lat, lng }))))
     b.extend({ lat: latitude, lng: longitude })
     map.fitBounds(b, { top: 52, bottom: 8, left: 8, right: 8 })
-  }, [map, active, muni, districts, latitude, longitude])
+  }, [map, fit, active, muni, districts, latitude, longitude])
 
-  if (failed) return <div className={`${className} flex items-center justify-center text-sm text-gray-400 dark:text-gray-500`}>Map unavailable right now.</div>
   return (
-    <div ref={boxRef} className={`relative overflow-hidden ${rounded} ${className}`}>
-      <div ref={divRef} className="h-full w-full" />
-      <BoundaryCanvas map={map} shapes={shapes} badges={badges} dark={dark} animKey={active} avoid={[{ lat: latitude, lng: longitude }]} />
+    <>
+      <BoundaryCanvas map={map} shapes={shapes} badges={badges} dark={dark} animKey={active} avoid={[{ lat: latitude, lng: longitude }]} topInset={layers.length ? 58 : 14} />
       {layers.length > 0 && (
         <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-2.5">
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
@@ -161,6 +194,6 @@ export default function HomeAreaMap({ latitude, longitude, address, accent = '#C
           </motion.div>
         </div>
       )}
-    </div>
+    </>
   )
 }
