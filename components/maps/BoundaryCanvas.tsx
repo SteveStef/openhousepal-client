@@ -41,6 +41,8 @@ export interface CanvasBadge {
   /** A quiet name tag (no icon) - for the areas around the one that matters (a home's neighbouring
    *  townships). Left off entirely when it doesn't fit inside its own lines. */
   small?: boolean
+  /** A shorter name ("Lower Merion" for "Lower Merion Township") used when the full one won't fit. */
+  short?: string
 }
 
 
@@ -68,7 +70,7 @@ button:hover>span>span>.ohp-dot{box-shadow:0 0 0 3px var(--dot),0 0 0 8px color-
 const ease = [0.16, 1, 0.3, 1] as const
 // An area's name tag (user, 10/18): a small pill in the area's own line colour, so it never blends
 // into the map's printed place names - and it must fit inside its own lines.
-const labelW = (b: CanvasBadge) => 18 + b.title.length * 6.6
+const labelW = (b: CanvasBadge, short = false) => 18 + (short && b.short ? b.short : b.title).length * 6.6
 const PILL_H = 20
 function inkOn(color: string): string {
   const m = color.startsWith('#')
@@ -79,6 +81,13 @@ function inkOn(color: string): string {
 }
 
 type Pt = { x: number; y: number }
+
+// Census (Esri) rings: outer boundaries run clockwise, holes counter-clockwise ([lng, lat]).
+function ringIsHole(r: number[][]): boolean {
+  let a = 0
+  for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length]; a += p[0] * q[1] - q[0] * p[1] }
+  return a > 0
+}
 
 function pip(x: number, y: number, rings: Pt[][]): boolean {
   let inside = false
@@ -248,9 +257,11 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
         continue
       }
       // The name tag sits wholly inside its own lines - clear of the home and school dots if it can.
-      const fullW = labelW(b)
+      // Wholly inside first - the full name, then the short one; only then a little over the line.
+      const fullW = labelW(b), shortW = labelW(b, true)
       tiers.push({ mode: 'full', w: fullW, h: PILL_H, needIn: 8, minClear: 10 }, { mode: 'full', w: fullW, h: PILL_H, needIn: 8, minClear: 3 },
-        { mode: 'full', w: fullW, h: PILL_H, needIn: 7, minClear: 0 }, { mode: 'full', w: fullW, h: PILL_H, needIn: 5, minClear: 0 })
+        { mode: 'title', w: shortW, h: PILL_H, needIn: 8, minClear: 6 }, { mode: 'title', w: shortW, h: PILL_H, needIn: 8, minClear: 0 },
+        { mode: 'title', w: shortW, h: PILL_H, needIn: 7, minClear: 0 }, { mode: 'title', w: shortW, h: PILL_H, needIn: 5, minClear: 0 })
       for (const tier of tiers) {
         const spot = tryFit(tier.w, tier.h, tier.needIn, tier.minClear)
         if (spot) { out.push({ b, x: spot.x, y: spot.y, mode: tier.mode, w: tier.w, h: tier.h }); break }
@@ -277,20 +288,33 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
               const rings = px.get(s.id)
               if (!rings?.length) return null
               const d = path(rings)
+              // A carved-out piece (a borough surrounded by the township - Narberth inside Lower
+              // Merion) is a hole in the area: a thin dashed line, not a second bold outline.
+              const holeAt = s.rings.map(r => ringIsHole(r))
+              const outer = holeAt.some(Boolean) ? path(rings.filter((_, k) => !holeAt[k])) : d
+              const holes = holeAt.some(Boolean) ? path(rings.filter((_, k) => holeAt[k])) : ''
               const lifted = highlight === s.id
               const dimmed = !!highlight && !lifted && !s.dashed
               return (
                 <motion.g key={`${animKey}:${s.id}`} initial={{ opacity: 0 }} animate={{ opacity: dimmed ? 0.35 : 1 }} exit={{ opacity: 0, transition: { duration: 0.35 } }} transition={{ duration: 0.4 }}>
                   {/* soft glow under the line */}
-                  <motion.path d={d} fill="none" stroke={s.color} strokeLinejoin="round" fillRule="evenodd"
+                  <motion.path d={outer} fill="none" stroke={s.color} strokeLinejoin="round" fillRule="evenodd"
                     initial={{ strokeOpacity: 0 }} animate={{ strokeOpacity: lifted ? 0.32 : 0.14, strokeWidth: lifted ? 14 : 9 }} transition={{ duration: 0.6, delay: s.dashed ? 0 : 0.5 + i * 0.12 }} />
                   {s.dashed ? (
                     <path d={d} fill="none" stroke={s.color} strokeWidth={s.width || 3} strokeDasharray="10 7" strokeLinecap="round" className="ohp-ants" />
                   ) : (
-                    <motion.path d={d} stroke={s.color} fill={s.color} fillRule="evenodd" strokeLinejoin="round"
-                      initial={{ pathLength: 0, fillOpacity: 0 }}
-                      animate={{ pathLength: 1, fillOpacity: lifted ? Math.min(0.42, (s.fill ?? 0.14) * 2.4) : (s.fill ?? 0.14), strokeWidth: lifted ? (s.width || 2.5) + 1.5 : (s.width || 2.5) }}
-                      transition={{ pathLength: { duration: 1.3, ease, delay: i * 0.12 }, fillOpacity: { duration: 0.8, delay: 0.7 + i * 0.12 }, strokeWidth: { duration: 0.25 } }} />
+                    <>
+                    <motion.path d={d} stroke="none" fill={s.color} fillRule="evenodd"
+                      initial={{ fillOpacity: 0 }}
+                      animate={{ fillOpacity: lifted ? Math.min(0.42, (s.fill ?? 0.14) * 2.4) : (s.fill ?? 0.14) }}
+                      transition={{ fillOpacity: { duration: 0.8, delay: 0.7 + i * 0.12 } }} />
+                    <motion.path d={outer} stroke={s.color} fill="none" strokeLinejoin="round"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1, strokeWidth: lifted ? (s.width || 2.5) + 1.5 : (s.width || 2.5) }}
+                      transition={{ pathLength: { duration: 1.3, ease, delay: i * 0.12 }, strokeWidth: { duration: 0.25 } }} />
+                    {holes && <motion.path d={holes} stroke={s.color} fill="none" strokeWidth={1.3} strokeDasharray="4 4" strokeLinecap="round"
+                      initial={{ opacity: 0 }} animate={{ opacity: 0.75 }} transition={{ duration: 0.6, delay: 1.2 + i * 0.12 }} />}
+                    </>
                   )}
                 </motion.g>
               )
@@ -303,7 +327,7 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
         <div style={{ position: 'absolute', left: 0, top: 0 }}>
           {/* Badges - each inside its own lines, gliding to a fresh spot on every move */}
           <AnimatePresence>
-            {placed.map(({ b, x, y }, i) => {
+            {placed.map(({ b, x, y, mode }, i) => {
               return (
                 <motion.div key={`${animKey}:${b.id}`} className="pointer-events-none absolute left-0 top-0"
                   initial={{ opacity: 0, scale: 0.6, x, y }} animate={{ opacity: highlight && highlight !== b.shapeId ? 0.45 : 1, scale: 1, x, y }} exit={{ opacity: 0, scale: 0.8 }}
@@ -314,7 +338,7 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
                       <div className="whitespace-nowrap text-[10.5px] font-extrabold uppercase tracking-[0.08em]" style={{ color: card.muted, textShadow: card.halo }}>{b.title}</div>
                     ) : (
                       <div className="whitespace-nowrap rounded-full px-2 py-[3px] text-[10.5px] font-black leading-[14px] tracking-[0.01em] shadow-[0_3px_10px_-3px_rgba(0,0,0,.35)]"
-                        style={{ background: b.color, color: inkOn(b.color) }}>{b.title}</div>
+                        style={{ background: b.color, color: inkOn(b.color) }}>{mode === 'title' && b.short ? b.short : b.title}</div>
                     )}
                   </div>
                 </motion.div>

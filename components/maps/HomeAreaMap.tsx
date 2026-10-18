@@ -36,7 +36,7 @@ const DARK: google.maps.MapTypeStyle[] = [
   { featureType: 'landscape', stylers: [{ color: '#1d2027' }] },
 ]
 
-const kindOf = (name: string) => name.match(/(Township|Borough|Town|City|Village)$/i)?.[1] || ''
+const kindOf = (name: string) => name.match(/(Township|Borough|Town|City|Village|County)$/i)?.[1] || ''
 const shortDistrict = (name: string) => name.replace(/\s+(School District|Sch Dist|SD)$/i, '').replace(/\s+Area$/i, ' Area')
 
 export default function HomeAreaMap({ latitude, longitude, accent: accentProp = '#C9A24D', dark: darkProp, className = 'h-full w-full', rounded = 'rounded-2xl' }: {
@@ -153,7 +153,7 @@ export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', 
   const badges: CanvasBadge[] = useMemo(() => {
     if (active === 'schools') return districts.map((d, i) => ({ id: `b:sd:${d.geoid}`, shapeId: `sd:${d.geoid}`, title: shortDistrict(d.name), color: DISTRICTS[i % DISTRICTS.length], icon: 'school' as const }))
     if (!muni) return []
-    return [{ id: `b:mu:${muni.geoid}`, shapeId: `mu:${muni.geoid}`, title: muni.name, color: accent, icon: 'gov' as const }]
+    return [{ id: `b:mu:${muni.geoid}`, shapeId: `mu:${muni.geoid}`, title: muni.name, short: muni.name.replace(/\s+(Township|Borough|Town|City|Village|County)$/i, ''), color: accent, icon: 'gov' as const }]
   }, [active, muni, districts, accent])
 
   // Camera: the home's own township (or district), the home always in view.
