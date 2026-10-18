@@ -605,9 +605,16 @@ export function BusinessCard({ photo, name, title, brokerage, market, phone, ema
           <div style={{ display: 'flex', width: 120, height: 2, backgroundColor: look.base, marginTop: 26, marginBottom: 22 }} />
           {phone ? <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 26, fontWeight: 800, color: ink }}><Ico d={ICON.phone} color={look.base} /> {fmtPhone(phone)}</div> : null}
           {email ? <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: email.length > 30 ? 20 : 24, fontWeight: 700, color: ink, marginTop: 10 }}><Ico d={ICON.mail} color={look.base} /> {email}</div> : null}
+          {/* What the link opens (user, 10/18): their About page, then the socials it links to. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 50, padding: '0 22px', borderRadius: 999, fontSize: 18, fontWeight: 900,
+              backgroundImage: `linear-gradient(135deg, ${look.light}, ${look.base})`, color: look.dark ? '#0b0b0c' : '#16130e', boxShadow: `0 12px 26px -14px ${look.deep}` }}>
+              See my About page
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={look.dark ? '#0b0b0c' : '#16130e'} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
+            </div>
           {socials.length ? (
-            <div style={{ display: 'flex', gap: 12, marginTop: 28 }}>
-              {socials.slice(0, 6).map(sc => (
+            <div style={{ display: 'flex', gap: 10 }}>
+              {socials.slice(0, 4).map(sc => (
                 <div key={sc} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 50, height: 50, borderRadius: 999, border: `2px solid ${look.base}`,
                   backgroundColor: look.dark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.6)' }}>
                   <Ico d={ICON[sc]} size={24} color={look.dark ? look.light : look.deep} />
@@ -615,6 +622,7 @@ export function BusinessCard({ photo, name, title, brokerage, market, phone, ema
               ))}
             </div>
           ) : null}
+          </div>
         </div>
       </div>
     </div>
