@@ -262,7 +262,7 @@ export default function CalendarSyncDemo() {
                 <p className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-gray-400"><Mail className="h-3 w-3" /> Forwarded email</p>
                 <p className="mt-1 text-[11px] font-black text-[#006AFF]">New Zillow lead</p>
                 <p className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Jordan K. is interested in {REAL_SPOTLIGHT.address}, Exton</p>
-                <p className="mt-1.5 truncate rounded-md bg-gray-100 px-1.5 py-1 font-mono text-[8.5px] text-gray-500 dark:bg-white/10">To: leads-7f3k@parse.openhousepal.com</p>
+                <p className="mt-1.5 truncate rounded-md bg-gray-100 px-1.5 py-1 font-mono text-[8.5px] text-gray-500 dark:bg-white/10">To: leads-7f3k@mg.openhousepal.com</p>
               </div>
               <ArrowRight className={`h-6 w-6 shrink-0 text-[#C9A24D] transition-opacity duration-500 ${tick >= 4 ? 'opacity-100' : 'opacity-30'}`} />
               <div className="w-[230px] rounded-2xl border border-gray-200 bg-white p-2 shadow-xl dark:border-gray-800 dark:bg-[#151517]">
