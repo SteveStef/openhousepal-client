@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { GraduationCap, Landmark, MapPinned, School } from 'lucide-react'
 
 // Animated boundary lines, school dots and name badges drawn on top of a Google map - shared by the
 // IDX town page map (website-public/TownMap) and the Showcase editor's search-area highlight.
@@ -44,7 +43,6 @@ export interface CanvasBadge {
   small?: boolean
 }
 
-const ICONS = { school: GraduationCap, town: MapPinned, gov: Landmark, county: MapPinned }
 
 // Lives with the component (it renders inside Google's panes, on the IDX site and in the app alike).
 const CANVAS_CSS = `
@@ -68,6 +66,8 @@ button:hover>span>span>.ohp-dot{box-shadow:0 0 0 3px var(--dot),0 0 0 8px color-
 @media (prefers-reduced-motion:reduce){.ohp-ants,.ohp-badge-ring::before{animation:none}}
 `
 const ease = [0.16, 1, 0.3, 1] as const
+// An in-area label's footprint: UPPERCASE name (~9px a letter) over a smaller caption (~7px).
+const labelW = (b: CanvasBadge) => 12 + Math.max(b.title.length * 9, (b.sub || '').length * 7)
 
 type Pt = { x: number; y: number }
 
@@ -191,8 +191,8 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
       return !!rings?.length && pip(cx0, cy0, rings) && corners.filter(([x, y]) => pip(x, y, rings)).length >= 3
     })
     if (filling) {
-      const w = Math.min(260, 66 + Math.max(filling.title.length * 8, (filling.sub || '').length * 7.2))
-      out.push({ b: filling, x: view.x0 + w / 2, y: view.y0 + (topInset > 14 ? 0 : 46) + 27, mode: 'full', w, h: 54 })
+      const w = labelW(filling)
+      out.push({ b: filling, x: view.x0 + w / 2, y: view.y0 + (topInset > 14 ? 0 : 46) + 16, mode: 'full', w, h: 32 })
     }
     for (const b of badges) {
       if (b === filling) continue
@@ -228,21 +228,21 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
         }
         return best
       }
-      // Biggest badge that fits: name + caption, then name only, then the icon - always somewhere.
       const tiers: { mode: 'full' | 'title' | 'icon'; w: number; h: number; needIn: number; minClear: number }[] = []
       if (b.small) {
-        const sw = 22 + b.title.length * 6.6
+        const sw = 10 + b.title.length * 7.4
         for (const tier of [{ needIn: 8, minClear: 8 }, { needIn: 6, minClear: 4 }]) {
-          const spot = tryFit(sw, 24, tier.needIn, tier.minClear)
-          if (spot) { out.push({ b, x: spot.x, y: spot.y, mode: 'title', w: sw, h: 24 }); break }
+          const spot = tryFit(sw, 16, tier.needIn, tier.minClear)
+          if (spot) { out.push({ b, x: spot.x, y: spot.y, mode: 'title', w: sw, h: 16 }); break }
         }
         continue
       }
-      const fullW = Math.min(260, 66 + Math.max(b.title.length * 8, (b.sub || '').length * 7.2))
-      const titleW = Math.min(240, 62 + b.title.length * 8)
-      tiers.push({ mode: 'full', w: fullW, h: 54, needIn: 8, minClear: 12 }, { mode: 'full', w: fullW, h: 54, needIn: 6, minClear: 5 },
-        { mode: 'title', w: titleW, h: 46, needIn: 6, minClear: 5 }, { mode: 'full', w: fullW, h: 54, needIn: 4, minClear: 5 },
-        { mode: 'title', w: titleW, h: 46, needIn: 3, minClear: 4 }, { mode: 'icon', w: 46, h: 46, needIn: 5, minClear: 4 }, { mode: 'icon', w: 46, h: 46, needIn: 1, minClear: 0 })
+      // Biggest label that fits inside its own lines: name + caption, then the name alone.
+      const fullW = labelW(b)
+      const titleW = 12 + b.title.length * 9
+      tiers.push({ mode: 'full', w: fullW, h: 32, needIn: 8, minClear: 10 }, { mode: 'full', w: fullW, h: 32, needIn: 6, minClear: 5 },
+        { mode: 'title', w: titleW, h: 18, needIn: 6, minClear: 5 }, { mode: 'full', w: fullW, h: 32, needIn: 4, minClear: 4 },
+        { mode: 'title', w: titleW, h: 18, needIn: 3, minClear: 3 }, { mode: 'title', w: titleW, h: 18, needIn: 1, minClear: 0 })
       for (const tier of tiers) {
         const spot = tryFit(tier.w, tier.h, tier.needIn, tier.minClear)
         if (spot) { out.push({ b, x: spot.x, y: spot.y, mode: tier.mode, w: tier.w, h: tier.h }); break }
@@ -255,8 +255,8 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
   if (!panes || !proj) return null
   const path = (rings: Pt[][]) => rings.map(r => 'M' + r.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('L') + 'Z').join('')
   const card = dark
-    ? { bg: 'rgba(17,20,26,.92)', ink: '#f3f4f6', muted: '#9ca3af', line: 'rgba(255,255,255,.12)' }
-    : { bg: 'rgba(255,255,255,.94)', ink: '#111827', muted: '#6b7280', line: 'rgba(17,24,39,.10)' }
+    ? { bg: 'rgba(17,20,26,.92)', ink: '#f3f4f6', muted: '#9ca3af', line: 'rgba(255,255,255,.12)', halo: '0 0 2px #11141a, 0 0 4px #11141a, 0 0 8px rgba(17,20,26,.9)' }
+    : { bg: 'rgba(255,255,255,.94)', ink: '#111827', muted: '#4b5563', line: 'rgba(17,24,39,.10)', halo: '0 0 2px #fff, 0 0 4px #fff, 0 0 8px rgba(255,255,255,.95)' }
   const shown = activeMarker || hoverMarker
 
   return (
@@ -296,8 +296,6 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
           {/* Badges - each inside its own lines, gliding to a fresh spot on every move */}
           <AnimatePresence>
             {placed.map(({ b, x, y, mode }, i) => {
-              const compact = mode === 'icon'
-              const Icon = ICONS[b.icon] || School
               return (
                 <motion.div key={`${animKey}:${b.id}`} className="pointer-events-none absolute left-0 top-0"
                   initial={{ opacity: 0, scale: 0.6, x, y }} animate={{ opacity: highlight && highlight !== b.shapeId ? 0.45 : 1, scale: 1, x, y }} exit={{ opacity: 0, scale: 0.8 }}
@@ -305,23 +303,12 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
                   style={{ zIndex: 5 }}>
                   <div className="ohp-badge -translate-x-1/2 -translate-y-1/2" style={{ ['--badge' as any]: b.color }}>
                     {b.small ? (
-                      <div className="whitespace-nowrap rounded-full border px-2.5 py-[3px] text-[11px] font-black tracking-[-0.01em] shadow-md"
-                        style={{ background: card.bg, borderColor: card.line, color: card.ink }}>{b.title}</div>
+                      <div className="whitespace-nowrap text-[10.5px] font-extrabold uppercase tracking-[0.08em]" style={{ color: card.muted, textShadow: card.halo }}>{b.title}</div>
                     ) : (
-                    <div className={`flex items-center gap-2.5 ${compact ? '' : 'pr-3.5'} rounded-full border shadow-xl `}
-                      style={{ background: card.bg, borderColor: card.line, padding: compact ? 4 : '5px 14px 5px 5px', boxShadow: `0 14px 34px -14px ${b.color}aa, 0 2px 8px rgba(0,0,0,.12)` }}>
-                      <span className="ohp-badge-ring relative flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full">
-                        <span className="relative flex h-[30px] w-[30px] items-center justify-center rounded-full text-white" style={{ background: `linear-gradient(140deg, ${b.color}, ${b.color}cc)` }}>
-                          <Icon className="h-[15px] w-[15px]" />
-                        </span>
-                      </span>
-                      {!compact && (
-                        <span className="min-w-0 leading-tight">
-                          <span className="block whitespace-nowrap text-[13px] font-black tracking-[-0.01em]" style={{ color: card.ink }}>{b.title}</span>
-                          {b.sub && mode === 'full' && <span className="block whitespace-nowrap text-[10.5px] font-bold uppercase tracking-[0.12em]" style={{ color: b.color }}>{b.sub}</span>}
-                        </span>
-                      )}
-                    </div>
+                      <div className="whitespace-nowrap text-center leading-none" style={{ textShadow: card.halo }}>
+                        <div className="text-[12.5px] font-black uppercase tracking-[0.06em]" style={{ color: card.ink }}>{b.title}</div>
+                        {b.sub && mode === 'full' && <div className="mt-[3px] text-[9px] font-extrabold uppercase tracking-[0.14em]" style={{ color: b.color }}>{b.sub}</div>}
+                      </div>
                     )}
                   </div>
                 </motion.div>

@@ -371,11 +371,12 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
         {!home && (
           <motion.ol initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
             className="mt-6 flex items-center justify-center gap-1.5 whitespace-nowrap text-[9px] font-black uppercase tracking-[0.1em] text-gray-400 sm:gap-2 sm:text-[10px] sm:tracking-[0.18em]">
-            {['Find the home', 'Pick your times', 'Get confirmed'].map((label, i) => (
+            {/* Short words on a phone so the row always fits (user, 10/18): Find · Pick times · Confirm. */}
+            {([['Find the home', 'Find'], ['Pick your times', 'Pick times'], ['Get confirmed', 'Confirm']] as const).map(([label, short], i) => (
               <li key={label} className="flex items-center gap-1.5 sm:gap-2">
-                {i > 0 && <span className="hidden h-px w-5 bg-gray-300 dark:bg-white/15 sm:block" />}
+                {i > 0 && <span className="h-px w-3 bg-gray-300 dark:bg-white/15 sm:w-5" />}
                 <span className={`grid h-5 w-5 place-items-center rounded-full text-[9px] ${i === 0 ? 'bg-[#C9A24D] text-[#111827]' : 'bg-gray-200 text-gray-500 dark:bg-white/10 dark:text-gray-400'}`}>{i + 1}</span>
-                <span className={i === 0 ? 'text-[#111827] dark:text-white' : ''}>{label}</span>
+                <span className={i === 0 ? 'text-[#111827] dark:text-white' : ''}><span className="sm:hidden">{short}</span><span className="hidden sm:inline">{label}</span></span>
               </li>
             ))}
           </motion.ol>
