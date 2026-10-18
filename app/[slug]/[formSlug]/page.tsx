@@ -9,6 +9,7 @@ import ShowingRequestFlow, { canUseShowingFlow } from '@/components/forms/Showin
 import { PublicFormConfig } from '@/types'
 import api, { API_BASE_URL } from '@/lib/api-service'
 import { useForcedLightMode } from '@/lib/useForcedLightMode'
+import useHubColorMode from '@/components/agent-hub/useHubColorMode'
 
 function generateSessionKey() {
   return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -66,6 +67,9 @@ export default function PublicFormPage() {
   const sessionKeyRef = useRef(generateSessionKey())
   const visitRef = useRef<FormVisitContext | null>(null)
   useForcedLightMode(forceLightMode)
+  // The form's own light/dark choice, never the app's: an agent who uses OpenHousePal in dark mode
+  // put 'dark' on <html> for this whole browser, turning a light form's text white (user, 10/18).
+  useHubColorMode(!!form?.darkMode, !!form && !forceLightMode)
 
   useEffect(() => {
     const fetchForm = async () => {
