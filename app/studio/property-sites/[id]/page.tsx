@@ -985,11 +985,12 @@ function PropertySiteEditorPage() {
               const liveDone = x.key === 'review' && live
               return (
                 <li key={x.key} className="relative flex items-center">
-                  {i > 0 && <span aria-hidden className={`h-px w-2 sm:w-3 ${i <= stepIndex ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-white/10'}`} />}
-                  <button onClick={() => goStep(x.key)} className={`relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black transition-colors duration-300 ${on ? (liveDone ? 'text-white' : 'text-white dark:text-[#111827]') : liveDone ? 'text-emerald-700 dark:text-emerald-300' : done ? 'text-[#8b6a2b] hover:text-[#111827] dark:text-[#e8c97a] dark:hover:text-white' : 'text-gray-400 hover:text-[#111827] dark:hover:text-white'}`}>
+                  {i > 0 && <span aria-hidden className={`hidden h-px w-3 sm:block ${i <= stepIndex ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-white/10'}`} />}
+                  <button onClick={() => goStep(x.key)} aria-label={x.label} className={`relative flex items-center gap-1.5 rounded-full py-1.5 text-[11px] font-black ${on ? 'px-3' : 'px-1 sm:px-3'} transition-colors duration-300 ${on ? (liveDone ? 'text-white' : 'text-white dark:text-[#111827]') : liveDone ? 'text-emerald-700 dark:text-emerald-300' : done ? 'text-[#8b6a2b] hover:text-[#111827] dark:text-[#e8c97a] dark:hover:text-white' : 'text-gray-400 hover:text-[#111827] dark:hover:text-white'}`}>
                     {on && <motion.span layoutId="spStepPill" transition={{ type: 'spring', stiffness: 420, damping: 34 }} className={`absolute inset-0 rounded-full shadow-[0_8px_20px_-10px_rgba(17,24,39,.8)] ${liveDone ? 'bg-emerald-600' : 'bg-gradient-to-br from-[#111827] to-[#2a2218] ring-1 ring-[#C9A24D]/50 dark:from-white dark:to-[#fbf3df]'}`} />}
                     <span className={`relative flex h-5 w-5 items-center justify-center rounded-full text-[10px] transition-colors duration-300 ${liveDone ? 'bg-emerald-500 text-white' : on ? 'bg-gradient-to-br from-[#e8c97a] to-[#C9A24D] text-[#111827] shadow-[0_0_10px_rgba(201,162,77,.6)]' : done ? 'bg-[#C9A24D]/15 text-[#8b6a2b] dark:text-[#e8c97a]' : 'bg-gray-100 dark:bg-white/10'}`}>{done || liveDone ? <Check className="h-3 w-3" /> : i + 1}</span>
-                    <span className="relative whitespace-nowrap">{liveDone ? 'Live - done' : x.label}</span>
+                    {/* Phones: only the current step is named, so the whole rail fits the screen (user, 10/17). */}
+                    <span className={`relative whitespace-nowrap ${on ? '' : 'hidden sm:inline'}`}>{liveDone ? 'Live - done' : x.label}</span>
                   </button>
                 </li>
               )
@@ -1376,8 +1377,8 @@ function PropertySiteEditorPage() {
                   <div className="relative overflow-hidden bg-gradient-to-br from-[#0f1a17] via-[#111827] to-[#3a2c14] p-5 text-white sm:p-7">
                     <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#C9A24D]/25 blur-3xl" />
                     <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl" />
-                    <div className="relative grid items-center gap-6 lg:grid-cols-[1.3fr_1fr]">
-                      <ScaledPreview src={`/spotlight-preview/${templateId}?site=${site.id}&embed=1`} aspect={0.6} label={`${site.slug}.openhousepal.com`} />
+                    <div className="relative grid grid-cols-1 items-center gap-6 lg:grid-cols-[1.3fr_1fr]">
+                      <ScaledPreview className="min-w-0" src={`/spotlight-preview/${templateId}?site=${site.id}&embed=1`} aspect={0.6} label={`${site.slug}.openhousepal.com`} />
                       <div>
                         <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-[#e8c97a]"><span className="h-px w-6 bg-[#e8c97a]" /> Step 9 · Review &amp; publish</p>
                         <h3 className="mt-2 font-serif text-3xl font-black leading-[1.05] sm:text-4xl">{live ? <>Your page is <em className="font-light text-[#e8c97a]">live.</em></> : <>Your page is <em className="font-light text-[#e8c97a]">ready.</em></>}</h3>
@@ -1393,7 +1394,7 @@ function PropertySiteEditorPage() {
                             </button>
                           )}
                           <button onClick={async () => { const url = `/spotlight-preview/${templateId}?site=${site.id}`; const w = window.open('about:blank', '_blank'); if (dirty) await save(); if (w) w.location.href = url; else window.open(url, '_blank') }}
-                            className={`inline-flex items-center justify-center gap-1.5 rounded-2xl border border-white/20 bg-white/5 px-5 py-3.5 text-sm font-black text-white transition hover:border-[#e8c97a] hover:bg-white/10 ${live ? 'flex-1' : ''}`}>
+                            className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-2xl border border-white/20 bg-white/5 px-4 py-3.5 text-sm font-black text-white transition hover:border-[#e8c97a] hover:bg-white/10 ${live ? 'flex-1' : ''}`}>
                             <Eye className="h-4 w-4" /> Preview my page
                           </button>
                           {live && (

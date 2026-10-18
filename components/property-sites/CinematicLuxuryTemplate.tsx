@@ -285,15 +285,14 @@ function NavBar({ items, m, logoUrl, onShare, allowTour }: { items: NavItem[]; m
       <nav className={`fixed inset-x-0 top-0 z-[90] transition-all duration-500 ${solid ? 'border-b border-white/[0.07] bg-[#0A0A0A]/80 ' : 'bg-gradient-to-b from-black/60 to-transparent'}`}>
         <div className={`flex w-full items-center justify-between gap-4 px-5 transition-all duration-500 sm:px-10 xl:px-14 ${solid ? 'h-16' : 'h-20'}`}>
           <button onClick={() => goTo('overview')} className="flex min-w-0 items-center gap-3 text-left" aria-label="Back to top">
-            {logoUrl ? (
-              <img src={logoUrl} alt={m.agent?.brokerage || m.agent?.name || ''} className="h-8 max-w-[140px] object-contain brightness-0 invert" />
-            ) : (
-              <Monogram agent={m.agent} size={34} />
-            )}
-            <span className="hidden min-w-0 flex-col sm:flex">
+            {/* The agent - photo, name, brokerage - on every screen (user, 10/17: phones showed only
+                a logo). A brokerage logo sits beside them on big screens. */}
+            <Monogram agent={m.agent} size={38} />
+            <span className="flex min-w-0 flex-col">
               <span className="truncate text-[13px] font-medium leading-tight">{m.agent?.name || p0(m.p.address)}</span>
-              {m.agent?.brokerage && <span className="truncate text-[11px] leading-tight text-white/50">{m.agent.brokerage}</span>}
+              {m.agent?.brokerage && <span className="truncate text-[11px] leading-tight text-white/55">{m.agent.brokerage}</span>}
             </span>
+            {logoUrl && <img src={logoUrl} alt={m.agent?.brokerage || ''} className="ml-2 hidden h-7 max-w-[120px] shrink-0 border-l border-white/15 pl-4 object-contain brightness-0 invert lg:block" />}
           </button>
 
           <div className="hidden items-center gap-0.5 xl:flex">
@@ -453,18 +452,18 @@ function Hero({ m, imgRef, onPhotos, allowTour }: { m: SpotlightModel; imgRef: R
           )}
           {oh && <OpenHouseChip oh={oh} onClick={() => scrollToId('open-houses')} className="cl-hero-chip rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition hover:bg-white/20" />}
         </div>
-        {m.cityState && <p className="cl-hero-chip mt-6 text-[11px] font-medium uppercase tracking-[0.42em] text-white/70">{[p.city, p.state, p.zipcode].filter(Boolean).join(' · ')}</p>}
+        {m.cityState && <p className="cl-hero-chip mt-4 text-[11px] font-medium sm:mt-6 uppercase tracking-[0.42em] text-white/70">{[p.city, p.state, p.zipcode].filter(Boolean).join(' · ')}</p>}
         <h1 className="sp-display mt-3 font-light leading-[0.9] tracking-[-0.02em]" style={fitLine(street, '8.4rem', 185)}>
           <span className="block overflow-hidden pb-[0.06em]"><span className="cl-hero-line cl-glint block">{street}</span></span>
         </h1>
 
-        <div className="relative mt-8 flex flex-col gap-6 pt-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative mt-5 flex flex-col gap-4 pt-4 sm:mt-8 sm:gap-6 sm:pt-6 lg:flex-row lg:items-end lg:justify-between">
           <span className="cl-hero-rule absolute inset-x-0 top-0 h-px bg-gradient-to-r from-[color:var(--sp-accent)] via-white/25 to-white/5" />
-          <div className="cl-hero-facts flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-8">
+          <div className="cl-hero-facts flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4 sm:gap-x-8">
             {fmtMoney(p.price) && (
               <div>
                 <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-white/50">{m.status?.kind === 'sold' ? 'Sold' : 'Offered at'}</p>
-                <p className="cl-gold-text sp-display mt-1 text-4xl font-normal leading-none tabular-nums sm:text-5xl">{fmtMoney(p.price)}</p>
+                <p className="cl-gold-text sp-display mt-1 text-[2rem] font-normal leading-none tabular-nums sm:text-5xl">{fmtMoney(p.price)}</p>
               </div>
             )}
             {facts.length > 0 && (
@@ -472,19 +471,19 @@ function Hero({ m, imgRef, onPhotos, allowTour }: { m: SpotlightModel; imgRef: R
               <div className="grid sm:flex sm:gap-x-8" style={{ gridTemplateColumns: `repeat(${facts.length}, minmax(0, 1fr))` }}>
                 {facts.map((f, i) => (
                   <div key={f.l} className={`border-white/15 sm:border-l sm:pl-8 ${i ? 'border-l pl-3' : ''}`}>
-                    <p className="sp-display text-[1.7rem] leading-none tabular-nums sm:text-4xl"><CountUp value={f.v} /></p>
+                    <p className="sp-display text-[1.4rem] leading-none tabular-nums sm:text-4xl"><CountUp value={f.v} /></p>
                     <p className="mt-1.5 text-[9px] font-medium uppercase tracking-[0.22em] text-white/55 sm:text-[10px] sm:tracking-[0.28em]">{f.l}</p>
                   </div>
                 ))}
               </div>
             )}
           </div>
-          <div className="cl-hero-facts flex flex-wrap gap-2.5">
-            <button onClick={() => openLeadForm(allowTour ? 'tour' : 'info')} className="cl-cta group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[color:var(--sp-accent)] px-6 py-3.5 text-sm font-semibold text-[color:var(--sp-on-accent)] shadow-[0_18px_40px_-14px_color-mix(in_srgb,var(--sp-accent)_80%,transparent)] transition hover:-translate-y-0.5 hover:brightness-110">
+          <div className="cl-hero-facts flex gap-2 sm:flex-wrap sm:gap-2.5">
+            <button onClick={() => openLeadForm(allowTour ? 'tour' : 'info')} className="cl-cta group relative inline-flex min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-full bg-[color:var(--sp-accent)] px-4 py-3 text-[13px] font-semibold sm:flex-none sm:px-6 sm:py-3.5 sm:text-sm text-[color:var(--sp-on-accent)] shadow-[0_18px_40px_-14px_color-mix(in_srgb,var(--sp-accent)_80%,transparent)] transition hover:-translate-y-0.5 hover:brightness-110">
               {allowTour ? 'Book a private tour' : 'Ask about this home'} <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
             </button>
             {m.photos.length > 1 && (
-              <button onClick={onPhotos} className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-black/20 px-6 py-3.5 text-sm font-medium transition hover:border-white/60">
+              <button onClick={onPhotos} className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-white/25 bg-black/20 px-4 py-3 text-[13px] font-medium transition hover:border-white/60 sm:px-6 sm:py-3.5 sm:text-sm">
                 <Grid3x3 className="h-4 w-4" /> {m.photos.length} photos
               </button>
             )}

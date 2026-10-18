@@ -306,20 +306,20 @@ function Cover({ m, onPhotos, allowTour }: { m: SpotlightModel; onPhotos: () => 
           <h1 className="sp-display ee-cover-title" style={{ fontSize: `clamp(1.3rem, ${Math.min(9.4, 132 / Math.max(title.length, 8)).toFixed(2)}vw, 9.4rem)` }}>
             <span className="whitespace-nowrap">{first && <i>{first} </i>}{rest}</span>
           </h1>
-          <div className="ee-cover-rule mt-8 grid gap-6 pt-6 md:grid-cols-[auto_1fr_auto] md:items-end md:gap-10">
+          <div className="ee-cover-rule mt-4 grid gap-3.5 pt-4 sm:mt-8 sm:gap-6 sm:pt-6 md:grid-cols-[auto_1fr_auto] md:items-end md:gap-10">
             {fmtMoney(p.price) && (
               <div>
                 <p className="sp-mono text-[10px] uppercase tracking-[0.2em] opacity-70">{m.status?.kind === 'sold' ? 'Sold for' : 'Offered at'}</p>
-                <p className="sp-display mt-1 text-4xl tabular-nums sm:text-5xl">{fmtMoney(p.price)}</p>
+                <p className="sp-display mt-1 text-[2rem] leading-none tabular-nums sm:text-5xl">{fmtMoney(p.price)}</p>
               </div>
             )}
-            {stats.length > 0 && <p className="sp-mono text-[11px] uppercase tracking-[0.2em] opacity-85">{stats.join('   /   ')}</p>}
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => openLeadForm(allowTour ? 'tour' : 'info')} className="ee-cover-btn is-primary sp-mono">
+            {stats.length > 0 && <p className="sp-mono text-[10px] uppercase tracking-[0.16em] opacity-85 sm:text-[11px] sm:tracking-[0.2em]">{stats.join('   /   ')}</p>}
+            <div className="flex gap-2 sm:flex-wrap">
+              <button onClick={() => openLeadForm(allowTour ? 'tour' : 'info')} className="ee-cover-btn is-primary sp-mono max-sm:!min-w-0 max-sm:!flex-1 max-sm:!justify-center max-sm:!whitespace-nowrap max-sm:!px-3">
                 {allowTour ? 'Arrange a viewing' : 'Enquire'} <ArrowRight className="h-3.5 w-3.5" />
               </button>
               {m.photos.length > 1 && (
-                <button onClick={onPhotos} className="ee-cover-btn sp-mono">{m.photos.length} photographs</button>
+                <button onClick={onPhotos} className="ee-cover-btn sp-mono max-sm:!shrink-0 max-sm:!whitespace-nowrap max-sm:!px-3"><span className="sm:hidden">{m.photos.length} photos</span><span className="hidden sm:inline">{m.photos.length} photographs</span></button>
               )}
             </div>
           </div>
