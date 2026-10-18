@@ -515,14 +515,21 @@ const pickImg = (items: any[]): string | null => {
 }
 
 // The Agent Hub is the agent's link-in-bio, so its preview is a business card (user, 10/18): their
-// photo, name, title, brokerage, market and how to reach them - no stats, no web address and no
-// listing photo (a home there read as "this link is about a house").
+// photo, name, title, brokerage, market, phone, email and the socials their hub links to - no
+// stats, web address, buttons or listing photo. Dressed in the hub's own look: the Luxe metal
+// (gold / silver / bronze) or the Classic accent, light or dark - whatever the agent picked.
 const ICON = {
   phone: ['M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z'],
   mail: ['M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z', 'M22 6l-10 7L2 6'],
   pin: ['M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z', 'M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'],
+  instagram: ['M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z', 'M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z', 'M17.5 6.5h.01'],
+  facebook: ['M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z'],
+  youtube: ['M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z', 'M9.75 15.02l5.75-3.27-5.75-3.27v6.54z'],
+  linkedin: ['M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z', 'M2 9h4v12H2z', 'M4 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4z'],
+  tiktok: ['M9 12a4 4 0 1 0 4 4V2a5 5 0 0 0 5 5'],
+  globe: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z', 'M2 12h20', 'M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z'],
 }
-function Ico({ d, size = 22, color = C.gold }: { d: string[]; size?: number; color?: string }) {
+function Ico({ d, size = 22, color }: { d: string[]; size?: number; color: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
       {d.map((seg, i) => <path key={i} d={seg} />)}
@@ -534,56 +541,87 @@ const fmtPhone = (v?: string | null) => {
   return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : (v || '')
 }
 
-export function BusinessCard({ photo, name, title, brokerage, market, phone, email }: {
-  photo: string | null; name: string; title: string | null; brokerage: string | null; market: string | null; phone: string | null; email: string | null
+// The hub's palette. Luxe metals mirror HubLuxeTheme's --m-* variables; Classic derives light / deep
+// tones from the agent's accent.
+type HubLook = { base: string; light: string; deep: string; wash: [string, string, string]; night: [string, string, string]; dark: boolean }
+const LUXE: Record<string, Omit<HubLook, 'dark'>> = {
+  gold: { base: '#C9A24D', light: '#e8c97a', deep: '#8b6a2b', wash: ['#fffdf8', '#fbf3df', '#f6e7c4'], night: ['#07110e', '#0d1626', '#1d1810'] },
+  silver: { base: '#A9AFB7', light: '#e3e7ec', deep: '#6b717a', wash: ['#ffffff', '#f1f3f5', '#e6e9ed'], night: ['#080b14', '#121428', '#1a1d22'] },
+  bronze: { base: '#A9714B', light: '#dba47c', deep: '#6e4426', wash: ['#fffaf6', '#f7e8dc', '#f0dccb'], night: ['#071010', '#1a1020', '#20150e'] },
+}
+function mixHex(a: string, b: string, t: number) {
+  const p = (h: string) => { const x = h.replace('#', ''); const n = parseInt(x.length === 3 ? x.split('').map(c => c + c).join('') : x, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255] }
+  const [r1, g1, b1] = p(a), [r2, g2, b2] = p(b)
+  const h = (v: number) => Math.round(v).toString(16).padStart(2, '0')
+  return `#${h(r1 + (r2 - r1) * t)}${h(g1 + (g2 - g1) * t)}${h(b1 + (b2 - b1) * t)}`
+}
+function hubLook(cfg: any): HubLook {
+  const dark = !!cfg?.visitorDarkMode
+  if (cfg?.hubTheme === 'luxe' || !cfg?.hubTheme) return { ...(LUXE[cfg?.hubLuxeMetal] || LUXE.gold), dark }
+  const accent = /^#[0-9a-f]{3,6}$/i.test(String(cfg?.hubAccent || '')) ? String(cfg.hubAccent) : '#C9A24D'
+  return {
+    base: accent, light: mixHex(accent, '#ffffff', 0.4), deep: mixHex(accent, '#111111', 0.35),
+    wash: ['#ffffff', mixHex(accent, '#ffffff', 0.93), mixHex(accent, '#ffffff', 0.84)],
+    night: ['#0b0b0c', '#141416', mixHex(accent, '#0b0b0c', 0.85)], dark,
+  }
+}
+
+export function BusinessCard({ photo, name, title, brokerage, market, phone, email, socials, look }: {
+  photo: string | null; name: string; title: string | null; brokerage: string | null; market: string | null
+  phone: string | null; email: string | null; socials: (keyof typeof ICON)[]; look: HubLook
 }) {
-  const ink = '#16130e'
-  const sub = '#6b5a3c'
-  const actions = [phone && 'Call', phone && 'Text', email && 'Email', 'Save my contact'].filter(Boolean) as string[]
+  const ink = look.dark ? '#F3ECDD' : '#16130e'
+  const sub = look.dark ? 'rgba(243,236,221,0.72)' : mixHex(look.deep, '#16130e', 0.25)
+  const cardBg = look.dark ? `linear-gradient(135deg, ${look.night[0]} 0%, ${look.night[1]} 55%, ${look.night[2]} 100%)` : `linear-gradient(135deg, ${look.wash[0]} 0%, ${look.wash[1]} 55%, ${look.wash[2]} 100%)`
+  const outer = look.dark ? `radial-gradient(900px 520px at 85% 0%, ${mixHex(look.base, '#000000', 0.7)} 0%, #0d0d0f 60%, #070708 100%)` : `radial-gradient(900px 520px at 85% 0%, ${mixHex(look.base, '#1a150d', 0.6)} 0%, #16120c 58%, #0d0b08 100%)`
+  const label = look.dark ? look.light : look.deep
   return (
-    <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: C.bgBot,
-      backgroundImage: `radial-gradient(900px 520px at 85% 0%, ${C.bgTop} 0%, ${C.bgMid} 55%, ${C.bgBot} 100%)`, alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: '#0d0b08',
+      backgroundImage: outer, alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ display: 'flex', position: 'relative', width: 1060, height: 500, borderRadius: 30, overflow: 'hidden',
-        backgroundImage: 'linear-gradient(135deg, #fffdf8 0%, #f8f0df 55%, #efe1c2 100%)', boxShadow: '0 40px 90px -30px rgba(0,0,0,0.85)', border: `2px solid ${C.goldLight}` }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 10, display: 'flex', backgroundImage: `linear-gradient(90deg, #8B6A2B, ${C.gold}, ${C.goldLight}, ${C.gold}, #8B6A2B)` }} />
-        <div style={{ position: 'absolute', top: 30, left: 30, right: 30, bottom: 30, display: 'flex', border: '1px solid rgba(201,162,77,0.45)', borderRadius: 20 }} />
+        backgroundImage: cardBg, boxShadow: '0 40px 90px -30px rgba(0,0,0,0.85)', border: `2px solid ${look.light}` }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 10, display: 'flex', backgroundImage: `linear-gradient(90deg, ${look.deep}, ${look.base}, ${look.light}, ${look.base}, ${look.deep})` }} />
+        <div style={{ position: 'absolute', top: 30, left: 30, right: 30, bottom: 30, display: 'flex', border: `1px solid ${look.base}66`, borderRadius: 20 }} />
         <div style={{ display: 'flex', alignItems: 'center', padding: '0 0 0 66px' }}>
-          <div style={{ display: 'flex', padding: 7, borderRadius: 34, backgroundImage: `linear-gradient(140deg, ${C.goldLight}, ${C.gold} 60%, #8B6A2B)`, boxShadow: '0 24px 50px -20px rgba(139,106,43,0.7)' }}>
+          <div style={{ display: 'flex', padding: 7, borderRadius: 34, backgroundImage: `linear-gradient(140deg, ${look.light}, ${look.base} 60%, ${look.deep})`, boxShadow: `0 24px 50px -20px ${look.deep}b3` }}>
             {photo
               ? <img src={photo} width={300} height={340} style={{ width: 300, height: 340, borderRadius: 28, objectFit: 'cover' }} />
-              : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 300, height: 340, borderRadius: 28, backgroundColor: ink, color: C.goldLight, fontSize: 96, fontWeight: 900 }}>{initialsOf(name)}</div>}
+              : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 300, height: 340, borderRadius: 28, backgroundColor: look.dark ? '#000' : '#16130e', color: look.light, fontSize: 96, fontWeight: 900 }}>{initialsOf(name)}</div>}
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 70px 0 56px', flex: 1, minWidth: 0 }}>
           {(title || brokerage) ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 900, letterSpacing: 4, textTransform: 'uppercase', color: '#8B6A2B' }}>
-              <div style={{ display: 'flex', width: 28, height: 2, backgroundColor: C.gold }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 900, letterSpacing: 4, textTransform: 'uppercase', color: label }}>
+              <div style={{ display: 'flex', width: 28, height: 2, backgroundColor: look.base }} />
               {[title, brokerage].filter(Boolean).join('  ·  ')}
             </div>
           ) : null}
           <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: name.length > 20 ? 54 : name.length > 15 ? 62 : 70, lineHeight: 1.02, letterSpacing: -1, color: ink, marginTop: 12 }}>{name}</div>
           {market ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, fontSize: 24, fontWeight: 700, color: sub }}>
-              <Ico d={ICON.pin} size={22} color={C.gold} /> {market}
+              <Ico d={ICON.pin} size={22} color={look.base} /> {market}
             </div>
           ) : null}
-          <div style={{ display: 'flex', width: 120, height: 2, backgroundColor: C.gold, marginTop: 26, marginBottom: 22 }} />
-          {phone ? <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 26, fontWeight: 800, color: ink }}><Ico d={ICON.phone} /> {fmtPhone(phone)}</div> : null}
-          {email ? <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: email.length > 30 ? 20 : 24, fontWeight: 700, color: ink, marginTop: 10 }}><Ico d={ICON.mail} /> {email}</div> : null}
-          <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>
-            {actions.map((a, i) => {
-              const last = i === actions.length - 1
-              return (
-                <div key={a} style={{ display: 'flex', alignItems: 'center', padding: '10px 18px', borderRadius: 999, fontSize: 16, fontWeight: 900,
-                  backgroundColor: last ? ink : 'transparent', color: last ? C.goldLight : ink, border: `2px solid ${last ? ink : 'rgba(22,19,14,0.25)'}` }}>{a}</div>
-              )
-            })}
-          </div>
+          <div style={{ display: 'flex', width: 120, height: 2, backgroundColor: look.base, marginTop: 26, marginBottom: 22 }} />
+          {phone ? <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 26, fontWeight: 800, color: ink }}><Ico d={ICON.phone} color={look.base} /> {fmtPhone(phone)}</div> : null}
+          {email ? <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: email.length > 30 ? 20 : 24, fontWeight: 700, color: ink, marginTop: 10 }}><Ico d={ICON.mail} color={look.base} /> {email}</div> : null}
+          {socials.length ? (
+            <div style={{ display: 'flex', gap: 12, marginTop: 28 }}>
+              {socials.slice(0, 6).map(sc => (
+                <div key={sc} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 50, height: 50, borderRadius: 999, border: `2px solid ${look.base}`,
+                  backgroundColor: look.dark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.6)' }}>
+                  <Ico d={ICON[sc]} size={24} color={look.dark ? look.light : look.deep} />
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
   )
 }
+
+const SOCIAL_KEYS: Record<string, keyof typeof ICON> = { instagram: 'instagram', facebook: 'facebook', youtube: 'youtube', linkedin: 'linkedin', tiktok: 'tiktok', website: 'globe' }
 
 export async function renderHubCard(agentSlug: string, fonts: Fonts): Promise<ImageResponse> {
   try {
@@ -593,15 +631,18 @@ export async function renderHubCard(agentSlug: string, fonts: Fonts): Promise<Im
     const contact = cfg.contact || {}
     const photo = await imgToDataUri(cfg.profilePhotoUrl || profile.photoUrl || profile.photo_url)
     const title = profile.title ? String(profile.title).replace(/[®�]/g, '').trim() : ''
+    const socials = (Array.isArray(cfg.socialLinks) ? cfg.socialLinks : [])
+      .filter((x: any) => x?.enabled !== false && String(x?.url || '').trim() && SOCIAL_KEYS[String(x?.id || '').toLowerCase()])
+      .map((x: any) => SOCIAL_KEYS[String(x.id).toLowerCase()])
     return IR(
       <BusinessCard photo={photo} name={profile.name || 'Real Estate Agent'}
         title={title ? (/^realtor$/i.test(title) ? 'Realtor®' : title) : null}
         brokerage={profile.brokerage ? String(profile.brokerage) : null} market={profile.market ? String(profile.market) : null}
-        phone={contact.call || contact.text || null} email={contact.email || null} />,
+        phone={contact.call || contact.text || null} email={contact.email || null} socials={socials} look={hubLook(cfg)} />,
       fonts,
     )
   } catch {
-    return IR(<BusinessCard photo={null} name="Real Estate Agent" title={null} brokerage={null} market={null} phone={null} email={null} />, fonts)
+    return IR(<BusinessCard photo={null} name="Real Estate Agent" title={null} brokerage={null} market={null} phone={null} email={null} socials={[]} look={hubLook(null)} />, fonts)
   }
 }
 
