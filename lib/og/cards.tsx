@@ -566,9 +566,9 @@ function hubLook(cfg: any): HubLook {
   }
 }
 
-export function BusinessCard({ photo, name, title, brokerage, market, phone, email, socials, look }: {
+export function BusinessCard({ photo, name, title, brokerage, market, phone, email, inside, look }: {
   photo: string | null; name: string; title: string | null; brokerage: string | null; market: string | null
-  phone: string | null; email: string | null; socials: (keyof typeof ICON)[]; look: HubLook
+  phone: string | null; email: string | null; inside: string[]; look: HubLook
 }) {
   const ink = look.dark ? '#F3ECDD' : '#16130e'
   const sub = look.dark ? 'rgba(243,236,221,0.72)' : mixHex(look.deep, '#16130e', 0.25)
@@ -605,31 +605,21 @@ export function BusinessCard({ photo, name, title, brokerage, market, phone, ema
           <div style={{ display: 'flex', width: 120, height: 2, backgroundColor: look.base, marginTop: 26, marginBottom: 22 }} />
           {phone ? <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 26, fontWeight: 800, color: ink }}><Ico d={ICON.phone} color={look.base} /> {fmtPhone(phone)}</div> : null}
           {email ? <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: email.length > 30 ? 20 : 24, fontWeight: 700, color: ink, marginTop: 10 }}><Ico d={ICON.mail} color={look.base} /> {email}</div> : null}
-          {/* What the link opens (user, 10/18): their About page, then the socials it links to. */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 28 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 50, padding: '0 22px', borderRadius: 999, fontSize: 18, fontWeight: 900,
+          {/* What the link opens (user, 10/18): not "my links" - everything on their page, listed from
+              what this hub actually has (listings, sales, videos, articles, reviews). */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 50, padding: '0 22px', borderRadius: 999, fontSize: 18, fontWeight: 900, flexShrink: 0,
               backgroundImage: `linear-gradient(135deg, ${look.light}, ${look.base})`, color: look.dark ? '#0b0b0c' : '#16130e', boxShadow: `0 12px 26px -14px ${look.deep}` }}>
-              See my About page
+              Visit my page
               <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={look.dark ? '#0b0b0c' : '#16130e'} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
             </div>
-          {socials.length ? (
-            <div style={{ display: 'flex', gap: 10 }}>
-              {socials.slice(0, 4).map(sc => (
-                <div key={sc} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 50, height: 50, borderRadius: 999, border: `2px solid ${look.base}`,
-                  backgroundColor: look.dark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.6)' }}>
-                  <Ico d={ICON[sc]} size={24} color={look.dark ? look.light : look.deep} />
-                </div>
-              ))}
-            </div>
-          ) : null}
+            {inside.length ? <div style={{ display: 'flex', fontSize: 15, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: sub }}>{inside.join('  ·  ')}</div> : null}
           </div>
         </div>
       </div>
     </div>
   )
 }
-
-const SOCIAL_KEYS: Record<string, keyof typeof ICON> = { instagram: 'instagram', facebook: 'facebook', youtube: 'youtube', linkedin: 'linkedin', tiktok: 'tiktok', website: 'globe' }
 
 export async function renderHubCard(agentSlug: string, fonts: Fonts): Promise<ImageResponse> {
   try {
@@ -639,18 +629,18 @@ export async function renderHubCard(agentSlug: string, fonts: Fonts): Promise<Im
     const contact = cfg.contact || {}
     const photo = await imgToDataUri(cfg.profilePhotoUrl || profile.photoUrl || profile.photo_url)
     const title = profile.title ? String(profile.title).replace(/[®�]/g, '').trim() : ''
-    const socials = (Array.isArray(cfg.socialLinks) ? cfg.socialLinks : [])
-      .filter((x: any) => x?.enabled !== false && String(x?.url || '').trim() && SOCIAL_KEYS[String(x?.id || '').toLowerCase()])
-      .map((x: any) => SOCIAL_KEYS[String(x.id).toLowerCase()])
+    const has = (k: string) => Array.isArray(cfg[k]) && cfg[k].length > 0
+    const inside = [has('myListings') && 'Listings', has('recentSales') && 'Sales', (has('videoLinks') || has('houseTourLinks')) && 'Videos',
+      has('blogCards') && 'Articles', has('reviews') && 'Reviews'].filter(Boolean).slice(0, 4) as string[]
     return IR(
       <BusinessCard photo={photo} name={profile.name || 'Real Estate Agent'}
         title={title ? (/^realtor$/i.test(title) ? 'Realtor®' : title) : null}
         brokerage={profile.brokerage ? String(profile.brokerage) : null} market={profile.market ? String(profile.market) : null}
-        phone={contact.call || contact.text || null} email={contact.email || null} socials={socials} look={hubLook(cfg)} />,
+        phone={contact.call || contact.text || null} email={contact.email || null} inside={inside} look={hubLook(cfg)} />,
       fonts,
     )
   } catch {
-    return IR(<BusinessCard photo={null} name="Real Estate Agent" title={null} brokerage={null} market={null} phone={null} email={null} socials={[]} look={hubLook(null)} />, fonts)
+    return IR(<BusinessCard photo={null} name="Real Estate Agent" title={null} brokerage={null} market={null} phone={null} email={null} inside={[]} look={hubLook(null)} />, fonts)
   }
 }
 
