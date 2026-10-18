@@ -8,10 +8,12 @@
 // never a card), on load, on every navigation, on light/dark changes and as content arrives. Works
 // for the app (ivory / near-black) and for agents' public pages with their own colours.
 //
-// 10/18 (user, iPhone): past the Luxe hub's footer still showed the plain ivory <body>, not the
-// hub's peach - Safari paints that strip with the BODY's colour. When a full-page layer (not body)
-// is the background, body now takes that layer's BOTTOM colour (a gradient's last stop), so the
-// strip past the footer continues the page seamlessly.
+// 10/18 (user, iPhone): past an Agent Hub's footer / above its header showed the plain ivory <body>
+// with a hard line - Safari paints that strip with the BODY's colour, and the Luxe background was
+// still changing colour right at its edges. A page that paints its own full-page background marks
+// it with data-page-edge; its edge colour (--hub-edge: the solid colour the Luxe background settles
+// into at its very top and bottom, else its plain background colour) goes on html, body and the
+// browser bar, so the page runs on past its edges in one colour.
 
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
@@ -32,22 +34,6 @@ function gradientStops(el: HTMLElement, cs: CSSStyleDeclaration): string[] {
 function gradientColor(el: HTMLElement, cs: CSSStyleDeclaration): string | null {
   const stops = gradientStops(el, cs)
   return stops.length ? stops[Math.floor((stops.length - 1) / 2)] : null
-}
-
-// The element that paints the page background at a point (null = nothing found).
-function bgEl(x: number, y: number): HTMLElement | null {
-  let el = document.elementFromPoint(x, y) as HTMLElement | null
-  while (el) {
-    const cs = getComputedStyle(el)
-    const c = cs.backgroundColor
-    if (c && c !== 'transparent' && !/rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\s*\)/.test(c)) {
-      const m = /rgba\(\s*\d+,\s*\d+,\s*\d+,\s*([\d.]+)\s*\)/.exec(c)
-      if (!m || parseFloat(m[1]) > 0.9) return el
-    }
-    if (gradientColor(el, cs)) return el
-    el = el.parentElement
-  }
-  return null
 }
 
 function bgAt(x: number, y: number): string | null {
@@ -72,25 +58,31 @@ function sync() {
   const y = Math.round(window.innerHeight * 0.5)
   const color = bgAt(1, y) || bgAt(window.innerWidth - 2, y) || getComputedStyle(document.body).backgroundColor
   if (!color) return
-  document.documentElement.style.backgroundColor = color
-  // A full-page layer (the Luxe hub): body takes its bottom colour for the strip past the footer.
-  const layer = bgEl(1, y)
   const body = document.body
   let bodyColor = ''
-  if (layer && layer !== body && layer !== document.documentElement
-      && layer.getBoundingClientRect().height >= document.documentElement.scrollHeight * 0.9) {
+  let pageColor = color
+  const layer = document.querySelector('[data-page-edge]') as HTMLElement | null
+  if (layer) {
     const cs = getComputedStyle(layer)
-    const stops = gradientStops(layer, cs)
-    bodyColor = stops.length ? stops[stops.length - 1] : color
+    const edge = cs.getPropertyValue('--hub-edge').trim() || cs.backgroundColor
+    if (edge && !/^transparent$|rgba\([^)]*,\s*0\s*\)/.test(edge)) pageColor = bodyColor = edge
   }
-  if (body.style.backgroundColor !== bodyColor) body.style.backgroundColor = bodyColor
+  if (document.documentElement.dataset.ohpBg !== pageColor) {
+    document.documentElement.style.backgroundColor = pageColor
+    document.documentElement.dataset.ohpBg = pageColor
+  }
+  // Written only when it changes - body's style is watched below, so an equal write would loop.
+  if (body.dataset.ohpBg !== bodyColor) {
+    body.style.backgroundColor = bodyColor
+    body.dataset.ohpBg = bodyColor
+  }
   let meta = document.querySelector('meta[name="theme-color"]:not([media])') as HTMLMetaElement | null
   if (!meta) {
     meta = document.createElement('meta')
     meta.name = 'theme-color'
     document.head.appendChild(meta)
   }
-  if (meta.content !== color) meta.content = color
+  if (meta.content !== pageColor) meta.content = pageColor
 }
 
 export default function ThemeColorSync() {
@@ -105,9 +97,13 @@ export default function ThemeColorSync() {
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'data-ohp-forced-light'] })
     mo.observe(document.body, { attributes: true, attributeFilter: ['class', 'style'] })
     window.addEventListener('resize', soon as () => void)
+    // a page whose look loads late (an Agent Hub's theme arrives with its config) says so
+    const changed = () => { soon(60); window.setTimeout(sync, 700) }
+    window.addEventListener('ohp-page-colors', changed)
     return () => {
       window.clearTimeout(t); timers.forEach(window.clearTimeout); mo.disconnect()
       window.removeEventListener('resize', soon as () => void)
+      window.removeEventListener('ohp-page-colors', changed)
     }
   }, [pathname])
   return null

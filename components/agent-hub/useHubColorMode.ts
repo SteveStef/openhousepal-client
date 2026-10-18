@@ -8,6 +8,15 @@ import { useEffect } from 'react'
 // is open its choice sits on <html>; the app's comes back when leaving. The app's theme provider
 // sets <html> after page effects run, and again whenever it re-applies the theme - so keep watching
 // and put the hub's choice back each time. `enabled` = false until the hub's config has loaded.
+/** Tell ThemeColorSync the page's colours changed (the hub's look arrived or was switched) - the
+ *  colour past the page's edges is re-read then, however long the hub took to load. */
+export function useHubLookChanged(key: string) {
+  useEffect(() => {
+    const id = requestAnimationFrame(() => window.dispatchEvent(new Event('ohp-page-colors')))
+    return () => cancelAnimationFrame(id)
+  }, [key])
+}
+
 export default function useHubColorMode(dark: boolean, enabled = true) {
   useEffect(() => {
     if (!enabled) return

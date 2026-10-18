@@ -9,7 +9,7 @@ import { HubAgentPhoto, HubLuxeDecor, HubLuxeStyles, hubLuxeMetalClass, isHubPho
 import { HUB_CLASSIC_DEFAULT_ACCENT, HubClassicStyles, hubAccentOf, hubAccentStyle, hubClassicClass } from '@/components/agent-hub/HubClassicTheme'
 import ListingFeatureCard from '@/components/agent-hub/ListingFeatureCard'
 import HubHomeGridCard from '@/components/agent-hub/HubHomeGridCard'
-import useHubColorMode from '@/components/agent-hub/useHubColorMode'
+import useHubColorMode, { useHubLookChanged } from '@/components/agent-hub/useHubColorMode'
 import Pager from '@/components/Pager'
 import { AgentSale, isEligibleListing, isEligibleSale } from '@/lib/agentSales'
 import { type MlsOpenHouse } from '@/lib/mlsOpenHouses'
@@ -125,6 +125,7 @@ export default function AgentHubSalesPage() {
 
   // The Sales page follows THE HUB'S light/dark choice (it was going dark for app users in dark mode).
   useHubColorMode(visitorDarkMode && !forceLightMode, hubStatus === 'found')
+  useHubLookChanged(`${hubStatus}|${luxe}|${luxeMetal}|${hubAccent}|${visitorDarkMode && !forceLightMode}`)
 
   const buyingForm = publicForms.find(form => form.formType === 'buying')
   const sellingForm = publicForms.find(form => form.formType === 'selling')
@@ -158,7 +159,7 @@ export default function AgentHubSalesPage() {
   const dark = visitorDarkMode && !forceLightMode
   return (
     <div className={dark ? 'dark' : ''}>
-    <main className={`relative min-h-screen overflow-hidden bg-[#f7f5f1] text-[#101827] dark:bg-[#0B0B0B] dark:text-[#F3F4F6] ${luxe ? `hub-luxe ${hubLuxeMetalClass(luxeMetal)}` : hubClassicClass('classic', hubAccent)}`} style={luxe ? undefined : hubAccentStyle(hubAccent)}>
+    <main data-page-edge className={`relative min-h-screen overflow-hidden bg-[#f7f5f1] text-[#101827] dark:bg-[#0B0B0B] dark:text-[#F3F4F6] ${luxe ? `hub-luxe ${hubLuxeMetalClass(luxeMetal)}` : hubClassicClass('classic', hubAccent)}`} style={luxe ? undefined : hubAccentStyle(hubAccent)}>
       {luxe ? <><HubLuxeStyles /><HubLuxeDecor /></> : <HubClassicStyles />}
       {dark && !luxe && (
         <div className="pointer-events-none absolute inset-0">

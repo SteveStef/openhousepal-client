@@ -42,7 +42,7 @@ import {
 import { OhpWordmark } from '@/components/brand/OhpBrand'
 import { publicWebUrl } from '@/lib/webUrl'
 import { LeaveReviewButton, orderReviews, ProfileRatingChip, ProfileReviewButton, ReviewsBigCarousel, ReviewsDeskCard, ReviewsSummary, ReviewsTwoUp, useHubReviews } from '@/components/agent-hub/HubReviews'
-import useHubColorMode from '@/components/agent-hub/useHubColorMode'
+import useHubColorMode, { useHubLookChanged } from '@/components/agent-hub/useHubColorMode'
 import HubStatusBadge from '@/components/agent-hub/HubStatusBadge'
 
 // 'reviews' is shown when the agent switched reviews on (Settings -> Reviews / Layout) and has some.
@@ -276,6 +276,7 @@ export default function PublicAgentHubPage() {
 
   // The hub follows ITS OWN light/dark choice, never the OpenHousePal app's (same on the Sales page).
   useHubColorMode(visitorDarkMode && !forceLightMode)
+  useHubLookChanged(`${hubStatus}|${hubTheme}|${hubLuxeMetal}|${hubAccent}|${visitorDarkMode && !forceLightMode}`)
 
   // The setup flow's preview frame (?preview=1): the look being picked arrives here the moment
   // it's tapped (same-origin parent only), so the phone changes at once instead of after a save
@@ -782,7 +783,7 @@ export default function PublicAgentHubPage() {
 
   return (
     <div className={visitorDarkMode && !forceLightMode ? 'dark' : ''}>
-    <main className={`agent-hub-public relative min-h-screen overflow-hidden bg-[#f7f5f1] text-[#101827] dark:bg-[#0B0B0B] dark:text-[#F3F4F6] ${luxe ? `hub-luxe ${hubLuxeMetalClass(hubLuxeMetal)} ${luxeIntro ? 'hub-lx-intro-on' : ''}` : hubClassicClass(hubTheme, hubAccent)}`} style={luxe ? undefined : hubAccentStyle(hubAccent)}>
+    <main data-page-edge className={`agent-hub-public relative min-h-screen overflow-hidden bg-[#f7f5f1] text-[#101827] dark:bg-[#0B0B0B] dark:text-[#F3F4F6] ${luxe ? `hub-luxe ${hubLuxeMetalClass(hubLuxeMetal)} ${luxeIntro ? 'hub-lx-intro-on' : ''}` : hubClassicClass(hubTheme, hubAccent)}`} style={luxe ? undefined : hubAccentStyle(hubAccent)}>
       {luxe ? <><HubLuxeStyles /><HubLuxeDecor /></> : <HubClassicStyles />}
       {luxe && luxeIntro && <HubLuxeIntro name={profile.name} kicker={[profile.title, profile.brokerage].filter(Boolean).join(' · ')} photoUrl={profilePhotoUrl} photoPosition={profilePhotoPosition} onDone={() => setLuxeIntro(false)} />}
       {/* Arrived straight from an open house sign-in (the sign-in link carries src=signin). */}

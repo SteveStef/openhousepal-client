@@ -43,6 +43,7 @@ export function HubLuxeDecor() {
       <svg className="hub-lx-motif" style={{ right: '4%', top: '9%', width: 150, height: 150 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth=".6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V20h14V9.5" /><path d="M10 20v-5h4v5" /><path d="M16 6V4h2v3.6" /></svg>
       <svg className="hub-lx-motif hub-lx-motif-b" style={{ left: '3%', top: '62%', width: 96, height: 96 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth=".7" strokeLinecap="round" strokeLinejoin="round"><circle cx="7.5" cy="15.5" r="4.5" /><path d="m10.7 12.3 9.3-9.3M17 6l2 2M15 8l2 2" /></svg>
       <svg className="hub-lx-motif hub-lx-motif-c" style={{ left: '44%', top: '34%', width: 120, height: 120 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth=".5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 21h20" /><path d="M4 21V10l5-4 5 4v11" /><path d="M14 21V7l4-3 4 3v14" /><path d="M7 13h4M7 17h4M17 10h2M17 14h2" /></svg>
+      <div className="hub-lx-edge" />
       <svg className="hub-lx-skyline" viewBox="0 0 1440 90" preserveAspectRatio="none" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M0 88h70V60l30-24 30 24v28h52V44h40v44h50V52l38-32 38 32v36h64V36h26V16h18v20h26v52h56V60l34-28 34 28v28h50V48h46v40h56V56l42-34 42 34v32h46V40h34v48h60V60l30-24 30 24v28h70V44h40v44h50V52l38-32 38 32v36h64V36h26V16h18v20h26v52h80" /></svg>
     </div>
   )
@@ -303,7 +304,14 @@ const CSS = `
 .hub-lx-motif-b { animation-duration: 18s; animation-direction: alternate-reverse; }
 .hub-lx-motif-c { animation-duration: 22s; }
 @keyframes hubLxFloat { from { transform: translateY(0) rotate(-5deg); } to { transform: translateY(-18px) rotate(3deg); } }
-.hub-lx-skyline { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 90px; color: rgba(var(--m-rgb),.16); }
+.hub-lx-skyline { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 90px; color: rgba(var(--m-rgb),.16); -webkit-mask-image: linear-gradient(180deg, #000 62%, transparent 97%); mask-image: linear-gradient(180deg, #000 62%, transparent 97%); }
+/* iPhone (user, 10/18): pulling past the top or the footer showed a hard line - the glows, grid and
+   gradient were still changing colour right at the page's edges, so no single colour past them could
+   match. The page now settles into one solid colour (--hub-edge) at its very top and bottom, and
+   ThemeColorSync paints the area past the edges (html, body, browser bar) in that same colour. */
+.hub-luxe { --hub-edge: var(--m-wash1); }
+.dark .hub-luxe { --hub-edge: var(--m-ink1); }
+.hub-lx-edge { position: absolute; inset: 0; background: linear-gradient(180deg, var(--hub-edge) 0, transparent 150px), linear-gradient(0deg, var(--hub-edge) 0, var(--hub-edge) 24px, transparent 230px); }
 .dark .hub-lx-skyline { color: rgba(var(--m-light-rgb),.09); }
 .hub-lx-skyline path { stroke-dasharray: 3200; stroke-dashoffset: 3200; animation: hubLxDraw 6s 1.2s ease-out forwards; }
 @keyframes hubLxDraw { to { stroke-dashoffset: 0; } }
