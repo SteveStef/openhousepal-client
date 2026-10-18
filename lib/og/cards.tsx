@@ -514,30 +514,94 @@ const pickImg = (items: any[]): string | null => {
   return null
 }
 
+// The Agent Hub is the agent's link-in-bio, so its preview is a business card (user, 10/18): their
+// photo, name, title, brokerage, market and how to reach them - no stats, no web address and no
+// listing photo (a home there read as "this link is about a house").
+const ICON = {
+  phone: ['M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z'],
+  mail: ['M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z', 'M22 6l-10 7L2 6'],
+  pin: ['M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z', 'M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'],
+}
+function Ico({ d, size = 22, color = C.gold }: { d: string[]; size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      {d.map((seg, i) => <path key={i} d={seg} />)}
+    </svg>
+  )
+}
+const fmtPhone = (v?: string | null) => {
+  const d = String(v || '').replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '')
+  return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : (v || '')
+}
+
+export function BusinessCard({ photo, name, title, brokerage, market, phone, email }: {
+  photo: string | null; name: string; title: string | null; brokerage: string | null; market: string | null; phone: string | null; email: string | null
+}) {
+  const ink = '#16130e'
+  const sub = '#6b5a3c'
+  const actions = [phone && 'Call', phone && 'Text', email && 'Email', 'Save my contact'].filter(Boolean) as string[]
+  return (
+    <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: C.bgBot,
+      backgroundImage: `radial-gradient(900px 520px at 85% 0%, ${C.bgTop} 0%, ${C.bgMid} 55%, ${C.bgBot} 100%)`, alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', position: 'relative', width: 1060, height: 500, borderRadius: 30, overflow: 'hidden',
+        backgroundImage: 'linear-gradient(135deg, #fffdf8 0%, #f8f0df 55%, #efe1c2 100%)', boxShadow: '0 40px 90px -30px rgba(0,0,0,0.85)', border: `2px solid ${C.goldLight}` }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 10, display: 'flex', backgroundImage: `linear-gradient(90deg, #8B6A2B, ${C.gold}, ${C.goldLight}, ${C.gold}, #8B6A2B)` }} />
+        <div style={{ position: 'absolute', top: 30, left: 30, right: 30, bottom: 30, display: 'flex', border: '1px solid rgba(201,162,77,0.45)', borderRadius: 20 }} />
+        <div style={{ display: 'flex', alignItems: 'center', padding: '0 0 0 66px' }}>
+          <div style={{ display: 'flex', padding: 7, borderRadius: 34, backgroundImage: `linear-gradient(140deg, ${C.goldLight}, ${C.gold} 60%, #8B6A2B)`, boxShadow: '0 24px 50px -20px rgba(139,106,43,0.7)' }}>
+            {photo
+              ? <img src={photo} width={300} height={340} style={{ width: 300, height: 340, borderRadius: 28, objectFit: 'cover' }} />
+              : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 300, height: 340, borderRadius: 28, backgroundColor: ink, color: C.goldLight, fontSize: 96, fontWeight: 900 }}>{initialsOf(name)}</div>}
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 70px 0 56px', flex: 1, minWidth: 0 }}>
+          {(title || brokerage) ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 900, letterSpacing: 4, textTransform: 'uppercase', color: '#8B6A2B' }}>
+              <div style={{ display: 'flex', width: 28, height: 2, backgroundColor: C.gold }} />
+              {[title, brokerage].filter(Boolean).join('  ·  ')}
+            </div>
+          ) : null}
+          <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: name.length > 20 ? 54 : name.length > 15 ? 62 : 70, lineHeight: 1.02, letterSpacing: -1, color: ink, marginTop: 12 }}>{name}</div>
+          {market ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, fontSize: 24, fontWeight: 700, color: sub }}>
+              <Ico d={ICON.pin} size={22} color={C.gold} /> {market}
+            </div>
+          ) : null}
+          <div style={{ display: 'flex', width: 120, height: 2, backgroundColor: C.gold, marginTop: 26, marginBottom: 22 }} />
+          {phone ? <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 26, fontWeight: 800, color: ink }}><Ico d={ICON.phone} /> {fmtPhone(phone)}</div> : null}
+          {email ? <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: email.length > 30 ? 20 : 24, fontWeight: 700, color: ink, marginTop: 10 }}><Ico d={ICON.mail} /> {email}</div> : null}
+          <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>
+            {actions.map((a, i) => {
+              const last = i === actions.length - 1
+              return (
+                <div key={a} style={{ display: 'flex', alignItems: 'center', padding: '10px 18px', borderRadius: 999, fontSize: 16, fontWeight: 900,
+                  backgroundColor: last ? ink : 'transparent', color: last ? C.goldLight : ink, border: `2px solid ${last ? ink : 'rgba(22,19,14,0.25)'}` }}>{a}</div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export async function renderHubCard(agentSlug: string, fonts: Fonts): Promise<ImageResponse> {
   try {
     const data = await ogFetch<any>(`/agent-hub/public/${encodeURIComponent(agentSlug)}`)
     const cfg = data?.config || {}
     const profile = cfg.profile || {}
-    const name: string = profile.name || 'Real Estate Agent'
-    const listings: any[] = Array.isArray(cfg.myListings) ? cfg.myListings : []
-    const sales: any[] = Array.isArray(cfg.recentSales) ? cfg.recentSales : []
-    const [photo, bg] = await Promise.all([
-      imgToDataUri(cfg.profilePhotoUrl || profile.photoUrl || profile.photo_url),
-      imgToDataUri(pickImg(listings) || pickImg(sales), 5000),
-    ])
-    const stats = [
-      listings.length ? { v: String(listings.length), l: listings.length === 1 ? 'Home for sale' : 'Homes for sale' } : null,
-      sales.length ? { v: String(sales.length), l: sales.length === 1 ? 'Recent sale' : 'Recent sales' } : null,
-    ].filter(Boolean) as { v: string; l: string }[]
+    const contact = cfg.contact || {}
+    const photo = await imgToDataUri(cfg.profilePhotoUrl || profile.photoUrl || profile.photo_url)
+    const title = profile.title ? String(profile.title).replace(/[®�]/g, '').trim() : ''
     return IR(
-      <AgentCard bg={bg} photo={photo} name={name} eyebrow={profile.title ? String(profile.title).replace('®', '') : 'Real Estate'}
-        credential={profile.brokerage ? String(profile.brokerage) : null} market={profile.market ? String(profile.market) : null}
-        stats={stats} site={`openhousepal.com/${agentSlug}`} />,
+      <BusinessCard photo={photo} name={profile.name || 'Real Estate Agent'}
+        title={title ? (/^realtor$/i.test(title) ? 'Realtor®' : title) : null}
+        brokerage={profile.brokerage ? String(profile.brokerage) : null} market={profile.market ? String(profile.market) : null}
+        phone={contact.call || contact.text || null} email={contact.email || null} />,
       fonts,
     )
   } catch {
-    return IR(<AgentCard bg={null} photo={null} name="Real Estate Agent" eyebrow="Real Estate" credential={null} market={null} stats={[]} site={null} />, fonts)
+    return IR(<BusinessCard photo={null} name="Real Estate Agent" title={null} brokerage={null} market={null} phone={null} email={null} />, fonts)
   }
 }
 
