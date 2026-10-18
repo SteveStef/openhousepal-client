@@ -78,12 +78,15 @@ function toProperty(home: Home): Property {
   } as unknown as Property
 }
 
-export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillAddress, onSubmitAnswers, onProgress, onComplete }: {
+export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillAddress, prefillName, prefillEmail, onSubmitAnswers, onProgress, onComplete }: {
   form: PublicFormConfig
   agentSlug: string
   formSlug: string
   /** A page that already knows the home (e.g. a listing's "Schedule a showing" link). */
   prefillAddress?: string
+  /** Who they are, when the page already knows (Google sign-in on the agent's site). */
+  prefillName?: string
+  prefillEmail?: string
   onSubmitAnswers: (answers: { questionId: string; value: unknown }[]) => Promise<{ success: boolean; message?: string; submissionId?: string }>
   onProgress?: (stepIndex: number, questionId: string | null, completed: boolean, answers: Record<string, unknown>) => void
   /** Embedded in another page's window: called once they're done. */
@@ -390,6 +393,8 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
         onSubmit={submit}
         showContactFields
         contactStyle="full"
+        initialName={prefillName || ''}
+        initialContact={prefillEmail || ''}
         // Only times the agent is free (their connected calendar) - user, 10/18.
         loadBusy={() => api.public.getHubBusy(agentSlug)}
       />

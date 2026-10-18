@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
+import { readVisitor, visitorPrefill } from '@/lib/visitor'
 
 // One of the agent's forms, opened in a window over the current page instead of leaving it. The
 // form page runs embedded (`embed=1`: no decorative backdrop, no redirect) and posts
@@ -34,7 +35,8 @@ export default function FormWindow({ url, title, prefill, onClose }: {
     if (!url) return ''
     const params = new URLSearchParams()
     params.set('embed', '1')
-    for (const [k, v] of Object.entries(prefill || {})) if (v) params.set(`prefill_${k}`, String(v))
+    // A visitor who signed in with Google on the agent's site (lib/visitor) gets their name + email filled in.
+    for (const [k, v] of Object.entries({ ...visitorPrefill(readVisitor()), ...(prefill || {}) })) if (v) params.set(`prefill_${k}`, String(v))
     return `${url}${url.includes('?') ? '&' : '?'}${params.toString()}`
   })()
 

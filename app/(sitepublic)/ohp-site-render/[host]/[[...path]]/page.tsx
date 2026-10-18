@@ -46,6 +46,7 @@ import { fontClass } from '@/components/website-public/blocks/fontClass'
 import SiteBlogArticle from '@/components/website-public/SiteBlogArticle'
 import BlogCoverArt from '@/components/BlogCoverArt'
 import IdxPropertyPage from '@/components/website-public/IdxPropertyPage'
+import IdxOneTap from '@/components/website-public/IdxOneTap'
 import { resolveMediaUrl } from '@/lib/api-service'
 import { DEFAULT_SITE_THEME, SearchFilterParams, SiteContent } from '@/components/website-public/types'
 import CinematicLuxuryTemplate, { PropertySiteResolveResponse } from '@/components/property-sites/CinematicLuxuryTemplate'
@@ -2691,6 +2692,8 @@ export default async function PublicSitePage({
       {!hideFooter && <SiteFooter theme={theme} siteName={footerProfile?.name || siteName} areas={footerAreas || []} hasSoldPage={hasSoldPage} hasReviews={hasReviews} profile={footerProfile || undefined} signatureSlug={footerProfile?.signature_hub_slug} basePrefix={basePrefix} showCta={!pageHasContactCta && path?.[0] !== 'contact' && path?.[0] !== 'search' && !(path?.[0] === 'blog' && path[1])} idxNotice />}
       {/* Every data-ohp-form button on the page opens the agent's form in a window. */}
       <SiteFormLauncher forms={footerProfile?.forms || []} hubSlug={footerProfile?.agent_hub_slug} siteId={resolved.site_id} />
+      {/* Google One Tap - only shows on the agent's *.openhousepal.com address (IdxOneTap). */}
+      <IdxOneTap siteId={resolved.site_id} listingKey={path?.[0] === 'properties' && path[1] && !path[2] ? path[1] : null} />
       <SiteNavProgress />
     </SiteShell>
   )

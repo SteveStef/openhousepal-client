@@ -27,7 +27,7 @@ export default function PrivacyPage() {
 
       {/* Content */}
       <div className="flex-1">
-          <LegalDoc kicker="Legal" icon={ShieldCheck} title={<>Privacy <em>Policy.</em></>} updated="October 6, 2026">
+          <LegalDoc kicker="Legal" icon={ShieldCheck} title={<>Privacy <em>Policy.</em></>} updated="October 18, 2026">
 
             <div className="prose prose-gray dark:prose-invert max-w-none space-y-6 text-gray-700 dark:text-gray-300">
               <section>
@@ -152,11 +152,14 @@ export default function PrivacyPage() {
                     <strong>Google Places:</strong> Used to look up nearby amenities for property listings and, if you choose to import them, to pull your existing public Google Business reviews into the Service. This sends your business's Place ID to Google's Places API.
                   </li>
                   <li>
+                    <strong>Sign in with Google on Agent Websites:</strong> Agent websites hosted on an openhousepal.com address may offer visitors the option to continue with their Google account (Google One Tap). This only happens if the visitor chooses it. Google then shares the visitor&apos;s name, email address, and basic profile identifier with us; we verify the sign-in with Google, pass the visitor&apos;s name and email to that agent as a website lead, and save the name and email in a cookie on that visitor&apos;s browser so the site&apos;s forms can fill them in. We do not receive the visitor&apos;s Google password or any other Google data, and the visitor can clear that cookie at any time.
+                  </li>
+                  <li>
                     <strong>Bright MLS:</strong> If your account includes MLS-connected features, we pull property and listing data from Bright MLS under our IDX license. This is one-directional; no personal data about you or your visitors is sent to Bright MLS.
                   </li>
                 </ul>
                 <p className="mt-4">
-                  Our use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="text-[#8b7355] hover:text-[#7a6549] dark:text-[#C9A24D] dark:hover:text-[#b08d42] transition-colors">Google API Services User Data Policy</a>, including the Limited Use requirements. Data obtained through Google APIs is used only to provide the calendar-sync and send-from-your-own-email features described above, is never used to train AI models, is never used for advertising, is never sold, and is not shared with third parties except as necessary to provide the feature, comply with the law, or with your explicit consent.
+                  Our use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="text-[#8b7355] hover:text-[#7a6549] dark:text-[#C9A24D] dark:hover:text-[#b08d42] transition-colors">Google API Services User Data Policy</a>, including the Limited Use requirements. Data obtained through Google APIs is used only to provide the calendar-sync, send-from-your-own-email, and website sign-in features described above, is never used to train AI models, is never used for advertising, is never sold, and is not shared with third parties except as necessary to provide the feature, comply with the law, or with your explicit consent.
                 </p>
               </section>
 
@@ -185,6 +188,7 @@ export default function PrivacyPage() {
                   <li><strong>Essential Cookies:</strong> Required for authentication and core functionality</li>
                   <li><strong>Analytics Cookies:</strong> Help us understand how users interact with our Service</li>
                   <li><strong>Preference Cookies:</strong> Remember your settings and preferences</li>
+                  <li><strong>Website Visitor Cookie:</strong> On agent websites, if a visitor signs in with Google, a cookie remembers their name and email so forms fill in for them</li>
                 </ul>
                 <p className="mt-4">
                   You can control cookies through your browser settings, but disabling certain cookies may affect the functionality of our Service.

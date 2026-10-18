@@ -1,5 +1,6 @@
 'use client'
 
+import { useVisitor } from '@/lib/visitor'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ArrowRight, CalendarDays, MessageSquare, Phone, Sparkles } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/api-service'
@@ -63,6 +64,7 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
   // Where they came from (Google, a shared link...) - sent with their question.
   const scope = `idx:${p.listing_key}`
   useEffect(() => { visitSource(scope) }, [scope])
+  const visitor = useVisitor()
   const ask = async (v: { name: string; email: string; phone: string; message: string }) => {
     if (!siteId) return false
     const res = await fetch(`/api/website-properties/${encodeURIComponent(siteId)}/${encodeURIComponent(p.listing_key)}/ask`, {
@@ -112,6 +114,7 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
                   title="Ask a quick question"
                   sub={`Straight to ${agentFirst || 'the agent'}, with this home attached. A phone or an email is enough.`}
                   agentFirst={agentFirst}
+                  initial={visitor ? { name: visitor.name, email: visitor.email } : undefined}
                   onSend={ask}
                 />
                 </AgentPanel>

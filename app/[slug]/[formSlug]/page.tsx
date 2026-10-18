@@ -129,6 +129,8 @@ export default function PublicFormPage() {
           agentSlug={slug}
           formSlug={formSlug}
           prefillAddress={prefill.property_of_interest}
+          prefillName={prefill.full_name || prefill.name}
+          prefillEmail={prefill.email}
           onProgress={trackProgress}
           onComplete={embedded ? () => { try { window.parent?.postMessage({ type: 'ohp-form-complete' }, '*') } catch { /* no host */ } } : undefined}
           onSubmitAnswers={async answers => {

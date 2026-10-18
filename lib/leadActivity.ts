@@ -23,6 +23,7 @@ export const ACTIVITY_META: Record<LeadSourceType, { label: string; icon: Lucide
   property_page_tour_request: { label: 'Listing showing request', icon: Calendar, tone: 'amber' },
   portal_lead: { label: 'Portal lead', icon: Inbox, tone: 'sky' },
   blog_inquiry: { label: 'Blog question', icon: Newspaper, tone: 'sky' },
+  website_google_signin: { label: 'Signed in on your website', icon: Globe2, tone: 'sky' },
   showcase_like: { label: 'Liked a home', icon: Heart, tone: 'rose' },
   showcase_dislike: { label: 'Passed on a home', icon: ThumbsDown, tone: 'slate' },
   showcase_view: { label: 'Looked at a home', icon: Eye, tone: 'slate' },

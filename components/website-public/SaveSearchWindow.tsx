@@ -1,5 +1,6 @@
 'use client'
 
+import { useVisitor } from '@/lib/visitor'
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowRight, Bell, Check, Heart, Loader2, X } from 'lucide-react'
@@ -91,6 +92,13 @@ export default function SaveSearchWindow({ siteId, criteria, onClose }: { siteId
   const [step, setStep] = useState<'review' | 'contact' | 'represented' | 'done'>('review')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  // Signed in with Google on this site (lib/visitor): their name + email are already filled in.
+  const visitor = useVisitor()
+  useEffect(() => {
+    if (!visitor) return
+    setName(n => n || visitor.name)
+    setEmail(e => e || visitor.email)
+  }, [visitor])
   const [phone, setPhone] = useState('')
   const [agent, setAgent] = useState<'' | 'no' | 'yes'>('')
   const [busy, setBusy] = useState(false)

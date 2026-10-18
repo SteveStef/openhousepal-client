@@ -1168,6 +1168,9 @@ export function AskForm({ id, title, sub, agentFirst, agent, initial, onSend, em
   const [sent, setSent] = useState(false)
   const [problem, setProblem] = useState('')
   useEffect(() => { if (initial?.message) { setMessage(initial.message); setSent(false) } }, [initial?.message])
+  // Who they are can arrive after the form opened (Google sign-in on the agent's site) - fill only empty boxes.
+  useEffect(() => { if (initial?.name) setName(n => n || initial.name || '') }, [initial?.name])
+  useEffect(() => { if (initial?.email) setEmail(e => e || initial.email || '') }, [initial?.email])
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return setProblem('Please add your name.')

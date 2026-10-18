@@ -2109,7 +2109,7 @@ export interface PublicBlogDetail {
 
 export type LeadStatus = 'new' | 'contacted' | 'in_talks' | 'signed' | 'hidden' | 'qualified' | 'converted' | 'archived';
 export type LeadRepresented = 'yes' | 'no' | 'unknown';
-export type LeadSourceType = 'open_house_visitor' | 'form_submission' | 'property_tour' | 'property_comment' | 'collection_visitor' | 'open_house_second_visit' | 'open_house_disclosure' | 'property_website_inquiry' | 'property_website_tour_request' | 'portal_lead' | 'form_partial' | 'property_page_inquiry' | 'property_page_tour_request' | 'blog_inquiry'
+export type LeadSourceType = 'open_house_visitor' | 'form_submission' | 'property_tour' | 'property_comment' | 'collection_visitor' | 'open_house_second_visit' | 'open_house_disclosure' | 'property_website_inquiry' | 'property_website_tour_request' | 'portal_lead' | 'form_partial' | 'property_page_inquiry' | 'property_page_tour_request' | 'blog_inquiry' | 'website_google_signin'
   // Done inside their Showcase / elsewhere (backend leads_service.log_activity) - keep in sync with schemas/leads.py.
   | 'showcase_like' | 'showcase_dislike' | 'showcase_view' | 'showcase_refine' | 'showcase_search_changed'
   | 'showcase_emails_off' | 'showcase_emails_on' | 'email_unsubscribed' | 'review_left'
