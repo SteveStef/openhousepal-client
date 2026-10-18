@@ -31,7 +31,7 @@ import { ADDABLE_BLOG_BLOCK_TYPES, BLOG_CATEGORIES, BLOG_CTA_FORMS, ctaFormTypeO
 import { buildGenericDefaultBlocks } from '@/lib/studio/designFormats'
 import { escapeHtml } from '@/lib/studio/sanitizeHtml'
 import BlogArticleBody, { PropertyCardDisplay } from '@/components/studio/blogs/BlogArticleBody'
-import { BLOG_THEMES, BlogThemedArticle, blogAccent, blogSignatureMatch, blogTheme } from '@/components/studio/blogs/BlogThemes'
+import { BLOG_THEMES, BlogThemedArticle, CLASSIC_BLOG_ACCENTS, blogAccent, blogSignatureMatch, blogTheme, classicAccent } from '@/components/studio/blogs/BlogThemes'
 import LuxeUpgradePitch from '@/components/ui/LuxeUpgradePitch'
 import VerifiedPanel from '@/components/studio/blogs/VerifiedPanel'
 import AiCoverMaker from '@/components/studio/blogs/AiCoverMaker'
@@ -814,6 +814,20 @@ function BlogEditorPageInner() {
           </div>
         </div>
 
+        {/* Classic: the same accent choices as the Agent Hub's Classic (user, 10/18). */}
+        {blogTheme(blog.theme).id === 'luxe' && (
+          <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="mt-3 flex flex-wrap items-center justify-end gap-1.5" role="radiogroup" aria-label="Classic color">
+            <span className="mr-1 text-[10px] font-black uppercase tracking-widest text-gray-400">Color</span>
+            {CLASSIC_BLOG_ACCENTS.map(c => {
+              const on = classicAccent(blog.accent_color).toLowerCase() === c.color.toLowerCase()
+              return (
+                <button key={c.color} type="button" role="radio" aria-checked={on} title={c.label} aria-label={c.label} onClick={() => persist({ ...blog, accent_color: c.color })}
+                  className={`h-6 w-6 rounded-full ring-offset-2 transition hover:scale-110 dark:ring-offset-[#0b0b0c] ${on ? 'ring-2 ring-[#111827] dark:ring-white' : 'ring-1 ring-black/10 dark:ring-white/15'}`}
+                  style={{ background: c.color }} />
+              )
+            })}
+          </motion.div>
+        )}
         {blogTheme(blog.theme).id === 'luxe_plus' && (
           <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="mt-3 flex flex-wrap items-center justify-end gap-1.5" role="radiogroup" aria-label="Luxe finish">
             <span className="mr-1 text-[10px] font-black uppercase tracking-widest text-gray-400">Finish</span>
@@ -832,7 +846,7 @@ function BlogEditorPageInner() {
         )}
               <div className="mt-4 overflow-hidden rounded-xl border border-gray-200 dark:border-white/10">
                 <p className="border-b border-gray-100 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:border-white/10">Live example · {blogTheme(hoverLook || blog.theme).label}</p>
-                <BlogThemeLivePreview theme={hoverLook || blog.theme || 'luxe'} title={blog.title} category={blog.category} coverUrl={blog.cover_image_url ? resolveMediaUrl(blog.cover_image_url) : null} agentName={`${user?.first_name || ''} ${user?.last_name || ''}`.trim()} agentPhoto={user?.photo_url ? resolveMediaUrl(user.photo_url) : null} height={320} />
+                <BlogThemeLivePreview metal={blog.luxe_metal} accent={blog.accent_color} theme={hoverLook || blog.theme || 'luxe'} title={blog.title} category={blog.category} coverUrl={blog.cover_image_url ? resolveMediaUrl(blog.cover_image_url) : null} agentName={`${user?.first_name || ''} ${user?.last_name || ''}`.trim()} agentPhoto={user?.photo_url ? resolveMediaUrl(user.photo_url) : null} height={320} />
               </div>
             </div>
         {/* Sections at a glance - tap to keep or remove a whole section */}
@@ -1002,6 +1016,7 @@ function BlogEditorPageInner() {
             readerToggle
             signatureOn={signatureOn && !!agentHubSlug}
             metal={blog.luxe_metal}
+            accent={blog.accent_color}
             theme={luxePeek ? 'luxe_plus' : blog.theme}
             title={blog.title || 'Untitled Article'}
             subtitle={blog.subtitle}
@@ -1010,7 +1025,7 @@ function BlogEditorPageInner() {
             publishedAt={blog.published_at || new Date().toISOString()}
             agent={{ name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(), title: user?.professional_title, brokerage: user?.brokerage, photoUrl: user?.photo_url }}
           >
-            <BlogArticleBody neighborhoodLinks={linkableAreas?.ready ? (blog.linked_areas || []).map(s => linkableAreas.areas.find(a => a.slug === s)).filter(Boolean).map(a => ({ ...a!, url: a!.url || '#' })) : []} blocks={blog.blocks} signatureHubSlug={signatureOn ? agentHubSlug : null} signatureTowns={((blog.ai_review as any)?.towns || []).map((t: any) => t.town)} signatureMatch={blogSignatureMatch(luxePeek ? 'luxe_plus' : blog.theme, blog.luxe_metal)} forms={hubForms} formHref={agentHubSlug ? (slug => `/${agentHubSlug}/${slug}?src=blog`) : undefined} accentColor={blogAccent(luxePeek ? 'luxe_plus' : blog.theme, blog.luxe_metal)} agent={{ name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(), brokerage: user?.brokerage, photoUrl: resolveMediaUrl(user?.photo_url), title: user?.professional_title }} />
+            <BlogArticleBody neighborhoodLinks={linkableAreas?.ready ? (blog.linked_areas || []).map(s => linkableAreas.areas.find(a => a.slug === s)).filter(Boolean).map(a => ({ ...a!, url: a!.url || '#' })) : []} blocks={blog.blocks} signatureHubSlug={signatureOn ? agentHubSlug : null} signatureTowns={((blog.ai_review as any)?.towns || []).map((t: any) => t.town)} signatureMatch={blogSignatureMatch(luxePeek ? 'luxe_plus' : blog.theme, blog.luxe_metal, blog.accent_color)} forms={hubForms} formHref={agentHubSlug ? (slug => `/${agentHubSlug}/${slug}?src=blog`) : undefined} accentColor={blogAccent(luxePeek ? 'luxe_plus' : blog.theme, blog.luxe_metal, blog.accent_color)} agent={{ name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(), brokerage: user?.brokerage, photoUrl: resolveMediaUrl(user?.photo_url), title: user?.professional_title }} />
           </BlogThemedArticle>
         </div>
       )}
@@ -1500,7 +1515,7 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
 
           <motion.div variants={pubRise} className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#121214]">
             <p className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:border-white/10">Live article <span className="normal-case tracking-normal text-[#8b7355] dark:text-[#e8c97a]">{blogTheme(blog.theme).label} look</span></p>
-            <BlogThemeLivePreview theme={blogTheme(blog.theme).id} title={blog.title} category={blog.category} coverUrl={blog.cover_image_url ? resolveMediaUrl(blog.cover_image_url) : null} agentName={`${user?.first_name || ''} ${user?.last_name || ''}`.trim()} agentPhoto={user?.photo_url ? resolveMediaUrl(user.photo_url) : null} height={230} />
+            <BlogThemeLivePreview metal={blog.luxe_metal} accent={blog.accent_color} theme={blogTheme(blog.theme).id} title={blog.title} category={blog.category} coverUrl={blog.cover_image_url ? resolveMediaUrl(blog.cover_image_url) : null} agentName={`${user?.first_name || ''} ${user?.last_name || ''}`.trim()} agentPhoto={user?.photo_url ? resolveMediaUrl(user.photo_url) : null} height={230} />
           </motion.div>
 
           <motion.div variants={pubRise} className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#121214]" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>

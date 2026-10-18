@@ -1981,6 +1981,7 @@ export interface Blog {
   use_signature_card?: boolean;
   linked_areas?: string[];
   luxe_metal?: 'gold' | 'silver' | 'bronze' | null;
+  accent_color?: string | null;
   ai_review?: BlogAiReview | null;
   scheduled_at?: string | null;
   published_at?: string | null;
@@ -2079,6 +2080,7 @@ export interface PublicBlogDetail {
   /** Linked IDX neighborhood pages (open in a new tab). */
   neighborhoodLinks?: { slug: string; name: string; url: string; photo?: string | null; median_price?: number | null; active_count?: number | null }[];
   luxeMetal?: 'gold' | 'silver' | 'bronze' | null;
+  accentColor?: string | null;
   // The agent's forms - the closing section's buttons open them over the article.
   forms?: { formType: string; slug: string; title?: string }[];
   category?: string | null;

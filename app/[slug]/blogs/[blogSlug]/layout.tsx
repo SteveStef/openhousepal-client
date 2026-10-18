@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   // The card's address changes whenever what it shows changes (cover / AI cover, title, summary,
   // look, or the agent's hub - photo, name, colors), so iMessage / Facebook / Slack fetch the new
   // card instead of reusing an old one.
-  const sig = [data.coverImageUrl, data.socialImageUrl, title, description, data.category, data.theme, data.luxeMetal, data.agentPhotoUrl, data.agentName, data.agentBrokerage, hub?.config?.savedAt].join('|')
+  const sig = [data.coverImageUrl, data.socialImageUrl, title, description, data.category, data.theme, data.luxeMetal, data.accentColor, data.agentPhotoUrl, data.agentName, data.agentBrokerage, hub?.config?.savedAt].join('|')
   let h = 0
   for (let i = 0; i < sig.length; i++) h = (Math.imul(31, h) + sig.charCodeAt(i)) | 0
   const image = { url: `/api/og/blog?agent=${encodeURIComponent(slug)}&post=${encodeURIComponent(blogSlug)}&v=${(h >>> 0).toString(36)}`, width: 1200, height: 630, alt: title }

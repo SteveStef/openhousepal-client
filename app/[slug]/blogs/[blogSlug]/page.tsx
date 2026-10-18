@@ -52,13 +52,14 @@ export default function PublicBlogArticlePage() {
       readerToggle
       signatureOn={!!blog.signatureCard}
       metal={blog.luxeMetal}
+      accent={blog.accentColor}
     >
       {blog.agentId && <QrOwner id={blog.agentId} />}
       <BlogArticleBody
         // Every article ends with the agent's related articles, unless it already places them itself.
         blocks={blog.blocks.some(b => b.type === 'related_articles') ? blog.blocks : [...blog.blocks, { id: 'auto-related', type: 'related_articles', data: {} }]}
         agent={{ name: blog.agentName, brokerage: blog.agentBrokerage, photoUrl: blog.agentPhotoUrl, title: blog.agentTitle }}
-        accentColor={blogAccent(blog.theme, blog.luxeMetal)}
+        accentColor={blogAccent(blog.theme, blog.luxeMetal, blog.accentColor)}
         onEvent={trackEvent}
         onLead={async payload => {
           const res = await api.public.submitBlogLead(params.slug, params.blogSlug, payload)
@@ -69,7 +70,7 @@ export default function PublicBlogArticlePage() {
         formHref={formSlug => `/${params.slug}/${formSlug}?src=blog`}
         signatureHubSlug={blog.signatureCard ? params.slug : null}
         signatureTowns={blog.areaTowns || []}
-        signatureMatch={blogSignatureMatch(blog.theme, blog.luxeMetal)}
+        signatureMatch={blogSignatureMatch(blog.theme, blog.luxeMetal, blog.accentColor)}
         forms={blog.forms || []}
         neighborhoodLinks={blog.neighborhoodLinks || []}
       />

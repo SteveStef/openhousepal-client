@@ -9,8 +9,10 @@ import type { BlogThemeId } from '@/types'
 
 const W = 1000 // the width the article lays out at before scaling
 
-export default function BlogThemeLivePreview({ theme, title, subtitle, category, agentName, agentPhoto, coverUrl, height = 340, className = '', children }: {
+export default function BlogThemeLivePreview({ theme, title, subtitle, category, agentName, agentPhoto, coverUrl, height = 340, className = '', children, metal, accent }: {
   theme: BlogThemeId; title: string; subtitle?: string | null; category?: string | null; agentName?: string; agentPhoto?: string | null; coverUrl?: string | null; height?: number; className?: string
+  /** The article's Luxe finish / Classic accent, so the example wears the real colors. */
+  metal?: string | null; accent?: string | null
   /** The real article body (e.g. a just-written draft) in place of the sample paragraphs. */
   children?: React.ReactNode
 }) {
@@ -33,6 +35,8 @@ export default function BlogThemeLivePreview({ theme, title, subtitle, category,
           preview
           mode={dark ? 'dark' : 'light'}
           theme={theme}
+          metal={metal}
+          accent={accent}
           title={title || 'What buyers should know about the Main Line this fall'}
           subtitle={subtitle || 'A clear, local look at prices, inventory and what it takes to win the home you want.'}
           category={category || 'Buyers'}

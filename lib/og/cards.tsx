@@ -278,22 +278,31 @@ function CoverMotif({ kind, size, color, width = 0.9 }: { kind: CoverKind; size:
 function shareLine(...cands: (string | null | undefined)[]): string | null {
   const raw = cands.map(c => String(c || '').replace(/\s+/g, ' ').trim()).find(Boolean)
   if (!raw) return null
-  const MAX = 150
+  const MAX = 230
   if (raw.length <= MAX) return raw
   const cut = raw.slice(0, MAX)
   const sentence = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('? '), cut.lastIndexOf('! '))
-  if (sentence >= 80) return cut.slice(0, sentence + 1)
+  if (sentence >= 60) return cut.slice(0, sentence + 1)
   return cut.slice(0, cut.lastIndexOf(' ')).replace(/[,;:\-–—]+$/, '') + '…'
 }
 
-export function BlogCard({ photo, kind, category, title, summary, minutes, agentName, agentBrokerage, agentPhoto, look }: {
+export function BlogCard({ photo, kind, category, title, summary, minutes, agentName, agentBrokerage, agentPhoto, look: lookIn }: {
   photo: string | null; kind: CoverKind; category: string; title: string; summary: string | null; minutes: number | null
   agentName: string; agentBrokerage: string | null; agentPhoto: string | null; look: HubLook
 }) {
-  const pal = COVER_PAL[kind]
+  let look = lookIn
+  // Everything takes the article's own color (user, 10/18): the no-cover art is tinted with it
+  // instead of a fixed color per category, and a dark accent (Navy, Charcoal...) is lifted so the
+  // labels stay readable on the dark card.
+  const hi = lum(look.light) < 0.6 ? mixHex(look.light, '#ffffff', 0.55) : look.light
+  const rgbOf = (h: string) => { const x = h.replace('#', ''); const n = parseInt(x, 16); return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}` }
+  const pal = { a: '#0a0b0e', b: mixHex(look.deep, '#0a0b0e', 0.45), glow: rgbOf(lum(look.base) < 0.35 ? mixHex(look.base, '#ffffff', 0.5) : look.base) }
   const glow = `rgb(${pal.glow})`
+  look = { ...look, light: hi }
   // Title steps down with length so it always fits (3 lines at most).
-  const tSize = title.length > 95 ? 46 : title.length > 72 ? 52 : title.length > 48 ? 60 : 70
+  const long = (summary?.length || 0) > 150
+  const tSize = title.length > 95 ? 40 : title.length > 72 ? 44 : title.length > 48 ? (long ? 48 : 52) : (long ? 54 : 62)
+  const sSize = (summary?.length || 0) > 190 ? 19 : long ? 20 : 22
   return (
     <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', color: '#fff', overflow: 'hidden',
       backgroundColor: pal.a, backgroundImage: `radial-gradient(900px 640px at 100% 0%, rgba(${pal.glow},0.42), transparent 58%), linear-gradient(135deg, ${pal.a}, ${pal.b})` }}>
@@ -311,24 +320,25 @@ export function BlogCard({ photo, kind, category, title, summary, minutes, agent
       {/* the agent's metal / accent frame */}
       <div style={{ position: 'absolute', top: 22, left: 22, right: 22, bottom: 22, display: 'flex', border: `2px solid ${look.light}`, borderRadius: 22, opacity: 0.75 }} />
 
-      <div style={{ position: 'absolute', top: 54, left: 62, display: 'flex', alignItems: 'center', padding: '9px 18px', borderRadius: 999, border: `1.5px solid ${look.light}`,
-        backgroundColor: 'rgba(0,0,0,0.38)', fontSize: 16, fontWeight: 900, letterSpacing: 3.5, textTransform: 'uppercase', color: '#F3ECDD' }}>{category}</div>
-      <div style={{ position: 'absolute', top: 46, right: 60, display: 'flex', alignItems: 'center', gap: 14, padding: '8px 22px 8px 8px', borderRadius: 999,
-        backgroundColor: 'rgba(8,8,10,0.62)', border: '1px solid rgba(255,255,255,0.14)' }}>
+      {/* the agent, top-left */}
+      {/* the agent, top-left - big enough to read in a small preview (user, 10/18: "double the size") */}
+      <div style={{ position: 'absolute', top: 46, left: 52, display: 'flex', alignItems: 'center', gap: 22, padding: '10px 40px 10px 10px', borderRadius: 999,
+        backgroundColor: 'rgba(8,8,10,0.62)', border: `1.5px solid ${look.light}66` }}>
         {agentPhoto
-          ? <img src={agentPhoto} width={50} height={50} style={{ width: 50, height: 50, borderRadius: 999, objectFit: 'cover', border: `2px solid ${look.light}` }} />
-          : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 50, height: 50, borderRadius: 999, backgroundColor: '#111', color: look.light, fontSize: 18, fontWeight: 900 }}>{initialsOf(agentName)}</div>}
+          ? <img src={agentPhoto} width={112} height={112} style={{ width: 112, height: 112, borderRadius: 999, objectFit: 'cover', border: `3.5px solid ${look.light}` }} />
+          : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 112, height: 112, borderRadius: 999, backgroundColor: '#111', color: look.light, fontSize: 40, fontWeight: 900 }}>{initialsOf(agentName)}</div>}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', fontSize: 19, fontWeight: 900 }}>{agentName}</div>
-          {agentBrokerage ? <div style={{ display: 'flex', fontSize: 12, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', color: look.light }}>{agentBrokerage}</div> : null}
+          <div style={{ display: 'flex', fontSize: agentName.length > 20 ? 36 : 44, fontWeight: 900, lineHeight: 1.05 }}>{agentName}</div>
+          {agentBrokerage ? <div style={{ display: 'flex', fontSize: 22, fontWeight: 900, letterSpacing: 3, textTransform: 'uppercase', color: look.light, marginTop: 6 }}>{agentBrokerage}</div> : null}
         </div>
       </div>
 
-      <div style={{ position: 'absolute', left: 62, right: 70, bottom: 56, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', width: 70, height: 3, backgroundImage: `linear-gradient(90deg, ${look.light}, rgba(0,0,0,0))` }} />
-        <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: tSize, lineHeight: 1.06, letterSpacing: -0.8, marginTop: 16, maxWidth: 1040 }}>{title}</div>
-        {summary ? <div style={{ display: 'flex', fontSize: 23, lineHeight: 1.38, color: 'rgba(243,236,221,0.86)', marginTop: 14, maxWidth: 1000 }}>{summary}</div> : null}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 18, fontSize: 15, fontWeight: 900, letterSpacing: 3.5, textTransform: 'uppercase', color: look.light }}>
+      <div style={{ position: 'absolute', left: 62, right: 70, bottom: 50, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', fontSize: 17, fontWeight: 900, letterSpacing: 5, textTransform: 'uppercase', color: look.light }}>{category}</div>
+        <div style={{ display: 'flex', width: 70, height: 3, marginTop: 12, backgroundImage: `linear-gradient(90deg, ${look.light}, rgba(0,0,0,0))` }} />
+        <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: tSize, lineHeight: 1.06, letterSpacing: -0.8, marginTop: 14, maxWidth: 1040 }}>{title}</div>
+        {summary ? <div style={{ display: 'flex', fontSize: sSize, lineHeight: 1.36, color: 'rgba(243,236,221,0.88)', marginTop: 12, maxWidth: 1040 }}>{summary}</div> : null}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 16, fontSize: 15, fontWeight: 900, letterSpacing: 3.5, textTransform: 'uppercase', color: look.light }}>
           Read the story
           <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={look.light} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
           {minutes ? <div style={{ display: 'flex', color: 'rgba(255,255,255,0.55)' }}>·  {minutes} min read</div> : null}
@@ -336,6 +346,20 @@ export function BlogCard({ photo, kind, category, title, summary, minutes, agent
       </div>
     </div>
   )
+}
+
+/** The card's colors from the article's own look: Luxe = its metal, Classic = its accent (the Agent
+ *  Hub's Classic choices), Editorial = black & white, Modern / Midnight = their gold. No look saved
+ *  = the article default (Classic, Original gold). */
+function articleLook(data: any, hubCfg: any): HubLook {
+  const dark = !!hubCfg?.visitorDarkMode
+  const theme = String(data?.theme || 'luxe')
+  if (theme === 'luxe_plus') return { ...(LUXE[data?.luxeMetal] || LUXE.gold), dark }
+  if (theme === 'editorial') return { base: '#d1d5db', light: '#f3f4f6', deep: '#6b7280', wash: ['#ffffff', '#f5f5f5', '#e5e5e5'], night: ['#0b0b0b', '#141414', '#1f1f1f'], dark }
+  if (theme === 'midnight') return { ...LUXE.gold, light: '#e8c97a', dark: true }
+  if (theme === 'modern') return { ...LUXE.gold, dark }
+  const accent = hubAccentOf(data?.accentColor)
+  return hubLook({ hubTheme: 'classic', hubAccent: accent, visitorDarkMode: dark })
 }
 
 export async function renderBlogCard(agentSlug: string, blogSlug: string, fonts: Fonts): Promise<ImageResponse> {
@@ -348,9 +372,7 @@ export async function renderBlogCard(agentSlug: string, blogSlug: string, fonts:
       imgToDataUri(data?.socialImageUrl || data?.coverImageUrl, 5000),
       imgToDataUri(data?.agentPhotoUrl),
     ])
-    // The article's own Luxe metal when it uses a Luxe look, else the agent's hub look.
-    const base = hubLook(hub?.config || null)
-    const look: HubLook = String(data?.theme || '').startsWith('luxe') && LUXE[data?.luxeMetal] ? { ...LUXE[data.luxeMetal], dark: base.dark } : base
+    const look = articleLook(data, hub?.config || null)
     const category = data?.category ? String(data.category) : 'Market Notes'
     const title = String(data?.socialTitle || data?.title || 'From the blog')
     return IR(

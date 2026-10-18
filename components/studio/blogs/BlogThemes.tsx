@@ -8,6 +8,7 @@ import { ArrowLeft, Clock, Moon, Sun } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
 import { resolveMediaUrl } from '@/lib/api-service'
 import type { BlogThemeId } from '@/types'
+import { HUB_CLASSIC_ACCENTS, hubAccentOf } from '@/components/agent-hub/HubClassicTheme'
 
 // The looks an article can wear on the agent's Agent Hub. Classic (id 'luxe' - ivory + gold,
 // serif) is the default; the agent can switch any article to another. Luxe (id 'luxe_plus') is
@@ -27,21 +28,47 @@ export const blogTheme = (id?: string | null) => BLOG_THEMES.find(t => t.id === 
 // steel blue instead; gold and bronze are their deeper / brighter selves.
 export const LUXE_INK: Record<LuxeMetal, { light: string; dark: string }> = {
   gold: { light: '#94701f', dark: '#e8c97a' },
-  silver: { light: '#3f5f82', dark: '#a9c3e0' },
+  // Silver reads as the same cool grey metal the Agent Hub and IDX site use (it was steel blue).
+  silver: { light: '#4f5660', dark: '#d7dce2' },
   bronze: { light: '#8a5531', dark: '#e3ae86' },
 }
 
+// Classic means the same thing on articles as on the Agent Hub and IDX site (user, 10/18): the
+// same accent choices - Original gold plus the Classic colors - picked per article.
+export const CLASSIC_BLOG_ACCENTS = HUB_CLASSIC_ACCENTS
+export const classicAccent = (accent?: string | null) => hubAccentOf(accent)
+
+function hexRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+function mixHex(hex: string, to: [number, number, number], t: number) {
+  const c = hexRgb(hex)
+  return '#' + c.map((v, i) => Math.round(v + (to[i] - v) * t).toString(16).padStart(2, '0')).join('')
+}
+/** An accent and the lighter / deeper tones the Classic look draws its gradients from. */
+export function accentTones(accent: string) {
+  const original = accent.toLowerCase() === '#c9a24d'
+  return {
+    base: accent,
+    light: original ? '#f1d58b' : mixHex(accent, [255, 255, 255], 0.45),
+    deep: original ? '#8b6a2b' : mixHex(accent, [0, 0, 0], 0.3),
+    rgb: hexRgb(accent).join(','),
+  }
+}
+
 /** The accent an article's blocks use (bullets, eyebrows, quotes, the closing section). */
-export function blogAccent(theme?: string | null, metal?: string | null): string {
+export function blogAccent(theme?: string | null, metal?: string | null, accent?: string | null): string {
   const id = blogTheme(theme).id
   if (id === 'editorial') return '#111827'
-  if (id === 'luxe_plus') return metalOf(metal) === 'silver' ? '#7f9bbb' : LUXE_METALS[metalOf(metal)].base
+  if (id === 'luxe_plus') return metalOf(metal) === 'silver' ? LUXE_METALS.silver.mid : LUXE_METALS[metalOf(metal)].base
+  if (id === 'luxe') return classicAccent(accent)
   return '#C9A24D'
 }
 
 /** What the article's signature card should match: a Luxe article's metal, else its accent. */
-export function blogSignatureMatch(theme?: string | null, metal?: string | null) {
-  return { metal: blogTheme(theme).id === 'luxe_plus' ? metalOf(metal) : null, accent: blogAccent(theme, metal) }
+export function blogSignatureMatch(theme?: string | null, metal?: string | null, accent?: string | null) {
+  return { metal: blogTheme(theme).id === 'luxe_plus' ? metalOf(metal) : null, accent: blogAccent(theme, metal, accent) }
 }
 
 // A tiny drawn preview of a theme - for the pickers (create flow + editor).
@@ -88,14 +115,14 @@ function TitleWords({ text, gold }: { text: string; gold: boolean }) {
 }
 
 const THEME_CSS = `
-.blog-gold-em{background:linear-gradient(100deg,#8b6a2b 0%,#C9A24D 30%,#f1d58b 50%,#C9A24D 70%,#8b6a2b 100%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:blogEm 7s ease-in-out infinite;padding-right:.05em}
+.blog-gold-em{background:linear-gradient(100deg,var(--ba-deep,#8b6a2b) 0%,var(--ba,#C9A24D) 30%,var(--ba-light,#f1d58b) 50%,var(--ba,#C9A24D) 70%,var(--ba-deep,#8b6a2b) 100%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:blogEm 7s ease-in-out infinite;padding-right:.05em}
 @keyframes blogEm{0%,100%{background-position:100% 0}50%{background-position:0% 0}}
 .blog-theme-modern .blog-body h2,.blog-theme-modern .blog-body h3{font-family:inherit!important;font-weight:900;letter-spacing:-.02em}
 .blog-theme-editorial .blog-body > div > p:first-of-type::first-letter{float:left;font-family:ui-serif,Georgia,serif;font-size:3.6em;line-height:.8;padding:.08em .1em 0 0;font-weight:900;color:#0b0b0b}
 .dark.blog-theme-editorial .blog-body > div > p:first-of-type::first-letter{color:#fff}
 .blog-theme-editorial .blog-body p{font-family:ui-serif,Georgia,serif;font-size:1.08rem}
 .blog-theme-luxe .blog-body h2,.blog-theme-midnight .blog-body h2{position:relative;padding-left:.9rem}
-.blog-theme-luxe .blog-body h2::before,.blog-theme-midnight .blog-body h2::before{content:"";position:absolute;left:0;top:.2em;bottom:.2em;width:4px;border-radius:99px;background:linear-gradient(180deg,#C9A24D,#e8c97a)}
+.blog-theme-luxe .blog-body h2::before,.blog-theme-midnight .blog-body h2::before{content:"";position:absolute;left:0;top:.2em;bottom:.2em;width:4px;border-radius:99px;background:linear-gradient(180deg,var(--ba,#C9A24D),var(--ba-light,#e8c97a))}
 @media (prefers-reduced-motion:reduce){.blog-gold-em{animation:none}}
 `
 
@@ -124,6 +151,8 @@ export interface ThemedArticleProps {
   mode?: 'light' | 'dark'
   /** Show the floating Light / Dark button. */
   readerToggle?: boolean
+  /** Classic look's accent (the Agent Hub's Classic choices); null = Original gold. */
+  accent?: string | null
 }
 
 const READER_KEY = 'ohp-blog-reader-mode'
@@ -180,8 +209,12 @@ function ReaderToggle({ mode, onChange }: { mode: 'light' | 'dark'; onChange: (m
 
 // A whole public article in its theme: reading-progress bar, the themed hero (title, byline,
 // cover), the body, and the agent card at the end.
-export function BlogThemedArticle({ theme, title, subtitle, category, coverUrl, publishedAt, readingTimeMinutes, agent, backHref, hubHref, children, afterArticle, preview, mode: forcedMode, readerToggle, metal, signatureOn }: ThemedArticleProps) {
+export function BlogThemedArticle({ theme, title, subtitle, category, coverUrl, publishedAt, readingTimeMinutes, agent, backHref, hubHref, children, afterArticle, preview, mode: forcedMode, readerToggle, metal, signatureOn, accent }: ThemedArticleProps) {
   const t = blogTheme(theme)
+  // Classic wears the agent's chosen accent (Original gold unless they picked another color).
+  const acc = t.id === 'luxe' ? classicAccent(accent) : t.accent
+  const tones = accentTones(acc)
+  const accVars = { '--ba': tones.base, '--ba-light': tones.light, '--ba-deep': tones.deep, '--ba-rgb': tones.rgb } as React.CSSProperties
   const [mode, setMode] = useReaderMode(t.id === 'midnight' ? 'dark' : 'light', forcedMode, preview)
   const dark = mode === 'dark'
   const pal = themePalette(t, dark)
@@ -204,9 +237,9 @@ export function BlogThemedArticle({ theme, title, subtitle, category, coverUrl, 
 
   const byline = (
     <div className={`flex items-center gap-3 ${t.id === 'editorial' ? 'justify-center' : ''}`}>
-      {agent.photoUrl && <img src={resolveMediaUrl(agent.photoUrl)} alt={agent.name} className={`${signatureOn ? 'h-14 w-14' : 'h-10 w-10'} rounded-full object-cover ring-2`} style={{ ['--tw-ring-color' as any]: t.accent }} />}
+      {agent.photoUrl && <img src={resolveMediaUrl(agent.photoUrl)} alt={agent.name} className={`${signatureOn ? 'h-14 w-14' : 'h-10 w-10'} rounded-full object-cover ring-2`} style={{ ['--tw-ring-color' as any]: acc }} />}
       <div className="text-left">
-        {signatureOn && <p className="text-[10px] font-black uppercase tracking-[0.25em]" style={{ color: t.id === 'editorial' ? '#6b7280' : t.accent }}>Written by</p>}
+        {signatureOn && <p className="text-[10px] font-black uppercase tracking-[0.25em]" style={{ color: t.id === 'editorial' ? '#6b7280' : acc }}>Written by</p>}
         <p className={`${signatureOn ? `text-lg ${serif ? 'font-serif' : ''}` : 'text-sm'} font-black`} style={{ color: pal.ink }}>{agent.name}</p>
         {signatureOn && (agent.title || agent.brokerage) && <p className="text-xs font-bold opacity-60" style={{ color: pal.ink }}>{[agent.title, agent.brokerage].filter(Boolean).join(' · ')}</p>}
         <p className="flex flex-wrap items-center gap-1.5 text-xs font-bold opacity-70" style={{ color: pal.ink }}>
@@ -228,20 +261,20 @@ export function BlogThemedArticle({ theme, title, subtitle, category, coverUrl, 
   }
 
   return (
-    <div className={`${dark ? 'dark' : ''} blog-theme-${t.id}`}>
+    <div className={`${dark ? 'dark' : ''} blog-theme-${t.id}`} style={accVars}>
       <style>{THEME_CSS}</style>
       {readerToggle && !preview && <ReaderToggle mode={mode} onChange={setMode} />}
       <div className={`${preview ? 'hidden' : 'fixed'} inset-x-0 top-0 z-50 h-[3px]`} aria-hidden>
-        <div className="h-full origin-left transition-transform duration-150" style={{ transform: `scaleX(${progress})`, background: `linear-gradient(90deg, ${t.accent}, ${t.id === 'editorial' ? '#555' : '#f1d58b'})` }} />
+        <div className="h-full origin-left transition-transform duration-150" style={{ transform: `scaleX(${progress})`, background: `linear-gradient(90deg, ${acc}, ${t.id === 'editorial' ? '#555' : tones.light})` }} />
       </div>
       <main className={`${preview ? '' : 'min-h-screen'} transition-colors duration-500 ${t.id === 'modern' ? 'font-sans' : ''}`} style={{ background: pal.bg }}>
         {/* Hero */}
         <header className="relative overflow-hidden">
           {t.id === 'luxe' && (
             <>
-              <div className={`pointer-events-none absolute inset-0 ${dark ? 'bg-[radial-gradient(110%_130%_at_100%_0%,rgba(201,162,77,.22),transparent_55%),linear-gradient(135deg,#0b0f0e_0%,#111827_55%,#1d1810_100%)]' : 'bg-[radial-gradient(110%_130%_at_100%_0%,rgba(201,162,77,.22),transparent_55%),linear-gradient(135deg,#fffdf8_0%,#fbf6ec_55%,#f4ead7_100%)]'}`} />
+              <div className={`pointer-events-none absolute inset-0 ${dark ? 'bg-[radial-gradient(110%_130%_at_100%_0%,rgba(var(--ba-rgb),.22),transparent_55%),linear-gradient(135deg,#0b0f0e_0%,#111827_55%,#1d1810_100%)]' : 'bg-[radial-gradient(110%_130%_at_100%_0%,rgba(var(--ba-rgb),.22),transparent_55%),linear-gradient(135deg,#fffdf8_0%,#fbf6ec_55%,#f4ead7_100%)]'}`} />
               <div className="pointer-events-none absolute inset-0 [background-image:linear-gradient(rgba(139,115,85,.06)_1px,transparent_1px),linear-gradient(90deg,rgba(139,115,85,.06)_1px,transparent_1px)] [background-size:40px_40px] [mask-image:radial-gradient(70%_80%_at_80%_0%,#000,transparent_75%)]" />
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D] to-transparent" />
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--ba)] to-transparent" />
             </>
           )}
           {t.id === 'midnight' && dark && (
@@ -258,8 +291,8 @@ export function BlogThemedArticle({ theme, title, subtitle, category, coverUrl, 
             )}
             <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}>
               {category && (
-                <p className={`mt-8 flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.3em] ${t.id === 'editorial' ? 'justify-center' : ''}`} style={{ color: t.id === 'editorial' ? '#6b7280' : t.accent }}>
-                  {t.id !== 'modern' && <span className="h-px w-8" style={{ background: t.accent }} />}{category}
+                <p className={`mt-8 flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.3em] ${t.id === 'editorial' ? 'justify-center' : ''}`} style={{ color: t.id === 'editorial' ? '#6b7280' : acc }}>
+                  {t.id !== 'modern' && <span className="h-px w-8" style={{ background: acc }} />}{category}
                 </p>
               )}
               <h1
@@ -277,24 +310,24 @@ export function BlogThemedArticle({ theme, title, subtitle, category, coverUrl, 
 
         {cover && (
           <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }} className={`mx-auto px-5 ${t.id === 'modern' ? 'max-w-5xl' : 'max-w-4xl'}`}>
-            <div className={`overflow-hidden ${t.id === 'editorial' ? 'rounded-none' : 'rounded-[28px]'} ${t.id === 'luxe' ? 'bg-gradient-to-br from-[#f1d58b] via-white to-[#C9A24D] p-1.5 shadow-[0_40px_80px_-40px_rgba(139,115,85,.7)]' : 'shadow-[0_30px_70px_-40px_rgba(0,0,0,.6)]'}`}>
+            <div className={`overflow-hidden ${t.id === 'editorial' ? 'rounded-none' : 'rounded-[28px]'} ${t.id === 'luxe' ? 'bg-gradient-to-br from-[var(--ba-light)] via-white to-[var(--ba)] p-1.5 shadow-[0_40px_80px_-40px_rgba(139,115,85,.7)]' : 'shadow-[0_30px_70px_-40px_rgba(0,0,0,.6)]'}`}>
               <img src={cover} alt="" className={`aspect-[16/9] w-full object-cover ${t.id === 'luxe' ? 'rounded-[22px]' : ''}`} />
             </div>
           </motion.div>
         )}
 
         <article className="mx-auto max-w-4xl px-5 pb-20">
-          <div className={`blog-body ${t.id === 'luxe' || t.id === 'midnight' ? 'mt-10 rounded-[28px] border p-6 sm:p-10' : 'mt-10'} ${(t.id === 'luxe' || t.id === 'midnight') && !dark ? 'border-[#C9A24D]/20 bg-white shadow-[0_30px_60px_-46px_rgba(139,115,85,.7)]' : ''} ${(t.id === 'luxe' || t.id === 'midnight') && dark ? 'border-white/10 bg-[#141416]' : ''}`}>
+          <div className={`blog-body ${t.id === 'luxe' || t.id === 'midnight' ? 'mt-10 rounded-[28px] border p-6 sm:p-10' : 'mt-10'} ${(t.id === 'luxe' || t.id === 'midnight') && !dark ? 'border-[rgba(var(--ba-rgb),0.2)] bg-white shadow-[0_30px_60px_-46px_rgba(139,115,85,.7)]' : ''} ${(t.id === 'luxe' || t.id === 'midnight') && dark ? 'border-white/10 bg-[#141416]' : ''}`}>
             {children}
           </div>
 
           {!signatureOn && <div className={`mt-10 flex items-center gap-4 rounded-[24px] border p-5 ${dark ? 'border-white/10 bg-[#141416]' : 'border-black/[0.07] bg-white shadow-[0_20px_44px_-34px_rgba(0,0,0,.4)]'}`}>
             {agent.photoUrl && <img src={resolveMediaUrl(agent.photoUrl)} alt={agent.name} className="h-14 w-14 rounded-full object-cover" />}
             <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.25em]" style={{ color: t.id === 'editorial' ? '#6b7280' : t.accent }}>Written by</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.25em]" style={{ color: t.id === 'editorial' ? '#6b7280' : acc }}>Written by</p>
               <p className={`font-black ${serif ? 'font-serif text-lg' : ''}`} style={{ color: pal.ink }}>{agent.name}</p>
               <p className="text-xs font-bold opacity-60" style={{ color: pal.ink }}>{agent.title ? `${agent.title} · ` : ''}{agent.brokerage}</p>
-              {hubHref && <Link href={hubHref} className="mt-1 inline-block text-xs font-black hover:underline" style={{ color: t.id === 'editorial' ? (dark ? '#fff' : '#111827') : t.accent }}>Visit my Agent Hub →</Link>}
+              {hubHref && <Link href={hubHref} className="mt-1 inline-block text-xs font-black hover:underline" style={{ color: t.id === 'editorial' ? (dark ? '#fff' : '#111827') : acc }}>Visit my Agent Hub →</Link>}
             </div>
           </div>}
           {after}
