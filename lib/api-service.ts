@@ -253,6 +253,18 @@ class ApiService {
     townships: async (township: string) => this.request<{results: string[]}>(`/api/properties/townships?query=${encodeURIComponent(township)}`),
     counties: async (query: string) => this.request<{results: string[]}>(`/api/properties/counties?query=${encodeURIComponent(query)}`),
     // Real Census lines for a Showcase's towns / school districts / counties (the editor map highlight).
+    // A client editing their own search (no sign-in) - same lines, public route.
+    areaShapesPublic: async (sel: { cities?: string[]; school_districts?: string[]; counties?: string[] }) => {
+      const q = new URLSearchParams()
+      ;(sel.cities || []).forEach(v => q.append('cities', v))
+      ;(sel.school_districts || []).forEach(v => q.append('school_districts', v))
+      ;(sel.counties || []).forEach(v => q.append('counties', v))
+      return this.request<{ shapes: { kind: 'town' | 'school_district' | 'county'; label: string; query: string; rings: number[][][]; zips?: string[] | null }[] }>(`/api/properties/area-shapes/public?${q.toString()}`, {}, false)
+    },
+    // One home's township / neighbours / school district for a property map (components/maps/HomeAreaMap).
+    homeAreasPublic: async (lat: number, lng: number) =>
+      this.request<{ municipality: { name: string; geoid: string; rings: number[][][] } | null; neighbors: { name: string; geoid: string; rings: number[][][] }[]; school_districts: { name: string; geoid: string; rings: number[][][] }[] }>(
+        `/api/properties/home-areas/public?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`, {}, false),
     areaShapes: async (sel: { cities?: string[]; school_districts?: string[]; counties?: string[] }) => {
       const q = new URLSearchParams()
       ;(sel.cities || []).forEach(v => q.append('cities', v))

@@ -39,6 +39,9 @@ export interface CanvasBadge {
   sub?: string
   color: string
   icon: 'school' | 'town' | 'gov' | 'county'
+  /** A quiet name tag (no icon) - for the areas around the one that matters (a home's neighbouring
+   *  townships). Left off entirely when it doesn't fit inside its own lines. */
+  small?: boolean
 }
 
 const ICONS = { school: GraduationCap, town: MapPinned, gov: Landmark, county: MapPinned }
@@ -226,6 +229,14 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
       }
       // Biggest badge that fits: name + caption, then name only, then the icon - always somewhere.
       const tiers: { mode: 'full' | 'title' | 'icon'; w: number; h: number; needIn: number; minClear: number }[] = []
+      if (b.small) {
+        const sw = 22 + b.title.length * 6.6
+        for (const tier of [{ needIn: 8, minClear: 8 }, { needIn: 6, minClear: 4 }]) {
+          const spot = tryFit(sw, 24, tier.needIn, tier.minClear)
+          if (spot) { out.push({ b, x: spot.x, y: spot.y, mode: 'title', w: sw, h: 24 }); break }
+        }
+        continue
+      }
       const fullW = Math.min(260, 66 + Math.max(b.title.length * 8, (b.sub || '').length * 7.2))
       const titleW = Math.min(240, 62 + b.title.length * 8)
       tiers.push({ mode: 'full', w: fullW, h: 54, needIn: 8, minClear: 12 }, { mode: 'full', w: fullW, h: 54, needIn: 6, minClear: 5 },
@@ -292,6 +303,10 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
                   transition={{ opacity: { duration: 0.5, delay: 0.9 + i * 0.15 }, scale: { type: 'spring', stiffness: 260, damping: 18, delay: 0.9 + i * 0.15 }, x: { type: 'spring', stiffness: 170, damping: 24 }, y: { type: 'spring', stiffness: 170, damping: 24 } }}
                   style={{ zIndex: 5 }}>
                   <div className="ohp-badge -translate-x-1/2 -translate-y-1/2" style={{ ['--badge' as any]: b.color }}>
+                    {b.small ? (
+                      <div className="whitespace-nowrap rounded-full border px-2.5 py-[3px] text-[11px] font-black tracking-[-0.01em] shadow-md"
+                        style={{ background: card.bg, borderColor: card.line, color: card.ink }}>{b.title}</div>
+                    ) : (
                     <div className={`flex items-center gap-2.5 ${compact ? '' : 'pr-3.5'} rounded-full border shadow-xl `}
                       style={{ background: card.bg, borderColor: card.line, padding: compact ? 4 : '5px 14px 5px 5px', boxShadow: `0 14px 34px -14px ${b.color}aa, 0 2px 8px rgba(0,0,0,.12)` }}>
                       <span className="ohp-badge-ring relative flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full">
@@ -306,6 +321,7 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
                         </span>
                       )}
                     </div>
+                    )}
                   </div>
                 </motion.div>
               )
