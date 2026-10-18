@@ -394,7 +394,7 @@ function ScheduleTourWindow({
                   </div>
                   <motion.h3 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="mt-7 font-serif text-3xl font-black text-[#111827] dark:text-white">Showing requested</motion.h3>
                   <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }} className="mt-2 max-w-sm text-sm font-medium text-gray-500 dark:text-gray-400">
-                    {picks[0] ? `${dayLabel(picks[0].date, true)} at ${timeLabel(picks[0].time)}${picks.length > 1 ? ` (+${picks.length - 1} backup${picks.length > 2 ? 's' : ''})` : ''}.` : ''} It&apos;s pending your agent&apos;s approval - you&apos;ll get a message when it&apos;s confirmed.
+                    {picks[0] ? `${dayLabel(picks[0].date, true)} at ${timeLabel(picks[0].time)}${picks.length > 1 ? ` (+${picks.length - 1} backup${picks.length > 2 ? 's' : ''})` : ''}.` : ''}{' '}It&apos;s pending your agent&apos;s approval - you&apos;ll get a message when it&apos;s confirmed.
                   </motion.p>
                   {/* the bar that runs out as the window closes itself */}
                   <div className="mt-7 h-1 w-40 overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
