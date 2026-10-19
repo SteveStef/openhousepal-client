@@ -51,11 +51,11 @@ function visibleWindow<T>(items: T[], start: number, count: number) {
 // row blinking out and back. Both cards share one grid cell so nothing jumps while they swap.
 function Slot({ id, i, className, children }: { id: string; i: number; className?: string; children: ReactNode }) {
   return (
-    <div className={`grid ${className || ''}`}>
+    <div className={`grid min-w-0 grid-cols-1 ${className || ''}`}>
       <AnimatePresence initial={false}>
         <motion.div
           key={id}
-          className="[grid-area:1/1]"
+          className="min-w-0 [grid-area:1/1]"
           initial={{ opacity: 0, y: 18, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.12 + i * 0.09 } }}
           exit={{ opacity: 0, y: -8, transition: { duration: 0.45, ease: [0.4, 0, 1, 1], delay: i * 0.06 } }}

@@ -27,8 +27,11 @@ export default function TownSectionNav({ sections, luxe }: { sections: { id: str
       setActive(current)
     }
     onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    // At most once per frame (scroll fires several times a frame on phones).
+    let frame = 0
+    const onScrollFrame = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; onScroll() }) }
+    window.addEventListener('scroll', onScrollFrame, { passive: true })
+    return () => { window.removeEventListener('scroll', onScrollFrame); if (frame) cancelAnimationFrame(frame) }
   }, [sections])
 
   useEffect(() => {
