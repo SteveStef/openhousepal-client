@@ -393,7 +393,7 @@ export async function renderBlogCard(agentSlug: string, blogSlug: string, fonts:
 // to dark is dark), with the form's own picture (a price tag for What's My Home Worth, a key for
 // I'm Buying, a yard sign for I'm Selling, a calendar for a showing...) so a few of them in one
 // text thread don't look the same, and a button-like "tap here" line.
-type FormKind = 'value' | 'buy' | 'sell' | 'showing' | 'showcase' | 'talk'
+type FormKind = 'value' | 'buy' | 'sell' | 'showing' | 'showcase' | 'talk' | 'start'
 const FORM_KIND: Record<string, FormKind> = {
   home_value: 'value', buying: 'buy', buyer_onboarding: 'buy', selling: 'sell', seller_onboarding: 'sell', make_me_sell: 'sell',
   showing: 'showing', showcase_request: 'showcase', how_can_i_help: 'talk',
@@ -411,6 +411,10 @@ const FORM_FACE: Record<FormKind, { eyebrow: string; button: string; d: string[]
     d: ['M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.13a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.13 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.13a.5.5 0 0 1-.96 0z', 'M20 3v4', 'M22 5h-4'] },
   talk: { eyebrow: 'Get in touch', button: "Let's talk",
     d: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', 'M8 9h8', 'M8 13h5'] },
+  // An agent's own form could be about anything (user, 10/19: "what if it says let's talk but it's
+  // not about talking") - so nothing that guesses what it's for.
+  start: { eyebrow: 'Quick form', button: 'Click here to start',
+    d: ['M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z', 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2', 'M12 11h4', 'M12 16h4', 'M8 11h.01', 'M8 16h.01'] },
 }
 
 
@@ -433,7 +437,8 @@ function formCardCopy(formType: string, headline: string, subtitle: string | nul
   const preset = FORM_CARD_COPY[formType]
   const own = !preset || !preset.defaults.some(d => d.toLowerCase() === headline.trim().toLowerCase())
   const title = own ? headline : preset.headline
-  const support = own ? (subtitle ? firstSentence(subtitle) : 'A few quick questions and I follow up personally.') : preset.support
+  // the agent's own line under the form's title (its first sentence), else a neutral one
+  const support = own ? (subtitle?.trim() ? firstSentence(subtitle) : 'Just a few quick questions.') : preset.support
   return { lines: title.split(/\s+[-–—]\s+/).filter(Boolean).slice(0, 2), support }
 }
 // One line each: the size that fits the column (measured: Playfair black ~0.51em a letter, Manrope ~0.49em - with a little room).
@@ -529,7 +534,7 @@ export async function renderFormCard(agentSlug: string, formSlug: string, fonts:
     // The form's own look (the Agent Hub's unless it has its own - resolved by the backend).
     const fl = data?.look
     const look = hubLook(lookOverride(previewLook) || (fl ? { hubTheme: fl.theme, hubAccent: fl.accent, hubLuxeMetal: fl.metal, visitorDarkMode: !!fl.dark } : { ...cfg, visitorDarkMode: !!cfg.visitorDarkMode || !!data?.darkMode }))
-    const kind = FORM_KIND[String(data?.formType || '')] || (formSlug.includes('worth') || formSlug.includes('value') ? 'value' : 'talk')
+    const kind = FORM_KIND[String(data?.formType || '')] || (formSlug.includes('worth') || formSlug.includes('value') ? 'value' : 'start')
     const copy = formCardCopy(String(data?.formType || ''), String(data?.headline || data?.title || "Let's talk"), data?.subtitle)
     return IR(
       <FormCard photo={agentPhoto} name={agentName} brokerage={data?.agentBrokerage || cfg.profile?.brokerage || null}
@@ -537,7 +542,7 @@ export async function renderFormCard(agentSlug: string, formSlug: string, fonts:
       fonts,
     )
   } catch {
-    return IR(<FormCard photo={null} name="Your agent" brokerage={null} lines={["Let's Talk"]} support="A few quick questions and I follow up personally." kind="talk" look={hubLook(null)} />, fonts)
+    return IR(<FormCard photo={null} name="Your agent" brokerage={null} lines={['Quick Form']} support="Just a few quick questions." kind="start" look={hubLook(null)} />, fonts)
   }
 }
 
