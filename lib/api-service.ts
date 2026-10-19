@@ -744,6 +744,20 @@ class ApiService {
 
     getPublicQuestionsUnreadCount: () => this.request<{ unread_count: number }>('/admin/public-questions/unread-count'),
 
+    // CMA accuracy test (admin only) - see backend app/api/cma_backtest_routes.py
+    cmaBacktestOptions: () => this.request<any>('/admin/cma-backtest/options'),
+    cmaBacktestPreview: (body: Record<string, unknown>) =>
+      this.request<any>('/admin/cma-backtest/preview', { method: 'POST', body: JSON.stringify(body) }),
+    cmaBacktestStart: (body: Record<string, unknown>) =>
+      this.request<any>('/admin/cma-backtest/batches', { method: 'POST', body: JSON.stringify(body) }),
+    cmaBacktestBatches: () => this.request<any[]>('/admin/cma-backtest/batches'),
+    cmaBacktestBatch: (id: string) => this.request<any>(`/admin/cma-backtest/batches/${encodeURIComponent(id)}`),
+    cmaBacktestStop: (id: string) => this.request<any>(`/admin/cma-backtest/batches/${encodeURIComponent(id)}/stop`, { method: 'POST' }),
+    cmaBacktestResume: (id: string) => this.request<any>(`/admin/cma-backtest/batches/${encodeURIComponent(id)}/resume`, { method: 'POST' }),
+    cmaBacktestDelete: (id: string) => this.request<void>(`/admin/cma-backtest/batches/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    cmaBacktestDeleteAllReports: () => this.request<{ deleted: number }>('/admin/cma-backtest/reports', { method: 'DELETE' }),
+    cmaBacktestReview: (id: string) => this.request<any>(`/admin/cma-backtest/batches/${encodeURIComponent(id)}/review`),
+
     lookupCmaReportByCode: (code: string) =>
       this.request<CmaReport & { owner_name?: string | null; owner_email?: string | null }>(
         `/admin/cma-reports/lookup/${encodeURIComponent(code)}`

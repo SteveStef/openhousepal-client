@@ -6,7 +6,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
-  Activity, Building2, Cpu, FileSearch, HardDrive, HelpCircle, LayoutDashboard, LifeBuoy, ShieldCheck, Ticket, Users, Wallet, Workflow,
+  Activity, Building2, Cpu, FileSearch, FlaskConical, HardDrive, HelpCircle, LayoutDashboard, LifeBuoy, ShieldCheck, Ticket, Users, Wallet, Workflow,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import api from '@/lib/api-service'
@@ -20,6 +20,7 @@ import AgentStorageUsagePanel from '@/components/admin/AgentStorageUsagePanel'
 import SupportInboxPanel from '@/components/admin/SupportInboxPanel'
 import PublicQuestionsPanel from '@/components/admin/PublicQuestionsPanel'
 import CmaLookupPanel from '@/components/admin/CmaLookupPanel'
+import CmaBacktestPanel from '@/components/admin/CmaBacktestPanel'
 import FeatureFlowsPanel from '@/components/admin/FeatureFlowsPanel'
 import AgentActivityPanel from '@/components/admin/AgentActivityPanel'
 import AgentControlPanel from '@/components/admin/AgentControlPanel'
@@ -27,7 +28,7 @@ import BrokerageGroupsPanel from '@/components/admin/BrokerageGroupsPanel'
 import AdminOverviewPanel from '@/components/admin/AdminOverviewPanel'
 import PromoCodesPanel from '@/components/admin/PromoCodesPanel'
 
-type Tab = 'overview' | 'agents' | 'groups' | 'codes' | 'activity' | 'support' | 'questions' | 'ai' | 'providers' | 'storage' | 'cma' | 'flows'
+type Tab = 'overview' | 'agents' | 'groups' | 'codes' | 'activity' | 'support' | 'questions' | 'ai' | 'providers' | 'storage' | 'cma' | 'cmatest' | 'flows'
 
 // The admin's sections, grouped the way they're used.
 const NAV: { group: string; items: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }>; blurb: string }[] }[] = [
@@ -49,6 +50,7 @@ const NAV: { group: string; items: { key: Tab; label: string; icon: React.Compon
   ] },
   { group: 'Tools', items: [
     { key: 'cma', label: 'CMA lookup', icon: FileSearch, blurb: 'Find any CMA by its code.' },
+    { key: 'cmatest', label: 'CMA accuracy test', icon: FlaskConical, blurb: 'Re-run real past sales through the CMA and score it against what they sold for.' },
     { key: 'flows', label: 'Feature flows', icon: Workflow, blurb: 'How each feature works, step by step.' },
   ] },
 ]
@@ -207,6 +209,7 @@ function AdminDashboardContent() {
               {tab === 'providers' && <ProviderBalancesPanel />}
               {tab === 'storage' && <AgentStorageUsagePanel />}
               {tab === 'cma' && <CmaLookupPanel />}
+              {tab === 'cmatest' && <CmaBacktestPanel />}
               {tab === 'flows' && <FeatureFlowsPanel />}
             </motion.div>
           </main>
