@@ -635,28 +635,38 @@ function HeroPanel({ home, actions, split = 'lg' }: { home: HomeView; actions?: 
         )}
       </div>
 
-      <div className="pp-rise mt-3.5 lg:mt-4" style={rise(1)}>
-        <p className={`text-[10px] font-black uppercase tracking-[0.28em] ${pp.faint}`}>{sold ? 'Sold for' : 'Offered at'}</p>
-        <p className={`ohp-site-heading mt-1 text-[2.2rem] font-black leading-none tracking-[-0.025em] sm:text-[2.5rem] ${pp.heading} ${serif}`}>
-          {home.price != null ? money(home.price) : 'Price on request'}
-        </p>
-        {cut > 0 && (
-          <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-black text-emerald-600">
-            <TrendingDown className="h-3.5 w-3.5" /> {money(cut)} price cut <span className={`font-bold line-through ${pp.faint}`}>{money(home.originalPrice)}</span>
-          </span>
-        )}
+      {/* Phones (user, 10/19 - "address and price on two separate lines, the price taking a whole
+          thick row"): one row - the address and town on the left, the price on the right. The side
+          panel on a wide screen keeps the big price first and the address under it. */}
+      <div className={`pp-rise mt-3.5 flex items-start justify-between gap-3 ${split === 'md' ? 'md:mt-4 md:block' : 'lg:mt-4 lg:block'}`} style={rise(1)}>
+        <div className={`min-w-0 flex-1 ${split === 'md' ? 'md:hidden' : 'lg:hidden'}`}>
+          <h1 className={`ohp-site-heading text-[1.2rem] font-black leading-tight [overflow-wrap:anywhere] [text-wrap:balance] ${pp.heading} ${serif}`}>{home.street || 'Address not available'}</h1>
+          {home.place && <p className={`mt-1 flex items-start gap-1 text-[12.5px] font-semibold leading-snug ${pp.muted}`}><MapPin className="mt-px h-3.5 w-3.5 shrink-0 text-[color:var(--pp-gold)]" />{home.place}</p>}
+        </div>
+        <div className={`shrink-0 text-right ${split === 'md' ? 'md:text-left' : 'lg:text-left'}`}>
+          <p className={`text-[9px] font-black uppercase tracking-[0.24em] ${pp.faint} ${split === 'md' ? 'md:text-[10px] md:tracking-[0.28em]' : 'lg:text-[10px] lg:tracking-[0.28em]'}`}>{sold ? 'Sold for' : 'Offered at'}</p>
+          <p className={`ohp-site-heading mt-1 text-[1.45rem] font-black leading-none tracking-[-0.02em] ${split === 'md' ? 'md:text-[2.5rem] md:tracking-[-0.025em]' : 'lg:text-[2.5rem] lg:tracking-[-0.025em]'} ${pp.heading} ${serif}`}>
+            {home.price != null ? money(home.price) : 'Price on request'}
+          </p>
+        </div>
       </div>
+      {cut > 0 && (
+        <span className="mt-2 inline-flex items-center gap-1.5 self-start rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-black text-emerald-600">
+          <TrendingDown className="h-3.5 w-3.5" /> {money(cut)} price cut <span className={`font-bold line-through ${pp.faint}`}>{money(home.originalPrice)}</span>
+        </span>
+      )}
 
-      <div className="pp-rise mt-4" style={rise(3)}>
+      <div className={`pp-rise mt-4 hidden ${split === 'md' ? 'md:block' : 'lg:block'}`} style={rise(3)}>
         <span aria-hidden className="mb-3.5 block h-px bg-gradient-to-r from-[color:var(--pp-gold)] to-transparent opacity-50" />
-        <h1 className={`ohp-site-heading text-[1.3rem] font-black leading-tight sm:text-[1.45rem] ${pp.heading} ${serif}`}>{home.street || 'Address not available'}</h1>
+        <h2 className={`ohp-site-heading text-[1.45rem] font-black leading-tight ${pp.heading} ${serif}`}>{home.street || 'Address not available'}</h2>
         {home.place && <p className={`mt-1 flex items-center gap-1.5 text-sm font-semibold ${pp.muted}`}><MapPin className="h-4 w-4 shrink-0 text-[color:var(--pp-gold)]" />{home.place}</p>}
       </div>
 
       {(facts.length > 0 || meta) && (
       <div className="pp-rise mt-4" style={rise(4)}>
       {facts.length > 0 && (
-        <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-2xl border border-[color:var(--pp-gold-line)] bg-[color:var(--pp-gold-line)]">
+        // even rows: 4 facts as 2 x 2 (in threes one row was half empty, the gap filled in gold)
+        <dl className={`grid ${facts.length === 4 || facts.length === 2 ? 'grid-cols-2' : facts.length === 1 ? 'grid-cols-1' : 'grid-cols-3'} gap-px overflow-hidden rounded-2xl border border-[color:var(--pp-gold-line)] bg-[color:var(--pp-gold-line)]`}>
           {facts.map(f => (
             <div key={f.label} className="bg-[var(--pp-card)] px-2 py-2.5 text-center">
               <dd className={`text-[1.1rem] font-black leading-none ${pp.heading} ${serif}`}>{f.value}</dd>
