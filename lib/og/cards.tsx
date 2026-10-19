@@ -348,7 +348,9 @@ export function CmaCard({ photo, street, place, facts, forName, mode, comps, age
   const light = mixHex(accent, '#ffffff', 0.45)
   const btnInk = lum(accent) > 0.6 ? '#111827' : '#ffffff'
   const rgb = [1, 3, 5].map(i => parseInt(accent.slice(i, i + 2), 16)).join(',')
-  const titleSize = street.length > 26 ? 60 : 72
+  // "847 Lesley Rd, Villanova" - the town in the same serif and size, on one line (user, 10/19)
+  const headline = [street, place.split(',')[0]].filter(Boolean).join(', ')
+  const titleSize = Math.max(44, Math.min(78, Math.floor(1050 / (headline.length * 0.5))))
   return (
     <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: C.bgBot,
       backgroundImage: `radial-gradient(1000px 640px at 78% 22%, ${C.bgTop} 0%, ${C.bgMid} 55%, ${C.bgBot} 100%)` }}>
@@ -374,21 +376,8 @@ export function CmaCard({ photo, street, place, facts, forName, mode, comps, age
             <div style={{ display: 'flex', width: 34, height: 2, backgroundColor: light }} />
             Comparative Market Analysis
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 22, marginTop: 14 }}>
-            <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: titleSize, lineHeight: 1.04, letterSpacing: -1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 820 }}>{street}</div>
-            {place ? <div style={{ display: 'flex', fontSize: 22, fontWeight: 900, letterSpacing: 4, textTransform: 'uppercase', color: C.sub }}>{place}</div> : null}
-          </div>
-          <div style={{ display: 'flex', fontSize: 26, color: C.sub, marginTop: 12 }}>
-            {`${mode === 'listing' ? "What it's worth" : 'What to offer'}${comps ? `, backed by ${comps} recent ${comps === 1 ? 'sale' : 'sales'}` : ''}  ·  Prepared for ${forName || 'you'}`}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 22, marginTop: 26 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 56, padding: '0 26px', borderRadius: 999, fontSize: 20, fontWeight: 900,
-              backgroundImage: `linear-gradient(135deg, ${light}, ${accent})`, color: btnInk, boxShadow: `0 14px 28px -14px rgba(${rgb},0.9)` }}>
-              Open the report
-              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={btnInk} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
-            </div>
-            {facts.length ? <div style={{ display: 'flex', fontSize: 18, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', color: C.sub }}>{facts.join('  ·  ')}</div> : null}
-          </div>
+          <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: titleSize, lineHeight: 1.04, letterSpacing: -1, marginTop: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 1056 }}>{headline}</div>
+          <div style={{ display: 'flex', fontSize: 30, color: C.sub, marginTop: 14 }}>{`What it's worth  ·  Prepared for ${forName || 'you'}`}</div>
         </div>
       </div>
     </div>
