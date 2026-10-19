@@ -77,7 +77,7 @@ function toLinkedProperty(data: any, fallbackAddress: string): LinkedProperty {
 }
 
 export default function ListingPhotoSearch({
-  value, onChange, tab: tabProp, onTabChange, uploadSlot, fullHeight = false,
+  value, onChange, tab: tabProp, onTabChange, uploadSlot, fullHeight = false, currentListingsOnly = false,
 }: {
   value: LinkedProperty | null
   onChange: (property: LinkedProperty | null) => void
@@ -89,6 +89,9 @@ export default function ListingPhotoSearch({
   /** Show every listing/sale at once (the caller's own page or modal scrolls) instead of a
    *  short scrolling box - the Spotlight "Which home" window uses this. */
   fullHeight?: boolean
+  /** Listing Spotlight: only the agent's own homes still on the market - no My Sales, no address
+   *  search (a Spotlight is the listing agent's page for their own listing). */
+  currentListingsOnly?: boolean
 }) {
   const [tabState, setTabState] = useState<PhotoSearchTab>('mine')
   const tab = tabProp ?? tabState
@@ -119,7 +122,7 @@ export default function ListingPhotoSearch({
   useEffect(() => {
     setLoadingMine(true)
     api.openHouseManager.getMyListings().then(res => {
-      if (res.success && res.data) setMyListings(res.data.listings)
+      if (res.success && res.data) setMyListings(currentListingsOnly ? res.data.listings.filter(l => !/closed|sold|expired|withdrawn|cancel/i.test(l.status || '')) : res.data.listings)
       setLoadingMine(false)
     })
   }, [])
@@ -221,7 +224,7 @@ export default function ListingPhotoSearch({
 
   return (
     <div ref={wrapRef} className="space-y-3">
-      <div className="flex flex-wrap gap-1 rounded-xl border border-gray-200 bg-[#fbfaf7] p-1 dark:border-gray-700 dark:bg-[#151517]">
+      {!currentListingsOnly && <div className="flex flex-wrap gap-1 rounded-xl border border-gray-200 bg-[#fbfaf7] p-1 dark:border-gray-700 dark:bg-[#151517]">
         {((uploadSlot ? ['mine', 'sales', 'search', 'upload'] : ['mine', 'sales', 'search']) as PhotoSearchTab[]).map(t => (
           <button
             key={t}
@@ -236,7 +239,7 @@ export default function ListingPhotoSearch({
             {t === 'mine' ? 'My Listings' : t === 'sales' ? 'My Sales' : t === 'search' ? 'Search Any Address' : 'Upload Photos'}
           </button>
         ))}
-      </div>
+      </div>}
 
       <div key={tab} className={tabDir === 'right' ? 'animate-tab-in-right' : 'animate-tab-in-left'}>
       {tab === 'upload' && uploadSlot && <div>{uploadSlot}</div>}
@@ -293,7 +296,7 @@ export default function ListingPhotoSearch({
           )}
           {!loadingMine && myListings.length === 0 && (
             <div className="col-span-full rounded-lg border border-dashed border-gray-300 p-4 text-center text-xs font-bold text-gray-400 dark:border-gray-700">
-              No listings found. Use "Search Any Address" instead.
+              {currentListingsOnly ? 'No current listings found under your MLS ID. When you list a home it shows up here.' : 'No listings found. Use "Search Any Address" instead.'}
             </div>
           )}
           {myListings.map(listing => (

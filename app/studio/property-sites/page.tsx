@@ -9,7 +9,7 @@ import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import PageHeader from '@/components/PageHeader'
 import ConfirmationModal from '@/components/ConfirmationModal'
-import ListingPhotoSearch, { type PhotoSearchTab } from '@/components/studio/media/ListingPhotoSearch'
+import ListingPhotoSearch from '@/components/studio/media/ListingPhotoSearch'
 import api from '@/lib/api-service'
 import { propertyWebsitePublicUrl } from '@/lib/publicResourceLinks'
 import { getEligibleSales } from '@/lib/agentSales'
@@ -28,7 +28,6 @@ function PropertySitesPage() {
   const [analytics, setAnalytics] = useState<PropertyWebsiteAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
-  const [pickerTab, setPickerTab] = useState<PhotoSearchTab>('mine')
   const [picked, setPicked] = useState<LinkedProperty | null>(null)
   // Listings with no Spotlight yet (a new listing leads) - featured above the pages.
   const [ready, setReady] = useState<MarketingListing[]>([])
@@ -112,7 +111,6 @@ function PropertySitesPage() {
   const closeCreate = () => {
     setShowCreate(false)
     setPicked(null)
-    setPickerTab('mine')
     setError('')
     router.replace('/studio/property-sites')
   }
@@ -121,9 +119,7 @@ function PropertySitesPage() {
     if (!picked) return
     setCreating(true)
     setError('')
-    // Search Any Address (like AI Media's picker) can return a real MLS listing this agent
-    // doesn't own - still a real listing_key, so the backend builds the full rich snapshot from
-    // the Property row either way, same as a My Listings pick.
+    // Only the agent's own current listings can be picked (the server checks it too).
     const { success, data, error: e } = await api.propertySites.create(
       picked.listing_key
         ? { listing_key: picked.listing_key, template_id: 'cinematic_luxury' }
@@ -271,11 +267,11 @@ function PropertySitesPage() {
               </div>
 
               <div className="min-h-[380px] p-5 sm:p-7">
-                {/* Same picker Media Lab uses - My Listings / My Sales / Search Any Address (the
-                    full regional MLS mirror, not just this agent's own listings). */}
+                {/* Same picker Media Lab uses, limited to the agent's own current listings (user,
+                    10/19 - a Spotlight is only for your own listing: no sold homes, no address search). */}
                 {/* No inner scroll box - every home shows at once and the window itself scrolls,
                     so the address search's dropdown is never clipped either. */}
-                <ListingPhotoSearch value={picked} onChange={setPicked} tab={pickerTab} onTabChange={setPickerTab} fullHeight />
+                <ListingPhotoSearch value={picked} onChange={setPicked} tab="mine" fullHeight currentListingsOnly />
                 {error && <p className="mt-3 text-sm font-bold text-red-600">{error}</p>}
               </div>
 
@@ -373,7 +369,7 @@ function SpotlightHero({ covers, stats, onCreate }: { covers: string[]; stats: {
             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#8b7355] dark:text-[#e8c97a]">Your first page in 3 steps</p>
             <ol className="mt-3 space-y-2.5">
               {([
-                [Home, 'Pick a listing', 'Yours, or any address.'],
+                [Home, 'Pick your listing', 'Any home you have on the market.'],
                 [Sparkles, 'We build the page', 'Photos, story and the town - written for you.'],
                 [Globe, 'Publish and share', 'One link for texts, emails and social.'],
               ] as const).map(([Icon, title, text], i) => (
