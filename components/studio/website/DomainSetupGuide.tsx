@@ -8,7 +8,9 @@ import { copyText } from '@/lib/copyText'
 // they bought the domain from, then exact clicks in plain words. Always the same two things - a
 // "www" record (works at every company) and the company's forwarding for the bare name - see
 // backend domain_verification_service.build_instructions. Menu names checked against each
-// company's own help pages (Oct 2026).
+// company's own help pages (Oct 2026). Rewritten 10/19 after a real GoDaddy connection: their
+// forwarding box has its own http:// / https:// dropdown that starts on http:// (that forward
+// landed on a 404), and most companies already have a "www" row to edit rather than add.
 
 export type DomainProvider = 'godaddy' | 'namecheap' | 'squarespace' | 'cloudflare' | 'wix' | 'other'
 
@@ -23,30 +25,34 @@ const PROVIDERS: { id: DomainProvider; label: string }[] = [
 
 type Step = { title: string; body: string; record?: boolean; forward?: boolean }
 
+// How each company's forwarding box wants the address: GoDaddy splits it into a protocol dropdown
+// and the rest; the others take the whole https:// address.
+const SPLIT_PROTOCOL: DomainProvider[] = ['godaddy']
+
 function stepsFor(p: DomainProvider, apex: string, label: string, pair: boolean): Step[] {
   const where: Record<DomainProvider, string> = {
-    godaddy: 'Sign in at godaddy.com, open My Products, and next to your domain choose DNS.',
-    namecheap: 'Sign in at namecheap.com, open Domain List, choose Manage next to your domain, then the Advanced DNS tab.',
-    squarespace: 'Sign in at account.squarespace.com/domains, click your domain, then DNS and DNS Settings. (Domains that used to be with Google Domains are here too.)',
+    godaddy: `Sign in at godaddy.com. Open your Domain Portfolio (your name at the top right, then My Products, then Domains), click ${apex}, then the DNS tab.`,
+    namecheap: 'Sign in at namecheap.com, open Domain List, click Manage next to your domain, then the Advanced DNS tab.',
+    squarespace: 'Sign in at account.squarespace.com/domains and click your domain, then DNS in the left menu. (Domains that used to be with Google Domains are here too.)',
     cloudflare: 'Sign in at dash.cloudflare.com, click your domain, then DNS and Records.',
     wix: 'Sign in at wix.com, open Domains, click the three dots next to your domain and choose Manage DNS Records.',
     other: 'Sign in where you bought the domain and find its DNS settings. It may be called "DNS", "DNS records", "Zone editor" or "Advanced DNS".',
   }
   const add: Record<DomainProvider, string> = {
-    godaddy: 'Choose Add New Record. Set Type to CNAME, Name to the value below, and Value to the address below. Leave TTL as it is and save. If a "www" record is already there, edit that one instead.',
-    namecheap: 'Choose Add New Record and pick CNAME Record. Put the name below in Host and the address below in Value, then click the green check. If there is already a "www" record or a URL Redirect for www, delete it.',
-    squarespace: 'Under Custom records choose Add record. Set Host to the name below, Type to CNAME and Data to the address below, then Save. If Squarespace already has a "www" record, remove it.',
-    cloudflare: 'Choose Add record. Type CNAME, Name below, Target below. Set Proxy status to "DNS only" (grey cloud) - this matters - then Save.',
-    wix: 'In the CNAME (Aliases) section choose + Add Record. Host name is the name below, Value is the address below. Save. Delete any older "www" CNAME so the two don\'t clash.',
-    other: 'Add a new record of type CNAME. Name (sometimes "Host" or "Alias") is the value below; Value (sometimes "Points to" or "Target") is the address below.',
+    godaddy: 'In DNS Records, GoDaddy usually already has a "www" row (Type CNAME, Value @). Click its pencil icon, change Value to the address below and Save. Only if there is no "www" row: choose Add New Record, Type CNAME, Name and Value below, Save.',
+    namecheap: 'In Host Records, Namecheap usually already has a "www" row (CNAME to parkingpage.namecheap.com). Click it to edit, change Value to the address below and click the green check. No "www" row? Choose Add New Record, then CNAME Record, Host and Value below.',
+    squarespace: 'Under Custom records choose Add record: Host is the name below, Type CNAME, Data the address below. Save. If a "www" row is listed under Squarespace Defaults, delete those defaults first (only if you don\'t use a Squarespace website).',
+    cloudflare: 'Choose Add record: Type CNAME, Name and Target below, and set Proxy status to "DNS only" (grey cloud, not orange) - this matters. Save. If a "www" record already exists, edit it instead.',
+    wix: 'In the CNAME (Aliases) section, edit the "www" row if there is one, or choose + Add Record: Host name and Value below. Save.',
+    other: 'Add a record of type CNAME (or edit the "www" one if it\'s already there). Name (sometimes "Host" or "Alias") and Value (sometimes "Points to" or "Target") are below.',
   }
   const forward: Record<DomainProvider, string> = {
-    godaddy: 'Back on your domain\'s page, open Forwarding, add a forward for the domain itself, send it to the address below and pick Permanent (301). Save.',
-    namecheap: 'Choose Add New Record again and pick URL Redirect Record. Host is @, Value is the address below, and choose Permanent (301). Click the green check.',
-    squarespace: 'In your domain\'s menu open Domain forwarding (sometimes under Website), add a rule for the domain itself (@) to the address below, set as a permanent (301) redirect, and save.',
-    cloudflare: 'Open Rules, then Redirect Rules, and create one from the "Redirect from root to WWW" template. It sends the domain to the address below. Deploy it.',
-    wix: 'Wix only forwards a domain on some plans. Look for "Redirect" in your domain\'s three-dot menu; if it isn\'t there, skip this step and share the www address instead.',
-    other: 'Find "Forwarding", "Redirect" or "URL redirect" and send the domain itself to the address below as a permanent (301) redirect.',
+    godaddy: 'Still in your domain, open the Forwarding tab (next to DNS Records) and choose Add Forwarding, then Domain. The destination box has a small dropdown on its left that starts on http:// - switch it to https:// (http:// shows "page not found"), then type only the address below. Forward type: Permanent (301). Keep "Forward only" (not masking). Save, and say yes if GoDaddy offers to update your DNS for it. Takes up to an hour.',
+    namecheap: 'Namecheap usually already has a URL Redirect Record for "@" - edit it (or Add New Record, then URL Redirect Record): Host @, Value the full address below, and pick Permanent (301) in the dropdown. Click the green check. Leave MX and TXT records alone - those are your email.',
+    squarespace: 'In the left menu open Domain forwarding and choose Add forwarding rule. Leave Subdomain empty (that\'s the domain itself), Destination is the address below, Redirect type: Permanent redirect (301), Path forwarding: forward the path, SSL: on. Save.',
+    cloudflare: 'The domain itself needs one record with an orange cloud: if it has none, add an A record with Name @, IPv4 address 192.0.2.1, Proxied. Then open Rules, choose Create rule, Redirect Rule, and use the "Redirect from Root to WWW" template - check the target is the address below and the status is 301. Deploy.',
+    wix: 'Wix can\'t forward a domain to a website outside Wix, so skip this step: share the www address (it works now). If you want the short name to work too, you can move the domain to GoDaddy or Namecheap later.',
+    other: 'Find "Forwarding", "Redirect" or "URL redirect" and send the domain itself to the full address below as a permanent (301) redirect. If there\'s an http:// or https:// choice, pick https://.',
   }
   const steps: Step[] = [
     { title: 'Open your domain\'s DNS settings', body: where[p] },
@@ -91,7 +97,7 @@ export default function DomainSetupGuide({ hostname, target, pair }: { hostname:
   const forSupport = [
     `Please set up my domain ${apex}:`,
     `1. Add a CNAME record: name "${label}", value "${target}".`,
-    ...(pair ? [`2. Forward ${apex} to https://www.${apex} (permanent 301 redirect).`] : []),
+    ...(pair ? [`2. Forward ${apex} to https://www.${apex} (permanent 301 redirect, https - not http).`] : []),
   ].join('\n')
 
   return (
@@ -120,10 +126,15 @@ export default function DomainSetupGuide({ hostname, target, pair }: { hostname:
                   <Field k="Value" v={target} />
                 </div>
               )}
-              {s.forward && (
+              {s.forward && provider !== 'wix' && (
                 <div className="mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/10 dark:bg-black/20">
                   <Field k="Forward" v={apex} copy={false} />
-                  <Field k="To" v={`https://www.${apex}`} />
+                  {SPLIT_PROTOCOL.includes(provider) ? (
+                    <>
+                      <Field k="Dropdown" v="https://" copy={false} />
+                      <Field k="Destination" v={`www.${apex}`} />
+                    </>
+                  ) : <Field k="To" v={`https://www.${apex}`} />}
                   <Field k="Type" v="Permanent (301)" copy={false} />
                 </div>
               )}

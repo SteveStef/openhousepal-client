@@ -128,6 +128,7 @@ function DomainRow({ domain, partner, onChanged }: { domain: SiteDomain; partner
             </li>
           ))}
           {failed && <li className="pl-6 text-[11px] font-semibold text-red-500">Your domain has a different "www" record right now - replace it with the one in step 2.</li>}
+          {partner?.last_error === 'forward_http' && <li className="pl-6 text-[11px] font-semibold text-red-500">{partner.hostname} forwards to http:// - visitors get "page not found". Change the forward to https:// (on GoDaddy it&apos;s the small dropdown on the left of the address box).</li>}
         </ul>
       )}
 
@@ -140,7 +141,9 @@ function DomainRow({ domain, partner, onChanged }: { domain: SiteDomain; partner
       )}
       {domain.status === 'ACTIVE' && partner && partner.status !== 'ACTIVE' && (
         <p className="mt-2 rounded-xl bg-[#FAFAF7] p-2.5 text-[11px] font-semibold text-gray-500 dark:bg-white/[0.04] dark:text-white/55">
-          Your site is live at {domain.hostname}. To make {partner.hostname} (without www) go there too, add forwarding at your domain company: forward it to https://{domain.hostname}, permanent (301).
+          {partner.last_error === 'forward_http'
+            ? <>Your site is live at {domain.hostname}, but {partner.hostname} forwards to http://{domain.hostname}, which shows &quot;page not found&quot;. At your domain company, change that forward to https://{domain.hostname} (on GoDaddy, switch the small http:// dropdown to https://), permanent (301).</>
+            : <>Your site is live at {domain.hostname}. To make {partner.hostname} (without www) go there too, add forwarding at your domain company: forward it to https://{domain.hostname}, permanent (301).</>}
         </p>
       )}
 
