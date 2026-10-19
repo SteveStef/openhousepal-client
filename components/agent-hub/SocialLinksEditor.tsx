@@ -44,10 +44,19 @@ export const getSocialBrandClass = (id: string) => {
 // and agent hub"). `animateIcons` (default true) separately controls the hover builder-draw effect -
 // Settings passes false so this specific list of icons sits still there, while the Agent Hub editor
 // keeps the hover animation.
-export default function SocialLinksEditor({ socialLinks, onChange, animateIcons = true }: { socialLinks: SocialLink[]; onChange: (id: string, updates: Partial<SocialLink>) => void; animateIcons?: boolean }) {
+/** Where the Website link comes from when it fills itself in (the server's `websiteAuto`): their
+ *  IDX site / own domain (locked - always that), or their Agent Hub (until they type their own). */
+export type WebsiteAuto = { url: string; kind: 'idx' | 'domain' | 'hub' } | null | undefined
+
+export default function SocialLinksEditor({ socialLinks, onChange, animateIcons = true, websiteAuto }: { socialLinks: SocialLink[]; onChange: (id: string, updates: Partial<SocialLink>) => void; animateIcons?: boolean; websiteAuto?: WebsiteAuto }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {socialLinks.map(({ id, label, url, enabled, icon: Icon }) => (
+      {socialLinks.map(({ id, label, url, enabled: savedEnabled, icon: Icon }) => {
+        // IDX: the Website link is their IDX site, always on and not editable (user, 10/19).
+        const locked = id === 'website' && !!websiteAuto && websiteAuto.kind !== 'hub'
+        const enabled = locked || savedEnabled
+        const isHubDefault = id === 'website' && websiteAuto?.kind === 'hub' && url.trim() === websiteAuto.url
+        return (
         // Website is always the odd 5th card - spans both columns so the grid ends flush instead
         // of leaving an empty half-row beside it (explicit ask: "make website entire length").
         <div key={id} className={`group rounded-xl border p-4 transition ${id === 'website' ? 'sm:col-span-2' : ''} ${enabled ? 'border-gray-200 bg-[#fbfaf7] dark:border-gray-700 dark:bg-[#0B0B0B]' : 'border-gray-100 bg-gray-50 opacity-75 dark:border-gray-800 dark:bg-[#111113]'}`}>
@@ -61,27 +70,39 @@ export default function SocialLinksEditor({ socialLinks, onChange, animateIcons 
                 {enabled ? 'Showing on public Agent Hub' : 'Hidden from public Agent Hub'}
               </p>
             </div>
-            <button
+            {!locked && <button
               type="button"
               onClick={() => onChange(id, { enabled: !enabled })}
               className={`relative h-7 w-12 shrink-0 rounded-full transition ${enabled ? 'bg-[#111827] dark:bg-white' : 'bg-gray-300 dark:bg-gray-700'}`}
               aria-label={`${enabled ? 'Turn off' : 'Turn on'} ${label}`}
             >
               <span className={`absolute top-1 h-5 w-5 rounded-full transition ${enabled ? 'left-6 bg-white dark:bg-[#111827]' : 'left-1 bg-white'}`} />
-            </button>
+            </button>}
           </div>
           <input
-            value={url}
+            value={locked ? websiteAuto!.url : url}
+            readOnly={locked}
             disabled={!enabled}
             placeholder={`Your ${label} link`}
             onChange={(event) => onChange(id, { url: event.target.value })}
-            className="mt-3 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#C9A24D] disabled:bg-gray-100 disabled:text-gray-400 dark:border-gray-700 dark:bg-[#151517] dark:text-white dark:disabled:bg-[#0B0B0B] dark:disabled:text-gray-600"
+            className={`mt-3 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#C9A24D] disabled:bg-gray-100 disabled:text-gray-400 dark:border-gray-700 dark:bg-[#151517] dark:text-white dark:disabled:bg-[#0B0B0B] dark:disabled:text-gray-600 ${locked ? 'cursor-default text-gray-600 dark:text-gray-300' : ''}`}
           />
-          {enabled && url.trim() && !publicWebUrl(url) && (
+          {locked && (
+            <p className="mt-2 text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400">
+              {websiteAuto!.kind === 'domain' ? 'Your website on your own domain' : 'Your IDX website'} - filled in for you and kept up to date. It&apos;s the website link on your Agent Hub, email signature and contact card.
+            </p>
+          )}
+          {isHubDefault && (
+            <p className="mt-2 text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400">
+              Your Agent Hub - filled in for you. Have your own website? Type it here instead.
+            </p>
+          )}
+          {!locked && !isHubDefault && enabled && url.trim() && !publicWebUrl(url) && (
             <p className="mt-1.5 text-[11px] font-bold text-amber-600 dark:text-amber-400">That isn&apos;t a web address yet - paste the full link (like instagram.com/yourname). It stays hidden until it is.</p>
           )}
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

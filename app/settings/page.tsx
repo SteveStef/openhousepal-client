@@ -16,7 +16,7 @@ import api, { API_BASE_URL } from '@/lib/api-service'
 import { PRICING_PLANS } from '@/lib/pricing'
 import { useAuth } from '@/contexts/AuthContext'
 import RecentSalesPanel from '@/components/agent-hub/RecentSalesPanel'
-import SocialLinksEditor, { SocialLink, defaultSocialLinks } from '@/components/agent-hub/SocialLinksEditor'
+import SocialLinksEditor, { SocialLink, defaultSocialLinks, type WebsiteAuto } from '@/components/agent-hub/SocialLinksEditor'
 import DraggableAvatarPhoto from '@/components/agent-hub/DraggableAvatarPhoto'
 import { IdxDomainNotice } from '@/components/IdxDomainNotice'
 import DomainsPanel from '@/components/studio/website/DomainsPanel'
@@ -317,6 +317,7 @@ export default function SettingsPage() {
   const [listingsCarousel, setListingsCarousel] = useState(true)
   const [listingsAutoScroll, setListingsAutoScroll] = useState(true)
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>(defaultSocialLinks)
+  const [websiteAuto, setWebsiteAuto] = useState<WebsiteAuto>(null)
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login')
@@ -361,6 +362,7 @@ export default function SettingsPage() {
         if (Array.isArray(config?.myListings)) setMyListings(getEligibleListings(config.myListings))
         if (typeof config?.listingsCarousel === 'boolean') setListingsCarousel(config.listingsCarousel)
         if (typeof config?.listingsAutoScroll === 'boolean') setListingsAutoScroll(config.listingsAutoScroll)
+        setWebsiteAuto(config?.websiteAuto || null)
         if (Array.isArray(config?.socialLinks)) {
           setSocialLinks(current => current.map(link => {
             const saved = config.socialLinks.find((item: any) => item.id === link.id)
@@ -782,7 +784,7 @@ export default function SettingsPage() {
                 <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
                   <SubHeading title="Social Links" incomplete={socialLinksMissing} subtitle="Shown on your public Agent Hub." />
                   <div className="mt-4">
-                    <SocialLinksEditor socialLinks={socialLinks} onChange={updateSocialLink} animateIcons={false} />
+                    <SocialLinksEditor socialLinks={socialLinks} onChange={updateSocialLink} animateIcons={false} websiteAuto={websiteAuto} />
                   </div>
                 </div>
 

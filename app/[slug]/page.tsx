@@ -318,7 +318,11 @@ export default function PublicAgentHubPage() {
     if (parsed.contact) setContact({ ...defaultContact, ...parsed.contact })
     if (isHubPhotoSet(parsed.profilePhotoUrl)) setProfilePhotoUrl(parsed.profilePhotoUrl)
     if (parsed.profilePhotoPosition?.x !== undefined) setProfilePhotoPosition({ x: Number(parsed.profilePhotoPosition.x) || 50, y: Number(parsed.profilePhotoPosition.y) || 50 })
-    if (Array.isArray(parsed.socialLinks)) setSocialLinks(parsed.socialLinks)
+    // The Website link filled in with this very hub (no website of their own) would just reload
+    // this page - leave that icon off here (it's still their website in the signature etc.).
+    if (Array.isArray(parsed.socialLinks)) setSocialLinks(parsed.websiteAuto?.kind === 'hub'
+      ? parsed.socialLinks.filter((l: SavedSocialLink) => !(l.id === 'website' && (l.url || '').trim() === parsed.websiteAuto.url))
+      : parsed.socialLinks)
     if (Array.isArray(parsed.recentSales)) setRecentSales(getEligibleSales(parsed.recentSales))
     if (Array.isArray(parsed.myListings)) setMyListings(getEligibleListings(parsed.myListings))
     if (typeof parsed.showSalesStats === 'boolean') setShowSalesStats(parsed.showSalesStats)

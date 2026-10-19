@@ -41,7 +41,7 @@ import { HUB_CLASSIC_ACCENTS, HUB_CLASSIC_DEFAULT_ACCENT, HubClassicStyles, hubA
 import { pinnedFirst } from '@/lib/hubPins'
 import LuxeUpgradePitch from '@/components/ui/LuxeUpgradePitch'
 import { LUXE_METALS, LUXE_METAL_ORDER, metalOf, type LuxeMetal } from '@/lib/luxeMetals'
-import SocialLinksEditor, { SocialLink, defaultSocialLinks, getSocialBrandClass } from '@/components/agent-hub/SocialLinksEditor'
+import SocialLinksEditor, { SocialLink, defaultSocialLinks, getSocialBrandClass, type WebsiteAuto } from '@/components/agent-hub/SocialLinksEditor'
 import DraggableAvatarPhoto from '@/components/agent-hub/DraggableAvatarPhoto'
 import ContactCardPanel, { ContactCardFields, ContactCardPreview, defaultContactCardFields, mergeContactCardFields } from '@/components/agent-hub/ContactCardPanel'
 import { AgentSale, formatSaleStatus, getEligibleListings, getEligibleSales, getSaleLocation, getSaleStatusClass, getSaleSummary, getStreetOnly } from '@/lib/agentSales'
@@ -1215,6 +1215,7 @@ function AgentHubContent() {
   const hasExplicitSalesStatsRef = useRef(false)
   const hasAppliedSalesStatsDefaultRef = useRef(false)
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>(defaultSocialLinks)
+  const [websiteAuto, setWebsiteAuto] = useState<WebsiteAuto>(null)
   const [contactCard, setContactCard] = useState<ContactCardFields>(defaultContactCardFields)
   const [recentSales, setRecentSales] = useState<AgentSale[]>(() => {
     if (typeof window === 'undefined') return []
@@ -1519,6 +1520,7 @@ function AgentHubContent() {
     if (parsed.profilePhotoPosition?.x !== undefined) setProfilePhotoPosition({ x: Number(parsed.profilePhotoPosition.x) || 50, y: Number(parsed.profilePhotoPosition.y) || 50 })
     layoutCustomizedRef.current = parsed.layoutCustomized === true
     if (Array.isArray(parsed.layoutSections)) setLayoutSections(layoutCustomizedRef.current ? normalizeLayoutSections(parsed.layoutSections) : listingsFirst(normalizeLayoutSections(parsed.layoutSections)))
+    setWebsiteAuto(parsed.websiteAuto || null)
     if (Array.isArray(parsed.socialLinks)) {
       setSocialLinks(current => current.map(link => {
         const saved = parsed.socialLinks.find((item: SavedSocialLink) => item.id === link.id)
@@ -3607,7 +3609,7 @@ function AgentHubContent() {
                       <div>
                         <div className="border-t border-gray-100 p-5 dark:border-gray-800">
                           {group.title === 'Social Links' && (
-                            <SocialLinksEditor socialLinks={socialLinks} onChange={updateSocialLink} />
+                            <SocialLinksEditor socialLinks={socialLinks} onChange={updateSocialLink} websiteAuto={websiteAuto} />
                           )}
                           {group.title === 'Contact Card' && (
                             <div data-contact-card-editor>
