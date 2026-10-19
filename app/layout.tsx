@@ -1,8 +1,8 @@
 import './globals.css'
 import { headers } from 'next/headers'
 import { Inter } from 'next/font/google'
-import dynamic from 'next/dynamic'
 import { Providers } from './providers'
+import AppShell from '@/components/AppShellLazy'
 import ScrollLockWatcher from '@/components/ScrollLockWatcher'
 import { Metadata } from 'next'
 import ThemeColorSync from '@/components/ThemeColorSync'
@@ -10,10 +10,6 @@ import Script from 'next/script'
 import { FRAME_LINK_GUARD_SCRIPT } from '@/lib/frameLinkGuard'
 
 const inter = Inter({ subsets: ['latin'] })
-
-// The app's own chrome (sign-in, header, page loader, assistant) - a separate chunk that only app
-// pages load; agent IDX sites never download it (components/AppShell).
-const AppShell = dynamic(() => import('@/components/AppShell'))
 
 // Base URL every relative metadata URL (the OG image, canonical) is resolved against. Falls back
 // to the production domain so a shared link always points somewhere real, not localhost.
