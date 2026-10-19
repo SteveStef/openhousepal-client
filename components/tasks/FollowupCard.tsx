@@ -49,6 +49,7 @@ const SITUATION: Record<string, { label: string; tone: Tone }> = {
   form_submission: { label: 'Form', tone: 'sky' },
   form_unfinished: { label: 'Unfinished form', tone: 'slate' },
   listing_inquiry: { label: 'Listing inquiry', tone: 'sky' },
+  website_signin: { label: 'Website sign-in', tone: 'sky' },
   portal_lead: { label: 'Listing inquiry', tone: 'sky' },
   spotlight_inquiry: { label: 'Listing inquiry', tone: 'sky' },
   private_feedback: { label: 'Private feedback', tone: 'rose' },
