@@ -421,7 +421,17 @@ export function PropertyPhotos({ home, extraBadges, split = 'lg', className = ''
         </button>
         {n > 1 && <img src={photos[(index + 1) % n]} alt="" aria-hidden className="hidden" />}
         {n > 2 && <img src={photos[(index - 1 + n) % n]} alt="" aria-hidden className="hidden" />}
-        {extraBadges && <div className="pointer-events-none absolute left-4 top-4 flex flex-wrap gap-2">{extraBadges}</div>}
+        {/* Phones (user, 10/19 - "copy Zillow"): status top-left, days on market top-right of the
+            photo. The side panel on a wide screen shows both itself. */}
+        {(extraBadges || home.status) && (
+          <div className="pointer-events-none absolute left-3 top-3 flex max-w-[60%] flex-wrap gap-2 sm:left-4 sm:top-4">
+            {home.status && <span className={wide === 'md' ? 'md:hidden' : 'lg:hidden'}><StatusPill status={home.status} small /></span>}
+            {extraBadges}
+          </div>
+        )}
+        {domText(home) && (
+          <span className={`pointer-events-none absolute right-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-lg ${wide === 'md' ? 'md:hidden' : 'lg:hidden'}`}>{domText(home)}</span>
+        )}
         {n > 1 && (
           <div className={`pointer-events-none absolute inset-x-0 bottom-11 flex justify-center gap-1.5 ${wide === 'md' ? 'md:hidden' : 'lg:hidden'}`}>
             {Array.from({ length: Math.min(n, 7) }).map((_, i) => {
@@ -437,7 +447,7 @@ export function PropertyPhotos({ home, extraBadges, split = 'lg', className = ''
             <button type="button" onClick={() => go(1)} aria-label="Next photo" className={`${arrow} right-3`}><ChevronRight className="h-5 w-5" /></button>
           </>
         )}
-        <button type="button" onClick={() => setViewer(index)} className={`absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-black text-white shadow-lg transition hover:bg-black/75 ${wide === 'md' ? 'md:bottom-2.5 md:top-auto' : 'lg:bottom-2.5 lg:top-auto'}`}>
+        <button type="button" onClick={() => setViewer(index)} className={`absolute bottom-10 right-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-[10.5px] font-black text-white shadow-lg transition hover:bg-black/75 ${wide === 'md' ? 'md:bottom-2.5 md:px-3 md:py-1.5 md:text-[11px]' : 'lg:bottom-2.5 lg:px-3 lg:py-1.5 lg:text-[11px]'}`}>
           <Maximize2 className="h-3.5 w-3.5" /> {n > 1 ? `${index + 1} / ${n}` : 'View'}
         </button>
       </div>
@@ -606,6 +616,9 @@ export function PropertyHero({ home, extraBadges, actions, split = 'lg', classNa
  *  column lines up exactly under the price panel. */
 export const HERO_COLS = 'lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]'
 
+// The phone's one-line numbers: "4 bd | 3 ba | 2,450 sqft | 0.52 acres".
+const STAT_LINE = new Map([['Bed', 'bd'], ['Beds', 'bd'], ['Bath', 'ba'], ['Baths', 'ba'], ['Sq Ft', 'sqft'], ['Acres', 'acres']])
+
 function HeroPanel({ home, actions, split = 'lg' }: { home: HomeView; actions?: ReactNode; split?: 'md' | 'lg' }) {
   const serif = useSerif()
   const sold = /closed|sold/i.test(home.status || '')
@@ -627,28 +640,39 @@ function HeroPanel({ home, actions, split = 'lg' }: { home: HomeView; actions?: 
       <span aria-hidden className="pp-panel-edge pointer-events-none absolute inset-x-0 top-0 h-px" />
       <span aria-hidden className="pointer-events-none absolute -right-24 -top-24 -z-10 h-64 w-64 rounded-full opacity-70 blur-3xl" style={{ background: 'var(--pp-gold-wash)' }} />
 
-      <div className="pp-rise flex flex-wrap items-center gap-2" style={rise(0)}>
-        <StatusPill status={home.status} small />
-        {dom && <span className={`rounded-full border border-[color:var(--pp-gold-line)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${pp.muted}`}>{dom}</span>}
+      <div className={`pp-rise flex-wrap items-center gap-2 hidden ${split === 'md' ? 'md:flex' : 'lg:flex'}`} style={rise(0)}>
+        <span className={split === 'md' ? 'hidden md:inline-flex' : 'hidden lg:inline-flex'}><StatusPill status={home.status} small /></span>
+        {dom && <span className={`rounded-full border border-[color:var(--pp-gold-line)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${pp.muted} ${split === 'md' ? 'hidden md:inline' : 'hidden lg:inline'}`}>{dom}</span>}
         {home.openHouses.length > 0 && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-600"><CalendarDays className="h-3 w-3" />Open {formatOpenHouse(home.openHouses[0])}</span>
         )}
       </div>
 
-      {/* Phones (user, 10/19 - "address and price on two separate lines, the price taking a whole
-          thick row"): one row - the address and town on the left, the price on the right. The side
-          panel on a wide screen keeps the big price first and the address under it. */}
-      <div className={`pp-rise mt-3.5 flex items-start justify-between gap-3 ${split === 'md' ? 'md:mt-4 md:block' : 'lg:mt-4 lg:block'}`} style={rise(1)}>
-        <div className={`min-w-0 flex-1 ${split === 'md' ? 'md:hidden' : 'lg:hidden'}`}>
-          <h1 className={`ohp-site-heading text-[1.2rem] font-black leading-tight [overflow-wrap:anywhere] [text-wrap:balance] ${pp.heading} ${serif}`}>{home.street || 'Address not available'}</h1>
-          {home.place && <p className={`mt-1 flex items-start gap-1 text-[12.5px] font-semibold leading-snug ${pp.muted}`}><MapPin className="mt-px h-3.5 w-3.5 shrink-0 text-[color:var(--pp-gold)]" />{home.place}</p>}
-        </div>
-        <div className={`shrink-0 text-right ${split === 'md' ? 'md:text-left' : 'lg:text-left'}`}>
-          <p className={`text-[9px] font-black uppercase tracking-[0.24em] ${pp.faint} ${split === 'md' ? 'md:text-[10px] md:tracking-[0.28em]' : 'lg:text-[10px] lg:tracking-[0.28em]'}`}>{sold ? 'Sold for' : 'Offered at'}</p>
-          <p className={`ohp-site-heading mt-1 text-[1.45rem] font-black leading-none tracking-[-0.02em] ${split === 'md' ? 'md:text-[2.5rem] md:tracking-[-0.025em]' : 'lg:text-[2.5rem] lg:tracking-[-0.025em]'} ${pp.heading} ${serif}`}>
-            {home.price != null ? money(home.price) : 'Price on request'}
+      {/* Phones (user, 10/19 - "just copy Zillow"): the price very big, a small line of numbers under it,
+          then the address + town on one line; status and days on market sit on the photo. The side
+          panel on a wide screen keeps its own layout (big price, address, the numbers grid). */}
+      <div className={`pp-rise mt-1 ${split === 'md' ? 'md:hidden' : 'lg:hidden'}`} style={rise(1)}>
+        <p className={`ohp-site-heading text-[2.1rem] font-black leading-none tracking-[-0.025em] ${pp.heading} ${serif}`}>
+          {sold && home.price != null && <span className={`mr-1.5 align-middle text-[11px] font-black uppercase tracking-[0.2em] ${pp.faint}`}>Sold</span>}
+          {home.price != null ? money(home.price) : 'Price on request'}
+        </p>
+        {facts.some(f => STAT_LINE.has(f.label)) && (
+          <p className={`mt-2 text-[13px] font-semibold ${pp.muted}`}>
+            {facts.filter(f => STAT_LINE.has(f.label)).map((f, i) => (
+              <span key={f.label}>{i > 0 && <span className={`mx-1.5 ${pp.faint}`}>|</span>}<b className={`font-black ${pp.heading}`}>{f.value}</b> {STAT_LINE.get(f.label)}</span>
+            ))}
           </p>
-        </div>
+        )}
+        <h1 className={`mt-1 text-[13px] font-semibold leading-snug ${pp.muted}`}>{[home.street || 'Address not available', home.place].filter(Boolean).join(', ')}</h1>
+        {home.openHouses.length > 0 && (
+          <span className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-600"><CalendarDays className="h-3 w-3" />Open {formatOpenHouse(home.openHouses[0])}</span>
+        )}
+      </div>
+      <div className={`pp-rise mt-4 hidden ${split === 'md' ? 'md:block' : 'lg:block'}`} style={rise(1)}>
+        <p className={`text-[10px] font-black uppercase tracking-[0.28em] ${pp.faint}`}>{sold ? 'Sold for' : 'Offered at'}</p>
+        <p className={`ohp-site-heading mt-1 text-[2.5rem] font-black leading-none tracking-[-0.025em] ${pp.heading} ${serif}`}>
+          {home.price != null ? money(home.price) : 'Price on request'}
+        </p>
       </div>
       {cut > 0 && (
         <span className="mt-2 inline-flex items-center gap-1.5 self-start rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-black text-emerald-600">
@@ -663,10 +687,10 @@ function HeroPanel({ home, actions, split = 'lg' }: { home: HomeView; actions?: 
       </div>
 
       {(facts.length > 0 || meta) && (
-      <div className="pp-rise mt-4" style={rise(4)}>
+      <div className={`pp-rise mt-1 ${split === 'md' ? 'md:mt-4' : 'lg:mt-4'}`} style={rise(4)}>
       {facts.length > 0 && (
         // even rows: 4 facts as 2 x 2 (in threes one row was half empty, the gap filled in gold)
-        <dl className={`grid ${facts.length === 4 || facts.length === 2 ? 'grid-cols-2' : facts.length === 1 ? 'grid-cols-1' : 'grid-cols-3'} gap-px overflow-hidden rounded-2xl border border-[color:var(--pp-gold-line)] bg-[color:var(--pp-gold-line)]`}>
+        <dl className={`${split === 'md' ? 'hidden md:grid' : 'hidden lg:grid'} ${facts.length === 4 || facts.length === 2 ? 'grid-cols-2' : facts.length === 1 ? 'grid-cols-1' : 'grid-cols-3'} gap-px overflow-hidden rounded-2xl border border-[color:var(--pp-gold-line)] bg-[color:var(--pp-gold-line)]`}>
           {facts.map(f => (
             <div key={f.label} className="bg-[var(--pp-card)] px-2 py-2.5 text-center">
               <dd className={`text-[1.1rem] font-black leading-none ${pp.heading} ${serif}`}>{f.value}</dd>
