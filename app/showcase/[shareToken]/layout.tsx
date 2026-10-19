@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ shareToke
   // the homes that are in their Showcase now.
   const homes: any[] = Array.isArray(data?.matchedProperties) ? data.matchedProperties : []
   const newest = homes.reduce((m, h) => Math.max(m, Date.parse(h?.AddedAt || '') || 0), 0)
-  const v = `${count}-${Math.floor(newest / 60000) || 0}`
+  const v = `c2-${count}-${Math.floor(newest / 60000) || 0}`
   const image = { url: `/api/og/showcase?token=${encodeURIComponent(shareToken)}&v=${v}`, width: 1200, height: 630, alt: title }
 
   return {

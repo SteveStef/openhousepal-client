@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ kind: strin
 
   switch (kind) {
     case 'showcase':
-      return renderShowcaseCard(q.get('token') || '', fonts)
+      return renderShowcaseCard(q.get('token') || '', fonts, q.get('accent'))
     case 'cma':
       return renderCmaCard(q.get('slug') || '', fonts)
     case 'openhouse':

@@ -280,7 +280,8 @@ async function baseMetadata({
     return publicAliasMetadata(
       'A personal home showcase',
       path[1] ? `https://${OHP_BASE_DOMAIN}/showcase/${encodeURIComponent(path[1])}` : undefined,
-      { ogImage: path[1] ? ogCard('showcase', { token: path[1] }) : undefined },
+      // in the site's own colour, like the Showcase itself on this domain
+      { ogImage: path[1] ? ogCard('showcase', { token: path[1], accent: normalizeSiteTheme({ ...DEFAULT_SITE_THEME, ...(resolved.published_snapshot?.theme || {}) }).secondary_color?.replace('#', ''), v: 'c2' }) : undefined },
     )
   }
   if (path?.[0] === 'cma' && path[1]) {

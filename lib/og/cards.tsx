@@ -36,7 +36,7 @@ function oneLine(street: string, city: string, max = 31) {
   return street.length <= max ? street : `${street.slice(0, max - 1).trim()}…`
 }
 
-export type OgHome = { photo: string | null; price: string; facts: string; street: string; city: string; match: number | null }
+export type OgHome = { photo: string | null; price: string; facts: string; street: string; city: string; match: number | null; isNew?: boolean }
 
 /** A listing photo with Bright's bottom-left watermark pushed out of frame (scaled from the top-right). */
 export function MlsSafePhoto({ src, w, h, radius = 0 }: { src: string | null; w: number; h: number; radius?: number }) {
@@ -51,8 +51,23 @@ function initialsOf(name: string) {
   return name.split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'A'
 }
 
+// A home's tag on the card (user, 10/19): its match only when it's a strong one - "36% Match" on a
+// preview undersells the whole Showcase - otherwise "New" for a home added this week.
+function HomeTag({ h, accentLight }: { h: OgHome; accentLight: string }) {
+  const text = h.match != null && h.match >= 70 ? `${h.match}% Match` : h.isNew ? 'New' : null
+  if (!text) return null
+  return (
+    <div style={{ display: 'flex', position: 'absolute', top: 14, left: 14, alignItems: 'center', gap: 8, padding: '7px 14px', borderRadius: 999, backgroundColor: 'rgba(17,24,39,0.88)', color: '#fff', fontSize: 17, fontWeight: 900 }}>
+      <div style={{ display: 'flex', width: 8, height: 8, borderRadius: 999, backgroundColor: accentLight }} />
+      {text}
+    </div>
+  )
+}
+
+const HOUSE_D = ['M3 10.5 12 3l9 7.5', 'M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5']
+
 export function ShowcaseCard({
-  count, forName, agentName, agentBrokerage, agentPhoto, homes,
+  count, forName, agentName, agentBrokerage, agentPhoto, homes, accent = C.gold,
 }: {
   count: number
   forName: string
@@ -60,68 +75,112 @@ export function ShowcaseCard({
   agentBrokerage: string | null
   agentPhoto: string | null
   homes: OgHome[]
+  /** The colour it opens in - the agent's website colour when the link is on their own domain. */
+  accent?: string
 }) {
   const shown = homes.slice(0, 3)
   const more = Math.max(0, count - shown.length)
+  const deep = mixHex(accent, '#111111', 0.35)
+  const light = mixHex(accent, '#ffffff', 0.4)
+  const rgb = [1, 3, 5].map(i => parseInt(accent.slice(i, i + 2), 16)).join(',')
+  const btnInk = lum(accent) > 0.6 ? '#16130e' : '#ffffff'
+  // The homes fill the row whatever the count: three side by side, two wide, one as a feature.
+  const n = shown.length
+  const w = n === 3 ? 345 : n === 2 ? 535 : 1092
+  const photoH = n === 1 ? 300 : n === 2 ? 210 : 196
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', color: '#111827',
       backgroundColor: '#FAF8F3', padding: '44px 54px 46px',
-      backgroundImage: 'radial-gradient(700px 380px at 92% 0%, rgba(201,162,77,0.30) 0%, rgba(201,162,77,0) 70%), radial-gradient(620px 360px at 0% 100%, rgba(201,162,77,0.16) 0%, rgba(201,162,77,0) 70%)',
+      backgroundImage: `radial-gradient(700px 380px at 92% 0%, rgba(${rgb},0.30) 0%, rgba(${rgb},0) 70%), radial-gradient(620px 360px at 0% 100%, rgba(${rgb},0.16) 0%, rgba(${rgb},0) 70%)`,
     }}>
       {/* who it's for + who made it */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 18, fontWeight: 900, letterSpacing: 5, textTransform: 'uppercase', color: '#8B7355' }}>
-            <div style={{ display: 'flex', width: 34, height: 2, backgroundColor: C.gold }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 18, fontWeight: 900, letterSpacing: 5, textTransform: 'uppercase', color: deep }}>
+            <div style={{ display: 'flex', width: 34, height: 2, backgroundColor: accent }} />
             {forName ? 'Hand-picked homes' : 'Your personal Showcase'}
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', marginTop: 10, fontFamily: 'Playfair', fontWeight: 900, fontSize: 74, lineHeight: 1, letterSpacing: -1.5 }}>
             <span>{forName ? `${forName}’s` : 'Your'}</span>
-            <span style={{ color: C.gold, marginLeft: 20 }}>Showcase</span>
+            <span style={{ color: accent, marginLeft: 20 }}>Showcase</span>
           </div>
-          <div style={{ display: 'flex', marginTop: 12, fontSize: 22, fontWeight: 400, color: '#6B7280' }}>
-            {count ? `${count} ${count === 1 ? 'home' : 'homes'} · updated the moment new ones list` : 'Updated the moment new homes list'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 44, padding: '0 20px', borderRadius: 999, fontSize: 17, fontWeight: 900,
+              backgroundImage: `linear-gradient(135deg, ${light}, ${accent})`, color: btnInk, boxShadow: `0 12px 24px -14px ${deep}` }}>
+              Open my Showcase
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={btnInk} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
+            </div>
+            <div style={{ display: 'flex', fontSize: 20, fontWeight: 400, color: '#6B7280' }}>
+              {count ? `${count} ${count === 1 ? 'home' : 'homes'} · new ones added as they list` : 'New homes added as they list'}
+            </div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 22px 12px 12px', borderRadius: 999, backgroundColor: '#FFFFFF', border: '1px solid rgba(201,162,77,0.35)', boxShadow: '0 10px 30px -14px rgba(17,24,39,0.25)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 22px 12px 12px', borderRadius: 999, backgroundColor: '#FFFFFF', border: `1px solid rgba(${rgb},0.35)`, boxShadow: '0 10px 30px -14px rgba(17,24,39,0.25)' }}>
           {agentPhoto
-            ? <img src={agentPhoto} width={58} height={58} style={{ width: 58, height: 58, borderRadius: 999, objectFit: 'cover', border: `2px solid ${C.gold}` }} />
-            : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 58, height: 58, borderRadius: 999, backgroundColor: '#111827', color: C.goldLight, fontSize: 22, fontWeight: 900 }}>{initialsOf(agentName)}</div>}
+            ? <img src={agentPhoto} width={58} height={58} style={{ width: 58, height: 58, borderRadius: 999, objectFit: 'cover', border: `2px solid ${accent}` }} />
+            : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 58, height: 58, borderRadius: 999, backgroundColor: '#111827', color: light, fontSize: 22, fontWeight: 900 }}>{initialsOf(agentName)}</div>}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', fontSize: 13, fontWeight: 900, letterSpacing: 2.5, textTransform: 'uppercase', color: '#8B7355' }}>From your agent</div>
+            <div style={{ display: 'flex', fontSize: 13, fontWeight: 900, letterSpacing: 2.5, textTransform: 'uppercase', color: deep }}>From your agent</div>
             <div style={{ display: 'flex', fontSize: 22, fontWeight: 900, color: '#111827', marginTop: 2 }}>{agentName}</div>
             {agentBrokerage ? <div style={{ display: 'flex', fontSize: 15, fontWeight: 400, color: '#6B7280', marginTop: 1 }}>{agentBrokerage}</div> : null}
           </div>
         </div>
       </div>
 
-      {/* three of its homes, like the cards inside */}
-      <div style={{ display: 'flex', gap: 22, marginTop: 'auto' }}>
-        {shown.map((h, i) => (
-          <div key={i} style={{
-            display: 'flex', flexDirection: 'column', width: 345, borderRadius: 26, overflow: 'hidden', backgroundColor: '#FFFFFF',
-            border: '1px solid rgba(17,24,39,0.06)', boxShadow: '0 22px 44px -22px rgba(17,24,39,0.45)',
-          }}>
-            <div style={{ display: 'flex', position: 'relative' }}>
-              <MlsSafePhoto src={h.photo} w={345} h={196} />
-              {h.match != null ? (
-                <div style={{ display: 'flex', position: 'absolute', top: 14, left: 14, alignItems: 'center', gap: 8, padding: '7px 14px', borderRadius: 999, backgroundColor: 'rgba(17,24,39,0.88)', color: '#fff', fontSize: 17, fontWeight: 900 }}>
-                  <div style={{ display: 'flex', width: 8, height: 8, borderRadius: 999, backgroundColor: C.goldLight }} />
-                  {`${h.match}% Match`}
-                </div>
-              ) : null}
+      {/* its homes, like the cards inside - or, before the first one lands, where they'll go */}
+      {n ? (
+        <div style={{ display: 'flex', gap: 22, marginTop: 'auto' }}>
+          {shown.map((h, i) => n === 1 ? (
+            <div key={i} style={{ display: 'flex', width: w, borderRadius: 26, overflow: 'hidden', backgroundColor: '#FFFFFF', border: '1px solid rgba(17,24,39,0.06)', boxShadow: '0 22px 44px -22px rgba(17,24,39,0.45)' }}>
+              <div style={{ display: 'flex', position: 'relative' }}>
+                <MlsSafePhoto src={h.photo} w={600} h={photoH} />
+                <HomeTag h={h} accentLight={light} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 40px' }}>
+                <div style={{ display: 'flex', fontSize: 46, fontWeight: 900, color: '#111827', letterSpacing: -1 }}>{h.price || 'Price on request'}</div>
+                {h.facts ? <div style={{ display: 'flex', fontSize: 21, fontWeight: 900, color: deep, marginTop: 8 }}>{h.facts}</div> : null}
+                <div style={{ display: 'flex', fontSize: 21, fontWeight: 400, color: '#6B7280', marginTop: 8 }}>{oneLine(h.street, h.city, 34)}</div>
+              </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', padding: '15px 20px 17px' }}>
-              <div style={{ display: 'flex', fontSize: 30, fontWeight: 900, color: '#111827', letterSpacing: -0.5 }}>{h.price || 'Price on request'}</div>
-              {h.facts ? <div style={{ display: 'flex', fontSize: 17, fontWeight: 900, color: '#A8803A', marginTop: 4 }}>{h.facts}</div> : null}
-              <div style={{ display: 'flex', fontSize: 17, fontWeight: 400, color: '#6B7280', marginTop: 5 }}>{oneLine(h.street, h.city)}</div>
+          ) : (
+            <div key={i} style={{
+              display: 'flex', flexDirection: 'column', width: w, borderRadius: 26, overflow: 'hidden', backgroundColor: '#FFFFFF',
+              border: '1px solid rgba(17,24,39,0.06)', boxShadow: '0 22px 44px -22px rgba(17,24,39,0.45)',
+            }}>
+              <div style={{ display: 'flex', position: 'relative' }}>
+                <MlsSafePhoto src={h.photo} w={w} h={photoH} />
+                <HomeTag h={h} accentLight={light} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', padding: '15px 20px 17px' }}>
+                <div style={{ display: 'flex', fontSize: 30, fontWeight: 900, color: '#111827', letterSpacing: -0.5 }}>{h.price || 'Price on request'}</div>
+                {h.facts ? <div style={{ display: 'flex', fontSize: 17, fontWeight: 900, color: deep, marginTop: 4 }}>{h.facts}</div> : null}
+                <div style={{ display: 'flex', fontSize: 17, fontWeight: 400, color: '#6B7280', marginTop: 5 }}>{oneLine(h.street, h.city, n === 2 ? 48 : 31)}</div>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-      {more > 0 && shown.length ? (
-        <div style={{ display: 'flex', position: 'absolute', right: 56, bottom: 14, fontSize: 14, fontWeight: 900, letterSpacing: 2.5, textTransform: 'uppercase', color: '#8B7355' }}>
+          ))}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 22, marginTop: 'auto' }}>
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', width: 345, height: 290, borderRadius: 26, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.7)', border: `2px dashed rgba(${rgb},0.45)` }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 180, backgroundImage: `linear-gradient(135deg, rgba(${rgb},0.16), rgba(${rgb},0.05))` }}>
+                <svg width={64} height={64} viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+                  {HOUSE_D.map((d, k) => <path key={k} d={d} />)}
+                </svg>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '18px 20px' }}>
+                {i === 1
+                  ? <div style={{ display: 'flex', fontSize: 19, fontWeight: 900, color: deep }}>Your first homes land here</div>
+                  : <div style={{ display: 'flex', width: 150, height: 16, borderRadius: 8, backgroundColor: `rgba(${rgb},0.22)` }} />}
+                <div style={{ display: 'flex', width: i === 1 ? 230 : 210, height: 12, borderRadius: 6, backgroundColor: 'rgba(17,24,39,0.08)' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {more > 0 && n ? (
+        <div style={{ display: 'flex', position: 'absolute', right: 56, bottom: 14, fontSize: 14, fontWeight: 900, letterSpacing: 2.5, textTransform: 'uppercase', color: deep }}>
           {`+ ${more} more inside`}
         </div>
       ) : null}
@@ -129,7 +188,9 @@ export function ShowcaseCard({
   )
 }
 
-export async function renderShowcaseCard(shareToken: string, fonts: Fonts): Promise<ImageResponse> {
+export async function renderShowcaseCard(shareToken: string, fonts: Fonts, accentParam?: string | null): Promise<ImageResponse> {
+  // ?accent=rrggbb - the agent's website colour (the Showcase opens in it on their own domain)
+  const accent = accentParam && /^[0-9a-f]{6}$/i.test(accentParam) ? `#${accentParam}` : C.gold
   try {
     const data = await ogFetch<any>(`/collections/shared/${encodeURIComponent(shareToken)}`)
     const all: any[] = Array.isArray(data?.matchedProperties) ? data.matchedProperties : []
@@ -161,6 +222,7 @@ export async function renderShowcaseCard(shareToken: string, fonts: Fonts): Prom
         street: titleCase(p.FullStreetAddress),
         city: titleCase(p.City),
         match: s.match != null ? Math.round(s.match) : null,
+        isNew: Date.now() - t(p) < 7 * 86400000,
       }
     })
     return IR(
@@ -171,11 +233,12 @@ export async function renderShowcaseCard(shareToken: string, fonts: Fonts): Prom
         agentBrokerage={data?.agentBrokerage || null}
         agentPhoto={agentPhoto}
         homes={homes}
+        accent={accent}
       />,
       fonts,
     )
   } catch {
-    return IR(<ShowcaseCard count={0} forName="" agentName="Your agent" agentBrokerage={null} agentPhoto={null} homes={[]} />, fonts)
+    return IR(<ShowcaseCard count={0} forName="" agentName="Your agent" agentBrokerage={null} agentPhoto={null} homes={[]} accent={accent} />, fonts)
   }
 }
 
@@ -502,7 +565,7 @@ export function FormCard({ photo, name, brokerage, lines, support, kind, look }:
               {face.button}
               <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={btnInk} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
             </div>
-            <div style={{ display: 'flex', fontSize: 15, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: sub }}>About a minute</div>
+            <div style={{ display: 'flex', fontSize: 15, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: sub }}>About 25 seconds</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 26, fontSize: 19, fontWeight: 800, color: ink }}>
             {name}{brokerage ? <div style={{ display: 'flex', color: sub, fontWeight: 700 }}>·  {brokerage}</div> : null}
