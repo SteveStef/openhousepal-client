@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { sizedBg } from '@/lib/siteImage'
 
 // The Agent Hub's one-at-a-time carousel (phones, and the editor's phone preview), shared by Recent
 // Sales, My Listings, Videos, House Tours and Blogs. Instead of sliding sideways, each home arrives
@@ -149,7 +150,7 @@ export default function HubCinema({
                 <div className="absolute inset-0">{s.custom}</div>
               ) : (
                 <>
-                  <span className="hc-photo" style={{ backgroundImage: `url(${s.image || '/placeholder.jpg'})` }} />
+                  <span className="hc-photo" style={{ backgroundImage: sizedBg(s.image || '/placeholder.jpg', 1080) }} />
                   <span className="hc-scrim" />
                 </>
               )}

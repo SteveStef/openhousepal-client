@@ -7,6 +7,7 @@ import HubStatusBadge from '@/components/agent-hub/HubStatusBadge'
 import { listingFacts, type FeatureListing } from '@/components/agent-hub/ListingFeatureCard'
 import { formatOpenHouse, upcomingOpenHouses } from '@/lib/mlsOpenHouses'
 import { AgentSale, getSaleLocation, getStreetOnly } from '@/lib/agentSales'
+import { sizedBg } from '@/lib/siteImage'
 
 // A home card on the agent's Sales page (current listings and past sales), in the hub's own look:
 // Classic = white card lit by the agent's accent color, Luxe = the dark card in a metal frame.
@@ -47,7 +48,7 @@ export default function HubHomeGridCard({ home, kind, luxe = false, href, index 
   const body = (
     <>
       <span className="relative block aspect-[4/3] overflow-hidden">
-        <span className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.4s] ease-out group-hover/hc:scale-[1.07]" style={{ backgroundImage: `url(${image})` }} />
+        <span className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.4s] ease-out group-hover/hc:scale-[1.07]" style={{ backgroundImage: sizedBg(image, 640) }} />
         <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/10" />
         {luxe && <span aria-hidden className="hub-lx-sweep absolute inset-y-0 left-0 w-1/3" />}
         <span className="absolute left-3 right-3 top-3 flex items-center gap-1.5">

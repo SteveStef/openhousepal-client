@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { MapPin, Play } from 'lucide-react'
 import BlogCoverArt from '@/components/BlogCoverArt'
+import { sizedBg } from '@/lib/siteImage'
 
 // OpenHousePal Luxe - the Agent Hub's second theme (IDX only; other plans can preview it). Same
 // sections, links and data as Classic; Luxe re-dresses all of it in the Listing Spotlight / IDX
@@ -93,7 +94,7 @@ export function HubLuxeIntro({ name, kicker, photoUrl, photoPosition, contained 
             <circle cx="62" cy="62" r="59" fill="none" stroke="rgba(232,201,122,.18)" strokeWidth="1" />
             <circle className="hub-lx-intro-ring" cx="62" cy="62" r="59" fill="none" stroke="url(#hubLxRing)" strokeWidth="2.5" strokeLinecap="round" pathLength={1} />
           </svg>
-          {isHubPhotoSet(photoUrl) && <span className="hub-lx-intro-photo absolute inset-[9px] rounded-full bg-cover" style={{ backgroundImage: `url(${photoUrl})`, backgroundPosition: `${photoPosition?.x ?? 50}% ${photoPosition?.y ?? 50}%` }} />}
+          {isHubPhotoSet(photoUrl) && <span className="hub-lx-intro-photo absolute inset-[9px] rounded-full bg-cover" style={{ backgroundImage: sizedBg(photoUrl, 384), backgroundPosition: `${photoPosition?.x ?? 50}% ${photoPosition?.y ?? 50}%` }} />}
           {BURST.map((b, k) => <span key={k} className="hub-lx-intro-burst" style={{ ['--dx' as string]: b.dx, ['--dy' as string]: b.dy, animationDelay: `calc(.95s + ${b.d})` }} />)}
         </div>
         {kicker && <p className="hub-lx-intro-kicker">{kicker}</p>}
@@ -114,7 +115,7 @@ export function LuxeHomeCardBody({ image, price, location, status, statusClass, 
     <>
       <span aria-hidden className="absolute inset-0 rounded-[20px] bg-gradient-to-br from-[var(--m-cream)] via-[rgba(var(--m-rgb),0.45)] to-[var(--m-deep)]" />
       <span className="relative block h-full w-full overflow-hidden rounded-[18.5px] bg-[#111827]">
-        <span className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.4s] ease-out group-hover/lx:scale-110" style={{ backgroundImage: `url(${image || '/placeholder.jpg'})` }} />
+        <span className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.4s] ease-out group-hover/lx:scale-110" style={{ backgroundImage: sizedBg(image || '/placeholder.jpg', 640) }} />
         <span className="absolute inset-0 bg-gradient-to-t from-[#0b0f0e] via-[#0b0f0e]/20 to-black/10" />
         <span aria-hidden className="hub-lx-sweep absolute inset-y-0 left-0 w-1/3" />
         {/* status with the open house (badge) right beside it - never stacked on the price */}
@@ -147,7 +148,7 @@ export function LuxeGridHomeCard({ image, price, address, location, status, stat
       <span aria-hidden className="absolute inset-0 rounded-[22px] bg-gradient-to-br from-[var(--m-cream)] via-[rgba(var(--m-rgb),0.45)] to-[var(--m-deep)]" />
       <span className="relative block overflow-hidden rounded-[20.5px] bg-[#111827]">
         <span className="relative block aspect-[4/3] overflow-hidden">
-          <span className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.4s] ease-out group-hover/lx:scale-110" style={{ backgroundImage: `url(${image || '/placeholder.jpg'})` }} />
+          <span className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.4s] ease-out group-hover/lx:scale-110" style={{ backgroundImage: sizedBg(image || '/placeholder.jpg', 640) }} />
           <span className="absolute inset-0 bg-gradient-to-t from-[#0b0f0e] via-[#0b0f0e]/25 to-black/5" />
           <span aria-hidden className="hub-lx-sweep absolute inset-y-0 left-0 w-1/3" />
           <span className={`absolute left-3 top-3 font-black uppercase ${sold ? 'hub-lx-sold rounded-[10px] px-3.5 py-2 text-[11px]' : `rounded-full px-2.5 py-1 text-[10px] shadow ${statusClass}`}`}>{sold && <span className="hub-lx-sold-dot" />}<span className="relative">{status}</span></span>
@@ -178,7 +179,7 @@ export function LuxeVideoCardBody({ thumb, title, kicker }: { thumb: string; tit
       <span className="hub-lx-frame relative block aspect-video overflow-hidden rounded-[16px] p-[1.5px]">
         <span aria-hidden className="absolute inset-0 rounded-[16px] bg-gradient-to-br from-[var(--m-cream)] via-[rgba(var(--m-rgb),0.4)] to-[var(--m-deep)]" />
         <span className="relative block h-full w-full overflow-hidden rounded-[14.5px] bg-[#111827]">
-          <span className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.2s] ease-out group-hover/lx:scale-110" style={{ backgroundImage: `url(${thumb || '/placeholder.jpg'})` }} />
+          <span className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.2s] ease-out group-hover/lx:scale-110" style={{ backgroundImage: sizedBg(thumb || '/placeholder.jpg', 640) }} />
           <span className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-black/20" />
           <span className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
             <span aria-hidden className="hub-lx-pulse absolute inset-0 rounded-full border border-[var(--m-light)]" />
@@ -202,7 +203,7 @@ export function LuxeBlogCardBody({ image, category, title }: { image?: string; c
     <>
       <span aria-hidden className="absolute inset-0 rounded-[20px] bg-gradient-to-br from-[var(--m-cream)] via-[rgba(var(--m-rgb),0.45)] to-[var(--m-deep)]" />
       <span className="relative block h-full w-full overflow-hidden rounded-[18.5px] bg-[#0f1420]">
-        {image ? <span className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.6s] ease-out group-hover/lx:scale-[1.07]" style={{ backgroundImage: `url(${image})` }} /> : <span className="absolute inset-0 block"><BlogCoverArt category={category} title={title} showWord={false} /></span>}
+        {image ? <span className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.6s] ease-out group-hover/lx:scale-[1.07]" style={{ backgroundImage: sizedBg(image, 640) }} /> : <span className="absolute inset-0 block"><BlogCoverArt category={category} title={title} showWord={false} /></span>}
         <span className="absolute inset-0 bg-gradient-to-t from-[#070a0f] via-[#070a0f]/55 to-black/10" />
         <span aria-hidden className="hub-lx-sweep absolute inset-y-0 left-0 w-1/3" />
         <span className="absolute left-3 top-3 rounded-full border border-[rgba(var(--m-light-rgb),0.55)] bg-black/35 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-[var(--m-cream)] ">{category}</span>
@@ -224,7 +225,7 @@ export function LuxeBlogCardBody({ image, category, title }: { image?: string; c
 // photo is set ('/home.jpg' was the editor's old placeholder and is treated as no photo).
 export const isHubPhotoSet = (url?: string | null) => !!url && url.trim() !== '' && url.trim() !== '/home.jpg'
 export function HubAgentPhoto({ url, position, name, className = '' }: { url?: string | null; position?: { x: number; y: number }; name?: string; className?: string }) {
-  if (isHubPhotoSet(url)) return <div className={`h-full w-full bg-cover ${className}`} style={{ backgroundImage: `url(${url})`, backgroundPosition: `${position?.x ?? 50}% ${position?.y ?? 50}%` }} />
+  if (isHubPhotoSet(url)) return <div className={`h-full w-full bg-cover ${className}`} style={{ backgroundImage: sizedBg(url, 384), backgroundPosition: `${position?.x ?? 50}% ${position?.y ?? 50}%` }} />
   const initials = (name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join('') || '?'
   return <div className={`flex h-full w-full items-center justify-center bg-[#f3ead8] font-serif text-[28px] font-black text-[#8b7355] dark:bg-[#1f1b14] dark:text-[#d7b974] ${className}`}>{initials}</div>
 }

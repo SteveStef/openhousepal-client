@@ -8,6 +8,7 @@ import { ArrowRight, Bath, BedDouble, CalendarDays, Images, MapPin, Ruler, Trees
 import OpenHouseChip from '@/components/OpenHouseChip'
 import { formatOpenHouse, upcomingOpenHouses, type MlsOpenHouse } from '@/lib/mlsOpenHouses'
 import { AgentSale, formatSaleStatus, getSaleLocation, getSaleStatusClass, getStreetOnly } from '@/lib/agentSales'
+import { sizedBg } from '@/lib/siteImage'
 
 // One listing gets the whole row - as a wide, low card at every width: the first photo on the
 // left, the price, address, facts and open houses on the right, and the same click-through the
@@ -76,7 +77,7 @@ export default function ListingFeatureCard({ listing, luxe = false, compact = fa
   // The first photo only - a mosaic of three read as busy and made the card tall.
   const photoSide = (
     <div className={`relative shrink-0 overflow-hidden ${compact ? 'w-[40%] min-w-[132px] sm:w-[42%]' : 'w-[38%] min-w-[128px] sm:w-[44%]'}`}>
-      <div className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.6s] ease-out group-hover/feat:scale-[1.05]" style={{ backgroundImage: `url(${main})` }} />
+      <div className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.6s] ease-out group-hover/feat:scale-[1.05]" style={{ backgroundImage: sizedBg(main, 1200) }} />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-black/10" />
       {luxe && <span aria-hidden className="hub-lx-sweep absolute inset-y-0 left-0 w-1/3" />}
       {/* status, with the open house (if any) right beside it */}

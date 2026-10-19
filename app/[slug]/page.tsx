@@ -45,6 +45,7 @@ import { publicWebUrl } from '@/lib/webUrl'
 import { LeaveReviewButton, orderReviews, ProfileRatingChip, ProfileReviewButton, ReviewsBigCarousel, ReviewsDeskCard, ReviewsSummary, ReviewsTwoUp, useHubReviews } from '@/components/agent-hub/HubReviews'
 import useHubColorMode, { useHubLookChanged } from '@/components/agent-hub/useHubColorMode'
 import HubStatusBadge from '@/components/agent-hub/HubStatusBadge'
+import { sizedBg } from '@/lib/siteImage'
 
 // 'reviews' is shown when the agent switched reviews on (Settings -> Reviews / Layout) and has some.
 const defaultVisibleSectionIds = ['listings', 'sales', 'videos', 'tours', 'blogs', 'reviews']
@@ -104,7 +105,7 @@ type AgentSale = { id: string; address: string; city: string; state: string; zip
 
 const getYoutubeThumbnail = (url: string) => {
   const match = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/)
-  return match ? `https://i.ytimg.com/vi/${match[1]}/hq720.jpg` : ''
+  return match ? `https://i.ytimg.com/vi/${match[1]}/hqdefault.jpg` : ''
 }
 
 const formatSaleStatus = (status?: string) => {
@@ -580,7 +581,7 @@ export default function PublicAgentHubPage() {
                 <LuxeHomeCardBody image={sale.image} price={sale.price ? `$${sale.price.toLocaleString()}` : 'Price'} location={getSaleLocation(sale)} status={formatSaleStatus(sale.status)} statusClass={getSaleStatusClass(sale.status)} />
               </Link>
             ) : (
-              <Link key={sale.id} href={salesPath} onClick={() => recordAgentHubEvent({ type: 'click', label: `Recent Sale: ${sale.address}` })} className="relative h-[118px] w-[172px] shrink-0 snap-start overflow-hidden rounded-[14px] bg-cover bg-center lg:h-[148px]" style={{ backgroundImage: `url(${sale.image || '/placeholder.jpg'})` }}>
+              <Link key={sale.id} href={salesPath} onClick={() => recordAgentHubEvent({ type: 'click', label: `Recent Sale: ${sale.address}` })} className="relative h-[118px] w-[172px] shrink-0 snap-start overflow-hidden rounded-[14px] bg-cover bg-center lg:h-[148px]" style={{ backgroundImage: sizedBg(sale.image || '/placeholder.jpg', 640) }}>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
                 <span className="absolute left-2 top-2"><HubStatusBadge status={sale.status} size="xs" /></span>
                 <div className="absolute bottom-2 left-2 right-2 text-white"><p className="text-xl font-black leading-none">{sale.price ? `$${sale.price.toLocaleString()}` : 'Price'}</p><p className="truncate text-xs font-bold">{getSaleLocation(sale)}</p></div>
@@ -618,7 +619,7 @@ export default function PublicAgentHubPage() {
               // Listing Spotlight for this exact property, else the generic one-page property
               // view with a tour-request form - see resolve_listing_link on the backend) -
               // falling back to the general Listings page only when neither exists.
-              <Link key={listing.id} href={listing.listingLinkUrl || listingsPath} onClick={() => recordAgentHubEvent({ type: 'click', label: `Listing: ${listing.address}` })} className="relative h-[118px] w-[172px] shrink-0 snap-start overflow-hidden rounded-[14px] bg-cover bg-center lg:h-[148px]" style={{ backgroundImage: `url(${listing.image || '/placeholder.jpg'})` }}>
+              <Link key={listing.id} href={listing.listingLinkUrl || listingsPath} onClick={() => recordAgentHubEvent({ type: 'click', label: `Listing: ${listing.address}` })} className="relative h-[118px] w-[172px] shrink-0 snap-start overflow-hidden rounded-[14px] bg-cover bg-center lg:h-[148px]" style={{ backgroundImage: sizedBg(listing.image || '/placeholder.jpg', 640) }}>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
                 {/* status with the open house right beside it - never stacked on the price */}
                 <span className="absolute left-2 right-2 top-2 flex items-center gap-1"><HubStatusBadge status={listing.status} size="xs" /><span className="flex min-w-0"><OpenHouseChip openHouses={listing.open_houses} compact /></span></span>
@@ -738,7 +739,7 @@ export default function PublicAgentHubPage() {
                 const { href, isInternal } = resolveBlogHref(item.link)
                 return (
                   <a href={href} target={item.link && !isInternal ? '_blank' : undefined} rel={item.link && !isInternal ? 'noreferrer' : undefined} onClick={() => item.link && recordAgentHubEvent({ type: 'click', label: `Blog: ${item.title}` })} className={`flex h-full w-full flex-col overflow-hidden rounded-[18px] bg-white dark:bg-[#151517] ${item.link ? '' : 'pointer-events-none'}`}>
-                    {item.image ? <div className="flex-1 bg-cover bg-center dark:brightness-90" style={{ backgroundImage: `url(${item.image})` }} /> : <div className="relative flex-1"><BlogCoverArt category={item.description} title={item.title} /></div>}
+                    {item.image ? <div className="flex-1 bg-cover bg-center dark:brightness-90" style={{ backgroundImage: sizedBg(item.image, 640) }} /> : <div className="relative flex-1"><BlogCoverArt category={item.description} title={item.title} /></div>}
                     <div className="bg-white p-4 pb-6 dark:bg-[#1A1A1C]">
                       <p className="text-[10px] font-black uppercase tracking-wide text-[#d0ad65] dark:text-[#d7b974]">{item.description || 'Blog'}</p>
                       <h3 className="mt-1 line-clamp-2 text-sm font-black leading-4 text-[#111827] dark:text-white">{item.title}</h3>
@@ -761,7 +762,7 @@ export default function PublicAgentHubPage() {
             )
             return (
               <a key={item.id} href={href} target={item.link && !isInternal ? '_blank' : undefined} rel={item.link && !isInternal ? 'noreferrer' : undefined} onClick={() => item.link && recordAgentHubEvent({ type: 'click', label: `Blog: ${item.title}` })} className={`group/blog relative block h-[212px] w-[208px] shrink-0 snap-start overflow-hidden rounded-[18px] bg-[#111827] shadow-sm transition-shadow duration-500 hover:shadow-[0_24px_48px_-28px_rgba(17,24,39,.55)] lg:h-[228px] lg:w-[228px] ${item.link ? '' : 'pointer-events-none'}`}>
-                {item.image ? <div className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.6s] ease-out group-hover/blog:scale-[1.07]" style={{ backgroundImage: `url(${item.image})` }} /> : <div className="absolute inset-0"><BlogCoverArt category={item.description} title={item.title} showWord={false} /></div>}
+                {item.image ? <div className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.6s] ease-out group-hover/blog:scale-[1.07]" style={{ backgroundImage: sizedBg(item.image, 640) }} /> : <div className="absolute inset-0"><BlogCoverArt category={item.description} title={item.title} showWord={false} /></div>}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#070a0f] via-[#070a0f]/50 to-black/10" />
                 <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-[#111827] shadow-sm">{item.description || 'Blog'}</span>
                 <div className="absolute inset-x-0 bottom-0 p-4">
