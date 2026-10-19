@@ -349,11 +349,9 @@ export function CmaCard({ forName, ...rest }: {
 /** A home's link (CMA, open house): the whole home behind it (user, 10/19 - "I like the before ...
  *  entire property pic"), the agent's real headshot on top, then the label, "Street, Town" in one
  *  serif line and one line under it. */
-export function HomePhotoCard({ photo, street, place, eyebrow, sub, agentName, agentBrokerage, agentPhoto, accent, courtesy }: {
+export function HomePhotoCard({ photo, street, place, eyebrow, sub, agentName, agentBrokerage, agentPhoto, accent }: {
   photo: string | null; street: string; place: string; eyebrow: string; sub: string
   agentName: string; agentBrokerage: string | null; agentPhoto: string | null; accent: string
-  /** Another brokerage's listing: "Listing courtesy of ..." under the line. */
-  courtesy?: string | null
 }) {
   const light = mixHex(accent, '#ffffff', 0.45)
   const btnInk = lum(accent) > 0.6 ? '#111827' : '#ffffff'
@@ -388,7 +386,6 @@ export function HomePhotoCard({ photo, street, place, eyebrow, sub, agentName, a
           </div>
           <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: titleSize, lineHeight: 1.04, letterSpacing: -1, marginTop: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 1056 }}>{headline}</div>
           <div style={{ display: 'flex', fontSize: 30, color: C.sub, marginTop: 14 }}>{sub}</div>
-          {courtesy ? <div style={{ display: 'flex', fontSize: 17, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(228,219,199,0.7)', marginTop: 12 }}>{`Listing courtesy of ${courtesy}`}</div> : null}
         </div>
       </div>
     </div>
@@ -422,13 +419,6 @@ export async function renderCmaCard(slug: string, fonts: Fonts, preview?: { mode
   }
 }
 
-/** The listing brokerage, only when it isn't the host's own ("COMPASS RE" vs "Compass" counts as the same). */
-function courtesyOf(office?: string | null, hostBrokerage?: string | null): string | null {
-  const key = (s?: string | null) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b(re|realty|real estate|llc|inc|the|of|brokerage|group|realtors?)\b/g, '').trim().split(/\s+/)[0] || ''
-  if (!office || !office.trim()) return null
-  return key(office) && key(office) === key(hostBrokerage) ? null : titleCase(office.trim())
-}
-
 export async function renderOpenHouseCard(eventId: string, fonts: Fonts): Promise<ImageResponse> {
   try {
     const data = await ogFetch<any>(`/open-house/property/${encodeURIComponent(eventId)}`)
@@ -447,8 +437,7 @@ export async function renderOpenHouseCard(eventId: string, fonts: Fonts): Promis
     const accent = typeof data?.theme?.accentColor === 'string' && /^#[0-9a-f]{6}$/i.test(data.theme.accentColor) ? data.theme.accentColor : C.gold
     return IR(
       <HomePhotoCard photo={photo} street={titleCase(p.address) || 'Open House'} place={titleCase(p.city)} eyebrow="Open House" sub={sub}
-        agentName={p.agentName || 'Your host'} agentBrokerage={p.agentBrokerage || null} agentPhoto={agentPhoto} accent={accent}
-        courtesy={courtesyOf(p.listOfficeName, p.agentBrokerage)} />,
+        agentName={p.agentName || 'Your host'} agentBrokerage={p.agentBrokerage || null} agentPhoto={agentPhoto} accent={accent} />,
       fonts,
     )
   } catch {
