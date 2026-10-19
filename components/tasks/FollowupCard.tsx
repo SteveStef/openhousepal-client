@@ -542,7 +542,7 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
                 {!compact && (fillIn || alertOnly || src === 'disclosure_request') && (
                   <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-snug text-gray-500 dark:text-gray-400">
                     <Pencil className="mt-px h-3 w-3 shrink-0 text-[#C9A24D]" />
-                    {fillIn ? <span>After you paste it, replace <b className="font-semibold text-gray-700 dark:text-gray-200">{fillIn}</b> {fillIn === '[ANSWER THEIR QUESTION]' ? `with your answer to ${first}'s question above` : 'with the time you booked'}.</span>
+                    {fillIn ? <span>After you paste it, replace <b className="font-semibold text-gray-700 dark:text-gray-200">{fillIn}</b> {fillIn === '[ANSWER THEIR QUESTION]' ? `with your answer to ${first}'s question above` : fillIn === '[ADD YOUR MESSAGE HERE]' ? `with what you'd like to say to ${first}` : 'with the time you booked'}.</span>
                       : src === 'disclosure_request' ? <span>Email {first} the seller disclosure first, then send this text.</span>
                       : src === 'private_feedback' ? <span>Reach out to {first} in your own words - a quick call usually goes further than a text.</span>
                       : src === 'showcase_search_request' ? <span>Update {first}&apos;s Showcase search, then let them know.</span>
