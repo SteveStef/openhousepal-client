@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Check, Copy, ExternalLink, MousePointerClick, Pencil, Sparkles } from 'lucide-react'
+import { Check, Copy, ExternalLink, Pencil, Sparkles } from 'lucide-react'
 import { copyText } from '@/lib/copyText'
 import api from '@/lib/api-service'
 
@@ -318,18 +318,18 @@ function CopyValue({ value, big = false }: { value: string; big?: boolean }) {
 
 function Lines({ lines }: { lines: Line[] }) {
   return (
-    <ul className="mt-2 space-y-1.5">
+    <ul className="mt-2 space-y-2">
       {lines.map((l, i) => typeof l === 'string' ? (
-        <li key={i} className="flex gap-2 text-[13.5px] leading-snug text-[#111827] dark:text-white/85">
-          <MousePointerClick className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#C9A24D]" />{l}
+        <li key={i} className="flex gap-2.5 text-[14.5px] leading-snug text-[#111827] dark:text-white/85">
+          <span aria-hidden className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#C9A24D]" />{l}
         </li>
       ) : 'copy' in l ? (
-        <li key={i} className="ml-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 rounded-xl border-2 border-dashed border-[#C9A24D]/50 bg-[#C9A24D]/[0.06] px-2.5 py-2 sm:ml-5">
-          <code className="min-w-0 flex-[1_1_10rem] [overflow-wrap:anywhere] font-mono text-[13.5px] font-black text-[#111827] dark:text-white">{l.copy}</code>
-          <CopyValue value={l.copy} big />
+        <li key={i} className="rounded-xl border-2 border-dashed border-[#C9A24D]/50 bg-[#C9A24D]/[0.06] p-2.5">
+          <code className="block [overflow-wrap:anywhere] font-mono text-[14px] font-black text-[#111827] dark:text-white">{l.copy}</code>
+          <div className="mt-2 flex justify-end"><CopyValue value={l.copy} big /></div>
         </li>
       ) : (
-        <li key={i} className="ml-1 flex items-baseline gap-2 text-[13.5px] sm:ml-5">
+        <li key={i} className="flex items-baseline gap-2 pl-4 text-[14.5px]">
           <span className="font-semibold text-gray-500 dark:text-white/50">{l.text}:</span>
           <code className="font-mono font-black text-[#111827] dark:text-white">{l.value}</code>
         </li>
@@ -337,6 +337,7 @@ function Lines({ lines }: { lines: Line[] }) {
     </ul>
   )
 }
+
 
 /** A simple drawing of the DNS list: the www line circled, its value changing to ours. */
 function RecordSketch({ g, apex, target }: { g: Guide; apex: string; target: string }) {
@@ -413,14 +414,38 @@ function OpenButton({ href, label }: { href: string; label: string }) {
   )
 }
 
-function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+/** One step on the timeline: tap its title to open it; only the step you're on is open, and its
+ *  big button marks it done and opens the next - one thing at a time on a phone. */
+function Step({ n, title, open, done, last, onOpen, onDone, children }: {
+  n: number; title: string; open: boolean; done: boolean; last?: boolean
+  onOpen: () => void; onDone?: () => void; children: React.ReactNode
+}) {
   return (
-    <li className="rounded-2xl border border-gray-200 bg-white p-3 dark:border-white/10 dark:bg-white/[0.03] sm:p-4">
-      <div className="flex items-start gap-2.5">
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#C9A24D] to-[#e8c97a] text-[13px] font-black text-[#111827]">{n}</span>
-        <p className="min-w-0 pt-0.5 text-[15px] font-black leading-snug text-[#111827] [overflow-wrap:anywhere] dark:text-white">{title}</p>
+    <li className="flex gap-3">
+      <div className="flex flex-col items-center">
+        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-[13px] font-black transition ${
+          done ? 'bg-emerald-500 text-white' : open ? 'bg-gradient-to-br from-[#C9A24D] to-[#e8c97a] text-[#111827] shadow-[0_6px_16px_-6px_rgba(201,162,77,.8)]' : 'bg-gray-100 text-gray-400 dark:bg-white/10 dark:text-white/40'}`}>
+          {done ? <Check className="h-4 w-4" strokeWidth={3} /> : n}
+        </span>
+        {!last && <span aria-hidden className={`mt-1 w-0.5 flex-1 rounded-full ${done ? 'bg-emerald-300 dark:bg-emerald-500/40' : 'bg-gray-200 dark:bg-white/10'}`} />}
       </div>
-      <div className="mt-1 pl-0.5">{children}</div>
+      <div className={`min-w-0 flex-1 ${last ? '' : 'pb-5'}`}>
+        <button type="button" onClick={onOpen} aria-expanded={open}
+          className={`block w-full pt-1 text-left text-[15.5px] font-black leading-snug [overflow-wrap:anywhere] ${done && !open ? 'text-gray-400 dark:text-white/40' : 'text-[#111827] dark:text-white'}`}>
+          {title}
+        </button>
+        {open && (
+          <div className="ohp-step-in">
+            {children}
+            {onDone && (
+              <button type="button" onClick={onDone}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-4 py-3 text-[14px] font-black text-[#111827] shadow-sm transition active:scale-[0.98]">
+                <Check className="h-4 w-4" strokeWidth={3} /> Done - next step
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </li>
   )
 }
@@ -429,6 +454,8 @@ export default function DomainSetupGuide({ hostname, target, pair }: { hostname:
   const apex = hostname.replace(/^www\./, '')
   const [provider, setProvider] = useState<DomainProvider>('godaddy')
   const [detected, setDetected] = useState<DomainProvider | null>(null)
+  const [open, setOpen] = useState(0)
+  const [done, setDone] = useState<Set<number>>(new Set())
   useEffect(() => {
     let live = true
     let saved: DomainProvider | null = null
@@ -444,82 +471,120 @@ export default function DomainSetupGuide({ hostname, target, pair }: { hostname:
     })
     return () => { live = false }
   }, [apex])
-  const pick = (p: DomainProvider) => { setProvider(p); try { localStorage.setItem(`ohp-domain-provider:${apex}`, p) } catch { /* ignore */ } }
-  const g = guides(apex, target)[provider]
+  const pick = (p: DomainProvider) => { setProvider(p); setOpen(0); setDone(new Set()); try { localStorage.setItem(`ohp-domain-provider:${apex}`, p) } catch { /* ignore */ } }
+  const all = guides(apex, target)
+  const g = all[provider]
   const label = pair ? 'www' : hostname.split('.')[0]
   const forSupport = [
     `Please set up my domain ${apex}:`,
     `1. Add a CNAME record: name "${label}", value "${target}".`,
     ...(pair ? [`2. Forward ${apex} to https://www.${apex} (permanent 301 redirect, https - not http).`] : []),
   ].join('\n')
+  const finish = (i: number) => { setDone(d => new Set(d).add(i)); setOpen(i + 1) }
 
-  return (
-    <div className="mt-3 rounded-2xl border border-gray-200 bg-[#FAFAF7] p-2.5 dark:border-white/10 dark:bg-white/[0.03] sm:p-4">
-      {detected && detected !== 'other' && (
-        <p className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-          <Sparkles className="h-3 w-3" /> Looks like {apex} is with {guides(apex, target)[detected].name}
-        </p>
-      )}
-      <p className="text-[13px] font-black text-[#111827] dark:text-white">Where is {apex}?</p>
-      <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label="Your domain company">
-        {ORDER.map(id => (
-          <button key={id} type="button" role="tab" aria-selected={provider === id} onClick={() => pick(id)}
-            className={`rounded-full px-3 py-1.5 text-[11.5px] font-black transition ${provider === id ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:ring-[#C9A24D] dark:bg-white/[0.05] dark:text-white/70 dark:ring-white/10'}`}>
-            {guides(apex, target)[id].name}
-          </button>
-        ))}
-      </div>
-
-      <ol className="mt-4 space-y-3">
-        <Step n={1} title={`Open ${g.name === 'Somewhere else' ? 'your domain company\'s' : g.name + '\'s'} DNS page`}>
-          {g.dnsUrl && <OpenButton href={g.dnsUrl(apex)} label={`Open my ${g.name} DNS page`} />}
-          <p className="mt-2 text-[12.5px] leading-snug text-gray-600 [overflow-wrap:anywhere] dark:text-white/60">
-            {g.dnsUrl ? 'Sign in if it asks. Didn\'t land on the DNS page? ' : ''}{g.path}
-          </p>
-        </Step>
-
-        <Step n={2} title={pair ? 'Point "www" to your new website' : `Point "${label}" to your new website`}>
+  const steps: { title: string; body: React.ReactNode }[] = [
+    {
+      title: `Open ${g.name === 'Somewhere else' ? 'your domain company\'s' : `${g.name}'s`} DNS page`,
+      body: (
+        <>
+          {g.dnsUrl
+            ? <><OpenButton href={g.dnsUrl(apex)} label={`Open my ${g.name} DNS page`} /><p className="mt-2 text-[13px] text-gray-500 dark:text-white/50">Sign in if it asks.</p></>
+            : <p className="mt-2 text-[14.5px] leading-snug text-[#111827] dark:text-white/85">{g.path}</p>}
+          {g.dnsUrl && (
+            <details className="mt-1.5 text-[13px] text-gray-500 dark:text-white/50">
+              <summary className="cursor-pointer font-black text-[#8b7355] dark:text-[#e8c97a]">Button didn&apos;t take you there?</summary>
+              <p className="mt-1 leading-snug [overflow-wrap:anywhere]">{g.path}</p>
+            </details>
+          )}
+        </>
+      ),
+    },
+    {
+      title: pair ? 'Point "www" to your new website' : `Point "${label}" to your new website`,
+      body: (
+        <>
           <Lines lines={g.record.lines} />
-          {g.record.note && <p className="mt-2 text-[12px] leading-snug text-gray-500 dark:text-white/50">{g.record.note}</p>}
+          {g.record.note && <p className="mt-2.5 text-[13px] leading-snug text-gray-500 dark:text-white/50">{g.record.note}</p>}
           <RecordSketch g={g} apex={apex} target={target} />
-        </Step>
-
-        {pair && (
-          <Step n={3} title={`Make ${apex} (without www) work too`}>
-            {g.forward.can ? (
-              <>
-                {g.forward.note && <p className="mt-1 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[12px] font-semibold text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">{g.forward.note}</p>}
-                {g.forward.url && <OpenButton href={g.forward.url(apex)} label={`Open ${g.name} forwarding`} />}
-                <Lines lines={g.forward.lines} />
-                <ForwardSketch g={g} apex={apex} />
-                {!g.forward.httpsShortOk && (
-                  <p className="mt-2 text-[12px] leading-snug text-gray-500 dark:text-white/50">Good to know: always share www.{apex} - it&apos;s the address that works everywhere.</p>
-                )}
-              </>
-            ) : (
-              <p className="mt-1 text-[13px] leading-snug text-[#111827] dark:text-white/85">{g.forward.why}</p>
-            )}
-          </Step>
-        )}
-
-        <Step n={pair ? 4 : 3} title="That's it - we'll take it from here">
-          <p className="mt-1 text-[13px] leading-snug text-gray-600 dark:text-white/60">
+        </>
+      ),
+    },
+    ...(pair ? [{
+      title: `Make ${apex} (without www) work too`,
+      body: g.forward.can ? (
+        <>
+          {g.forward.note && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[13px] font-semibold text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">{g.forward.note}</p>}
+          {g.forward.url && <OpenButton href={g.forward.url(apex)} label={`Open ${g.name} forwarding`} />}
+          <Lines lines={g.forward.lines} />
+          <ForwardSketch g={g} apex={apex} />
+          {!g.forward.httpsShortOk && (
+            <p className="mt-2.5 text-[13px] leading-snug text-gray-500 dark:text-white/50">Good to know: always share www.{apex} - it&apos;s the address that works everywhere.</p>
+          )}
+        </>
+      ) : (
+        <p className="mt-2 text-[14.5px] leading-snug text-[#111827] dark:text-white/85">{g.forward.why}</p>
+      ),
+    }] : []),
+    {
+      title: 'That\'s it - we\'ll take it from here',
+      body: (
+        <>
+          <p className="mt-2 text-[14px] leading-snug text-gray-600 dark:text-white/60">
             It usually works within an hour (sometimes up to a day). We check every few minutes, email you when it&apos;s live,
             and keep an eye on it - if anything&apos;s ever off, your Dash tells you exactly what to change.
           </p>
-          {(g.help.dns || g.help.forward) && (
-            <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px] font-black">
-              {g.help.dns && <a href={g.help.dns} target="_blank" rel="noreferrer" className="text-[#8b7355] underline underline-offset-2 dark:text-[#e8c97a]">{g.name}&apos;s own guide with pictures: www step</a>}
-              {g.help.forward && g.forward.can && <a href={g.help.forward} target="_blank" rel="noreferrer" className="text-[#8b7355] underline underline-offset-2 dark:text-[#e8c97a]">forwarding step</a>}
+          {(g.help.dns || (g.help.forward && g.forward.can)) && (
+            <p className="mt-2.5 text-[13px] font-semibold text-gray-500 dark:text-white/50">
+              {g.name}&apos;s own guides, with real pictures:{' '}
+              {g.help.dns && <a href={g.help.dns} target="_blank" rel="noreferrer" className="font-black text-[#8b7355] underline underline-offset-2 dark:text-[#e8c97a]">the www step</a>}
+              {g.help.forward && g.forward.can && <>{' · '}<a href={g.help.forward} target="_blank" rel="noreferrer" className="font-black text-[#8b7355] underline underline-offset-2 dark:text-[#e8c97a]">forwarding</a></>}
             </p>
           )}
-        </Step>
-      </ol>
+          <div className="mt-3 rounded-xl bg-gray-50 p-3 dark:bg-white/[0.04]">
+            <p className="text-[13px] leading-snug text-gray-600 dark:text-white/60">Stuck? Copy this and send it to {g.name === 'Somewhere else' ? 'your domain company' : `${g.name} support`} - they do this every day.</p>
+            <div className="mt-2 flex justify-end"><CopyValue value={forSupport} big /></div>
+          </div>
+        </>
+      ),
+    },
+  ]
 
-      <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t border-gray-200 pt-3 dark:border-white/10">
-        <p className="min-w-0 flex-1 text-[12px] font-semibold text-gray-500 dark:text-white/50">Stuck? Copy this and send it to {g.name === 'Somewhere else' ? 'your domain company' : `${g.name} support`} - they do this every day.</p>
-        <CopyValue value={forSupport} />
+  return (
+    <div className="mt-4 sm:mt-3 sm:rounded-2xl sm:border sm:border-gray-200 sm:bg-[#FAFAF7] sm:p-4 dark:sm:border-white/10 dark:sm:bg-white/[0.03]">
+      <style>{`.ohp-step-in{animation:ohpStepIn .3s cubic-bezier(.22,1,.36,1) both}@keyframes ohpStepIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}@media (prefers-reduced-motion:reduce){.ohp-step-in{animation:none}}`}</style>
+      {detected && detected !== 'other' && (
+        <p className="mb-2.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-black text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+          <Sparkles className="h-3.5 w-3.5" /> Your domain is with {all[detected].name}
+        </p>
+      )}
+      {/* Phones: one simple dropdown. Wider screens: the companies as pills. */}
+      <label className="block sm:hidden">
+        <span className="text-[13px] font-black text-[#111827] dark:text-white">Where is {apex}?</span>
+        <select value={provider} onChange={e => pick(e.target.value as DomainProvider)}
+          className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-[15px] font-black text-[#111827] outline-none focus:border-[#C9A24D] dark:border-white/10 dark:bg-[#151517] dark:text-white">
+          {ORDER.map(id => <option key={id} value={id}>{all[id].name}</option>)}
+        </select>
+      </label>
+      <div className="hidden sm:block">
+        <p className="text-[13px] font-black text-[#111827] dark:text-white">Where is {apex}?</p>
+        <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label="Your domain company">
+          {ORDER.map(id => (
+            <button key={id} type="button" role="tab" aria-selected={provider === id} onClick={() => pick(id)}
+              className={`rounded-full px-3 py-1.5 text-[11.5px] font-black transition ${provider === id ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:ring-[#C9A24D] dark:bg-white/[0.05] dark:text-white/70 dark:ring-white/10'}`}>
+              {all[id].name}
+            </button>
+          ))}
+        </div>
       </div>
+
+      <ol className="mt-5">
+        {steps.map((s, i) => (
+          <Step key={`${provider}-${i}`} n={i + 1} title={s.title} open={open === i} done={done.has(i)} last={i === steps.length - 1}
+            onOpen={() => setOpen(open === i ? -1 : i)} onDone={i < steps.length - 1 ? () => finish(i) : undefined}>
+            {s.body}
+          </Step>
+        ))}
+      </ol>
     </div>
   )
 }
