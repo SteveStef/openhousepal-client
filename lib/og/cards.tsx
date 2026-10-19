@@ -897,27 +897,26 @@ export async function renderPropertyCard(agentId: string, listingKey: string, fo
   try {
     const data = await ogFetch<any>(`/api/properties/agent/${encodeURIComponent(agentId)}/listing/${encodeURIComponent(listingKey)}`)
     const p = data?.property || {}
-    const address = [p.street_address || p.FullStreetAddress || p.address, p.city || p.City].filter(Boolean).map(titleCase).join(', ') || 'A home worth seeing'
     const [photo, agentPhoto] = await Promise.all([
       imgToDataUri(p.ListPictureURL || p.img_src || p.image || (Array.isArray(p.photos) ? p.photos[0] : null), 5000),
-      imgToDataUri(data?.agent_photo_url),
+      // agentPhotoUrl is what the page sends (agent_photo_url never existed - the card showed initials)
+      imgToDataUri(data?.agentPhotoUrl || data?.agent_photo_url, 4500),
     ])
     const bits = [
       p.bedrooms || p.BedroomsTotal ? `${p.bedrooms || p.BedroomsTotal} bd` : null,
       p.bathrooms || p.BathroomsTotal ? `${p.bathrooms || p.BathroomsTotal} ba` : null,
       p.living_area || p.LivingArea ? `${Math.round(p.living_area || p.LivingArea).toLocaleString()} sqft` : null,
     ].filter(Boolean)
-    const sub = [money(p.price || p.ListPrice), bits.join('  ·  ')].filter(Boolean).join('   ·   ') || undefined
+    const sub = [money(p.price || p.ListPrice), bits.join('  ·  ')].filter(Boolean).join('  ·  ') || 'Take a look inside'
+    // the label follows the home's real status ("COMING SOON-BRIGHT" -> Coming Soon)
+    const st = String(p.MlsStatus || p.StandardStatus || p.status || '').toUpperCase()
+    const eyebrow = st.includes('COMING') ? 'Coming Soon' : /PENDING|CONTRACT/.test(st) ? 'Under Contract' : /CLOSED|SOLD/.test(st) ? 'Sold' : /RENT|LEASE/.test(st) ? 'For Rent' : 'For Sale'
+    // the same look as the CMA and open house cards
     return IR(
-      <PhotoCard
-        photo={photo}
-        eyebrow="For Sale"
-        headline={address}
-        sub={sub}
+      <HomePhotoCard photo={photo} street={titleCase(p.street_address || p.FullStreetAddress || p.address) || 'A home worth seeing'} place={titleCase(p.city || p.City)}
+        eyebrow={eyebrow} sub={sub} accent={C.gold}
         agentName={data?.agentName || data?.agent_name || p.list_agent_full_name || 'Your agent'}
-        agentBrokerage={data?.agent_brokerage || null}
-        agentPhoto={agentPhoto}
-      />,
+        agentBrokerage={data?.agentBrokerage || data?.agent_brokerage || null} agentPhoto={agentPhoto} />,
       fonts,
     )
   } catch {
