@@ -21,7 +21,7 @@ import type { PublicFollowup, PublicFollowupOther } from '@/types'
 import { OhpWordmark } from '@/components/brand/OhpBrand'
 import OhpLoader from '@/components/brand/OhpLoader'
 import { copyText } from '@/lib/copyText'
-import { isIosDevice, smsHref } from '@/lib/smsLink'
+import { isIosDevice, mailHref, smsHref } from '@/lib/smsLink'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 type Res<T> = { ok: true; data: T } | { ok: false; error: string }
@@ -101,7 +101,7 @@ function ContactCard({ code, contact, message }: { code: string; contact: NonNul
             {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />} {copied ? 'Copied' : 'Copy email'}
           </button>
         )}
-        {contact.email && <a href={`mailto:${contact.email}`} className={btn}><Mail className="h-4 w-4" /> Email</a>}
+        {contact.email && <a href={mailHref(contact.email, message ? 'Following up' : null, message || null)} className={btn}><Mail className="h-4 w-4" /> Email</a>}
       </div>
       {/* Plain <a>: a Next route that hands the phone a vCard (Create New Contact, notes included). */}
       <a href={`/d/${encodeURIComponent(code)}/contact`}
@@ -324,21 +324,23 @@ export default function MarkDonePage() {
               <div className="border-t border-gray-100 px-4 py-4 text-left dark:border-gray-800">
                 <p className="px-1 text-sm font-black text-[#111827] dark:text-white">Did you also do these?</p>
                 <p className="px-1 text-[11px] font-semibold text-gray-400">
-                  {remaining > 0 ? `${remaining} more due today - check off any you've handled, or open one to see its message.` : "That's everything due today. 🎉"}
+                  {remaining > 0 ? `${remaining} more due today - tap one to check it off, or Open to see its message.` : "That's everything due today. 🎉"}
                 </p>
                 <div className="mt-2.5 space-y-2">
                   {others.map((o, i) => {
                     const isDone = doneOthers.has(o.code)
                     return (
-                      <div key={o.code} className={`dn-up flex items-stretch gap-2 rounded-2xl border p-2 transition ${isDone ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-900/20' : 'border-gray-200 dark:border-gray-800'}`}
+                      // Tapping anywhere on the row checks it off, tapping again unchecks it; only
+                      // "Open" (its own button) shows it in full instead.
+                      <div key={o.code} role="button" tabIndex={0} aria-pressed={isDone} aria-label={isDone ? `Undo ${o.title}` : `Check off ${o.title}`}
+                        onClick={() => { if (busy !== o.code) toggleOther(o) }}
+                        onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); if (busy !== o.code) toggleOther(o) } }}
+                        className={`dn-up flex cursor-pointer select-none items-center gap-2.5 rounded-2xl border p-2.5 transition active:scale-[0.985] ${isDone ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-900/20' : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'}`}
                         style={{ animationDelay: `${0.25 + i * 0.06}s` }}>
-                        {/* the big check box: one tap and it's done (tap again to undo) */}
-                        <button type="button" onClick={() => toggleOther(o)} disabled={busy === o.code} aria-label={isDone ? `Undo ${o.title}` : `Check off ${o.title}`}
-                          className={`flex w-12 shrink-0 items-center justify-center rounded-xl border-2 transition active:scale-90 ${isDone ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 bg-white hover:border-emerald-400 dark:border-gray-600 dark:bg-transparent'}`}>
-                          {busy === o.code ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-transparent" /> : isDone ? <Check className="h-6 w-6" strokeWidth={3.5} /> : <Check className="h-6 w-6 text-gray-200 dark:text-gray-700" strokeWidth={3.5} />}
-                        </button>
-                        {/* the rest opens it in full */}
-                        <button type="button" onClick={() => setOpen(o.code)} className="flex min-w-0 flex-1 items-center gap-2 rounded-xl py-1 pl-1 text-left">
+                        <span aria-hidden className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition ${isDone ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-transparent'}`}>
+                          {busy === o.code ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-transparent" /> : isDone && <Check className="h-4 w-4" strokeWidth={3.5} />}
+                        </span>
+                        <span className="flex min-w-0 flex-1 items-center gap-2 text-left">
                           <span className="min-w-0 flex-1">
                             <span className={`block text-[13px] font-black leading-snug ${isDone ? 'text-gray-400 line-through' : 'text-[#111827] dark:text-white'}`}>{o.title}</span>
                             {o.context && <span className="block truncate text-[11px] font-medium text-gray-500 dark:text-gray-400">{o.context}</span>}
@@ -346,8 +348,9 @@ export default function MarkDonePage() {
                               {isDone ? <><Check className="h-3 w-3" /> Done</> : <>{o.overdue ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />} {dueLabel(o)}</>}
                             </span>
                           </span>
-                          <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[#111827] px-3 py-1.5 text-[11px] font-black text-white dark:bg-white dark:text-[#111827]">Open <ChevronRight className="h-3.5 w-3.5" /></span>
-                        </button>
+                          <button type="button" onClick={e => { e.stopPropagation(); setOpen(o.code) }} aria-label={`Open ${o.title}`}
+                            className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[#111827] px-3 py-1.5 text-[11px] font-black text-white transition active:scale-95 dark:bg-white dark:text-[#111827]">Open <ChevronRight className="h-3.5 w-3.5" /></button>
+                        </span>
                       </div>
                     )
                   })}

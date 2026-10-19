@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import type { AgentTask, TaskKind } from '@/types'
 import { copyText } from '@/lib/copyText'
-import { isPhoneDevice, smsHref } from '@/lib/smsLink'
+import { isPhoneDevice, mailHref, smsHref } from '@/lib/smsLink'
 
 type Tone = 'gold' | 'sky' | 'emerald' | 'rose' | 'violet' | 'slate'
 
@@ -167,6 +167,35 @@ function CopyButton({ icon: Icon, label, value, title, primary, onCopy }: {
       {copied ? <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={3} /> : <Icon className={`h-3.5 w-3.5 shrink-0 ${primary ? '' : 'text-gray-400 dark:text-gray-500'}`} />}
       <span className="truncate">{copied ? 'Copied' : label}</span>
     </button>
+  )
+}
+
+/** One pill, two parts: "Email" opens their email app with the message written; the small copy
+ *  part on the right copies the address (for Gmail in a browser, a CRM...). */
+function EmailPill({ email, href, first }: { email: string; href: string; first: string }) {
+  const [copied, setCopied] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
+  const copy = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    copyText(email).catch(() => {})
+    setCopied(true)
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => setCopied(false), 1600)
+  }
+  return (
+    <div className={`flex h-9 min-w-0 flex-1 overflow-hidden rounded-[10px] border text-[11.5px] font-semibold shadow-[0_1px_0_rgba(16,24,40,0.04)] transition ${
+      copied ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-200 bg-white text-gray-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-200'}`}>
+      <a href={href} onClick={e => e.stopPropagation()} title={`Email ${first} - opens your email app with the message written`}
+        className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 px-2 transition active:scale-[0.97] ${copied ? '' : 'hover:bg-gray-50 dark:hover:bg-white/[0.08]'}`}>
+        <Mail className={`h-3.5 w-3.5 shrink-0 ${copied ? '' : 'text-gray-400 dark:text-gray-500'}`} />
+        <span className="truncate">{copied ? 'Copied' : 'Email'}</span>
+      </a>
+      <button type="button" onClick={copy} title={`Copy ${first}'s email - ${email}`} aria-label={`Copy ${first}'s email - ${email}`}
+        className={`flex w-8 shrink-0 items-center justify-center border-l transition active:scale-[0.95] ${copied ? 'border-white/30' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 dark:border-white/10 dark:text-gray-500 dark:hover:bg-white/[0.08]'}`}>
+        {copied ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : <Copy className="h-3.5 w-3.5" />}
+      </button>
+    </div>
   )
 }
 
@@ -522,9 +551,9 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
               <div>
                 <div className="flex gap-1.5">
                   {lead.phone && <CopyButton icon={Phone} label="Phone" value={lead.phone} title={`Copy ${first}'s number - ${lead.phone}`} />}
-                  {lead.email && (
-                    <CopyButton icon={Mail} label={src === 'disclosure_request' ? 'Copy email' : 'Email'} value={lead.email} primary={src === 'disclosure_request'}
-                      title={src === 'disclosure_request' ? `Copy ${lead.email} - send them the seller disclosure` : `Copy ${first}'s email - ${lead.email}`} />
+                  {lead.email && (src === 'disclosure_request'
+                    ? <CopyButton icon={Mail} label="Copy email" value={lead.email} primary title={`Copy ${lead.email} - send them the seller disclosure`} />
+                    : <EmailPill email={lead.email} first={first} href={mailHref(lead.email, street ? `Following up - ${street}` : 'Following up', t.suggested_message)} />
                   )}
                   {t.suggested_message && (
                     <CopyButton icon={Copy} label="Message" value={t.suggested_message} primary={!(onPhone && lead.phone)} title="Copy the ready-to-send message" />

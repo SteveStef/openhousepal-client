@@ -24,3 +24,11 @@ export function smsHref(phone: string, body?: string | null): string {
   if (!body) return `sms:${to}`
   return `sms:${to}${isIosDevice() ? '&' : '?'}body=${encodeURIComponent(body)}`
 }
+
+/** Opens the phone's (or computer's) default email app - To, Subject and the message already
+ *  written. iPhone uses the Mail app set in Settings > Default Mail App; Android opens its
+ *  default, or asks once which app to use. */
+export function mailHref(email: string, subject?: string | null, body?: string | null): string {
+  const q = [subject && `subject=${encodeURIComponent(subject)}`, body && `body=${encodeURIComponent(body.replace(/\r?\n/g, '\r\n'))}`].filter(Boolean)
+  return `mailto:${email}${q.length ? `?${q.join('&')}` : ''}`
+}
