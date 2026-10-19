@@ -867,7 +867,10 @@ export default function PublicAgentHubPage() {
             <span className="mx-1 h-8 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
           )}
           {enabledSocialLinks.map(link => (
-            <SocialIcon key={link.id} href={link.url} icon={socialIconMap[link.id] || Globe} id={link.id} label={link.label} iconSize={iconBoxSize} glyphSize={iconGlyphSize} boxStyle={iconBoxStyle} />
+            // Shown inside the agent's IDX site (?idx_light&idx_return): the visitor is already ON their
+            // website, so its icon goes to that site's home page as a normal page - never a second
+            // copy of the site loaded inside this frame (user, 10/19: "3 headers").
+            <SocialIcon key={link.id} href={link.id === 'website' && forceLightMode && idxReturn ? idxReturn : link.url} top={link.id === 'website' && forceLightMode && !!idxReturn} icon={socialIconMap[link.id] || Globe} id={link.id} label={link.label} iconSize={iconBoxSize} glyphSize={iconGlyphSize} boxStyle={iconBoxStyle} />
           ))}
         </section>
 
@@ -969,9 +972,9 @@ function IconContact({ href, icon: Icon, label, iconSize = 'h-[45px] w-[45px]', 
   )
 }
 
-function SocialIcon({ href, icon: Icon, id, label, iconSize, glyphSize, boxStyle }: { href: string; icon: LucideIcon; id: string; label: string; iconSize: string; glyphSize: string; boxStyle?: React.CSSProperties }) {
+function SocialIcon({ href, top = false, icon: Icon, id, label, iconSize, glyphSize, boxStyle }: { href: string; top?: boolean; icon: LucideIcon; id: string; label: string; iconSize: string; glyphSize: string; boxStyle?: React.CSSProperties }) {
   return (
-    <a href={href.startsWith('http') ? href : `https://${href}`} onClick={() => recordAgentHubEvent({ type: 'click', label })} aria-label={label} style={boxStyle} className={`flex ${iconSize} shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-[#111827] shadow-sm dark:border-gray-700 dark:bg-[#151517] dark:text-white`}>
+    <a href={href.startsWith('http') || href.startsWith('/') ? href : `https://${href}`} target={top ? '_top' : undefined} onClick={() => recordAgentHubEvent({ type: 'click', label })} aria-label={label} style={boxStyle} className={`flex ${iconSize} shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-[#111827] shadow-sm dark:border-gray-700 dark:bg-[#151517] dark:text-white`}>
       <Icon className={`${glyphSize} ${getSocialBrandClass(id)}`} />
     </a>
   )

@@ -650,9 +650,11 @@ function ogCard(kind: string, params: Record<string, string | undefined>): strin
   return `https://${OHP_BASE_DOMAIN}/api/og/${kind}?${qs.toString()}`
 }
 
+// /profile, not /about: same slug, but /about is the whole Agent Hub snapshot (~500 KB) and every
+// page already fetches /profile (Next dedupes it), so this costs nothing extra.
 async function resolveAgentHubSlug(siteId: string): Promise<string | null> {
-  const about = await fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/about`)
-  return about?.agent_hub_slug || null
+  const profile = await fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/profile`)
+  return profile?.agent_hub_slug || null
 }
 
 function formatPostDate(iso?: string | null): string | null {
@@ -1040,12 +1042,13 @@ async function PropertyDetailView({ p, theme, basePrefix, siteId }: { p: any; th
 // The About page - a live mirror of this agent's real Agent Hub (see
 // content_adapters.get_agent_hub_snapshot) rather than a separately hand-written bio block, so
 // the agent's own site can work as their link-tree too, not just openhousepal.com/{slug}.
-async function AboutPage({ siteId, basePrefix, framed = false }: { siteId: string; basePrefix: string; framed?: boolean }) {
-  const data = await fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/about`)
-  if (!data) notFound()
-  const slug = data.agent_hub_slug
+async function AboutPage({ siteId, basePrefix, host, framed = false }: { siteId: string; basePrefix: string; host: string; framed?: boolean }) {
+  const slug = await resolveAgentHubSlug(siteId)
   if (!slug) notFound()
-  const idxReturn = encodeURIComponent(`${basePrefix || ''}/`)
+  // Where the framed hub sends a visitor "home" (form submitted, Back with no history). Absolute on
+  // the agent's own address: the hub runs on openhousepal.com, where a bare "/" would land on
+  // OpenHousePal's own homepage instead of this site's.
+  const idxReturn = encodeURIComponent(basePrefix ? `${basePrefix}/` : `https://${host}/`)
   const src = basePrefix.startsWith('/ohp-site-render/')
     ? `/${encodeURIComponent(slug)}?idx_light=1&idx_return=${idxReturn}`
     : `https://${OHP_BASE_DOMAIN}/${encodeURIComponent(slug)}?idx_light=1&idx_return=${idxReturn}`
@@ -2630,10 +2633,10 @@ export default async function PublicSitePage({
     content = <CmaAliasPage siteId={resolved.site_id} shareSlug={path[1]} basePrefix={basePrefix} />
     exactExternalResource = true
   } else if ((path?.[0] === 'hub' || path?.[0] === 'agent-hub') && !path[1]) {
-    content = <AboutPage siteId={resolved.site_id} basePrefix={basePrefix} framed />
+    content = <AboutPage siteId={resolved.site_id} basePrefix={basePrefix} host={host} framed />
     hideFooter = true
   } else if (path?.[0] === 'about' && !path[1]) {
-    content = <AboutPage siteId={resolved.site_id} basePrefix={basePrefix} framed />
+    content = <AboutPage siteId={resolved.site_id} basePrefix={basePrefix} host={host} framed />
     hideFooter = true
   } else if (path?.[0] === 'home-value' && !path[1]) {
     // "What's my home worth?" landing page - for ads, mailers and the agent's email signature.
