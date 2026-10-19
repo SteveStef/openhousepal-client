@@ -1,6 +1,6 @@
 import { Metadata } from 'next'
 import OpenHouseFrame from '@/components/public-site/OpenHouseFrame'
-import { headers } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { notFound, permanentRedirect, redirect } from 'next/navigation'
 import {
   AlertTriangle, ArrowRight, Bath, BedDouble, Building2, Calendar, Coffee, DollarSign,
@@ -47,8 +47,11 @@ import SiteBlogArticle from '@/components/website-public/SiteBlogArticle'
 import BlogCoverArt from '@/components/BlogCoverArt'
 import IdxPropertyPage from '@/components/website-public/IdxPropertyPage'
 import IdxOneTap from '@/components/website-public/IdxOneTap'
+import MyShowcase from '@/components/website-public/showcase/MyShowcase'
+import RememberShowcase from '@/components/website-public/showcase/RememberShowcase'
+import ShowcaseBuilder from '@/components/website-public/showcase/ShowcaseBuilder'
 import { resolveMediaUrl } from '@/lib/api-service'
-import { DEFAULT_SITE_THEME, SearchFilterParams, SiteContent } from '@/components/website-public/types'
+import { DEFAULT_SITE_THEME, SearchFilterParams, SiteContent, type SiteTheme } from '@/components/website-public/types'
 import CinematicLuxuryTemplate, { PropertySiteResolveResponse } from '@/components/property-sites/CinematicLuxuryTemplate'
 import EditorialEstateTemplate from '@/components/property-sites/EditorialEstateTemplate'
 import { formatOpenHouseTime, upcomingOpenHouses } from '@/lib/mlsOpenHouses'
@@ -1051,13 +1054,16 @@ async function AboutPage({ siteId, basePrefix, framed = false }: { siteId: strin
   )
 }
 
-async function ShowcaseAliasPage({ siteId, shareToken, home, basePrefix }: { siteId: string; shareToken: string; home?: string; basePrefix: string }) {
+async function ShowcaseAliasPage({ siteId, shareToken, home, basePrefix, accent }: { siteId: string; shareToken: string; home?: string; basePrefix: string; accent?: string }) {
   const data = await fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/showcase/${encodeURIComponent(shareToken)}`)
   if (!data) notFound()
-  const rest = `/showcase/${encodeURIComponent(shareToken)}${home ? `/${encodeURIComponent(home)}` : ''}`
+  // In the site's own colour (lib/accentRecolor via ?accent=).
+  const rest = `/showcase/${encodeURIComponent(shareToken)}${home ? `/${encodeURIComponent(home)}` : ''}${accent ? `?accent=${encodeURIComponent(accent.replace('#', ''))}` : ''}`
   const src = basePrefix.startsWith('/ohp-site-render/') ? rest : `https://${OHP_BASE_DOMAIN}${rest}`
+  const mine = await fetchFreshJson(`${INTERNAL_API_URL}/public/sites/${siteId}/my-showcase/${encodeURIComponent(shareToken)}`)
   return (
     <main className="h-screen w-full overflow-hidden bg-[#f7f5f1]">
+      {mine?.code && <RememberShowcase code={mine.code} name={mine.name} />}
       <iframe src={src} title="Showcase" className="h-full w-full border-0" />
     </main>
   )
@@ -1115,11 +1121,32 @@ async function ContactAliasPage({ siteId, basePrefix }: { siteId: string; basePr
   return <WebsitePublicFormPage siteId={siteId} formId={form.formId || form.form_id} agentHubPath={`${basePrefix}/hub`} basePrefix={basePrefix} initialForm={form} forceLightMode embeddedInSiteChrome />
 }
 
-async function ShowcaseCreatorAliasPage({ siteId, basePrefix, forceLightMode = false, embeddedInSiteChrome = false }: { siteId: string; basePrefix: string; forceLightMode?: boolean; embeddedInSiteChrome?: boolean }) {
-  const res = await fetch(`${INTERNAL_API_URL}/public/sites/${siteId}/showcase-creator`, { cache: 'no-store' })
-  const form = res.ok ? await res.json() : null
-  if (!form) notFound()
-  return <WebsitePublicFormPage siteId={siteId} agentHubPath={`${basePrefix}/hub`} basePrefix={basePrefix} initialForm={form} mode="showcaseCreator" forceLightMode={forceLightMode} embeddedInSiteChrome={embeddedInSiteChrome} />
+// The visitor this browser remembers (lib/visitor.ts writes it; same cookie, read here on the server).
+async function siteVisitorCookie(): Promise<{ name: string; firstName: string; email: string; showcase?: string } | null> {
+  const raw = (await cookies()).get('ohp_visitor')?.value
+  if (!raw) return null
+  try {
+    const v = JSON.parse(decodeURIComponent(raw))
+    const email = typeof v?.e === 'string' && v.e.includes('@') ? v.e : ''
+    const showcase = typeof v?.s === 'string' && /^[\w-]{3,80}$/.test(v.s) ? v.s : undefined
+    return email || showcase ? { name: String(v.n || ''), firstName: String(v.f || ''), email, ...(showcase ? { showcase } : {}) } : null
+  } catch { return null }
+}
+
+async function MyShowcaseRoute({ siteId, basePrefix, theme, create }: { siteId: string; basePrefix: string; theme: SiteTheme; create: boolean }) {
+  const visitor = await siteVisitorCookie()
+  const [summary, areas, profile] = await Promise.all([
+    visitor?.showcase ? fetchFreshJson(`${INTERNAL_API_URL}/public/sites/${siteId}/my-showcase/${encodeURIComponent(visitor.showcase)}`) : Promise.resolve(null),
+    fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas`),
+    fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/profile`),
+  ])
+  const accent = theme.secondary_color || '#C9A24D'
+  const agent = { name: profile?.name || null, photo_url: profile?.photo_url || null }
+  const areaList = ((areas || []) as any[]).map(a => ({ name: a.name, state: a.state, slug: a.slug, photo: a.photo || null }))
+  if (summary?.code && !create) {
+    return <MyShowcase summary={summary} siteId={siteId} basePrefix={basePrefix} accent={accent} agent={agent} areas={areaList} headingClass="ohp-site-heading" />
+  }
+  return <ShowcaseBuilder siteId={siteId} basePrefix={basePrefix} accent={accent} agent={agent} areas={areaList} existingCode={summary?.code || null} serverVisitor={visitor} headingClass="ohp-site-heading" />
 }
 
 // The Search tab's results - real full-MLS search (see content_adapters.get_search_results),
@@ -2585,12 +2612,14 @@ export default async function PublicSitePage({
   } else if (path?.[0] === 'forms' && path[1] && !path[2]) {
     content = <FormAliasPage siteId={resolved.site_id} formId={path[1]} basePrefix={basePrefix} forceLightMode={wantsSiteChrome} embeddedInSiteChrome={wantsSiteChrome} campaignToken={currentSearchParams.c ?? null} />
     exactExternalResource = !wantsSiteChrome
-  } else if (path?.[0] === 'create-showcase' && !path[1]) {
-    content = <ShowcaseCreatorAliasPage siteId={resolved.site_id} basePrefix={basePrefix} forceLightMode={wantsSiteChrome} embeddedInSiteChrome={wantsSiteChrome} />
-    exactExternalResource = !wantsSiteChrome
+  } else if ((path?.[0] === 'my-showcase' || path?.[0] === 'create-showcase') && !path[1]) {
+    // "{first}'s Showcase" (the glowing header tab) and every "Create my Showcase" button: their
+    // Showcase if this browser knows it (the ohp_visitor cookie - lib/visitor), else the builder.
+    content = <MyShowcaseRoute siteId={resolved.site_id} basePrefix={basePrefix} theme={theme} create={path[0] === 'create-showcase'} />
+    hideFooter = true
   } else if ((path?.[0] === 'showcase' || path?.[0] === 'showcases') && path[1] && !path[3]) {
     // /showcase/dana-k7q2 (or the old long token), optionally /732-buck-ln for one home in it.
-    content = <ShowcaseAliasPage siteId={resolved.site_id} shareToken={path[1]} home={path[2]} basePrefix={basePrefix} />
+    content = <ShowcaseAliasPage siteId={resolved.site_id} shareToken={path[1]} home={path[2]} basePrefix={basePrefix} accent={theme.secondary_color} />
     exactExternalResource = true
   } else if (path?.[0] === 'open-house' && path[1] && path.length <= 4) {
     content = <OpenHouseAliasPage rest={path.slice(1)} query={queryString(currentSearchParams)} basePrefix={basePrefix} />

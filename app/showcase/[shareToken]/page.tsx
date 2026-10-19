@@ -3,6 +3,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, Suspense, useRef } from 'react'
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { homeSlug } from '@/lib/showcaseLink'
+import { applyAccentRecolor } from '@/lib/accentRecolor'
 import { ArrowUpDown, MapPin, Calendar, SlidersHorizontal, Tag, BedDouble, GraduationCap, Home as HomeIcon } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Collection, CollectionPreferences, Property, Comment, TourRequest, PropertyTour } from '@/types'
@@ -37,6 +38,12 @@ function ShowcaseContent() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
+  // Opened inside an agent's IDX site ("{first}'s Showcase"): wear the site's accent instead of our gold.
+  const [siteAccent] = useState(() => searchParams.get('accent')) // kept: opening a home rewrites the address
+  useEffect(() => {
+    const hex = siteAccent ? `#${siteAccent.replace(/^#/, '')}` : ''
+    return /^#[0-9a-f]{6}$/i.test(hex) ? applyAccentRecolor(hex) : undefined
+  }, [siteAccent])
   const { showToast } = useToast()
   const { user } = useAuth()
   const [showcase, setShowcase] = useState<Collection | null>(null)

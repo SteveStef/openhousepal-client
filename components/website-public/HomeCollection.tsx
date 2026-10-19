@@ -56,7 +56,7 @@ export default function HomeCollection({ listings, theme, basePrefix = '', onQui
 
   const leadTile = (
     <Reveal key="lead-tile" className="h-full">
-      <a href={`${basePrefix}/create-showcase?site_chrome=1`} data-ohp-form="showcase_request" data-ohp-form-title="Create my free Showcase"
+      <a href={`${basePrefix}/create-showcase`}
         className={`group relative flex h-full min-h-[340px] flex-col justify-between overflow-hidden p-7 text-white transition duration-500 hover:-translate-y-1.5 ${luxe ? 'rounded-[26px]' : 'rounded-2xl'}`}
         style={{ background: luxe
           ? `radial-gradient(120% 90% at 100% 0%, rgba(var(--site-accent-rgb),.45), transparent 60%), radial-gradient(90% 80% at 0% 100%, rgba(var(--site-accent-rgb),.22), transparent 60%), ${theme.primary_color}`

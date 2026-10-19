@@ -21,10 +21,10 @@ const VIEWS_KEY = 'ohp-site-views'
 const DELAY_MS = 15000
 
 export default function IdxOneTap({ siteId, listingKey }: { siteId: string; listingKey?: string | null }) {
-  const [hello, setHello] = useState<string | null>(null)
+  const [hello, setHello] = useState<{ first: string; showcase: boolean } | null>(null)
 
   useEffect(() => {
-    if (readVisitor()) return
+    if (readVisitor()?.email) return
     const host = window.location.hostname
     const local = host === 'localhost'
     if (!local && !host.endsWith(`.${OHP_BASE_DOMAIN}`)) return
@@ -37,7 +37,7 @@ export default function IdxOneTap({ siteId, listingKey }: { siteId: string; list
 
     let poll: number | undefined
     const show = () => {
-      if (readVisitor() || document.getElementById('g_id_intermediate_iframe')) return
+      if (readVisitor()?.email || document.getElementById('g_id_intermediate_iframe')) return
       try { sessionStorage.setItem(SHOWN_KEY, '1') } catch { /* ignore */ }
       const params = new URLSearchParams({ site: siteId, page: window.location.href })
       if (listingKey) params.set('lk', listingKey)
@@ -54,10 +54,10 @@ export default function IdxOneTap({ siteId, listingKey }: { siteId: string; list
       const started = Date.now()
       poll = window.setInterval(() => {
         const v = readVisitor()
-        if (v) {
+        if (v?.email) {
           window.clearInterval(poll)
           window.dispatchEvent(new Event(VISITOR_EVENT))
-          setHello(v.firstName || v.name.split(' ')[0] || 'there')
+          setHello({ first: v.firstName || v.name.split(' ')[0] || 'there', showcase: !!v.showcase })
           window.setTimeout(() => setHello(null), 6000)
         } else if (Date.now() - started > 10 * 60 * 1000) {
           window.clearInterval(poll)
@@ -75,7 +75,7 @@ export default function IdxOneTap({ siteId, listingKey }: { siteId: string; list
           className="fixed bottom-24 left-1/2 z-[120] flex -translate-x-1/2 items-center gap-2.5 rounded-full border px-4 py-2.5 text-sm font-bold shadow-xl"
           style={{ background: 'var(--site-surface, #fff)', color: 'var(--site-ink, #111827)', borderColor: 'var(--site-line, rgba(0,0,0,.08))' }}>
           <span className="grid h-6 w-6 place-items-center rounded-full" style={{ background: 'var(--site-accent, #C9A24D)', color: 'var(--site-on-accent, #111827)' }}><Check className="h-3.5 w-3.5" strokeWidth={3} /></span>
-          Thanks, {hello} - forms on this site will fill in for you.
+          {hello.showcase ? <>Welcome back, {hello.first} - your Showcase is up top.</> : <>Thanks, {hello.first} - forms on this site will fill in for you.</>}
         </motion.div>
       )}
     </AnimatePresence>

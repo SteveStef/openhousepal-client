@@ -32,10 +32,12 @@ const DARK: google.maps.MapTypeStyle[] = [
 const nice = (v: string) => v.split(',')[0].toLowerCase().replace(/(^|[\s-])([a-z])/g, (_, a: string, c: string) => a + c.toUpperCase())
   .replace(/\s+(School District|Sch Dist|SD)$/i, '')
 
-export default function AreaPicksMap({ cities, schoolDistricts, className = 'h-56 sm:h-64' }: {
+export default function AreaPicksMap({ cities, schoolDistricts, className = 'h-56 sm:h-64', accent }: {
   cities: string[]
   schoolDistricts: string[]
   className?: string
+  /** The page's own colour for the first town (an agent's IDX site); our gold otherwise. */
+  accent?: string
 }) {
   const divRef = useRef<HTMLDivElement>(null)
   const [map, setMap] = useState<google.maps.Map | null>(null)
@@ -92,9 +94,11 @@ export default function AreaPicksMap({ cities, schoolDistricts, className = 'h-5
 
   const canvasShapes: CanvasShape[] = useMemo(() => shapes.map((s, i) => {
     const n = shapes.slice(0, i).filter(x => x.kind === s.kind).length
-    const color = s.kind === 'school_district' ? DISTRICT[n % DISTRICT.length] : TOWN[n % TOWN.length]
+    const towns = accent ? [accent, ...TOWN.slice(1)] : TOWN
+    const color = s.kind === 'school_district' ? DISTRICT[n % DISTRICT.length] : towns[n % towns.length]
     return { id: `${s.kind}:${s.query}`, rings: s.rings, color, fill: 0.13, width: 3 }
-  }), [shapes])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [shapes, accent])
   const badges: CanvasBadge[] = useMemo(() => shapes.map((s, i) => ({
     id: `b:${s.kind}:${s.query}`, shapeId: `${s.kind}:${s.query}`, title: nice(s.query),
     sub: s.kind === 'school_district' ? 'School district' : s.kind === 'county' ? 'County' : 'Town',

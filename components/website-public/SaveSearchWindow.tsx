@@ -1,6 +1,6 @@
 'use client'
 
-import { useVisitor } from '@/lib/visitor'
+import { saveVisitor, showcaseCodeOf, useVisitor } from '@/lib/visitor'
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowRight, Bell, Check, Heart, Loader2, X } from 'lucide-react'
@@ -140,6 +140,9 @@ export default function SaveSearchWindow({ siteId, criteria, onClose }: { siteId
       if (!res.ok || body?.success === false) { setError(body?.detail || body?.message || 'Something went wrong. Please try again.'); return }
       try { localStorage.setItem('ohp_visitor_contact', JSON.stringify({ name: name.trim(), email: email.trim(), phone: phone.trim() })) } catch {}
       setShowcaseUrl(body?.redirectUrl || body?.redirect_url ? openHousePalPublicUrl(body.redirectUrl || body.redirect_url) : null)
+      // The site remembers them: their name in the forms and "{first}'s Showcase" up top.
+      const code = showcaseCodeOf(body?.redirectUrl || body?.redirect_url)
+      saveVisitor({ name: name.trim(), email: email.trim(), ...(code ? { showcase: code } : {}) })
       setStep('done')
     } catch {
       setError('Something went wrong. Please try again.')
@@ -247,7 +250,8 @@ export default function SaveSearchWindow({ siteId, criteria, onClose }: { siteId
                   <h2 className="ohp-site-heading mt-5 text-2xl font-black" style={{ color: 'var(--site-heading)' }}>Your Showcase is ready</h2>
                   <p className="mt-2 text-sm" style={{ color: 'var(--site-muted)' }}>We just emailed you the link. New homes that match land there - and in your inbox - as soon as they list.</p>
                   {showcaseUrl && (
-                    <a href={showcaseUrl} target="_blank" rel="noopener" className={`${primary} mt-6`} style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>Open my Showcase <ArrowRight className="h-4 w-4" /></a>
+                    // Their Showcase opens right here on the site ("{first}'s Showcase"), in the site's colours.
+                    <a href={`${typeof window !== 'undefined' && window.location.pathname.startsWith('/ohp-site-render/') ? window.location.pathname.split('/').slice(0, 3).join('/') : ''}/my-showcase`} className={`${primary} mt-6`} style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>Open my Showcase <ArrowRight className="h-4 w-4" /></a>
                   )}
                   <button type="button" onClick={onClose} className="mt-2 w-full py-2 text-xs font-bold" style={{ color: 'var(--site-muted)' }}>Keep browsing</button>
                 </motion.div>

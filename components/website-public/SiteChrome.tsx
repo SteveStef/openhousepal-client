@@ -13,6 +13,7 @@ import SignatureSiteCard from '@/components/studio/blogs/SignatureSiteCard'
 import { SitePage, SiteTheme } from './types'
 import { fontClass } from './blocks/fontClass'
 import { OhpWordmark } from '@/components/brand/OhpBrand'
+import { useVisitor } from '@/lib/visitor'
 import { IdxNotice } from '@/components/MLSComplianceFooter'
 
 // The visitor's light/dark switch. Flips data-mode on the nearest .ohp-site root (the public
@@ -102,6 +103,33 @@ function AgentAvatar({ profile, siteName, href, size = 'h-9 w-9', ring = 'ring-w
   )
 }
 
+// "{first}'s Showcase" - the one tab that's theirs: a soft glow, a slowly turning ring in the site's
+// colour, and a sparkle, so it reads as special at a glance.
+function MineTab({ href, label, active, onDark, classic }: { href: string; label: string; active: boolean; onDark: boolean; classic: boolean }) {
+  return (
+    <a href={href} className={`ohp-mine-tab group relative mx-1 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 transition hover:-translate-y-0.5 ${classic ? 'text-[13.5px] font-extrabold' : 'text-[11px] font-black uppercase tracking-[0.13em]'}`}
+      style={{ color: onDark ? '#fff' : 'var(--site-heading)', ...(active ? { ['--mine-fill' as any]: 'rgba(var(--site-accent-rgb),.22)' } : {}) }}>
+      <Sparkles className="ohp-mine-spark h-3.5 w-3.5" style={{ color: onDark ? '#fff' : 'var(--site-accent)' }} />
+      {label}
+    </a>
+  )
+}
+
+export const MINE_TAB_CSS = `
+.ohp-mine-tab{isolation:isolate;background:var(--mine-fill,rgba(var(--site-accent-rgb),.12));box-shadow:0 0 0 1px rgba(var(--site-accent-rgb),.35),0 6px 22px -8px rgba(var(--site-accent-rgb),.75)}
+.ohp-mine-tab::before{content:"";position:absolute;inset:-1.5px;z-index:-1;border-radius:9999px;padding:1.5px;background:conic-gradient(from var(--mine-a,0deg),var(--site-accent),transparent 30%,var(--site-accent) 55%,transparent 80%,var(--site-accent));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:ohpMineSpin 4s linear infinite}
+@property --mine-a{syntax:"<angle>";inherits:false;initial-value:0deg}
+@keyframes ohpMineSpin{to{--mine-a:360deg}}
+.ohp-mine-spark{animation:ohpMineTwinkle 2.4s ease-in-out infinite}
+@keyframes ohpMineTwinkle{50%{transform:scale(1.25) rotate(18deg);opacity:.75}}
+.ohp-mine-dot{box-shadow:0 0 0 0 rgba(var(--site-accent-rgb),.6);animation:ohpMinePulse 2.4s ease-out infinite}
+@keyframes ohpMinePulse{0%{box-shadow:0 0 0 0 rgba(var(--site-accent-rgb),.55)}100%{box-shadow:0 0 0 12px rgba(var(--site-accent-rgb),0)}}
+.ohp-mine-card{box-shadow:0 18px 36px -18px rgba(var(--site-accent-rgb),.95)}
+.ohp-mine-card::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);transform:translateX(-120%);animation:ohpMineShine 3.4s ease-in-out 1s infinite}
+@keyframes ohpMineShine{60%,100%{transform:translateX(120%)}}
+@media (prefers-reduced-motion:reduce){.ohp-mine-tab::before,.ohp-mine-spark,.ohp-mine-dot,.ohp-mine-card::after{animation:none}}
+`
+
 // Global header/footer for every public site page - built from the site's own pages + the
 // reserved sections (Search, Featured, Neighborhoods, Media, Reviews, About). While the visitor is
 // over a dark hero the header is transparent with white text; past it, a solid bar.
@@ -149,6 +177,11 @@ export function SiteHeader({
     return () => { document.body.style.overflow = prev }
   }, [mobileOpen])
 
+  // A visitor the site knows (signed in with Google, built or opened their Showcase): their own
+  // glowing "{first}'s Showcase" tab takes Search's place (user, 10/18) - search stays one tap away
+  // inside it, in the phone menu, the footer and the home page.
+  const visitor = useVisitor()
+  const mine = !preview && visitor ? { href: `${basePrefix}/my-showcase`, label: visitor.firstName || visitor.name?.split(' ')[0] ? `${visitor.firstName || visitor.name.split(' ')[0]}'s Showcase` : 'My Showcase' } : null
   const navLinks: { href: string; label: string; icon: LucideIcon; form?: string }[] = [
     { href: `${basePrefix}/search`, label: 'Search', icon: Search },
     { href: `${basePrefix}/properties`, label: 'Featured', icon: HomeIcon },
@@ -180,6 +213,7 @@ export function SiteHeader({
           : classic ? 'border-b border-[var(--site-line)] bg-[var(--site-bg)]/95 ' : 'border-b border-[var(--site-gold)]/15 bg-[var(--site-cream)] shadow-[0_1px_20px_rgba(17,24,39,0.08)]'
       }`}
     >
+      {mine && <style>{MINE_TAB_CSS}</style>}
       {/* Luxe: a thin metal line glides across the top edge. */}
       {!classic && <span aria-hidden className="ohp-head-sweep pointer-events-none absolute inset-x-0 top-0 h-px" />}
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3 sm:px-6">
@@ -203,7 +237,8 @@ export function SiteHeader({
         </a>
 
         <nav className="hidden flex-1 items-center justify-center gap-0.5 lg:flex">
-          {navLinks.map(link => {
+          {mine && <MineTab href={mine.href} label={mine.label} active={isActive(mine.href)} onDark={dark} classic={classic} />}
+          {navLinks.filter(link => !(mine && link.label === 'Search')).map(link => {
             const Icon = link.icon
             const active = isActive(link.href)
             return (
@@ -250,6 +285,11 @@ export function SiteHeader({
         </div>
 
         <div className="flex items-center gap-2 lg:hidden">
+          {mine && (
+            <a href={mine.href} aria-label={mine.label} className="ohp-mine-dot relative grid h-10 w-10 place-items-center rounded-full" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>
+              <Sparkles className="h-[18px] w-[18px]" />
+            </a>
+          )}
           {showModeToggle && <ModeToggle siteKey={siteKey} initialMode={theme.mode === 'dark' ? 'dark' : 'light'} light={dark} inert={preview} />}
           <AgentAvatar profile={agentProfile} siteName={siteName} href={aboutHref} theme={theme} size="h-9 w-9" round={!classic} ring={dark ? 'ring-white/40' : 'ring-[var(--site-gold)]/40'} onDark={dark} />
           <button
@@ -285,6 +325,17 @@ export function SiteHeader({
               <ChevronRight className="h-4 w-4 shrink-0" style={{ color: 'var(--site-faint)' }} />
             </a>
 
+            {mine && (
+              <motion.a href={mine.href} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}
+                className="ohp-mine-card relative mt-3 flex items-center gap-3 overflow-hidden rounded-2xl p-3.5" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/20"><Sparkles className="h-5 w-5" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className={`block truncate text-[17px] font-black ${classic ? '' : fontClass(theme.heading_font, 'font-serif')}`}>{mine.label}</span>
+                  <span className="block truncate text-xs font-semibold opacity-80">Your homes, picked for you</span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0" />
+              </motion.a>
+            )}
             <div className="mt-3 divide-y" style={{ borderColor: 'var(--site-line)' }}>
               {navLinks.map((link, i) => {
                 const Icon = link.icon

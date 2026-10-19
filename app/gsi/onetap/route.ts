@@ -32,7 +32,11 @@ export function GET() {
     var h = location.hostname;
     var domain = (h === 'openhousepal.com' || /\\.openhousepal\\.com$/.test(h)) ? '; domain=.openhousepal.com' : '';
     var secure = location.protocol === 'https:' ? '; secure' : '';
-    var value = encodeURIComponent(JSON.stringify({ n: v.name || '', f: v.first_name || '', e: v.email }));
+    // Keeps a Showcase code already saved here; the backend sends theirs if they have one with this agent.
+    var was = {};
+    try { var m = document.cookie.split('; ').find(function (c) { return c.indexOf('ohp_visitor=') === 0; }); if (m) was = JSON.parse(decodeURIComponent(m.slice(12))) || {}; } catch (e) {}
+    var s = v.showcase || was.s;
+    var value = encodeURIComponent(JSON.stringify(s ? { n: v.name || '', f: v.first_name || '', e: v.email, s: s } : { n: v.name || '', f: v.first_name || '', e: v.email }));
     document.cookie = 'ohp_visitor=' + value + '; path=/; max-age=' + (60 * 60 * 24 * 365) + '; samesite=lax' + domain + secure;
   }
   function start(cfg) {
