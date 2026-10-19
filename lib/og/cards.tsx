@@ -336,63 +336,58 @@ export async function renderShowcaseCard(shareToken: string, fonts: Fonts, accen
 }
 
 // --- CMA ------------------------------------------------------------------------------------
-// The report's own look (user, 10/19 - cards match what they open): the agent's brand navy with
-// their accent line along the top, the address in big serif, who it's for, what's inside, a button
-// - and the home itself filling the right half. No value on the card: the number is the reason to
-// open it (and a forwarded preview shouldn't give it away).
-export function CmaCard({ photo, street, place, facts, forName, mode, comps, agentName, agentBrokerage, agentPhoto, base, accent }: {
+// The home full-bleed with the agent's headshot (user, 10/19 - a hybrid of the old card and the
+// report-coloured one): the agent's accent, who it's for, what's inside and a button. No value on
+// the card: the number is the reason to open it (and a forwarded preview shouldn't give it away).
+export function CmaCard({ photo, street, place, facts, forName, mode, comps, agentName, agentBrokerage, agentPhoto, accent }: {
   photo: string | null; street: string; place: string; facts: string[]; forName: string; mode: 'buyer' | 'listing'
-  comps: number; agentName: string; agentBrokerage: string | null; agentPhoto: string | null; base: string; accent: string
+  comps: number; agentName: string; agentBrokerage: string | null; agentPhoto: string | null; base?: string; accent: string
 }) {
-  const ink = lum(base) > 0.55 ? '#111827' : '#ffffff'
-  const sub = ink === '#ffffff' ? 'rgba(255,255,255,0.72)' : 'rgba(17,24,39,0.66)'
+  // The whole home behind it (user, 10/19 - "I like the before ... entire property pic"), the
+  // agent's real headshot on top, and the new words + button over the bottom.
+  const light = mixHex(accent, '#ffffff', 0.45)
   const btnInk = lum(accent) > 0.6 ? '#111827' : '#ffffff'
   const rgb = [1, 3, 5].map(i => parseInt(accent.slice(i, i + 2), 16)).join(',')
-  const deepBase = mixHex(base, '#000000', 0.35)
-  const titleSize = street.length > 22 ? 52 : street.length > 16 ? 60 : 68
+  const titleSize = street.length > 26 ? 60 : 72
   return (
-    <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: base,
-      backgroundImage: `radial-gradient(700px 520px at 0% 100%, rgba(${rgb},0.16) 0%, rgba(${rgb},0) 70%), linear-gradient(135deg, ${base} 0%, ${deepBase} 100%)` }}>
-      {/* the home, right half, fading into the brand colour */}
-      <div style={{ display: 'flex', position: 'absolute', top: 0, right: 0 }}>
-        <MlsSafePhoto src={photo} w={560} h={630} />
-      </div>
-      <div style={{ display: 'flex', position: 'absolute', top: 0, right: 0, width: 560, height: 630, backgroundImage: `linear-gradient(90deg, ${base} 0%, ${base}cc 14%, ${base}00 46%)` }} />
-      <div style={{ display: 'flex', position: 'absolute', top: 0, left: 0, right: 0, height: 8, backgroundImage: `linear-gradient(90deg, ${accent}, ${mixHex(accent, '#ffffff', 0.45)}, ${accent})` }} />
+    <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: C.bgBot,
+      backgroundImage: `radial-gradient(1000px 640px at 78% 22%, ${C.bgTop} 0%, ${C.bgMid} 55%, ${C.bgBot} 100%)` }}>
+      {photo ? <div style={{ display: 'flex', position: 'absolute', top: 0, left: 0 }}><MlsSafePhoto src={photo} w={1200} h={630} /></div> : null}
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex',
+        backgroundImage: 'linear-gradient(0deg, rgba(9,7,4,0.95) 0%, rgba(9,7,4,0.4) 55%, rgba(9,7,4,0.5) 100%), linear-gradient(90deg, rgba(9,7,4,0.8) 0%, rgba(9,7,4,0.15) 60%, rgba(9,7,4,0.3) 100%)' }} />
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 7, display: 'flex', backgroundImage: `linear-gradient(90deg, ${accent}, ${light}, ${accent})` }} />
 
-      <div style={{ display: 'flex', flexDirection: 'column', width: 700, height: '100%', padding: '58px 0 54px 66px', color: ink }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 17, fontWeight: 900, letterSpacing: 5, textTransform: 'uppercase', color: accent }}>
-          <div style={{ display: 'flex', width: 30, height: 2, backgroundColor: accent }} />
-          Comparative Market Analysis
-        </div>
-        <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: titleSize, lineHeight: 1.04, letterSpacing: -1, marginTop: 18, maxWidth: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{street}</div>
-        {place ? <div style={{ display: 'flex', fontSize: 21, fontWeight: 900, letterSpacing: 4, textTransform: 'uppercase', color: sub, marginTop: 10 }}>{place}</div> : null}
-        {facts.length ? (
-          <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
-            {facts.map(f => <div key={f} style={{ display: 'flex', padding: '7px 15px', borderRadius: 999, fontSize: 18, fontWeight: 900, color: ink, backgroundColor: ink === '#ffffff' ? 'rgba(255,255,255,0.1)' : 'rgba(17,24,39,0.07)', border: `1px solid rgba(${rgb},0.4)` }}>{f}</div>)}
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', padding: '52px 72px 58px', color: '#fff' }}>
+        {/* the agent first - their real headshot */}
+        <div style={{ display: 'flex', alignSelf: 'flex-start', alignItems: 'center', gap: 16, padding: '9px 26px 9px 9px', borderRadius: 999, backgroundColor: 'rgba(9,7,4,0.55)', border: `1px solid rgba(${rgb},0.45)` }}>
+          {agentPhoto
+            ? <img src={agentPhoto} width={66} height={66} style={{ width: 66, height: 66, borderRadius: 999, objectFit: 'cover', border: `3px solid ${light}` }} />
+            : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 66, height: 66, borderRadius: 999, backgroundColor: accent, color: btnInk, fontSize: 24, fontWeight: 900 }}>{initialsOf(agentName)}</div>}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', fontSize: 24, fontWeight: 900 }}>{agentName}</div>
+            {agentBrokerage ? <div style={{ display: 'flex', fontSize: 15, fontWeight: 900, letterSpacing: 2.5, textTransform: 'uppercase', color: light }}>{agentBrokerage}</div> : null}
           </div>
-        ) : null}
-        <div style={{ display: 'flex', fontSize: 25, color: sub, marginTop: 24, maxWidth: 580 }}>
-          {`${mode === 'listing' ? "What it's worth" : 'What to offer'}${comps ? `, backed by ${comps} recent ${comps === 1 ? 'sale' : 'sales'}` : ''}.`}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 21, fontWeight: 900, color: accent, marginTop: 10 }}>
-          <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
-          {`Prepared for ${forName || 'you'}`}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 'auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 54, padding: '0 24px', borderRadius: 999, fontSize: 19, fontWeight: 900,
-            backgroundImage: `linear-gradient(135deg, ${mixHex(accent, '#ffffff', 0.35)}, ${accent})`, color: btnInk, boxShadow: `0 14px 28px -14px rgba(${rgb},0.9)` }}>
-            Open the report
-            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={btnInk} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
+
+        <div style={{ display: 'flex', flexDirection: 'column', marginTop: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 20, fontWeight: 900, letterSpacing: 6, textTransform: 'uppercase', color: light }}>
+            <div style={{ display: 'flex', width: 34, height: 2, backgroundColor: light }} />
+            Comparative Market Analysis
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {agentPhoto
-              ? <img src={agentPhoto} width={50} height={50} style={{ width: 50, height: 50, borderRadius: 999, objectFit: 'cover', border: `2px solid ${accent}` }} />
-              : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 50, height: 50, borderRadius: 999, backgroundColor: accent, color: btnInk, fontSize: 19, fontWeight: 900 }}>{initialsOf(agentName)}</div>}
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', fontSize: 19, fontWeight: 900 }}>{agentName}</div>
-              {agentBrokerage ? <div style={{ display: 'flex', fontSize: 14, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', color: sub }}>{agentBrokerage}</div> : null}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 22, marginTop: 14 }}>
+            <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: titleSize, lineHeight: 1.04, letterSpacing: -1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 820 }}>{street}</div>
+            {place ? <div style={{ display: 'flex', fontSize: 22, fontWeight: 900, letterSpacing: 4, textTransform: 'uppercase', color: C.sub }}>{place}</div> : null}
+          </div>
+          <div style={{ display: 'flex', fontSize: 26, color: C.sub, marginTop: 12 }}>
+            {`${mode === 'listing' ? "What it's worth" : 'What to offer'}${comps ? `, backed by ${comps} recent ${comps === 1 ? 'sale' : 'sales'}` : ''}  ·  Prepared for ${forName || 'you'}`}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 22, marginTop: 26 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 56, padding: '0 26px', borderRadius: 999, fontSize: 20, fontWeight: 900,
+              backgroundImage: `linear-gradient(135deg, ${light}, ${accent})`, color: btnInk, boxShadow: `0 14px 28px -14px rgba(${rgb},0.9)` }}>
+              Open the report
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={btnInk} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
             </div>
+            {facts.length ? <div style={{ display: 'flex', fontSize: 18, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', color: C.sub }}>{facts.join('  ·  ')}</div> : null}
           </div>
         </div>
       </div>
