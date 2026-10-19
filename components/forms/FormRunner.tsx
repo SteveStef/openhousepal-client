@@ -10,6 +10,7 @@ import ListingAddressInput from '@/components/forms/ListingAddressInput'
 import SearchableSelect from '@/components/forms/SearchableSelect'
 import api from '@/lib/api-service'
 import { formatNumberWithCommas, sanitizeNumericInput, stripCommas } from '@/lib/utils'
+import { FORM_LOOK_CSS, formLookClass, formLookVars, formPaint, type FormLook } from '@/lib/formLook'
 
 export interface FormRunnerBranding {
   title: string
@@ -72,6 +73,8 @@ interface FormRunnerProps {
   // A few of the agent's real recent sales, used to illustrate that preview with actual homes
   // instead of placeholder tiles. Only relevant when showcasePreview is true.
   exampleProperties?: { address: string; city?: string | null; price?: number | null; image?: string | null }[] | null
+  /** The form's look (Classic colour / Luxe finish, lib/formLook) - absent = the plain accent colour. */
+  look?: FormLook | null
 }
 
 type AnswerValue = string | string[]
@@ -184,7 +187,7 @@ function PropertyHeroCard({ property, size = 'default', showCheckmark = false, a
           >
             <div
               className="flex h-16 w-16 items-center justify-center rounded-full text-white shadow-xl ring-4 ring-white/90"
-              style={{ backgroundColor: accent }}
+              data-fill="" style={{ backgroundColor: accent }}
             >
               <Check className="h-8 w-8" />
             </div>
@@ -282,10 +285,10 @@ function WelcomeMotionBackdrop({ accent, light = false, intro = false }: { accen
         <div className="relative mx-auto mt-5 h-24 w-32">
           <div className={`absolute inset-x-2 bottom-0 h-14 rounded-t-sm border-2 ${lineStroke}`} />
           <div className={`absolute left-1/2 top-0 h-12 w-12 -translate-x-1/2 rotate-45 border-l-2 border-t-2 ${lineStroke}`} />
-          <div className="absolute bottom-0 left-[40%] h-7 w-5 rounded-t-sm" style={{ backgroundColor: accent }} />
+          <div className="absolute bottom-0 left-[40%] h-7 w-5 rounded-t-sm" data-fill="" style={{ backgroundColor: accent }} />
           <motion.span
             className="absolute bottom-8 right-[26%] h-2.5 w-2.5 rounded-[2px]"
-            style={{ backgroundColor: accent }}
+            data-fill="" style={{ backgroundColor: accent }}
             animate={{ opacity: [0.25, 0.9, 0.25] }}
             transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
           />
@@ -450,7 +453,7 @@ function QuestionBrandBar({ branding, property, accent }: { branding?: FormRunne
       {branding.agentPhotoUrl ? (
         <img src={branding.agentPhotoUrl} alt={branding.agentName} className="aspect-square h-[80%] shrink-0 rounded-full object-cover shadow-sm" />
       ) : (
-        <div className="flex aspect-square h-[80%] shrink-0 items-center justify-center rounded-full text-base font-black text-white shadow-sm" style={{ backgroundColor: accent }}>
+        <div className="flex aspect-square h-[80%] shrink-0 items-center justify-center rounded-full text-base font-black text-white shadow-sm" data-fill="" style={{ backgroundColor: accent }}>
           {getInitials(branding.agentName)}
         </div>
       )}
@@ -474,7 +477,7 @@ function QuestionBrandBar({ branding, property, accent }: { branding?: FormRunne
         {property.image_url ? (
           <img src={property.image_url} alt={property.address} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-white" style={{ backgroundColor: accent }}>
+          <div className="flex h-full w-full items-center justify-center text-white" data-fill="" style={{ backgroundColor: accent }}>
             <Home className="h-5 w-5" />
           </div>
         )}
@@ -574,7 +577,7 @@ function IntegratedPropertyCard({ property, accent }: { property: LinkedProperty
         {property.image_url ? (
           <img src={property.image_url} alt={property.address} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-white" style={{ backgroundColor: accent }}>
+          <div className="flex h-full w-full items-center justify-center text-white" data-fill="" style={{ backgroundColor: accent }}>
             <Home className="h-6 w-6" />
           </div>
         )}
@@ -631,7 +634,7 @@ function AgentProfileBlock({ branding, accent, tight = false }: { branding: Form
       ) : (
         <div
           className={`mx-auto flex ${photoSize} items-center justify-center rounded-full border-2 font-black text-white shadow-sm ${tight ? 'text-sm' : 'text-lg'}`}
-          style={{ borderColor: accent, backgroundColor: accent }}
+          data-fill="" style={{ borderColor: accent, backgroundColor: accent }}
         >
           {getInitials(branding.agentName)}
         </div>
@@ -1151,7 +1154,7 @@ function QuestionNavButtons({ isLastStep, canAdvance, submitting, submitError, o
           onClick={onNext}
           disabled={!canAdvance || submitting}
           className="inline-flex items-center gap-2 rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-widest text-white shadow-xl transition-all hover:scale-[1.02] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
-          style={{ backgroundColor: accent }}
+          data-fill="" style={{ backgroundColor: accent }}
         >
           {submitting ? (
             <>
@@ -1183,8 +1186,10 @@ function QuestionNavButtons({ isLastStep, canAdvance, submitting, submitError, o
 // the Showcase it builds follows that exact shape (collections_service).
 const HIDDEN_PREFILL_IDS = ['search_area']
 
-export default function FormRunner({ questions, branding, successHeading, successMessage, linkedProperty, propertyPhotoCarousel, onSubmit, onProgress, focusBlockId, agentHubRedirect, onComplete, prefill, redirectDelayMs = 5000, redirectTarget = '_self', forceLightMode = false, backgroundEffects = true, welcomeTextEffects = true, brandingLayout = 'split', showcasePreview = false, exampleProperties, formId }: FormRunnerProps) {
-  const accent = branding.accentColor || DEFAULT_ACCENT
+export default function FormRunner({ questions, branding, successHeading, successMessage, linkedProperty, propertyPhotoCarousel, onSubmit, onProgress, focusBlockId, agentHubRedirect, onComplete, prefill, redirectDelayMs = 5000, redirectTarget = '_self', forceLightMode = false, backgroundEffects = true, welcomeTextEffects = true, brandingLayout = 'split', showcasePreview = false, exampleProperties, formId, look }: FormRunnerProps) {
+  // With a look, inline accents are the look's readable colour and every fill ([data-fill]) is
+  // repainted by FORM_LOOK_CSS (Luxe: the metal gradient).
+  const accent = look ? formPaint(look).text : branding.accentColor || DEFAULT_ACCENT
   // step 0 = intro, 1..totalQuestions = questions, totalQuestions + 1 = success
   const [step, setStep] = useState(0)
   const [direction, setDirection] = useState(1)
@@ -1550,8 +1555,10 @@ export default function FormRunner({ questions, branding, successHeading, succes
       // establish a new stacking context, so the backdrop's -z-10 below would otherwise compare
       // against ancestors far up the page tree instead of just its siblings here, and could end
       // up hidden behind an unrelated opaque background elsewhere on the page.
-      className={`relative z-0 flex h-full min-h-[560px] w-full flex-col overflow-hidden bg-[#FAFAF7] transition-colors duration-300 ${forceLightMode ? 'ohp-force-light' : 'dark:bg-[#0B0B0B]'}`}
+      className={`fr-root relative z-0 flex h-full min-h-[560px] w-full flex-col overflow-hidden bg-[#FAFAF7] transition-colors duration-300 ${forceLightMode ? 'ohp-force-light' : 'dark:bg-[#0B0B0B]'} ${look ? formLookClass(look) : ''}`}
+      style={look ? (formLookVars(look) as React.CSSProperties) : undefined}
     >
+      {look && <style dangerouslySetInnerHTML={{ __html: FORM_LOOK_CSS }} />}
       {backgroundEffects && <WelcomeMotionBackdrop accent={accent} light={forceLightMode} intro={isIntro} />}
       {isSuccess && <ConfettiBurst />}
 
@@ -1559,7 +1566,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
         <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800">
           <motion.div
             className="h-full"
-            style={{ backgroundColor: accent }}
+            data-fill="" style={{ backgroundColor: accent }}
             initial={false}
             animate={{ width: `${(step / displayTotal) * 100}%` }}
             transition={{ duration: 0.4, ease: 'easeOut' }}
@@ -1587,7 +1594,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
           {backgroundEffects && (
             <div
               aria-hidden
-              className={`pointer-events-none absolute -inset-x-10 -inset-y-12 -z-10 ${forceLightMode ? 'text-[#FAFAF7]' : 'text-[#FAFAF7] dark:text-[#0B0B0B]'}`}
+              className={`fr-veil pointer-events-none absolute -inset-x-10 -inset-y-12 -z-10 ${forceLightMode ? 'text-[#FAFAF7]' : 'text-[#FAFAF7] dark:text-[#0B0B0B]'}`}
               style={{ background: 'radial-gradient(closest-side, currentColor 62%, transparent 100%)', opacity: 0.92 }}
             />
           )}
@@ -1628,7 +1635,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
                     )}
 
                     <motion.div variants={welcomeTextEffects ? introItemVariants : introStaticItemVariants} className="mt-6 flex flex-col items-center">
-                      <h1 className={`font-black leading-tight tracking-tight text-[#0B0B0B] dark:text-white ${showcasePreview ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'}`}>
+                      <h1 className={`fr-title font-black leading-tight tracking-tight text-[#0B0B0B] dark:text-white ${showcasePreview ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'}`}>
                         {branding.title}
                       </h1>
                       {branding.subtitle && (
@@ -1649,7 +1656,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
                       whileHover={{ y: -2, scale: 1.025 }}
                       whileTap={{ scale: 0.96 }}
                       className={`group relative inline-flex items-center gap-3 overflow-hidden rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-widest text-white shadow-xl ${showcasePreview ? 'mt-5' : 'mt-8'}`}
-                      style={{ backgroundColor: accent }}
+                      data-fill="" style={{ backgroundColor: accent }}
                     >
                       {welcomeTextEffects && (
                         <motion.span
@@ -1694,7 +1701,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
                             {branding.agentPhotoUrl ? (
                               <img src={branding.agentPhotoUrl} alt={branding.agentName} className="h-14 w-14 rounded-full object-cover shadow-sm" />
                             ) : (
-                              <div className="flex h-14 w-14 items-center justify-center rounded-full text-base font-black text-white shadow-sm" style={{ backgroundColor: accent }}>
+                              <div className="flex h-14 w-14 items-center justify-center rounded-full text-base font-black text-white shadow-sm" data-fill="" style={{ backgroundColor: accent }}>
                                 {getInitials(branding.agentName)}
                               </div>
                             )}
@@ -1742,7 +1749,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
                                   type="button"
                                   onClick={handleNext}
                                   className="inline-flex items-center gap-2 rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-widest text-white shadow-xl transition-transform hover:scale-[1.02] active:scale-95"
-                                  style={{ backgroundColor: accent }}
+                                  data-fill="" style={{ backgroundColor: accent }}
                                 >
                                   Continue
                                 </button>
@@ -1777,7 +1784,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
                           <div className="mt-4 h-1 w-full rounded-full bg-gray-100 dark:bg-gray-800">
                             <div
                               className="h-full rounded-full transition-all duration-500"
-                              style={{ width: `${(step / displayTotal) * 100}%`, backgroundColor: accent }}
+                              data-fill="" style={{ width: `${(step / displayTotal) * 100}%`, backgroundColor: accent }}
                             />
                           </div>
 
@@ -1826,7 +1833,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
                             type="button"
                             onClick={handleNext}
                             className="inline-flex items-center gap-2 rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-widest text-white shadow-xl transition-transform hover:scale-[1.02] active:scale-95"
-                            style={{ backgroundColor: accent }}
+                            data-fill="" style={{ backgroundColor: accent }}
                           >
                             Continue
                           </button>
@@ -1896,7 +1903,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.1 }}
                     className="mx-auto flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg"
-                    style={{ backgroundColor: accent }}
+                    data-fill="" style={{ backgroundColor: accent }}
                   >
                     <Check className="h-8 w-8" />
                   </motion.div>
@@ -1912,7 +1919,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
                   </div>
                 )}
 
-                <h1 className="mt-6 text-3xl font-black tracking-tight text-[#0B0B0B] dark:text-white">{successHeading}</h1>
+                <h1 className="fr-title mt-6 text-3xl font-black tracking-tight text-[#0B0B0B] dark:text-white">{successHeading}</h1>
                 {successMessage && (
                   <p className="mx-auto mt-4 max-w-md text-base font-medium leading-relaxed text-[#5f6673] dark:text-gray-300">
                     {successMessage}
@@ -1923,7 +1930,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
                   <div className="mx-auto mt-8 flex flex-col items-center gap-2">
                     <p className="text-xs font-bold text-gray-400">{postSubmitRedirectUrl ? 'Opening your Showcase...' : 'Redirecting...'}</p>
                     <div className="h-1 w-40 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                      <div className="h-full rounded-full" style={{ width: `${redirectProgress}%`, backgroundColor: accent }} />
+                      <div className="h-full rounded-full" data-fill="" style={{ width: `${redirectProgress}%`, backgroundColor: accent }} />
                     </div>
                   </div>
                 )}

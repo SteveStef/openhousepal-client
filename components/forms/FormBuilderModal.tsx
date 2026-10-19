@@ -6,7 +6,7 @@ import { backdropMotion, panelMotion } from './modalMotion'
 import {
   X, Plus, Trash2, GripVertical, Lock, Save, Loader2, Home, PartyPopper,
   Type, AlignLeft, Mail, Phone, Hash, Calendar, Clock, DollarSign, Circle, ListChecks,
-  MessageSquare, Users, Moon, Sun, Check, Settings, MapPin, RotateCcw,
+  MessageSquare, Users, Check, Settings, MapPin, RotateCcw,
   Sparkles, ChevronLeft, ChevronUp, ChevronDown,
 } from 'lucide-react'
 import FormRunner, { FormRunnerBranding } from '@/components/forms/FormRunner'
@@ -15,6 +15,8 @@ import PropertyLinkPicker from '@/components/forms/PropertyLinkPicker'
 import WarningConfirmModal from '@/components/WarningConfirmModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { hasAgentHubAccess } from '@/lib/navAccess'
+import FormLookPicker from '@/components/forms/FormLookPicker'
+import { resolveFormLook, type FormLook, type FormLookFields } from '@/lib/formLook'
 
 type BlockId = 'welcome' | 'thankyou' | string
 
@@ -53,6 +55,11 @@ interface FormBuilderModalProps {
   onUpdateField: (field: 'title' | 'headline' | 'subtitle' | 'description' | 'success_heading' | 'success_message' | 'accent_color', value: string) => void
   onToggleBranding: () => void
   onToggleDarkMode: () => void
+  /** The form's look (lib/formLook): match the Agent Hub or its own. */
+  hubLook: FormLook
+  luxeAllowed: boolean
+  onUpdateLook: (patch: FormLookFields) => void
+  onApplyLookToAll: () => Promise<boolean>
   onToggleRedirectToAgentHub: () => void
   onTogglePropertyPhotoCarousel: () => void
   onToggleBackgroundEffects: () => void
@@ -72,7 +79,7 @@ interface FormBuilderModalProps {
 }
 
 export default function FormBuilderModal({
-  isOpen, form, onClose, onUpdateField, onToggleBranding, onToggleDarkMode, onToggleRedirectToAgentHub, onTogglePropertyPhotoCarousel, onToggleBackgroundEffects, onToggleWelcomeTextEffects, onUpdateBrandingLayout, onUpdateLinkedProperty,
+  isOpen, form, onClose, onUpdateField, onToggleBranding, onToggleRedirectToAgentHub, hubLook, luxeAllowed, onUpdateLook, onApplyLookToAll, onTogglePropertyPhotoCarousel, onToggleBackgroundEffects, onToggleWelcomeTextEffects, onUpdateBrandingLayout, onUpdateLinkedProperty,
   onUpdateQuestion, onAddQuestion, onRemoveQuestion, onReorderQuestions, onSave, onResetToDefault, saveStatus, showPropertyLink, branding, defaultDescription,
 }: FormBuilderModalProps) {
   const [selectedBlockId, setSelectedBlockId] = useState<BlockId>('welcome')
@@ -121,6 +128,7 @@ export default function FormBuilderModal({
   }
 
   const previewKey = `${form.id}-${form.questions.map(question => question.id).join(',')}`
+  const look = resolveFormLook(form, hubLook, luxeAllowed)
 
   return (
     <motion.div {...backdropMotion} className="fixed inset-0 z-50 flex flex-col bg-black/60 p-3 sm:p-6">
@@ -352,16 +360,11 @@ export default function FormBuilderModal({
             {selectedBlockId === 'welcome' && (
               <div className="mx-auto max-w-lg space-y-5">
                 <h3 className="text-lg font-black text-[#111827] dark:text-white">Welcome Screen</h3>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="text-xs font-black uppercase tracking-widest text-gray-400">Title</span>
-                    <input value={form.title} onChange={(event) => onUpdateField('title', event.target.value)} className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white" />
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-black uppercase tracking-widest text-gray-400">Accent color</span>
-                    <input type="color" value={form.accent_color || '#816937'} onChange={(event) => onUpdateField('accent_color', event.target.value)} className="mt-2 h-[46px] w-full rounded-xl border border-gray-200 bg-white px-2 dark:border-gray-700 dark:bg-[#151517]" />
-                  </label>
-                </div>
+                {/* Colours live in Settings > Look now (the Agent Hub's choices). */}
+                <label className="block">
+                  <span className="text-xs font-black uppercase tracking-widest text-gray-400">Title</span>
+                  <input value={form.title} onChange={(event) => onUpdateField('title', event.target.value)} className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white" />
+                </label>
                 <label className="block">
                   <span className="text-xs font-black uppercase tracking-widest text-gray-400">Intro headline</span>
                   <p className="mt-0.5 text-[11px] text-gray-400">What the visitor sees on the welcome screen.</p>
@@ -377,6 +380,12 @@ export default function FormBuilderModal({
             {selectedBlockId === 'settings' && (
               <div className="mx-auto max-w-lg space-y-5">
                 <h3 className="text-lg font-black text-[#111827] dark:text-white">Settings</h3>
+
+                <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-[#151517]">
+                  <p className="text-sm font-black text-[#111827] dark:text-white">Look</p>
+                  <p className="mb-4 mt-0.5 text-xs text-gray-500 dark:text-gray-400">The same styles and colors as your Agent Hub.</p>
+                  <FormLookPicker value={form} hubLook={hubLook} luxeAllowed={luxeAllowed} onChange={onUpdateLook} onApplyAll={onApplyLookToAll} />
+                </div>
 
                 <label className="block">
                   <span className="text-xs font-black uppercase tracking-widest text-gray-400">Description</span>
@@ -402,24 +411,6 @@ export default function FormBuilderModal({
                     aria-label={`${form.show_branding ? 'Turn off' : 'Turn on'} branding`}
                   >
                     <span className={`absolute top-1 h-5 w-5 rounded-full transition ${form.show_branding ? 'left-6 bg-white dark:bg-[#111827]' : 'left-1 bg-white'}`} />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-[#fbfaf7] p-4 dark:border-gray-700 dark:bg-[#151517]">
-                  <div className="flex items-center gap-3">
-                    {form.dark_mode ? <Moon className="h-5 w-5 shrink-0 text-[#8b7355]" /> : <Sun className="h-5 w-5 shrink-0 text-[#8b7355]" />}
-                    <div>
-                      <p className="text-sm font-black text-[#111827] dark:text-white">Dark mode for visitors</p>
-                      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Forces this form to show dark, regardless of the visitor's device settings.</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={onToggleDarkMode}
-                    className={`relative h-7 w-12 shrink-0 rounded-full transition ${form.dark_mode ? 'bg-[#111827] dark:bg-white' : 'bg-gray-300 dark:bg-gray-700'}`}
-                    aria-label={`${form.dark_mode ? 'Turn off' : 'Turn on'} dark mode`}
-                  >
-                    <span className={`absolute top-1 h-5 w-5 rounded-full transition ${form.dark_mode ? 'left-6 bg-white dark:bg-[#111827]' : 'left-1 bg-white'}`} />
                   </button>
                 </div>
 
@@ -577,7 +568,7 @@ export default function FormBuilderModal({
               expects, which was throwing off its proportions here versus the live site. */}
           <div className="hidden w-[360px] shrink-0 flex-col border-l border-gray-100 bg-[#f2efe8] p-4 dark:border-gray-800 dark:bg-[#0F0F11] lg:flex xl:w-[560px]">
             <p className="mb-3 text-xs font-black uppercase tracking-widest text-gray-400">Live preview</p>
-            <div className={`flex-1 overflow-hidden rounded-2xl shadow-inner ${form.dark_mode ? 'dark' : ''}`}>
+            <div className={`flex-1 overflow-hidden rounded-2xl shadow-inner ${look.dark ? 'dark' : ''}`}>
               <div className="h-full overflow-y-auto bg-[#FAFAF7] dark:bg-[#0B0B0B]">
                 <FormRunner
                   key={previewKey}
@@ -592,6 +583,7 @@ export default function FormBuilderModal({
                   successMessage={form.success_message}
                   onSubmit={async () => ({ success: true })}
                   focusBlockId={selectedBlockId}
+                  look={look}
                 />
               </div>
             </div>

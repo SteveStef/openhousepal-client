@@ -3,7 +3,7 @@
 // one sentence, what they go without. The backend (setup_flow_service.py) decides which steps a
 // plan gets and whether each is done; this file only says them nicely.
 import {
-  AtSign, BadgeCheck, Bell, BookOpen, CalendarDays, Camera, Globe, Home, LayoutTemplate, Mail, MailCheck, MapPin,
+  AtSign, BadgeCheck, Bell, BookOpen, CalendarDays, Camera, ClipboardList, Globe, Home, LayoutTemplate, Mail, MailCheck, MapPin,
   Palette, Phone, PlugZap, Star, UserRound, type LucideIcon,
 } from 'lucide-react'
 import type { SetupStepId } from '@/lib/api-service'
@@ -96,6 +96,13 @@ export function stepCopy(id: SetupStepId, plan: string | null, hasMls: boolean):
         intro: 'Your Agent Hub is the one link that has everything about you. Pick a look you like - you can change it anytime.',
         powers: ['Your Agent Hub page', 'Your Sales page'],
         skip: 'Your hub uses the Classic look in light mode.',
+      }
+    case 'forms':
+      return {
+        icon: ClipboardList, label: 'Forms look', title: ['How your ', 'forms look'],
+        intro: 'Your forms are what people fill out when they want your help. Match your Agent Hub, or give them a look of their own.',
+        powers: ["What's My Home Worth", "I'm Buying & I'm Selling", 'Every form you share'],
+        skip: 'Your forms match your Agent Hub.',
       }
     case 'signature':
       return {

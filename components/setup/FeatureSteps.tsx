@@ -28,6 +28,8 @@ import { BRAND_ACCENT_COLORS, BRAND_MAIN_COLORS } from '@/lib/brandSwatches'
 import { BigToggle, ChoiceCard, Field, isLight, PinnedPreview, StepCtx, SubHead, Swatches, toJpeg, useGate } from './SetupUi'
 import ZillowLinkHelp, { ZILLOW_REVIEW_PLACEHOLDER } from '@/components/reviews/ZillowLinkHelp'
 import QrBrandPicker from '@/components/settings/QrBrandPicker'
+import FormLookPicker, { FormPhonePreview } from '@/components/forms/FormLookPicker'
+import { formLookOf, resolveFormLook, type FormLookFields } from '@/lib/formLook'
 
 const METAL_SWATCHES = LUXE_METAL_ORDER.map(m => ({ color: LUXE_METALS[m].base, label: m[0].toUpperCase() + m.slice(1) }))
 
@@ -350,6 +352,68 @@ export function HubStep({ ctx }: { ctx: StepCtx }) {
       <div className="hidden lg:block">
         <div className="sticky top-28"><HubPhonePreview src={`/${shownSlug}?preview=1`} look={phoneLook} label="Your Agent Hub" /></div>
       </div>
+    </div>
+  )
+}
+
+// ---------- How your forms look ----------
+// Every form at once (user, 10/18 - "in setup flow make this a part"): match the Agent Hub (the
+// default) or one look of their own from the hub's choices. Saved to every form as it's tapped;
+// the phone is the real What's My Home Worth page repainting live (?preview=1).
+export function FormsStep({ ctx }: { ctx: StepCtx }) {
+  const look = ctx.data.look || {}
+  const luxeAllowed = ctx.plan === 'IDX'
+  const hubLook = formLookOf({ theme: look.hubTheme === 'luxe' && luxeAllowed ? 'luxe' : 'classic', accent: hubAccentOf(look.hubAccent), metal: look.hubLuxeMetal, dark: look.visitorDarkMode === true })
+  const [forms, setForms] = useState<AgentFormConfig[] | null>(null)
+  const [value, setValue] = useState<FormLookFields>({ look_mode: 'hub' })
+  useEffect(() => {
+    api.forms.getMine().then(r => {
+      const list = r.success && r.data ? r.data : []
+      setForms(list)
+      const own = list.find(f => f.look_mode === 'custom')
+      if (own) setValue({ look_mode: 'custom', look_theme: own.look_theme || 'classic', accent_color: own.accent_color, luxe_metal: own.luxe_metal || 'gold', dark_mode: own.dark_mode })
+    })
+  }, [])
+  const timer = useRef<number | undefined>(undefined)
+  const change = (patch: FormLookFields) => {
+    const next = { ...value, ...patch }
+    setValue(next)
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => {
+      ctx.markSaving(api.forms.updateAllLook({
+        look_mode: next.look_mode === 'custom' ? 'custom' : 'hub',
+        look_theme: next.look_theme || 'classic', accent_color: next.accent_color || undefined, luxe_metal: next.luxe_metal || 'gold', dark_mode: !!next.dark_mode,
+      }))
+    }, 350)
+  }
+  useGate(ctx, { ok: true, onContinue: async () => { await api.setup.setState({ confirm: 'forms' }) } }, [])
+  const shown = resolveFormLook(value, hubLook, luxeAllowed)
+  const sample = forms ? forms.find(f => f.form_type === 'home_value' && f.is_enabled) || forms.find(f => f.is_enabled && f.form_type !== 'showing') || forms[0] : null
+  const src = sample ? `/${ctx.data.slug}/${sample.slug}?preview=1` : null
+  const enabled = (forms || []).filter(f => f.is_enabled)
+  return (
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_260px]">
+      <div className="min-w-0 space-y-8">
+        <div>
+          <SubHead sub="One look for every form you share - What's My Home Worth, I'm Buying, I'm Selling and the rest.">Your forms</SubHead>
+          <FormLookPicker value={value} hubLook={hubLook} luxeAllowed={luxeAllowed} onChange={change} />
+        </div>
+        {enabled.length > 0 && (
+          <div>
+            <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-gray-400">Used on all {enabled.length} of your forms</p>
+            <div className="flex flex-wrap gap-1.5">
+              {enabled.map(f => <span key={f.id} className="rounded-full bg-black/[0.04] px-3 py-1.5 text-[12.5px] font-bold text-gray-600 dark:bg-white/[0.06] dark:text-gray-300">{f.title}</span>)}
+            </div>
+            <p className="mt-3 text-[13px] font-medium text-gray-500 dark:text-gray-400">You can give any one form its own look later, in that form&apos;s Settings.</p>
+          </div>
+        )}
+        {src && <div className="lg:hidden"><FormPhonePreview src={src} look={shown} label="Your form" width={230} /></div>}
+      </div>
+      {src && (
+        <div className="hidden lg:block">
+          <div className="sticky top-28"><FormPhonePreview src={src} look={shown} label="Your form" /></div>
+        </div>
+      )}
     </div>
   )
 }

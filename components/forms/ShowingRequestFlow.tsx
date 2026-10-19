@@ -7,6 +7,7 @@ import ScheduleTourModal from '@/components/ScheduleTourModal'
 import TourStatusWindow, { tourState } from '@/components/TourStatusWindow'
 import api, { resolveMediaUrl, type PublicHomeSuggestion } from '@/lib/api-service'
 import type { Property, PublicFormConfig, ShowingStatus, TourRequest } from '@/types'
+import { FORM_LOOK_CSS, formLookClass, formLookVars, type FormLook } from '@/lib/formLook'
 
 // Schedule a Showing, as its own flow instead of question-by-question: (1) find the home - our
 // listings with their photos as they type, (2) the same "Private showing" window the Showcase
@@ -78,8 +79,10 @@ function toProperty(home: Home): Property {
   } as unknown as Property
 }
 
-export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillAddress, prefillName, prefillEmail, onSubmitAnswers, onProgress, onComplete }: {
+export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillAddress, prefillName, prefillEmail, onSubmitAnswers, onProgress, onComplete, look }: {
   form: PublicFormConfig
+  /** The form's look (lib/formLook); its golds are re-tinted by the page (lib/accentRecolor). */
+  look?: FormLook | null
   agentSlug: string
   formSlug: string
   /** A page that already knows the home (e.g. a listing's "Schedule a showing" link). */
@@ -244,8 +247,10 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
   // Top-anchored, not centred: a centred page re-centred itself every time the suggestion list grew
   // or shrank, so the search bar jumped while they typed (user, 10/18 - "glitchy").
   return (
-    <div className="relative flex min-h-[100dvh] flex-col items-center justify-start overflow-x-hidden px-4 pb-20 pt-8 sm:pb-16 sm:pt-[9vh]">
+    <div className={`fr-root relative flex min-h-[100dvh] flex-col items-center justify-start overflow-x-hidden px-4 pb-20 pt-8 sm:pb-16 sm:pt-[9vh] ${look ? formLookClass(look) : ''}`}
+      style={look ? (formLookVars(look) as React.CSSProperties) : undefined}>
       <style>{SHOWING_CSS}</style>
+      {look && <style dangerouslySetInnerHTML={{ __html: FORM_LOOK_CSS }} />}
       {/* the lit backdrop */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="showing-orb absolute -top-40 left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.28),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.2),transparent)]" />
@@ -257,7 +262,7 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2.5 rounded-full border border-black/[0.06] bg-white/80 py-1.5 pl-1.5 pr-4 shadow-sm dark:border-white/10 dark:bg-white/[0.06]">
           {form.agentPhotoUrl
             ? <img src={form.agentPhotoUrl} alt="" className="h-8 w-8 rounded-full object-cover ring-2 ring-[#C9A24D]" />
-            : <span className="grid h-8 w-8 place-items-center rounded-full bg-[#C9A24D] text-[11px] font-black text-white">{initials(form.agentName)}</span>}
+            : <span data-fill="" className="grid h-8 w-8 place-items-center rounded-full bg-[#C9A24D] text-[11px] font-black text-white">{initials(form.agentName)}</span>}
           <span className="leading-tight">
             <span className="block font-serif text-sm font-black text-[#111827] dark:text-white">{form.agentName}</span>
             {form.agentBrokerage && <span className="block text-[9px] font-bold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">{form.agentBrokerage}</span>}
@@ -282,7 +287,7 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
           <CalendarDays className="h-3.5 w-3.5" /> Private showing
         </motion.p>
         <motion.h1 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, type: 'spring', stiffness: 260, damping: 26 }}
-          className="mt-3 font-serif text-4xl font-black leading-[1.05] tracking-tight text-[#111827] dark:text-white sm:text-5xl">
+          className="fr-title mt-3 font-serif text-4xl font-black leading-[1.05] tracking-tight text-[#111827] dark:text-white sm:text-5xl">
           {form.headline || form.title || 'Schedule a Showing'}
         </motion.h1>
         <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}

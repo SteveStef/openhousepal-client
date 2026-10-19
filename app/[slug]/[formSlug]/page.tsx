@@ -10,6 +10,8 @@ import { PublicFormConfig } from '@/types'
 import api, { API_BASE_URL } from '@/lib/api-service'
 import { useForcedLightMode } from '@/lib/useForcedLightMode'
 import useHubColorMode from '@/components/agent-hub/useHubColorMode'
+import { applyAccentRecolor } from '@/lib/accentRecolor'
+import { formLookOf, formPaint, type FormLook } from '@/lib/formLook'
 
 function generateSessionKey() {
   return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -67,14 +69,42 @@ export default function PublicFormPage() {
   const sessionKeyRef = useRef(generateSessionKey())
   const visitRef = useRef<FormVisitContext | null>(null)
   useForcedLightMode(forceLightMode)
+  // ?preview=1: a live preview inside an editor (form Settings, the setup flow) - the editor hands
+  // over the look being picked, so it changes the instant a choice is tapped. Not a visit.
+  const preview = searchParams.get('preview') === '1'
+  const [liveLook, setLiveLook] = useState<FormLook | null>(null)
+  useEffect(() => {
+    if (!preview) return
+    const on = (e: MessageEvent) => {
+      if (e.origin === window.location.origin && e.data?.type === 'ohp-form-look') setLiveLook(formLookOf(e.data.look))
+    }
+    window.addEventListener('message', on)
+    return () => window.removeEventListener('message', on)
+  }, [preview])
+  useEffect(() => {
+    if (preview && form) window.parent?.postMessage({ type: 'ohp-form-preview-ready' }, window.location.origin)
+  }, [preview, form])
+  // The form's look - the Agent Hub's unless the form has its own (resolved by the backend).
+  // Every gold class on the page follows its colour / metal (lib/accentRecolor).
+  // ?look=luxe-silver-dark / classic-2563EB-light: design review on this computer only.
+  const reviewLook = process.env.NODE_ENV !== 'production' ? searchParams.get('look') : null
+  const look = useMemo(() => {
+    if (!form) return null
+    if (liveLook) return liveLook
+    const [theme, pick, mode] = (reviewLook || '').split('-')
+    if (theme === 'luxe' || theme === 'classic') return formLookOf({ theme, metal: pick, accent: `#${pick}`, dark: mode === 'dark' })
+    return formLookOf(form.look, form.darkMode)
+  }, [form, reviewLook, liveLook])
+  const recolor = look ? formPaint(look).recolor : null
+  useEffect(() => (recolor ? applyAccentRecolor(recolor) : undefined), [recolor])
   // The form's own light/dark choice, never the app's: an agent who uses OpenHousePal in dark mode
   // put 'dark' on <html> for this whole browser, turning a light form's text white (user, 10/18).
-  useHubColorMode(!!form?.darkMode, !!form && !forceLightMode)
+  useHubColorMode(!!look?.dark, !!form && !forceLightMode)
 
   useEffect(() => {
     const fetchForm = async () => {
       setIsLoading(true)
-      const { success, data } = await api.public.getPublicForm(slug, formSlug, campaignToken)
+      const { success, data } = await api.public.getPublicForm(slug, formSlug, campaignToken, preview)
       if (success && data) {
         setForm(data)
         setNotFound(false)
@@ -115,19 +145,25 @@ export default function PublicFormPage() {
   }
 
   const trackProgress = (stepIndex: number, questionId: string | null, completed?: boolean, answers?: Record<string, unknown>) => {
+    if (preview) return
     visitRef.current = visitRef.current || formVisitContext()
     api.public.trackFormProgress(slug, formSlug, { sessionKey: sessionKeyRef.current, stepIndex, questionId, completed, campaignToken, answers, ...visitRef.current }).catch(() => {})
   }
 
   // Schedule a Showing: find the home, then the Showcase's tour window + Pending/Confirmed status.
+  const dark = !!look?.dark && !forceLightMode
+  const pageBg = look?.theme === 'luxe' ? (dark ? 'dark bg-[#0c0c0e]' : 'bg-[#fffdf8]') : dark ? 'dark bg-[#0B0B0B]' : 'bg-[#FAFAF7]'
+  const shownLook = look && forceLightMode ? { ...look, dark: false } : look
+
   if (canUseShowingFlow(form)) {
     return (
-      <div className={`relative ${forceLightMode ? 'ohp-force-light' : ''} ${form.darkMode && !forceLightMode ? 'dark bg-[#0B0B0B]' : 'bg-[#FAFAF7]'} min-h-screen`}>
+      <div className={`relative ${forceLightMode ? 'ohp-force-light' : ''} ${pageBg} min-h-screen`}>
         {forceLightMode && <PublicFormBackButton fallbackHref={idxFallbackHref} />}
         <ShowingRequestFlow
           form={{ ...form, agentPhotoUrl: resolvePhotoUrl(form.agentPhotoUrl), showBranding: forceLightMode ? false : form.showBranding }}
           agentSlug={slug}
           formSlug={formSlug}
+          look={shownLook}
           prefillAddress={prefill.property_of_interest}
           prefillName={prefill.full_name || prefill.name}
           prefillEmail={prefill.email}
@@ -143,7 +179,7 @@ export default function PublicFormPage() {
   }
 
   return (
-    <div className={`relative ${forceLightMode ? 'ohp-force-light' : ''} ${form.darkMode && !forceLightMode ? 'dark bg-[#0B0B0B]' : 'bg-[#FAFAF7]'} h-screen`}>
+    <div className={`relative ${forceLightMode ? 'ohp-force-light' : ''} ${pageBg} h-screen`}>
       {forceLightMode && <PublicFormBackButton fallbackHref={idxFallbackHref} />}
       <FormRunner
         formId={form.formId}
@@ -178,6 +214,7 @@ export default function PublicFormPage() {
         forceLightMode={forceLightMode}
         showcasePreview={form.formType === 'showcase_request'}
         exampleProperties={form.exampleProperties}
+        look={shownLook}
         onProgress={trackProgress}
         onSubmit={async answers => {
           const { success, data, error } = await api.public.submitPublicForm(slug, formSlug, answers, { sessionKey: sessionKeyRef.current, campaignToken })

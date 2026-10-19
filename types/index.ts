@@ -1077,6 +1077,10 @@ export interface AgentFormConfig {
   accent_color?: string | null;
   show_branding: boolean;
   dark_mode: boolean;
+  /** 'hub' = matches the Agent Hub; 'custom' = look_theme + accent_color / luxe_metal + dark_mode. */
+  look_mode?: 'hub' | 'custom';
+  look_theme?: 'classic' | 'luxe' | null;
+  luxe_metal?: 'gold' | 'silver' | 'bronze' | null;
   redirect_to_agent_hub: boolean;
   property_photo_carousel: boolean;
   background_effects: boolean;
@@ -1146,6 +1150,8 @@ export interface PublicFormConfig {
   accentColor?: string | null;
   showBranding: boolean;
   darkMode: boolean;
+  /** Resolved look: the Agent Hub's unless the form has its own (lib/formLook). */
+  look?: { theme: 'classic' | 'luxe'; accent: string; metal: 'gold' | 'silver' | 'bronze'; dark: boolean } | null;
   redirectToAgentHub: boolean;
   // Set when the link's campaign overrides where people go after submitting.
   afterSubmitMode?: 'agent_hub' | 'sales' | 'none' | 'custom' | null;

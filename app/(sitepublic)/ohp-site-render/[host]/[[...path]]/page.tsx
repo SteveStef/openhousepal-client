@@ -239,7 +239,7 @@ async function baseMetadata({
         hubSlug && form?.slug ? `https://${OHP_BASE_DOMAIN}/${encodeURIComponent(hubSlug)}/${encodeURIComponent(form.slug)}` : undefined,
         {
           description: form?.subtitle,
-          ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug, v: cardVersion(form.headline, form.title, form.subtitle, form.darkMode) }) : undefined,
+          ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug, v: cardVersion('c2', form.headline, form.title, form.subtitle, form.darkMode, JSON.stringify((form as any).look || null)) }) : undefined,
         },
       )
     }
@@ -254,7 +254,7 @@ async function baseMetadata({
       canonical || undefined,
       {
         description: form?.subtitle,
-        ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug, v: cardVersion(form.headline, form.title, form.subtitle, form.darkMode) }) : undefined,
+        ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug, v: cardVersion('c2', form.headline, form.title, form.subtitle, form.darkMode, JSON.stringify((form as any).look || null)) }) : undefined,
       },
     )
   }
@@ -267,7 +267,7 @@ async function baseMetadata({
       hubSlug && form?.slug ? `https://${OHP_BASE_DOMAIN}/${encodeURIComponent(hubSlug)}/${encodeURIComponent(form.slug)}` : undefined,
       {
         description: form?.subtitle,
-        ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug, v: cardVersion(form.headline, form.title, form.subtitle, form.darkMode) }) : undefined,
+        ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug, v: cardVersion('c2', form.headline, form.title, form.subtitle, form.darkMode, JSON.stringify((form as any).look || null)) }) : undefined,
       },
     )
   }

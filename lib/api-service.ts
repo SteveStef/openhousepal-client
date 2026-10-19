@@ -1255,11 +1255,15 @@ class ApiService {
     deleteSubmission: (submissionId: string) =>
       this.request<null>(`/agent-hub/forms/submissions/${submissionId}`, { method: 'DELETE' }),
 
-    updateForm: (formId: string, data: Partial<Pick<AgentFormConfig, 'title' | 'headline' | 'subtitle' | 'description' | 'questions' | 'success_heading' | 'success_message' | 'accent_color' | 'show_branding' | 'dark_mode' | 'redirect_to_agent_hub' | 'property_photo_carousel' | 'background_effects' | 'welcome_text_effects' | 'branding_layout' | 'linked_property'>>) =>
+    updateForm: (formId: string, data: Partial<Pick<AgentFormConfig, 'title' | 'headline' | 'subtitle' | 'description' | 'questions' | 'success_heading' | 'success_message' | 'accent_color' | 'show_branding' | 'dark_mode' | 'redirect_to_agent_hub' | 'property_photo_carousel' | 'background_effects' | 'welcome_text_effects' | 'branding_layout' | 'linked_property' | 'look_mode' | 'look_theme' | 'luxe_metal'>>) =>
       this.request<AgentFormConfig>(`/agent-hub/forms/${formId}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
+
+    /** One look on every form (setup flow / "Use on all my forms"). */
+    updateAllLook: (data: { look_mode: 'hub' | 'custom'; look_theme?: 'classic' | 'luxe'; accent_color?: string; luxe_metal?: string; dark_mode?: boolean }) =>
+      this.request<AgentFormConfig[]>('/agent-hub/forms/look', { method: 'PATCH', body: JSON.stringify(data) }),
 
     checkSlug: (formId: string, slug: string) =>
       this.request<{ slug: string; available: boolean }>(`/agent-hub/forms/${formId}/slug/check?slug=${encodeURIComponent(slug)}`),
@@ -2234,8 +2238,14 @@ class ApiService {
     getPublicForms: (agentSlug: string) =>
       this.request<PublicFormSummary[]>(`/agent-hub/forms/public/${encodeURIComponent(agentSlug)}`, {}, false),
 
-    getPublicForm: (agentSlug: string, formSlug: string, campaignToken?: string | null) =>
-      this.request<PublicFormConfig>(`/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}${campaignToken ? `?c=${encodeURIComponent(campaignToken)}` : ''}`, {}, false),
+    getPublicForm: (agentSlug: string, formSlug: string, campaignToken?: string | null, preview = false) => {
+      const q = new URLSearchParams()
+      if (campaignToken) q.set('c', campaignToken)
+      // an editor's live preview - not counted as a visit
+      if (preview) q.set('preview', '1')
+      const qs = q.toString()
+      return this.request<PublicFormConfig>(`/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}${qs ? `?${qs}` : ''}`, {}, false)
+    },
 
     submitPublicForm: (
       agentSlug: string,
@@ -2378,7 +2388,7 @@ class ApiService {
   };
 }
 
-export type SetupStepId = 'about' | 'contact' | 'license' | 'photo' | 'story' | 'socials' | 'sales' | 'reviews' | 'brand' | 'hub' | 'signature' | 'alerts' | 'calendar' | 'mailbox' | 'crm' | 'areas' | 'homes' | 'website'
+export type SetupStepId = 'about' | 'contact' | 'license' | 'photo' | 'story' | 'socials' | 'sales' | 'reviews' | 'brand' | 'hub' | 'forms' | 'signature' | 'alerts' | 'calendar' | 'mailbox' | 'crm' | 'areas' | 'homes' | 'website'
 export interface MailboxInfo {
   connected: boolean
   provider: 'google' | 'microsoft' | null

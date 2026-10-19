@@ -16,6 +16,8 @@ import api, { API_BASE_URL, resolveMediaUrl } from '@/lib/api-service'
 import FormResultsModal from '@/components/forms/FormResultsModal'
 import FormStatsModal from '@/components/forms/FormStatsModal'
 import FormBuilderModal from '@/components/forms/FormBuilderModal'
+import FormLookPicker from '@/components/forms/FormLookPicker'
+import { formLookOf, type FormLookFields } from '@/lib/formLook'
 import FormQrCode from '@/components/forms/FormQrCode'
 import FormTypeArt, { hasFormTypeArt } from '@/components/forms/FormTypeArt'
 import InboxWindow, { InboxButton } from '@/components/ui/InboxWindow'
@@ -1434,6 +1436,8 @@ function AgentHubContent() {
   }
   // Classic accent colour - every plan (the Luxe metals are Luxe's own).
   const [hubAccent, setHubAccent] = useState<string>(HUB_CLASSIC_DEFAULT_ACCENT)
+  // What a form that matches the Agent Hub wears (lib/formLook) - follows the hub choices above live.
+  const formHubLook = formLookOf({ theme: hubTheme === 'luxe' && hubLuxeAllowed ? 'luxe' : 'classic', accent: hubAccent, metal: hubLuxeMetal, dark: visitorDarkMode })
   const handleHubAccent = async (next: string) => {
     const prev = hubAccent
     setHubAccent(next)
@@ -2672,6 +2676,34 @@ function AgentHubContent() {
     setFormIsDirty(current => ({ ...current, [formId]: true }))
   }
 
+  // A form's look: the Agent Hub's (default) or its own from the hub's choices (lib/formLook).
+  const updateFormLook = (formId: string, patch: FormLookFields) => {
+    setAgentForms(current => current.map(form => form.id === formId ? { ...form, ...patch } as AgentFormConfig : form))
+    setFormSaveStatus(current => ({ ...current, [formId]: 'idle' }))
+    setFormIsDirty(current => ({ ...current, [formId]: true }))
+  }
+  // "Use this look on all my forms" - saved straight away for every form (this one included).
+  const applyFormLookToAll = async (formId: string) => {
+    const form = agentForms.find(item => item.id === formId)
+    if (!form) return false
+    const res = await api.forms.updateAllLook({
+      look_mode: form.look_mode === 'custom' ? 'custom' : 'hub',
+      look_theme: form.look_theme || 'classic', accent_color: form.accent_color || undefined, luxe_metal: form.luxe_metal || 'gold', dark_mode: !!form.dark_mode,
+    })
+    if (!res.success || !res.data) return false
+    const byId = new Map(res.data.map(item => [item.id, item]))
+    // only the look fields - unsaved edits to the open form's questions/copy stay as they are
+    setAgentForms(current => current.map(item => {
+      const saved = byId.get(item.id)
+      return saved ? { ...item, look_mode: saved.look_mode, look_theme: saved.look_theme, luxe_metal: saved.luxe_metal, accent_color: saved.accent_color, dark_mode: saved.dark_mode } : item
+    }))
+    for (const saved of res.data) {
+      const prev = lastSavedFormsRef.current[saved.id]
+      if (prev) lastSavedFormsRef.current[saved.id] = { ...prev, look_mode: saved.look_mode, look_theme: saved.look_theme, luxe_metal: saved.luxe_metal, accent_color: saved.accent_color, dark_mode: saved.dark_mode }
+    }
+    return true
+  }
+
   const toggleFormRedirect = (formId: string) => {
     setAgentForms(current => current.map(form => form.id === formId ? { ...form, redirect_to_agent_hub: !form.redirect_to_agent_hub } : form))
     setFormSaveStatus(current => ({ ...current, [formId]: 'idle' }))
@@ -2773,6 +2805,9 @@ function AgentHubContent() {
       accent_color: form.accent_color,
       show_branding: form.show_branding,
       dark_mode: form.dark_mode,
+      look_mode: form.look_mode || 'hub',
+      look_theme: form.look_theme || undefined,
+      luxe_metal: form.luxe_metal || undefined,
       redirect_to_agent_hub: form.redirect_to_agent_hub,
       property_photo_carousel: form.property_photo_carousel,
       background_effects: form.background_effects !== false,
@@ -3961,6 +3996,10 @@ function AgentHubContent() {
         onUpdateField={(field, value) => updateFormField(formEditorOpenId, field, value)}
         onToggleBranding={() => toggleFormBranding(formEditorOpenId)}
         onToggleDarkMode={() => toggleFormDarkMode(formEditorOpenId)}
+        hubLook={formHubLook}
+        luxeAllowed={hubLuxeAllowed}
+        onUpdateLook={(patch) => updateFormLook(formEditorOpenId, patch)}
+        onApplyLookToAll={() => applyFormLookToAll(formEditorOpenId)}
         onToggleRedirectToAgentHub={() => toggleFormRedirect(formEditorOpenId)}
         onTogglePropertyPhotoCarousel={() => toggleFormPropertyPhotoCarousel(formEditorOpenId)}
         onToggleBackgroundEffects={() => toggleFormBackgroundEffects(formEditorOpenId)}
@@ -4053,26 +4092,10 @@ function AgentHubContent() {
               <p className="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400">Its questions are locked so the automation behind it always works, but you can still change its color and dark mode.</p>
               <div className="mt-4"><ShowcaseFormInfoBlock formType={themeEditForm.form_type} compact /></div>
 
-              <label className="mt-5 block">
-                <span className="text-xs font-black uppercase tracking-widest text-gray-400">Accent color</span>
-                <input
-                  type="color"
-                  value={themeEditForm.accent_color || '#C9A24D'}
-                  onChange={(event) => updateFormField(themeEditFormId, 'accent_color', event.target.value)}
-                  className="mt-2 h-[46px] w-full rounded-xl border border-gray-200 bg-white px-2 dark:border-gray-700 dark:bg-[#0B0B0B]"
-                />
-              </label>
-
-              <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-[#fbfaf7] p-4 dark:border-gray-700 dark:bg-[#0B0B0B]">
-                <p className="text-sm font-black text-[#111827] dark:text-white">Dark mode</p>
-                <button
-                  type="button"
-                  onClick={() => toggleFormDarkMode(themeEditFormId)}
-                  className={`relative h-7 w-12 shrink-0 rounded-full transition ${themeEditForm.dark_mode ? 'bg-[#111827] dark:bg-white' : 'bg-gray-300 dark:bg-gray-700'}`}
-                  aria-label={`${themeEditForm.dark_mode ? 'Turn off' : 'Turn on'} dark mode`}
-                >
-                  <span className={`absolute top-1 h-5 w-5 rounded-full transition ${themeEditForm.dark_mode ? 'left-6 bg-white dark:bg-[#111827]' : 'left-1 bg-white'}`} />
-                </button>
+              <div className="mt-5">
+                <p className="mb-3 text-xs font-black uppercase tracking-widest text-gray-400">Look</p>
+                <FormLookPicker value={themeEditForm} hubLook={formHubLook} luxeAllowed={hubLuxeAllowed}
+                  onChange={(patch) => updateFormLook(themeEditFormId, patch)} onApplyAll={() => applyFormLookToAll(themeEditFormId)} />
               </div>
 
               <div className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-[#fbfaf7] p-4 dark:border-gray-700 dark:bg-[#0B0B0B]">

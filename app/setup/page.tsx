@@ -16,17 +16,17 @@ import { OhpWordmark } from '@/components/brand/OhpBrand'
 import OhpLoader from '@/components/brand/OhpLoader'
 import type { Gate, StepCtx } from '@/components/setup/SetupUi'
 import { AboutStep, ContactStep, LicenseStep, PhotoStep, SocialsStep, StoryStep } from '@/components/setup/InfoSteps'
-import { BrandStep, HubStep, ReviewsStep, SalesStep, SignatureStep } from '@/components/setup/FeatureSteps'
+import { BrandStep, FormsStep, HubStep, ReviewsStep, SalesStep, SignatureStep } from '@/components/setup/FeatureSteps'
 import { AlertsStep, AreasStep, CalendarStep, CrmStep, HomesStep, MailboxStep, WebsiteStep } from '@/components/setup/ConnectSteps'
 
 const STEP_VIEWS: Record<SetupStepId, (p: { ctx: StepCtx }) => React.ReactElement> = {
   about: AboutStep, contact: ContactStep, license: LicenseStep, photo: PhotoStep, story: StoryStep, socials: SocialsStep,
-  sales: SalesStep, reviews: ReviewsStep, brand: BrandStep, hub: HubStep, signature: SignatureStep,
+  sales: SalesStep, reviews: ReviewsStep, brand: BrandStep, hub: HubStep, forms: FormsStep, signature: SignatureStep,
   alerts: AlertsStep, calendar: CalendarStep, mailbox: MailboxStep, crm: CrmStep, areas: AreasStep, homes: HomesStep, website: WebsiteStep,
 }
 const GROUPS: { title: string; ids: SetupStepId[] }[] = [
   { title: 'About you', ids: ['about', 'contact', 'license', 'photo', 'story', 'socials'] },
-  { title: 'Your pages', ids: ['sales', 'reviews', 'brand', 'hub', 'signature'] },
+  { title: 'Your pages', ids: ['sales', 'reviews', 'brand', 'hub', 'forms', 'signature'] },
   { title: 'Staying in touch', ids: ['alerts', 'calendar', 'mailbox', 'crm'] },
   { title: 'Your website', ids: ['areas', 'homes', 'website'] },
 ]

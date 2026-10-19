@@ -413,11 +413,37 @@ const FORM_FACE: Record<FormKind, { eyebrow: string; button: string; d: string[]
     d: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', 'M8 9h8', 'M8 13h5'] },
 }
 
-// Ends on a whole word (never "...what's realistic in").
-const clip = (t: string, max: number) => (t.length <= max ? t : t.slice(0, t.lastIndexOf(' ', max - 1)).replace(/[\s,;:-]+$/, '') + '…')
 
-export function FormCard({ photo, name, brokerage, headline, support, kind, look }: {
-  photo: string | null; name: string; brokerage: string | null; headline: string; support: string | null; kind: FormKind; look: HubLook
+// The card's words (user, 10/18): the title on one line ("Name Your Price" / "We'll Tell You If
+// It's Possible" as two), the line under it on one line. Built-in forms still on their template
+// words get copy written for the card; anything the agent wrote is used as they wrote it.
+const FORM_CARD_COPY: Record<string, { defaults: string[]; headline: string; support: string }> = {
+  home_value: { defaults: ["Let's Find Out What Your Home Is Worth"], headline: "What's My Home Worth?", support: "Find out your home's true value in today's market." },
+  buying: { defaults: ["Let's Find Your Next Home"], headline: "Let's Find Your Next Home", support: "Tell me what you want and I'll build your plan." },
+  selling: { defaults: ["Let's Get Your Home Sold"], headline: "Let's Get Your Home Sold", support: 'A few quick questions to plan your sale.' },
+  showing: { defaults: ['Schedule a Showing'], headline: 'Schedule a Showing', support: "Pick a time and I'll set it up for you." },
+  showcase_request: { defaults: ['Setup My Own Showcase', 'Set Up My Own Showcase'], headline: 'Create A Showcase', support: 'Homes that match what you want, as they list.' },
+  how_can_i_help: { defaults: ['How Can We Help', 'How Can I Help'], headline: 'How Can I Help?', support: "Tell me what you need and I'll follow up." },
+  seller_onboarding: { defaults: ["Let's Get Your Listing Started"], headline: "Let's Get Your Listing Started", support: 'A few details to set your listing up right.' },
+  buyer_onboarding: { defaults: ["Let's Get You Set Up"], headline: "Let's Get You Set Up", support: 'A few details so I can start finding your homes.' },
+  make_me_sell: { defaults: ["Name Your Price - We'll Tell You If It's Possible"], headline: "Name Your Price - We'll Tell You If It's Possible", support: 'Tell me the number that would make you say yes.' },
+}
+const firstSentence = (t: string) => (t.match(/^.*?[.!?](?=\s|$)/)?.[0] || t).trim()
+function formCardCopy(formType: string, headline: string, subtitle: string | null | undefined): { lines: string[]; support: string } {
+  const preset = FORM_CARD_COPY[formType]
+  const own = !preset || !preset.defaults.some(d => d.toLowerCase() === headline.trim().toLowerCase())
+  const title = own ? headline : preset.headline
+  const support = own ? (subtitle ? firstSentence(subtitle) : 'A few quick questions and I follow up personally.') : preset.support
+  return { lines: title.split(/\s+[-–—]\s+/).filter(Boolean).slice(0, 2), support }
+}
+// One line each: the size that fits the column (measured: Playfair black ~0.51em a letter, Manrope ~0.49em - with a little room).
+const COL = 540
+const fitTitle = (lines: string[]) => Math.max(28, Math.min(60, Math.floor(COL / (Math.max(...lines.map(l => l.length)) * 0.52))))
+const fitSupport = (t: string) => Math.max(17, Math.min(23, Math.floor(COL / (t.length * 0.5))))
+const singleLine = { whiteSpace: 'nowrap' as const, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, maxWidth: COL + 60 }
+
+export function FormCard({ photo, name, brokerage, lines, support, kind, look }: {
+  photo: string | null; name: string; brokerage: string | null; lines: string[]; support: string; kind: FormKind; look: HubLook
 }) {
   const face = FORM_FACE[kind]
   const ink = look.dark ? '#F3ECDD' : '#16130e'
@@ -426,7 +452,7 @@ export function FormCard({ photo, name, brokerage, headline, support, kind, look
   const outer = look.dark ? `radial-gradient(900px 520px at 85% 0%, ${mixHex(look.base, '#000000', 0.7)} 0%, #0d0d0f 60%, #070708 100%)` : `radial-gradient(900px 520px at 85% 0%, ${mixHex(look.base, '#1a150d', 0.6)} 0%, #16120c 58%, #0d0b08 100%)`
   const label = look.dark ? look.light : look.deep
   const btnInk = lum(mixHex(look.light, look.base, 0.5)) < 0.5 ? '#ffffff' : '#16130e'
-  const hl = headline.length
+  const titleSize = fitTitle(lines)
   return (
     <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: '#0d0b08',
       backgroundImage: outer, alignItems: 'center', justifyContent: 'center' }}>
@@ -440,12 +466,12 @@ export function FormCard({ photo, name, brokerage, headline, support, kind, look
             {face.d.map((seg, i) => <path key={i} d={seg} />)}
           </svg>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '0 0 0 66px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '0 0 0 60px' }}>
           <div style={{ display: 'flex', position: 'relative' }}>
             <div style={{ display: 'flex', padding: 7, borderRadius: 34, backgroundImage: `linear-gradient(140deg, ${look.light}, ${look.base} 60%, ${look.deep})`, boxShadow: `0 24px 50px -20px ${look.deep}b3` }}>
               {photo
-                ? <img src={photo} width={260} height={320} style={{ width: 260, height: 320, borderRadius: 28, objectFit: 'cover' }} />
-                : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 260, height: 320, borderRadius: 28, backgroundColor: look.dark ? '#000' : '#16130e', color: look.light, fontSize: 88, fontWeight: 900 }}>{initialsOf(name)}</div>}
+                ? <img src={photo} width={232} height={310} style={{ width: 232, height: 310, borderRadius: 28, objectFit: 'cover' }} />
+                : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 232, height: 310, borderRadius: 28, backgroundColor: look.dark ? '#000' : '#16130e', color: look.light, fontSize: 88, fontWeight: 900 }}>{initialsOf(name)}</div>}
             </div>
             {/* the same picture as a badge on the photo */}
             <div style={{ position: 'absolute', right: -22, bottom: -14, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 84, height: 84, borderRadius: 999,
@@ -454,13 +480,17 @@ export function FormCard({ photo, name, brokerage, headline, support, kind, look
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 70px 0 64px', flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 46px 0 58px', flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 900, letterSpacing: 4, textTransform: 'uppercase', color: label }}>
             <div style={{ display: 'flex', width: 28, height: 2, backgroundColor: look.base }} />
             {face.eyebrow}
           </div>
-          <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: hl > 46 ? 44 : hl > 32 ? 52 : 60, lineHeight: 1.04, letterSpacing: -1, color: ink, marginTop: 14, maxWidth: 560 }}>{headline}</div>
-          {support ? <div style={{ display: 'flex', fontSize: 22, lineHeight: 1.35, fontWeight: 600, color: sub, marginTop: 14, maxWidth: 540 }}>{support}</div> : null}
+          <div style={{ display: 'flex', flexDirection: 'column', marginTop: 14 }}>
+            {lines.map((l, i) => (
+              <div key={i} style={{ display: 'flex', ...singleLine, fontFamily: 'Playfair', fontWeight: 900, fontSize: titleSize, lineHeight: 1.1, letterSpacing: -1, color: i === 0 ? ink : label }}>{l}</div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', ...singleLine, fontSize: fitSupport(support), lineHeight: 1.3, fontWeight: 600, color: sub, marginTop: 14 }}>{support}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 30 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 54, padding: '0 24px', borderRadius: 999, fontSize: 19, fontWeight: 900, flexShrink: 0,
               backgroundImage: `linear-gradient(135deg, ${look.light}, ${look.base})`, color: btnInk, boxShadow: `0 12px 26px -14px ${look.deep}` }}>
@@ -496,18 +526,18 @@ export async function renderFormCard(agentSlug: string, formSlug: string, fonts:
     const cfg = hub?.config || {}
     const agentPhoto = await imgToDataUri(data?.agentPhotoUrl || cfg.profilePhotoUrl || cfg.profile?.photoUrl)
     const agentName: string = data?.agentName || cfg.profile?.name || 'Your agent'
-    // Forms have no colours of their own - they wear the hub's look; a form set to dark is dark.
-    const look = hubLook(lookOverride(previewLook) || { ...cfg, visitorDarkMode: !!cfg.visitorDarkMode || !!data?.darkMode })
+    // The form's own look (the Agent Hub's unless it has its own - resolved by the backend).
+    const fl = data?.look
+    const look = hubLook(lookOverride(previewLook) || (fl ? { hubTheme: fl.theme, hubAccent: fl.accent, hubLuxeMetal: fl.metal, visitorDarkMode: !!fl.dark } : { ...cfg, visitorDarkMode: !!cfg.visitorDarkMode || !!data?.darkMode }))
     const kind = FORM_KIND[String(data?.formType || '')] || (formSlug.includes('worth') || formSlug.includes('value') ? 'value' : 'talk')
+    const copy = formCardCopy(String(data?.formType || ''), String(data?.headline || data?.title || "Let's talk"), data?.subtitle)
     return IR(
       <FormCard photo={agentPhoto} name={agentName} brokerage={data?.agentBrokerage || cfg.profile?.brokerage || null}
-        headline={String(data?.headline || data?.title || "Let's talk")}
-        support={data?.subtitle ? clip(String(data.subtitle), 112) : 'A few quick questions and I follow up personally.'}
-        kind={kind} look={look} />,
+        lines={copy.lines} support={copy.support} kind={kind} look={look} />,
       fonts,
     )
   } catch {
-    return IR(<FormCard photo={null} name="Your agent" brokerage={null} headline="Let's talk" support="A few quick questions and I follow up personally." kind="talk" look={hubLook(null)} />, fonts)
+    return IR(<FormCard photo={null} name="Your agent" brokerage={null} lines={["Let's Talk"]} support="A few quick questions and I follow up personally." kind="talk" look={hubLook(null)} />, fonts)
   }
 }
 
