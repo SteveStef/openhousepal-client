@@ -40,16 +40,24 @@ export type OgHome = { photo: string | null; price: string; facts: string; stree
 
 /** A listing photo with Bright's bottom-left watermark pushed out of frame (scaled from the top-right). */
 export function MlsSafePhoto({ src, w, h, radius = 0, corners }: { src: string | null; w: number; h: number; radius?: number; corners?: [number, number, number, number] }) {
-  // corners = [top-left, top-right, bottom-right, bottom-left]. The photo is the box's own
-  // background (zoomed 16% from the top-right, so the watermark falls outside): the image renderer
-  // clips a child <img> to a square, not a curve - it ran over rounded card corners (user, 10/19).
+  // corners = [top-left, top-right, bottom-right, bottom-left]. Zoomed 16% from the right so the
+  // watermark falls outside; as centred top-to-bottom as it can be while the bottom tenth (where the
+  // watermark sits) still falls outside - wide boxes showed only roofs (user, 10/19).
   const r = corners || [radius, radius, radius, radius]
   const dim = imgSize(src)
-  // cover the box, then 16% more, pinned right; as centred top-to-bottom as it can be while the
-  // bottom tenth (where the watermark sits) still falls outside - wide boxes showed only roofs
   const k = dim ? Math.max(w / dim.w, h / dim.h) * 1.16 : 0
-  const bw = dim ? Math.round(dim.w * k) : 0, bh = dim ? Math.round(dim.h * k) : 0
+  const bw = dim ? Math.round(dim.w * k) : Math.round(w * 1.16), bh = dim ? Math.round(dim.h * k) : Math.round(h * 1.16)
   const top = Math.round(Math.max(0, Math.min((bh - h) / 2, bh - h - bh * 0.1)))
+  // Square corners: a plain <img> in a clipping box. Rounded: the photo is the box's own
+  // background, since the image renderer clips a child <img> to a square, not a curve - it ran over
+  // rounded card corners (user, 10/19). (Backgrounds repeat in tall boxes, hence not used for both.)
+  if (!r.some(Boolean) || !dim) {
+    return (
+      <div style={{ display: 'flex', position: 'relative', width: w, height: h, overflow: 'hidden', backgroundColor: '#E9E2D3' }}>
+        {src ? <img src={src} width={bw} height={bh} style={{ position: 'absolute', top: -top, right: 0, width: bw, height: bh, objectFit: 'cover' }} /> : null}
+      </div>
+    )
+  }
   return (
     <div style={{ display: 'flex', position: 'relative', width: w, height: h, borderTopLeftRadius: r[0], borderTopRightRadius: r[1], borderBottomRightRadius: r[2], borderBottomLeftRadius: r[3], backgroundColor: '#E9E2D3',
       ...(src && dim ? { backgroundImage: `url(${src})`, backgroundSize: `${bw}px ${bh}px`, backgroundPosition: `${w - bw}px ${-top}px`, backgroundRepeat: 'no-repeat' } : {}) }} />
@@ -327,31 +335,95 @@ export async function renderShowcaseCard(shareToken: string, fonts: Fonts, accen
   }
 }
 
-export async function renderCmaCard(slug: string, fonts: Fonts): Promise<ImageResponse> {
+// --- CMA ------------------------------------------------------------------------------------
+// The report's own look (user, 10/19 - cards match what they open): the agent's brand navy with
+// their accent line along the top, the address in big serif, who it's for, what's inside, a button
+// - and the home itself filling the right half. No value on the card: the number is the reason to
+// open it (and a forwarded preview shouldn't give it away).
+export function CmaCard({ photo, street, place, facts, forName, mode, comps, agentName, agentBrokerage, agentPhoto, base, accent }: {
+  photo: string | null; street: string; place: string; facts: string[]; forName: string; mode: 'buyer' | 'listing'
+  comps: number; agentName: string; agentBrokerage: string | null; agentPhoto: string | null; base: string; accent: string
+}) {
+  const ink = lum(base) > 0.55 ? '#111827' : '#ffffff'
+  const sub = ink === '#ffffff' ? 'rgba(255,255,255,0.72)' : 'rgba(17,24,39,0.66)'
+  const btnInk = lum(accent) > 0.6 ? '#111827' : '#ffffff'
+  const rgb = [1, 3, 5].map(i => parseInt(accent.slice(i, i + 2), 16)).join(',')
+  const deepBase = mixHex(base, '#000000', 0.35)
+  const titleSize = street.length > 22 ? 52 : street.length > 16 ? 60 : 68
+  return (
+    <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: base,
+      backgroundImage: `radial-gradient(700px 520px at 0% 100%, rgba(${rgb},0.16) 0%, rgba(${rgb},0) 70%), linear-gradient(135deg, ${base} 0%, ${deepBase} 100%)` }}>
+      {/* the home, right half, fading into the brand colour */}
+      <div style={{ display: 'flex', position: 'absolute', top: 0, right: 0 }}>
+        <MlsSafePhoto src={photo} w={560} h={630} />
+      </div>
+      <div style={{ display: 'flex', position: 'absolute', top: 0, right: 0, width: 560, height: 630, backgroundImage: `linear-gradient(90deg, ${base} 0%, ${base}cc 14%, ${base}00 46%)` }} />
+      <div style={{ display: 'flex', position: 'absolute', top: 0, left: 0, right: 0, height: 8, backgroundImage: `linear-gradient(90deg, ${accent}, ${mixHex(accent, '#ffffff', 0.45)}, ${accent})` }} />
+
+      <div style={{ display: 'flex', flexDirection: 'column', width: 700, height: '100%', padding: '58px 0 54px 66px', color: ink }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 17, fontWeight: 900, letterSpacing: 5, textTransform: 'uppercase', color: accent }}>
+          <div style={{ display: 'flex', width: 30, height: 2, backgroundColor: accent }} />
+          Comparative Market Analysis
+        </div>
+        <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: titleSize, lineHeight: 1.04, letterSpacing: -1, marginTop: 18, maxWidth: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{street}</div>
+        {place ? <div style={{ display: 'flex', fontSize: 21, fontWeight: 900, letterSpacing: 4, textTransform: 'uppercase', color: sub, marginTop: 10 }}>{place}</div> : null}
+        {facts.length ? (
+          <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
+            {facts.map(f => <div key={f} style={{ display: 'flex', padding: '7px 15px', borderRadius: 999, fontSize: 18, fontWeight: 900, color: ink, backgroundColor: ink === '#ffffff' ? 'rgba(255,255,255,0.1)' : 'rgba(17,24,39,0.07)', border: `1px solid rgba(${rgb},0.4)` }}>{f}</div>)}
+          </div>
+        ) : null}
+        <div style={{ display: 'flex', fontSize: 25, color: sub, marginTop: 24, maxWidth: 580 }}>
+          {`${mode === 'listing' ? "What it's worth" : 'What to offer'}${comps ? `, backed by ${comps} recent ${comps === 1 ? 'sale' : 'sales'}` : ''}.`}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 21, fontWeight: 900, color: accent, marginTop: 10 }}>
+          <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+          {`Prepared for ${forName || 'you'}`}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 54, padding: '0 24px', borderRadius: 999, fontSize: 19, fontWeight: 900,
+            backgroundImage: `linear-gradient(135deg, ${mixHex(accent, '#ffffff', 0.35)}, ${accent})`, color: btnInk, boxShadow: `0 14px 28px -14px rgba(${rgb},0.9)` }}>
+            Open the report
+            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={btnInk} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {agentPhoto
+              ? <img src={agentPhoto} width={50} height={50} style={{ width: 50, height: 50, borderRadius: 999, objectFit: 'cover', border: `2px solid ${accent}` }} />
+              : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 50, height: 50, borderRadius: 999, backgroundColor: accent, color: btnInk, fontSize: 19, fontWeight: 900 }}>{initialsOf(agentName)}</div>}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', fontSize: 19, fontWeight: 900 }}>{agentName}</div>
+              {agentBrokerage ? <div style={{ display: 'flex', fontSize: 14, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', color: sub }}>{agentBrokerage}</div> : null}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export async function renderCmaCard(slug: string, fonts: Fonts, preview?: { mode?: string | null; client?: string | null } | null): Promise<ImageResponse> {
+  const hex = (v: unknown, d: string) => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : d)
   try {
     const data = await ogFetch<any>(`/api/cma/public/${encodeURIComponent(slug)}`)
     const subj = data?.subject || {}
     const agent = data?.agent || {}
-    const address = [subj.street_address, subj.city].filter(Boolean).map(titleCase).join(', ') || 'Your home'
     const [photo, agentPhoto] = await Promise.all([
-      imgToDataUri(subj.photo_url || (Array.isArray(subj.photos) ? subj.photos[0] : null)),
-      imgToDataUri(agent.photo_url || agent.photoUrl),
+      imgToDataUri(subj.photo_url || (Array.isArray(subj.photos) ? subj.photos[0] : null), 4500),
+      imgToDataUri(agent.headshot_url || agent.photo_url || agent.photoUrl),
     ])
-    const client = firstName(data?.client_name)
+    const beds = num(subj.beds), baths = num(subj.baths), sqft = num(subj.sqft)
+    const facts = [beds != null ? `${fmtN(beds)} bd` : null, baths != null ? `${fmtN(baths)} ba` : null, sqft ? `${Math.round(sqft).toLocaleString('en-US')} sq ft` : null].filter(Boolean) as string[]
+    const mode = (preview?.mode || data?.mode) === 'listing' ? 'listing' : 'buyer'
     return IR(
-      <PhotoCard
-        photo={photo}
-        eyebrow="Market Analysis"
-        headline={address}
-        sub={client ? `What it's worth — prepared for ${client}` : "What it's worth — prepared for you"}
-        agentName={agent.name || agent.full_name || 'Your agent'}
-        agentBrokerage={agent.brokerage || null}
-        agentPhoto={agentPhoto}
-      />,
+      <CmaCard photo={photo} street={titleCase(subj.street_address) || 'Your home'}
+        place={[titleCase(subj.city), subj.state].filter(Boolean).join(', ')}
+        facts={facts} forName={titleCase(firstName(preview?.client ?? data?.client_name))} mode={mode}
+        comps={Array.isArray(data?.comparables) ? data.comparables.length : 0}
+        agentName={agent.name || agent.full_name || 'Your agent'} agentBrokerage={agent.brokerage || null} agentPhoto={agentPhoto}
+        base={hex(agent.primary_color, '#111827')} accent={hex(agent.secondary_color, C.gold)} />,
       fonts,
     )
   } catch {
-    return IR(<PhotoCard photo={null} eyebrow="Market Analysis" headline="What your home is worth" sub="A market analysis prepared for you" agentName="Your agent" />, fonts)
+    return IR(<CmaCard photo={null} street="Your home" place="" facts={[]} forName="" mode="listing" comps={0} agentName="Your agent" agentBrokerage={null} agentPhoto={null} base="#111827" accent={C.gold} />, fonts)
   }
 }
 
