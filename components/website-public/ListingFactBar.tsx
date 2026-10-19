@@ -36,7 +36,7 @@ function StatItem({ value, label, theme, first }: { value: string | number; labe
       style={first ? undefined : { borderColor: `${theme.secondary_color}40` }}
     >
       <span className={`whitespace-nowrap font-black leading-none text-white ${fitTextClass(value)} ${fontClass(theme.heading_font, 'font-serif')}`}>{value}</span>
-      <span className="mt-1.5 whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.2em] text-white/50">{label}</span>
+      <span className="mt-1.5 whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">{label}</span>
     </div>
   )
 }

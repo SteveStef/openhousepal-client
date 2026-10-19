@@ -468,3 +468,9 @@
 .ohp-site[data-mode="dark"] .text-blue-600,
 .ohp-site[data-mode="dark"] .text-blue-700 { color: #93c5fd !important; }
 .ohp-site[data-mode="dark"] .bg-blue-50 { background-color: rgba(59, 130, 246, 0.15) !important; }
+
+/* The shared property design's filled button is accent background + brand-ink text - fine for the
+   Luxe metals, but navy-on-navy (unreadable) with Classic accents. On the site, its text uses the
+   accent's own readable "on" color instead. */
+.ohp-site .pp .bg-\[var\(--pp-gold\)\].text-\[color\:var\(--pp-ink\)\] { color: var(--site-on-accent) !important; }
+.ohp-site[data-template="luxe"] .pp .bg-\[var\(--pp-gold\)\].text-\[color\:var\(--pp-ink\)\] { color: var(--pp-ink) !important; }

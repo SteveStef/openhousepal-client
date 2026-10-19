@@ -411,7 +411,7 @@ function FooterColumn({ title, children, classic, delay = 0 }: { title: string; 
           <span className="h-px w-5" style={{ backgroundColor: 'var(--site-accent)' }} />{title}
         </p>
       )}
-      <ul className={`mt-4 space-y-2.5 text-sm ${classic ? 'ohp-classic-foot-links' : 'text-white/65'}`}>{children}</ul>
+      <ul className={`mt-4 space-y-0.5 text-sm sm:space-y-2.5 ${classic ? 'ohp-classic-foot-links' : 'text-white/65'}`}>{children}</ul>
     </motion.div>
   )
 }
@@ -419,7 +419,7 @@ function FooterColumn({ title, children, classic, delay = 0 }: { title: string; 
 function FooterLink({ href, children, form, spot }: { href: string; children: React.ReactNode; form?: string; spot?: string }) {
   return (
     <li>
-      <a href={href} data-ohp-form={form} data-ohp-spot={spot} className="group inline-flex items-center gap-1.5 transition-colors hover:text-white">
+      <a href={href} data-ohp-form={form} data-ohp-spot={spot} className="group inline-flex items-center gap-1.5 py-1.5 transition-colors hover:text-white sm:py-0">
         <span className="h-1 w-1 rounded-full bg-current opacity-0 transition-opacity group-hover:opacity-100" />
         {children}
         <ArrowUpRight className="h-3 w-3 -translate-x-1 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />

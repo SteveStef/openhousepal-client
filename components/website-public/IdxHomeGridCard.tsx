@@ -57,7 +57,7 @@ export default function IdxHomeGridCard({ listing, theme, basePrefix = '', onQui
           )}
         </span>
         <span className="absolute inset-x-4 bottom-3.5 block">
-          <span className="block text-[9.5px] font-black uppercase tracking-[0.24em] text-white/85">{fresh || 'Listed at'}</span>
+          <span className="block text-[10px] font-black uppercase tracking-[0.24em] text-white/85">{fresh || 'Listed at'}</span>
           <span className={`mt-1 block text-[27px] leading-none text-white drop-shadow-[0_2px_12px_rgba(0,0,0,.45)] ${luxe ? `font-black ${serif}` : 'font-black tracking-tight'}`}>
             {listing.price != null ? `$${listing.price.toLocaleString()}` : 'Price upon request'}
           </span>
@@ -87,7 +87,7 @@ export default function IdxHomeGridCard({ listing, theme, basePrefix = '', onQui
 
         {openHouses.length > 0 && (
           <span className="mt-3 block rounded-xl border px-3 py-2" style={{ borderColor: 'rgba(var(--site-accent-rgb),.28)', backgroundColor: 'rgba(var(--site-accent-rgb),.07)' }}>
-            <span className="block text-[9.5px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--site-accent-text)' }}>Open {openHouses.length === 1 ? 'house' : 'houses'}</span>
+            <span className="block text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--site-accent-text)' }}>Open {openHouses.length === 1 ? 'house' : 'houses'}</span>
             {openHouses.slice(0, 2).map(oh => (
               <span key={`${oh.date}-${oh.start || ''}`} className="mt-1 flex items-center gap-2 text-[12.5px] font-semibold" style={{ color: 'var(--site-ink)' }}>
                 <CalendarDays className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--site-accent-text)' }} />{formatOpenHouse(oh)}

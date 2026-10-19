@@ -344,9 +344,9 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
             <SitePhoto src={l.photo} widths={IMG.card} sizes="(min-width: 1024px) 340px, (min-width: 640px) 50vw, 100vw" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-110" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
             <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-              {l.status && <span className="rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: badge.bg, color: badge.fg }}>{formatStatus(l.status)}</span>}
-              {l.days_on_market != null && l.days_on_market <= 7 && <span className="rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>New</span>}
-              {viewed.has(l.listing_key) && <span className="rounded-full bg-black/55 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-white">Seen</span>}
+              {l.status && <span className="rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: badge.bg, color: badge.fg }}>{formatStatus(l.status)}</span>}
+              {l.days_on_market != null && l.days_on_market <= 7 && <span className="rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>New</span>}
+              {viewed.has(l.listing_key) && <span className="rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-white">Seen</span>}
             </div>
             <p className="absolute bottom-2.5 left-3 text-xl font-black text-white drop-shadow">{l.price ? `$${l.price.toLocaleString()}` : 'Price on request'}</p>
           </div>

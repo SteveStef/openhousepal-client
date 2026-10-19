@@ -70,7 +70,10 @@ html.ohp-home-snap-active .ohp-home-scroll-section.ohp-section-observed {
 
 html.ohp-home-snap-active .ohp-home-scroll-section.ohp-section-observed.ohp-section-visible {
   opacity: 1;
-  transform: translateY(0);
+  /* none, not translateY(0): any transform left on a section makes it the box that position:fixed
+     children (the quick-look window, pop-ups) are placed in - the window opened INSIDE the
+     section, off screen, with only its dimmed backdrop showing (10/19). */
+  transform: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

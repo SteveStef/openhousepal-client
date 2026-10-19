@@ -193,7 +193,7 @@ export default function CommunitiesBlock({ data, theme, basePrefix = '' }: { dat
               >
                 <SitePhoto src={resolveMediaUrl(area.photo)} widths={IMG.half} className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-110 object-cover h-full w-full" />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-black/5" />
-                <span className="absolute left-2.5 top-2.5 max-w-[calc(100%-1.25rem)] truncate rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide shadow-sm " style={{ backgroundColor: 'rgba(var(--site-accent-rgb),0.85)', color: 'var(--site-on-accent)' }}>
+                <span className="absolute left-2.5 top-2.5 max-w-[calc(100%-1.25rem)] truncate rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide shadow-sm " style={{ backgroundColor: 'rgba(var(--site-accent-rgb),0.85)', color: 'var(--site-on-accent)' }}>
                   {area.county ? `${area.county} County` : area.state}
                 </span>
                 <div className="absolute inset-x-0 bottom-0 p-3">
@@ -204,7 +204,7 @@ export default function CommunitiesBlock({ data, theme, basePrefix = '' }: { dat
                       const Icon = stat.icon
                       return (
                         <div key={stat.label} className="flex items-center justify-between gap-2 rounded-xl bg-black/30 px-2.5 py-1.5 ">
-                          <p className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide text-white/55"><Icon className="h-3 w-3" />{stat.label}</p>
+                          <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-white/55"><Icon className="h-3 w-3" />{stat.label}</p>
                           <p className="line-clamp-1 max-w-[58%] text-right text-xs font-black text-white">{stat.value}</p>
                         </div>
                       )

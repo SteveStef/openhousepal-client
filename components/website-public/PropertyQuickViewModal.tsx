@@ -99,7 +99,7 @@ export default function PropertyQuickViewModal({
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3, ease }}
           onClick={onClose}
         >
-          <PropertySurface surface="site" gold={theme.secondary_color} ink={theme.primary_color} serif={serif} className="relative w-full max-w-4xl">
+          <PropertySurface surface="site" gold="var(--site-accent)" ink={theme.primary_color} serif={serif} className="relative w-full max-w-4xl">
             <motion.div
               className="relative flex h-[92dvh] flex-col overflow-hidden rounded-t-[28px] bg-[var(--pp-bg)] text-left shadow-2xl ring-1 ring-[color:var(--pp-gold-line)] sm:h-[min(88vh,860px)] sm:rounded-[28px]"
               initial={{ opacity: 0, y: 40, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.98 }}
