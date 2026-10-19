@@ -12,6 +12,7 @@ import IdxDomainMigrationModal from '@/components/IdxDomainMigrationModal'
 import ScrollLockWatcher from '@/components/ScrollLockWatcher'
 import { Metadata } from 'next'
 import ThemeColorSync from '@/components/ThemeColorSync'
+import Script from 'next/script'
 import { FRAME_LINK_GUARD_SCRIPT } from '@/lib/frameLinkGuard'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -79,7 +80,7 @@ export default async function RootLayout({
       <body suppressHydrationWarning className={`${inter.className} bg-[#faf9f7] dark:bg-[#0B0B0B] min-h-screen text-[#111827] dark:text-[#F3F4F6] overflow-x-clip overflow-y-visible`}>
         {/* Framed by an agent's IDX site: links that leave this page open top-level, never a
             second site inside the frame (lib/frameLinkGuard). No-op when not framed. */}
-        <script dangerouslySetInnerHTML={{ __html: FRAME_LINK_GUARD_SCRIPT }} />
+        <Script id="ohp-frame-links" strategy="beforeInteractive">{FRAME_LINK_GUARD_SCRIPT}</Script>
         {isPublicSite ? (
           <Providers>{children}<ScrollLockWatcher /><ThemeColorSync /></Providers>
         ) : (
