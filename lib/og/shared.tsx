@@ -94,6 +94,31 @@ export async function imgToDataUri(url?: string | null, timeoutMs = 3500): Promi
   }
 }
 
+/** Pixel size of a JPEG / PNG / WebP data URI (read from its header), or null. */
+export function imgSize(dataUri: string | null): { w: number; h: number } | null {
+  if (!dataUri?.startsWith('data:')) return null
+  try {
+    const b = Buffer.from(dataUri.slice(dataUri.indexOf(',') + 1, dataUri.indexOf(',') + 1 + 140000), 'base64')
+    if (b[0] === 0x89 && b[1] === 0x50) return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) }
+    if (b.toString('ascii', 8, 12) === 'WEBP') {
+      const kind = b.toString('ascii', 12, 16)
+      if (kind === 'VP8X') return { w: 1 + b.readUIntLE(24, 3), h: 1 + b.readUIntLE(27, 3) }
+      if (kind === 'VP8 ') return { w: b.readUInt16LE(26) & 0x3fff, h: b.readUInt16LE(28) & 0x3fff }
+      if (kind === 'VP8L') { const n = b.readUInt32LE(21); return { w: (n & 0x3fff) + 1, h: ((n >> 14) & 0x3fff) + 1 } }
+    }
+    if (b[0] === 0xff && b[1] === 0xd8) {
+      let i = 2
+      while (i < b.length - 9) {
+        if (b[i] !== 0xff) { i++; continue }
+        const m = b[i + 1]
+        if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { w: b.readUInt16BE(i + 7), h: b.readUInt16BE(i + 5) }
+        i += 2 + b.readUInt16BE(i + 2)
+      }
+    }
+  } catch { /* unreadable - caller falls back */ }
+  return null
+}
+
 export async function imgsToDataUris(urls: (string | null | undefined)[], timeoutMs = 3500): Promise<(string | null)[]> {
   return Promise.all(urls.map(u => imgToDataUri(u, timeoutMs)))
 }

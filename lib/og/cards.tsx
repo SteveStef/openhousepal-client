@@ -6,7 +6,7 @@
  */
 import { ImageResponse } from 'next/og'
 import {
-  OG_SIZE, ogFonts, ogFetch, imgToDataUri, firstName, money, C,
+  OG_SIZE, ogFonts, ogFetch, imgToDataUri, imgSize, firstName, money, C,
   Eyebrow, AgentChip, PhotoCard,
 } from './shared'
 import { computeMatchScore } from '@/lib/matchScore'
@@ -39,11 +39,20 @@ function oneLine(street: string, city: string, max = 31) {
 export type OgHome = { photo: string | null; price: string; facts: string; street: string; city: string; match: number | null; isNew?: boolean }
 
 /** A listing photo with Bright's bottom-left watermark pushed out of frame (scaled from the top-right). */
-export function MlsSafePhoto({ src, w, h, radius = 0 }: { src: string | null; w: number; h: number; radius?: number }) {
+export function MlsSafePhoto({ src, w, h, radius = 0, corners }: { src: string | null; w: number; h: number; radius?: number; corners?: [number, number, number, number] }) {
+  // corners = [top-left, top-right, bottom-right, bottom-left]. The photo is the box's own
+  // background (zoomed 16% from the top-right, so the watermark falls outside): the image renderer
+  // clips a child <img> to a square, not a curve - it ran over rounded card corners (user, 10/19).
+  const r = corners || [radius, radius, radius, radius]
+  const dim = imgSize(src)
+  // cover the box, then 16% more, pinned right; as centred top-to-bottom as it can be while the
+  // bottom tenth (where the watermark sits) still falls outside - wide boxes showed only roofs
+  const k = dim ? Math.max(w / dim.w, h / dim.h) * 1.16 : 0
+  const bw = dim ? Math.round(dim.w * k) : 0, bh = dim ? Math.round(dim.h * k) : 0
+  const top = Math.round(Math.max(0, Math.min((bh - h) / 2, bh - h - bh * 0.1)))
   return (
-    <div style={{ display: 'flex', position: 'relative', width: w, height: h, overflow: 'hidden', borderRadius: radius, backgroundColor: '#E9E2D3' }}>
-      {src ? <img src={src} style={{ position: 'absolute', top: 0, right: 0, width: Math.round(w * 1.16), height: Math.round(h * 1.16), objectFit: 'cover' }} /> : null}
-    </div>
+    <div style={{ display: 'flex', position: 'relative', width: w, height: h, borderTopLeftRadius: r[0], borderTopRightRadius: r[1], borderBottomRightRadius: r[2], borderBottomLeftRadius: r[3], backgroundColor: '#E9E2D3',
+      ...(src && dim ? { backgroundImage: `url(${src})`, backgroundSize: `${bw}px ${bh}px`, backgroundPosition: `${w - bw}px ${-top}px`, backgroundRepeat: 'no-repeat' } : {}) }} />
   )
 }
 
@@ -67,7 +76,7 @@ function HomeTag({ h, accentLight }: { h: OgHome; accentLight: string }) {
 const HOUSE_D = ['M3 10.5 12 3l9 7.5', 'M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5']
 
 export function ShowcaseCard({
-  count, forName, agentName, agentBrokerage, agentPhoto, homes, accent = C.gold,
+  count, forName, agentName, agentBrokerage, agentPhoto, homes, accent = C.gold, criteria = [],
 }: {
   count: number
   forName: string
@@ -77,6 +86,8 @@ export function ShowcaseCard({
   homes: OgHome[]
   /** The colour it opens in - the agent's website colour when the link is on their own domain. */
   accent?: string
+  /** What its search looks for ("$600K-$900K", "3+ beds", "Ardmore") - shown while it has no homes. */
+  criteria?: string[]
 }) {
   const shown = homes.slice(0, 3)
   const more = Math.max(0, count - shown.length)
@@ -86,8 +97,6 @@ export function ShowcaseCard({
   const btnInk = lum(accent) > 0.6 ? '#16130e' : '#ffffff'
   // The homes fill the row whatever the count: three side by side, two wide, one as a feature.
   const n = shown.length
-  const w = n === 3 ? 345 : n === 2 ? 535 : 1092
-  const photoH = n === 1 ? 300 : n === 2 ? 210 : 196
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', color: '#111827',
@@ -128,55 +137,107 @@ export function ShowcaseCard({
         </div>
       </div>
 
-      {/* its homes, like the cards inside - or, before the first one lands, where they'll go */}
-      {n ? (
+      {/* its homes, like the cards inside - or, before the first one lands, the search it runs */}
+      {n === 1 ? (
+        // One home: the email signature's featured-listing card - photo, kicker, address, spec pills,
+        // and the price with a "View home" cue in its own column.
+        <div style={{ display: 'flex', marginTop: 'auto', width: 1092, height: 300, borderRadius: 26, backgroundColor: '#FFFFFF', border: `2px solid rgba(${rgb},0.55)`, boxShadow: '0 22px 44px -22px rgba(17,24,39,0.45)' }}>
+          <div style={{ display: 'flex', position: 'relative' }}>
+            <MlsSafePhoto src={shown[0].photo} w={470} h={296} corners={[24, 0, 0, 24]} />
+            <HomeTag h={shown[0]} accentLight={light} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: 1, minWidth: 0, padding: '0 34px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 900, letterSpacing: 3.5, textTransform: 'uppercase', color: deep }}>
+              <div style={{ display: 'flex', width: 22, height: 2, backgroundColor: accent }} />
+              Newest for you
+            </div>
+            <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: 36, lineHeight: 1.1, color: '#111827', marginTop: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 360 }}>{shown[0].street || 'A new home'}</div>
+            {shown[0].city ? <div style={{ display: 'flex', fontSize: 19, color: '#6B7280', marginTop: 4 }}>{shown[0].city}</div> : null}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
+              {shown[0].facts.split('  ·  ').filter(Boolean).map(f => (
+                <div key={f} style={{ display: 'flex', padding: '6px 13px', borderRadius: 999, fontSize: 16, fontWeight: 900, color: deep, backgroundColor: `rgba(${rgb},0.14)` }}>{f}</div>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '0 34px', borderLeft: `1px solid rgba(${rgb},0.35)` }}>
+            <div style={{ display: 'flex', fontSize: 38, fontWeight: 900, color: '#111827', letterSpacing: -1 }}>{shown[0].price || 'Price on request'}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', borderRadius: 999, fontSize: 15, fontWeight: 900, letterSpacing: 1.5, textTransform: 'uppercase', color: btnInk, backgroundImage: `linear-gradient(135deg, ${light}, ${accent})` }}>
+              View home
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={btnInk} strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
+            </div>
+          </div>
+        </div>
+      ) : n === 2 ? (
+        // Two homes: wide photos, and under each the address on the left, the price on the right.
         <div style={{ display: 'flex', gap: 22, marginTop: 'auto' }}>
-          {shown.map((h, i) => n === 1 ? (
-            <div key={i} style={{ display: 'flex', width: w, borderRadius: 26, overflow: 'hidden', backgroundColor: '#FFFFFF', border: '1px solid rgba(17,24,39,0.06)', boxShadow: '0 22px 44px -22px rgba(17,24,39,0.45)' }}>
+          {shown.map((h, i) => (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', width: 535, borderRadius: 26, backgroundColor: '#FFFFFF', border: `2px solid rgba(${rgb},0.4)`, boxShadow: '0 22px 44px -22px rgba(17,24,39,0.45)' }}>
               <div style={{ display: 'flex', position: 'relative' }}>
-                <MlsSafePhoto src={h.photo} w={600} h={photoH} />
+                <MlsSafePhoto src={h.photo} w={531} h={206} corners={[24, 24, 0, 0]} />
                 <HomeTag h={h} accentLight={light} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 40px' }}>
-                <div style={{ display: 'flex', fontSize: 46, fontWeight: 900, color: '#111827', letterSpacing: -1 }}>{h.price || 'Price on request'}</div>
-                {h.facts ? <div style={{ display: 'flex', fontSize: 21, fontWeight: 900, color: deep, marginTop: 8 }}>{h.facts}</div> : null}
-                <div style={{ display: 'flex', fontSize: 21, fontWeight: 400, color: '#6B7280', marginTop: 8 }}>{oneLine(h.street, h.city, 34)}</div>
+              <div style={{ display: 'flex', alignItems: 'center', padding: '16px 22px 18px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', fontSize: 22, fontWeight: 900, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300 }}>{h.street || 'A new home'}</div>
+                  <div style={{ display: 'flex', fontSize: 16, color: '#6B7280', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300 }}>{[h.city, ...h.facts.split('  ·  ').filter(f => !f.includes('sq ft'))].filter(Boolean).join(' · ')}</div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', paddingLeft: 18, marginLeft: 16, borderLeft: `1px solid rgba(${rgb},0.35)` }}>
+                  <div style={{ display: 'flex', fontSize: 28, fontWeight: 900, color: '#111827', letterSpacing: -0.5 }}>{h.price || 'Price on request'}</div>
+                  <div style={{ display: 'flex', fontSize: 13, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', color: deep, marginTop: 2 }}>View home →</div>
+                </div>
               </div>
             </div>
-          ) : (
+          ))}
+        </div>
+      ) : n === 3 ? (
+        <div style={{ display: 'flex', gap: 22, marginTop: 'auto' }}>
+          {shown.map((h, i) => (
             <div key={i} style={{
-              display: 'flex', flexDirection: 'column', width: w, borderRadius: 26, overflow: 'hidden', backgroundColor: '#FFFFFF',
+              display: 'flex', flexDirection: 'column', width: 345, borderRadius: 26, backgroundColor: '#FFFFFF',
               border: '1px solid rgba(17,24,39,0.06)', boxShadow: '0 22px 44px -22px rgba(17,24,39,0.45)',
             }}>
               <div style={{ display: 'flex', position: 'relative' }}>
-                <MlsSafePhoto src={h.photo} w={w} h={photoH} />
+                <MlsSafePhoto src={h.photo} w={343} h={196} corners={[25, 25, 0, 0]} />
                 <HomeTag h={h} accentLight={light} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', padding: '15px 20px 17px' }}>
                 <div style={{ display: 'flex', fontSize: 30, fontWeight: 900, color: '#111827', letterSpacing: -0.5 }}>{h.price || 'Price on request'}</div>
                 {h.facts ? <div style={{ display: 'flex', fontSize: 17, fontWeight: 900, color: deep, marginTop: 4 }}>{h.facts}</div> : null}
-                <div style={{ display: 'flex', fontSize: 17, fontWeight: 400, color: '#6B7280', marginTop: 5 }}>{oneLine(h.street, h.city, n === 2 ? 48 : 31)}</div>
+                <div style={{ display: 'flex', fontSize: 17, fontWeight: 400, color: '#6B7280', marginTop: 5 }}>{oneLine(h.street, h.city)}</div>
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <div style={{ display: 'flex', gap: 22, marginTop: 'auto' }}>
-          {[0, 1, 2].map(i => (
-            <div key={i} style={{ display: 'flex', flexDirection: 'column', width: 345, height: 290, borderRadius: 26, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.7)', border: `2px dashed rgba(${rgb},0.45)` }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 180, backgroundImage: `linear-gradient(135deg, rgba(${rgb},0.16), rgba(${rgb},0.05))` }}>
-                <svg width={64} height={64} viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
-                  {HOUSE_D.map((d, k) => <path key={k} d={d} />)}
-                </svg>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '18px 20px' }}>
-                {i === 1
-                  ? <div style={{ display: 'flex', fontSize: 19, fontWeight: 900, color: deep }}>Your first homes land here</div>
-                  : <div style={{ display: 'flex', width: 150, height: 16, borderRadius: 8, backgroundColor: `rgba(${rgb},0.22)` }} />}
-                <div style={{ display: 'flex', width: i === 1 ? 230 : 210, height: 12, borderRadius: 6, backgroundColor: 'rgba(17,24,39,0.08)' }} />
-              </div>
+        // No homes yet: it's a live search - what it's looking for, and where the homes will land.
+        <div style={{ display: 'flex', alignItems: 'center', marginTop: 'auto', width: 1092, height: 290, borderRadius: 26, padding: '0 40px', backgroundColor: '#FFFFFF', border: `2px solid rgba(${rgb},0.4)`, boxShadow: '0 22px 44px -22px rgba(17,24,39,0.35)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 900, letterSpacing: 3.5, textTransform: 'uppercase', color: deep }}>
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={deep} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+              Searching for
             </div>
-          ))}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 16, maxWidth: 700 }}>
+              {(criteria.length ? criteria : ['Homes picked for you']).slice(0, 7).map(c => (
+                <div key={c} style={{ display: 'flex', padding: '9px 16px', borderRadius: 999, fontSize: 19, fontWeight: 900, color: '#111827', backgroundColor: `rgba(${rgb},0.13)`, border: `1px solid rgba(${rgb},0.35)` }}>{c}</div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', fontSize: 18, color: '#6B7280', marginTop: 18 }}>Matching homes land here the moment they list.</div>
+          </div>
+          {/* three home tiles waiting, fanned */}
+          <div style={{ display: 'flex', position: 'relative', width: 270, height: 220 }}>
+            {[-8, 0, 8].map((deg, i) => (
+              <div key={i} style={{ display: 'flex', position: 'absolute', left: 30 + i * 40, top: 20 + (i === 1 ? -6 : 8), width: 150, height: 180, borderRadius: 18, transform: `rotate(${deg}deg)`,
+                flexDirection: 'column', overflow: 'hidden', backgroundColor: '#FFFFFF', border: `2px dashed rgba(${rgb},0.55)`, boxShadow: '0 16px 30px -18px rgba(17,24,39,0.45)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 110, backgroundImage: `linear-gradient(135deg, rgba(${rgb},0.2), rgba(${rgb},0.06))` }}>
+                  <svg width={44} height={44} viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">{HOUSE_D.map((d, k) => <path key={k} d={d} />)}</svg>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '12px 14px' }}>
+                  <div style={{ display: 'flex', width: 80, height: 11, borderRadius: 6, backgroundColor: `rgba(${rgb},0.3)` }} />
+                  <div style={{ display: 'flex', width: 110, height: 8, borderRadius: 4, backgroundColor: 'rgba(17,24,39,0.08)' }} />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {more > 0 && n ? (
@@ -186,6 +247,29 @@ export function ShowcaseCard({
       ) : null}
     </div>
   )
+}
+
+const shortMoney = (n: number) => (n >= 1e6 ? `$${(n / 1e6).toFixed(n % 1e6 ? 1 : 0).replace(/\.0$/, '')}M` : `$${Math.round(n / 1000)}K`)
+const place = (s: string) => titleCase(String(s).split(',')[0])
+
+/** A Showcase's search in a few words, for the card before its first home lands. */
+function searchCriteria(p: any): string[] {
+  if (!p) return []
+  const out: string[] = []
+  const lo = num(p.min_price), hi = num(p.max_price)
+  if (lo && hi) out.push(`${shortMoney(lo)} - ${shortMoney(hi)}`)
+  else if (hi) out.push(`Up to ${shortMoney(hi)}`)
+  else if (lo) out.push(`${shortMoney(lo)}+`)
+  if (num(p.min_beds)) out.push(`${num(p.min_beds)}+ beds`)
+  if (num(p.min_baths)) out.push(`${num(p.min_baths)}+ baths`)
+  const types = [p.is_single_family && 'Single family', p.is_town_house && 'Townhouse', p.is_condo && 'Condo', p.is_multi_family && 'Multi-family', p.is_lot_land && 'Land', p.is_farm && 'Farm'].filter(Boolean) as string[]
+  if (types.length && types.length <= 2) out.push(...types)
+  for (const c of [...(p.cities || []), ...(p.townships || [])].slice(0, 2)) out.push(place(c))
+  for (const d of (p.school_districts || []).slice(0, 1)) out.push(`${place(d)} schools`)
+  if (num(p.diameter) && p.address) out.push(`Within ${num(p.diameter)} mi of ${place(p.address)}`)
+  else if (p.has_drawn_area) out.push('Your map area')
+  if (num(p.min_year_built) && num(p.min_year_built)! > 1900) out.push(`Built ${num(p.min_year_built)}+`)
+  return out
 }
 
 export async function renderShowcaseCard(shareToken: string, fonts: Fonts, accentParam?: string | null): Promise<ImageResponse> {
@@ -234,6 +318,7 @@ export async function renderShowcaseCard(shareToken: string, fonts: Fonts, accen
         agentPhoto={agentPhoto}
         homes={homes}
         accent={accent}
+        criteria={searchCriteria(data?.preferences)}
       />,
       fonts,
     )
