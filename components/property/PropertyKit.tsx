@@ -11,6 +11,7 @@ import { formatStatus, statusBadgeColor } from '@/components/website-public/list
 import { upcomingOpenHouses, formatOpenHouse, type MlsOpenHouse } from '@/lib/mlsOpenHouses'
 import { copyText } from '@/lib/copyText'
 import { API_BASE_URL } from '@/lib/api-service'
+import { sizedImage } from '@/lib/siteImage'
 
 // One design for every place a single home opens: the Listing Page (/property/...), the IDX site's
 // property page and its quick look, and the Showcase detail window. Each page keeps its own extras
@@ -406,21 +407,21 @@ export function PropertyPhotos({ home, extraBadges, split = 'lg', className = ''
         onTouchEnd={e => { if (touchX.current === null) return; const d = e.changedTouches[0].clientX - touchX.current; touchX.current = null; if (Math.abs(d) > 40) go(d < 0 ? 1 : -1) }}
       >
         <button type="button" onClick={() => setViewer(index)} className="absolute inset-0 block cursor-zoom-in" aria-label="Open photos full screen">
-          <img src={photos[index]} alt="" aria-hidden className={`absolute inset-0 hidden h-full w-full scale-110 object-cover blur-xl ${wide === 'md' ? 'md:block' : 'lg:block'}`} />
-          {index !== under && <img src={photos[under]} alt="" aria-hidden className={`absolute left-0 top-0 w-full object-cover object-left-bottom ${sharpH}`} />}
+          <img src={sizedImage(photos[index], 64)} alt="" aria-hidden className={`absolute inset-0 hidden h-full w-full scale-110 object-cover blur-xl ${wide === 'md' ? 'md:block' : 'lg:block'}`} />
+          {index !== under && <img src={sizedImage(photos[under], 1200)} alt="" aria-hidden className={`absolute left-0 top-0 w-full object-cover object-left-bottom ${sharpH}`} />}
           <img
             key={index}
             ref={el => { if (el?.complete && el.naturalWidth && !ready) setReady(true) }}
             onLoad={() => setReady(true)}
             onError={() => setReady(true)}
-            src={photos[index]}
+            src={sizedImage(photos[index], 1200)}
             alt={index === 0 ? home.fullAddress : `${home.street} - photo ${index + 1}`}
             className={`absolute left-0 top-0 w-full object-cover object-left-bottom ${sharpH} transition-opacity duration-300 ease-out ${ready ? 'opacity-100' : 'opacity-0'}`}
           />
           <span className={`absolute inset-x-0 bottom-8 h-1/3 bg-gradient-to-t from-black/45 to-transparent ${wide === 'md' ? 'md:hidden' : 'lg:hidden'}`} />
         </button>
-        {n > 1 && <img src={photos[(index + 1) % n]} alt="" aria-hidden className="hidden" />}
-        {n > 2 && <img src={photos[(index - 1 + n) % n]} alt="" aria-hidden className="hidden" />}
+        {n > 1 && <img src={sizedImage(photos[(index + 1) % n], 1200)} alt="" aria-hidden className="hidden" />}
+        {n > 2 && <img src={sizedImage(photos[(index - 1 + n) % n], 1200)} alt="" aria-hidden className="hidden" />}
         {/* Phones (user, 10/19 - "copy Zillow"): status top-left, days on market top-right of the
             photo. The side panel on a wide screen shows both itself. */}
         {(extraBadges || home.status) && (
@@ -476,7 +477,7 @@ export function PropertyPhotos({ home, extraBadges, split = 'lg', className = ''
                     aria-current={i === index ? 'true' : undefined}
                     className={`group/th relative aspect-[4/3] overflow-hidden rounded-lg bg-black/10 ${i === index ? 'ring-2 ring-[color:var(--pp-gold)] ring-offset-2 ring-offset-[color:var(--pp-bg)]' : ''}`}
                   >
-                    <img src={photos[i]} alt="" className={`h-full w-full object-cover object-left-bottom transition duration-300 ${i === index ? '' : 'opacity-65 group-hover/th:opacity-100'}`} loading={k < 8 ? 'eager' : 'lazy'} />
+                    <img src={sizedImage(photos[i], 256)} alt="" className={`h-full w-full object-cover object-left-bottom transition duration-300 ${i === index ? '' : 'opacity-65 group-hover/th:opacity-100'}`} loading={k < 8 ? 'eager' : 'lazy'} />
                   </motion.button>
                 ))}
               </AnimatePresence>
@@ -577,7 +578,7 @@ export function PhotoViewer({ photos, title, index, onChange }: { photos: string
                         aria-current={i === index ? 'true' : undefined}
                         className={`relative aspect-[4/3] overflow-hidden rounded-lg bg-white/5 ${i === index ? 'ring-2 ring-[#e8c97a] ring-offset-2 ring-offset-black' : ''}`}
                       >
-                        <img src={photos[i]} alt="" className={`h-full w-full object-cover object-left-bottom transition duration-300 ${i === index ? '' : 'opacity-50 hover:opacity-90'}`} loading={k < 10 ? 'eager' : 'lazy'} />
+                        <img src={sizedImage(photos[i], 256)} alt="" className={`h-full w-full object-cover object-left-bottom transition duration-300 ${i === index ? '' : 'opacity-50 hover:opacity-90'}`} loading={k < 10 ? 'eager' : 'lazy'} />
                       </motion.button>
                     ))}
                   </AnimatePresence>
