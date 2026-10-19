@@ -1662,7 +1662,7 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="text-lg font-black text-gray-900 dark:text-white">Property Selection</h3>
-              <p className="text-xs font-semibold text-gray-400">Top matches auto-selected (70%+). Add or remove as you see fit.</p>
+              <p className="text-xs font-semibold text-gray-400">Top matches auto-selected. Add or remove as you see fit.</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-gray-400">{comparables.length} added</span>

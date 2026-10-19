@@ -143,6 +143,7 @@ export default function CmaBacktestPanel() {
   const [mode, setMode] = useState('buyer')
   const [cap, setCap] = useState(20)
   const [dryRun, setDryRun] = useState(true)
+  const [runner, setRunner] = useState('ui')
   const [preview, setPreview] = useState<any>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -172,7 +173,7 @@ export default function CmaBacktestPanel() {
 
   const settings = () => ({
     towns, random_spread: randomSpread, price_min: priceMin ? Number(priceMin) : null, price_max: priceMax ? Number(priceMax) : null,
-    property_type: ptype, count, mode, cost_cap_usd: cap, dry_run: dryRun,
+    property_type: ptype, count, mode, cost_cap_usd: cap, dry_run: dryRun, runner,
   })
 
   const doPreview = async () => {
@@ -260,6 +261,11 @@ export default function CmaBacktestPanel() {
                 <option value="buyer">Buyer (offer on the active listing)</option>
                 <option value="listing">Seller (pricing the active listing)</option>
               </select></div>
+            <div className="col-span-2"><p className={label}>How each report is made</p>
+              <select className={input} value={runner} onChange={e => setRunner(e.target.value)}>
+                <option value="ui">The real agent wizard in a browser (the test agent clicks through every step) - this is the one that counts</option>
+                <option value="api">Direct (same server code, no browser) - quick checks only</option>
+              </select></div>
             <div><p className={label}>Cost cap ($)</p><input className={input} type="number" min={1} value={cap} onChange={e => setCap(Number(e.target.value) || 20)} /></div>
             <label className="col-span-2 flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300">
               <input type="checkbox" checked={dryRun} onChange={e => setDryRun(e.target.checked)} />
@@ -327,7 +333,7 @@ export default function CmaBacktestPanel() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-sm font-black text-gray-900 dark:text-white">Test {active.id.slice(0, 8)} {active.settings?.dry_run ? '(dry run - placeholder values)' : ''}</p>
-              <p className="text-[11px] font-semibold text-gray-400">{active.status}{active.error ? ` - ${active.error}` : ''} - spent ${Number(active.actual_cost_usd || 0).toFixed(2)} (estimate ${Number(active.estimated_cost_usd || 0).toFixed(2)}, cap ${active.settings?.cost_cap_usd})</p>
+              <p className="text-[11px] font-semibold text-gray-400">{active.settings?.runner === 'ui' && active.status === 'queued' ? 'Waiting for the browser test runner to pick it up' : active.status}{active.error ? ` - ${active.error}` : ''} - spent ${Number(active.actual_cost_usd || 0).toFixed(2)} (estimate ${Number(active.estimated_cost_usd || 0).toFixed(2)}, cap ${active.settings?.cost_cap_usd})</p>
             </div>
             <div className="flex flex-wrap gap-1">
               {['queued', 'running'].includes(active.status) && <button onClick={() => act(() => api.admin.cmaBacktestStop(active.id))} className={`${btn} bg-gray-100 dark:bg-white/10`}><Square className="h-3.5 w-3.5" /> Stop</button>}
