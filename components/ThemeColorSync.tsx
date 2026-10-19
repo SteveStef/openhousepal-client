@@ -26,14 +26,21 @@ const alphaOf = (c: string) => {
 function gradientStops(cs: CSSStyleDeclaration): string[] {
   const img = cs.backgroundImage
   if (!img || img === 'none' || !/gradient\(/.test(img)) return []
+  // A tiled pattern (the gold grid lines / dots behind the sign-in pages) isn't a fill - it was read
+  // as solid gold and painted gold above and below the page (user, 10/19).
+  if (/\d+px/.test(cs.backgroundSize || '')) return []
   // the base layer = the last gradient listed (the ones before it are glows painted on top)
   const at = Math.max(img.lastIndexOf('linear-gradient('), img.lastIndexOf('radial-gradient('), img.lastIndexOf('conic-gradient('))
-  return (img.slice(at).match(/rgba?\([^)]*\)/g) || []).filter(c => alphaOf(c) > 0.9)
+  const stops = img.slice(at).match(/rgba?\([^)]*\)/g) || []
+  // one see-through stop = a glow or a fade over something else, not the page's own colour
+  return stops.some(c => alphaOf(c) <= 0.9) ? [] : stops
 }
 
 /** What this element paints at its top or bottom edge (null = see-through). */
 function paintAt(el: Element, edge: 'top' | 'bottom'): string | null {
   const cs = getComputedStyle(el)
+  // a faint layer (opacity) shows what's under it
+  if (Number(cs.opacity) < 0.9) return null
   const vertical = /linear-gradient\((?:to bottom|180deg|to top|0deg)?/.test(cs.backgroundImage)
   const stops = gradientStops(cs)
   if (stops.length && cs.backgroundImage.startsWith('linear-gradient') && vertical) {
