@@ -8,6 +8,8 @@ import { cleanStreet, formatStatus, listedAgo, statusBadgeColor, tidyCaps } from
 import OpenHouseChip from '@/components/OpenHouseChip'
 import SpotlightChip from './SpotlightChip'
 import type { ShowcaseListing } from './PropertyShowcaseCard'
+import SitePhoto from './SitePhoto'
+import { IMG } from '@/lib/siteImage'
 
 export type HomeCardListing = ShowcaseListing & { days_on_market?: number | null; list_office_name?: string | null; features?: string[] | null }
 
@@ -75,9 +77,12 @@ export default function HomeCard({ listing, theme, basePrefix = '', onQuickView,
       style={{ backgroundColor: 'var(--site-surface)', borderColor: 'var(--site-line)', boxShadow: 'var(--site-shadow)' }}
     >
       <div className={`relative w-full overflow-hidden ${wide ? 'h-64 sm:h-72' : 'h-64 sm:h-72'}`} style={{ backgroundColor: 'var(--site-bg-alt)' }}>
-        {photos.map((url, k) => (
-          <div key={`${url}-${k}`} className={`absolute inset-0 bg-cover bg-center transition-[opacity,transform] duration-700 ${k === i ? 'opacity-100' : 'opacity-0'} ${hover ? 'scale-[1.05]' : 'scale-100'}`}
-            style={{ backgroundImage: `url(${url})`, transitionDuration: '1000ms, 6000ms' }} />
+        {/* Only the cover loads with the page (right-sized, lazy); while hovered, the photo on
+            screen and the next one - never all 8 photos of every card up front (10/19 sweep). */}
+        {photos.map((url, k) => (k === 0 || (hover && (k === i || k === (i + 1) % photos.length))) && (
+          <SitePhoto key={`${url}-${k}`} src={url} widths={IMG.card} sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
+            className={`absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-700 ${k === i ? 'opacity-100' : 'opacity-0'} ${hover ? 'scale-[1.05]' : 'scale-100'}`}
+            style={{ transitionDuration: '1000ms, 6000ms' }} />
         ))}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-black/25" />
         {luxe && <span aria-hidden className="ohp-card-sheen pointer-events-none absolute inset-0" />}

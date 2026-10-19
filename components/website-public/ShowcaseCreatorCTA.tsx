@@ -8,6 +8,7 @@ import type { SiteTheme } from './types'
 import { fontClass } from './blocks/fontClass'
 import LuxuryAbstractBackground from './LuxuryAbstractBackground'
 import Reveal from './Reveal'
+import { sizedBg, sizedImage } from '@/lib/siteImage'
 
 // "Create your own Showcase" - for the home BUYER on the agent's IDX site. A hands-free film on a
 // laptop shows exactly what a Showcase is, start to finish, with the agent's real listing photos
@@ -321,7 +322,7 @@ function PageScene({ scene, local, homes, agentFirst, agentPhoto }: { scene: num
           <p className="text-xl font-black">{showNew ? '25' : '24'} homes fit you <span className="ml-1 rounded-full bg-emerald-500/10 px-2 py-0.5 align-middle text-[10px] font-black text-emerald-600">Updated just now</span></p>
         </div>
         <span className="flex items-center gap-2 rounded-full border border-black/10 bg-[#ffffff] py-1 pl-1 pr-3 text-[11px] font-bold text-black/60">
-          {agentPhoto ? <img src={agentPhoto} alt="" className="h-6 w-6 rounded-full object-cover" /> : <span className="h-6 w-6 rounded-full" style={{ backgroundColor: 'var(--site-accent)' }} />}
+          {agentPhoto ? <img src={sizedImage(agentPhoto, 128)} loading="lazy" decoding="async" alt="" className="h-6 w-6 rounded-full object-cover" /> : <span className="h-6 w-6 rounded-full" style={{ backgroundColor: 'var(--site-accent)' }} />}
           Ask {agentFirst}
         </span>
       </div>
@@ -331,7 +332,7 @@ function PageScene({ scene, local, homes, agentFirst, agentPhoto }: { scene: num
             <motion.div key={h.listing_key || h.photo || i} layout initial={{ opacity: 0, scale: 0.9, y: 14 }} animate={{ opacity: i < shown ? 1 : 0, scale: i < shown ? 1 : 0.94, y: i < shown ? 0 : 14 }} exit={{ opacity: 0, scale: 0.9 }}
               transition={{ type: 'spring', stiffness: 220, damping: 24 }}
               className={`relative overflow-hidden rounded-xl bg-[#ffffff] shadow-sm ring-1 ${showNew && i === 0 ? 'ring-2' : 'ring-black/5'}`} style={showNew && i === 0 ? { ['--tw-ring-color' as any]: 'var(--site-accent)' } : undefined}>
-              <div className="relative h-[92px] bg-cover bg-center" style={{ backgroundImage: `url(${h.photo})` }}>
+              <div className="relative h-[92px] bg-cover bg-center" style={{ backgroundImage: sizedBg(h.photo, 384) }}>
                 <span className="absolute left-1.5 top-1.5 rounded-full bg-[#ffffff]/95 px-1.5 py-0.5 text-[9px] font-black text-emerald-700">{MATCH[i] || 85}% match</span>
                 {showNew && i === 0 && <span className="absolute right-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-black text-white" style={{ backgroundColor: 'var(--site-accent)' }}>NEW</span>}
                 {priceDrop && i === cardIndexWithDrop && <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full bg-rose-600 px-1.5 py-0.5 text-[9px] font-black text-white"><TrendingDown className="h-2.5 w-2.5" />$100K</span>}
@@ -352,7 +353,7 @@ function PageScene({ scene, local, homes, agentFirst, agentPhoto }: { scene: num
         {toast && (
           <motion.div key={toast} initial={{ x: 260, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 260, opacity: 0 }} transition={{ type: 'spring', stiffness: 200, damping: 24 }}
             className="absolute right-4 top-3 z-20 flex w-[270px] items-center gap-2.5 rounded-2xl bg-[#111827] p-2.5 text-white shadow-2xl">
-            <span className="h-10 w-12 shrink-0 rounded-lg bg-cover bg-center" style={{ backgroundImage: `url(${toast === 'new' ? fresh.photo : grid[cardIndexWithDrop]?.photo})` }} />
+            <span className="h-10 w-12 shrink-0 rounded-lg bg-cover bg-center" style={{ backgroundImage: sizedBg(toast === 'new' ? fresh.photo : grid[cardIndexWithDrop]?.photo, 128) }} />
             <span className="min-w-0">
               <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: 'var(--site-accent-light)' }}>{toast === 'new' ? <><Bell className="h-2.5 w-2.5" /> New match - just listed</> : <><TrendingDown className="h-2.5 w-2.5" /> Price drop</>}</span>
               <span className="block truncate text-[12px] font-black">{toast === 'new' ? money(fresh.price) : `${money(grid[cardIndexWithDrop]?.price)} → ${money((grid[cardIndexWithDrop]?.price || 0) - 100000)}`}</span>
@@ -366,7 +367,7 @@ function PageScene({ scene, local, homes, agentFirst, agentPhoto }: { scene: num
         {detail && target && (
           <motion.div initial={{ x: 380 }} animate={{ x: 0 }} exit={{ x: 380 }} transition={{ type: 'spring', stiffness: 160, damping: 22 }}
             className="absolute bottom-0 right-0 top-0 z-10 w-[330px] border-l border-black/5 bg-[#ffffff] shadow-[-20px_0_40px_-20px_rgba(0,0,0,.3)]">
-            <div className="h-36 bg-cover bg-center" style={{ backgroundImage: `url(${target.photo})` }} />
+            <div className="h-36 bg-cover bg-center" style={{ backgroundImage: sizedBg(target.photo, 640) }} />
             <div className="p-4">
               <p className="text-xl font-black">{money(target.price)}</p>
               <p className="truncate text-[11px] font-semibold text-black/50">{target.address}{target.city ? `, ${target.city}` : ''}</p>

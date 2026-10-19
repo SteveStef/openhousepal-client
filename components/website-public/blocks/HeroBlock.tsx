@@ -5,6 +5,8 @@ import { ArrowRight, Bath, BedDouble, DollarSign, KeyRound, MapPin, Mouse, Ruler
 import { SiteTheme } from '../types'
 import { fontClass } from './fontClass'
 import { cleanStreet, fullPrice, listedAgo } from '../listingFormat'
+import SitePhoto from '../SitePhoto'
+import { IMG, sizedBg } from '@/lib/siteImage'
 
 interface ResolvedArea {
   slug: string
@@ -97,6 +99,9 @@ export default function HeroBlock({ data, theme, siteId, basePrefix = '' }: { da
   const home = current?.home
   const homeHref = (h: HeroHome) => h.spotlight_url || `${basePrefix}/properties/${encodeURIComponent(h.listing_key)}`
   const towns = resolvedAreas.slice(0, 5)
+  // Only the photo on screen, the one fading out and the next one are in the page - the rest load
+  // as their turn comes (it used to download every header photo up front).
+  const nearSlide = (i: number) => slides.length < 4 || i === index || i === (index + 1) % slides.length || i === (index - 1 + slides.length) % slides.length
   const upcoming = slides.length > 1 ? [1, 2, 3].map(k => ({ k, s: slides[(index + k) % slides.length] })).filter(x => x.s.home && x.k < slides.length) : []
 
   const searchForm = (variant: 'luxe' | 'classic') => (
@@ -129,8 +134,8 @@ export default function HeroBlock({ data, theme, siteId, basePrefix = '' }: { da
   if (!luxe) {
     return (
       <section className="relative overflow-hidden px-5 pb-16 pt-8 sm:px-6 sm:pb-24 sm:pt-14" style={{ backgroundColor: 'var(--site-bg)' }}>
-        <div className="pointer-events-none absolute -left-40 top-10 h-[30rem] w-[30rem] rounded-full blur-3xl" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),0.08)' }} />
-        <div className="pointer-events-none absolute -right-20 bottom-0 h-[22rem] w-[40rem] rounded-full blur-3xl" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),0.05)' }} />
+        <div className="pointer-events-none absolute -left-40 top-10 h-[30rem] w-[30rem] rounded-full" style={{ background: 'radial-gradient(closest-side, rgba(var(--site-accent-rgb),0.08) 0%, rgba(var(--site-accent-rgb),0.08) 40%, transparent 100%)' }} />
+        <div className="pointer-events-none absolute -right-20 bottom-0 h-[22rem] w-[40rem] rounded-full" style={{ background: 'radial-gradient(closest-side, rgba(var(--site-accent-rgb),0.05) 0%, rgba(var(--site-accent-rgb),0.05) 40%, transparent 100%)' }} />
         <div className="relative mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[1fr_1.08fr] lg:gap-16">
           <div className="ohp-hero-rise">
             <span className="inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em]" style={{ borderColor: 'var(--site-line-strong)', color: 'var(--site-ink-soft)', backgroundColor: 'var(--site-surface)' }}>
@@ -162,8 +167,9 @@ export default function HeroBlock({ data, theme, siteId, basePrefix = '' }: { da
           {slides.length > 0 && (
             <div className="ohp-hero-rise relative" style={{ animationDelay: '.15s' }} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
               <div className="relative h-[420px] overflow-hidden rounded-[28px] shadow-[0_50px_90px_-45px_rgba(17,24,39,.6)] sm:h-[560px]">
-                {slides.map((s, i) => (
-                  <div key={`${s.photo}-${i}`} className={`absolute inset-0 bg-cover transition-all duration-[1400ms] ${i === index ? 'scale-100 opacity-100' : 'scale-105 opacity-0'}`} style={{ backgroundImage: `url(${s.photo})`, backgroundPosition: 'center 40%' }} />
+                {slides.map((s, i) => nearSlide(i) && (
+                  <SitePhoto key={`${s.photo}-${i}`} src={s.photo} widths={IMG.half} sizes="(min-width: 1024px) 52vw, 100vw" priority={i === 0}
+                    className={`absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-[1400ms] ${i === index ? 'scale-100 opacity-100' : 'scale-105 opacity-0'}`} style={{ objectPosition: 'center 40%' }} />
                 ))}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
                 {home && listedAgo(home.days_on_market) && (
@@ -187,7 +193,7 @@ export default function HeroBlock({ data, theme, siteId, basePrefix = '' }: { da
                 <div className="mt-3 grid grid-cols-3 gap-3">
                   {upcoming.map(({ k, s }) => (
                     <button key={`${k}-${s.home!.listing_key}`} type="button" onClick={() => setIndex((index + k) % slides.length)} className="group relative h-20 overflow-hidden rounded-2xl text-left sm:h-24">
-                      <span className="absolute inset-0 bg-cover bg-center transition duration-500 group-hover:scale-110" style={{ backgroundImage: `url(${s.photo})` }} />
+                      <span className="absolute inset-0 bg-cover bg-center transition duration-500 group-hover:scale-110" style={{ backgroundImage: sizedBg(s.photo, 384) }} />
                       <span className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                       <span className="absolute bottom-2 left-2.5 text-[12px] font-extrabold text-white sm:text-sm">{fullPrice(s.home!.price)}</span>
                     </button>
@@ -208,9 +214,9 @@ export default function HeroBlock({ data, theme, siteId, basePrefix = '' }: { da
       className="relative flex min-h-[92vh] flex-col overflow-hidden text-white"
       style={slides.length > 0 ? { backgroundColor: theme.primary_color } : { background: `linear-gradient(135deg, ${theme.primary_color}, #05070c 65%, ${theme.primary_color})` }}
     >
-      {slides.map((s, i) => (
+      {slides.map((s, i) => nearSlide(i) && (
         <div key={`${s.photo}-${i}`} className={`absolute inset-0 overflow-hidden transition-opacity duration-[1600ms] ${i === index ? 'opacity-100' : 'opacity-0'}`}>
-          <div className={`absolute inset-0 bg-cover ${i === index ? 'ohp-hero-kenburns' : ''}`} style={{ backgroundImage: `url(${s.photo})`, backgroundPosition: 'center 35%' }} />
+          <SitePhoto src={s.photo} widths={IMG.hero} sizes="100vw" priority={i === 0} className={`absolute inset-0 h-full w-full object-cover ${i === index ? 'ohp-hero-kenburns' : ''}`} style={{ objectPosition: 'center 35%' }} />
         </div>
       ))}
       {slides.length > 0 && (
@@ -220,8 +226,8 @@ export default function HeroBlock({ data, theme, siteId, basePrefix = '' }: { da
         </>
       )}
       <div className="ohp-lx-grid pointer-events-none absolute inset-0" />
-      <div className="ohp-lx-aurora-a pointer-events-none absolute -bottom-32 -left-24 h-[28rem] w-[28rem] rounded-full blur-[110px]" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),0.22)' }} />
-      <div className="ohp-lx-aurora-b pointer-events-none absolute -top-40 right-[12%] h-[22rem] w-[34rem] rounded-full blur-[110px]" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),0.14)' }} />
+      <div className="ohp-lx-aurora-a pointer-events-none absolute -bottom-32 -left-24 h-[28rem] w-[28rem] rounded-full" style={{ background: 'radial-gradient(closest-side, rgba(var(--site-accent-rgb),0.22) 0%, rgba(var(--site-accent-rgb),0.22) 40%, transparent 100%)' }} />
+      <div className="ohp-lx-aurora-b pointer-events-none absolute -top-40 right-[12%] h-[22rem] w-[34rem] rounded-full" style={{ background: 'radial-gradient(closest-side, rgba(var(--site-accent-rgb),0.14) 0%, rgba(var(--site-accent-rgb),0.14) 40%, transparent 100%)' }} />
       {SPARKS.map((sp, k) => <span key={k} className="ohp-lx-spark pointer-events-none absolute" style={{ left: sp[0], top: sp[1], animationDelay: `${sp[2]}s` }} />)}
 
       <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col px-5 pt-28 sm:px-6 sm:pt-32">
@@ -274,7 +280,7 @@ export default function HeroBlock({ data, theme, siteId, basePrefix = '' }: { da
               <span className="mr-1 pb-1 text-right text-[10px] font-black uppercase tracking-[0.24em] text-white/50">Up next</span>
               {upcoming.map(({ k, s }) => (
                 <button key={`${k}-${s.home!.listing_key}`} type="button" onClick={() => setIndex((index + k) % slides.length)} className="group relative h-24 w-36 overflow-hidden rounded-2xl ring-1 ring-white/15 transition hover:-translate-y-1 hover:ring-white/40">
-                  <span className="absolute inset-0 bg-cover bg-center transition duration-700 group-hover:scale-110" style={{ backgroundImage: `url(${s.photo})` }} />
+                  <span className="absolute inset-0 bg-cover bg-center transition duration-700 group-hover:scale-110" style={{ backgroundImage: sizedBg(s.photo, 384) }} />
                   <span className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent" />
                   <span className="absolute bottom-2 left-2.5 text-left">
                     <span className="block text-[13px] font-black">{fullPrice(s.home!.price)}</span>

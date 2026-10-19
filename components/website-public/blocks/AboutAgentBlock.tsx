@@ -1,6 +1,7 @@
 import { ArrowUpRight, Facebook, Globe, Instagram, Mail, MapPin, MessageSquare, Music2, Phone, Quote, Youtube } from 'lucide-react'
 import { SiteTheme } from '../types'
 import { fontClass } from './fontClass'
+import { sizedImage } from '@/lib/siteImage'
 
 function formatVolume(value: number): string {
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(value >= 10_000_000 ? 0 : 1)}M`
@@ -53,7 +54,7 @@ export default function AboutAgentBlock({ data, theme, basePrefix = '' }: { data
           {photoUrl && (
             <div className="relative mx-auto w-full max-w-[400px] pb-8 pr-8">
               <div className="absolute bottom-0 right-0 h-[78%] w-[78%] rounded-[28px]" style={{ backgroundColor: 'var(--site-accent)' }} />
-              <img src={photoUrl} alt={name} className="relative aspect-[4/5] w-full rounded-[28px] object-cover shadow-[0_40px_80px_-40px_rgba(17,24,39,.5)]" />
+              <img src={sizedImage(photoUrl, 828)} loading="lazy" decoding="async" alt={name} className="relative aspect-[4/5] w-full rounded-[28px] object-cover shadow-[0_40px_80px_-40px_rgba(17,24,39,.5)]" />
               <div className="absolute bottom-3 left-5 right-14 rounded-2xl border px-5 py-4 shadow-[0_20px_40px_-20px_rgba(17,24,39,.4)]" style={{ borderColor: 'var(--site-line)', backgroundColor: 'var(--site-surface)' }}>
                 <p className="text-lg font-extrabold leading-tight" style={{ color: 'var(--site-heading)' }}>{name}</p>
                 {brokerage && <p className="mt-0.5 text-xs font-semibold" style={{ color: 'var(--site-muted)' }}>{brokerage}</p>}
@@ -105,14 +106,14 @@ export default function AboutAgentBlock({ data, theme, basePrefix = '' }: { data
 
   return (
     <section className="relative overflow-hidden px-6 py-20 sm:py-28">
-      {luxe && <div className="pointer-events-none absolute left-[12%] top-1/2 h-[420px] w-[420px] -translate-y-1/2 rounded-full blur-[110px]" style={{ backgroundColor: `${gold}2a` }} />}
+      {luxe && <div className="pointer-events-none absolute left-[12%] top-1/2 h-[420px] w-[420px] -translate-y-1/2 rounded-full" style={{ background: `radial-gradient(closest-side, ${gold}2a 0%, ${gold}2a 40%, transparent 100%)` }} />}
       <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
         {/* portrait */}
         {photoUrl && (
           <div className="relative mx-auto w-full max-w-[400px]">
             <div className="absolute -inset-3 rounded-[38px] opacity-70" style={{ background: `linear-gradient(140deg, ${gold}, transparent 45%, ${gold}88)` }} />
             <div className="relative overflow-hidden rounded-[32px] shadow-[0_50px_100px_-50px_rgba(0,0,0,.75)]">
-              <img src={photoUrl} alt={name} className="aspect-[4/5] w-full object-cover" />
+              <img src={sizedImage(photoUrl, 828)} loading="lazy" decoding="async" alt={name} className="aspect-[4/5] w-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-6">
                 <span className="block h-px w-10" style={{ background: `linear-gradient(90deg, ${gold}, transparent)` }} />

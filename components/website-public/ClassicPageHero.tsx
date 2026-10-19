@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { sizedImage } from '@/lib/siteImage'
 
 // Classic's page opener - the bright counterpart to Luxe's cinematic dark heroes. A soft stone
 // band, the headline in the site's sans with its last word in the agent's accent, one plain line
@@ -24,7 +25,7 @@ export default function ClassicPageHero({ eyebrow, title, titleTag, accent, subt
   const split = align === 'split' && pics.length > 0
   return (
     <section className="ohp-classic-hero relative overflow-hidden border-b px-6 pb-14 pt-12 sm:pb-16 sm:pt-16" style={{ backgroundColor: 'var(--site-bg-alt)', borderColor: 'var(--site-line)' }}>
-      <div className="pointer-events-none absolute -right-40 -top-40 h-[30rem] w-[30rem] rounded-full blur-3xl" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),0.10)' }} />
+      <div className="pointer-events-none absolute -right-40 -top-40 h-[30rem] w-[30rem] rounded-full" style={{ background: 'radial-gradient(closest-side, rgba(var(--site-accent-rgb),0.10) 0%, rgba(var(--site-accent-rgb),0.10) 40%, transparent 100%)' }} />
       <div className={`relative mx-auto grid max-w-6xl items-center gap-10 ${split ? 'lg:grid-cols-[1.05fr_1fr] lg:gap-14' : ''}`}>
         <div className={split ? '' : 'mx-auto max-w-3xl text-center'}>
           {breadcrumb && <div className="mb-5 flex flex-wrap items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--site-faint)' }}>{breadcrumb}</div>}
@@ -53,12 +54,12 @@ export default function ClassicPageHero({ eyebrow, title, titleTag, accent, subt
           <>
             <div className="relative hidden h-[420px] lg:block">
               <span className="absolute -left-4 top-12 h-[270px] w-28 rounded-[22px]" style={{ backgroundColor: 'var(--site-accent)' }} />
-              {pics[0] && <img src={pics[0]} alt="" className="ohp-classic-pic absolute left-0 top-0 h-[300px] w-[62%] rounded-[22px] object-cover shadow-[0_30px_60px_-30px_rgba(17,24,39,.45)]" />}
-              {pics[1] && <img src={pics[1]} alt="" className="ohp-classic-pic absolute right-0 top-10 h-[220px] w-[42%] rounded-[22px] object-cover shadow-[0_30px_60px_-30px_rgba(17,24,39,.45)]" style={{ animationDelay: '.12s' }} />}
-              {pics[2] && <img src={pics[2]} alt="" className="ohp-classic-pic absolute bottom-0 right-[8%] h-[170px] w-[52%] rounded-[22px] object-cover ring-8 shadow-[0_30px_60px_-30px_rgba(17,24,39,.45)]" style={{ animationDelay: '.24s', ['--tw-ring-color' as string]: 'var(--site-bg-alt)' }} />}
+              {pics[0] && <img src={sizedImage(pics[0], 828)} loading="lazy" decoding="async" alt="" className="ohp-classic-pic absolute left-0 top-0 h-[300px] w-[62%] rounded-[22px] object-cover shadow-[0_30px_60px_-30px_rgba(17,24,39,.45)]" />}
+              {pics[1] && <img src={sizedImage(pics[1], 640)} loading="lazy" decoding="async" alt="" className="ohp-classic-pic absolute right-0 top-10 h-[220px] w-[42%] rounded-[22px] object-cover shadow-[0_30px_60px_-30px_rgba(17,24,39,.45)]" style={{ animationDelay: '.12s' }} />}
+              {pics[2] && <img src={sizedImage(pics[2], 640)} loading="lazy" decoding="async" alt="" className="ohp-classic-pic absolute bottom-0 right-[8%] h-[170px] w-[52%] rounded-[22px] object-cover ring-8 shadow-[0_30px_60px_-30px_rgba(17,24,39,.45)]" style={{ animationDelay: '.24s', ['--tw-ring-color' as string]: 'var(--site-bg-alt)' }} />}
             </div>
             <div className="-mx-6 flex gap-3 overflow-x-auto px-6 lg:hidden [scrollbar-width:none]">
-              {pics.map((src, i) => <img key={src + i} src={src} alt="" className="h-32 w-[46%] shrink-0 rounded-2xl object-cover" />)}
+              {pics.map((src, i) => <img key={src + i} src={sizedImage(src, 384)} loading="lazy" decoding="async" alt="" className="h-32 w-[46%] shrink-0 rounded-2xl object-cover" />)}
             </div>
           </>
         )}

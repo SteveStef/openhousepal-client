@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { sizedBg } from '@/lib/siteImage'
 
 // The same cinematic real-photo hero treatment as HeroBlock (Ken Burns pan via the shared
 // .ohp-hero-pan CSS animation, heavy layered gradient + radial vignette, fade-to-cream bottom)
@@ -20,11 +21,13 @@ export default function CinematicHeroBackground({ photos }: { photos: string[] }
 
   return (
     <>
-      {photos.map((url, i) => (
+      {/* Only the photo on screen, the one fading out and the next are in the page (and only the
+          one on screen pans) - not every photo stacked and animating at once. */}
+      {photos.map((url, i) => (photos.length < 4 || i === index || i === (index + 1) % photos.length || i === (index - 1 + photos.length) % photos.length) && (
         <div
           key={`${url}-${i}`}
-          className={`ohp-hero-pan absolute inset-0 scale-105 bg-cover transition-opacity duration-1000 ${i === index ? 'opacity-100' : 'opacity-0'}`}
-          style={{ backgroundImage: `url(${url})`, backgroundPosition: 'center 30%' }}
+          className={`${i === index ? 'ohp-hero-pan' : ''} absolute inset-0 scale-105 bg-cover transition-opacity duration-1000 ${i === index ? 'opacity-100' : 'opacity-0'}`}
+          style={{ backgroundImage: sizedBg(url, 1920), backgroundPosition: 'center 30%' }}
         />
       ))}
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/55 to-black/35" />

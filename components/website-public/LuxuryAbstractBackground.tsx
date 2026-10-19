@@ -11,8 +11,8 @@ export default function LuxuryAbstractBackground({ accentColor }: { accentColor:
   return (
     <>
       <div className="ohp-hero-pan absolute inset-0 scale-105" style={{ backgroundImage: `url("${gridSvg}")`, backgroundSize: '120px 120px' }} />
-      <div className="pointer-events-none absolute -left-32 -top-32 h-[28rem] w-[28rem] rounded-full blur-[100px]" style={{ backgroundColor: `${accentColor}22` }} />
-      <div className="pointer-events-none absolute -right-24 bottom-0 h-96 w-96 rounded-full blur-[100px]" style={{ backgroundColor: `${accentColor}18` }} />
+      <div className="pointer-events-none absolute -left-32 -top-32 h-[28rem] w-[28rem] rounded-full" style={{ background: `radial-gradient(closest-side, ${accentColor}22 0%, ${accentColor}22 40%, transparent 100%)` }} />
+      <div className="pointer-events-none absolute -right-24 bottom-0 h-96 w-96 rounded-full" style={{ background: `radial-gradient(closest-side, ${accentColor}18 0%, ${accentColor}18 40%, transparent 100%)` }} />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_15%,rgba(0,0,0,0.55)_100%)]" />
     </>
   )

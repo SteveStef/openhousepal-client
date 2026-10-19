@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { sizedImage } from '@/lib/siteImage'
 import { motion, AnimatePresence } from 'framer-motion'
 
 // How long each photo stays on screen while cycling (owner asked for ~4s, 10/07).
@@ -47,15 +48,17 @@ function PhotoFrame({ photos, photoIndex, effectOffset }: { photos: string[]; ph
 // always-on: at rest, every card just shows a plain static cover photo (cheap, calm); the
 // cinematic cycling is a discovery moment reserved for a visitor actually engaging with a card,
 // not constant motion across a page full of them.
-export default function KioskPhotoLayer({ photos, active, effectOffset = 0 }: { photos: string[]; active: boolean; effectOffset?: number }) {
+export default function KioskPhotoLayer({ photos: rawPhotos, active, effectOffset = 0 }: { photos: string[]; active: boolean; effectOffset?: number }) {
+  // Right-sized (lib/siteImage) - these panels are at most ~1000px wide.
+  const photos = useMemo(() => rawPhotos.map(u => sizedImage(u, 1080)), [rawPhotos])
   const [index, setIndex] = useState(0)
   const [loaded, setLoaded] = useState<Set<number>>(new Set())
 
-  // Preload every photo (not gated on `active` - by the time a hover-only hero card actually
-  // needs one, it should already be sitting in the browser's cache) so the rotation below can
-  // wait for a full decode instead of ever swapping to a URL the browser is still fetching -
-  // that's what causes a photo to visibly pop in blurry/low-res and sharpen a moment later.
+  // Preload the photos once the visitor actually hovers (the rotation only runs then), so it can
+  // wait for a full decode instead of swapping to a half-fetched photo. Not on page load any more:
+  // every card fetching every photo up front was 10+ MB on a phone (10/19 sweep).
   useEffect(() => {
+    if (!active) return
     let cancelled = false
     setLoaded(new Set())
     photos.forEach((url, i) => {
@@ -67,7 +70,7 @@ export default function KioskPhotoLayer({ photos, active, effectOffset = 0 }: { 
       img.src = url
     })
     return () => { cancelled = true }
-  }, [photos])
+  }, [photos, active])
 
   useEffect(() => {
     if (!active || photos.length < 2) return

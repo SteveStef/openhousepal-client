@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, BadgeCheck, MessageSquareHeart, PenLine, Phone, Quote, Star, ThumbsUp } from 'lucide-react'
 import { fontClass } from './blocks/fontClass'
 import type { SiteReview, SiteReviewsData } from './ReviewsPage'
+import { sizedImage } from '@/lib/siteImage'
 
 const SOURCE_LABEL: Record<string, string> = { google: 'Google', zillow: 'Zillow', realtor: 'Realtor.com', homes: 'Homes.com', facebook: 'Facebook', direct: 'Verified client' }
 const PAGE = 12
@@ -295,7 +296,7 @@ export default function ReviewsShowcase({ data, theme, basePrefix, agent }: { da
           <div className="relative mx-auto grid max-w-5xl items-center gap-8 overflow-hidden rounded-[32px] p-8 text-white sm:p-10 md:grid-cols-[auto_1fr]" style={{ background: `radial-gradient(70% 120% at 100% 0%, rgba(var(--site-accent-rgb),.3), transparent 60%), ${theme.primary_color}` }}>
             {agent?.photo_url && (
               <div className="mx-auto h-32 w-32 overflow-hidden rounded-full p-1 md:mx-0 md:h-40 md:w-40" style={{ background: 'conic-gradient(from 0deg, var(--site-accent-deep), var(--site-accent-light), var(--site-accent), var(--site-accent-deep))' }}>
-                <img src={agent.photo_url} alt={agent.name || ''} className="h-full w-full rounded-full object-cover" />
+                <img src={sizedImage(agent.photo_url, 256)} loading="lazy" decoding="async" alt={agent.name || ''} className="h-full w-full rounded-full object-cover" />
               </div>
             )}
             <div className={agent?.photo_url ? 'text-center md:text-left' : 'text-center'}>

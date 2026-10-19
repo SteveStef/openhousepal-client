@@ -8,6 +8,7 @@ import type { SiteTheme } from './types'
 import { fontClass } from './blocks/fontClass'
 import Reveal from './Reveal'
 import { pickSiteForm, type SiteFormRef } from './SiteFormLauncher'
+import { sizedImage } from '@/lib/siteImage'
 
 export interface ContactProfile {
   name?: string; phone?: string; email?: string; photo_url?: string; title?: string; brokerage?: string; market?: string
@@ -60,7 +61,7 @@ export default function ContactPageView({ profile, theme, basePrefix = '' }: { p
           <div className={`overflow-hidden border ${luxe ? 'rounded-[28px]' : 'rounded-3xl'}`} style={card}>
             <div className="flex items-center gap-4 p-6">
               {profile.photo_url
-                ? <img src={resolveMediaUrl(profile.photo_url)} alt={profile.name || ''} className={`h-20 w-20 shrink-0 object-cover ring-4 ${luxe ? 'rounded-full' : 'rounded-2xl'}`} style={{ ['--tw-ring-color' as any]: 'rgba(var(--site-accent-rgb),.35)' }} />
+                ? <img src={sizedImage(resolveMediaUrl(profile.photo_url), 256)} loading="lazy" decoding="async" alt={profile.name || ''} className={`h-20 w-20 shrink-0 object-cover ring-4 ${luxe ? 'rounded-full' : 'rounded-2xl'}`} style={{ ['--tw-ring-color' as any]: 'rgba(var(--site-accent-rgb),.35)' }} />
                 : <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full text-xl font-black" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>{(profile.name || '?').slice(0, 1)}</span>}
               <div className="min-w-0">
                 <p className={`truncate text-2xl leading-tight ${luxe ? `font-black ${serif}` : 'font-extrabold tracking-tight'}`} style={{ color: 'var(--site-heading)' }}>{profile.name}</p>

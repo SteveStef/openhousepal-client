@@ -7,6 +7,7 @@ import { fontClass } from './fontClass'
 import OpenHouseChip from '@/components/OpenHouseChip'
 import SpotlightChip from '../SpotlightChip'
 import type { MlsOpenHouse } from '@/lib/mlsOpenHouses'
+import { sizedBg } from '@/lib/siteImage'
 
 interface NewlyListedItem {
   listing_key: string
@@ -31,7 +32,7 @@ function PhotoCard({ listing, theme, luxe, className = '', style }: { listing: N
   ].filter(Boolean) as { icon: typeof BedDouble; label: string }[]
   return (
     <div className={`overflow-hidden bg-gray-900 shadow-2xl ${luxe ? 'rounded-[28px]' : 'rounded-2xl'} ${className}`} style={style}>
-      <div className="relative aspect-[3/4] w-full bg-cover bg-center" style={{ backgroundImage: listing.photo ? `url(${listing.photo})` : undefined }}>
+      <div className="relative aspect-[3/4] w-full bg-cover bg-center" style={{ backgroundImage: sizedBg(listing.photo, 640) }}>
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-black/10" />
         <div className="absolute left-4 top-4 flex flex-wrap items-center gap-2">
           <span className="flex items-center gap-1 rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--site-heading)' }}>

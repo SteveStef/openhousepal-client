@@ -1,5 +1,6 @@
 import { SiteTheme } from '../types'
 import { fontClass } from './fontClass'
+import { sizedBg } from '@/lib/siteImage'
 
 interface SaleCard {
   id: string
@@ -50,7 +51,7 @@ export default function RecentSalesBlock({ data, theme, siteId, basePrefix = '' 
           ].filter(Boolean).join(' · ')
           const card = (
             <div className="ohp-card group overflow-hidden rounded-3xl bg-white shadow-[0_2px_24px_rgba(17,24,39,0.08)] ring-1 ring-black/[0.04] transition hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(17,24,39,0.16)]">
-              <div className="relative aspect-[4/3] w-full bg-gray-100 bg-cover bg-center" style={{ backgroundImage: (sale as any).photo ? `url(${(sale as any).photo})` : undefined }}>
+              <div className="relative aspect-[4/3] w-full bg-gray-100 bg-cover bg-center" style={{ backgroundImage: sizedBg((sale as any).photo, 640) }}>
                 <span className="absolute left-3 top-3 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-sm" style={{ backgroundColor: theme.primary_color }}>Sold</span>
               </div>
               <div className="p-5">

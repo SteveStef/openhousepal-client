@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
-import OpenHouseFrame from '@/components/public-site/OpenHouseFrame'
+import dynamic from 'next/dynamic'
+const OpenHouseFrame = dynamic(() => import('@/components/public-site/OpenHouseFrame'))
 import { cookies, headers } from 'next/headers'
 import { notFound, permanentRedirect, redirect } from 'next/navigation'
 import {
@@ -8,12 +9,12 @@ import {
   School, ShoppingBag, ShoppingBasket, Sparkles, Train, Trees, TrendingUp, Users, Utensils,
   Bell, ChevronDown, MessageCircle, Plus,
 } from 'lucide-react'
-import TownSectionNav from '@/components/website-public/TownSectionNav'
-import TownLiving from '@/components/website-public/TownLiving'
-import TownInsights from '@/components/website-public/TownInsights'
-import TownCommute from '@/components/website-public/TownCommute'
-import TownMap from '@/components/website-public/TownMap'
-import TownWalk from '@/components/website-public/TownWalk'
+const TownSectionNav = dynamic(() => import('@/components/website-public/TownSectionNav'))
+const TownLiving = dynamic(() => import('@/components/website-public/TownLiving'))
+const TownInsights = dynamic(() => import('@/components/website-public/TownInsights'))
+const TownCommute = dynamic(() => import('@/components/website-public/TownCommute'))
+const TownMap = dynamic(() => import('@/components/website-public/TownMap'))
+const TownWalk = dynamic(() => import('@/components/website-public/TownWalk'))
 import { buildTownFaq, firstSentences } from '@/components/website-public/townGuide'
 import { autoListingMeta, autoPostMeta, autoSectionMeta, autoTownMeta, seoClip, withSiteName, type SeoCtx } from '@/lib/siteSeoAuto'
 import SitePageRenderer from '@/components/website-public/SitePageRenderer'
@@ -21,22 +22,22 @@ import SiteShell from '@/components/website-public/SiteShell'
 import SpotlightChip from '@/components/website-public/SpotlightChip'
 import MarketTrendsSection from '@/components/website-public/MarketTrendsSection'
 import { SiteHeader, SiteFooter } from '@/components/website-public/SiteChrome'
-import PropertyGallery from '@/components/website-public/PropertyGallery'
-import FeaturedPageClient from '@/components/website-public/FeaturedPageClient'
+const PropertyGallery = dynamic(() => import('@/components/website-public/PropertyGallery'))
+const FeaturedPageClient = dynamic(() => import('@/components/website-public/FeaturedPageClient'))
 import CinematicHeroBackground from '@/components/website-public/CinematicHeroBackground'
 import ClassicPageHero from '@/components/website-public/ClassicPageHero'
 import { formatStatus, statusBadgeColor, formatCompactPrice } from '@/components/website-public/listingFormat'
-import PropertyMapSearch from '@/components/website-public/PropertyMapSearch'
-import PropertyLocationMap from '@/components/website-public/PropertyLocationMap'
-import ExploreNearby from '@/components/website-public/ExploreNearby'
-import NeighborhoodCompareLauncher from '@/components/website-public/NeighborhoodCompareLauncher'
-import WebsitePublicFormPage from '@/components/website-public/WebsitePublicFormPage'
+const PropertyMapSearch = dynamic(() => import('@/components/website-public/PropertyMapSearch'))
+const PropertyLocationMap = dynamic(() => import('@/components/website-public/PropertyLocationMap'))
+const ExploreNearby = dynamic(() => import('@/components/website-public/ExploreNearby'))
+const NeighborhoodCompareLauncher = dynamic(() => import('@/components/website-public/NeighborhoodCompareLauncher'))
+const WebsitePublicFormPage = dynamic(() => import('@/components/website-public/WebsitePublicFormPage'))
 import ShowcaseCreatorCTA from '@/components/website-public/ShowcaseCreatorCTA'
 import ReviewsPage from '@/components/website-public/ReviewsPage'
-import ContactPageView from '@/components/website-public/ContactPageView'
+const ContactPageView = dynamic(() => import('@/components/website-public/ContactPageView'))
 import HomeValuePage from '@/components/website-public/HomeValuePage'
-import NeighborhoodsExplorer from '@/components/website-public/NeighborhoodsExplorer'
-import MediaHub from '@/components/website-public/MediaHub'
+const NeighborhoodsExplorer = dynamic(() => import('@/components/website-public/NeighborhoodsExplorer'))
+const MediaHub = dynamic(() => import('@/components/website-public/MediaHub'))
 import HomeCard from '@/components/website-public/HomeCard'
 import SiteFormLauncher from '@/components/website-public/SiteFormLauncher'
 import SiteNavProgress from '@/components/website-public/SiteNavProgress'
@@ -44,19 +45,24 @@ import { normalizeSiteTheme } from '@/lib/siteTheme'
 import { cardVersion } from '@/lib/og/shared'
 import { toTitleCase } from '@/lib/cheatSheetContent'
 import { fontClass } from '@/components/website-public/blocks/fontClass'
-import SiteBlogArticle from '@/components/website-public/SiteBlogArticle'
+const SiteBlogArticle = dynamic(() => import('@/components/website-public/SiteBlogArticle'))
 import BlogCoverArt from '@/components/BlogCoverArt'
-import IdxPropertyPage from '@/components/website-public/IdxPropertyPage'
+const IdxPropertyPage = dynamic(() => import('@/components/website-public/IdxPropertyPage'))
 import IdxOneTap from '@/components/website-public/IdxOneTap'
-import MyShowcase from '@/components/website-public/showcase/MyShowcase'
+const MyShowcase = dynamic(() => import('@/components/website-public/showcase/MyShowcase'))
 import RememberShowcase from '@/components/website-public/showcase/RememberShowcase'
-import ShowcaseBuilder from '@/components/website-public/showcase/ShowcaseBuilder'
+const ShowcaseBuilder = dynamic(() => import('@/components/website-public/showcase/ShowcaseBuilder'))
 import { resolveMediaUrl } from '@/lib/api-service'
 import { DEFAULT_SITE_THEME, SearchFilterParams, SiteContent, type SiteTheme } from '@/components/website-public/types'
-import CinematicLuxuryTemplate, { PropertySiteResolveResponse } from '@/components/property-sites/CinematicLuxuryTemplate'
-import EditorialEstateTemplate from '@/components/property-sites/EditorialEstateTemplate'
+import type { PropertySiteResolveResponse } from '@/components/property-sites/CinematicLuxuryTemplate'
+const CinematicLuxuryTemplate = dynamic(() => import('@/components/property-sites/CinematicLuxuryTemplate'))
+const EditorialEstateTemplate = dynamic(() => import('@/components/property-sites/EditorialEstateTemplate'))
 import { formatOpenHouseTime, upcomingOpenHouses } from '@/lib/mlsOpenHouses'
 import { tidyAllCaps } from '@/lib/cheatSheetContent'
+import { sizedBg, sizedImage } from '@/lib/siteImage'
+
+// Route-specific client pieces (Spotlight templates, map search, Showcase builder, town widgets...) are
+// next/dynamic so each page only ships its own JS - they all used to download on every page (10/19).
 
 // Server Component only - this is the entire CORS story for Website Builder (see
 // backend/app/api/public_site_routes.py). INTERNAL_API_URL is server-only (no NEXT_PUBLIC_
@@ -682,7 +688,7 @@ function FeaturedArticleCard({ post, theme, basePrefix }: { post: any; theme: an
     <a href={`${basePrefix}/blog/${post.slug}`} className="group relative grid overflow-hidden rounded-[28px] bg-white shadow-[0_30px_70px_-40px_rgba(17,24,39,.5)] ring-1 ring-black/[0.05] transition duration-500 hover:-translate-y-1 hover:shadow-[0_40px_80px_-40px_rgba(17,24,39,.6)] lg:grid-cols-[1.15fr_1fr]">
       <div className="relative min-h-[240px] overflow-hidden sm:min-h-[300px] lg:min-h-[380px]">
         {post.cover_image_url ? (
-          <div className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.6s] ease-out group-hover:scale-105" style={{ backgroundImage: `url(${resolveMediaUrl(post.cover_image_url)})` }} />
+          <div className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.6s] ease-out group-hover:scale-105" style={{ backgroundImage: sizedBg(resolveMediaUrl(post.cover_image_url), 1200) }} />
         ) : (
           <div className="absolute inset-0"><BlogCoverArt category={post.category} title={post.title} tone="site" showWord={false} /></div>
         )}
@@ -713,7 +719,7 @@ function BlogCard({ post, theme, basePrefix }: { post: any; theme: any; basePref
     >
       <div className="relative aspect-[16/10] w-full overflow-hidden" style={{ backgroundColor: theme.primary_color }}>
         {post.cover_image_url ? (
-          <div className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110" style={{ backgroundImage: `url(${resolveMediaUrl(post.cover_image_url)})` }} />
+          <div className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110" style={{ backgroundImage: sizedBg(resolveMediaUrl(post.cover_image_url), 640) }} />
         ) : (
           <BlogCoverArt category={post.category} title={post.title} tone="site" showWord={!post.category} />
         )}
@@ -748,7 +754,7 @@ function HubMediaCard({ item, theme, kind }: { item: { id?: string; title?: stri
       className="ohp-card group relative block overflow-hidden rounded-[22px] bg-gray-900 shadow-[0_20px_50px_-30px_rgba(17,24,39,.6)] ring-1 ring-black/[0.05] transition hover:-translate-y-1 hover:shadow-[0_30px_60px_-30px_rgba(17,24,39,.7)]"
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-800">
-        <div className="h-full w-full bg-cover bg-center transition-transform duration-[1.4s] ease-out group-hover:scale-105" style={{ backgroundImage: item.image ? `url(${item.image})` : undefined }} />
+        <div className="h-full w-full bg-cover bg-center transition-transform duration-[1.4s] ease-out group-hover:scale-105" style={{ backgroundImage: sizedBg(item.image, 640) }} />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/10" />
         <span className="absolute left-4 top-4 rounded-full bg-black/40 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-white ">{kind === 'tour' ? 'House Tour' : 'Video'}</span>
         <span className="absolute left-1/2 top-[42%] flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
@@ -814,7 +820,7 @@ async function BlogDetail({ siteId, slug, theme, basePrefix }: { siteId: string;
           {post.subtitle && <p className="mt-4 text-lg leading-relaxed text-gray-600 sm:text-xl">{post.subtitle}</p>}
           {post.agent_name && (
             <div className="mt-7 flex items-center gap-3">
-              {post.agent_photo_url && <img src={resolveMediaUrl(post.agent_photo_url)} alt={post.agent_name} className="h-11 w-11 rounded-full object-cover ring-2" style={{ ['--tw-ring-color' as any]: gold }} />}
+              {post.agent_photo_url && <img src={sizedImage(resolveMediaUrl(post.agent_photo_url), 128)} loading="lazy" decoding="async" alt={post.agent_name} className="h-11 w-11 rounded-full object-cover ring-2" style={{ ['--tw-ring-color' as any]: gold }} />}
               <div>
                 <p className="text-sm font-black text-gray-900">{post.agent_name}</p>
                 <p className="text-xs font-semibold text-gray-500">
@@ -829,7 +835,7 @@ async function BlogDetail({ siteId, slug, theme, basePrefix }: { siteId: string;
       {post.cover_image_url && (
         <div className="mx-auto -mt-2 max-w-5xl px-6 pt-8">
           <div className="overflow-hidden rounded-[28px] p-1.5 shadow-[0_40px_80px_-50px_rgba(0,0,0,.7)]" style={{ background: `linear-gradient(135deg, ${gold}aa, #fff, ${gold}88)` }}>
-            <img src={resolveMediaUrl(post.cover_image_url)} alt={post.title} className="aspect-[16/9] w-full rounded-[22px] object-cover" />
+            <img src={sizedImage(resolveMediaUrl(post.cover_image_url), 1200)} loading="lazy" decoding="async" alt={post.title} className="aspect-[16/9] w-full rounded-[22px] object-cover" />
           </div>
         </div>
       )}
@@ -852,7 +858,7 @@ async function BlogDetail({ siteId, slug, theme, basePrefix }: { siteId: string;
         </div>
 
         <div className="relative mt-10 overflow-hidden rounded-[28px] p-8 text-center text-white" style={{ backgroundColor: theme.primary_color }}>
-          <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-30 blur-3xl" style={{ backgroundColor: gold }} />
+          <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-30" style={{ background: `radial-gradient(closest-side, ${gold} 0%, ${gold} 40%, transparent 100%)` }} />
           <p className="relative text-[10px] font-black uppercase tracking-[0.28em]" style={{ color: gold }}>Your next move</p>
           <h2 className={`relative mt-2 text-2xl font-black ${serif}`}>Have questions about the market?</h2>
           <p className="relative mt-2 text-sm text-white/65">Let&apos;s talk through what this means for your next move.</p>
@@ -906,7 +912,7 @@ function AreaCard({ area, theme, basePrefix, featured = false }: { area: any; th
       className={`ohp-card group relative flex flex-col overflow-hidden rounded-3xl bg-white shadow-[0_2px_24px_rgba(17,24,39,0.08)] ring-1 ring-black/[0.04] transition hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(17,24,39,0.18)] ${featured ? 'sm:col-span-2 sm:row-span-2' : ''}`}
     >
       <div className={`relative w-full overflow-hidden bg-gray-100 ${featured ? 'aspect-[16/11]' : 'aspect-[4/3]'}`}>
-        <div className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110" style={{ backgroundImage: area.photo ? `url(${area.photo})` : undefined }} />
+        <div className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110" style={{ backgroundImage: sizedBg(area.photo, 640) }} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
         {featured && (
           <span className="absolute left-4 top-4 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-sm" style={{ backgroundColor: theme.secondary_color, color: theme.primary_color }}>
@@ -1305,7 +1311,7 @@ function ListingCard({ item, theme, basePrefix, showStatus = true, dateLabel }: 
   const inner = (
     <>
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
-        <div className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110" style={{ backgroundImage: item.photo ? `url(${item.photo})` : undefined }} />
+        <div className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110" style={{ backgroundImage: sizedBg(item.photo, 640) }} />
         {dateLabel ? (
           <span className="absolute left-3 top-3 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide shadow-sm" style={{ backgroundColor: theme.secondary_color, color: theme.primary_color }}>
             {dateLabel}
@@ -1518,7 +1524,7 @@ function CompareHeroCard({ area, theme, basePrefix }: { area: any; theme: any; b
   return (
     <div className="overflow-hidden rounded-[1.75rem] bg-white shadow-[0_18px_60px_rgba(17,24,39,0.12)] ring-1 ring-black/[0.04]">
       <div className="relative aspect-[16/10] overflow-hidden bg-gray-100">
-        <div className="h-full w-full bg-cover bg-center" style={{ backgroundImage: heroPhoto ? `url(${resolveMediaUrl(heroPhoto)})` : undefined }} />
+        <div className="h-full w-full bg-cover bg-center" style={{ backgroundImage: sizedBg(resolveMediaUrl(heroPhoto), 1920) }} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 p-5 text-white">
           <p className="ohp-site-heading text-3xl font-black">{area.name}</p>
@@ -1651,7 +1657,7 @@ async function NeighborhoodComparePage({ siteId, theme, basePrefix, compareParam
         <div className="absolute inset-0 grid grid-cols-2">
           {[left, right].map((a: any) => {
             const ph = (a.inventory?.listings || []).find((l: any) => l?.photo)?.photo
-            return <div key={a.slug} className="ohp-hero-pan bg-cover bg-center opacity-60" style={{ backgroundImage: ph ? `url(${resolveMediaUrl(ph)})` : undefined }} />
+            return <div key={a.slug} className="ohp-hero-pan bg-cover bg-center opacity-60" style={{ backgroundImage: sizedBg(resolveMediaUrl(ph), 640) }} />
           })}
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/55 to-black/40" />
@@ -2190,7 +2196,7 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
             )}
             {profile?.name && (
               <div className={`flex items-center gap-4 border p-5 ${luxe ? 'rounded-[24px]' : 'rounded-2xl'}`} style={TOWN_CARD_STYLE}>
-                {profile.photo_url && <img src={resolveMediaUrl(profile.photo_url)} alt={profile.name} className="h-14 w-14 shrink-0 rounded-full object-cover" style={{ boxShadow: '0 0 0 3px var(--site-surface), 0 0 0 4px var(--site-accent)' }} />}
+                {profile.photo_url && <img src={sizedImage(resolveMediaUrl(profile.photo_url), 128)} loading="lazy" decoding="async" alt={profile.name} className="h-14 w-14 shrink-0 rounded-full object-cover" style={{ boxShadow: '0 0 0 3px var(--site-surface), 0 0 0 4px var(--site-accent)' }} />}
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-bold" style={{ color: 'var(--site-muted)' }}>Your {area.name} expert</p>
                   <p className="truncate text-[15px] font-black" style={{ color: 'var(--site-heading)' }}>{profile.name}</p>
@@ -2448,7 +2454,7 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
               <div key={related.slug} className={`group overflow-hidden border transition hover:-translate-y-1 ${luxe ? 'rounded-[24px]' : 'rounded-2xl'}`} style={TOWN_CARD_STYLE}>
                 <a href={`${basePrefix}/${related.slug}`} className="block">
                   <div className="relative aspect-[16/10] w-full overflow-hidden" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
-                    <div className="h-full w-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: related.photo ? `url(${resolveMediaUrl(related.photo)})` : undefined }} />
+                    <div className="h-full w-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: sizedBg(resolveMediaUrl(related.photo), 640) }} />
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     <p className="absolute bottom-3 left-4 text-xl font-black text-white">{related.name}{related.state ? `, ${related.state}` : ''}</p>
                   </div>
@@ -2466,7 +2472,7 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
       {/* Close - the agent, and the three things a guest might want next. */}
       <section id="contact" className="scroll-mt-32 px-5 py-16 sm:px-6 sm:py-20">
         <div className={`relative mx-auto max-w-6xl overflow-hidden p-7 sm:p-12 ${luxe ? 'rounded-[28px]' : 'rounded-3xl'}`} style={{ backgroundColor: luxe ? theme.primary_color : 'var(--site-accent-deep)' }}>
-          {heroPhotos[0] && <div className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-[0.16]" style={{ backgroundImage: `url(${heroPhotos[0]})` }} />}
+          {heroPhotos[0] && <div className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-[0.16]" style={{ backgroundImage: sizedBg(heroPhotos[0], 1920) }} />}
           <div className="relative grid grid-cols-1 items-center gap-8 lg:grid-cols-[1.4fr_1fr]">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em]" style={{ color: luxe ? theme.secondary_color : 'rgba(255,255,255,0.7)' }}>Thinking about {area.name}?</p>
@@ -2482,7 +2488,7 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
             </div>
             {profile?.name && (
               <div className="flex items-center gap-4 lg:justify-end">
-                {profile.photo_url && <img src={resolveMediaUrl(profile.photo_url)} alt={profile.name} className="h-20 w-20 shrink-0 rounded-full object-cover ring-4 ring-white/20" />}
+                {profile.photo_url && <img src={sizedImage(resolveMediaUrl(profile.photo_url), 256)} loading="lazy" decoding="async" alt={profile.name} className="h-20 w-20 shrink-0 rounded-full object-cover ring-4 ring-white/20" />}
                 <div className="min-w-0">
                   <p className="text-lg font-black text-white">{profile.name}</p>
                   {profile.brokerage && <p className="text-xs font-semibold text-white/60">{profile.brokerage}</p>}

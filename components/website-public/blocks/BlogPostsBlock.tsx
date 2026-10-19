@@ -4,6 +4,7 @@ import { SiteTheme } from '../types'
 import { fontClass } from './fontClass'
 import BlogCoverArt from '@/components/BlogCoverArt'
 import ClassicSectionHead from './ClassicSectionHead'
+import { sizedBg } from '@/lib/siteImage'
 
 interface BlogCard {
   id: string
@@ -28,7 +29,7 @@ export default function BlogPostsBlock({ data, theme, basePrefix = '' }: { data:
   const gold = theme.secondary_color
   const cover = (post: BlogCard) => (
     post.cover_image_url ? (
-      <div className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-105" style={{ backgroundImage: `url(${resolveMediaUrl(post.cover_image_url)})` }} />
+      <div className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-105" style={{ backgroundImage: sizedBg(resolveMediaUrl(post.cover_image_url), 640) }} />
     ) : (
       <BlogCoverArt category={post.category} title={post.title} tone="site" />
     )

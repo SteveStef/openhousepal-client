@@ -44,8 +44,8 @@ export default function ContactCtaBlock({ data, theme, basePrefix = '' }: { data
         style={{ backgroundColor: theme.primary_color }}
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(90deg, transparent, ${gold}, transparent)` }} />
-        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full opacity-25 blur-3xl" style={{ backgroundColor: gold }} />
-        <div className="pointer-events-none absolute -bottom-28 -right-16 h-72 w-72 rounded-full opacity-15 blur-3xl" style={{ backgroundColor: gold }} />
+        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full opacity-25" style={{ background: `radial-gradient(closest-side, ${gold} 0%, ${gold} 40%, transparent 100%)` }} />
+        <div className="pointer-events-none absolute -bottom-28 -right-16 h-72 w-72 rounded-full opacity-15" style={{ background: `radial-gradient(closest-side, ${gold} 0%, ${gold} 40%, transparent 100%)` }} />
         <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,.7)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.7)_1px,transparent_1px)] [background-size:40px_40px] [mask-image:radial-gradient(60%_70%_at_50%_0%,#000,transparent_75%)]" />
         <p className="relative flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: gold }}>
           <span className="h-px w-8" style={{ backgroundColor: gold }} />Get in touch<span className="h-px w-8" style={{ backgroundColor: gold }} />

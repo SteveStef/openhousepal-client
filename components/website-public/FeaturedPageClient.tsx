@@ -11,6 +11,7 @@ import { fontClass } from './blocks/fontClass'
 import { SiteTheme } from './types'
 import ClassicPageHero from './ClassicPageHero'
 import { formatStatus, statusBadgeColor } from './listingFormat'
+import { sizedBg } from '@/lib/siteImage'
 
 type Listing = ShowcaseListing & { days_on_market?: number | null; features?: string[]; list_office_name?: string | null }
 
@@ -146,7 +147,7 @@ function ClassicSpotlight({ listings, onOpen }: { listings: Listing[]; onOpen: (
       </div>
       <div key={l.listing_key} className="mt-5 grid animate-fadeIn overflow-hidden rounded-[24px] border lg:grid-cols-[1.45fr_1fr]" style={{ borderColor: 'var(--site-line)', backgroundColor: 'var(--site-surface)' }}>
         <button type="button" onClick={() => onOpen(l.listing_key)} className="relative aspect-[16/10] overflow-hidden lg:aspect-auto lg:min-h-[420px]" aria-label="Open this home">
-          <div className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.4s] hover:scale-[1.03]" style={{ backgroundImage: l.photo ? `url(${l.photo})` : undefined, backgroundColor: 'var(--site-bg-alt)' }} />
+          <div className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.4s] hover:scale-[1.03]" style={{ backgroundImage: sizedBg(l.photo, 1920), backgroundColor: 'var(--site-bg-alt)' }} />
           {l.status && <span className="absolute left-4 top-4 rounded-md px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider shadow-sm" style={{ backgroundColor: badge.bg, color: badge.fg }}>{formatStatus(l.status)}</span>}
         </button>
         <div className="flex flex-col p-7 sm:p-9">
@@ -177,7 +178,7 @@ function ClassicSpotlight({ listings, onOpen }: { listings: Listing[]; onOpen: (
       {listings.length > 1 && (
         <div className="mt-4 flex gap-2 overflow-x-auto p-1 [scrollbar-width:none]">
           {listings.map((x, k) => (
-            <button key={x.listing_key} onClick={() => setI(k)} aria-label={`Show ${x.address || 'home'}`} className={`h-16 w-24 shrink-0 overflow-hidden rounded-xl bg-cover bg-center transition ${k === i ? 'ring-2 ring-offset-2' : 'opacity-60 hover:opacity-100'}`} style={{ backgroundImage: x.photo ? `url(${x.photo})` : undefined, ['--tw-ring-color' as string]: 'var(--site-accent)', ['--tw-ring-offset-color' as string]: 'var(--site-bg)' }} />
+            <button key={x.listing_key} onClick={() => setI(k)} aria-label={`Show ${x.address || 'home'}`} className={`h-16 w-24 shrink-0 overflow-hidden rounded-xl bg-cover bg-center transition ${k === i ? 'ring-2 ring-offset-2' : 'opacity-60 hover:opacity-100'}`} style={{ backgroundImage: sizedBg(x.photo, 256), ['--tw-ring-color' as string]: 'var(--site-accent)', ['--tw-ring-offset-color' as string]: 'var(--site-bg)' }} />
           ))}
         </div>
       )}

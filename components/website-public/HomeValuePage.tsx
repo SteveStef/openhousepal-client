@@ -2,6 +2,7 @@ import { BadgeCheck, ClipboardList, FileText, MessageCircle, Phone, Search, Star
 import HomeValueAddress from './HomeValueAddress'
 import { fontClass } from './blocks/fontClass'
 import { resolveMediaUrl } from '@/lib/api-service'
+import { sizedBg, sizedImage } from '@/lib/siteImage'
 
 // The IDX site's "What's my home worth?" landing page (/home-value) - the page an agent sends
 // homeowners to from ads, mailers and their email signature. An address box that opens the
@@ -41,7 +42,7 @@ export default function HomeValuePage({ theme, basePrefix, profile, areas, revie
         style={luxe ? { backgroundColor: theme.primary_color } : { background: 'linear-gradient(180deg, var(--site-bg-alt), var(--site-bg))' }}>
         {luxe && photo && (
           <>
-            <div className="ohp-hero-pan absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${resolveMediaUrl(photo)})` }} />
+            <div className="ohp-hero-pan absolute inset-0 bg-cover bg-center" style={{ backgroundImage: sizedBg(resolveMediaUrl(photo), 1920) }} />
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-black/30" />
           </>
         )}
@@ -66,7 +67,7 @@ export default function HomeValuePage({ theme, basePrefix, profile, areas, revie
           {!luxe && photo && (
             <div className="relative hidden lg:block">
               <div className="aspect-[4/3.2] overflow-hidden rounded-3xl" style={{ boxShadow: 'var(--site-shadow-lift)' }}>
-                <div className="ohp-hero-pan h-full w-full bg-cover bg-center" style={{ backgroundImage: `url(${resolveMediaUrl(photo)})` }} />
+                <div className="ohp-hero-pan h-full w-full bg-cover bg-center" style={{ backgroundImage: sizedBg(resolveMediaUrl(photo), 828) }} />
               </div>
               {reviews?.show && reviews.summary?.count > 0 && (
                 <div className="absolute -bottom-5 -left-5 flex items-center gap-3 rounded-2xl border px-4 py-3" style={card}>
@@ -112,7 +113,7 @@ export default function HomeValuePage({ theme, basePrefix, profile, areas, revie
               {towns.map(a => (
                 <a key={a.slug} href={`${basePrefix}/${a.slug}#market`} className={`group relative overflow-hidden border transition hover:-translate-y-1 ${round}`} style={card}>
                   <div className="relative h-24 overflow-hidden sm:h-28" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
-                    {a.photo && <div className="h-full w-full bg-cover bg-center transition duration-700 group-hover:scale-105" style={{ backgroundImage: `url(${resolveMediaUrl(a.photo)})` }} />}
+                    {a.photo && <div className="h-full w-full bg-cover bg-center transition duration-700 group-hover:scale-105" style={{ backgroundImage: sizedBg(resolveMediaUrl(a.photo), 640) }} />}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     <p className="absolute bottom-2 left-3 text-[15px] font-black text-white">{a.name}</p>
                   </div>
@@ -151,7 +152,7 @@ export default function HomeValuePage({ theme, basePrefix, profile, areas, revie
       <section className="px-5 pb-16 sm:px-6 sm:pb-20">
         <div className={`relative mx-auto max-w-6xl overflow-hidden p-7 sm:p-12 ${luxe ? 'rounded-[28px]' : 'rounded-3xl'}`} style={{ backgroundColor: luxe ? theme.primary_color : 'var(--site-accent-deep)' }}>
           <div className="relative grid grid-cols-1 items-center gap-8 lg:grid-cols-[auto_1fr_auto]">
-            {profile?.photo_url && <img src={resolveMediaUrl(profile.photo_url)} alt={profile.name} className="h-24 w-24 rounded-full object-cover ring-4 ring-white/20" />}
+            {profile?.photo_url && <img src={sizedImage(resolveMediaUrl(profile.photo_url), 256)} loading="lazy" decoding="async" alt={profile.name} className="h-24 w-24 rounded-full object-cover ring-4 ring-white/20" />}
             <div>
               <h2 className={`ohp-site-heading text-2xl font-black text-white sm:text-3xl ${serif}`}>Thinking about selling - now or someday?</h2>
               <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-white/75">I&apos;ll tell you what your home would sell for today and what would raise it - whether you&apos;re moving this spring or just curious.</p>

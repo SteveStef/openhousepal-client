@@ -15,6 +15,7 @@ import { fontClass } from './blocks/fontClass'
 import { OhpWordmark } from '@/components/brand/OhpBrand'
 import { useVisitor } from '@/lib/visitor'
 import { IdxNotice } from '@/components/MLSComplianceFooter'
+import { sizedImage } from '@/lib/siteImage'
 
 // The visitor's light/dark switch. Flips data-mode on the nearest .ohp-site root (the public
 // SiteShell, or the editor's preview box) and remembers the choice per site, which SiteShell's
@@ -92,7 +93,7 @@ function AgentAvatar({ profile, siteName, href, size = 'h-9 w-9', ring = 'ring-w
   return (
     <a href={href} aria-label={first ? `Meet ${first}` : 'About'} title={first ? `Meet ${first} - my Agent Hub` : 'About'} className="group relative block shrink-0">
       {profile?.photo_url ? (
-        <img src={resolveMediaUrl(profile.photo_url)} alt={profile.name || siteName} className={`${size} ${shape} object-cover ring-2 ${ring} transition duration-500 group-hover:scale-105`} />
+        <img src={sizedImage(resolveMediaUrl(profile.photo_url), 256)} loading="lazy" decoding="async" alt={profile.name || siteName} className={`${size} ${shape} object-cover ring-2 ${ring} transition duration-500 group-hover:scale-105`} />
       ) : (
         <span className={`flex ${size} ${shape} items-center justify-center text-[11px] font-black ring-2 ${ring}`} style={onDark ? { backgroundColor: 'rgba(255,255,255,.12)', color: '#fff' } : { backgroundColor: theme.secondary_color, color: 'var(--site-on-accent)' }}>
           {initials(profile?.name || siteName)}
@@ -313,7 +314,7 @@ export function SiteHeader({
           >
             <a href={aboutHref} className="flex items-center gap-3 rounded-2xl border p-3" style={{ borderColor: 'var(--site-line)', backgroundColor: 'var(--site-surface)' }}>
               {agentProfile?.photo_url
-                ? <img src={resolveMediaUrl(agentProfile.photo_url)} alt="" className={`h-12 w-12 object-cover ${classic ? 'rounded-xl' : 'rounded-full ring-2 ring-[var(--site-gold)]/50'}`} />
+                ? <img src={sizedImage(resolveMediaUrl(agentProfile.photo_url), 256)} loading="lazy" decoding="async" alt="" className={`h-12 w-12 object-cover ${classic ? 'rounded-xl' : 'rounded-full ring-2 ring-[var(--site-gold)]/50'}`} />
                 : <span className="flex h-12 w-12 items-center justify-center rounded-full text-sm font-black" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>{initials(agentProfile?.name || siteName)}</span>}
               <span className="min-w-0 flex-1">
                 <span className={`block truncate text-base font-black ${classic ? '' : fontClass(theme.heading_font, 'font-serif')}`} style={{ color: 'var(--site-heading)' }}>{agentProfile?.name || siteName}</span>
@@ -465,7 +466,7 @@ export function SiteFooter({
       style={classic ? { backgroundColor: 'var(--site-surface)', borderColor: 'var(--site-line)', boxShadow: 'var(--site-shadow)' } : { backgroundColor: 'rgba(255,255,255,.04)', borderColor: 'rgba(255,255,255,.1)' }}>
       <a href={`${basePrefix}/about`} className="inline-block">
         {profile?.photo_url
-          ? <img src={resolveMediaUrl(profile.photo_url)} alt={name} className={`mx-auto h-24 w-24 object-cover ${classic ? 'rounded-2xl' : 'rounded-full'} ring-4`} style={{ ['--tw-ring-color' as any]: 'rgba(var(--site-accent-rgb),.45)' }} />
+          ? <img src={sizedImage(resolveMediaUrl(profile.photo_url), 256)} loading="lazy" decoding="async" alt={name} className={`mx-auto h-24 w-24 object-cover ${classic ? 'rounded-2xl' : 'rounded-full'} ring-4`} style={{ ['--tw-ring-color' as any]: 'rgba(var(--site-accent-rgb),.45)' }} />
           : <span className="mx-auto flex h-24 w-24 items-center justify-center rounded-full text-2xl font-black" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>{initials(name)}</span>}
       </a>
       <p className={`mt-4 text-2xl font-black leading-tight ${classic ? 'tracking-tight' : serif}`} style={{ color: head }}>{name}</p>
@@ -545,11 +546,11 @@ export function SiteFooter({
       {!classic ? (<>
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--site-accent), transparent)' }} />
         <div className="ohp-foot-sweep pointer-events-none absolute inset-x-0 top-0 h-px" />
-        <div className="ohp-foot-glow pointer-events-none absolute -left-40 -top-40 h-[28rem] w-[28rem] rounded-full opacity-20 blur-3xl" style={{ backgroundColor: 'var(--site-accent)' }} />
-        <div className="ohp-foot-glow pointer-events-none absolute -bottom-48 -right-24 h-96 w-96 rounded-full opacity-10 blur-3xl" style={{ backgroundColor: 'var(--site-accent-light)', animationDelay: '-7s' }} />
+        <div className="ohp-foot-glow pointer-events-none absolute -left-40 -top-40 h-[28rem] w-[28rem] rounded-full opacity-20" style={{ background: 'radial-gradient(closest-side, var(--site-accent) 0%, var(--site-accent) 40%, transparent 100%)' }} />
+        <div className="ohp-foot-glow pointer-events-none absolute -bottom-48 -right-24 h-96 w-96 rounded-full opacity-10" style={{ background: 'radial-gradient(closest-side, var(--site-accent-light) 0%, var(--site-accent-light) 40%, transparent 100%)', animationDelay: '-7s' }} />
         <div className="pointer-events-none absolute inset-0 opacity-[0.06] [background-image:linear-gradient(rgba(255,255,255,.6)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.6)_1px,transparent_1px)] [background-size:44px_44px] [mask-image:radial-gradient(70%_60%_at_50%_30%,#000,transparent_75%)]" />
       </>) : (
-        <div className="pointer-events-none absolute -top-40 left-1/2 h-80 w-[60rem] -translate-x-1/2 rounded-full blur-3xl" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),.07)' }} />
+        <div className="pointer-events-none absolute -top-40 left-1/2 h-80 w-[60rem] -translate-x-1/2 rounded-full" style={{ background: 'radial-gradient(closest-side, rgba(var(--site-accent-rgb),.07) 0%, rgba(var(--site-accent-rgb),.07) 40%, transparent 100%)' }} />
       )}
 
       {/* 1. Links | closing band | links - one row */}
