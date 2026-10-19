@@ -37,7 +37,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ kind: strin
     case 'blog':
       return renderBlogCard(q.get('agent') || '', q.get('post') || '', fonts)
     case 'form':
-      return renderFormCard(q.get('agent') || '', q.get('form') || '', fonts)
+      return renderFormCard(q.get('agent') || '', q.get('form') || '', fonts, process.env.NODE_ENV !== 'production' ? q.get('look') : null)
     case 'spotlight':
       return renderSpotlightCard(q.get('host') || '', q.get('path') || '', fonts)
     case 'property':

@@ -413,6 +413,9 @@ const FORM_FACE: Record<FormKind, { eyebrow: string; button: string; d: string[]
     d: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', 'M8 9h8', 'M8 13h5'] },
 }
 
+// Ends on a whole word (never "...what's realistic in").
+const clip = (t: string, max: number) => (t.length <= max ? t : t.slice(0, t.lastIndexOf(' ', max - 1)).replace(/[\s,;:-]+$/, '') + '…')
+
 export function FormCard({ photo, name, brokerage, headline, support, kind, look }: {
   photo: string | null; name: string; brokerage: string | null; headline: string; support: string | null; kind: FormKind; look: HubLook
 }) {
@@ -475,7 +478,15 @@ export function FormCard({ photo, name, brokerage, headline, support, kind, look
   )
 }
 
-export async function renderFormCard(agentSlug: string, formSlug: string, fonts: Fonts): Promise<ImageResponse> {
+/** Local design review only (route passes it outside production): 'luxe-silver-dark', 'classic-#1f3a5f-light'. */
+function lookOverride(spec: string | null | undefined): any | null {
+  const [theme, pick, mode] = String(spec || '').split('-')
+  if (theme === 'luxe') return { hubTheme: 'luxe', hubLuxeMetal: pick, visitorDarkMode: mode === 'dark' }
+  if (theme === 'classic') return { hubTheme: 'classic', hubAccent: pick, visitorDarkMode: mode === 'dark' }
+  return null
+}
+
+export async function renderFormCard(agentSlug: string, formSlug: string, fonts: Fonts, previewLook?: string | null): Promise<ImageResponse> {
   try {
     // Fresh within a minute of an edit to the form or the hub's look.
     const [data, hub] = await Promise.all([
@@ -486,12 +497,12 @@ export async function renderFormCard(agentSlug: string, formSlug: string, fonts:
     const agentPhoto = await imgToDataUri(data?.agentPhotoUrl || cfg.profilePhotoUrl || cfg.profile?.photoUrl)
     const agentName: string = data?.agentName || cfg.profile?.name || 'Your agent'
     // Forms have no colours of their own - they wear the hub's look; a form set to dark is dark.
-    const look = hubLook({ ...cfg, visitorDarkMode: !!cfg.visitorDarkMode || !!data?.darkMode })
+    const look = hubLook(lookOverride(previewLook) || { ...cfg, visitorDarkMode: !!cfg.visitorDarkMode || !!data?.darkMode })
     const kind = FORM_KIND[String(data?.formType || '')] || (formSlug.includes('worth') || formSlug.includes('value') ? 'value' : 'talk')
     return IR(
       <FormCard photo={agentPhoto} name={agentName} brokerage={data?.agentBrokerage || cfg.profile?.brokerage || null}
         headline={String(data?.headline || data?.title || "Let's talk")}
-        support={data?.subtitle ? String(data.subtitle).slice(0, 110) : 'A few quick questions and I follow up personally.'}
+        support={data?.subtitle ? clip(String(data.subtitle), 112) : 'A few quick questions and I follow up personally.'}
         kind={kind} look={look} />,
       fonts,
     )

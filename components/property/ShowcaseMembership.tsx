@@ -56,26 +56,41 @@ export default function ShowcaseMembership({ propertyId, listingKey, street, zIn
 
   return (
     <>
+      {/* Phones (user, 10/18 - three Showcases looked terrible in one cut-off row): the names wrap as
+          small name tags - first names with their initials - four at most, then "+N more" (opens the
+          list); the button gets its own full-width row. */}
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}
-        className={`mt-4 flex flex-wrap items-center gap-2.5 rounded-2xl px-3.5 py-3 sm:flex-nowrap ${pp.card}`}>
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--pp-gold-wash)] text-[color:var(--pp-gold)]"><Layers className="h-4 w-4" /></span>
-        <div className="min-w-0 flex-1">
-          <p className={`text-[11px] font-black uppercase tracking-[0.16em] ${pp.faint}`}>
-            {inIt.length ? `In ${inIt.length} of your Showcases` : 'Not in any of your Showcases yet'}
-          </p>
-          {inIt.length > 0 && (
-            <div className="mt-1 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {inIt.map(r => (
-                <a key={r.id} href={`/showcases?showcase=${encodeURIComponent(r.id)}`}
-                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[color:var(--pp-gold-line)] px-2.5 py-1 text-[12px] font-black transition hover:border-[color:var(--pp-gold)] ${pp.heading}`}>
-                  {r.recommended && <Star className="h-3 w-3 fill-[var(--pp-gold)] text-[color:var(--pp-gold)]" />}{label(r)}
-                </a>
-              ))}
-            </div>
-          )}
+        className={`mt-4 rounded-2xl p-3.5 ${pp.card}`}>
+        <div className="flex items-start gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--pp-gold-wash)] text-[color:var(--pp-gold)]"><Layers className="h-4 w-4" /></span>
+          <div className="min-w-0 flex-1">
+            <p className={`pt-0.5 text-[11px] font-black uppercase tracking-[0.16em] ${pp.faint}`}>
+              {inIt.length ? `In ${inIt.length} of your Showcases` : 'Not in any of your Showcases yet'}
+            </p>
+            {inIt.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {inIt.map((r, i) => (
+                  <a key={r.id} href={`/showcases?showcase=${encodeURIComponent(r.id)}`}
+                    className={`${i >= 4 ? 'hidden sm:inline-flex' : 'inline-flex'} max-w-full items-center gap-1.5 rounded-full border border-[color:var(--pp-gold-line)] bg-[var(--pp-bg)] py-1 pl-1 pr-2.5 text-[12px] font-black transition hover:border-[color:var(--pp-gold)] ${pp.heading}`}>
+                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[var(--pp-ink)] text-[8.5px] font-black text-[color:var(--pp-gold)]">{initials(r)}</span>
+                    <span className="truncate"><span className="sm:hidden">{(r.client || label(r)).split(' ')[0]}</span><span className="hidden sm:inline">{label(r)}</span></span>
+                    {r.recommended && <Star className="h-3 w-3 shrink-0 fill-[var(--pp-gold)] text-[color:var(--pp-gold)]" />}
+                  </a>
+                ))}
+                {inIt.length > 4 && (
+                  <button type="button" onClick={() => { setOpen(true); setQ(''); setError('') }}
+                    className={`inline-flex items-center rounded-full bg-[var(--pp-gold-wash)] px-2.5 py-1 text-[12px] font-black sm:hidden ${pp.heading}`}>+{inIt.length - 4} more</button>
+                )}
+              </div>
+            )}
+          </div>
+          <motion.button type="button" whileTap={{ scale: 0.96 }} onClick={() => { setOpen(true); setQ(''); setError('') }}
+            className={`${pp.goldBtn} hidden h-10 shrink-0 !px-4 !py-0 text-[11px] sm:inline-flex`}>
+            <Plus className="h-4 w-4" /> Add to a Showcase
+          </motion.button>
         </div>
-        <motion.button type="button" whileTap={{ scale: 0.96 }} onClick={() => { setOpen(true); setQ(''); setError('') }}
-          className={`${pp.goldBtn} h-10 w-full shrink-0 !px-4 !py-0 text-[11px] sm:w-auto`}>
+        <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => { setOpen(true); setQ(''); setError('') }}
+          className={`${pp.goldBtn} mt-3 h-11 w-full !py-0 text-[11px] sm:hidden`}>
           <Plus className="h-4 w-4" /> Add to a Showcase
         </motion.button>
       </motion.div>
