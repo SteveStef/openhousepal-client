@@ -32,7 +32,7 @@ function pdfImageUrl(url?: string | null): string {
   if (typeof window === 'undefined') return normalized;
   return `${window.location.origin}/api/pdf-image?url=${encodeURIComponent(normalized)}`;
 }
-import { CmaGuidanceSection, buildCmaStaticMapUrl, clientCompStrength, cmaGuidanceSections, resolveCmaMarketMetrics, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_HEX, STRENGTH_LABEL, STRENGTH_TIER_HEX, compDisplayPrice, effectiveCompPrice } from '@/lib/cma';
+import { CmaGuidanceSection, buildCmaStaticMapUrl, clientCompStrength, cmaGuidanceSections, resolveCmaMarketMetrics, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, buyerOfferFigures, AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_HEX, STRENGTH_LABEL, STRENGTH_TIER_HEX, compDisplayPrice, effectiveCompPrice } from '@/lib/cma';
 import { qrPdfSrc } from '@/lib/qr';
 import { salesAreRecent, salesWords } from '@/lib/salesWording'
 
@@ -2869,7 +2869,7 @@ function CmaPricingPage({ report, comparables, agent }: { report: CmaReport; com
   // The backend's locked final valuation is authoritative; legacy fields only support old reports.
   const aiEstimate = report.pricing.ai_estimate;
   const finalValuation = aiEstimate?.final_valuation;
-  const offerFields = aiEstimate?.offer_strategy_fields;
+  const offerFigures = buyerOfferFigures(report.pricing);
   const authoritativeValue = finalValuation?.value ?? aiEstimate?.value ?? null;
   const suggested = {
     min: finalValuation?.range_min ?? aiEstimate?.range_min ?? null,
@@ -2901,9 +2901,9 @@ function CmaPricingPage({ report, comparables, agent }: { report: CmaReport; com
         <View style={cma.factsGrid}>
           {isBuyer ? (
             <>
-              <CmaFact label="Suggested Offer Min" value={(offerFields?.opening_offer_low ?? report.pricing.suggested_offer_min) ? formatMoney(offerFields?.opening_offer_low ?? report.pricing.suggested_offer_min) : null} />
-              <CmaFact label="Suggested Offer Max" value={(offerFields?.opening_offer_high ?? report.pricing.suggested_offer_max) ? formatMoney(offerFields?.opening_offer_high ?? report.pricing.suggested_offer_max) : null} />
-              <CmaFact label="Strong Offer" value={(offerFields?.strong_offer ?? report.pricing.strong_offer) ? formatMoney(offerFields?.strong_offer ?? report.pricing.strong_offer) : null} />
+              <CmaFact label="Suggested Offer Min" value={offerFigures.min ? formatMoney(offerFigures.min) : null} />
+              <CmaFact label="Suggested Offer Max" value={offerFigures.max ? formatMoney(offerFigures.max) : null} />
+              <CmaFact label="Strong Offer" value={offerFigures.strong ? formatMoney(offerFigures.strong) : null} />
             </>
           ) : (
             <>
@@ -2931,7 +2931,7 @@ function CmaPricingPage({ report, comparables, agent }: { report: CmaReport; com
 
 function CmaOfferSuggestionPage({ report, agent }: { report: CmaReport; agent: CmaPdfAgent }) {
   const aiEstimate = report.pricing.ai_estimate;
-  const offerFields = aiEstimate?.offer_strategy_fields;
+  const offerFigures = buyerOfferFigures(report.pricing);
   const guidance = splitCmaBuyerGuidance({
     ...report.pricing,
     offer_strategy_commentary: aiEstimate?.methodology_summary ?? report.pricing.offer_strategy_commentary,
@@ -2947,9 +2947,9 @@ function CmaOfferSuggestionPage({ report, agent }: { report: CmaReport; agent: C
       <View style={{ backgroundColor: COLORS.white, borderRadius: 14, padding: 18, border: `1 solid ${COLORS.border}`, borderTop: '4 solid #C9A24D' }}>
         <View style={cma.offerStatsRow}>
           <CmaOfferFact label="Fair Market Value" value={authoritativeValue ? formatMoney(authoritativeValue) : null} />
-          <CmaOfferFact label="Suggested Offer Min" value={(offerFields?.opening_offer_low ?? report.pricing.suggested_offer_min) ? formatMoney(offerFields?.opening_offer_low ?? report.pricing.suggested_offer_min) : null} />
-          <CmaOfferFact label="Suggested Offer Max" value={(offerFields?.opening_offer_high ?? report.pricing.suggested_offer_max) ? formatMoney(offerFields?.opening_offer_high ?? report.pricing.suggested_offer_max) : null} />
-          <CmaOfferFact label="Strong Offer" value={(offerFields?.strong_offer ?? report.pricing.strong_offer) ? formatMoney(offerFields?.strong_offer ?? report.pricing.strong_offer) : null} />
+          <CmaOfferFact label="Suggested Offer Min" value={offerFigures.min ? formatMoney(offerFigures.min) : null} />
+          <CmaOfferFact label="Suggested Offer Max" value={offerFigures.max ? formatMoney(offerFigures.max) : null} />
+          <CmaOfferFact label="Strong Offer" value={offerFigures.strong ? formatMoney(offerFigures.strong) : null} />
         </View>
         <View style={{ backgroundColor: COLORS.panel, borderRadius: 12, border: `1 solid ${COLORS.border}`, padding: 17 }}>
           <Text style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1.2, color: '#8b7355', marginBottom: 9 }}>

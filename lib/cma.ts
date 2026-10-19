@@ -557,3 +557,19 @@ export function buildCompLocationMapUrl(
   const marker = `color:0xC9A24D|${center}`
   return `https://maps.googleapis.com/maps/api/staticmap?center=${center}&zoom=${zoom}&size=${size}&scale=2&maptype=roadmap&markers=${encodeURIComponent(marker)}&key=${apiKey}`
 }
+
+// The three buyer offer figures shown to a client (PDF + public page). The backend's deterministic
+// offer contract wins (its numbers are what the QA'd offer prose quotes); the legacy pricing
+// fields only cover old reports. A subject that has already SOLD gets no offer figures at all -
+// the prose already says no live offer strategy applies, and $ "Suggested Offer" tiles next to
+// that sentence contradicted it (seen 10/19 on a mirror-active listing that had closed).
+export function buyerOfferFigures(pricing: CmaPricing): { min: number | null; max: number | null; strong: number | null } {
+  const est = pricing.ai_estimate
+  if (est?.status?.is_closed) return { min: null, max: null, strong: null }
+  const f = est?.offer_strategy_fields
+  return {
+    min: f?.opening_offer_low ?? pricing.suggested_offer_min ?? null,
+    max: f?.opening_offer_high ?? pricing.suggested_offer_max ?? null,
+    strong: f?.strong_offer ?? pricing.strong_offer ?? null,
+  }
+}

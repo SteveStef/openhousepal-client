@@ -11,6 +11,7 @@ import {
   buildCmaStaticMapUrl, buildCompLocationMapUrl, clientCompStrength, compDisplayPrice, resolveCmaMarketMetrics, effectiveCompPrice, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange,
   CmaGuidanceSection, cmaGuidanceSections, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, COMP_STATUS_BADGE_STYLE,
   AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_STYLES, STRENGTH_LABEL, STRENGTH_SCALE_STYLES, STRENGTH_STYLES,
+  buyerOfferFigures,
 } from '@/lib/cma'
 import { CmaPresentationDocument } from '@/lib/pdfs'
 import { googleMapsLoader } from '@/lib/googleMapsLoader'
@@ -118,7 +119,7 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
   const isBuyer = data.mode === 'buyer'
   // The backend's locked final valuation is authoritative; legacy fields only support old reports.
   const finalValuation = pricing.ai_estimate?.final_valuation
-  const offerFields = pricing.ai_estimate?.offer_strategy_fields
+  const offerFigures = buyerOfferFigures(pricing)
   const authoritativeValue = finalValuation?.value ?? pricing.ai_estimate?.value ?? null
   const authoritativeDom = pricing.ai_estimate?.status?.active_market_days ?? subject.days_on_market
   const suggested = {
@@ -390,9 +391,9 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
             <div className="mt-8 grid grid-cols-2 gap-4 border-t border-white/10 pt-6 print:border-gray-200 sm:grid-cols-4">
               {isBuyer ? (
                 <>
-                  <FinalFact label="Suggested Offer Min" value={(offerFields?.opening_offer_low ?? pricing.suggested_offer_min) ? formatMoney(offerFields?.opening_offer_low ?? pricing.suggested_offer_min) : null} />
-                  <FinalFact label="Suggested Offer Max" value={(offerFields?.opening_offer_high ?? pricing.suggested_offer_max) ? formatMoney(offerFields?.opening_offer_high ?? pricing.suggested_offer_max) : null} />
-                  <FinalFact label="Strong Offer" value={(offerFields?.strong_offer ?? pricing.strong_offer) ? formatMoney(offerFields?.strong_offer ?? pricing.strong_offer) : null} />
+                  <FinalFact label="Suggested Offer Min" value={offerFigures.min ? formatMoney(offerFigures.min) : null} />
+                  <FinalFact label="Suggested Offer Max" value={offerFigures.max ? formatMoney(offerFigures.max) : null} />
+                  <FinalFact label="Strong Offer" value={offerFigures.strong ? formatMoney(offerFigures.strong) : null} />
                 </>
               ) : (
                 <>
