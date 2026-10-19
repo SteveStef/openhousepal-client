@@ -51,6 +51,8 @@
   --site-charcoal: var(--site-ink);
   --site-gold: var(--site-accent);
   --site-gold-soft: rgba(var(--site-accent-rgb), 0.12);
+  /* Accent as readable small text (lib/siteTheme readableOn); fallback = the deep tint. */
+  --site-accent-text: var(--site-accent-deep);
 
   background-color: var(--site-bg);
   color: var(--site-ink);
@@ -370,6 +372,7 @@
   --site-accent: var(--site-accent-dm) !important;
   --site-accent-rgb: var(--site-accent-dm-rgb) !important;
   --site-on-accent: var(--site-on-accent-dm) !important;
+  --site-accent-text: var(--site-accent-text-dm) !important;
 }
 
 /* ---- The site's loading mark (components/website-public/SiteLoader.tsx) ----

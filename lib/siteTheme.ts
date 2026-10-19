@@ -57,6 +57,30 @@ export function isLightColor(hex: string): boolean {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.62
 }
 
+function luminance(hex: string): number {
+  const rgb = hexToRgb(hex) || [0, 0, 0]
+  const [r, g, b] = rgb.map(v => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4 })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+/** WCAG contrast ratio between two hex colors (1-21). */
+export function contrastRatio(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+/** `hex` darkened (light page) or lightened (dark page) just enough to read as small text on `bg`
+ *  (WCAG AA 4.5:1) - the agent's color where it already passes, its nearest readable shade where
+ *  it doesn't (gold or a light accent on white, navy on a dark page). */
+export function readableOn(hex: string, bg: string, min = 4.5): string {
+  const toward: [number, number, number] = luminance(bg) > 0.4 ? [0, 0, 0] : [255, 255, 255]
+  for (let k = 0; k <= 20; k++) {
+    const c = mix(hex, toward, k * 0.05)
+    if (contrastRatio(c, bg) >= min) return c
+  }
+  return toward[0] ? '#ffffff' : '#111111'
+}
+
 export interface SiteThemeVars {
   style: CSSProperties
   template: SiteTemplate
@@ -135,6 +159,11 @@ export function siteThemeVars(rawTheme: Partial<SiteTheme> | null | undefined): 
     '--site-accent-light': accentLight,
     '--site-accent-deep': accentDeep,
     '--site-accent-pale': accentPale,
+    // Accent as small TEXT / icons on the page (labels, "View home", map pins' captions): the
+    // agent's color, nudged until it reads (AA) on this look's light or dark surfaces. Dark mode
+    // swaps in the -dm value (site-theme.css).
+    '--site-accent-text': readableOn(accent, luxe ? '#f3f1ea' : '#f6f7f9'),
+    '--site-accent-text-dm': readableOn(accentOnDark, luxe ? '#16161b' : '#191c25'),
     '--site-on-accent': onAccent,
     '--site-primary': primary,
     '--site-primary-rgb': primaryRgb.join(','),

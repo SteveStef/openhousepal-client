@@ -7,14 +7,13 @@ import { fontClass } from './fontClass'
 import { formatStatus, statusBadgeColor } from '../listingFormat'
 import OpenHouseChip from '@/components/OpenHouseChip'
 import SpotlightChip from '../SpotlightChip'
-import FeaturedHeroCarousel from '../FeaturedHeroCarousel'
-import { ShowcaseListing } from '../PropertyShowcaseCard'
-import HomeCard from '../HomeCard'
+import IdxHomeGridCard from '../IdxHomeGridCard'
 import Reveal from '../Reveal'
 import PropertyQuickViewModal from '../PropertyQuickViewModal'
 import LuxuryAbstractBackground from '../LuxuryAbstractBackground'
 import ClassicSectionHead from './ClassicSectionHead'
 import type { MlsOpenHouse } from '@/lib/mlsOpenHouses'
+import { sizedBg } from '@/lib/siteImage'
 
 interface ListingCard {
   listing_key: string
@@ -60,7 +59,7 @@ export function ClassicListingCard({ listing, href, onOpen }: { listing: Listing
     >
       <div className="relative aspect-[4/3] overflow-hidden" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
         {pics.map((u, i) => (
-          <div key={u + i} className="absolute inset-0 bg-cover bg-center transition-all duration-700 group-hover:scale-[1.03]" style={{ backgroundImage: `url(${u})`, opacity: i === pi ? 1 : 0 }} />
+          <div key={u + i} className="absolute inset-0 bg-cover bg-center transition-all duration-700 group-hover:scale-[1.03]" style={{ backgroundImage: sizedBg(u, 640), opacity: i === pi ? 1 : 0 }} />
         ))}
         <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5">
           {listing.status && <span className="rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider shadow-sm" style={{ backgroundColor: badge.bg, color: badge.fg }}>{formatStatus(listing.status)}</span>}
@@ -83,27 +82,37 @@ export function ClassicListingCard({ listing, href, onOpen }: { listing: Listing
   )
 }
 
+// The homes themselves: the Agent Hub Sales page's card layout (IdxHomeGridCard) in the site's
+// colors - one or two homes sit centered at card width instead of stretching across the row.
+function FeaturedGrid({ listings, theme, basePrefix, onQuickView }: { listings: ListingCard[]; theme: SiteTheme; basePrefix: string; onQuickView?: (key: string) => void }) {
+  const n = listings.length
+  return (
+    <div className={`mx-auto mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 ${n >= 3 ? 'lg:grid-cols-3' : n === 2 ? 'max-w-4xl' : 'max-w-md sm:grid-cols-1'}`}>
+      {listings.map((listing, k) => (
+        <Reveal key={listing.listing_key} delay={(k % 3) * 80} className="h-full">
+          <IdxHomeGridCard listing={listing as any} theme={theme} basePrefix={basePrefix} onQuickView={onQuickView} />
+        </Reveal>
+      ))}
+    </div>
+  )
+}
+
 // Featured homes on the home page. Both looks read the Featured tab's own pool
 // (content_adapters.get_featured_page_listings) - this block only decides how to show it.
 //
 // Luxe: the same cinematic treatment as the Featured page's top - a midnight band with the gold
-// grid drifting behind it, the serif headline with the shimmer, then the "listing of the moment"
-// carousel (one big photo with the price, address and facts rising onto it, two more angles of
-// the same home beside it, cycling through the pool on its own) and, under it, up to three more
-// homes as showcase cards with their photos rotating. A click opens the same quick look the
-// Featured page uses. Default: a calm three-up grid.
+// grid behind it and the serif headline with the shimmer; Default: the light band. In both, the
+// homes are Agent Hub Sales-page cards (IdxHomeGridCard) in the site's own colors (user, 10/19:
+// the old carousel/cards looked bad). A click opens the same quick look the Featured page uses.
 export default function FeaturedListingsBlock({ data, theme, siteId, basePrefix = '' }: { data: Record<string, any>; theme: SiteTheme; siteId?: string; basePrefix?: string }) {
   const luxe = theme.template !== 'default'
   const listings: ListingCard[] = (data.resolved || []).slice(0, luxe ? 9 : 9)
   const [quickViewKey, setQuickViewKey] = useState<string | null>(null)
   if (!listings.length) return null
   const serif = fontClass(theme.heading_font, 'font-serif')
-  const hrefFor = (l: ListingCard) => (siteId ? `${basePrefix}/properties/${encodeURIComponent(l.listing_key)}` : undefined)
   const gold = theme.secondary_color
 
   if (luxe) {
-    const heroPool = listings.slice(0, 6) as unknown as (ShowcaseListing & { days_on_market?: number | null; features?: string[] })[]
-    const more = listings.slice(6, 9) as unknown as ShowcaseListing[]
     return (
       <section className="relative overflow-hidden px-6 pb-20 pt-24 sm:pb-24 sm:pt-28" style={{ backgroundColor: theme.primary_color }}>
         <LuxuryAbstractBackground accentColor={gold} />
@@ -132,25 +141,7 @@ export default function FeaturedListingsBlock({ data, theme, siteId, basePrefix 
             )}
           </div>
 
-          <div className="relative mt-4">
-            <FeaturedHeroCarousel listings={heroPool} theme={theme} basePrefix={basePrefix} onQuickView={siteId ? setQuickViewKey : undefined} />
-          </div>
-
-          {more.length > 0 && (
-            <div className="mt-12">
-              <div className="flex items-center gap-3">
-                <span className="h-px w-8" style={{ backgroundColor: gold }} />
-                <p className="text-[11px] font-black uppercase tracking-[0.28em]" style={{ color: gold }}>More to see</p>
-              </div>
-              <div className="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {more.map((listing, k) => (
-                  <Reveal key={listing.listing_key} delay={(k % 3) * 80} className="h-full">
-                    <HomeCard listing={listing as any} theme={theme} basePrefix={basePrefix} onQuickView={siteId ? setQuickViewKey : undefined} />
-                  </Reveal>
-                ))}
-              </div>
-            </div>
-          )}
+          <FeaturedGrid listings={listings} theme={theme} basePrefix={basePrefix} onQuickView={siteId ? setQuickViewKey : undefined} />
         </div>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px" style={{ background: `linear-gradient(90deg, transparent, ${gold}88, transparent)` }} />
@@ -163,13 +154,7 @@ export default function FeaturedListingsBlock({ data, theme, siteId, basePrefix 
     <section className="px-6 py-16 sm:py-24" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
       <div className="mx-auto max-w-7xl">
         <ClassicSectionHead eyebrow={data.eyebrow || 'Featured'} title={data.headline || 'Featured Listings'} sub={data.subtext || 'A curated selection of exceptional homes available now.'} href={siteId ? `${basePrefix}/properties` : undefined} linkLabel="View all homes" />
-        <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {listings.map((listing, k) => (
-            <Reveal key={listing.listing_key} delay={(k % 3) * 80} className="h-full">
-              <HomeCard listing={listing as any} theme={theme} basePrefix={basePrefix} onQuickView={siteId ? setQuickViewKey : undefined} />
-            </Reveal>
-          ))}
-        </div>
+        <FeaturedGrid listings={listings} theme={theme} basePrefix={basePrefix} onQuickView={siteId ? setQuickViewKey : undefined} />
       </div>
       {siteId && <PropertyQuickViewModal siteId={siteId} listingKey={quickViewKey} onClose={() => setQuickViewKey(null)} theme={theme} basePrefix={basePrefix} />}
     </section>
