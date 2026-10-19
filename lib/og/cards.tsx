@@ -357,10 +357,16 @@ export function HomePhotoCard({ photo, street, place, eyebrow, sub, agentName, a
   const btnInk = lum(accent) > 0.6 ? '#111827' : '#ffffff'
   const rgb = [1, 3, 5].map(i => parseInt(accent.slice(i, i + 2), 16)).join(',')
   // "847 Lesley Rd, Villanova" - the town in the same serif and size, on one line (user, 10/19)
-  const headline = [street, place.split(',')[0]].filter(Boolean).join(', ')
-  // a long address gets smaller until it fits on one line (user, 10/19) - only a freak lot
-  // description ("Lot E 133-9.00 ... off of Shortly Rd") still runs out of room at the smallest size
-  const titleSize = fitSize(headline, 1056, 0.53, 78, 26)
+  const town = place.split(',')[0]
+  const headline = [street, town].filter(Boolean).join(', ')
+  // One line while it fits at a good size; too long for that, the unit and the town go on the line
+  // under the street (user, 10/19) - "6501 Haverford Ave" / "#Corner Unit, Philadelphia". Each
+  // line then shrinks to fit if it must (only a freak lot description gets small).
+  const unitAt = street.search(/\s(#|unit\b|apt\b|ste\b|suite\b)/i)
+  const lines = fitSize(headline, 1056, 0.53, 78, 26) >= 54 ? [headline]
+    : unitAt > 0 ? [street.slice(0, unitAt).trim(), [street.slice(unitAt).trim(), town].filter(Boolean).join(', ')]
+    : [street, town].filter(Boolean)
+  const titleSize = Math.min(...lines.map(l => fitSize(l, 1056, 0.53, 78, 26)))
   return (
     <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: C.bgBot,
       backgroundImage: `radial-gradient(1000px 640px at 78% 22%, ${C.bgTop} 0%, ${C.bgMid} 55%, ${C.bgBot} 100%)` }}>
@@ -386,7 +392,9 @@ export function HomePhotoCard({ photo, street, place, eyebrow, sub, agentName, a
             <div style={{ display: 'flex', width: 34, height: 2, backgroundColor: light }} />
             {eyebrow}
           </div>
-          <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: titleSize, lineHeight: 1.04, letterSpacing: -1, marginTop: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 1056 }}>{headline}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', marginTop: 14 }}>
+            {lines.map((l, i) => <div key={i} style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: titleSize, lineHeight: 1.06, letterSpacing: -1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 1056 }}>{l}</div>)}
+          </div>
           <div style={{ display: 'flex', fontSize: 30, color: C.sub, marginTop: 14 }}>{sub}</div>
         </div>
       </div>
