@@ -1,14 +1,8 @@
 import './globals.css'
 import { headers } from 'next/headers'
 import { Inter } from 'next/font/google'
-import { AuthProvider } from '@/contexts/AuthContext'
-import { ToastProvider } from '@/contexts/ToastContext'
+import dynamic from 'next/dynamic'
 import { Providers } from './providers'
-import AppHeader from '@/components/AppHeader'
-import PageGate from '@/components/PageGate'
-import NavHistoryTracker from '@/components/NavHistoryTracker'
-import AssistantWidget from '@/components/assistant/AssistantWidget'
-import IdxDomainMigrationModal from '@/components/IdxDomainMigrationModal'
 import ScrollLockWatcher from '@/components/ScrollLockWatcher'
 import { Metadata } from 'next'
 import ThemeColorSync from '@/components/ThemeColorSync'
@@ -16,6 +10,10 @@ import Script from 'next/script'
 import { FRAME_LINK_GUARD_SCRIPT } from '@/lib/frameLinkGuard'
 
 const inter = Inter({ subsets: ['latin'] })
+
+// The app's own chrome (sign-in, header, page loader, assistant) - a separate chunk that only app
+// pages load; agent IDX sites never download it (components/AppShell).
+const AppShell = dynamic(() => import('@/components/AppShell'))
 
 // Base URL every relative metadata URL (the OG image, canonical) is resolved against. Falls back
 // to the production domain so a shared link always points somewhere real, not localhost.
@@ -85,25 +83,9 @@ export default async function RootLayout({
           <Providers>{children}<ScrollLockWatcher /><ThemeColorSync /></Providers>
         ) : (
           <Providers>
-            <ToastProvider>
-              <AuthProvider>
-                <main className="min-h-screen flex flex-col overflow-x-clip overflow-y-visible">
-                  {/* No wrapping div here - Header.tsx's own <header> already carries print:hidden,
-                      and a sticky element can never stick past the bottom edge of its own
-                      containing block. A wrapper sized to exactly the header's own height gave it
-                      zero room to actually stick; as a direct child of this full-page-height
-                      <main>, it now has the whole page to stay pinned across. */}
-                  <NavHistoryTracker />
-                  <AppHeader />
-                  {/* App pages wait behind the logo loader until they're fully loaded, then rise in. */}
-                  <PageGate>{children}</PageGate>
-                </main>
-                <AssistantWidget />
-                <IdxDomainMigrationModal />
-                <ScrollLockWatcher />
-                <ThemeColorSync />
-              </AuthProvider>
-            </ToastProvider>
+            <AppShell>{children}</AppShell>
+            <ScrollLockWatcher />
+            <ThemeColorSync />
           </Providers>
         )}
       </body>
