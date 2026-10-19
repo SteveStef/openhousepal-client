@@ -21,6 +21,10 @@ import { ApiResponse, User, OpenHouse, OpenHouseFormRequest, SearchPreferences, 
 import { getToken, removeToken } from './token';
 import { tidyAllCaps } from './cheatSheetContent';
 
+/** Something wrong with an agent's own domain right now, in plain words + the fix (domain_health_service). */
+export type DomainIssue = { hostname: string; code: string; title: string; fix: string; since: string }
+export type AdminDomainIssue = DomainIssue & { agent_id: string; agent_name: string; agent_email: string; brokerage?: string | null }
+
 export interface PlanImpact {
   active_showcases: number;
   showcase_clients: number;
@@ -696,6 +700,8 @@ class ApiService {
     getStorageAgents: () => this.request<AdminStorageAgentSummary[]>('/admin/storage/agents'),
     /** Agent activity tracker - every agent's usage (counts only, never their clients' details). */
     getActivity: () => this.request<AdminActivityOverview>('/admin/activity'),
+    /** Agents whose own domain isn't working right now. */
+    getDomainIssues: () => this.request<{ issues: AdminDomainIssue[] }>('/admin/domain-issues'),
     getActivityAgent: (agentId: string) => this.request<AdminActivityAgentDetail>(`/admin/activity/agents/${agentId}`),
     /** Brokerage groups - agents paid for by their brokerage on a custom deal. */
     getGroups: () => this.request<BillingGroup[]>('/admin/groups'),
@@ -1544,6 +1550,8 @@ class ApiService {
     publish: () => this.request<Site>('/studio/sites/me/publish', { method: 'POST' }),
 
     getDomains: () => this.request<SiteDomain[]>('/studio/sites/me/domains'),
+
+    getDomainHealth: () => this.request<{ issues: DomainIssue[] }>('/studio/sites/me/domains/health'),
 
     addDomain: (hostname: string) =>
       this.request<SiteDomain>('/studio/sites/me/domains', { method: 'POST', body: JSON.stringify({ hostname }) }),

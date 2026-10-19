@@ -12,6 +12,7 @@ import { ReactNode, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowUpRight, Globe, Link2, Loader2, PowerOff, Star } from 'lucide-react'
 import api from '@/lib/api-service'
+import DomainHealthBanner from '@/components/DomainHealthBanner'
 import type { LinkDomainState } from '@/types'
 
 export type { LinkDomainState }
@@ -88,6 +89,7 @@ export default function IdxDomainCard({ children, linkDomain }: { children?: Rea
       <p className="mt-1.5 text-sm font-semibold text-gray-500 dark:text-gray-400">
         Your web addresses and which one your links use.
       </p>
+      <DomainHealthBanner inline className="mt-4" />
 
       {/* The address list only earns its space once there's a domain of their own to compare -
           before that, the domain manager below already shows the free address. */}

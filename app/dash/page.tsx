@@ -16,6 +16,7 @@ import MissedShowcasesBanner from '@/components/MissedShowcasesBanner'
 import OhpLoader from '@/components/brand/OhpLoader'
 import NewListingSpotlightCard from '@/components/dash/NewListingSpotlightCard'
 import SetupChecklistCard from '@/components/dash/SetupChecklistCard'
+import DomainHealthBanner from '@/components/DomainHealthBanner'
 import StatCard from '@/components/stats/StatCard'
 import { useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
 import DashLeadCard from '@/components/dash/DashLeadCard'
@@ -457,6 +458,7 @@ export default function DashPage() {
         </motion.div>
 
         {/* The setup flow - every step for this plan, until all are done (skipped ones stay as chips). */}
+        <DomainHealthBanner className="mt-4" />
         <SetupChecklistCard className="mt-4" />
 
         {/* KPI strip */}

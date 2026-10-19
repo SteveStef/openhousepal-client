@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import {
-  Activity, ArrowRight, Building2, Check, Home, Inbox, Loader2, ShieldCheck, Sparkles, TrendingDown, UserPlus, Users,
+  Activity, ArrowRight, Building2, Check, Globe, Home, Inbox, Loader2, Mail, ShieldCheck, Sparkles, TrendingDown, UserPlus, Users,
 } from 'lucide-react'
-import api from '@/lib/api-service'
+import api, { type AdminDomainIssue } from '@/lib/api-service'
 import type { AdminActivityOverview, BillingGroup, User } from '@/types'
 import { timeAgo } from '@/lib/leadActivity'
 import { AgentDrawer } from './AgentActivityPanel'
@@ -25,6 +25,9 @@ export default function AdminOverviewPanel({ users, groups, supportUnread, quest
   const [drawer, setDrawer] = useState<string | null>(null)
   const [approving, setApproving] = useState<string | null>(null)
   useEffect(() => { api.admin.getActivity().then(r => { if (r.success && r.data) setAct(r.data) }) }, [])
+  // Agents whose own domain isn't working (the server checks them every few hours) - reach out.
+  const [domainIssues, setDomainIssues] = useState<AdminDomainIssue[]>([])
+  useEffect(() => { api.admin.getDomainIssues().then(r => { if (r.success && r.data) setDomainIssues(r.data.issues || []) }) }, [])
 
   const agents = useMemo(() => users.filter(u => !u.is_admin), [users])
   const groupsById = useMemo(() => Object.fromEntries(groups.map(g => [g.id, g])), [groups])
@@ -52,6 +55,37 @@ export default function AdminOverviewPanel({ users, groups, supportUnread, quest
         <Big icon={Sparkles} label="Leads this month" value={t ? t.leads_30 : '…'} onClick={() => onGo('activity')} />
         <Big icon={Inbox} label="Unread messages" value={supportUnread + questionsUnread} sub={`${supportUnread} support · ${questionsUnread} questions`} warn={supportUnread + questionsUnread > 0} onClick={() => onGo(supportUnread ? 'support' : 'questions')} />
       </div>
+
+      {domainIssues.length > 0 && (
+        <section className="rounded-2xl border border-red-200 bg-white p-4 shadow-sm dark:border-red-500/30 dark:bg-[#151517] sm:p-5">
+          <p className="flex items-center gap-1.5 text-sm font-black text-[#111827] dark:text-white">
+            <Globe className="h-4 w-4 text-red-500" /> Domains that aren&apos;t working
+            <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-black text-red-700 dark:bg-red-500/10 dark:text-red-300">{domainIssues.length}</span>
+          </p>
+          <p className="mt-0.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">The agent sees this on their Dash too - a quick note from you usually gets it fixed.</p>
+          <div className="mt-2 divide-y divide-gray-100 dark:divide-white/[0.06]">
+            {domainIssues.map(i => (
+              <div key={i.agent_id + i.hostname + i.code} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center">
+                <button type="button" onClick={() => setDrawer(i.agent_id)} className="min-w-0 flex-1 text-left">
+                  <span className="block text-[13px] font-black text-[#111827] dark:text-white">{i.agent_name}{i.brokerage ? <span className="font-semibold text-gray-400"> · {i.brokerage}</span> : null}</span>
+                  <span className="block text-[12px] font-bold text-red-700 dark:text-red-300">{i.title}</span>
+                  <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{i.fix}</span>
+                </button>
+                <a href={`mailto:${i.agent_email}?subject=${encodeURIComponent(`Quick fix for ${i.hostname}`)}&body=${encodeURIComponent(`Hi ${i.agent_name.split(' ')[0]},
+
+Quick heads up - ${i.title}.
+
+${i.fix}
+
+Happy to help if you get stuck.`)}`}
+                  className="inline-flex shrink-0 items-center gap-1 self-start rounded-lg bg-[#111827] px-2.5 py-1.5 text-[11px] font-black text-white hover:bg-[#C9A24D] dark:bg-white dark:text-[#111827] sm:self-center">
+                  <Mail className="h-3 w-3" /> Email {i.agent_name.split(' ')[0]}
+                </a>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* approvals */}
