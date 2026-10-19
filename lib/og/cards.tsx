@@ -133,14 +133,14 @@ export function ShowcaseCard({
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 22px 12px 12px', borderRadius: 999, backgroundColor: '#FFFFFF', border: `1px solid rgba(${rgb},0.35)`, boxShadow: '0 10px 30px -14px rgba(17,24,39,0.25)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 17, padding: '8px 30px 8px 8px', borderRadius: 999, backgroundColor: '#FFFFFF', border: `1.5px solid rgba(${rgb},0.35)`, boxShadow: '0 10px 30px -14px rgba(17,24,39,0.25)' }}>
           {agentPhoto
-            ? <img src={agentPhoto} width={58} height={58} style={{ width: 58, height: 58, borderRadius: 999, objectFit: 'cover', border: `2px solid ${accent}` }} />
-            : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 58, height: 58, borderRadius: 999, backgroundColor: '#111827', color: light, fontSize: 22, fontWeight: 900 }}>{initialsOf(agentName)}</div>}
+            ? <img src={agentPhoto} width={84} height={84} style={{ width: 84, height: 84, borderRadius: 999, objectFit: 'cover', border: `3px solid ${accent}` }} />
+            : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 84, height: 84, borderRadius: 999, backgroundColor: '#111827', color: light, fontSize: 30, fontWeight: 900 }}>{initialsOf(agentName)}</div>}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', fontSize: 13, fontWeight: 900, letterSpacing: 2.5, textTransform: 'uppercase', color: deep }}>From your agent</div>
-            <div style={{ display: 'flex', fontSize: 22, fontWeight: 900, color: '#111827', marginTop: 2 }}>{agentName}</div>
-            {agentBrokerage ? <div style={{ display: 'flex', fontSize: 15, fontWeight: 400, color: '#6B7280', marginTop: 1 }}>{agentBrokerage}</div> : null}
+            <div style={{ display: 'flex', fontSize: 14, fontWeight: 900, letterSpacing: 2.5, textTransform: 'uppercase', color: deep }}>From your agent</div>
+            <div style={{ display: 'flex', fontSize: agentName.length > 20 ? 25 : 30, fontWeight: 900, color: '#111827', marginTop: 2, lineHeight: 1.05 }}>{agentName}</div>
+            {agentBrokerage ? <div style={{ display: 'flex', fontSize: 16.5, fontWeight: 400, color: '#6B7280', marginTop: 3 }}>{agentBrokerage}</div> : null}
           </div>
         </div>
       </div>
@@ -376,14 +376,14 @@ export function HomePhotoCard({ photo, street, place, eyebrow, sub, agentName, a
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 7, display: 'flex', backgroundImage: `linear-gradient(90deg, ${accent}, ${light}, ${accent})` }} />
 
       <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', padding: '52px 72px 58px', color: '#fff' }}>
-        {/* the agent first - their real headshot */}
-        <div style={{ display: 'flex', alignSelf: 'flex-start', alignItems: 'center', gap: 16, padding: '9px 26px 9px 9px', borderRadius: 999, backgroundColor: 'rgba(9,7,4,0.55)', border: `1px solid rgba(${rgb},0.45)` }}>
+        {/* the agent first - their real headshot, the same pill size as the article card's (user, 10/19) */}
+        <div style={{ display: 'flex', alignSelf: 'flex-start', alignItems: 'center', gap: 17, padding: '8px 30px 8px 8px', borderRadius: 999, backgroundColor: 'rgba(9,7,4,0.6)', border: `1.5px solid rgba(${rgb},0.45)` }}>
           {agentPhoto
-            ? <img src={agentPhoto} width={66} height={66} style={{ width: 66, height: 66, borderRadius: 999, objectFit: 'cover', border: `3px solid ${light}` }} />
-            : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 66, height: 66, borderRadius: 999, backgroundColor: accent, color: btnInk, fontSize: 24, fontWeight: 900 }}>{initialsOf(agentName)}</div>}
+            ? <img src={agentPhoto} width={84} height={84} style={{ width: 84, height: 84, borderRadius: 999, objectFit: 'cover', border: `3px solid ${light}` }} />
+            : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 84, height: 84, borderRadius: 999, backgroundColor: accent, color: btnInk, fontSize: 30, fontWeight: 900 }}>{initialsOf(agentName)}</div>}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', fontSize: 24, fontWeight: 900 }}>{agentName}</div>
-            {agentBrokerage ? <div style={{ display: 'flex', fontSize: 15, fontWeight: 900, letterSpacing: 2.5, textTransform: 'uppercase', color: light }}>{agentBrokerage}</div> : null}
+            <div style={{ display: 'flex', fontSize: agentName.length > 20 ? 27 : 33, fontWeight: 900, lineHeight: 1.05 }}>{agentName}</div>
+            {agentBrokerage ? <div style={{ display: 'flex', fontSize: 16.5, fontWeight: 900, letterSpacing: 2.5, textTransform: 'uppercase', color: light, marginTop: 4 }}>{agentBrokerage}</div> : null}
           </div>
         </div>
 
