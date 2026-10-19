@@ -96,6 +96,7 @@ export default function PropertyQuickViewModal({ listingKey, agentId, onClose }:
         isOpen={!!property && !loading && !error}
         onClose={onClose}
         showVisitorActions={false}
+        showcaseTools
         zIndex={100}
       />
     </>

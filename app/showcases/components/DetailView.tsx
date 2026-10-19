@@ -628,6 +628,7 @@ export const DetailView = memo(function DetailView({
 
         <PropertyDetailsModal
           viewer="agent"
+          showcaseTools
           agent={{ name: [user?.first_name, user?.last_name].filter(Boolean).join(' '), photoUrl: user?.photo_url ? resolveMediaUrl(user.photo_url) : null }}
           property={selectedProperty}
           isOpen={isModalOpen}

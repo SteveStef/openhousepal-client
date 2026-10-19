@@ -12,6 +12,7 @@ import {
   HERO_COLS, HeroShareActions, PropertyHero, PropertySurface, SectionDivider, SectionTitle, hasDetails, homeFromMls, pp, shortDate,
 } from '@/components/property/PropertyKit'
 import { copyText } from '@/lib/copyText'
+import ShowcaseMembership from '@/components/property/ShowcaseMembership'
 
 interface PropertyDetailsModalProps {
   property: PropertyDetailResponse | null
@@ -44,6 +45,8 @@ interface PropertyDetailsModalProps {
   viewer?: 'client' | 'agent'
   /** The buyer's latest showing request for this home - the tour button shows its status. */
   tourRequest?: TourLike | null
+  /** Agent side only: the bar under the photos - which of their Showcases have this home + Add to a Showcase. */
+  showcaseTools?: boolean
 }
 
 const GOLD = '#C9A24D'
@@ -77,6 +80,7 @@ export default function PropertyDetailsModal({
   viewer = 'client',
   tourRequest = null,
   focusComments = false,
+  showcaseTools = false,
 }: PropertyDetailsModalProps) {
   const [newComment, setNewComment] = useState('')
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
@@ -270,6 +274,7 @@ export default function PropertyDetailsModal({
                       </div>
                     ) : undefined}
                   />
+                  {showcaseTools && <ShowcaseMembership propertyId={property.id} listingKey={property.ListingKey} street={home.street} zIndex={zIndex + 20} />}
                   {/* Same columns as the hero, so the questions box sits exactly under the price panel. */}
                   <div className={`mt-9 grid gap-x-6 gap-y-5 ${showVisitorActions ? HERO_COLS : ''}`}>
                     <div className="min-w-0 lg:col-start-1 lg:row-start-1">

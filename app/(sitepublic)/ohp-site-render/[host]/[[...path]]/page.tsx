@@ -41,6 +41,7 @@ import HomeCard from '@/components/website-public/HomeCard'
 import SiteFormLauncher from '@/components/website-public/SiteFormLauncher'
 import SiteNavProgress from '@/components/website-public/SiteNavProgress'
 import { normalizeSiteTheme } from '@/lib/siteTheme'
+import { cardVersion } from '@/lib/og/shared'
 import { toTitleCase } from '@/lib/cheatSheetContent'
 import { fontClass } from '@/components/website-public/blocks/fontClass'
 import SiteBlogArticle from '@/components/website-public/SiteBlogArticle'
@@ -238,7 +239,7 @@ async function baseMetadata({
         hubSlug && form?.slug ? `https://${OHP_BASE_DOMAIN}/${encodeURIComponent(hubSlug)}/${encodeURIComponent(form.slug)}` : undefined,
         {
           description: form?.subtitle,
-          ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug }) : undefined,
+          ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug, v: cardVersion(form.headline, form.title, form.subtitle, form.darkMode) }) : undefined,
         },
       )
     }
@@ -253,7 +254,7 @@ async function baseMetadata({
       canonical || undefined,
       {
         description: form?.subtitle,
-        ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug }) : undefined,
+        ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug, v: cardVersion(form.headline, form.title, form.subtitle, form.darkMode) }) : undefined,
       },
     )
   }
@@ -266,7 +267,7 @@ async function baseMetadata({
       hubSlug && form?.slug ? `https://${OHP_BASE_DOMAIN}/${encodeURIComponent(hubSlug)}/${encodeURIComponent(form.slug)}` : undefined,
       {
         description: form?.subtitle,
-        ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug }) : undefined,
+        ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug, v: cardVersion(form.headline, form.title, form.subtitle, form.darkMode) }) : undefined,
       },
     )
   }

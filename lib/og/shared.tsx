@@ -307,3 +307,12 @@ export function PhotoCard({
     </div>
   )
 }
+
+/** A short fingerprint of what a card shows - goes in its image address (?v=) so apps that cache
+ *  previews by address (iMessage, Facebook, Slack) pick up an edit instead of the old picture. */
+export function cardVersion(...parts: unknown[]): string {
+  const s = parts.map(p => (p == null ? '' : String(p))).join('|')
+  let h = 2166136261
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) }
+  return (h >>> 0).toString(36)
+}

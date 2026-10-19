@@ -821,6 +821,19 @@ class ApiService {
 
     getPendingRefineRequestsCount: () => this.request<{ count: number }>('/collections/refine-requests/count'),
 
+    /** A home's page, agent side: every Showcase of theirs, and whether it already has this home. */
+    membership: (home: { propertyId?: string | null; listingKey?: string | null }) => {
+      const q = new URLSearchParams()
+      if (home.propertyId) q.set('property_id', home.propertyId)
+      if (home.listingKey) q.set('listing_key', home.listingKey)
+      return this.request<{ home_ids: string[]; showcases: { id: string; name: string; client: string | null; status: string; homes: number; contains: boolean; recommended: boolean }[] }>(`/collections/membership?${q}`)
+    },
+    /** Put this home into one of the agent's Showcases (as their pick). */
+    addHome: (collectionId: string, home: { propertyId?: string | null; listingKey?: string | null }) =>
+      this.request<{ success: boolean; added: boolean; property_id: string }>(`/collections/${collectionId}/add-home`, {
+        method: 'POST', body: JSON.stringify({ property_id: home.propertyId || null, listing_key: home.listingKey || null }),
+      }),
+
     // The Showcases page header's Tour requests + Activity inboxes.
     getInbox: () => this.request<ShowcaseInbox>('/collections/inbox'),
     markInboxRead: () => this.request<{ success: boolean }>('/collections/inbox/read', { method: 'POST' }),

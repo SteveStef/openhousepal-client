@@ -7,7 +7,7 @@
 import { ImageResponse } from 'next/og'
 import {
   OG_SIZE, ogFonts, ogFetch, imgToDataUri, firstName, money, C,
-  Eyebrow, AgentChip, PhotoCard, IdentityCard,
+  Eyebrow, AgentChip, PhotoCard,
 } from './shared'
 import { computeMatchScore } from '@/lib/matchScore'
 import { hubAccentOf } from '@/components/agent-hub/HubClassicTheme'
@@ -387,28 +387,116 @@ export async function renderBlogCard(agentSlug: string, blogSlug: string, fonts:
   }
 }
 
-const FORM_EYEBROW: Record<string, string> = {
-  buying: "Let's Find It", selling: "Let's Talk", home_value: 'Home Value', 'home-value': 'Home Value',
+// --- Forms ---------------------------------------------------------------------------------
+// One of the agent's forms (user, 10/18 - "match what we did for the Agent Hub"): the same business-
+// card frame in the agent's own hub look (Luxe metal or Classic accent, light or dark - a form set
+// to dark is dark), with the form's own picture (a price tag for What's My Home Worth, a key for
+// I'm Buying, a yard sign for I'm Selling, a calendar for a showing...) so a few of them in one
+// text thread don't look the same, and a button-like "tap here" line.
+type FormKind = 'value' | 'buy' | 'sell' | 'showing' | 'showcase' | 'talk'
+const FORM_KIND: Record<string, FormKind> = {
+  home_value: 'value', buying: 'buy', buyer_onboarding: 'buy', selling: 'sell', seller_onboarding: 'sell', make_me_sell: 'sell',
+  showing: 'showing', showcase_request: 'showcase', how_can_i_help: 'talk',
+}
+const FORM_FACE: Record<FormKind, { eyebrow: string; button: string; d: string[] }> = {
+  value: { eyebrow: 'Home value', button: "See what it's worth",
+    d: ['M12.59 2.59A2 2 0 0 0 11.17 2H4a2 2 0 0 0-2 2v7.17a2 2 0 0 0 .59 1.42l8.7 8.7a2.43 2.43 0 0 0 3.42 0l6.58-6.58a2.43 2.43 0 0 0 0-3.42z', 'M7.5 7.5h.01'] },
+  buy: { eyebrow: 'Buying', button: 'Start my search',
+    d: ['M2.59 17.41A2 2 0 0 0 2 18.83V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.17a2 2 0 0 0 1.41-.59l.82-.81a6.5 6.5 0 1 0-4-4z', 'M16.5 7.5h.01'] },
+  sell: { eyebrow: 'Selling', button: "Let's talk selling",
+    d: ['M4 22V3', 'M4 5h16', 'M9 5v3', 'M17 5v3', 'M8 8h12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z', 'M11 15v-2.5l3-2 3 2V15'] },
+  showing: { eyebrow: 'Private showing', button: 'Pick a time',
+    d: ['M8 2v4', 'M16 2v4', 'M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z', 'M3 10h18', 'M9 16l2 2 4-4'] },
+  showcase: { eyebrow: 'Your own Showcase', button: 'Build my Showcase',
+    d: ['M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.13a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.13 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.13a.5.5 0 0 1-.96 0z', 'M20 3v4', 'M22 5h-4'] },
+  talk: { eyebrow: 'Get in touch', button: "Let's talk",
+    d: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', 'M8 9h8', 'M8 13h5'] },
+}
+
+export function FormCard({ photo, name, brokerage, headline, support, kind, look }: {
+  photo: string | null; name: string; brokerage: string | null; headline: string; support: string | null; kind: FormKind; look: HubLook
+}) {
+  const face = FORM_FACE[kind]
+  const ink = look.dark ? '#F3ECDD' : '#16130e'
+  const sub = look.dark ? 'rgba(243,236,221,0.72)' : mixHex(look.deep, '#16130e', 0.25)
+  const cardBg = look.dark ? `linear-gradient(135deg, ${look.night[0]} 0%, ${look.night[1]} 55%, ${look.night[2]} 100%)` : `linear-gradient(135deg, ${look.wash[0]} 0%, ${look.wash[1]} 55%, ${look.wash[2]} 100%)`
+  const outer = look.dark ? `radial-gradient(900px 520px at 85% 0%, ${mixHex(look.base, '#000000', 0.7)} 0%, #0d0d0f 60%, #070708 100%)` : `radial-gradient(900px 520px at 85% 0%, ${mixHex(look.base, '#1a150d', 0.6)} 0%, #16120c 58%, #0d0b08 100%)`
+  const label = look.dark ? look.light : look.deep
+  const btnInk = lum(mixHex(look.light, look.base, 0.5)) < 0.5 ? '#ffffff' : '#16130e'
+  const hl = headline.length
+  return (
+    <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: '#0d0b08',
+      backgroundImage: outer, alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', position: 'relative', width: 1060, height: 500, borderRadius: 30, overflow: 'hidden',
+        backgroundImage: cardBg, boxShadow: '0 40px 90px -30px rgba(0,0,0,0.85)', border: `2px solid ${look.light}` }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 10, display: 'flex', backgroundImage: `linear-gradient(90deg, ${look.deep}, ${look.base}, ${look.light}, ${look.base}, ${look.deep})` }} />
+        <div style={{ position: 'absolute', top: 30, left: 30, right: 30, bottom: 30, display: 'flex', border: `1px solid ${look.base}66`, borderRadius: 20 }} />
+        {/* the form's picture, big and quiet in the corner */}
+        <div style={{ position: 'absolute', right: 46, top: 40, display: 'flex', opacity: look.dark ? 0.14 : 0.12 }}>
+          <svg width={230} height={230} viewBox="0 0 24 24" fill="none" stroke={look.base} strokeWidth={1.1} strokeLinecap="round" strokeLinejoin="round">
+            {face.d.map((seg, i) => <path key={i} d={seg} />)}
+          </svg>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '0 0 0 66px' }}>
+          <div style={{ display: 'flex', position: 'relative' }}>
+            <div style={{ display: 'flex', padding: 7, borderRadius: 34, backgroundImage: `linear-gradient(140deg, ${look.light}, ${look.base} 60%, ${look.deep})`, boxShadow: `0 24px 50px -20px ${look.deep}b3` }}>
+              {photo
+                ? <img src={photo} width={260} height={320} style={{ width: 260, height: 320, borderRadius: 28, objectFit: 'cover' }} />
+                : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 260, height: 320, borderRadius: 28, backgroundColor: look.dark ? '#000' : '#16130e', color: look.light, fontSize: 88, fontWeight: 900 }}>{initialsOf(name)}</div>}
+            </div>
+            {/* the same picture as a badge on the photo */}
+            <div style={{ position: 'absolute', right: -22, bottom: -14, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 84, height: 84, borderRadius: 999,
+              backgroundImage: `linear-gradient(140deg, ${look.light}, ${look.base} 60%, ${look.deep})`, border: `5px solid ${look.dark ? look.night[1] : '#ffffff'}`, boxShadow: '0 16px 30px -12px rgba(0,0,0,0.55)' }}>
+              <Ico d={face.d} size={38} color={btnInk} />
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 70px 0 64px', flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 900, letterSpacing: 4, textTransform: 'uppercase', color: label }}>
+            <div style={{ display: 'flex', width: 28, height: 2, backgroundColor: look.base }} />
+            {face.eyebrow}
+          </div>
+          <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: hl > 46 ? 44 : hl > 32 ? 52 : 60, lineHeight: 1.04, letterSpacing: -1, color: ink, marginTop: 14, maxWidth: 560 }}>{headline}</div>
+          {support ? <div style={{ display: 'flex', fontSize: 22, lineHeight: 1.35, fontWeight: 600, color: sub, marginTop: 14, maxWidth: 540 }}>{support}</div> : null}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 30 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 54, padding: '0 24px', borderRadius: 999, fontSize: 19, fontWeight: 900, flexShrink: 0,
+              backgroundImage: `linear-gradient(135deg, ${look.light}, ${look.base})`, color: btnInk, boxShadow: `0 12px 26px -14px ${look.deep}` }}>
+              {face.button}
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={btnInk} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
+            </div>
+            <div style={{ display: 'flex', fontSize: 15, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: sub }}>About a minute</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 26, fontSize: 19, fontWeight: 800, color: ink }}>
+            {name}{brokerage ? <div style={{ display: 'flex', color: sub, fontWeight: 700 }}>·  {brokerage}</div> : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export async function renderFormCard(agentSlug: string, formSlug: string, fonts: Fonts): Promise<ImageResponse> {
   try {
-    const data = await ogFetch<any>(`/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}`)
-    const agentPhoto = await imgToDataUri(data?.agentPhotoUrl)
-    const agentName: string = data?.agentName || 'Your agent'
+    // Fresh within a minute of an edit to the form or the hub's look.
+    const [data, hub] = await Promise.all([
+      ogFetch<any>(`/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}`, 60),
+      ogFetch<any>(`/agent-hub/public/${encodeURIComponent(agentSlug)}`, 60),
+    ])
+    const cfg = hub?.config || {}
+    const agentPhoto = await imgToDataUri(data?.agentPhotoUrl || cfg.profilePhotoUrl || cfg.profile?.photoUrl)
+    const agentName: string = data?.agentName || cfg.profile?.name || 'Your agent'
+    // Forms have no colours of their own - they wear the hub's look; a form set to dark is dark.
+    const look = hubLook({ ...cfg, visitorDarkMode: !!cfg.visitorDarkMode || !!data?.darkMode })
+    const kind = FORM_KIND[String(data?.formType || '')] || (formSlug.includes('worth') || formSlug.includes('value') ? 'value' : 'talk')
     return IR(
-      <IdentityCard
-        photo={agentPhoto}
-        name={agentName}
-        eyebrow={FORM_EYEBROW[String(data?.formType || formSlug)] || 'Get In Touch'}
-        headline={data?.headline || data?.title || "Let's talk"}
-        credential={data?.agentBrokerage ? `${agentName} · ${data.agentBrokerage}` : agentName}
-        support={data?.subtitle ? String(data.subtitle).slice(0, 120) : 'A few quick questions and I follow up personally.'}
-      />,
+      <FormCard photo={agentPhoto} name={agentName} brokerage={data?.agentBrokerage || cfg.profile?.brokerage || null}
+        headline={String(data?.headline || data?.title || "Let's talk")}
+        support={data?.subtitle ? String(data.subtitle).slice(0, 110) : 'A few quick questions and I follow up personally.'}
+        kind={kind} look={look} />,
       fonts,
     )
   } catch {
-    return IR(<IdentityCard photo={null} name="Your agent" eyebrow="Get In Touch" headline="Let's talk" credential={null} support="A few quick questions and I follow up personally." />, fonts)
+    return IR(<FormCard photo={null} name="Your agent" brokerage={null} headline="Let's talk" support="A few quick questions and I follow up personally." kind="talk" look={hubLook(null)} />, fonts)
   }
 }
 
