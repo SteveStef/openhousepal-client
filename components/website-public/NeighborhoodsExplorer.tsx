@@ -6,7 +6,8 @@ import type { SiteTheme } from './types'
 import { fontClass } from './blocks/fontClass'
 import { formatCompactPrice } from './listingFormat'
 import Reveal from './Reveal'
-import { sizedBg } from '@/lib/siteImage'
+import SitePhoto from '@/components/website-public/SitePhoto'
+import { IMG, sizedBg } from '@/lib/siteImage'
 
 export interface ExplorerArea {
   slug: string

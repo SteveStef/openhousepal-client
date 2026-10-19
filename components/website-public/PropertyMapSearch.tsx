@@ -11,7 +11,8 @@ import type { MlsOpenHouse } from '@/lib/mlsOpenHouses'
 import { SearchFilterParams, SiteTheme } from './types'
 import SiteLoader from './SiteLoader'
 import { createPinLayer, type PinLayer } from './mapPins'
-import { sizedBg } from '@/lib/siteImage'
+import { IMG } from '@/lib/siteImage'
+import SitePhoto from './SitePhoto'
 
 export interface MapListing {
   listing_key: string
@@ -339,7 +340,8 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
         style={{ backgroundColor: 'var(--site-surface)', borderColor: on ? 'var(--site-accent)' : 'var(--site-line)', boxShadow: on ? '0 0 0 2px rgba(var(--site-accent-rgb),.35), var(--site-shadow)' : 'var(--site-shadow)' }}>
         <a href={href(l)} onClick={() => markViewed(l.listing_key)} className="block">
           <div className={`relative overflow-hidden ${compact ? 'h-40' : 'h-48'}`} style={{ backgroundColor: 'var(--site-bg-alt)' }}>
-            <div className="absolute inset-0 bg-cover bg-center transition duration-700 group-hover:scale-110" style={{ backgroundImage: sizedBg(l.photo, 640) }} />
+            {/* A real lazy <img>: the list holds up to 120 homes - background photos all downloaded at once. */}
+            <SitePhoto src={l.photo} widths={IMG.card} sizes="(min-width: 1024px) 340px, (min-width: 640px) 50vw, 100vw" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-110" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
             <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
               {l.status && <span className="rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: badge.bg, color: badge.fg }}>{formatStatus(l.status)}</span>}

@@ -6,7 +6,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowRight, Bell, Check, Heart, Loader2, X } from 'lucide-react'
 import { formatCompactPrice } from './listingFormat'
 import { openHousePalPublicUrl } from '@/lib/publicResourceLinks'
-import { sizedBg } from '@/lib/siteImage'
+import SitePhoto from '@/components/website-public/SitePhoto'
+import { IMG, sizedBg } from '@/lib/siteImage'
 
 // "Save this search" and the heart on a home, on the IDX website. Instead of the full Showcase
 // form (welcome page + a question per screen), a short window: (1) here's what we'll watch for -
@@ -193,7 +194,7 @@ export default function SaveSearchWindow({ siteId, criteria, onClose }: { siteId
                   <p className="mt-1.5 text-sm" style={{ color: 'var(--site-muted)' }}>We&apos;ll build your own private Showcase with these picks and send new matches as they hit the market.</p>
                   {isHome && criteria.home?.address && (
                     <div className="mt-4 flex items-center gap-3 rounded-2xl border p-2.5" style={{ borderColor: 'var(--site-line)' }}>
-                      {criteria.home.photo && <span className="h-12 w-16 shrink-0 rounded-xl bg-cover bg-center" style={{ backgroundImage: sizedBg(criteria.home.photo, 128) }} />}
+                      {criteria.home.photo && <SitePhoto src={criteria.home.photo} widths={IMG.card} className="h-12 w-16 shrink-0 rounded-xl object-cover" />}
                       <span className="min-w-0 text-sm font-bold" style={{ color: 'var(--site-heading)' }}><span className="block truncate">{criteria.home.address}</span>{criteria.home.price ? <span className="text-xs font-semibold" style={{ color: 'var(--site-muted)' }}>${criteria.home.price.toLocaleString()}</span> : null}</span>
                     </div>
                   )}

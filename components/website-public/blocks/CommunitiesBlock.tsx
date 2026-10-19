@@ -8,7 +8,8 @@ import { SiteTheme } from '../types'
 import { fontClass } from './fontClass'
 import { formatCompactPrice } from '../listingFormat'
 import ClassicSectionHead from './ClassicSectionHead'
-import { sizedBg } from '@/lib/siteImage'
+import SitePhoto from '@/components/website-public/SitePhoto'
+import { IMG, sizedBg } from '@/lib/siteImage'
 
 interface AreaCard {
   slug: string
@@ -117,7 +118,7 @@ export default function CommunitiesBlock({ data, theme, basePrefix = '' }: { dat
                 <Slot key={slot} id={area.slug} i={slot} className="w-[78%] shrink-0 snap-start sm:w-auto">
                 <a href={`${basePrefix}/${area.slug}`} className="ohp-card group flex h-full flex-col overflow-hidden rounded-2xl border" style={{ borderColor: 'var(--site-line)', backgroundColor: 'var(--site-surface)' }}>
                   <div className="relative aspect-[4/3] overflow-hidden" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
-                    <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-[1.04]" style={{ backgroundImage: sizedBg(resolveMediaUrl(area.photo), 640) }} />
+                    <SitePhoto src={resolveMediaUrl(area.photo)} widths={IMG.card} className="absolute inset-0 transition-transform duration-700 group-hover:scale-[1.04] object-cover h-full w-full" />
                     {(area.county || area.state) && <span className="absolute left-3 top-3 rounded-md bg-white/95 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#111827] shadow-sm">{area.county ? `${area.county} County` : area.state}</span>}
                   </div>
                   <div className="flex flex-1 flex-col p-5">
@@ -190,7 +191,7 @@ export default function CommunitiesBlock({ data, theme, basePrefix = '' }: { dat
                 href={`${basePrefix}/${area.slug}`}
                 className={`ohp-card group relative block aspect-[7/10] min-h-[240px] w-full overflow-hidden bg-gray-800 shadow-[0_18px_45px_rgba(0,0,0,0.22)] ring-1 ring-white/10 transition duration-500 hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(0,0,0,0.32)] ${luxe ? 'rounded-[18px]' : 'rounded-2xl'}`}
               >
-                <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110" style={{ backgroundImage: sizedBg(resolveMediaUrl(area.photo), 828) }} />
+                <SitePhoto src={resolveMediaUrl(area.photo)} widths={IMG.half} className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-110 object-cover h-full w-full" />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-black/5" />
                 <span className="absolute left-2.5 top-2.5 max-w-[calc(100%-1.25rem)] truncate rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide shadow-sm " style={{ backgroundColor: 'rgba(var(--site-accent-rgb),0.85)', color: 'var(--site-on-accent)' }}>
                   {area.county ? `${area.county} County` : area.state}

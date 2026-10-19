@@ -1,6 +1,7 @@
 import { Metadata } from 'next'
-import dynamic from 'next/dynamic'
-const OpenHouseFrame = dynamic(() => import('@/components/public-site/OpenHouseFrame'))
+import {
+  OpenHouseFrame, TownSectionNav, TownLiving, TownInsights, TownCommute, TownMap, TownWalk, PropertyGallery, FeaturedPageClient, PropertyMapSearch, PropertyLocationMap, ExploreNearby, NeighborhoodCompareLauncher, WebsitePublicFormPage, ContactPageView, NeighborhoodsExplorer, MediaHub, SiteBlogArticle, IdxPropertyPage, MyShowcase, ShowcaseBuilder, CinematicLuxuryTemplate, EditorialEstateTemplate,
+} from '@/components/website-public/LazySiteParts'
 import { cookies, headers } from 'next/headers'
 import { notFound, permanentRedirect, redirect } from 'next/navigation'
 import {
@@ -9,12 +10,6 @@ import {
   School, ShoppingBag, ShoppingBasket, Sparkles, Train, Trees, TrendingUp, Users, Utensils,
   Bell, ChevronDown, MessageCircle, Plus,
 } from 'lucide-react'
-const TownSectionNav = dynamic(() => import('@/components/website-public/TownSectionNav'))
-const TownLiving = dynamic(() => import('@/components/website-public/TownLiving'))
-const TownInsights = dynamic(() => import('@/components/website-public/TownInsights'))
-const TownCommute = dynamic(() => import('@/components/website-public/TownCommute'))
-const TownMap = dynamic(() => import('@/components/website-public/TownMap'))
-const TownWalk = dynamic(() => import('@/components/website-public/TownWalk'))
 import { buildTownFaq, firstSentences } from '@/components/website-public/townGuide'
 import { autoListingMeta, autoPostMeta, autoSectionMeta, autoTownMeta, seoClip, withSiteName, type SeoCtx } from '@/lib/siteSeoAuto'
 import SitePageRenderer from '@/components/website-public/SitePageRenderer'
@@ -22,22 +17,12 @@ import SiteShell from '@/components/website-public/SiteShell'
 import SpotlightChip from '@/components/website-public/SpotlightChip'
 import MarketTrendsSection from '@/components/website-public/MarketTrendsSection'
 import { SiteHeader, SiteFooter } from '@/components/website-public/SiteChrome'
-const PropertyGallery = dynamic(() => import('@/components/website-public/PropertyGallery'))
-const FeaturedPageClient = dynamic(() => import('@/components/website-public/FeaturedPageClient'))
 import CinematicHeroBackground from '@/components/website-public/CinematicHeroBackground'
 import ClassicPageHero from '@/components/website-public/ClassicPageHero'
 import { formatStatus, statusBadgeColor, formatCompactPrice } from '@/components/website-public/listingFormat'
-const PropertyMapSearch = dynamic(() => import('@/components/website-public/PropertyMapSearch'))
-const PropertyLocationMap = dynamic(() => import('@/components/website-public/PropertyLocationMap'))
-const ExploreNearby = dynamic(() => import('@/components/website-public/ExploreNearby'))
-const NeighborhoodCompareLauncher = dynamic(() => import('@/components/website-public/NeighborhoodCompareLauncher'))
-const WebsitePublicFormPage = dynamic(() => import('@/components/website-public/WebsitePublicFormPage'))
 import ShowcaseCreatorCTA from '@/components/website-public/ShowcaseCreatorCTA'
 import ReviewsPage from '@/components/website-public/ReviewsPage'
-const ContactPageView = dynamic(() => import('@/components/website-public/ContactPageView'))
 import HomeValuePage from '@/components/website-public/HomeValuePage'
-const NeighborhoodsExplorer = dynamic(() => import('@/components/website-public/NeighborhoodsExplorer'))
-const MediaHub = dynamic(() => import('@/components/website-public/MediaHub'))
 import HomeCard from '@/components/website-public/HomeCard'
 import SiteFormLauncher from '@/components/website-public/SiteFormLauncher'
 import SiteNavProgress from '@/components/website-public/SiteNavProgress'
@@ -45,24 +30,20 @@ import { normalizeSiteTheme } from '@/lib/siteTheme'
 import { cardVersion } from '@/lib/og/shared'
 import { toTitleCase } from '@/lib/cheatSheetContent'
 import { fontClass } from '@/components/website-public/blocks/fontClass'
-const SiteBlogArticle = dynamic(() => import('@/components/website-public/SiteBlogArticle'))
 import BlogCoverArt from '@/components/BlogCoverArt'
-const IdxPropertyPage = dynamic(() => import('@/components/website-public/IdxPropertyPage'))
 import IdxOneTap from '@/components/website-public/IdxOneTap'
-const MyShowcase = dynamic(() => import('@/components/website-public/showcase/MyShowcase'))
 import RememberShowcase from '@/components/website-public/showcase/RememberShowcase'
-const ShowcaseBuilder = dynamic(() => import('@/components/website-public/showcase/ShowcaseBuilder'))
 import { resolveMediaUrl } from '@/lib/api-service'
 import { DEFAULT_SITE_THEME, SearchFilterParams, SiteContent, type SiteTheme } from '@/components/website-public/types'
 import type { PropertySiteResolveResponse } from '@/components/property-sites/CinematicLuxuryTemplate'
-const CinematicLuxuryTemplate = dynamic(() => import('@/components/property-sites/CinematicLuxuryTemplate'))
-const EditorialEstateTemplate = dynamic(() => import('@/components/property-sites/EditorialEstateTemplate'))
 import { formatOpenHouseTime, upcomingOpenHouses } from '@/lib/mlsOpenHouses'
 import { tidyAllCaps } from '@/lib/cheatSheetContent'
-import { sizedBg, sizedImage } from '@/lib/siteImage'
+import SitePhoto from '@/components/website-public/SitePhoto'
+import { IMG, sizedBg, sizedImage } from '@/lib/siteImage'
 
-// Route-specific client pieces (Spotlight templates, map search, Showcase builder, town widgets...) are
-// next/dynamic so each page only ships its own JS - they all used to download on every page (10/19).
+// Route-specific client pieces (Spotlight templates, map search, Showcase builder, town widgets...)
+// come from LazySiteParts (next/dynamic inside a client module) so each page only ships its own JS -
+// they all used to download on every page (10/19).
 
 // Server Component only - this is the entire CORS story for Website Builder (see
 // backend/app/api/public_site_routes.py). INTERNAL_API_URL is server-only (no NEXT_PUBLIC_
@@ -688,7 +669,7 @@ function FeaturedArticleCard({ post, theme, basePrefix }: { post: any; theme: an
     <a href={`${basePrefix}/blog/${post.slug}`} className="group relative grid overflow-hidden rounded-[28px] bg-white shadow-[0_30px_70px_-40px_rgba(17,24,39,.5)] ring-1 ring-black/[0.05] transition duration-500 hover:-translate-y-1 hover:shadow-[0_40px_80px_-40px_rgba(17,24,39,.6)] lg:grid-cols-[1.15fr_1fr]">
       <div className="relative min-h-[240px] overflow-hidden sm:min-h-[300px] lg:min-h-[380px]">
         {post.cover_image_url ? (
-          <div className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.6s] ease-out group-hover:scale-105" style={{ backgroundImage: sizedBg(resolveMediaUrl(post.cover_image_url), 1200) }} />
+          <SitePhoto src={resolveMediaUrl(post.cover_image_url)} widths={IMG.half} className="absolute inset-0 transition-transform duration-[1.6s] ease-out group-hover:scale-105 object-cover h-full w-full" />
         ) : (
           <div className="absolute inset-0"><BlogCoverArt category={post.category} title={post.title} tone="site" showWord={false} /></div>
         )}
@@ -719,7 +700,7 @@ function BlogCard({ post, theme, basePrefix }: { post: any; theme: any; basePref
     >
       <div className="relative aspect-[16/10] w-full overflow-hidden" style={{ backgroundColor: theme.primary_color }}>
         {post.cover_image_url ? (
-          <div className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110" style={{ backgroundImage: sizedBg(resolveMediaUrl(post.cover_image_url), 640) }} />
+          <SitePhoto src={resolveMediaUrl(post.cover_image_url)} widths={IMG.card} className="h-full w-full transition-transform duration-700 ease-out group-hover:scale-110 object-cover" />
         ) : (
           <BlogCoverArt category={post.category} title={post.title} tone="site" showWord={!post.category} />
         )}
@@ -754,7 +735,7 @@ function HubMediaCard({ item, theme, kind }: { item: { id?: string; title?: stri
       className="ohp-card group relative block overflow-hidden rounded-[22px] bg-gray-900 shadow-[0_20px_50px_-30px_rgba(17,24,39,.6)] ring-1 ring-black/[0.05] transition hover:-translate-y-1 hover:shadow-[0_30px_60px_-30px_rgba(17,24,39,.7)]"
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-800">
-        <div className="h-full w-full bg-cover bg-center transition-transform duration-[1.4s] ease-out group-hover:scale-105" style={{ backgroundImage: sizedBg(item.image, 640) }} />
+        <SitePhoto src={item.image} widths={IMG.card} className="h-full w-full transition-transform duration-[1.4s] ease-out group-hover:scale-105 object-cover" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/10" />
         <span className="absolute left-4 top-4 rounded-full bg-black/40 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-white ">{kind === 'tour' ? 'House Tour' : 'Video'}</span>
         <span className="absolute left-1/2 top-[42%] flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
@@ -912,7 +893,7 @@ function AreaCard({ area, theme, basePrefix, featured = false }: { area: any; th
       className={`ohp-card group relative flex flex-col overflow-hidden rounded-3xl bg-white shadow-[0_2px_24px_rgba(17,24,39,0.08)] ring-1 ring-black/[0.04] transition hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(17,24,39,0.18)] ${featured ? 'sm:col-span-2 sm:row-span-2' : ''}`}
     >
       <div className={`relative w-full overflow-hidden bg-gray-100 ${featured ? 'aspect-[16/11]' : 'aspect-[4/3]'}`}>
-        <div className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110" style={{ backgroundImage: sizedBg(area.photo, 640) }} />
+        <SitePhoto src={area.photo} widths={IMG.card} className="h-full w-full transition-transform duration-700 ease-out group-hover:scale-110 object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
         {featured && (
           <span className="absolute left-4 top-4 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-sm" style={{ backgroundColor: theme.secondary_color, color: theme.primary_color }}>
@@ -1311,7 +1292,7 @@ function ListingCard({ item, theme, basePrefix, showStatus = true, dateLabel }: 
   const inner = (
     <>
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
-        <div className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110" style={{ backgroundImage: sizedBg(item.photo, 640) }} />
+        <SitePhoto src={item.photo} widths={IMG.card} className="h-full w-full transition-transform duration-700 ease-out group-hover:scale-110 object-cover" />
         {dateLabel ? (
           <span className="absolute left-3 top-3 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide shadow-sm" style={{ backgroundColor: theme.secondary_color, color: theme.primary_color }}>
             {dateLabel}
@@ -1657,7 +1638,7 @@ async function NeighborhoodComparePage({ siteId, theme, basePrefix, compareParam
         <div className="absolute inset-0 grid grid-cols-2">
           {[left, right].map((a: any) => {
             const ph = (a.inventory?.listings || []).find((l: any) => l?.photo)?.photo
-            return <div key={a.slug} className="ohp-hero-pan bg-cover bg-center opacity-60" style={{ backgroundImage: sizedBg(resolveMediaUrl(ph), 640) }} />
+            return ph ? <SitePhoto key={a.slug} src={resolveMediaUrl(ph)} widths={IMG.card} className="ohp-hero-pan h-full w-full opacity-60 object-cover" /> : <div key={a.slug} />
           })}
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/55 to-black/40" />
@@ -2454,7 +2435,7 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
               <div key={related.slug} className={`group overflow-hidden border transition hover:-translate-y-1 ${luxe ? 'rounded-[24px]' : 'rounded-2xl'}`} style={TOWN_CARD_STYLE}>
                 <a href={`${basePrefix}/${related.slug}`} className="block">
                   <div className="relative aspect-[16/10] w-full overflow-hidden" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
-                    <div className="h-full w-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: sizedBg(resolveMediaUrl(related.photo), 640) }} />
+                    <SitePhoto src={resolveMediaUrl(related.photo)} widths={IMG.card} className="h-full w-full transition-transform duration-700 group-hover:scale-105 object-cover" />
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     <p className="absolute bottom-3 left-4 text-xl font-black text-white">{related.name}{related.state ? `, ${related.state}` : ''}</p>
                   </div>

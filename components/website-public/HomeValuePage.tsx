@@ -2,7 +2,8 @@ import { BadgeCheck, ClipboardList, FileText, MessageCircle, Phone, Search, Star
 import HomeValueAddress from './HomeValueAddress'
 import { fontClass } from './blocks/fontClass'
 import { resolveMediaUrl } from '@/lib/api-service'
-import { sizedBg, sizedImage } from '@/lib/siteImage'
+import SitePhoto from '@/components/website-public/SitePhoto'
+import { IMG, sizedBg, sizedImage } from '@/lib/siteImage'
 
 // The IDX site's "What's my home worth?" landing page (/home-value) - the page an agent sends
 // homeowners to from ads, mailers and their email signature. An address box that opens the
@@ -67,7 +68,7 @@ export default function HomeValuePage({ theme, basePrefix, profile, areas, revie
           {!luxe && photo && (
             <div className="relative hidden lg:block">
               <div className="aspect-[4/3.2] overflow-hidden rounded-3xl" style={{ boxShadow: 'var(--site-shadow-lift)' }}>
-                <div className="ohp-hero-pan h-full w-full bg-cover bg-center" style={{ backgroundImage: sizedBg(resolveMediaUrl(photo), 828) }} />
+                <SitePhoto src={resolveMediaUrl(photo)} widths={IMG.half} className="ohp-hero-pan h-full w-full object-cover" />
               </div>
               {reviews?.show && reviews.summary?.count > 0 && (
                 <div className="absolute -bottom-5 -left-5 flex items-center gap-3 rounded-2xl border px-4 py-3" style={card}>
@@ -113,7 +114,7 @@ export default function HomeValuePage({ theme, basePrefix, profile, areas, revie
               {towns.map(a => (
                 <a key={a.slug} href={`${basePrefix}/${a.slug}#market`} className={`group relative overflow-hidden border transition hover:-translate-y-1 ${round}`} style={card}>
                   <div className="relative h-24 overflow-hidden sm:h-28" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
-                    {a.photo && <div className="h-full w-full bg-cover bg-center transition duration-700 group-hover:scale-105" style={{ backgroundImage: sizedBg(resolveMediaUrl(a.photo), 640) }} />}
+                    {a.photo && <SitePhoto src={resolveMediaUrl(a.photo)} widths={IMG.card} className="h-full w-full transition duration-700 group-hover:scale-105 object-cover" />}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     <p className="absolute bottom-2 left-3 text-[15px] font-black text-white">{a.name}</p>
                   </div>

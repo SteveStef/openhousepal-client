@@ -9,7 +9,8 @@ import { resolveMediaUrl } from '@/lib/api-service'
 import type { SiteTheme } from './types'
 import { fontClass } from './blocks/fontClass'
 import Reveal from './Reveal'
-import { sizedBg } from '@/lib/siteImage'
+import SitePhoto from '@/components/website-public/SitePhoto'
+import { IMG, sizedBg } from '@/lib/siteImage'
 
 // The website's Media page - a streaming-style hub for everything the agent publishes:
 //   - a cinematic "now showing" hero with their newest video, played right here in a window;
@@ -152,7 +153,7 @@ function ArticleCard({ post, basePrefix, luxe, serif, big = false }: { post: Med
       style={{ backgroundColor: 'var(--mh-card)', borderColor: 'var(--mh-line)', boxShadow: '0 24px 50px -36px rgba(0,0,0,.55)' }}>
       <span className={`relative block overflow-hidden ${big ? 'aspect-[16/10] lg:aspect-auto lg:w-[55%]' : 'aspect-[16/10]'}`}>
         {post.cover_image_url
-          ? <span className="absolute inset-0 bg-cover bg-center transition duration-700 group-hover:scale-105" style={{ backgroundImage: sizedBg(resolveMediaUrl(post.cover_image_url), 640) }} />
+          ? <SitePhoto src={resolveMediaUrl(post.cover_image_url)} widths={IMG.card} className="absolute inset-0 transition duration-700 group-hover:scale-105 object-cover h-full w-full" />
           : <span className="absolute inset-0"><BlogCoverArt category={post.category} title={post.title} tone="site" showWord={false} /></span>}
         {post.category && <span className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>{post.category}</span>}
         {post.has_video && <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-[10px] font-black text-white "><Play className="h-3 w-3 fill-current" />Video</span>}

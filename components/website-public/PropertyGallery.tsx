@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Images, X } from 'lucide-react'
-import { sizedBg, sizedImage } from '@/lib/siteImage'
+import SitePhoto from '@/components/website-public/SitePhoto'
+import { IMG, sizedBg, sizedImage } from '@/lib/siteImage'
 
 function Lightbox({ photos, address, index, onClose, onIndex }: { photos: string[]; address: string; index: number; onClose: () => void; onIndex: (i: number) => void }) {
   return (
@@ -78,7 +79,7 @@ export default function PropertyGallery({ photos, address, variant = 'grid' }: {
         <div className="mb-8">
           <div className="group relative aspect-[16/10] w-full overflow-hidden rounded-3xl bg-gray-100 sm:aspect-[16/9]">
             <button onClick={() => setLightboxIndex(activeIndex)} className="absolute inset-0" aria-label="View full photo">
-              <div className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-105" style={{ backgroundImage: sizedBg(photos[activeIndex], 1200) }} />
+              <SitePhoto src={photos[activeIndex]} widths={IMG.half} className="h-full w-full transition-transform duration-700 ease-out group-hover:scale-105 object-cover" />
             </button>
             {photos.length > 1 && (
               <>
@@ -136,7 +137,7 @@ export default function PropertyGallery({ photos, address, variant = 'grid' }: {
           onClick={() => setLightboxIndex(0)}
           className="group relative aspect-[4/3] overflow-hidden bg-gray-100 sm:aspect-auto sm:h-[420px]"
         >
-          <div className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-105" style={{ backgroundImage: sizedBg(photos[0], 1200) }} />
+          <SitePhoto src={photos[0]} widths={IMG.half} className="h-full w-full transition-transform duration-700 ease-out group-hover:scale-105 object-cover" />
         </button>
         {secondary.length > 0 && (
           <div className="grid grid-cols-2 gap-2">
@@ -146,7 +147,7 @@ export default function PropertyGallery({ photos, address, variant = 'grid' }: {
                 onClick={() => setLightboxIndex(i + 1)}
                 className="group relative aspect-[4/3] overflow-hidden bg-gray-100"
               >
-                <div className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-105" style={{ backgroundImage: sizedBg(url, 640) }} />
+                <SitePhoto src={url} widths={IMG.card} className="h-full w-full transition-transform duration-700 ease-out group-hover:scale-105 object-cover" />
               </button>
             ))}
           </div>

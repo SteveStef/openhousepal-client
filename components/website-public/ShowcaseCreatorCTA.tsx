@@ -8,7 +8,8 @@ import type { SiteTheme } from './types'
 import { fontClass } from './blocks/fontClass'
 import LuxuryAbstractBackground from './LuxuryAbstractBackground'
 import Reveal from './Reveal'
-import { sizedBg, sizedImage } from '@/lib/siteImage'
+import SitePhoto from '@/components/website-public/SitePhoto'
+import { IMG, sizedBg, sizedImage } from '@/lib/siteImage'
 
 // "Create your own Showcase" - for the home BUYER on the agent's IDX site. A hands-free film on a
 // laptop shows exactly what a Showcase is, start to finish, with the agent's real listing photos
@@ -353,7 +354,7 @@ function PageScene({ scene, local, homes, agentFirst, agentPhoto }: { scene: num
         {toast && (
           <motion.div key={toast} initial={{ x: 260, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 260, opacity: 0 }} transition={{ type: 'spring', stiffness: 200, damping: 24 }}
             className="absolute right-4 top-3 z-20 flex w-[270px] items-center gap-2.5 rounded-2xl bg-[#111827] p-2.5 text-white shadow-2xl">
-            <span className="h-10 w-12 shrink-0 rounded-lg bg-cover bg-center" style={{ backgroundImage: sizedBg(toast === 'new' ? fresh.photo : grid[cardIndexWithDrop]?.photo, 128) }} />
+            <SitePhoto src={toast === 'new' ? fresh.photo : grid[cardIndexWithDrop]?.photo} widths={IMG.card} className="h-10 w-12 shrink-0 rounded-lg object-cover" />
             <span className="min-w-0">
               <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: 'var(--site-accent-light)' }}>{toast === 'new' ? <><Bell className="h-2.5 w-2.5" /> New match - just listed</> : <><TrendingDown className="h-2.5 w-2.5" /> Price drop</>}</span>
               <span className="block truncate text-[12px] font-black">{toast === 'new' ? money(fresh.price) : `${money(grid[cardIndexWithDrop]?.price)} → ${money((grid[cardIndexWithDrop]?.price || 0) - 100000)}`}</span>
@@ -367,7 +368,7 @@ function PageScene({ scene, local, homes, agentFirst, agentPhoto }: { scene: num
         {detail && target && (
           <motion.div initial={{ x: 380 }} animate={{ x: 0 }} exit={{ x: 380 }} transition={{ type: 'spring', stiffness: 160, damping: 22 }}
             className="absolute bottom-0 right-0 top-0 z-10 w-[330px] border-l border-black/5 bg-[#ffffff] shadow-[-20px_0_40px_-20px_rgba(0,0,0,.3)]">
-            <div className="h-36 bg-cover bg-center" style={{ backgroundImage: sizedBg(target.photo, 640) }} />
+            <SitePhoto src={target.photo} widths={IMG.card} className="h-36 w-full object-cover" />
             <div className="p-4">
               <p className="text-xl font-black">{money(target.price)}</p>
               <p className="truncate text-[11px] font-semibold text-black/50">{target.address}{target.city ? `, ${target.city}` : ''}</p>
