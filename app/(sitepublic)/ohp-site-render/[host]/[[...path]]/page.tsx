@@ -1042,8 +1042,11 @@ async function AboutPage({ siteId, basePrefix, host, framed = false }: { siteId:
     ? `/${encodeURIComponent(slug)}?idx_light=1&idx_return=${idxReturn}`
     : `https://${OHP_BASE_DOMAIN}/${encodeURIComponent(slug)}?idx_light=1&idx_return=${idxReturn}`
   return (
-    <main className={`${framed ? 'h-[calc(100vh-5rem)]' : 'h-screen'} w-full overflow-hidden bg-[#f7f5f1]`}>
-      <iframe src={src} title="Agent Hub" className="h-full w-[calc(100%+18px)] border-0" />
+    // dvh, not vh: on phones 100vh runs under the browser bar and cut off the hub's bottom. The
+    // 18px overhang (hides the frame's scrollbar) only on desktop - phones have no scrollbar, so it
+    // was cutting 18px off the hub's right edge.
+    <main className={`${framed ? 'h-[calc(100dvh-5rem)]' : 'h-[100dvh]'} w-full overflow-hidden bg-[#f7f5f1]`}>
+      <iframe src={src} title="Agent Hub" className="h-full w-full border-0 lg:w-[calc(100%+18px)]" />
     </main>
   )
 }
@@ -1056,7 +1059,7 @@ async function ShowcaseAliasPage({ siteId, shareToken, home, basePrefix, accent 
   const src = basePrefix.startsWith('/ohp-site-render/') ? rest : `https://${OHP_BASE_DOMAIN}${rest}`
   const mine = await fetchFreshJson(`${INTERNAL_API_URL}/public/sites/${siteId}/my-showcase/${encodeURIComponent(shareToken)}`)
   return (
-    <main className="h-screen w-full overflow-hidden bg-[#f7f5f1]">
+    <main className="h-[100dvh] w-full overflow-hidden bg-[#f7f5f1]">
       {mine?.code && <RememberShowcase code={mine.code} name={mine.name} />}
       <iframe src={src} title="Showcase" className="h-full w-full border-0" />
     </main>
@@ -1095,7 +1098,7 @@ async function CmaAliasPage({ siteId, shareSlug, basePrefix }: { siteId: string;
     ? `/cma/${encodeURIComponent(shareSlug)}`
     : `https://${OHP_BASE_DOMAIN}/cma/${encodeURIComponent(shareSlug)}`
   return (
-    <main className="h-screen w-full overflow-hidden bg-[#f7f5f1]">
+    <main className="h-[100dvh] w-full overflow-hidden bg-[#f7f5f1]">
       <iframe src={src} title="Comparative Market Analysis" className="h-full w-full border-0" />
     </main>
   )
