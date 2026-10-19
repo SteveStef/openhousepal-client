@@ -29,12 +29,6 @@ export const titleCase = (s?: string | null) => {
 const num = (n: any): number | null => (n == null || n === '' || !isFinite(Number(n)) ? null : Number(n))
 const fmtN = (n: number) => (n % 1 === 0 ? String(n) : n.toFixed(1))
 
-/** "Street, City" when it fits on one card line, else just the street (trimmed with an ellipsis). */
-function oneLine(street: string, city: string, max = 31) {
-  const both = [street, city].filter(Boolean).join(', ')
-  if (both.length <= max) return both
-  return street.length <= max ? street : `${street.slice(0, max - 1).trim()}…`
-}
 
 export type OgHome = { photo: string | null; price: string; facts: string; street: string; city: string; match: number | null; isNew?: boolean }
 
@@ -62,6 +56,12 @@ export function MlsSafePhoto({ src, w, h, radius = 0, corners }: { src: string |
     <div style={{ display: 'flex', position: 'relative', width: w, height: h, borderTopLeftRadius: r[0], borderTopRightRadius: r[1], borderBottomRightRadius: r[2], borderBottomLeftRadius: r[3], backgroundColor: '#E9E2D3',
       ...(src && dim ? { backgroundImage: `url(${src})`, backgroundSize: `${bw}px ${bh}px`, backgroundPosition: `${w - bw}px ${-top}px`, backgroundRepeat: 'no-repeat' } : {}) }} />
   )
+}
+
+/** The biggest font size (max..min) at which `text` fits `width` on one line; em = a letter's
+ *  average width for that face (Playfair black ~0.53, Manrope black ~0.62, Manrope ~0.52). */
+function fitSize(text: string, width: number, em: number, max: number, min: number) {
+  return Math.max(min, Math.min(max, Math.floor(width / (Math.max(1, text.length) * em))))
 }
 
 function initialsOf(name: string) {
@@ -159,7 +159,7 @@ export function ShowcaseCard({
               <div style={{ display: 'flex', width: 22, height: 2, backgroundColor: accent }} />
               Newest for you
             </div>
-            <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: 36, lineHeight: 1.1, color: '#111827', marginTop: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 360 }}>{shown[0].street || 'A new home'}</div>
+            <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: fitSize(shown[0].street || 'A new home', 360, 0.53, 36, 18), lineHeight: 1.1, color: '#111827', marginTop: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 360 }}>{shown[0].street || 'A new home'}</div>
             {shown[0].city ? <div style={{ display: 'flex', fontSize: 19, color: '#6B7280', marginTop: 4 }}>{shown[0].city}</div> : null}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
               {shown[0].facts.split('  ·  ').filter(Boolean).map(f => (
@@ -186,7 +186,7 @@ export function ShowcaseCard({
               </div>
               <div style={{ display: 'flex', alignItems: 'center', padding: '16px 22px 18px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', fontSize: 22, fontWeight: 900, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300 }}>{h.street || 'A new home'}</div>
+                  <div style={{ display: 'flex', fontSize: fitSize(h.street || 'A new home', 300, 0.62, 22, 14), fontWeight: 900, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300 }}>{h.street || 'A new home'}</div>
                   <div style={{ display: 'flex', fontSize: 16, color: '#6B7280', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300 }}>{[h.city, ...h.facts.split('  ·  ').filter(f => !f.includes('sq ft'))].filter(Boolean).join(' · ')}</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', paddingLeft: 18, marginLeft: 16, borderLeft: `1px solid rgba(${rgb},0.35)` }}>
@@ -211,7 +211,7 @@ export function ShowcaseCard({
               <div style={{ display: 'flex', flexDirection: 'column', padding: '15px 20px 17px' }}>
                 <div style={{ display: 'flex', fontSize: 30, fontWeight: 900, color: '#111827', letterSpacing: -0.5 }}>{h.price || 'Price on request'}</div>
                 {h.facts ? <div style={{ display: 'flex', fontSize: 17, fontWeight: 900, color: deep, marginTop: 4 }}>{h.facts}</div> : null}
-                <div style={{ display: 'flex', fontSize: 17, fontWeight: 400, color: '#6B7280', marginTop: 5 }}>{oneLine(h.street, h.city)}</div>
+                <div style={{ display: 'flex', fontSize: fitSize([h.street, h.city].filter(Boolean).join(', '), 305, 0.52, 17, 12), fontWeight: 400, color: '#6B7280', marginTop: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 305 }}>{[h.street, h.city].filter(Boolean).join(', ')}</div>
               </div>
             </div>
           ))}
@@ -358,7 +358,9 @@ export function HomePhotoCard({ photo, street, place, eyebrow, sub, agentName, a
   const rgb = [1, 3, 5].map(i => parseInt(accent.slice(i, i + 2), 16)).join(',')
   // "847 Lesley Rd, Villanova" - the town in the same serif and size, on one line (user, 10/19)
   const headline = [street, place.split(',')[0]].filter(Boolean).join(', ')
-  const titleSize = Math.max(44, Math.min(78, Math.floor(1050 / (headline.length * 0.5))))
+  // a long address gets smaller until it fits on one line (user, 10/19) - only a freak lot
+  // description ("Lot E 133-9.00 ... off of Shortly Rd") still runs out of room at the smallest size
+  const titleSize = fitSize(headline, 1056, 0.53, 78, 26)
   return (
     <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: C.bgBot,
       backgroundImage: `radial-gradient(1000px 640px at 78% 22%, ${C.bgTop} 0%, ${C.bgMid} 55%, ${C.bgBot} 100%)` }}>
@@ -907,10 +909,13 @@ export async function renderPropertyCard(agentId: string, listingKey: string, fo
       p.bathrooms || p.BathroomsTotal ? `${p.bathrooms || p.BathroomsTotal} ba` : null,
       p.living_area || p.LivingArea ? `${Math.round(p.living_area || p.LivingArea).toLocaleString()} sqft` : null,
     ].filter(Boolean)
-    const sub = [money(p.price || p.ListPrice), bits.join('  ·  ')].filter(Boolean).join('  ·  ') || 'Take a look inside'
-    // the label follows the home's real status ("COMING SOON-BRIGHT" -> Coming Soon)
+    // the label follows the home's real status ("COMING SOON-BRIGHT" -> Coming Soon); a lease
+    // listing ("ResidentialLease" / "CommercialLease") is for rent, priced by the month
     const st = String(p.MlsStatus || p.StandardStatus || p.status || '').toUpperCase()
-    const eyebrow = st.includes('COMING') ? 'Coming Soon' : /PENDING|CONTRACT/.test(st) ? 'Under Contract' : /CLOSED|SOLD/.test(st) ? 'Sold' : /RENT|LEASE/.test(st) ? 'For Rent' : 'For Sale'
+    const lease = /LEASE|RENT/i.test(`${p.MlsPropertyType || ''} ${p.PropertyType || ''} ${st}`)
+    const price = money(p.price || p.ListPrice)
+    const sub = [price ? (lease ? `${price}/mo` : price) : null, bits.join('  ·  ')].filter(Boolean).join('  ·  ') || 'Take a look inside'
+    const eyebrow = st.includes('COMING') ? 'Coming Soon' : /PENDING|CONTRACT/.test(st) ? 'Under Contract' : /CLOSED|SOLD/.test(st) ? (lease ? 'Rented' : 'Sold') : lease ? 'For Rent' : 'For Sale'
     // the same look as the CMA and open house cards
     return IR(
       <HomePhotoCard photo={photo} street={titleCase(p.street_address || p.FullStreetAddress || p.address) || 'A home worth seeing'} place={titleCase(p.city || p.City)}
