@@ -211,7 +211,7 @@ export default function ReviewsShowcase({ data, theme, basePrefix, agent }: { da
           <Reveal>
             <figure className="relative flex h-full flex-col justify-center overflow-hidden rounded-[32px] p-8 text-white sm:p-12" style={{ background: `radial-gradient(90% 120% at 0% 0%, rgba(var(--site-accent-rgb),.28), transparent 55%), radial-gradient(80% 100% at 100% 100%, rgba(var(--site-accent-rgb),.16), transparent 60%), ${theme.primary_color}` }}>
               <div className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,.9) 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
-              <span className="relative text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent)' }}>Client spotlight</span>
+              <span className="relative text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent-text)' }}>Client spotlight</span>
               <Quote className="relative mt-5 h-12 w-12" style={{ color: 'var(--site-accent)', fill: 'var(--site-accent)' }} />
               <blockquote className={`relative mt-5 text-xl leading-[1.55] text-white sm:text-[26px] ${serif}`}>{`“${featured.body.trim()}”`}</blockquote>
               <figcaption className="relative mt-8 flex flex-wrap items-center gap-4">
@@ -256,7 +256,7 @@ export default function ReviewsShowcase({ data, theme, basePrefix, agent }: { da
         <section className="mx-auto max-w-6xl px-6 pb-6 pt-20">
           <Reveal>
             <div className="text-center">
-              <span className="text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent)' }}>In their words</span>
+              <span className="text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent-text)' }}>In their words</span>
               <h2 className={`ohp-site-heading mt-3 text-3xl font-black sm:text-4xl ${serif}`} style={{ color: 'var(--site-heading)' }}>Every Review, Unedited</h2>
             </div>
             {filters.length > 1 && (
@@ -300,7 +300,7 @@ export default function ReviewsShowcase({ data, theme, basePrefix, agent }: { da
               </div>
             )}
             <div className={agent?.photo_url ? 'text-center md:text-left' : 'text-center'}>
-              <span className="text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent)' }}>Your turn</span>
+              <span className="text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent-text)' }}>Your turn</span>
               <h2 className={`mt-3 text-3xl font-black leading-tight sm:text-4xl ${serif}`}>Ready to be my next success story?</h2>
               {agent?.name && <p className="mt-2 text-sm font-semibold text-white/60">{[agent.name, agent.title, agent.brokerage].filter(Boolean).join(' · ')}</p>}
               <div className={`mt-6 flex flex-wrap gap-3 ${agent?.photo_url ? 'justify-center md:justify-start' : 'justify-center'}`}>

@@ -96,7 +96,7 @@ export default function NewlyListedBlock({ data, theme, siteId, basePrefix = '' 
                 <Crown className="h-4 w-4" style={{ color: 'var(--site-accent)' }} />
               </span>
               <span className="h-px w-6" style={{ backgroundColor: 'var(--site-accent)' }} />
-              <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent)' }}>{data.eyebrow || 'Just Listed'}</span>
+              <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent-text)' }}>{data.eyebrow || 'Just Listed'}</span>
             </div>
             <h2 className={`mt-3 text-4xl font-black leading-[1.1] sm:text-5xl ${serif}`} style={{ color: 'var(--site-ink)' }}>
               {data.headline || 'Newly Listed'}

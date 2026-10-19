@@ -88,7 +88,7 @@ export default function HomeValuePage({ theme, basePrefix, profile, areas, revie
       {/* How it works */}
       <section className="px-5 py-14 sm:px-6 sm:py-20">
         <div className="mx-auto max-w-6xl">
-          <p className="text-[11px] font-black uppercase tracking-[0.24em]" style={{ color: 'var(--site-accent)' }}>How it works</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.24em]" style={{ color: 'var(--site-accent-text)' }}>How it works</p>
           <h2 className={`ohp-site-heading mt-2 text-3xl font-black sm:text-4xl ${serif}`} style={{ color: 'var(--site-heading)' }}>A real number, not a guess</h2>
           <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3">
             {steps.map((s, i) => (
@@ -107,7 +107,7 @@ export default function HomeValuePage({ theme, basePrefix, profile, areas, revie
       {towns.length > 0 && (
         <section className="px-5 py-14 sm:px-6 sm:py-20" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
           <div className="mx-auto max-w-6xl">
-            <p className="text-[11px] font-black uppercase tracking-[0.24em]" style={{ color: 'var(--site-accent)' }}>Your market right now</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.24em]" style={{ color: 'var(--site-accent-text)' }}>Your market right now</p>
             <h2 className={`ohp-site-heading mt-2 text-3xl font-black sm:text-4xl ${serif}`} style={{ color: 'var(--site-heading)' }}>What homes are listing for near you</h2>
             <p className="mt-2 text-sm" style={{ color: 'var(--site-muted)' }}>Live from the MLS. Tap a town for its sold prices and trends.</p>
             <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -133,7 +133,7 @@ export default function HomeValuePage({ theme, basePrefix, profile, areas, revie
       {quotes.length > 0 && (
         <section className="px-5 py-14 sm:px-6 sm:py-20">
           <div className="mx-auto max-w-6xl">
-            <p className="text-[11px] font-black uppercase tracking-[0.24em]" style={{ color: 'var(--site-accent)' }}>From clients</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.24em]" style={{ color: 'var(--site-accent-text)' }}>From clients</p>
             <h2 className={`ohp-site-heading mt-2 text-3xl font-black sm:text-4xl ${serif}`} style={{ color: 'var(--site-heading)' }}>Why owners call {first}</h2>
             <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3">
               {quotes.map((r: any) => (
@@ -144,7 +144,7 @@ export default function HomeValuePage({ theme, basePrefix, profile, areas, revie
                 </figure>
               ))}
             </div>
-            <a href={`${basePrefix}/testimonials`} className="mt-6 inline-flex text-sm font-black" style={{ color: 'var(--site-accent)' }}>Read all {reviews.summary?.count || ''} reviews →</a>
+            <a href={`${basePrefix}/testimonials`} className="mt-6 inline-flex text-sm font-black" style={{ color: 'var(--site-accent-text)' }}>Read all {reviews.summary?.count || ''} reviews →</a>
           </div>
         </section>
       )}

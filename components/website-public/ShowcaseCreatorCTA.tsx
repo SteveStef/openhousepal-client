@@ -129,7 +129,7 @@ export default function ShowcaseCreatorCTA({ theme, basePrefix, listings, agent 
         {/* Words */}
         <Reveal>
           <span className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.24em] ${luxe ? 'border-white/15 bg-white/5' : ''}`}
-            style={luxe ? { color: 'var(--site-accent-light)' } : { borderColor: 'var(--site-line-strong)', backgroundColor: 'var(--site-surface)', color: 'var(--site-accent-deep)' }}>
+            style={luxe ? { color: 'var(--site-accent-light)' } : { borderColor: 'var(--site-line-strong)', backgroundColor: 'var(--site-surface)', color: 'var(--site-accent-text)' }}>
             <Sparkles className="h-3 w-3" /> Free · private · made for you
           </span>
           <h2 className={`mt-5 text-4xl leading-[1.06] sm:text-5xl ${luxe ? `font-black text-white ${serif}` : 'font-extrabold tracking-tight'}`} style={luxe ? undefined : { color: 'var(--site-heading)' }}>
@@ -169,7 +169,7 @@ export default function ShowcaseCreatorCTA({ theme, basePrefix, listings, agent 
               style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>
               Create my free Showcase <ArrowRight className="h-4 w-4" />
             </a>
-            <span className={`text-xs font-bold ${luxe ? 'text-white/50' : ''}`} style={luxe ? undefined : { color: 'var(--site-faint)' }}>Ready in 30 seconds</span>
+            <span className={`text-xs font-bold ${luxe ? 'text-white/65' : ''}`} style={luxe ? undefined : { color: 'var(--site-faint)' }}>Ready in 30 seconds</span>
           </div>
           <div className="mt-8 flex flex-wrap gap-x-5 gap-y-2">
             {WHY.map(w => (
@@ -188,7 +188,7 @@ export default function ShowcaseCreatorCTA({ theme, basePrefix, listings, agent 
                 <Film scene={scene} local={local} homes={homes} towns={towns} budget={budget} agentFirst={agentFirst} agentPhoto={agent?.photo_url ? resolveMediaUrl(agent.photo_url) : null} />
               </Laptop>
             </div>
-            <p className={`absolute -bottom-1 left-0 right-0 text-center text-[10px] font-black uppercase tracking-[0.3em] ${luxe ? 'text-white/30' : ''}`} style={luxe ? undefined : { color: 'var(--site-faint)' }}>Example</p>
+            <p className={`absolute -bottom-1 left-0 right-0 text-center text-[10px] font-black uppercase tracking-[0.3em] ${luxe ? 'text-white/60' : ''}`} style={luxe ? undefined : { color: 'var(--site-faint)' }}>Example</p>
           </div>
         </Reveal>
       </div>

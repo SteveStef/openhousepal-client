@@ -61,7 +61,7 @@ export default function MarketTrendsSection({ trends, theme, areaName, bare = fa
       ) : (
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent)' }}>Market Trends</p>
+          <p className="text-xs font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent-text)' }}>Market Trends</p>
           <h2 className={`ohp-site-heading mt-2 text-2xl font-black sm:text-3xl ${fontClass(theme.heading_font, 'font-serif')}`} style={{ color: 'var(--site-heading)' }}>What homes in {areaName} sell for</h2>
         </div>
         <p className="max-w-md text-sm leading-relaxed text-gray-500">Closed sales from the MLS, {monthRange(series)}. Updated as new sales close - no republishing.</p>
@@ -74,8 +74,8 @@ export default function MarketTrendsSection({ trends, theme, areaName, bare = fa
             <div key={t.label} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
               <span className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),0.12)', color: t.tone || 'var(--site-accent)' }}><t.icon className="h-4 w-4" /></span>
               <p className="ohp-site-heading mt-3 text-xl font-black leading-none" style={{ color: t.tone || 'var(--site-heading)' }}>{t.value}</p>
-              <p className="mt-1.5 text-[10px] font-black uppercase tracking-wide text-gray-400">{t.label}</p>
-              <p className="text-[10px] font-semibold text-gray-400">{t.sub}</p>
+              <p className="mt-1.5 text-[10px] font-black uppercase tracking-wide text-gray-500">{t.label}</p>
+              <p className="text-[10px] font-semibold text-gray-500">{t.sub}</p>
             </div>
           ))}
         </div>
@@ -85,8 +85,8 @@ export default function MarketTrendsSection({ trends, theme, areaName, bare = fa
         {/* Median close price by month */}
         <div className="rounded-[1.25rem] border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">Median sold price by month</p>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">bars = median price · numbers = sales</p>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-500">Median sold price by month</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">bars = median price · numbers = sales</p>
           </div>
           <svg viewBox={`0 0 ${chartW} ${chartH + 44}`} className="mt-4 w-full" role="img" aria-label={`Median sold price by month in ${areaName}`}>
             <defs>
@@ -124,26 +124,26 @@ export default function MarketTrendsSection({ trends, theme, areaName, bare = fa
         {/* What's for sale now */}
         <div className="rounded-[1.25rem] border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">For sale right now</p>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{trends.active_count || 0} homes{trends.new_last_30_days ? ` · ${trends.new_last_30_days} new this month` : ''}</p>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-500">For sale right now</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">{trends.active_count || 0} homes{trends.new_last_30_days ? ` · ${trends.new_last_30_days} new this month` : ''}</p>
           </div>
           {bands.length > 0 ? (
             <ul className="mt-4 space-y-2.5">
               {bands.map(b => (
                 <li key={b.label}>
-                  <div className="flex items-center justify-between text-xs font-bold text-gray-600"><span>{b.label}</span><span className="text-gray-400">{b.count}</span></div>
+                  <div className="flex items-center justify-between text-xs font-bold text-gray-600"><span>{b.label}</span><span className="text-gray-500">{b.count}</span></div>
                   <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full" style={{ width: `${Math.max(6, (b.count / bandMax) * 100)}%`, background: 'linear-gradient(90deg, var(--site-accent), var(--site-accent-light))' }} /></div>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="mt-4 text-sm text-gray-400">Nothing on the market right now - check the sold prices above for what to expect.</p>
+            <p className="mt-4 text-sm text-gray-500">Nothing on the market right now - check the sold prices above for what to expect.</p>
           )}
           {mix.length > 0 && mixTotal > 0 && (
             <div className="mt-5 border-t border-gray-100 pt-4">
-              <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-gray-400"><Layers className="h-3 w-3" /> Home types</p>
+              <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-gray-500"><Layers className="h-3 w-3" /> Home types</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {mix.map(t => <span key={t.label} className="rounded-full border border-gray-200 px-2.5 py-1 text-[11px] font-bold text-gray-600">{t.label} <span className="text-gray-400">{Math.round((t.count / mixTotal) * 100)}%</span></span>)}
+                {mix.map(t => <span key={t.label} className="rounded-full border border-gray-200 px-2.5 py-1 text-[11px] font-bold text-gray-600">{t.label} <span className="text-gray-500">{Math.round((t.count / mixTotal) * 100)}%</span></span>)}
               </div>
             </div>
           )}

@@ -24,7 +24,7 @@ export default function TownWalk({ data, town, luxe }: { data?: WalkData | null;
     <div className={`mt-8 border p-5 sm:p-7 ${luxe ? 'rounded-[24px]' : 'rounded-2xl'}`} style={{ borderColor: 'var(--site-line)', backgroundColor: 'var(--site-surface)', boxShadow: 'var(--site-shadow)' }}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent)' }}><Footprints className="h-3.5 w-3.5" /> On foot from home</p>
+          <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent-text)' }}><Footprints className="h-3.5 w-3.5" /> On foot from home</p>
           {data?.level && <p className="ohp-site-heading mt-2 text-2xl font-black sm:text-3xl" style={{ color: 'var(--site-heading)' }}>{data.level}</p>}
         </div>
         <p className="text-[12px] font-semibold" style={{ color: 'var(--site-muted)' }}>Share of {town} homes within about a {mins}-minute walk of…</p>

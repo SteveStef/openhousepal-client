@@ -35,8 +35,9 @@
   --site-surface-2: #fbfaf7;
   --site-ink: #111827;
   --site-ink-soft: #374151;
-  --site-muted: #6b7280;
-  --site-faint: #9ca3af;
+  /* muted/faint darkened 10/19 so small labels pass WCAG AA (faint was 2.4:1 on white). */
+  --site-muted: #565d69;
+  --site-faint: #6b7280;
   --site-line: rgba(17, 24, 39, 0.08);
   --site-line-strong: rgba(17, 24, 39, 0.14);
   --site-shadow: 0 2px 24px rgba(17, 24, 39, 0.08);
@@ -75,8 +76,8 @@
   --site-surface-2: #1b1b21;
   --site-ink: #f4f1ea;
   --site-ink-soft: #d9d5cc;
-  --site-muted: #a09c93;
-  --site-faint: #6f6b64;
+  --site-muted: #aca79e;
+  --site-faint: #938e85;
   --site-line: rgba(255, 255, 255, 0.09);
   --site-line-strong: rgba(255, 255, 255, 0.16);
   --site-shadow: 0 2px 24px rgba(0, 0, 0, 0.45);
@@ -267,6 +268,12 @@
 .ohp-site[data-mode="dark"] .bg-white\/90,
 .ohp-site[data-mode="dark"] .bg-white\/92,
 .ohp-site[data-mode="dark"] .bg-white\/95 { background-color: var(--site-surface) !important; }
+/* Translucent white panels (cards over the page) - were left white in dark mode, grey boxes with
+   light text on them (10/19 contrast pass). */
+.ohp-site[data-mode="dark"] .bg-white\/60,
+.ohp-site[data-mode="dark"] .bg-white\/70,
+.ohp-site[data-mode="dark"] .bg-white\/80,
+.ohp-site[data-mode="dark"] .bg-white\/85 { background-color: color-mix(in srgb, var(--site-surface) 85%, transparent) !important; }
 .ohp-site[data-mode="dark"] .bg-gray-50,
 .ohp-site[data-mode="dark"] .bg-gray-50\/60,
 .ohp-site[data-mode="dark"] .bg-gray-50\/70,
@@ -274,7 +281,8 @@
 .ohp-site[data-mode="dark"] .bg-\[\#f8f7f3\],
 .ohp-site[data-mode="dark"] .bg-\[\#FAFAF7\],
 .ohp-site[data-mode="dark"] .bg-\[\#fffdf8\],
-.ohp-site[data-mode="dark"] .bg-\[\#f6f2eb\] { background-color: var(--site-surface-2) !important; }
+.ohp-site[data-mode="dark"] .bg-\[\#f6f2eb\],
+.ohp-site[data-mode="dark"] .bg-\[\#faf8f3\] { background-color: var(--site-surface-2) !important; }
 .ohp-site[data-mode="dark"] .bg-gray-200 { background-color: var(--site-line-strong) !important; }
 .ohp-site[data-mode="dark"] .text-gray-900,
 .ohp-site[data-mode="dark"] .text-gray-800,
@@ -446,3 +454,17 @@
 .ohp-site > main, .ohp-site main[data-testid] { animation: ohpPageIn .55s cubic-bezier(.16,1,.3,1) both }
 @keyframes ohpPageIn { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
 @media (prefers-reduced-motion: reduce) { .ohp-site > main, .ohp-site main[data-testid] { animation: none } }
+
+/* Google Maps draws its own white controls / info windows - dark mode's light page ink must not
+   leak into them (white-on-white zoom/camera buttons, 10/19 contrast pass). */
+.ohp-site[data-mode="dark"] .gm-style .gm-control-active,
+.ohp-site[data-mode="dark"] .gm-style .gm-style-iw,
+.ohp-site[data-mode="dark"] .gm-style .gm-style-mtc button,
+.ohp-site[data-mode="dark"] .gm-style .gm-fullscreen-control { color: #1f2937; }
+
+/* A section that stays dark in light mode too (Luxe footer, navy bands): accent-colored small text
+   in it uses the on-dark readable shade (lib/siteTheme --site-accent-text-dm). */
+.ohp-site .ohp-dark-band { --site-accent-text: var(--site-accent-text-dm); }
+.ohp-site[data-mode="dark"] .text-blue-600,
+.ohp-site[data-mode="dark"] .text-blue-700 { color: #93c5fd !important; }
+.ohp-site[data-mode="dark"] .bg-blue-50 { background-color: rgba(59, 130, 246, 0.15) !important; }

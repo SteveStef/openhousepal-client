@@ -62,7 +62,7 @@ export default function AboutAgentBlock({ data, theme, basePrefix = '' }: { data
             </div>
           )}
           <div className={photoUrl ? '' : 'lg:col-span-2 lg:mx-auto lg:max-w-3xl lg:text-center'}>
-            <p className="text-[12px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--site-accent)' }}>Meet your agent</p>
+            <p className="text-[12px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--site-accent-text)' }}>Meet your agent</p>
             {name && <h2 className="ohp-site-heading mt-2 text-[2.4rem] font-extrabold leading-[1.05] tracking-tight sm:text-5xl" style={{ color: 'var(--site-heading)' }}>{name}</h2>}
             {(title || market) && (
               <p className={`mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[15px] font-semibold ${photoUrl ? '' : 'lg:justify-center'}`} style={{ color: 'var(--site-muted)' }}>
@@ -118,7 +118,7 @@ export default function AboutAgentBlock({ data, theme, basePrefix = '' }: { data
               <div className="absolute inset-x-0 bottom-0 p-6">
                 <span className="block h-px w-10" style={{ background: `linear-gradient(90deg, ${gold}, transparent)` }} />
                 <p className={`mt-3 text-2xl font-black text-white ${serif}`}>{name}</p>
-                {brokerage && <p className="text-xs font-black uppercase tracking-[0.22em]" style={{ color: gold }}>{brokerage}</p>}
+                {brokerage && <p className="text-xs font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent-text)' }}>{brokerage}</p>}
               </div>
             </div>
           </div>
@@ -128,21 +128,21 @@ export default function AboutAgentBlock({ data, theme, basePrefix = '' }: { data
         <div className={photoUrl ? '' : 'lg:col-span-2 lg:mx-auto lg:max-w-3xl lg:text-center'}>
           <div className={`flex items-center gap-3 ${photoUrl ? '' : 'lg:justify-center'}`}>
             <span className="h-px w-8" style={{ backgroundColor: gold }} />
-            <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: gold }}>Meet your agent</span>
+            <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent-text)' }}>Meet your agent</span>
           </div>
           {name && <h2 className={`ohp-site-heading mt-4 text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl ${serif}`} style={{ color: 'var(--site-heading)' }}>{name}</h2>}
           {(title || market) && (
             <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-bold text-gray-500">
               {title && <span className="uppercase tracking-[0.16em]">{title}</span>}
               {title && market && <span className="h-1 w-1 rounded-full" style={{ backgroundColor: gold }} />}
-              {market && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" style={{ color: gold }} />{market}</span>}
+              {market && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" style={{ color: 'var(--site-accent-text)' }} />{market}</span>}
             </p>
           )}
 
           {bio && (
-            <div className="relative mt-7 rounded-[26px] border bg-white/70 p-6 shadow-[0_24px_60px_-44px_rgba(17,24,39,.5)] sm:p-7" style={{ borderColor: `${gold}33` }}>
+            <div className="relative mt-7 rounded-[26px] border p-6 shadow-[0_24px_60px_-44px_rgba(17,24,39,.5)] sm:p-7" style={{ borderColor: `${gold}33`, backgroundColor: 'color-mix(in srgb, var(--site-surface) 72%, transparent)' }}>
               <Quote className="absolute -top-4 left-6 h-8 w-8 rounded-full p-1.5" style={{ backgroundColor: ink, color: gold }} />
-              <p className={`text-[17px] leading-[1.8] text-gray-600 ${fontClass(theme.body_font)}`}>{bio}</p>
+              <p className={`text-[17px] leading-[1.8] ${fontClass(theme.body_font)}`} style={{ color: 'var(--site-ink-soft)' }}>{bio}</p>
             </div>
           )}
 
@@ -186,7 +186,7 @@ export default function AboutAgentBlock({ data, theme, basePrefix = '' }: { data
               {statItems.map((stat, i) => (
                 <div key={stat.label} className={`px-3 ${i ? 'border-l' : ''} ${photoUrl ? 'text-left first:pl-0' : 'text-center'}`} style={{ borderColor: `${gold}33` }}>
                   <dd className={`text-3xl font-black leading-none sm:text-4xl ${serif}`} style={{ color: 'var(--site-heading)' }}>{stat.value}</dd>
-                  <dt className="mt-2 text-[10px] font-black uppercase tracking-[0.22em] text-gray-400">{stat.label}</dt>
+                  <dt className="mt-2 text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-muted)' }}>{stat.label}</dt>
                 </div>
               ))}
             </dl>

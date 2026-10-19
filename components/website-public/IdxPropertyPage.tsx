@@ -79,7 +79,7 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
 
 
   return (
-    <PropertySurface surface="site" gold={theme.secondary_color} ink={theme.primary_color} serif={serif}>
+    <PropertySurface surface="site" gold="var(--site-accent)" ink={theme.primary_color} serif={serif}>
       <main className="relative pb-24 lg:pb-0">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[620px]" style={{ background: 'radial-gradient(70% 60% at 85% 0%, var(--pp-gold-wash), transparent 70%)' }} />
 
@@ -120,12 +120,12 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
                 </AgentPanel>
 
                 <a href={`${basePrefix}/create-showcase?site_chrome=1`} className={`group flex items-center gap-3 p-4 transition hover:-translate-y-0.5 ${pp.card}`}>
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--pp-ink)] text-[color:var(--pp-gold)]"><Sparkles className="h-5 w-5" /></span>
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--pp-ink)] text-[color:var(--site-accent-text-dm)]"><Sparkles className="h-5 w-5" /></span>
                   <span className="min-w-0 flex-1">
                     <span className={`block text-base font-black leading-tight ${pp.heading} ${serif}`}>Get homes like this first</span>
                     <span className={`block text-xs font-semibold ${pp.muted}`}>Your own Showcase - new matches the moment they list.</span>
                   </span>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-[color:var(--pp-gold)] transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRight className="h-4 w-4 shrink-0 text-[color:var(--site-accent-text-dm)] transition-transform group-hover:translate-x-0.5" />
                 </a>
 
 
@@ -177,11 +177,11 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
                     {matchedArea && (
                       <a href={`${basePrefix}/${matchedArea.slug}`} className="group mt-4 flex items-center justify-between gap-3 rounded-[22px] bg-[var(--pp-ink)] p-5 text-white shadow-[0_24px_50px_-30px_rgba(0,0,0,.6)] transition hover:-translate-y-0.5">
                         <span>
-                          <span className="block text-[10px] font-black uppercase tracking-[0.26em] text-[color:var(--pp-gold)]">Neighborhood guide</span>
+                          <span className="block text-[10px] font-black uppercase tracking-[0.26em] text-[color:var(--site-accent-text-dm)]">Neighborhood guide</span>
                           <span className={`mt-0.5 block text-xl font-black ${serif}`}>Living in {matchedArea.name}</span>
                           <span className="block text-xs font-semibold text-white/55">Homes for sale, schools, market numbers and local favorites.</span>
                         </span>
-                        <ArrowRight className="h-5 w-5 shrink-0 text-[color:var(--pp-gold)] transition-transform group-hover:translate-x-1" />
+                        <ArrowRight className="h-5 w-5 shrink-0 text-[color:var(--site-accent-text-dm)] transition-transform group-hover:translate-x-1" />
                       </a>
                     )}
                   </LocationBlock>
@@ -208,8 +208,8 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
         <PhoneBar photo={agentPhoto}>
           {/* Coming Soon with no on-market date yet: no showing requests (Bright) - the question box instead */}
           {comingSoonNoDate
-            ? <button type="button" onClick={toAsk} className="flex-1 rounded-xl bg-[var(--pp-gold)] py-3 text-center text-[11px] font-black uppercase tracking-widest text-[color:var(--pp-ink)]">Notify me</button>
-            : <button type="button" onClick={requestTour} className="flex-1 rounded-xl bg-[var(--pp-gold)] py-3 text-center text-[11px] font-black uppercase tracking-widest text-[color:var(--pp-ink)]">Request a tour</button>}
+            ? <button type="button" onClick={toAsk} className="flex-1 rounded-xl bg-[var(--site-accent)] py-3 text-center text-[11px] font-black uppercase tracking-widest text-[color:var(--site-on-accent)]">Notify me</button>
+            : <button type="button" onClick={requestTour} className="flex-1 rounded-xl bg-[var(--site-accent)] py-3 text-center text-[11px] font-black uppercase tracking-widest text-[color:var(--site-on-accent)]">Request a tour</button>}
           {/* Call · Text · Email the agent (user, 10/18); the question box is in the page above. */}
           {agentTel && <a href={`tel:${agentTel}`} aria-label="Call" className="rounded-xl border border-white/20 px-3 py-3 text-white"><Phone className="h-4 w-4" /></a>}
           {agentTextTel && <a href={`sms:${agentTextTel}`} aria-label="Text" className="rounded-xl border border-white/20 px-3 py-3 text-white"><MessageSquare className="h-4 w-4" /></a>}

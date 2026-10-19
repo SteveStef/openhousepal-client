@@ -135,7 +135,7 @@ export default function CommunitiesBlock({ data, theme, basePrefix = '' }: { dat
                         ))}
                       </div>
                     )}
-                    <span className="mt-4 inline-flex items-center gap-1 text-sm font-bold" style={{ color: 'var(--site-accent)' }}>Explore {area.name} <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></span>
+                    <span className="mt-4 inline-flex items-center gap-1 text-sm font-bold" style={{ color: 'var(--site-accent-text)' }}>Explore {area.name} <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></span>
                   </div>
                 </a>
                 </Slot>

@@ -135,7 +135,7 @@ function ClassicSpotlight({ listings, onOpen }: { listings: Listing[]; onOpen: (
     <section className="mx-auto max-w-7xl px-6 py-14 sm:py-16" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
       <div className="flex items-end justify-between gap-4">
         <div>
-          <p className="text-[12px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--site-accent)' }}>Home of the moment</p>
+          <p className="text-[12px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--site-accent-text)' }}>Home of the moment</p>
           <p className="mt-1 text-sm" style={{ color: 'var(--site-muted)' }}>{i + 1} of {listings.length}</p>
         </div>
         {listings.length > 1 && (

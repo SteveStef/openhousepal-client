@@ -15,9 +15,9 @@ type Tone = 'light' | 'dark' | 'auto'
 
 // Light, dark, or following the page's own <html class="dark"> (IDX sites).
 const T = {
-  light: { ink: 'text-[#111827]', muted: 'text-gray-500', faint: 'text-gray-400', chip: 'border-black/10 bg-white text-gray-600 hover:border-black/25', card: 'border-black/[0.07] bg-white', soft: 'bg-black/[0.035]' },
-  dark: { ink: 'text-white', muted: 'text-white/60', faint: 'text-white/40', chip: 'border-white/15 bg-white/[0.04] text-white/75 hover:border-white/35', card: 'border-white/10 bg-white/[0.04]', soft: 'bg-white/[0.05]' },
-  auto: { ink: 'text-[#111827] dark:text-white', muted: 'text-gray-500 dark:text-white/60', faint: 'text-gray-400 dark:text-white/40', chip: 'border-black/10 bg-white text-gray-600 hover:border-black/25 dark:border-white/15 dark:bg-white/[0.04] dark:text-white/75', card: 'border-black/[0.07] bg-white dark:border-white/10 dark:bg-white/[0.04]', soft: 'bg-black/[0.035] dark:bg-white/[0.05]' },
+  light: { ink: 'text-[#111827]', muted: 'text-gray-500', faint: 'text-gray-500', chip: 'border-black/10 bg-white text-gray-600 hover:border-black/25', card: 'border-black/[0.07] bg-white', soft: 'bg-black/[0.035]' },
+  dark: { ink: 'text-white', muted: 'text-white/60', faint: 'text-white/55', chip: 'border-white/15 bg-white/[0.04] text-white/75 hover:border-white/35', card: 'border-white/10 bg-white/[0.04]', soft: 'bg-white/[0.05]' },
+  auto: { ink: 'text-[#111827] dark:text-white', muted: 'text-gray-500 dark:text-white/60', faint: 'text-gray-500 dark:text-white/55', chip: 'border-black/10 bg-white text-gray-600 hover:border-black/25 dark:border-white/15 dark:bg-white/[0.04] dark:text-white/75', card: 'border-black/[0.07] bg-white dark:border-white/10 dark:bg-white/[0.04]', soft: 'bg-black/[0.035] dark:bg-white/[0.05]' },
 }
 
 function inkOn(hex: string): string {

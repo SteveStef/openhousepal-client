@@ -829,6 +829,8 @@ async function BlogDetail({ siteId, slug, theme, basePrefix }: { siteId: string;
             blocks={post.blocks}
             agent={{ name: post.agent_name, brokerage: post.agent_brokerage, photoUrl: post.agent_photo_url, title: post.agent_title }}
             accentColor={gold}
+            mode={theme.mode === 'dark' ? 'dark' : 'light'}
+            luxe={theme.template !== 'default'}
             basePrefix={basePrefix}
             related={related.map((r: any) => ({ slug: r.slug, title: r.title, category: r.category, coverImageUrl: r.cover_image_url }))}
             // The site's own footer already ends every page with the signature card.
@@ -838,12 +840,12 @@ async function BlogDetail({ siteId, slug, theme, basePrefix }: { siteId: string;
           />
         </div>
 
-        <div className="relative mt-10 overflow-hidden rounded-[28px] p-8 text-center text-white" style={{ backgroundColor: theme.primary_color }}>
+        <div className="ohp-dark-band relative mt-10 overflow-hidden rounded-[28px] p-8 text-center text-white" style={{ backgroundColor: theme.primary_color }}>
           <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-30" style={{ background: `radial-gradient(closest-side, ${gold} 0%, ${gold} 40%, transparent 100%)` }} />
-          <p className="relative text-[10px] font-black uppercase tracking-[0.28em]" style={{ color: gold }}>Your next move</p>
+          <p className="relative text-[10px] font-black uppercase tracking-[0.28em]" style={{ color: 'var(--site-accent-text)' }}>Your next move</p>
           <h2 className={`relative mt-2 text-2xl font-black ${serif}`}>Have questions about the market?</h2>
           <p className="relative mt-2 text-sm text-white/65">Let&apos;s talk through what this means for your next move.</p>
-          <a href={`${basePrefix}/contact`} className="ohp-gold-sheen relative mt-5 inline-flex items-center gap-2 rounded-full px-7 py-3 text-xs font-black uppercase tracking-widest shadow-lg transition hover:-translate-y-0.5" style={{ backgroundColor: gold, color: theme.primary_color }}>
+          <a href={`${basePrefix}/contact`} className="ohp-gold-sheen relative mt-5 inline-flex items-center gap-2 rounded-full px-7 py-3 text-xs font-black uppercase tracking-widest shadow-lg transition hover:-translate-y-0.5" style={theme.template !== 'default' ? { backgroundColor: gold, color: theme.primary_color } : { backgroundColor: '#ffffff', color: theme.primary_color }}>
             Get in touch <ArrowRight className="h-3.5 w-3.5" />
           </a>
         </div>
@@ -1294,7 +1296,7 @@ function ListingCard({ item, theme, basePrefix, showStatus = true, dateLabel }: 
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
         <SitePhoto src={item.photo} widths={IMG.card} className="h-full w-full transition-transform duration-700 ease-out group-hover:scale-110 object-cover" />
         {dateLabel ? (
-          <span className="absolute left-3 top-3 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide shadow-sm" style={{ backgroundColor: theme.secondary_color, color: theme.primary_color }}>
+          <span className="absolute left-3 top-3 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide shadow-sm" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>
             {dateLabel}
           </span>
         ) : (
@@ -1321,10 +1323,10 @@ function ListingCard({ item, theme, basePrefix, showStatus = true, dateLabel }: 
       <div className="p-5">
         <p className="truncate text-sm font-bold text-gray-700">
           {item.address}
-          {item.city && <span className="font-medium text-gray-400">, {[item.city, item.state].filter(Boolean).join(', ')}</span>}
+          {item.city && <span className="font-medium" style={{ color: 'var(--site-muted)' }}>, {[item.city, item.state].filter(Boolean).join(', ')}</span>}
         </p>
         {statLine && <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-gray-500"><span className="h-1 w-1 rounded-full" style={{ backgroundColor: theme.secondary_color }} />{statLine}</p>}
-        {item.list_office_name && <p className="mt-2 truncate text-[10px] font-medium text-gray-400">Courtesy of {item.list_office_name}</p>}
+        {item.list_office_name && <p className="mt-2 truncate text-[10px] font-medium" style={{ color: 'var(--site-muted)' }}>Courtesy of {item.list_office_name}</p>}
       </div>
     </>
   )
@@ -1780,7 +1782,7 @@ function TownHeading({ eyebrow, title, sub, luxe, right }: { eyebrow: string; ti
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div className="max-w-2xl">
-        <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.24em]" style={{ color: 'var(--site-accent)' }}>
+        <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.24em]" style={{ color: 'var(--site-accent-text)' }}>
           {luxe && <span className="h-px w-7" style={{ backgroundColor: 'var(--site-accent)' }} />}{eyebrow}
         </p>
         <h2 className={`ohp-site-heading mt-2 text-[1.75rem] font-black leading-[1.1] sm:text-[2.4rem] ${luxe ? 'tracking-tight' : 'tracking-[-0.02em]'}`} style={{ color: 'var(--site-heading)' }}>{title}</h2>
@@ -2168,7 +2170,7 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
           <aside className="min-w-0 space-y-5">
             {glance.length > 0 && (
               <div className={`border p-6 ${luxe ? 'rounded-[24px]' : 'rounded-2xl'}`} style={TOWN_CARD_STYLE}>
-                <p className="text-[11px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent)' }}>{area.name} at a glance</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent-text)' }}>{area.name} at a glance</p>
                 <dl className="mt-4 divide-y" style={{ borderColor: 'var(--site-line)' }}>
                   {glance.map(([label, value]) => <TownGlanceRow key={label} label={label} value={value} />)}
                 </dl>
@@ -2182,7 +2184,7 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
                   <p className="text-[11px] font-bold" style={{ color: 'var(--site-muted)' }}>Your {area.name} expert</p>
                   <p className="truncate text-[15px] font-black" style={{ color: 'var(--site-heading)' }}>{profile.name}</p>
                   <a href={`${basePrefix}/contact`} data-ohp-form="how_can_i_help" data-ohp-form-title={`Ask about ${area.name}`} data-ohp-prefill={prefill}
-                    className="mt-1 inline-flex items-center gap-1 text-[13px] font-black" style={{ color: 'var(--site-accent)' }}>
+                    className="mt-1 inline-flex items-center gap-1 text-[13px] font-black" style={{ color: 'var(--site-accent-text)' }}>
                     <MessageCircle className="h-3.5 w-3.5" /> Ask me about {area.name}
                   </a>
                 </div>
@@ -2325,7 +2327,7 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
                     <p className="text-[10px] font-black uppercase tracking-wide" style={{ color: 'var(--site-muted)' }}>{s.label}</p>
                     <p className="mt-1 text-2xl font-black" style={{ color: 'var(--site-heading)' }}>{s.value}</p>
                     <p className="mt-2 text-[11px]" style={{ color: 'var(--site-muted)' }}>{s.geography} · {s.time_period}</p>
-                    {s.source_url && <a href={s.source_url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold" style={{ color: 'var(--site-accent)' }}>Source <ExternalLink className="h-3 w-3" /></a>}
+                    {s.source_url && <a href={s.source_url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold" style={{ color: 'var(--site-accent-text)' }}>Source <ExternalLink className="h-3 w-3" /></a>}
                   </div>
                 ))}
               </div>
@@ -2410,11 +2412,11 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
                   <div className="pb-5 pr-10 text-[15px] leading-relaxed" style={{ color: 'var(--site-ink-soft)' }}>
                     <p>{f.a}</p>
                     {f.source && (f.source.url
-                      ? <a href={f.source.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-bold" style={{ color: 'var(--site-accent)' }}>Source: {f.source.name} <ExternalLink className="h-3 w-3" /></a>
+                      ? <a href={f.source.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-bold" style={{ color: 'var(--site-accent-text)' }}>Source: {f.source.name} <ExternalLink className="h-3 w-3" /></a>
                       : <p className="mt-2 text-xs font-bold" style={{ color: 'var(--site-muted)' }}>Source: {f.source.name}</p>)}
                     {i === faq.length - 1 && (
                       <a href={`${basePrefix}/create-showcase?site_chrome=1`} data-ohp-form="showcase_request" data-ohp-form-title={`New homes in ${area.name}`} data-ohp-prefill={prefill} data-ohp-criteria={JSON.stringify({ kind: 'search', cities: [area.name] })}
-                        className="mt-3 inline-flex items-center gap-1.5 text-sm font-black" style={{ color: 'var(--site-accent)' }}>
+                        className="mt-3 inline-flex items-center gap-1.5 text-sm font-black" style={{ color: 'var(--site-accent-text)' }}>
                         Set up my alerts <ArrowRight className="h-4 w-4" />
                       </a>
                     )}
@@ -2442,7 +2444,7 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
                 </a>
                 <div className="flex items-center justify-between gap-3 px-4 py-3">
                   <span className="text-xs font-bold" style={{ color: 'var(--site-muted)' }}>{related.median_price != null ? `$${related.median_price.toLocaleString()} median` : 'Neighborhood guide'}</span>
-                  <a href={`${basePrefix}/neighborhoods/compare?areas=${encodeURIComponent(`${slug},${related.slug}`)}`} className="text-xs font-black" style={{ color: 'var(--site-accent)' }}>Compare →</a>
+                  <a href={`${basePrefix}/neighborhoods/compare?areas=${encodeURIComponent(`${slug},${related.slug}`)}`} className="text-xs font-black" style={{ color: 'var(--site-accent-text)' }}>Compare →</a>
                 </div>
               </div>
             ))}

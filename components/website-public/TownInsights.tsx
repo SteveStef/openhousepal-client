@@ -24,7 +24,7 @@ export default function TownInsights({ data, town, luxe }: { data?: TownInsights
   const card = `border p-5 sm:p-6 ${luxe ? 'rounded-[24px]' : 'rounded-2xl'}`
   const cardStyle = { borderColor: 'var(--site-line)', backgroundColor: 'var(--site-surface)', boxShadow: 'var(--site-shadow)' }
   const eyebrow = (icon: React.ReactNode, text: string) => (
-    <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent)' }}>{icon}{text}</p>
+    <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent-text)' }}>{icon}{text}</p>
   )
   const g = data.gauge
   // Meter: 0-9+ months of supply; seller's < 3, balanced 3-6, buyer's > 6.

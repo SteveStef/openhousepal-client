@@ -78,7 +78,7 @@ export default function MyShowcase({ summary, siteId, basePrefix, accent, agent,
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="truncate text-[12.5px] font-semibold" style={{ color: 'var(--site-muted)' }}>
               <b style={{ color: 'var(--site-heading)' }}>{summary.homes} home{summary.homes === 1 ? '' : 's'}</b>
               {/* all of them "new" = the search was just changed, not news */}
-              {summary.new_this_week > 0 && summary.new_this_week < summary.homes && <> · <span style={{ color: 'var(--site-accent-deep)' }}>{summary.new_this_week} new this week</span></>}
+              {summary.new_this_week > 0 && summary.new_this_week < summary.homes && <> · <span style={{ color: 'var(--site-accent-text)' }}>{summary.new_this_week} new this week</span></>}
               {where && <span className="hidden sm:inline"> · {where}</span>}
             </motion.p>
           </div>

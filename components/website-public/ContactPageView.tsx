@@ -47,7 +47,7 @@ export default function ContactPageView({ profile, theme, basePrefix = '' }: { p
     <main data-testid="contact-page" style={{ backgroundColor: 'var(--site-bg)' }}>
       <section className="relative overflow-hidden px-5 pb-28 pt-32 text-center sm:px-6 sm:pt-36" style={{ background: luxe ? `radial-gradient(70% 120% at 50% 0%, rgba(var(--site-accent-rgb),.25), transparent 60%), ${theme.primary_color}` : 'var(--site-bg-alt)' }}>
         <Reveal>
-          <p className="text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: luxe ? 'var(--site-accent-light)' : 'var(--site-accent-deep)' }}>Contact</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: luxe ? 'var(--site-accent-light)' : 'var(--site-accent-text)' }}>Contact</p>
           <h1 className={`mt-3 text-5xl leading-[1.02] sm:text-7xl ${luxe ? `font-black text-white ${serif}` : 'font-extrabold tracking-tight'}`} style={luxe ? undefined : { color: 'var(--site-heading)' }}>
             Let&apos;s <span className={luxe ? 'ohp-text-shimmer' : ''} style={luxe ? undefined : { color: 'var(--site-accent)' }}>talk.</span>
           </h1>
@@ -65,7 +65,7 @@ export default function ContactPageView({ profile, theme, basePrefix = '' }: { p
                 : <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full text-xl font-black" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>{(profile.name || '?').slice(0, 1)}</span>}
               <div className="min-w-0">
                 <p className={`truncate text-2xl leading-tight ${luxe ? `font-black ${serif}` : 'font-extrabold tracking-tight'}`} style={{ color: 'var(--site-heading)' }}>{profile.name}</p>
-                <p className="truncate text-xs font-black uppercase tracking-[0.16em]" style={{ color: 'var(--site-accent)' }}>{[profile.title, profile.brokerage].filter(Boolean).join(' · ')}</p>
+                <p className="truncate text-xs font-black uppercase tracking-[0.16em]" style={{ color: 'var(--site-accent-text)' }}>{[profile.title, profile.brokerage].filter(Boolean).join(' · ')}</p>
                 {rating && (
                   <a href={`${basePrefix}/testimonials`} className="mt-1 inline-flex items-center gap-1 text-xs font-bold" style={{ color: 'var(--site-muted)' }}>
                     <Star className="h-3.5 w-3.5" style={{ color: 'var(--site-accent)', fill: 'var(--site-accent)' }} />{rating.average!.toFixed(1)} · {rating.count} reviews
@@ -92,7 +92,7 @@ export default function ContactPageView({ profile, theme, basePrefix = '' }: { p
                 <div className="mt-2 divide-y" style={{ borderColor: 'var(--site-line)' }}>
                   {help.map(h => (
                     <a key={h.form} href={`${basePrefix}/contact`} data-ohp-form={h.form} data-ohp-form-title={h.label} className="group flex items-center gap-3 py-3" style={{ borderColor: 'var(--site-line)' }}>
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition group-hover:scale-110" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),.12)', color: 'var(--site-accent-deep)' }}><h.icon className="h-4 w-4" /></span>
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition group-hover:scale-110" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),.12)', color: 'var(--site-accent-text)' }}><h.icon className="h-4 w-4" /></span>
                       <span className="min-w-0 flex-1"><span className="block text-sm font-black" style={{ color: 'var(--site-heading)' }}>{h.label}</span><span className="block text-xs font-semibold" style={{ color: 'var(--site-muted)' }}>{h.sub}</span></span>
                       <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" style={{ color: 'var(--site-faint)' }} />
                     </a>
@@ -107,7 +107,7 @@ export default function ContactPageView({ profile, theme, basePrefix = '' }: { p
           <div className={`overflow-hidden border ${luxe ? 'rounded-[28px]' : 'rounded-3xl'}`} style={card}>
             <div className="flex items-center justify-between border-b px-6 py-4" style={{ borderColor: 'var(--site-line)' }}>
               <p className={`text-lg ${luxe ? `font-black ${serif}` : 'font-extrabold'}`} style={{ color: 'var(--site-heading)' }}>Send {first} a note</p>
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Usually replies the same day</span>
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Usually replies the same day</span>
             </div>
             {src
               ? <iframe title="Contact form" src={src} className="block h-[680px] w-full border-0" />

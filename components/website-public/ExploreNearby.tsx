@@ -38,7 +38,7 @@ export default function ExploreNearby({
   return (
     <section id="explore-nearby" className={embedded ? '' : 'mx-auto max-w-6xl px-4 pb-14 sm:px-6'}>
       <div className={`rounded-[1.25rem] border p-4 shadow-sm sm:p-7 ${dark ? 'border-white/10 bg-[#111111]' : 'border-gray-100 bg-white dark:border-white/10 dark:bg-white/[0.03]'}`}>
-        <p className="text-xs font-black uppercase tracking-[0.22em]" style={{ color: theme.secondary_color }}>Explore Nearby</p>
+        <p className="text-xs font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent-text)' }}>Explore Nearby</p>
         <h2 className={`ohp-site-heading mt-2 text-2xl font-black sm:text-3xl ${dark ? 'text-white' : ''}`} style={dark ? undefined : { color: 'var(--site-heading)' }}>{title}</h2>
         <p className={`mt-1.5 text-sm ${dark ? 'text-white/60' : 'text-gray-500 dark:text-white/60'}`}>Restaurants, coffee, parks and everyday essentials near {originLabel}.</p>
         <div className="mt-5">

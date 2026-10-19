@@ -69,7 +69,7 @@ function Card({ item, theme, luxe }: { item: SpotlightCard; theme: SiteTheme; lu
         <div className="flex flex-wrap items-center gap-3 text-[11px] font-bold text-gray-500">
           {stats.map((s, i) => <span key={i} className="flex items-center gap-1"><s.icon className="h-3.5 w-3.5" style={{ color: 'var(--site-accent)' }} />{s.label}</span>)}
         </div>
-        <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--site-accent-deep)' }}>
+        <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--site-accent-text)' }}>
           Experience it <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </span>
       </div>
@@ -98,7 +98,7 @@ export default function SpotlightsBlock({ data, theme }: { data: Record<string, 
                 <Sparkles className="h-4 w-4" style={{ color: 'var(--site-accent)' }} />
               </span>
               <span className="h-px w-6" style={{ backgroundColor: 'var(--site-accent)' }} />
-              <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent)' }}>{data.eyebrow || 'Cinematic listing pages'}</span>
+              <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent-text)' }}>{data.eyebrow || 'Cinematic listing pages'}</span>
             </div>
             <h2 className={`mt-3 text-4xl font-black leading-[1.1] sm:text-5xl ${serif}`} style={{ color: 'var(--site-ink)' }}>{data.headline || 'Listing Spotlights'}</h2>
             <p className="mt-2 max-w-xl text-sm text-gray-500 sm:text-base">{data.subtext || 'Each of these homes has its own immersive page - every photo, every room, the neighborhood and a private showing request.'}</p>

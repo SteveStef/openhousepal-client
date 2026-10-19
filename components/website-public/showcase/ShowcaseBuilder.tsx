@@ -234,7 +234,7 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
             <motion.div key="intro" custom={dir} variants={slide} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.4, ease }} className={`${card} p-6 sm:p-10`} style={cardStyle}>
               <div className="flex items-center gap-3">
                 {agent.photo_url && <img src={resolveMediaUrl(agent.photo_url) || agent.photo_url} alt="" className="h-11 w-11 rounded-full object-cover ring-2" style={{ ['--tw-ring-color' as any]: 'var(--site-accent)' }} />}
-                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em]" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),.12)', color: 'var(--site-accent-deep)' }}>
+                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em]" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),.12)', color: 'var(--site-accent-text)' }}>
                   <Sparkles className="h-3.5 w-3.5" /> Free · about a minute
                 </span>
               </div>
@@ -397,7 +397,7 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
               <div className="mt-7">
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="text-sm font-black" style={{ color: 'var(--site-heading)' }}>Price</p>
-                  <motion.p key={`${lo}-${hi}`} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-lg font-black tabular-nums" style={{ color: 'var(--site-accent-deep)' }}>
+                  <motion.p key={`${lo}-${hi}`} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-lg font-black tabular-nums" style={{ color: 'var(--site-accent-text)' }}>
                     {lo === 0 && hi === PRICES.length - 1 ? 'Any price' : `${lo === 0 ? 'Up to' : money(PRICES[lo])}${lo > 0 && hi < PRICES.length - 1 ? ' – ' : hi < PRICES.length - 1 ? ' ' : '+'}${hi < PRICES.length - 1 ? money(PRICES[hi]) : ''}`}
                   </motion.p>
                 </div>

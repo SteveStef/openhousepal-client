@@ -360,7 +360,7 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
             </div>
             <OpenHouseChip openHouses={l.open_houses} compact className="mt-2" />
             <p className="mt-2 truncate text-[10px] font-medium" style={{ color: 'var(--site-faint)' }}>
-              {listedAgo(l.days_on_market) ? <span className="mr-1 font-black" style={{ color: 'var(--site-accent-deep)' }}>{listedAgo(l.days_on_market)} ·</span> : null}
+              {listedAgo(l.days_on_market) ? <span className="mr-1 font-black" style={{ color: 'var(--site-accent-text)' }}>{listedAgo(l.days_on_market)} ·</span> : null}
               {l.list_office_name ? `Courtesy of ${l.list_office_name}` : ''}
             </p>
           </div>

@@ -74,7 +74,7 @@ export default function ContactCtaBlock({ data, theme, basePrefix = '' }: { data
             </a>
           )}
         </div>
-        {email && <p className="relative mt-4 text-xs font-semibold text-white/40">{email}</p>}
+        {email && <p className="relative mt-4 text-xs font-semibold text-white/65">{email}</p>}
       </div>
     </section>
   )

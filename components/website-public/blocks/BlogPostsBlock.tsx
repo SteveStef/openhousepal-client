@@ -48,7 +48,7 @@ export default function BlogPostsBlock({ data, theme, basePrefix = '' }: { data:
               <a key={post.id} href={`${basePrefix}/blog/${post.slug}`} className="ohp-card group flex flex-col overflow-hidden rounded-2xl border" style={{ borderColor: 'var(--site-line)', backgroundColor: 'var(--site-surface)' }}>
                 <div className="relative aspect-[16/10] overflow-hidden">{cover(post)}</div>
                 <div className="flex flex-1 flex-col p-5">
-                  <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--site-accent)' }}>
+                  <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--site-accent-text)' }}>
                     {post.category || 'Article'}{post.published_at && <span className="font-semibold normal-case tracking-normal" style={{ color: 'var(--site-faint)' }}>· {fmtDate(post.published_at)}</span>}
                   </p>
                   <p className="mt-2 line-clamp-3 text-lg font-extrabold leading-snug tracking-tight" style={{ color: 'var(--site-heading)' }}>{post.title}</p>
@@ -72,7 +72,7 @@ export default function BlogPostsBlock({ data, theme, basePrefix = '' }: { data:
               <Newspaper className="h-4 w-4" style={{ color: gold }} />
             </span>
             <span className="h-px w-6" style={{ backgroundColor: gold }} />
-            <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: gold }}>Journal</span>
+            <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent-text)' }}>Journal</span>
           </div>
           <h2 className={`mt-3 text-4xl font-black leading-[1.1] sm:text-5xl ${serif}`} style={{ color: 'var(--site-heading)' }}>
             {data.headline || 'Latest Articles'}
@@ -104,9 +104,9 @@ export default function BlogPostsBlock({ data, theme, basePrefix = '' }: { data:
               <a key={post.id} href={`${basePrefix}/blog/${post.slug}`} className="group flex items-center gap-4 overflow-hidden rounded-[22px] bg-white p-3 shadow-[0_2px_24px_rgba(17,24,39,0.07)] ring-1 ring-black/[0.04] transition hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(17,24,39,0.14)]">
                 <div className="relative h-24 w-32 shrink-0 overflow-hidden rounded-2xl">{cover(post)}</div>
                 <div className="min-w-0">
-                  {post.category && <p className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: gold }}>{post.category}</p>}
+                  {post.category && <p className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--site-accent-text)' }}>{post.category}</p>}
                   <p className={`mt-0.5 line-clamp-2 text-lg font-black leading-snug text-gray-900 ${serif}`}>{post.title}</p>
-                  {post.published_at && <p className="mt-1 text-xs font-semibold text-gray-400">{fmtDate(post.published_at)}</p>}
+                  {post.published_at && <p className="mt-1 text-xs font-semibold" style={{ color: 'var(--site-muted)' }}>{fmtDate(post.published_at)}</p>}
                 </div>
               </a>
             ))}

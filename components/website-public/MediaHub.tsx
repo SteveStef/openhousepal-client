@@ -159,7 +159,7 @@ function ArticleCard({ post, basePrefix, luxe, serif, big = false }: { post: Med
         {post.has_video && <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-[10px] font-black text-white "><Play className="h-3 w-3 fill-current" />Video</span>}
       </span>
       <span className={`flex flex-1 flex-col p-5 ${big ? 'lg:justify-center lg:p-9' : ''}`}>
-        <span className="text-[11px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--site-accent)' }}>{fmtDate(post.published_at)}</span>
+        <span className="text-[11px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--site-accent-text)' }}>{fmtDate(post.published_at)}</span>
         <span className={`mt-2 leading-tight ${big ? 'text-2xl sm:text-3xl' : 'text-lg'} ${luxe ? `font-black ${serif}` : 'font-extrabold tracking-tight'}`} style={{ color: 'var(--mh-heading)' }}>{post.title}</span>
         {post.subtitle && <span className={`mt-2 text-sm leading-relaxed ${big ? '' : 'line-clamp-2'}`} style={{ color: 'var(--mh-muted)' }}>{post.subtitle}</span>}
         <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-xs font-black transition group-hover:gap-2.5" style={{ color: 'var(--mh-heading)' }}>Read the story <ArrowRight className="h-3.5 w-3.5" /></span>
@@ -196,7 +196,7 @@ export default function MediaHub({ theme, basePrefix, posts, videos, tours, agen
   ]
   // Page colors - Luxe is a dark cinema, Classic stays bright.
   const vars = luxe
-    ? { '--mh-bg': theme.primary_color, '--mh-card': 'rgba(255,255,255,.05)', '--mh-heading': '#ffffff', '--mh-muted': 'rgba(255,255,255,.62)', '--mh-faint': 'rgba(255,255,255,.4)', '--mh-line': 'rgba(255,255,255,.12)' }
+    ? { '--mh-bg': theme.primary_color, '--mh-card': 'rgba(255,255,255,.05)', '--mh-heading': '#ffffff', '--mh-muted': 'rgba(255,255,255,.62)', '--mh-faint': 'rgba(255,255,255,.6)', '--mh-line': 'rgba(255,255,255,.12)' }
     : { '--mh-bg': 'var(--site-bg)', '--mh-card': 'var(--site-surface)', '--mh-heading': 'var(--site-heading)', '--mh-muted': 'var(--site-muted)', '--mh-faint': 'var(--site-faint)', '--mh-line': 'var(--site-line-strong)' }
 
   return (
@@ -241,7 +241,7 @@ export default function MediaHub({ theme, basePrefix, posts, videos, tours, agen
         </section>
       ) : (
         <section className="px-5 pb-10 pt-32 text-center sm:px-6">
-          <p className="text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent)' }}>{agentName ? `From ${agentName}` : 'Media'}</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent-text)' }}>{agentName ? `From ${agentName}` : 'Media'}</p>
           <h1 className={`mt-3 text-4xl sm:text-6xl ${luxe ? `font-black ${serif}` : 'font-extrabold tracking-tight'}`} style={{ color: 'var(--mh-heading)' }}>Market insights &amp; local stories</h1>
         </section>
       )}

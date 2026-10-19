@@ -232,7 +232,7 @@ export function SiteHeader({
           {agentProfile?.name && !showLogo && (
             <span className="hidden leading-tight xl:block">
               <span className={`block text-[15px] transition-colors duration-500 ${classic ? 'font-extrabold tracking-tight' : `font-black ${fontClass(theme.heading_font, 'font-serif')}`} ${dark ? 'text-white' : classic ? 'text-[color:var(--site-heading)]' : 'text-[#111827]'}`}>{agentProfile.name}</span>
-              <span className={`block text-[9px] font-black uppercase tracking-[0.25em] transition-colors duration-500 ${dark ? 'text-white/60' : ''}`} style={dark ? undefined : { color: classic ? 'var(--site-muted)' : theme.secondary_color }}>{agentProfile.brokerage || 'Real Estate'}</span>
+              <span className={`block text-[9px] font-black uppercase tracking-[0.25em] transition-colors duration-500 ${dark ? 'text-white/60' : ''}`} style={dark ? undefined : { color: classic ? 'var(--site-muted)' : 'var(--site-accent-text)' }}>{agentProfile.brokerage || 'Real Estate'}</span>
             </span>
           )}
         </a>
@@ -343,7 +343,7 @@ export function SiteHeader({
                 return (
                   <motion.a key={link.href} href={link.href} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.04 * i }}
                     className="flex items-center gap-3 py-3.5 text-[15px] font-bold" style={{ borderColor: 'var(--site-line)', color: 'var(--site-heading)' }}>
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),.1)', color: 'var(--site-accent-deep)' }}><Icon className="h-4 w-4" /></span>
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),.1)', color: 'var(--site-accent-text)' }}><Icon className="h-4 w-4" /></span>
                     {link.label}
                     <ChevronRight className="ml-auto h-4 w-4" style={{ color: 'var(--site-faint)' }} />
                   </motion.a>
@@ -407,7 +407,7 @@ function FooterColumn({ title, children, classic, delay = 0 }: { title: string; 
       {classic ? (
         <p className="text-[12px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--site-heading)' }}>{title}</p>
       ) : (
-        <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em]" style={{ color: 'var(--site-accent)' }}>
+        <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em]" style={{ color: 'var(--site-accent-text)' }}>
           <span className="h-px w-5" style={{ backgroundColor: 'var(--site-accent)' }} />{title}
         </p>
       )}
@@ -470,7 +470,7 @@ export function SiteFooter({
           : <span className="mx-auto flex h-24 w-24 items-center justify-center rounded-full text-2xl font-black" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>{initials(name)}</span>}
       </a>
       <p className={`mt-4 text-2xl font-black leading-tight ${classic ? 'tracking-tight' : serif}`} style={{ color: head }}>{name}</p>
-      {(profile?.title || profile?.brokerage) && <p className="mt-1 text-[11px] font-black uppercase tracking-[0.18em]" style={{ color: 'var(--site-accent)' }}>{[profile?.title, profile?.brokerage].filter(Boolean).join(' · ')}</p>}
+      {(profile?.title || profile?.brokerage) && <p className="mt-1 text-[11px] font-black uppercase tracking-[0.18em]" style={{ color: 'var(--site-accent-text)' }}>{[profile?.title, profile?.brokerage].filter(Boolean).join(' · ')}</p>}
       {rating && (
         <a href={`${basePrefix}/testimonials`} className="mt-2 inline-flex items-center gap-1 text-xs font-bold" style={{ color: muted }}>
           {[1, 2, 3, 4, 5].map(n => <Star key={n} className="h-3.5 w-3.5" style={{ color: 'var(--site-accent)', fill: n <= Math.round(rating.average!) ? 'var(--site-accent)' : 'none' }} />)}
@@ -536,7 +536,7 @@ export function SiteFooter({
   )
 
   return (
-    <footer className={`ohp-site-footer relative overflow-hidden ${classic ? 'ohp-classic-foot border-t' : 'text-white'}`} style={classic ? { backgroundColor: 'var(--site-bg-alt)', color: 'var(--site-ink)', borderColor: 'var(--site-line)' } : { backgroundColor: theme.primary_color }}>
+    <footer className={`ohp-site-footer relative overflow-hidden ${classic ? 'ohp-classic-foot border-t' : 'ohp-dark-band text-white'}`} style={classic ? { backgroundColor: 'var(--site-bg-alt)', color: 'var(--site-ink)', borderColor: 'var(--site-line)' } : { backgroundColor: theme.primary_color }}>
       <style>{`.ohp-classic-foot-links{color:var(--site-muted)}.ohp-classic-foot-links a:hover{color:var(--site-heading)}
 .ohp-foot-sweep{background:linear-gradient(90deg,transparent 30%,var(--site-accent) 50%,transparent 70%);background-size:220% 100%;animation:ohpSiteFootSweep 7s ease-in-out infinite}
 @keyframes ohpSiteFootSweep{0%{background-position:160% 0}100%{background-position:-60% 0}}
@@ -558,7 +558,7 @@ export function SiteFooter({
         {showCta && (
           <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-60px' }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
             className="text-center md:col-span-2 xl:order-2 xl:col-span-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.32em]" style={{ color: 'var(--site-accent)' }}>Ready when you are</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.32em]" style={{ color: 'var(--site-accent-text)' }}>Ready when you are</p>
             <h2 className={`mx-auto mt-3 max-w-3xl text-3xl leading-[1.08] sm:text-[2.6rem] ${classic ? 'font-extrabold tracking-tight' : `font-black ${serif}`}`} style={{ color: head }}>
               Let&apos;s talk about your <span className={classic ? '' : 'ohp-text-shimmer'} style={classic ? { color: 'var(--site-accent)' } : undefined}>next move.</span>
             </h2>
@@ -593,11 +593,11 @@ export function SiteFooter({
 
       {/* 3. MLS notice + legal */}
       {idxNotice && (
-        <div className={`relative mx-auto max-w-7xl border-t px-5 py-6 sm:px-6 ${classic ? 'border-[color:var(--site-line)] text-[color:var(--site-faint)]' : 'border-white/10 text-white/45'}`}>
+        <div className={`relative mx-auto max-w-7xl border-t px-5 py-6 sm:px-6 ${classic ? 'border-[color:var(--site-line)] text-[color:var(--site-faint)]' : 'border-white/10 text-white/60'}`}>
           <IdxNotice brokerage={profile?.brokerage} />
         </div>
       )}
-      <div className={`relative mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 border-t px-5 py-6 text-center text-[11px] sm:flex-row sm:px-6 sm:text-left ${classic ? 'border-[color:var(--site-line)] text-[color:var(--site-faint)]' : 'border-white/10 text-white/40'}`}>
+      <div className={`relative mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 border-t px-5 py-6 text-center text-[11px] sm:flex-row sm:px-6 sm:text-left ${classic ? 'border-[color:var(--site-line)] text-[color:var(--site-faint)]' : 'border-white/10 text-white/60'}`}>
         <p className={fontClass(theme.body_font)}>&copy; {new Date().getFullYear()} {name}{profile?.brokerage ? ` · ${profile.brokerage}` : ''}. All rights reserved.{profile?.license_number ? ` License #${profile.license_number}.` : ''}</p>
         <p className="flex items-center gap-1.5">Equal Housing Opportunity · Powered by <span className={`font-bold ${classic ? 'text-[color:var(--site-muted)]' : 'text-white/60'}`}><OhpWordmark className="text-[1.15em] align-[-0.15em]" /></span></p>
       </div>

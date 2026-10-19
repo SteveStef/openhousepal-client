@@ -1,5 +1,6 @@
 'use client'
 
+import { contrastRatio } from '@/lib/siteTheme'
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { qrDataUrl } from '@/lib/qr'
@@ -276,9 +277,9 @@ function Block({ block, agent, accentColor, onEvent, onLead, related, relatedHre
           {agent.photoUrl && <img src={resolveMediaUrl(agent.photoUrl)} alt={agent.name} className="h-16 w-16 rounded-full object-cover ring-2" style={{ ['--tw-ring-color' as any]: accentColor }} />}
           <div className="min-w-0 flex-1">
             <p className="font-serif text-lg font-black text-[#111827] dark:text-white">{agent.name}</p>
-            <p className="text-xs font-bold text-gray-400">{agent.title ? `${agent.title} · ` : ''}{agent.brokerage}</p>
+            <p className="text-xs font-bold text-gray-500">{agent.title ? `${agent.title} · ` : ''}{agent.brokerage}</p>
           </div>
-          <button type="button" onClick={() => { onEvent?.('contact_click'); openContact() }} className="shrink-0 rounded-xl px-4 py-2.5 text-xs font-black text-white transition hover:-translate-y-0.5" style={{ backgroundColor: accentColor }}>Contact</button>
+          <button type="button" onClick={() => { onEvent?.('contact_click'); openContact() }} className="shrink-0 rounded-xl px-4 py-2.5 text-xs font-black transition hover:-translate-y-0.5" style={{ backgroundColor: accentColor, color: /^#[0-9a-f]{6}$/i.test(accentColor) && contrastRatio(accentColor, '#ffffff') < contrastRatio(accentColor, '#111827') ? '#111827' : '#ffffff' }}>Contact</button>
         </div>
       )
       return signatureHubSlug ? <SignatureSiteCard hubSlug={signatureHubSlug} fallback={small} towns={signatureTowns} match={signatureMatch} /> : small

@@ -16,7 +16,7 @@ export function statusBadgeColor(status?: string | null): { bg: string; fg: stri
   if (clean.includes('CLOSED')) return { bg: '#dc2626', fg: '#fff' } // red - sold
   if (clean.includes('PENDING') || clean.includes('CONTRACT')) return { bg: '#eab308', fg: '#111827' } // yellow
   if (clean.includes('COMING SOON')) return { bg: '#111827', fg: '#fff' } // black
-  return { bg: '#16a34a', fg: '#fff' } // green - active/default
+  return { bg: '#15803d', fg: '#fff' } // green - active/default (green-700: white text reads, AA)
 }
 
 // A plain `/1000` + "K" (the previous approach) reads fine for $450K but produces "$1535K" for

@@ -81,6 +81,17 @@ export function readableOn(hex: string, bg: string, min = 4.5): string {
   return toward[0] ? '#ffffff' : '#111111'
 }
 
+/** The accent as small text on this mode's page (same rule as --site-accent-text / -dm), as a hex -
+ *  for components that build colors from a hex (e.g. `${accent}22`) and can't take a CSS var. */
+export function accentTextFor(accent: string, mode: 'light' | 'dark', luxe = false): string {
+  if (mode === 'dark') {
+    const rgb = hexToRgb(accent) || [201, 162, 77]
+    const lum = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255
+    return readableOn(lum < 0.42 ? mix(accent, [255, 255, 255], 0.5) : accent, luxe ? '#16161b' : '#191c25')
+  }
+  return readableOn(accent, luxe ? '#f3f1ea' : '#f6f7f9', 5)
+}
+
 export interface SiteThemeVars {
   style: CSSProperties
   template: SiteTemplate

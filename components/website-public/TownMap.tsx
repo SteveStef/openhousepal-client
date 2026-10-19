@@ -210,7 +210,7 @@ export default function TownMap({ data, town, luxe }: { data?: TownBoundaries | 
         </div>
 
         <div className="ohp-thin-scroll flex flex-col border-t p-5 sm:p-6 lg:max-h-[580px] lg:overflow-y-auto lg:border-l lg:border-t-0" style={{ borderColor: 'var(--site-line)' }}>
-          <p className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent)' }}>Map of {town}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent-text)' }}>Map of {town}</p>
           <AnimatePresence mode="wait">
             <motion.div key={layer} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.28 }} className="mt-2 flex flex-1 flex-col">
               <h3 className="ohp-site-heading text-xl font-black leading-tight" style={{ color: 'var(--site-heading)' }}>

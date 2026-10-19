@@ -81,7 +81,7 @@ export default function TownLiving({ categories, town, luxe }: { categories: Liv
                         {p.name.replace(/^the\s+/i, '').charAt(0).toUpperCase()}
                       </span>
                       <div className="min-w-0 flex-1">
-                        {top && <p className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--site-accent)' }}>Local favorite</p>}
+                        {top && <p className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--site-accent-text)' }}>Local favorite</p>}
                         <p className={`font-black leading-snug ${top ? 'text-lg' : 'text-[15px]'}`} style={{ color: 'var(--site-heading)' }}>{p.name}</p>
                         {p.category && <p className="mt-0.5 truncate text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--site-faint)' }}>{p.category}</p>}
                       </div>

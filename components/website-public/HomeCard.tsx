@@ -132,7 +132,7 @@ export default function HomeCard({ listing, theme, basePrefix = '', onQuickView,
         )}
         <div className="mt-auto flex items-center justify-between gap-3 border-t pt-3.5" style={{ borderColor: 'var(--site-line)', marginTop: facts.length ? '1rem' : 'auto' }}>
           <span className="min-w-0 truncate text-[10.5px] font-semibold" style={{ color: 'var(--site-faint)' }}>
-            {listedAgo(listing.days_on_market) ? <span className="mr-1.5 font-black" style={{ color: 'var(--site-accent-deep)' }}>{listedAgo(listing.days_on_market)}</span> : null}
+            {listedAgo(listing.days_on_market) ? <span className="mr-1.5 font-black" style={{ color: 'var(--site-accent-text)' }}>{listedAgo(listing.days_on_market)}</span> : null}
             {listing.list_office_name ? `Courtesy of ${listing.list_office_name}` : ''}
           </span>
           <span className="inline-flex shrink-0 items-center gap-1 text-xs font-black transition group-hover:gap-1.5" style={{ color: 'var(--site-heading)' }}>

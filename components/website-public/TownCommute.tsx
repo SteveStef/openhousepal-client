@@ -21,7 +21,7 @@ export default function TownCommute({ data, town, luxe }: { data?: CommuteData |
   return (
     <div className={`mt-8 border p-5 sm:p-7 ${luxe ? 'rounded-[24px]' : 'rounded-2xl'}`} style={{ borderColor: 'var(--site-line)', backgroundColor: 'var(--site-surface)', boxShadow: 'var(--site-shadow)' }}>
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent)' }}>Commute from {town}</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent-text)' }}>Commute from {town}</p>
         <p className="flex items-center gap-3 text-[11px] font-bold" style={{ color: 'var(--site-muted)' }}>
           <span className="inline-flex items-center gap-1"><Car className="h-3.5 w-3.5" /> Drive</span>
           <span className="inline-flex items-center gap-1"><TrainFront className="h-3.5 w-3.5" /> Train / bus</span>

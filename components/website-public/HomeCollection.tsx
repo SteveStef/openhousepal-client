@@ -80,7 +80,7 @@ export default function HomeCollection({ listings, theme, basePrefix = '', onQui
       <Reveal>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.26em]" style={{ color: 'var(--site-accent)' }}>
+            <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.26em]" style={{ color: 'var(--site-accent-text)' }}>
               {luxe && <Sparkles className="h-3.5 w-3.5" />}{eyebrow}
             </p>
             <h2 className={`mt-2 text-3xl leading-tight sm:text-4xl ${luxe ? `font-black ${serif}` : 'font-extrabold tracking-tight'}`} style={{ color: 'var(--site-heading)' }}>{title}</h2>

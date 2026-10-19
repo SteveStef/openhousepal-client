@@ -72,7 +72,7 @@ export default function NeighborhoodCompareLauncher({
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl" style={{ backgroundColor: theme.secondary_color, color: theme.primary_color }}>
               <GitCompareArrows className="h-5 w-5" />
             </span>
-            <p className="mt-6 text-xs font-black uppercase tracking-[0.24em]" style={{ color: theme.secondary_color }}>Compare Neighborhoods</p>
+            <p className="mt-6 text-xs font-black uppercase tracking-[0.24em]" style={{ color: 'var(--site-accent-text-dm)' }}>Compare Neighborhoods</p>
             <h2 className="ohp-site-heading mt-2 text-3xl font-black leading-tight text-white sm:text-4xl">Find the right fit side by side.</h2>
             <p className="mt-4 text-sm leading-relaxed text-white/70">
               Compare the neighborhoods this agent serves using live homes for sale, market data, schools, transportation, and local lifestyle research.
@@ -93,7 +93,7 @@ export default function NeighborhoodCompareLauncher({
                 {[firstArea, secondArea].filter(Boolean).map(area => (
                   <div key={area!.slug} className="rounded-2xl bg-gray-50 p-4">
                     <p className="font-black text-gray-800">{area!.name}</p>
-                    {areaLabel(area!) && <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-gray-400"><MapPin className="h-3 w-3" />{areaLabel(area!)}</p>}
+                    {areaLabel(area!) && <p className="mt-1 flex items-center gap-1 text-xs font-semibold" style={{ color: 'var(--site-muted)' }}><MapPin className="h-3 w-3" />{areaLabel(area!)}</p>}
                     <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-black uppercase tracking-wide text-gray-500">
                       {area!.active_count != null && <span className="rounded-full bg-white px-2.5 py-1">{area!.active_count} for sale</span>}
                       {area!.median_price != null && <span className="rounded-full bg-white px-2.5 py-1">${area!.median_price.toLocaleString()} median</span>}
@@ -102,7 +102,7 @@ export default function NeighborhoodCompareLauncher({
                       <dl className="mt-3 space-y-1.5 border-t border-gray-100 pt-3">
                         {quickFacts(area!).map(([label, value]) => (
                           <div key={label} className="flex gap-2 text-xs">
-                            <dt className="w-24 shrink-0 font-black uppercase tracking-wide text-gray-400">{label}</dt>
+                            <dt className="w-24 shrink-0 font-black uppercase tracking-wide" style={{ color: 'var(--site-muted)' }}>{label}</dt>
                             <dd className="line-clamp-1 font-semibold text-gray-700">{value}</dd>
                           </div>
                         ))}
@@ -146,7 +146,7 @@ function NeighborhoodSelect({
 }) {
   return (
     <label className="block rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-      <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: theme.secondary_color }}>{label}</span>
+      <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--site-accent-text)' }}>{label}</span>
       <select
         value={value}
         onChange={event => onChange(event.target.value)}
