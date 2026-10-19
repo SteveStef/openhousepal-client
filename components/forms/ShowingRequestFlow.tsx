@@ -7,7 +7,8 @@ import ScheduleTourModal from '@/components/ScheduleTourModal'
 import TourStatusWindow, { tourState } from '@/components/TourStatusWindow'
 import api, { resolveMediaUrl, type PublicHomeSuggestion } from '@/lib/api-service'
 import type { Property, PublicFormConfig, ShowingStatus, TourRequest } from '@/types'
-import { FORM_LOOK_CSS, formLookClass, formLookVars, type FormLook } from '@/lib/formLook'
+import { FORM_LOOK_CSS, formLookClass, formLookVars, formPaint, type FormLook } from '@/lib/formLook'
+import { AgentProfileBlock, WelcomeMotionBackdrop } from '@/components/forms/FormRunner'
 
 // Schedule a Showing, as its own flow instead of question-by-question: (1) find the home - our
 // listings with their photos as they type, (2) the same "Private showing" window the Showcase
@@ -243,30 +244,52 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
   const q = query.trim()
   // Stays put while the next letters are looked up (it used to blink off on every key, so the list jumped).
   const showTyped = !home && q.length >= 4 && (searched === q || (searching && !!searched))
+  const listOpen = results.length > 0 || showTyped
 
-  // Top-anchored, not centred: a centred page re-centred itself every time the suggestion list grew
-  // or shrank, so the search bar jumped while they typed (user, 10/18 - "glitchy").
+  // Centred a little above the middle like every other form's welcome screen (user, 10/19) - but
+  // the space above is worked out once (and when the home / window changes), never while the
+  // suggestion list grows, so the search bar can't jump while they type (user, 10/18 - "glitchy").
+  const heroRef = useRef<HTMLDivElement>(null)
+  const [padTop, setPadTop] = useState<number | null>(null)
+  useEffect(() => {
+    const place = () => {
+      const el = heroRef.current
+      if (!el || listOpen) return
+      const wide = window.innerWidth >= 640
+      setPadTop(Math.round(Math.max(wide ? 76 : 72, (window.innerHeight - el.offsetHeight) / 2 - (wide ? 40 : 28))))
+    }
+    place()
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [home, status, statusOpen, listOpen])
+  const accent = look ? formPaint(look).text : '#816937'
+  const effects = form.backgroundEffects !== false
+
   return (
-    <div className={`fr-root relative flex min-h-[100dvh] flex-col items-center justify-start overflow-x-hidden px-4 pb-20 pt-8 sm:pb-16 sm:pt-[9vh] ${look ? formLookClass(look) : ''}`}
-      style={look ? (formLookVars(look) as React.CSSProperties) : undefined}>
+    <div className={`fr-root relative z-0 flex min-h-[100dvh] flex-col items-center justify-start overflow-x-hidden px-4 pb-20 ${look ? formLookClass(look) : ''}`}
+      style={{ ...(look ? (formLookVars(look) as React.CSSProperties) : {}), paddingTop: padTop ?? 72, transition: 'padding-top .35s cubic-bezier(.22,1,.36,1)' }}>
       <style>{SHOWING_CSS}</style>
       {look && <style dangerouslySetInnerHTML={{ __html: FORM_LOOK_CSS }} />}
-      {/* the lit backdrop */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div className="showing-orb absolute -top-40 left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.28),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.2),transparent)]" />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/70 to-transparent" />
-      </div>
+      {/* the same moving backdrop as the other forms (or the plain lit one when effects are off) */}
+      {effects ? <WelcomeMotionBackdrop accent={accent} intro={!home} /> : (
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <div className="showing-orb absolute -top-40 left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.28),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.2),transparent)]" />
+        </div>
+      )}
 
-      {/* agent */}
+      <div ref={heroRef} className="relative isolate flex w-full flex-col items-center">
+      {effects && (
+        <div aria-hidden className="fr-veil pointer-events-none absolute -inset-x-10 -inset-y-12 -z-10 text-[#FAFAF7] dark:text-[#0B0B0B]"
+          style={{ background: 'radial-gradient(closest-side, currentColor 62%, transparent 100%)', opacity: 0.92 }} />
+      )}
+
+      {/* agent - the same block as the other forms' welcome screens */}
       {form.showBranding && form.agentName && (
-        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2.5 rounded-full border border-black/[0.06] bg-white/80 py-1.5 pl-1.5 pr-4 shadow-sm dark:border-white/10 dark:bg-white/[0.06]">
-          {form.agentPhotoUrl
-            ? <img src={form.agentPhotoUrl} alt="" className="h-8 w-8 rounded-full object-cover ring-2 ring-[#C9A24D]" />
-            : <span data-fill="" className="grid h-8 w-8 place-items-center rounded-full bg-[#C9A24D] text-[11px] font-black text-white">{initials(form.agentName)}</span>}
-          <span className="leading-tight">
-            <span className="block font-serif text-sm font-black text-[#111827] dark:text-white">{form.agentName}</span>
-            {form.agentBrokerage && <span className="block text-[9px] font-bold uppercase tracking-[0.14em] text-gray-500 dark:text-gray-400">{form.agentBrokerage}</span>}
-          </span>
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="text-center">
+          <AgentProfileBlock accent={accent} branding={{
+            title: form.headline || form.title, showBranding: true, agentName: form.agentName, agentBrokerage: form.agentBrokerage,
+            agentPhotoUrl: form.agentPhotoUrl, agentTitle: form.agentTitle, agentMarket: form.agentMarket,
+          }} />
         </motion.div>
       )}
 
@@ -280,18 +303,14 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
         </motion.button>
       )}
 
-      {/* headline */}
-      <div className="mt-8 max-w-xl text-center sm:mt-12">
-        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }}
-          className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-[#a8843a] dark:text-[#e8c97a]">
-          <CalendarDays className="h-3.5 w-3.5" /> Private showing
-        </motion.p>
+      {/* headline - sized and spaced like the other forms' */}
+      <div className="mt-6 max-w-xl text-center">
         <motion.h1 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, type: 'spring', stiffness: 260, damping: 26 }}
-          className="fr-title mt-3 font-serif text-4xl font-black leading-[1.05] tracking-tight text-[#111827] dark:text-white sm:text-5xl">
+          className="fr-title text-3xl font-black leading-tight tracking-tight text-[#0B0B0B] dark:text-white sm:text-4xl">
           {form.headline || form.title || 'Schedule a Showing'}
         </motion.h1>
         <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
-          className="mx-auto mt-3 max-w-md text-[15px] font-medium text-gray-500 dark:text-gray-400">
+          className="mx-auto mt-4 max-w-md text-base font-medium leading-relaxed text-[#5f6673] dark:text-gray-300">
           {home ? 'Great choice. Pick a few times that work and you’re done.' : (form.subtitle || 'Find the home you’d like to see - it takes about a minute.')}
         </motion.p>
       </div>
@@ -395,6 +414,7 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
           </motion.ol>
         )}
       </motion.div>
+      </div>
 
       <ScheduleTourModal
         property={home ? toProperty(home) : null}

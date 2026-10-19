@@ -101,6 +101,14 @@ export const FORM_LOOK_CSS = String.raw`
 .dark .fr-luxe .fr-title { background-image: linear-gradient(100deg, #fff 0%, #fff 40%, var(--fr-m-light) 47%, var(--fr-m-pale) 50%, var(--fr-m-light) 53%, #fff 60%, #fff 100%); }
 .fr-luxe .fr-eyebrow { letter-spacing: .3em; }
 .fr-luxe [data-fill] { box-shadow: 0 14px 30px -14px rgba(var(--fr-m-rgb),.9), inset 0 1px 0 rgba(255,255,255,.45) !important; }
+/* Google's address suggestions hang off <body>: rounded like the form, and dark on a dark form. */
+.pac-container { border-radius: 14px; margin-top: 6px; border: 1px solid rgba(17,24,39,.08); box-shadow: 0 18px 40px -18px rgba(17,24,39,.45); overflow: hidden; font-family: inherit; }
+.dark .pac-container { background: #151517; border-color: rgba(255,255,255,.1); box-shadow: 0 18px 40px -16px rgba(0,0,0,.8); }
+.dark .pac-item { border-top-color: rgba(255,255,255,.07); color: #9ca3af; }
+.dark .pac-item:hover, .dark .pac-item-selected { background: rgba(255,255,255,.07); }
+.dark .pac-item-query, .dark .pac-matched { color: #ffffff; }
+.dark .pac-icon { filter: invert(1) brightness(1.6); opacity: .7; }
+.dark .pac-logo:after { filter: invert(1) hue-rotate(180deg) brightness(1.3); }
 @keyframes frLxLine { 0%, 100% { background-position: 100% 0; } 50% { background-position: 0 0; } }
 @keyframes frLxGlint { 0%, 100% { background-position: 100% 0; } 50% { background-position: 0 0; } }
 @media (prefers-reduced-motion: reduce) { .fr-luxe .fr-title, .fr-luxe.fr-root::before { animation: none; } }

@@ -220,7 +220,7 @@ const CONFETTI_COLORS = ['#d2b16f', '#34d399', '#60a5fa', '#f472b6', '#fbbf24', 
 
 const EDGE_FADE = 'linear-gradient(to bottom, transparent 0, #000 72px, #000 calc(100% - 72px), transparent 100%)'
 
-function WelcomeMotionBackdrop({ accent, light = false, intro = false }: { accent: string; light?: boolean; intro?: boolean }) {
+export function WelcomeMotionBackdrop({ accent, light = false, intro = false }: { accent: string; light?: boolean; intro?: boolean }) {
   // Forced light (an IDX site page): the outer page can still carry the app's `dark` class, so
   // every dark: style here is dropped instead of rendering dark panels on a light form.
   const lt = (c: string) => (light ? c.split(/\s+/).filter(x => !x.startsWith('dark:')).join(' ') : c)
@@ -618,7 +618,7 @@ function IntegratedPropertyCard({ property, accent }: { property: LinkedProperty
 // Rich, centered agent identity block — used on the welcome screen and the thank-you screen so both match.
 // `tight` (used only for the Showcase Request welcome screen) keeps every field but shrinks the
 // photo/fonts/gaps so the whole block takes noticeably less vertical room.
-function AgentProfileBlock({ branding, accent, tight = false }: { branding: FormRunnerBranding; accent: string; tight?: boolean }) {
+export function AgentProfileBlock({ branding, accent, tight = false }: { branding: FormRunnerBranding; accent: string; tight?: boolean }) {
   if (branding.showBranding === false) return null
 
   const photoSize = tight ? 'h-11 w-11' : 'h-16 w-16'
