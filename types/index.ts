@@ -2619,6 +2619,10 @@ export interface CmaSimilarityDetails {
   // structurally incompatible property type (condo vs single-family, townhouse vs detached
   // single-family, etc.); such a comp cannot be auto-picked as a primary/Strong comp.
   property_type_incompatible?: boolean;
+  // False when this record can't carry any valuation weight at all (a sold comp with no verified
+  // closing price, or no finished square footage on record). Still shown in the grid; never
+  // auto-picked, since it would only take a slot from a usable sale.
+  valuation_eligible?: boolean;
   proposed_role?: 'strong' | 'supporting' | 'weak' | string;
 }
 

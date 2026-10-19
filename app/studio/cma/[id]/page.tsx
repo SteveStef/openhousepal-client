@@ -996,6 +996,16 @@ function mapPropertyToSubject(p: any): CmaSubjectProperty {
   }
 }
 
+// A search result the auto-pick may choose: same housing product as the subject (the backend's
+// structural type gate) and able to carry valuation weight (verified closing price + square
+// footage). Everything else stays visible in the grid/map for the agent to add by hand.
+function isAutoPickable(c: CmaCompCandidate): boolean {
+  const d = c.similarity_details
+  if (d?.property_type_incompatible) return false
+  if (d?.valuation_eligible === false) return false
+  return true
+}
+
 function candidateToComparable(c: CmaCompCandidate): CmaComparable {
   return {
     id: newId(),
@@ -1097,6 +1107,8 @@ const MIN_STRONG_MATCHES = 5
 // the AI analysis's own reservation sizing (see cma_ai_service.py), regardless of how many the
 // agent tries to manually add on top of the auto-picked set.
 const MAX_COMPS = 5
+// Score a 4th/5th auto-picked comp must reach (the top 3 are always picked).
+const AUTO_PICK_EXTRA_MIN_SCORE = 60
 
 // How many grid columns a stat should claim based on how long its value actually renders - short
 // values like "3" or "-" stay a single tile, longer ones like "Full, Finished, Walkout" or a
@@ -1422,7 +1434,11 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
         // it stops there and leaves the extra choices for the agent to manually prune - still
         // strictly better than too few.
         if (autoRadiusRef.current) {
-          const strongCount = authoritativeResults.filter(c => scoreFor(c) >= 70).length
+          // Only matches the auto-pick could actually use count toward "enough": a strong-scoring
+          // detached house can't stand in for a twin, and a sale with no verified closing price or
+          // no square footage carries no valuation weight. Counting those stopped the widen at 1 mi
+          // with two usable twins (backtest, 10/19).
+          const strongCount = authoritativeResults.filter(c => isAutoPickable(c) && scoreFor(c) >= 70).length
           const currentIndex = RADIUS_STEPS.indexOf(radius)
           if (strongCount < MIN_STRONG_MATCHES && currentIndex < RADIUS_STEPS.length - 1) {
             setRadius(RADIUS_STEPS[currentIndex + 1])
@@ -1495,8 +1511,10 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
 
   // Keeps the top matches auto-selected as search results change (radius widening, filter edits,
   // ...) for as long as the agent hasn't manually touched anything - always the top 3, extended to
-  // 4-5 only while score stays >=70%, so a 5th slot never gets filled by a weak match just to hit
-  // a round number. A live default the agent can freely override at any point (toggleAdd/
+  // 4-5 while score stays >=60%, so a 5th slot never gets filled by a weak match just to hit a round
+  // number. (Was >=70%: in a pocket where the size-matched sales sit 1-1.5 mi away they score 60-69%
+  // and the set stopped at 3 - two of them tiny dated twins - and a Wynnewood twin backtest came in 13%
+  // low. Below 60 the match is genuinely poor.) A live default the agent can freely override at any point (toggleAdd/
   // removeComp flip autoManagedRef off the instant they do), not a one-time suggestion or a lock.
   useEffect(() => {
     if (!autoManagedRef.current || sortedResults.length === 0) return
@@ -1504,8 +1522,8 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
     // single-family, etc.) never gets auto-picked as a primary comp, no matter how high its Match
     // % is or where it ranks - see _continuous_relevance's structurally_incompatible_property_type
     // gate. It stays visible in the grid/map for the agent to add manually if they choose to.
-    const autoPickEligible = sortedResults.filter(c => !c.similarity_details?.property_type_incompatible)
-    const picks = autoPickEligible.filter((c, i) => i < 3 || (i < MAX_COMPS && scoreFor(c) >= 70))
+    const autoPickEligible = sortedResults.filter(isAutoPickable)
+    const picks = autoPickEligible.filter((c, i) => i < 3 || (i < MAX_COMPS && scoreFor(c) >= AUTO_PICK_EXTRA_MIN_SCORE))
     const pickKeys = picks.map(c => c.listing_key).join(',')
     // Only replace `comparables` when the auto-pick set actually changed - returning the same
     // reference otherwise keeps the [comparables] autosave effect from firing on every render
@@ -4059,7 +4077,7 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
           </button>
           <button onClick={() => onJump('comps')} className="rounded-xl border border-gray-100 p-3 text-left hover:border-[#C9A24D]/40 dark:border-gray-800">
             <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">Comparable Set</p>
-            <p className="mt-1 text-sm font-black text-[#111827] dark:text-white">{included.length} comps ({weighted.length} primary/strong)</p>
+            <p className="mt-1 text-sm font-black text-[#111827] dark:text-white">{included.length} comps ({weighted.length} carry weight)</p>
             <p className="text-xs font-semibold text-gray-400">{formatMoneyRange(metrics.saleMin, metrics.saleMax)}</p>
           </button>
           <button onClick={() => onJump('analysis')} className="rounded-xl border border-gray-100 p-3 text-left hover:border-[#C9A24D]/40 dark:border-gray-800">
