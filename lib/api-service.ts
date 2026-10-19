@@ -1553,6 +1553,9 @@ class ApiService {
 
     getDomainHealth: () => this.request<{ issues: DomainIssue[] }>('/studio/sites/me/domains/health'),
 
+    /** Which company runs a domain (from its nameservers) - the setup guide opens on its steps. */
+    getDomainProvider: (hostname: string) => this.request<{ provider: string | null }>(`/studio/sites/me/domains/provider?hostname=${encodeURIComponent(hostname)}`),
+
     addDomain: (hostname: string) =>
       this.request<SiteDomain>('/studio/sites/me/domains', { method: 'POST', body: JSON.stringify({ hostname }) }),
 
