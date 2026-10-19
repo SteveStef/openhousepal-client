@@ -339,12 +339,20 @@ export async function renderShowcaseCard(shareToken: string, fonts: Fonts, accen
 // The home full-bleed with the agent's headshot (user, 10/19 - a hybrid of the old card and the
 // report-coloured one): the agent's accent, who it's for, what's inside and a button. No value on
 // the card: the number is the reason to open it (and a forwarded preview shouldn't give it away).
-export function CmaCard({ photo, street, place, facts, forName, mode, comps, agentName, agentBrokerage, agentPhoto, accent }: {
+export function CmaCard({ forName, ...rest }: {
   photo: string | null; street: string; place: string; facts: string[]; forName: string; mode: 'buyer' | 'listing'
   comps: number; agentName: string; agentBrokerage: string | null; agentPhoto: string | null; base?: string; accent: string
 }) {
-  // The whole home behind it (user, 10/19 - "I like the before ... entire property pic"), the
-  // agent's real headshot on top, and the new words + button over the bottom.
+  return <HomePhotoCard {...rest} eyebrow="Comparative Market Analysis" sub={`What it's worth  ·  Prepared for ${forName || 'you'}`} />
+}
+
+/** A home's link (CMA, open house): the whole home behind it (user, 10/19 - "I like the before ...
+ *  entire property pic"), the agent's real headshot on top, then the label, "Street, Town" in one
+ *  serif line and one line under it. */
+export function HomePhotoCard({ photo, street, place, eyebrow, sub, agentName, agentBrokerage, agentPhoto, accent }: {
+  photo: string | null; street: string; place: string; eyebrow: string; sub: string
+  agentName: string; agentBrokerage: string | null; agentPhoto: string | null; accent: string
+}) {
   const light = mixHex(accent, '#ffffff', 0.45)
   const btnInk = lum(accent) > 0.6 ? '#111827' : '#ffffff'
   const rgb = [1, 3, 5].map(i => parseInt(accent.slice(i, i + 2), 16)).join(',')
@@ -374,10 +382,10 @@ export function CmaCard({ photo, street, place, facts, forName, mode, comps, age
         <div style={{ display: 'flex', flexDirection: 'column', marginTop: 'auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 20, fontWeight: 900, letterSpacing: 6, textTransform: 'uppercase', color: light }}>
             <div style={{ display: 'flex', width: 34, height: 2, backgroundColor: light }} />
-            Comparative Market Analysis
+            {eyebrow}
           </div>
           <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: titleSize, lineHeight: 1.04, letterSpacing: -1, marginTop: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 1056 }}>{headline}</div>
-          <div style={{ display: 'flex', fontSize: 30, color: C.sub, marginTop: 14 }}>{`What it's worth  ·  Prepared for ${forName || 'you'}`}</div>
+          <div style={{ display: 'flex', fontSize: 30, color: C.sub, marginTop: 14 }}>{sub}</div>
         </div>
       </div>
     </div>
@@ -415,19 +423,21 @@ export async function renderOpenHouseCard(eventId: string, fonts: Fonts): Promis
   try {
     const data = await ogFetch<any>(`/open-house/property/${encodeURIComponent(eventId)}`)
     const p = data?.property || {}
-    const address = [p.address, p.city].filter(Boolean).map(titleCase).join(', ') || 'Open House'
     const bits = [
       p.beds ? `${p.beds % 1 === 0 ? p.beds : p.beds.toFixed(1)} bd` : null,
       p.baths ? `${p.baths % 1 === 0 ? p.baths : p.baths.toFixed(1)} ba` : null,
       p.squareFeet ? `${Math.round(p.squareFeet).toLocaleString()} sqft` : null,
     ].filter(Boolean)
-    const sub = [money(p.price), bits.join('  ·  ')].filter(Boolean).join('   ·   ') || 'Sign in and take a look around'
+    const sub = [money(p.price), bits.join('  ·  ')].filter(Boolean).join('  ·  ') || 'Sign in and take a look around'
     const [photo, agentPhoto] = await Promise.all([
-      imgToDataUri(p.imageSrc || (Array.isArray(p.photos) ? p.photos[0] : null)),
-      imgToDataUri(p.agentPhotoUrl),
+      imgToDataUri(p.imageSrc || (Array.isArray(p.photos) ? p.photos[0] : null), 4500),
+      imgToDataUri(p.agentPhotoUrl, 4500),
     ])
+    // the same look as the CMA card, in the sign-in page's own colour
+    const accent = typeof data?.theme?.accentColor === 'string' && /^#[0-9a-f]{6}$/i.test(data.theme.accentColor) ? data.theme.accentColor : C.gold
     return IR(
-      <PhotoCard photo={photo} eyebrow="Open House" headline={address} sub={sub} agentName={p.agentName || 'Your host'} agentBrokerage={p.agentBrokerage || null} agentPhoto={agentPhoto} />,
+      <HomePhotoCard photo={photo} street={titleCase(p.address) || 'Open House'} place={titleCase(p.city)} eyebrow="Open House" sub={sub}
+        agentName={p.agentName || 'Your host'} agentBrokerage={p.agentBrokerage || null} agentPhoto={agentPhoto} accent={accent} />,
       fonts,
     )
   } catch {
