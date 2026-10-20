@@ -13,6 +13,7 @@ import SpotlightViewBeacon from '@/components/property-sites/SpotlightViewBeacon
 import FormQrCode from '@/components/forms/FormQrCode'
 import Lightbox from './spotlight/Lightbox'
 import LeadForm from './spotlight/LeadForm'
+import PresentedByPill from './spotlight/PresentedByPill'
 import SignatureSiteCard from '@/components/studio/blogs/SignatureSiteCard'
 import PaymentEstimator from './spotlight/PaymentEstimator'
 import ShareSheet from './spotlight/ShareSheet'
@@ -1234,9 +1235,13 @@ function SiteFooter({ m, navItems }: { m: SpotlightModel; navItems: NavItem[] })
           </nav>
         </div>
         <div className="mt-12 flex flex-col gap-4 border-t border-white/[0.07] pt-6 text-xs text-white/40 sm:flex-row sm:items-center sm:justify-between">
-          <p>
-            {m.agent ? <>Presented by {m.agent.name}{m.agent.brokerage ? `, ${m.agent.brokerage}` : ''}{m.agent.license_number ? ` · Lic. #${m.agent.license_number}` : ''}</> : null}
-          </p>
+          {/* the agent pill from this page's link preview (84px headshot) - not a line of small print */}
+          {m.agent ? (
+            <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2">
+              <PresentedByPill agent={m.agent} tone="dark" />
+              {m.agent.license_number && <span>Lic. #{m.agent.license_number}</span>}
+            </div>
+          ) : <span />}
           <div className="flex items-center gap-4">
             <span className="inline-flex items-center gap-1.5 text-white/35"><Sparkles className="h-3 w-3" /> Powered by OpenHousePal</span>
             <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="rounded-full border border-white/15 px-3 py-1.5 hover:border-white/40 hover:text-white">Back to top</button>

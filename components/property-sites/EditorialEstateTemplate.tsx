@@ -19,6 +19,7 @@ import GuestTools from './spotlight/GuestTools'
 import RoomChapters from './spotlight/RoomChapters'
 import OpenHouseChip from './spotlight/OpenHouseChip'
 import TownFeature from './spotlight/TownSection'
+import PresentedByPill from './spotlight/PresentedByPill'
 import { groupSpecs, prettyFeature, splitFeatures } from './spotlight/features'
 import { AddToCalendar, AgentActions, MobileActionBar, SpotlightJsonLd } from './spotlight/Widgets'
 import {
@@ -909,9 +910,15 @@ function Footer({ m, navItems, onShare }: { m: SpotlightModel; navItems: NavItem
             <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="sp-mono border border-[#f3efe6]/30 px-4 py-2.5 text-[10px] uppercase tracking-[0.18em] hover:border-[#f3efe6]">Back to cover</button>
           </div>
         </div>
-        <div className="sp-mono mt-8 flex flex-col gap-2 text-[10px] uppercase tracking-[0.14em] opacity-55 sm:flex-row sm:justify-between">
-          <span>{m.agent ? <>Presented by {m.agent.name}{m.agent.brokerage ? ` · ${m.agent.brokerage}` : ''}{m.agent.hub_url && <> · <a href={m.agent.hub_url} target="_blank" rel="noreferrer" className="underline underline-offset-4">Agent Hub</a></>}</> : ''}</span>
-          <span>Equal Housing Opportunity · Powered by OpenHousePal</span>
+        {/* the agent pill from this page's link preview (84px headshot) - not a line of small print */}
+        <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          {m.agent ? (
+            <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3">
+              <PresentedByPill agent={m.agent} tone="dark" />
+              {m.agent.hub_url && <a href={m.agent.hub_url} target="_blank" rel="noreferrer" className="sp-mono text-[10px] uppercase tracking-[0.14em] underline underline-offset-4 opacity-70 hover:opacity-100">Agent Hub</a>}
+            </div>
+          ) : <span />}
+          <span className="sp-mono text-[10px] uppercase tracking-[0.14em] opacity-55">Equal Housing Opportunity · Powered by OpenHousePal</span>
         </div>
         {m.isMls && <div className="mt-6 border-t border-[#f3efe6]/10 pt-5"><MlsDisclaimer listOffice={m.p.list_office_name} mlsNumber={m.p.mls_number} /></div>}
       </div>

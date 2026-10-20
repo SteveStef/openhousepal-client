@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server'
 import { ogFontsSafe } from '@/lib/og/shared'
 import {
   renderShowcaseCard, renderCmaCard, renderOpenHouseCard,
-  renderBlogCard, renderFormCard, renderHubCard, renderSpotlightCard, renderPropertyCard, renderSiteCard, renderIdxListingCard,
+  renderBlogCard, renderFormCard, renderHubCard, renderSpotlightCard, renderPropertyCard, renderSiteCard, renderIdxListingCard, renderSalesCard,
 } from '@/lib/og/cards'
 
 export const runtime = 'nodejs'
@@ -19,6 +19,8 @@ export const runtime = 'nodejs'
  *   /api/og/blog?agent=...&post=...
  *   /api/og/form?agent=...&form=...
  *   /api/og/spotlight?host=...&path=...
+ *   /api/og/site?site=...&host=...    /api/og/idxlisting?site=...&listing=...&look=...
+ *   /api/og/sales?agent=...
  */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ kind: string }> }) {
   const { kind } = await ctx.params
@@ -39,13 +41,18 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ kind: strin
     case 'form':
       return renderFormCard(q.get('agent') || '', q.get('form') || '', fonts, process.env.NODE_ENV !== 'production' ? q.get('look') : null)
     case 'spotlight':
-      return renderSpotlightCard(q.get('host') || '', q.get('path') || '', fonts)
+      // ?addr= only for local design review (a very long address on a real Spotlight)
+      return renderSpotlightCard(q.get('host') || '', q.get('path') || '', fonts, process.env.NODE_ENV !== 'production' ? q.get('addr') : null)
     case 'property':
       return renderPropertyCard(q.get('agent') || '', q.get('listing') || '', fonts)
     case 'site':
-      return renderSiteCard(q.get('site') || '', q.get('host') || '', fonts)
+      // the site's look is read off the site itself; ?look= only for local design review
+      return renderSiteCard(q.get('site') || '', q.get('host') || '', fonts, process.env.NODE_ENV !== 'production' ? q.get('look') : null)
     case 'idxlisting':
-      return renderIdxListingCard(q.get('site') || '', q.get('listing') || '', q.get('own') === '1', fonts)
+      // ?look= is the site's look ('luxe-gold-light', 'classic-1e3a5f-dark'), set by the page
+      return renderIdxListingCard(q.get('site') || '', q.get('listing') || '', q.get('own') === '1', fonts, q.get('look'))
+    case 'sales':
+      return renderSalesCard(q.get('agent') || '', fonts, process.env.NODE_ENV !== 'production' ? q.get('look') : null)
     default:
       return new Response('unknown card kind', { status: 404 })
   }

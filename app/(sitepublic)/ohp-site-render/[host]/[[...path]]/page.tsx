@@ -27,7 +27,7 @@ import HomeCard from '@/components/website-public/HomeCard'
 import SiteFormLauncher from '@/components/website-public/SiteFormLauncher'
 import SiteNavProgress from '@/components/website-public/SiteNavProgress'
 import { normalizeSiteTheme } from '@/lib/siteTheme'
-import { cardVersion } from '@/lib/og/shared'
+import { cardVersion, siteLookParam } from '@/lib/og/shared'
 import { toTitleCase } from '@/lib/cheatSheetContent'
 import { fontClass } from '@/components/website-public/blocks/fontClass'
 import BlogCoverArt from '@/components/BlogCoverArt'
@@ -146,10 +146,15 @@ async function baseMetadata({
       const street = toTitleCase(propertySite.property.address || '')
       const title = cityState ? `${street} | ${cityState}` : street
       // Agent-branded social-share image for the Spotlight listing (see app/api/og/[kind]).
-      const ogImage = ogCard('spotlight', { host, path: joinPath(path) })
       // Search/social snippet built from real listing facts (price, beds/baths/sq ft) plus the
       // opening of the listing's own description - never a generic tagline when there's data.
       const sp = propertySite.property
+      // ?v= changes with what the card shows, so apps that cache previews by address re-fetch it.
+      const spAgent: any = (propertySite as any).agents?.[0] || {}
+      const ogImage = ogCard('spotlight', {
+        host, path: joinPath(path),
+        v: cardVersion('c3', sp.address, sp.city, sp.status, sp.price, (sp as any).close_price, (propertySite as any).content?.hero_image, (propertySite as any).brand_kit?.secondary_color, (propertySite as any).template_id, spAgent.name, spAgent.brokerage, spAgent.photo_url),
+      })
       const facts = [
         sp.price ? `$${Math.round(sp.price).toLocaleString('en-US')}` : null,
         sp.beds != null ? `${sp.beds} bd` : null,
@@ -203,10 +208,12 @@ async function baseMetadata({
     return { title: 'Media', alternates: canonical ? { canonical } : undefined }
   }
   if (path?.[0] === 'properties' && path[1]) {
-    return listingMetadata(await fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/properties/${encodeURIComponent(path[1])}`), canonical, ogCard('idxlisting', { site: resolved.site_id, listing: path[1], own: '1' }))
+    const p = await fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/properties/${encodeURIComponent(path[1])}`)
+    return listingMetadata(p, canonical, ogCard('idxlisting', { site: resolved.site_id, listing: path[1], own: '1', ...listingCardKeys(resolved, p) }))
   }
   if (path?.[0] === 'search' && path[1] === 'properties' && path[2]) {
-    return listingMetadata(await fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/search/properties/${encodeURIComponent(path[2])}`), canonical, ogCard('idxlisting', { site: resolved.site_id, listing: path[2] }))
+    const p = await fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/search/properties/${encodeURIComponent(path[2])}`)
+    return listingMetadata(p, canonical, ogCard('idxlisting', { site: resolved.site_id, listing: path[2], ...listingCardKeys(resolved, p) }))
   }
   if (path?.[0] === 'properties') {
     return { title: 'Properties', alternates: canonical ? { canonical } : undefined }
@@ -395,6 +402,14 @@ function applySiteSeo(meta: Metadata, resolved: ResolveResponse, path: string[] 
     title = withSiteName(baseTitle, siteName)
   }
   const share = seo.share_image_url || undefined
+  // The designed site card (link previews #10): read by the card off the site's own subdomain
+  // address (works for an own-domain site too); ?v= follows the look, name, photo and market.
+  const siteCard = share || ogCard('site', {
+    site: resolved.site_id,
+    host: resolved.subdomain_slug ? `${resolved.subdomain_slug}.${OHP_BASE_DOMAIN}` : undefined,
+    v: cardVersion('c3', siteLookParam(snapshot.theme), seo.site_name, home?.title, profile?.name, profile?.brokerage, profile?.photo_url, profile?.market, ctx.towns.slice(0, 4).join(',')),
+  })
+  const hasOwnImage = !!(meta.openGraph as any)?.images
   return {
     ...meta,
     title,
@@ -408,9 +423,15 @@ function applySiteSeo(meta: Metadata, resolved: ResolveResponse, path: string[] 
       ...(description ? { description: description as string } : {}),
       ...(siteName ? { siteName } : {}),
       // No image of its own: the agent's own image if they set one, else the designed site card (user, 10/17).
-      ...(!(meta.openGraph as any)?.images ? { images: [{ url: share || ogCard('site', { site: resolved.site_id, host: resolved.subdomain_slug ? `${resolved.subdomain_slug}.${OHP_BASE_DOMAIN}` : undefined }), width: 1200, height: 630 }] } : {}),
+      ...(!hasOwnImage ? { images: [{ url: siteCard, ...(share ? {} : { width: 1200, height: 630 }) }] } : {}),
     },
-    ...(!(meta.openGraph as any)?.images ? { twitter: { card: 'summary_large_image' as const, images: [share || ogCard('site', { site: resolved.site_id })] } } : {}),
+    twitter: {
+      ...((meta.twitter as any) || {}),
+      card: 'summary_large_image' as const,
+      ...(title ? { title: title as string } : {}),
+      ...(description ? { description: description as string } : {}),
+      ...(!hasOwnImage ? { images: [siteCard] } : {}),
+    },
   }
 }
 
@@ -625,9 +646,17 @@ function listingMetadata(p: any, canonical?: string, card?: string): Metadata {
     title,
     description,
     alternates: canonical ? { canonical } : undefined,
-    openGraph: { title, description, type: 'website', ...(photo ? { images: [{ url: photo }] } : {}) },
+    openGraph: { title, description, type: 'website', ...(canonical ? { url: canonical } : {}), ...(photo ? { images: [card ? { url: photo, width: 1200, height: 630 } : { url: photo }] } : {}) },
     twitter: { card: photo ? 'summary_large_image' : 'summary', title, description, ...(photo ? { images: [photo] } : {}) },
   }
+}
+
+// A listing card's look (the site's Classic accent / Luxe metal) and version (what it shows), so
+// an edit to the site's colors or the home's price / status gives the card a new address.
+function listingCardKeys(resolved: ResolveResponse, p: any): Record<string, string> {
+  const look = siteLookParam(resolved.published_snapshot?.theme)
+  const photo = (Array.isArray(p?.photos) && p.photos[0]) || p?.photo
+  return { look, v: cardVersion('c3', look, p?.address, p?.status, p?.price, p?.report?.ClosePrice, typeof photo === 'string' ? photo : photo?.url) }
 }
 
 // Share-card image URL on the OpenHousePal app (absolute — these pages run on the agent's own

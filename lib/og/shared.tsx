@@ -8,6 +8,8 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { DEFAULT_SITE_THEME } from '@/components/website-public/types'
+import { CLASSIC_DEFAULT_ACCENT, normalizeSiteTheme, siteLuxeMetal, siteMode, siteTemplate } from '@/lib/siteTheme'
 
 export const OG_SIZE = { width: 1200, height: 630 }
 export const OG_CONTENT_TYPE = 'image/png'
@@ -340,4 +342,12 @@ export function cardVersion(...parts: unknown[]): string {
   let h = 2166136261
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) }
   return (h >>> 0).toString(36)
+}
+
+/** 'luxe-gold-dark' / 'classic-1e3a5f-light' - an IDX site's look (its saved theme, as the site
+ *  renders it) as it travels in a card's address (/api/og/idxlisting?look=...). */
+export function siteLookParam(theme: any): string {
+  const t = normalizeSiteTheme({ ...DEFAULT_SITE_THEME, ...(theme || {}) })
+  const mode = siteMode(t)
+  return siteTemplate(t) === 'luxe' ? `luxe-${siteLuxeMetal(t)}-${mode}` : `classic-${String(t.secondary_color || CLASSIC_DEFAULT_ACCENT).replace('#', '').toLowerCase()}-${mode}`
 }
