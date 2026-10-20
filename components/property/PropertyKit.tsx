@@ -402,9 +402,9 @@ export function PropertyPhotos({ home, extraBadges, split = 'lg', className = ''
   const go = (d: number) => show((index + d + n) % n)
   const wide = split === 'md' ? 'md' : 'lg'
   // Photos fill the frame (no bars) and are pinned to their bottom-left corner, where Bright MLS
-  // prints its stamp, so the stamp is never cut off. On phones the price panel overlaps the
-  // frame's last 2rem, so the photo ends above it (the blurred copy fills in underneath).
-  const sharpH = wide === 'md' ? 'h-[calc(100%-2rem)] md:h-full' : 'h-[calc(100%-2rem)] lg:h-full'
+  // prints its stamp, so the stamp is never cut off. On phones the price panel sits right under the
+  // photo at its full width (user, 10/19 - one block, no floating card), so the photo fills the frame.
+  const sharpH = 'h-full'
   const arrow = `absolute top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-[#111827] shadow-[0_10px_24px_-8px_rgba(0,0,0,.6)] transition duration-300 hover:scale-105 opacity-0 group-hover/ph:opacity-100 ${wide === 'md' ? 'md:grid' : 'lg:grid'}`
   return (
     <div className={`min-w-0 ${className}`}>
@@ -425,7 +425,7 @@ export function PropertyPhotos({ home, extraBadges, split = 'lg', className = ''
             alt={index === 0 ? home.fullAddress : `${home.street} - photo ${index + 1}`}
             className={`absolute left-0 top-0 w-full object-cover object-left-bottom ${sharpH} transition-opacity duration-300 ease-out ${ready ? 'opacity-100' : 'opacity-0'}`}
           />
-          <span className={`absolute inset-x-0 bottom-8 h-1/3 bg-gradient-to-t from-black/45 to-transparent ${wide === 'md' ? 'md:hidden' : 'lg:hidden'}`} />
+          <span className={`absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/45 to-transparent ${wide === 'md' ? 'md:hidden' : 'lg:hidden'}`} />
         </button>
         {n > 1 && <img src={sizedImage(photos[(index + 1) % n], 1200)} alt="" aria-hidden className="hidden" />}
         {n > 2 && <img src={sizedImage(photos[(index - 1 + n) % n], 1200)} alt="" aria-hidden className="hidden" />}
@@ -441,7 +441,7 @@ export function PropertyPhotos({ home, extraBadges, split = 'lg', className = ''
           <span className={`pointer-events-none absolute right-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-lg ${wide === 'md' ? 'md:hidden' : 'lg:hidden'}`}>{domText(home)}</span>
         )}
         {n > 1 && (
-          <div className={`pointer-events-none absolute inset-x-0 bottom-11 flex justify-center gap-1.5 ${wide === 'md' ? 'md:hidden' : 'lg:hidden'}`}>
+          <div className={`pointer-events-none absolute inset-x-0 bottom-3.5 flex justify-center gap-1.5 ${wide === 'md' ? 'md:hidden' : 'lg:hidden'}`}>
             {Array.from({ length: Math.min(n, 7) }).map((_, i) => {
               // Up to 7 dots; with more photos the lit dot stays centered until the ends.
               const at = n <= 7 ? index : index < 3 ? index : index > n - 4 ? 6 - (n - 1 - index) : 3
@@ -455,7 +455,7 @@ export function PropertyPhotos({ home, extraBadges, split = 'lg', className = ''
             <button type="button" onClick={() => go(1)} aria-label="Next photo" className={`${arrow} right-3`}><ChevronRight className="h-5 w-5" /></button>
           </>
         )}
-        <button type="button" onClick={() => setViewer(index)} className={`absolute bottom-10 right-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-[10.5px] font-black text-white shadow-lg transition hover:bg-black/75 ${wide === 'md' ? 'md:bottom-2.5 md:px-3 md:py-1.5 md:text-[11px]' : 'lg:bottom-2.5 lg:px-3 lg:py-1.5 lg:text-[11px]'}`}>
+        <button type="button" onClick={() => setViewer(index)} className={`absolute bottom-2.5 right-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-[10.5px] font-black text-white shadow-lg transition hover:bg-black/75 ${wide === 'md' ? 'md:bottom-2.5 md:px-3 md:py-1.5 md:text-[11px]' : 'lg:bottom-2.5 lg:px-3 lg:py-1.5 lg:text-[11px]'}`}>
           <Maximize2 className="h-3.5 w-3.5" /> {n > 1 ? `${index + 1} / ${n}` : 'View'}
         </button>
       </div>
@@ -644,8 +644,7 @@ function HeroPanel({ home, actions, split = 'lg' }: { home: HomeView; actions?: 
   const meta = [home.mlsNumber ? `MLS# ${home.mlsNumber}` : '', home.listedAt && !sold ? `Listed ${shortDate(home.listedAt)}` : ''].filter(Boolean).join(' · ')
   const rise = (k: number) => ({ animationDelay: `${0.12 + k * 0.07}s` })
   return (
-    <div className={`relative isolate z-10 mx-2.5 -mt-8 flex min-w-0 flex-col overflow-hidden rounded-[24px] border border-[color:var(--pp-gold-line)] bg-[var(--pp-card)] px-5 pb-5 pt-3 shadow-[0_-12px_40px_-24px_rgba(17,24,39,.5),0_24px_50px_-28px_rgba(17,24,39,.55)] sm:mx-5 sm:px-6 sm:pb-6 ${split === 'md' ? 'md:mx-0 md:mt-0 md:h-full md:justify-between md:rounded-[26px] md:pt-6' : 'lg:mx-0 lg:mt-0 lg:h-full lg:justify-between lg:rounded-[26px] lg:pt-6'}`}>
-      <span aria-hidden className={`mx-auto mb-3 h-1 w-10 shrink-0 rounded-full bg-[color:var(--pp-gold-line)] ${split === 'md' ? 'md:hidden' : 'lg:hidden'}`} />
+    <div className={`relative isolate z-10 flex min-w-0 flex-col overflow-hidden rounded-b-[22px] border border-t-0 border-[color:var(--pp-gold-line)] bg-[var(--pp-card)] px-5 pb-5 pt-4 shadow-[0_24px_50px_-30px_rgba(17,24,39,.5)] sm:rounded-b-[26px] sm:px-6 sm:pb-6 ${split === 'md' ? 'md:mt-0 md:h-full md:justify-between md:rounded-[26px] md:border-t md:pt-6 md:shadow-[0_-12px_40px_-24px_rgba(17,24,39,.5),0_24px_50px_-28px_rgba(17,24,39,.55)]' : 'lg:mt-0 lg:h-full lg:justify-between lg:rounded-[26px] lg:border-t lg:pt-6 lg:shadow-[0_-12px_40px_-24px_rgba(17,24,39,.5),0_24px_50px_-28px_rgba(17,24,39,.55)]'}`}>
       <span aria-hidden className="pp-panel-edge pointer-events-none absolute inset-x-0 top-0 h-px" />
       <span aria-hidden className="pointer-events-none absolute -right-24 -top-24 -z-10 h-64 w-64 rounded-full opacity-70 blur-3xl" style={{ background: 'var(--pp-gold-wash)' }} />
 
@@ -666,9 +665,9 @@ function HeroPanel({ home, actions, split = 'lg' }: { home: HomeView; actions?: 
           {home.price != null ? money(home.price) : 'Price on request'}
         </p>
         {facts.some(f => STAT_LINE.has(f.label)) && (
-          <p className={`mt-2 text-[13px] font-semibold ${pp.muted}`}>
+          <p className={`mt-2 text-[12px] font-semibold min-[360px]:text-[13px] ${pp.muted}`}>
             {facts.filter(f => STAT_LINE.has(f.label)).map((f, i) => (
-              <span key={f.label}>{i > 0 && <span className={`mx-1.5 ${pp.faint}`}>|</span>}<b className={`font-black ${pp.heading}`}>{f.value}</b> {STAT_LINE.get(f.label)}</span>
+              <span key={f.label} className="whitespace-nowrap">{i > 0 && <span className={`mx-1 min-[360px]:mx-1.5 ${pp.faint}`}>|</span>}<b className={`font-black ${pp.heading}`}>{f.value}</b> {STAT_LINE.get(f.label)}</span>
             ))}
           </p>
         )}

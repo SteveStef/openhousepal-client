@@ -81,6 +81,15 @@ const FADE_HOME: Variants = {
   exit: { opacity: 0, transition: { duration: 0.12 } },
 }
 
+/** The header's street line shares its row with the arrows and the X, so a long street steps down a
+ *  size (and may take two lines, then ends in "…") instead of pushing them aside. */
+function streetSize(street?: string | null) {
+  const n = (street || '').length
+  if (n <= 18) return 'text-[15px] sm:text-base'
+  if (n <= 26) return 'text-[14px] sm:text-base'
+  return 'text-[13px] sm:text-[15px]'
+}
+
 /** A round previous / next arrow (the header pill, or the dark phone bar). Dimmed at either end. */
 function NavButton({ dir, onClick, dark = false }: { dir: -1 | 1; onClick?: (() => void) | null; dark?: boolean }) {
   const Icon = dir < 0 ? ChevronLeft : ChevronRight
@@ -94,7 +103,7 @@ function NavButton({ dir, onClick, dark = false }: { dir: -1 | 1; onClick?: (() 
       title={dir < 0 ? 'Previous home' : 'Next home'}
       className={dark
         ? 'grid h-[42px] w-9 shrink-0 place-items-center rounded-xl text-white/85 transition-colors hover:bg-white/10 disabled:opacity-25'
-        : `grid h-9 w-9 shrink-0 place-items-center rounded-full transition-colors hover:bg-[var(--pp-gold-wash)] disabled:opacity-30 ${pp.heading}`}
+        : `grid h-8 w-8 min-[360px]:h-9 min-[360px]:w-9 shrink-0 place-items-center rounded-full transition-colors hover:bg-[var(--pp-gold-wash)] disabled:opacity-30 ${pp.heading}`}
     >
       <Icon size={dark ? 20 : 18} strokeWidth={2.5} />
     </motion.button>
@@ -372,8 +381,8 @@ export default function PropertyDetailsModal({
                       animate={{ opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } }}
                       exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8, transition: { duration: 0.14 } }}
                     >
-                      <p className={`truncate font-serif text-[15px] font-black sm:text-base ${pp.heading}`}>{home.street}</p>
-                      {home.place && <p className={`flex items-center gap-1 truncate text-[11px] font-semibold ${pp.muted}`}><MapPin className="h-3 w-3 shrink-0 text-[color:var(--pp-gold)]" />{home.place}</p>}
+                      <p title={home.street} className={`line-clamp-2 break-words font-serif font-black leading-[1.15] ${streetSize(home.street)} ${pp.heading}`}>{home.street}</p>
+                      {home.place && <p className={`mt-0.5 flex min-w-0 items-center gap-1 text-[11px] font-semibold ${pp.muted}`}><MapPin className="h-3 w-3 shrink-0 text-[color:var(--pp-gold)]" /><span className="min-w-0 truncate">{home.place}</span></p>}
                     </motion.div>
                   </AnimatePresence>
                   {shareUrl && (
@@ -397,7 +406,7 @@ export default function PropertyDetailsModal({
                     <div className="flex shrink-0 items-center rounded-full border border-[color:var(--pp-gold-line)] bg-[var(--pp-card)]">
                       <NavButton dir={-1} onClick={nav!.onPrev} />
                       {nav!.index >= 0 && (
-                        <span className={`min-w-[2.6rem] select-none text-center text-[11px] font-black tabular-nums ${pp.muted}`}>
+                        <span className={`min-w-[2.6rem] select-none max-[359px]:hidden text-center text-[11px] font-black tabular-nums ${pp.muted}`}>
                           {nav!.index + 1}<span className="opacity-50">/</span>{nav!.total}
                         </span>
                       )}
@@ -446,7 +455,7 @@ export default function PropertyDetailsModal({
                   />
                   {showcaseTools && <ShowcaseMembership propertyId={property.id} listingKey={property.ListingKey} street={home.street} zIndex={zIndex + 20} />}
                   {/* Same columns as the hero, so the questions box sits exactly under the price panel. */}
-                  <div className={`mt-9 grid gap-x-6 gap-y-5 ${showVisitorActions ? HERO_COLS : ''}`}>
+                  <div className={`mt-9 grid grid-cols-1 gap-x-6 gap-y-5 ${showVisitorActions ? HERO_COLS : ''}`}>
                     <div className="min-w-0 lg:col-start-1 lg:row-start-1">
                       <Reveal root={scrollRef} id="sc-overview">
                         <SectionTitle kicker="Overview" title="About this home" />
@@ -493,7 +502,7 @@ export default function PropertyDetailsModal({
 
                     {/* The buyer's side: love it or pass, book a tour, and talk to the agent about it. */}
                     {showVisitorActions && (
-                      <aside className="lg:col-start-2 lg:row-start-1">
+                      <aside className="min-w-0 lg:col-start-2 lg:row-start-1">
                         <motion.div
                           initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} transition={{ ...SPRING, delay: 0.12 }}
                           className="space-y-4 lg:sticky lg:top-2"
