@@ -59,14 +59,6 @@ const SEWER = [
 const HEAT_SYSTEMS = ['Forced Air', 'Heat Pump', 'Hot Water', 'Baseboard - Electric', 'Radiator', 'Radiant', 'Geothermal', 'Other']
 const HEAT_FUELS = ['Natural Gas', 'Oil', 'Electric', 'Propane']
 const COOLING = ['Central A/C', 'Ductless/Mini-Split', 'Window Unit(s)', 'None']
-const CONDITIONS = [
-  { value: 'Renovated / like new', label: 'Renovated / like new' },
-  { value: 'Updated', label: 'Updated' },
-  { value: 'Average / well kept', label: 'Average / well kept' },
-  { value: 'Dated', label: 'Dated - original finishes' },
-  { value: 'Needs work', label: 'Needs work' },
-  { value: 'Fixer-upper', label: 'Fixer-upper' },
-]
 
 // ---------------------------------------------------------------------------------------------
 // Reading/writing the subject fields
