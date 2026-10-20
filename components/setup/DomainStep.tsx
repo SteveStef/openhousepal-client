@@ -71,7 +71,7 @@ export function DomainStep({ ctx }: { ctx: StepCtx }) {
       )}
       {(choice === 'have' || choice === 'buy') && (
         <div className="rounded-3xl border-2 border-[#ece5d6] bg-white p-4 dark:border-white/10 dark:bg-[#141416] sm:p-5">
-          <DomainsPanel subdomainSlug={slug} bare back="setup" startWith={choice} hideFree onChanged={refresh} />
+          <DomainsPanel subdomainSlug={slug} bare back="setup" startWith={choice} hideFree hideTabs onChanged={refresh} />
         </div>
       )}
     </div>

@@ -13,6 +13,12 @@ import { DomainContact, DomainSearch, DomainShop, DomainOption, PurchasedDomain,
 const box = 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-[#111827] outline-none transition focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/15 dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white'
 const gold = 'inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-4 py-2.5 text-xs font-black uppercase tracking-wide text-[#111827] shadow-md shadow-[#C9A24D]/30 transition hover:-translate-y-0.5 hover:shadow-lg disabled:translate-y-0 disabled:opacity-50 disabled:shadow-none'
 
+/** A domain that wraps before its ending on a phone ("janesmithrealestate" / ".com"), never mid-word at the end. */
+function DomainName({ d }: { d: string }) {
+  const i = d.indexOf('.')
+  return i > 0 ? <>{d.slice(0, i)}<wbr />{d.slice(i)}</> : <>{d}</>
+}
+
 export function useDomainShop(enabled = true) {
   const [shop, setShop] = useState<DomainShop | null>(null)
   const load = () => api.sites.getDomainShop().then(r => { if (r.success && r.data) setShop(r.data) })
@@ -36,7 +42,7 @@ function OptionRow({ o, onPick }: { o: DomainOption; onPick: () => void }) {
     <div className={`flex items-center gap-3 rounded-2xl border p-3 transition ${o.exact ? 'border-emerald-300 bg-gradient-to-br from-white to-emerald-50 dark:border-emerald-500/30 dark:from-[#151517] dark:to-emerald-500/[0.07]' : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-[#151517]'}`}>
       <div className="min-w-0 flex-1">
         {o.exact && <p className="mb-0.5 inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-300"><Sparkles className="h-3 w-3" /> It&apos;s available!</p>}
-        <p className="break-all font-mono text-[13.5px] font-bold text-[#111827] dark:text-white">{o.domain}</p>
+        <p className="font-mono text-[13.5px] font-bold text-[#111827] [overflow-wrap:anywhere] dark:text-white"><DomainName d={o.domain} /></p>
         <p className="mt-0.5 text-[11px] font-semibold text-gray-500 dark:text-white/50">
           {money(o.price)} for the first year{o.renewal_price !== o.price ? `, then ${money(o.renewal_price)}/year` : ' · renews yearly'}
         </p>
@@ -68,7 +74,7 @@ function Checkout({ option, shop, back, onBack }: { option: DomainOption; shop: 
       </button>
       <div className="relative overflow-hidden rounded-2xl border border-[#C9A24D]/30 bg-gradient-to-br from-[#fffdf8] via-[#fbf6ec] to-[#f4ead7] p-4 dark:border-white/10 dark:from-[#0b0f0e] dark:via-[#111827] dark:to-[#1d1810]">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]">Your new domain</p>
-        <p className="mt-1 break-all font-mono text-lg font-black text-[#111827] dark:text-white">{option.domain}</p>
+        <p className="mt-1 font-mono text-lg font-black text-[#111827] [overflow-wrap:anywhere] dark:text-white"><DomainName d={option.domain} /></p>
         <p className="mt-1 text-sm font-bold text-[#111827] dark:text-white">{money(option.price)} today <span className="font-semibold text-gray-500 dark:text-white/55">· then {money(option.renewal_price)} each year, automatically</span></p>
         <ul className="mt-3 space-y-1.5">
           {['We set it up for you - your website opens on it by itself', 'Secure padlock (https) included', 'Your home address stays private (hidden from public lookups)', 'Yours to keep - stop renewing or move it any time'].map(t => (
@@ -150,10 +156,10 @@ export default function BuyDomain({ back = 'website', shop: given, suggestion = 
       <form onSubmit={e => { e.preventDefault(); go() }} className="flex items-center gap-2">
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#C9A24D]" />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Your name, or a name you like" className={`${box} pl-8 font-mono`} />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Try your name" className={`${box} pl-8 font-mono`} />
         </div>
-        <button type="submit" disabled={busy || !q.trim()} className={gold}>
-          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />} Search
+        <button type="submit" aria-label="Search" disabled={busy || !q.trim()} className={gold}>
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}<span className="hidden sm:inline">Search</span>
         </button>
       </form>
       <p className="mt-2 text-[11px] font-semibold text-gray-400">Try your name (like &quot;jane smith&quot;) - we&apos;ll show what&apos;s free, with the price per year.</p>
@@ -208,7 +214,7 @@ export function PurchasedDomainCard({ p, onChanged }: { p: PurchasedDomain; onCh
           {working ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe2 className="h-4 w-4" />}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="break-all font-mono text-[13px] font-bold text-[#111827] dark:text-white">{p.domain}</p>
+          <p className="font-mono text-[13px] font-bold text-[#111827] [overflow-wrap:anywhere] dark:text-white"><DomainName d={p.domain} /></p>
           <p className="mt-0.5 text-[11px] font-semibold text-gray-500 dark:text-white/55">
             {p.status === 'ACTIVE' && (p.auto_renew ? `Bought here · renews ${prettyDate(p.expires_at)} for ${money(p.renewal_price)}` : `Bought here · not renewing - ends ${prettyDate(p.expires_at)}`)}
             {working && 'Getting it ready - this takes a minute or two.'}

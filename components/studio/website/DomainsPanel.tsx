@@ -184,8 +184,10 @@ function DomainRow({ domain, partner, onChanged, back, bought }: { domain: SiteD
 
 /** `back` = where one-click connect / PayPal send the agent afterwards ('website' | 'settings' | 'setup').
  *  `startWith` opens on "I already have one" or "Get a new one". `hideFree` drops the free-address card (setup shows its own). */
-export default function DomainsPanel({ subdomainSlug, bare = false, back = 'website', startWith = 'have', hideFree = false, onChanged }: {
-  subdomainSlug: string; bare?: boolean; back?: string; startWith?: 'have' | 'buy'; hideFree?: boolean; onChanged?: () => void
+export default function DomainsPanel({ subdomainSlug, bare = false, back = 'website', startWith = 'have', hideFree = false, hideTabs = false, onChanged }: {
+  subdomainSlug: string; bare?: boolean; back?: string; startWith?: 'have' | 'buy'; hideFree?: boolean
+  /** the setup step's own big cards already chose "have" or "buy" - no second set of tabs */
+  hideTabs?: boolean; onChanged?: () => void
 }) {
   const [domains, setDomains] = useState<SiteDomain[]>([])
   const [loading, setLoading] = useState(true)
@@ -283,7 +285,7 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
         </div>
       )}
 
-      {CUSTOM_DOMAINS_LIVE && (
+      {CUSTOM_DOMAINS_LIVE && !hideTabs && (
         <div className="mt-3 grid grid-cols-2 gap-1 rounded-2xl bg-[#f4efe4] p-1 dark:bg-white/[0.05]" role="tablist">
           {([['have', 'I already have one'], ['buy', 'Get a new one']] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={mode === id} onClick={() => setMode(id)}
