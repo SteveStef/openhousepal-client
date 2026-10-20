@@ -35,6 +35,8 @@ export type HomeView = {
   city: string
   fullAddress: string
   price: number | null
+  /** Sold, but Bright never sent what it sold for - `price` is its last asking price. */
+  priceIsAsking?: boolean
   originalPrice: number | null
   priceChangedAt: string | null
   listedAt: string | null
@@ -99,7 +101,10 @@ export function homeFromMls(p: HomeRecord, opts: { photo?: (url: string) => stri
   const streetRaw = String(p.FullStreetAddress || p.UnparsedAddress || '').split(',')[0]
   const street = titleCase(streetRaw)
   const place = placeLine(p.City, p.StateOrProvince, p.PostalCode)
-  const price = nz(p.ListPrice)
+  // A sold home shows what it sold for, not its list price (10/19: "Sold for $520,000" on a $601,000 sale).
+  const isSold = /closed|sold/i.test(String(p.MlsStatus || p.home_status || ''))
+  const closePrice = isSold ? nz(p.ClosePrice) : null
+  const price = closePrice ?? nz(p.ListPrice)
   const sqft = nz(p.LivingArea)
   return {
     key: String(p.ListingKey || p.id || ''),
@@ -108,6 +113,7 @@ export function homeFromMls(p: HomeRecord, opts: { photo?: (url: string) => stri
     city: titleCase(p.City),
     fullAddress: [street, place].filter(Boolean).join(', '),
     price,
+    priceIsAsking: isSold && closePrice == null,
     originalPrice: nz(p.OriginalListPrice),
     priceChangedAt: p.PriceChangeTimestamp || null,
     listedAt: p.MLSListDate || null,
@@ -155,7 +161,8 @@ export function homeFromIdx(p: HomeRecord, opts: { photo?: (url: string) => stri
     place,
     city: titleCase(p.city),
     fullAddress: [street, place].filter(Boolean).join(', '),
-    price: nz(p.price),
+    price: (/closed|sold/i.test(String(p.status || r.MlsStatus || '')) && nz(r.ClosePrice)) || nz(p.price),
+    priceIsAsking: /closed|sold/i.test(String(p.status || r.MlsStatus || '')) && !nz(r.ClosePrice),
     originalPrice: nz(p.original_list_price) ?? nz(r.OriginalListPrice),
     priceChangedAt: p.price_change_timestamp || r.PriceChangeTimestamp || null,
     listedAt: p.mls_list_date || r.MLSListDate || null,
@@ -623,7 +630,8 @@ const STAT_LINE = new Map([['Bed', 'bd'], ['Beds', 'bd'], ['Bath', 'ba'], ['Bath
 function HeroPanel({ home, actions, split = 'lg' }: { home: HomeView; actions?: ReactNode; split?: 'md' | 'lg' }) {
   const serif = useSerif()
   const sold = /closed|sold/i.test(home.status || '')
-  const cut = home.originalPrice && home.price && home.originalPrice > home.price ? home.originalPrice - home.price : 0
+  // (a sold home's price is what it sold for - selling under asking isn't a "price cut")
+  const cut = !sold && home.originalPrice && home.price && home.originalPrice > home.price ? home.originalPrice - home.price : 0
   const dom = domText(home)
   const facts = [
     home.beds != null && { label: home.beds === 1 ? 'Bed' : 'Beds', value: num(home.beds) },
@@ -654,7 +662,7 @@ function HeroPanel({ home, actions, split = 'lg' }: { home: HomeView; actions?: 
           panel on a wide screen keeps its own layout (big price, address, the numbers grid). */}
       <div className={`pp-rise mt-1 ${split === 'md' ? 'md:hidden' : 'lg:hidden'}`} style={rise(1)}>
         <p className={`ohp-site-heading text-[2.1rem] font-black leading-none tracking-[-0.025em] ${pp.heading} ${serif}`}>
-          {sold && home.price != null && <span className={`mr-1.5 align-middle text-[11px] font-black uppercase tracking-[0.2em] ${pp.faint}`}>Sold</span>}
+          {sold && home.price != null && <span className={`mr-1.5 align-middle text-[11px] font-black uppercase tracking-[0.2em] ${pp.faint}`}>{home.priceIsAsking ? 'Last asked' : 'Sold'}</span>}
           {home.price != null ? money(home.price) : 'Price on request'}
         </p>
         {facts.some(f => STAT_LINE.has(f.label)) && (
@@ -670,7 +678,7 @@ function HeroPanel({ home, actions, split = 'lg' }: { home: HomeView; actions?: 
         )}
       </div>
       <div className={`pp-rise mt-4 hidden ${split === 'md' ? 'md:block' : 'lg:block'}`} style={rise(1)}>
-        <p className={`text-[10px] font-black uppercase tracking-[0.28em] ${pp.faint}`}>{sold ? 'Sold for' : 'Offered at'}</p>
+        <p className={`text-[10px] font-black uppercase tracking-[0.28em] ${pp.faint}`}>{sold ? (home.priceIsAsking ? 'Last asking price' : 'Sold for') : 'Offered at'}</p>
         <p className={`ohp-site-heading mt-1 text-[2.5rem] font-black leading-none tracking-[-0.025em] ${pp.heading} ${serif}`}>
           {home.price != null ? money(home.price) : 'Price on request'}
         </p>
