@@ -1083,9 +1083,12 @@ export function SalesGridCard({ look, agentName, agentBrokerage, agentPhoto, eye
   const big = shots.length === 2
   const COLW = 1200 - PW - 40 - 40 // the text column
   const amountSize = fitSize(amount, COLW, 0.66, 104, 48)
-  // up to two lines, as big as two lines allow
-  // (0.6em a letter + a line's worth of slack: words don't break evenly at the line end)
-  const areaSize = area ? fitSize(area, (COLW - 30) * 2 - 90, 0.6, 24, 15) : 24
+  // one line while it still reads at 19px+ ("Philadelphia Main Line & Suburbs"); longer = up to
+  // two lines, as big as two lines allow (0.6em a letter + a line's worth of slack: words don't
+  // break evenly at the line end)
+  const areaOneLine = !!area && fitSize(area, COLW - 30, 0.58, 24, 0) >= 19
+  const areaTwo = !!area && !areaOneLine // two lines: tighter spacing so the big button still fits
+  const areaSize = !area ? 24 : areaOneLine ? fitSize(area, COLW - 30, 0.58, 24, 19) : fitSize(area, (COLW - 30) * 2 - 90, 0.6, 24, 15)
   // dark text on a light button, white on a dark one (Navy / Charcoal / Black accents)
   const btnInk = lum(mixHex(look.light, look.base, 0.5)) < 0.5 ? '#ffffff' : '#16130e'
   return (
@@ -1131,12 +1134,13 @@ export function SalesGridCard({ look, agentName, agentBrokerage, agentPhoto, eye
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <AgentPill name={agentName} brokerage={agentBrokerage} photo={agentPhoto} accent={dark ? look.base : look.deep} tone={dark ? 'dark' : 'light'} ring={dark ? look.light : look.base} scale={0.9} />
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', paddingTop: 34 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', paddingTop: areaTwo ? 16 : 34 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 20, fontWeight: 900, letterSpacing: 6, textTransform: 'uppercase', color: label }}>
             <div style={{ display: 'flex', width: 34, height: 2, backgroundColor: look.base }} />
             {eyebrow}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start', alignItems: 'center' }}>
+          {/* the big number, the stats and the service area centred in the column (user, 10/20) */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'center', alignItems: 'center' }}>
           <div style={{ display: 'flex', fontSize: amountSize, fontWeight: 900, lineHeight: 1, letterSpacing: -3, color: ink, marginTop: 14 }}>{amount}</div>
           {stats.length ? (
             <div style={{ display: 'flex', alignItems: 'stretch', marginTop: 24 }}>
@@ -1150,18 +1154,18 @@ export function SalesGridCard({ look, agentName, agentBrokerage, agentPhoto, eye
           ) : null}
           </div>
           {area ? (
-            <div style={{ display: 'flex', flexDirection: 'column', marginTop: 28, paddingTop: 20, borderTop: `2px solid ${look.base}55`, maxWidth: COLW }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: areaTwo ? 20 : 28, paddingTop: areaTwo ? 14 : 20, borderTop: `2px solid ${look.base}55`, width: COLW }}>
               <div style={{ display: 'flex', fontSize: 13, fontWeight: 900, letterSpacing: 3, textTransform: 'uppercase', color: label }}>Service area</div>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 6, maxWidth: COLW }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 8, marginTop: 6, maxWidth: COLW }}>
                 <div style={{ display: 'flex', marginTop: Math.round(areaSize * 0.18) }}><Ico d={ICON.pin} size={20} color={look.base} /></div>
-                <div style={{ display: 'flex', fontSize: areaSize, fontWeight: 800, lineHeight: 1.25, color: ink, maxWidth: COLW - 30 }}>{area}</div>
+                <div style={{ display: 'flex', fontSize: areaSize, fontWeight: 800, lineHeight: 1.25, color: ink, maxWidth: COLW - 30, textAlign: 'center', ...(areaOneLine ? { whiteSpace: 'nowrap' as const } : {}) }}>{area}</div>
               </div>
             </div>
           ) : null}
-          <div style={{ display: 'flex', alignSelf: 'flex-start', alignItems: 'center', gap: 12, height: 60, padding: '0 30px', marginTop: 28, borderRadius: 999, fontSize: 22, fontWeight: 900,
+          <div style={{ display: 'flex', alignSelf: 'flex-start', alignItems: 'center', gap: 14, height: 72, flexShrink: 0, padding: '0 36px', marginTop: areaTwo ? 20 : 28, borderRadius: 999, fontSize: 27, fontWeight: 900, whiteSpace: 'nowrap',
             backgroundImage: `linear-gradient(135deg, ${look.light}, ${look.base})`, color: btnInk, boxShadow: `0 12px 26px -14px ${look.deep}` }}>
             See more from me
-            <svg width={23} height={23} viewBox="0 0 24 24" fill="none" stroke={btnInk} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
+            <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={btnInk} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
           </div>
         </div>
       </div>
