@@ -3,7 +3,7 @@
 import OhpLoader, { OhpSpinner } from '@/components/brand/OhpLoader'
 
 import { hasEmailSignatureAccess } from '@/lib/navAccess'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
@@ -14,6 +14,10 @@ import {
   Image as ImageIcon, Loader2, MapPin, Moon, Plus, RefreshCw, Ruler, Scale, Search, Share2, ShieldAlert, Sparkles, Sun, Trash2, Waves, X,
 } from 'lucide-react'
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { useIsPhone, useLastValue, usePagePin, useSwipeToClose } from '@/components/ui/windowMotion'
+import { FADE_HOME, NavButton, SHEET_SPRING, SideArrow, SLIDE_HOME, SPRING as SHEET_DESKTOP_SPRING, streetSize, type HomeMove } from '@/components/PropertyDetailsModal'
+import { PropertySurface, pp } from '@/components/property/PropertyKit'
 import api from '@/lib/api-service'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -257,7 +261,7 @@ function CmaStepper({ step, setStep, completed = false, className = '', stretch 
     <div className={`min-w-0 items-center ${stretch ? 'flex-1' : ''} ${className}`}>
       <div className="relative w-full overflow-hidden rounded-2xl border border-gray-200 bg-white/85 p-1.5 shadow-sm dark:border-gray-800 dark:bg-[#151517]/85">
         <div
-          className="absolute bottom-1.5 left-1.5 top-1.5 rounded-xl bg-gradient-to-r from-[#111827] via-[#8b7355] to-[#C9A24D] shadow-[0_10px_30px_-18px_rgba(201,162,77,0.9)] transition-[width] duration-500 dark:from-white dark:via-[#d7b974] dark:to-[#C9A24D]"
+          className="absolute bottom-1.5 left-1.5 top-1.5 rounded-xl bg-gradient-to-r from-[#111827] via-[#8b7355] to-[#C9A24D] shadow-[0_10px_30px_-18px_rgba(201,162,77,0.9)] transition-[width] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] dark:from-white dark:via-[#d7b974] dark:to-[#C9A24D]"
           style={{ width: barWidth ? `${barWidth}px` : 0 }}
         />
         <div ref={gridRef} className="relative grid grid-cols-5 gap-1">
@@ -272,7 +276,7 @@ function CmaStepper({ step, setStep, completed = false, className = '', stretch 
                 type="button"
                 onClick={() => setStep(s.id)}
                 aria-current={isCurrent ? 'step' : undefined}
-                className={`group flex min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-[9px] font-black uppercase tracking-wide transition-all duration-500 sm:gap-2 sm:px-2.5 sm:text-[10px] lg:text-[11px] ${showLabels ? 'flex-col !gap-0.5' : ''} ${
+                className={`group flex min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-[9px] font-black uppercase tracking-wide transition-all duration-500 active:scale-95 sm:gap-2 sm:px-2.5 sm:text-[10px] lg:text-[11px] ${showLabels ? 'flex-col !gap-0.5' : ''} ${
                   isCurrent
                     ? 'scale-[1.02] bg-white text-[#111827] shadow-md ring-1 ring-[#C9A24D]/40 dark:bg-[#0B0B0B] dark:text-white'
                     : isActiveZone
@@ -282,12 +286,12 @@ function CmaStepper({ step, setStep, completed = false, className = '', stretch 
               >
                 <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] transition sm:h-6 sm:w-6 ${
                   isCurrent
-                    ? 'bg-[#C9A24D] text-white shadow-[0_0_0_4px_rgba(201,162,77,0.16)]'
+                    ? 'cma-step-current bg-[#C9A24D] text-white shadow-[0_0_0_4px_rgba(201,162,77,0.16)]'
                     : isDone
                       ? 'bg-white/20 text-white ring-1 ring-white/30 dark:bg-black/10 dark:text-[#111827] dark:ring-black/10'
                       : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500'
                 }`}>
-                  {isDone ? <Check className="h-3 w-3" /> : i + 1}
+                  {isDone ? <Check key={`done-${s.id}`} className="cma-check-pop h-3 w-3" strokeWidth={3} /> : i + 1}
                 </span>
                 <span className={`min-w-0 truncate ${showLabels ? 'block' : 'hidden xl:block'}`}>
                   {s.label}
@@ -331,6 +335,12 @@ function CmaWorkspacePageInner() {
   const [saving, setSaving] = useState(false)
   const [savedFlash, setSavedFlash] = useState(false)
   const [step, setStep] = useState<StepId>('subject')
+  // Steps slide in from the side they're coming from: forward from the right, back from the left.
+  const reduceMotion = useReducedMotion()
+  const stepIndex = STEPS.findIndex(s => s.id === step)
+  const prevStepIndex = useRef(stepIndex)
+  const stepDir = stepIndex >= prevStepIndex.current ? 1 : -1
+  useEffect(() => { prevStepIndex.current = stepIndex }, [stepIndex])
   const initialStepSet = useRef(false)
   // Once the agent has visited the Analysis step, keep it mounted for the rest of the session so
   // an in-flight "Create AI Analysis" run - its progress bar, staged scan, generating state -
@@ -409,7 +419,8 @@ function CmaWorkspacePageInner() {
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]">
+    // cma-touch (globals.css): no zoom-in on phones when a box is tapped or the page double-tapped.
+    <div className="cma-touch min-h-screen overflow-x-clip bg-[#faf9f7] dark:bg-[#0B0B0B]">
       {/* Nice arrival instead of the whole workspace just popping in - same entrance keyframe the
           step content below already reuses on every step change (see key={step} further down). */}
       <div className="mx-auto max-w-6xl animate-step-in px-4 py-4 sm:px-5 sm:py-8">
@@ -463,12 +474,17 @@ function CmaWorkspacePageInner() {
             replays, instead of relying on the conditional children below to happen to unmount/
             remount on their own. Analysis is the exception - it renders in its own always-mounted
             container below so a running AI generation isn't torn down when the agent tabs away. */}
-        <div key={step} className={`mt-4 animate-step-in sm:mt-6 ${step === 'analysis' ? 'hidden' : ''}`}>
+        <motion.div
+          key={step}
+          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: stepDir * 32 }}
+          animate={{ opacity: 1, x: 0, transition: { type: 'spring', stiffness: 320, damping: 34, mass: 0.9 } }}
+          className={`mt-4 sm:mt-6 ${step === 'analysis' ? 'hidden' : ''}`}
+        >
           {step === 'subject' && <SubjectStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('comps')} />}
           {step === 'comps' && <CompsStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('analysis')} />}
           {step === 'pricing' && <PricingStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('summary')} />}
           {step === 'summary' && <SummaryStep report={report} onSave={save} onReportUpdated={applyReport} onJump={setStep} onDeleted={() => router.push('/studio/cma')} />}
-        </div>
+        </motion.div>
         {(analysisMounted || step === 'analysis') && (
           <div className={step === 'analysis' ? 'mt-4 animate-step-in sm:mt-6' : 'hidden'}>
             <AnalysisStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('pricing')} />
@@ -673,7 +689,7 @@ function NextButton({ onClick, label = 'Continue' }: { onClick: () => void, labe
     <div className="mt-6 flex justify-end">
       <button
         onClick={onClick}
-        className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-6 py-3 text-sm font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]"
+        className="cma-btn inline-flex items-center gap-2 rounded-xl bg-[#111827] px-6 py-3 text-sm font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]"
       >
         {label} <ArrowLeft className="h-4 w-4 rotate-180" />
       </button>
@@ -917,7 +933,7 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
 
       {hasSubject && (
         <div className="flex justify-end gap-2">
-          <button onClick={handleContinue} className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-6 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
+          <button onClick={handleContinue} className="cma-btn inline-flex items-center gap-2 rounded-xl bg-[#111827] px-6 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
             Find Comparables <ArrowLeft className="h-4 w-4 rotate-180" />
           </button>
         </div>
@@ -1239,6 +1255,8 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
   const [schoolDistrictSel, setSchoolDistrictSel] = useState<string[]>([])
   const [citySel, setCitySel] = useState<string[]>([])
   const [refineOpen, setRefineOpen] = useState(false)
+  // Phones show the results list OR the map (both at once stacked a crowded map under a long list).
+  const [phoneView, setPhoneView] = useState<'list' | 'map'>('list')
   // Floor of 200 days sold, then widens itself (200 -> 300 -> ... -> 750) whenever a sold search
   // comes back with fewer than 5 matches, so a quiet market still surfaces comps instead of an
   // empty result. Stops auto-widening the moment the agent edits it by hand.
@@ -1512,6 +1530,11 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
   // low. Below 60 the match is genuinely poor.) A live default the agent can freely override at any point (toggleAdd/
   // removeComp flip autoManagedRef off the instant they do), not a one-time suggestion or a lock.
   useEffect(() => {
+    // Wait for the auto-widen chain to settle: picking (and autosaving the report) after every
+    // intermediate search re-rendered the whole page between steps - 4-6 s gaps on the live site
+    // (10/20) while "5 comps selected" already showed above a still-spinning "Finding the best
+    // comparables" panel. One pick, one save, once the final result set is in.
+    if (optimizing) return
     if (!autoManagedRef.current || sortedResults.length === 0) return
     // A structurally incompatible property type (condo vs single-family, townhouse vs detached
     // single-family, etc.) never gets auto-picked as a primary comp, no matter how high its Match
@@ -1528,7 +1551,7 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
       return picks.map((c, i) => ({ ...candidateToComparable(c), order_index: i }))
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortedResults])
+  }, [sortedResults, optimizing])
 
   const handleContinue = async () => {
     // See SubjectStep's handleContinue - the next step reads fresh report data on mount, so this
@@ -1620,7 +1643,7 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
   }, [popup, subject, subjectAcres, subjectPhotos, scoreFor, report.pricing?.ai_estimate?.subject_road_context])
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-24 sm:pb-0">
       {/* Phones (user, 10/17): the home on one line, then results / added / Refine as one even row. */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white p-3 dark:border-gray-800 dark:bg-[#151517] sm:gap-4 sm:p-4">
         <button type="button" onClick={() => setPopup({ type: 'subject' })} className="flex w-full min-w-0 items-center gap-3 text-left sm:w-auto">
@@ -1641,7 +1664,7 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
             <span className="mr-1.5 text-[9px] font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-400 sm:mr-2 sm:text-[10px]">Added</span>
             <span className="text-base font-black text-emerald-700 dark:text-emerald-300 sm:text-lg">{comparables.length}</span>
           </div>
-          <button type="button" onClick={() => setRefineOpen(true)} className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#111827] px-3 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827] sm:gap-2 sm:px-4">
+          <button type="button" onClick={() => setRefineOpen(true)} className="cma-btn inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#111827] px-3 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827] sm:gap-2 sm:px-4">
             <Search className="h-3.5 w-3.5" /> <span className="sm:hidden">Refine</span><span className="hidden sm:inline">Refine Your Search</span>
           </button>
         </div>
@@ -1659,17 +1682,38 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
               <h3 className="text-lg font-black text-gray-900 dark:text-white">Property Selection</h3>
               <p className="text-xs font-semibold text-gray-400">Top matches auto-selected. Add or remove as you see fit.</p>
             </div>
-            <div className="flex items-center gap-2">
+            {/* Phones get the Continue bar pinned to the bottom instead (below). */}
+            <div className="hidden items-center gap-2 sm:flex">
               <span className="text-xs font-bold text-gray-400">{comparables.length} added</span>
               <button
                 onClick={handleContinue}
                 disabled={comparables.length === 0}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-[#111827] px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-black disabled:opacity-50 dark:bg-white dark:text-[#111827]"
+                className="cma-btn inline-flex items-center gap-1.5 rounded-xl bg-[#111827] px-4 py-2 text-xs font-black text-white shadow-sm hover:bg-black disabled:opacity-50 dark:bg-white dark:text-[#111827]"
               >
                 Continue <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
               </button>
             </div>
           </div>
+
+          {/* Phones: List or Map - the picked one's pill slides across. */}
+          {!optimizing && results.length > 0 && (
+            <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-white p-1 shadow-sm dark:bg-[#151517] sm:hidden">
+              {(['list', 'map'] as const).map(v => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setPhoneView(v)}
+                  aria-pressed={phoneView === v}
+                  className={`relative flex items-center justify-center gap-1.5 rounded-lg py-2 text-[11px] font-black uppercase tracking-wide transition-colors ${phoneView === v ? 'text-white dark:text-[#111827]' : 'text-gray-500'}`}
+                >
+                  {phoneView === v && <motion.span layoutId="cma-comps-view" transition={{ type: 'spring', stiffness: 520, damping: 38 }} className="absolute inset-0 rounded-lg bg-[#111827] dark:bg-white" />}
+                  <span className="relative inline-flex items-center gap-1.5">
+                    {v === 'list' ? <><Layers className="h-3.5 w-3.5" /> List · {sortedResults.length}</> : <><MapPin className="h-3.5 w-3.5" /> Map</>}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {optimizing ? (
             // Covers the whole first-load auto-widen chain (radius and/or sold-days stepping up
@@ -1704,7 +1748,27 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
             // Height stays a sane fixed cap below lg (mobile/tablet-portrait) and only goes
             // viewport-relative at lg+, where there's room to spare.
             <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(500px,0.8fr)_minmax(420px,1.2fr)] lg:items-start 2xl:grid-cols-[minmax(940px,1.85fr)_minmax(420px,1fr)]">
-              <div className="min-w-0">
+              <div className={`min-w-0 ${phoneView === 'map' ? 'max-sm:hidden' : ''}`}>
+              {/* Phones: compact rows that say how each home differs from the subject. */}
+              <div className="space-y-2 sm:hidden">
+                {pagedResults.map((candidate, i) => (
+                  <motion.div
+                    key={candidate.listing_key}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0, transition: { delay: Math.min(i, 10) * 0.03, type: 'spring', stiffness: 420, damping: 36 } }}
+                  >
+                    <CompCandidateRow
+                      candidate={candidate}
+                      subject={subject}
+                      matchScore={scoreFor(candidate)}
+                      added={addedKeys.has(candidate.listing_key)}
+                      sameSchool={isSameSchool(candidate)}
+                      onToggle={() => toggleAdd(candidate)}
+                      onOpenDetails={() => setPopup({ type: 'candidate', candidate })}
+                    />
+                  </motion.div>
+                ))}
+              </div>
               <div
                 // Fluid card sizing instead of fixed breakpoints, via flexbox rather than CSS
                 // Grid's auto-fit - grid's auto-fit sizes track counts for the WHOLE grid at once,
@@ -1713,7 +1777,7 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
                 // independently, so flex-grow correctly fills leftover space in ANY row, including
                 // a partial last one - no dead gap. Each card stays between 240-300px wide, and
                 // however many fit at that width is however many end up per row.
-                className="flex max-h-[520px] flex-wrap content-start gap-4 overflow-y-auto pr-1 lg:max-h-[calc(100vh-380px)]"
+                className="hidden max-h-[520px] flex-wrap content-start gap-4 overflow-y-auto pr-1 sm:flex lg:max-h-[calc(100vh-380px)]"
                 style={{ overscrollBehavior: 'auto' }}
               >
                 {pagedResults.map(candidate => (
@@ -1760,7 +1824,7 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
                 </div>
               )}
               </div>
-              <div className="lg:sticky lg:top-6">
+              <div className={`lg:sticky lg:top-6 ${phoneView === 'list' ? 'max-sm:hidden' : ''}`}>
                 <CompsMapView
                   subject={subject}
                   candidates={sortedResults}
@@ -1770,13 +1834,41 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
                   onToggleAdd={toggleAdd}
                   onOpenDetails={candidate => setPopup({ type: 'candidate', candidate })}
                   matchScoreFor={scoreFor}
-                  heightClassName="h-[380px] lg:h-[calc(100vh-380px)]"
+                  heightClassName="h-[62vh] sm:h-[380px] lg:h-[calc(100vh-380px)]"
                 />
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Phones: how many comps are picked + Continue, pinned to the bottom of the screen. */}
+      {/* Portaled to the page body: the step container animates in with a transform, which would
+          otherwise make this position: fixed bar sit against that container instead of the screen. */}
+      {!optimizing && typeof document !== 'undefined' && createPortal(
+        <div className="cma-dock cma-touch fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-4 pt-3 shadow-[0_-14px_30px_-18px_rgba(0,0,0,0.35)] dark:border-gray-800 dark:bg-[#151517]/95 sm:hidden">
+          <div className="mx-auto flex max-w-md items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Comps picked</p>
+                <p className="text-xs font-black tabular-nums text-[#111827] dark:text-white">{comparables.length} of {MAX_COMPS}</p>
+              </div>
+              <div className="mt-1.5 flex items-center gap-1">
+                {Array.from({ length: MAX_COMPS }).map((_, i) => (
+                  <span key={i} className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${i < comparables.length ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 'bg-gray-200 dark:bg-gray-700'}`} />
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={handleContinue}
+              disabled={comparables.length === 0}
+              className="cma-btn inline-flex shrink-0 items-center gap-2 rounded-2xl bg-[#111827] px-5 py-3 text-sm font-black text-white disabled:opacity-50 dark:bg-white dark:text-[#111827]"
+            >
+              Continue <ArrowLeft className="h-4 w-4 rotate-180" />
+            </button>
+          </div>
+        </div>
+      , document.body)}
 
       {(() => {
         // Property-level prev/next for the detail popup, in the map/list order (sortedResults).
@@ -1789,6 +1881,8 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
             data={popupProps}
             compAdded={addedKeys.has(popup.candidate.listing_key)}
             onToggleComp={() => toggleAdd(popup.candidate)}
+            navIndex={i}
+            navTotal={sortedResults.length}
             onPrev={i > 0 ? () => setPopup({ type: 'candidate', candidate: sortedResults[i - 1] }) : undefined}
             onNext={i >= 0 && i < sortedResults.length - 1 ? () => setPopup({ type: 'candidate', candidate: sortedResults[i + 1] }) : undefined}
           />
@@ -1953,7 +2047,7 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
             </div>
 
             <div className="flex justify-end border-t border-gray-100 px-5 py-4 dark:border-gray-800">
-              <button onClick={() => setRefineOpen(false)} className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
+              <button onClick={() => setRefineOpen(false)} className="cma-btn inline-flex items-center gap-2 rounded-xl bg-[#111827] px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
                 Done
               </button>
             </div>
@@ -2071,6 +2165,79 @@ function CompCandidateCard({ candidate, matchScore, matchDetails, added, sameSch
   )
 }
 
+// Phones (user, 10/20): one compact row per candidate instead of a full-width card each - photo,
+// price, the facts, and how it differs from the subject ("−149 sq ft · same school · 0.1 mi"), so
+// the agent can compare a dozen homes against the subject without scrolling a screen per home.
+function CompCandidateRow({ candidate, subject, matchScore, added, sameSchool, onToggle, onOpenDetails }: {
+  candidate: CmaCompCandidate, subject: CmaSubjectProperty, matchScore?: number, added: boolean, sameSchool: boolean,
+  onToggle: () => void, onOpenDetails: () => void,
+}) {
+  const dp = compDisplayPrice(candidate as unknown as CmaComparable)
+  const photo = (candidate.photos && candidate.photos[0]) || candidate.photo_url
+  const acres = sqftToAcres(candidate.lot_size)
+  const facts = [
+    candidate.beds != null && `${candidate.beds} bd`,
+    candidate.baths != null && `${candidate.baths} ba`,
+    candidate.sqft && `${Math.round(candidate.sqft).toLocaleString()} sf`,
+    acres > 0 && `${acres.toLocaleString(undefined, { maximumFractionDigits: 2 })} ac`,
+  ].filter(Boolean).join(' · ')
+  const vs: { text: string, tone: 'same' | 'diff' }[] = []
+  if (subject.sqft && candidate.sqft) {
+    const d = Math.round(candidate.sqft - subject.sqft)
+    vs.push(Math.abs(d) < 50 ? { text: 'Same size', tone: 'same' } : { text: `${d > 0 ? '+' : '−'}${Math.abs(d).toLocaleString()} sf`, tone: 'diff' })
+  }
+  if (subject.year_built && candidate.year_built && candidate.year_built !== subject.year_built) {
+    const d = candidate.year_built - subject.year_built
+    vs.push({ text: `${Math.abs(d)} yrs ${d > 0 ? 'newer' : 'older'}`, tone: Math.abs(d) <= 5 ? 'same' : 'diff' })
+  }
+  if (candidate.school_district) vs.push(sameSchool ? { text: 'Same school', tone: 'same' } : { text: 'Other school', tone: 'diff' })
+
+  return (
+    <div className={`flex items-stretch gap-3 rounded-2xl border-2 bg-white p-2 transition-[border-color,box-shadow] duration-300 dark:bg-[#151517] ${added ? 'border-emerald-500 shadow-[0_12px_26px_-18px_rgba(16,185,129,0.9)]' : 'border-transparent shadow-sm'}`}>
+      <button type="button" onClick={onOpenDetails} className="relative h-[92px] w-[104px] shrink-0 overflow-hidden rounded-xl bg-gray-100 active:scale-[0.97] dark:bg-gray-800">
+        {photo ? <img src={normalizeImageUrl(photo)} alt="" loading="lazy" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Home className="h-5 w-5 text-gray-300" /></div>}
+        {typeof matchScore === 'number' && (
+          <span className={`absolute bottom-1 left-1 rounded-full px-1.5 py-0.5 text-[9px] font-black text-white shadow ${matchScore >= 70 ? 'bg-emerald-600' : 'bg-gray-500'}`}>{matchScore}%</span>
+        )}
+        {candidate.status && (
+          <span className={`absolute left-1 top-1 rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white shadow ${COMP_STATUS_BADGE_STYLE[candidate.status] || 'bg-gray-800'}`}>{COMP_STATUS_LABEL[candidate.status] || candidate.status}</span>
+        )}
+      </button>
+      <button type="button" onClick={onOpenDetails} className="min-w-0 flex-1 py-0.5 text-left">
+        <p className="line-clamp-2 break-words text-[13px] font-black leading-tight text-[#111827] dark:text-white">{candidate.street_address}</p>
+        <p className="mt-0.5 flex min-w-0 items-baseline gap-1.5">
+          <span className={`shrink-0 text-[13px] font-black ${dp.unverified ? 'text-gray-400' : 'text-[#8b7355] dark:text-[#d7b974]'}`}>{formatMoney(dp.value, { compact: true })}</span>
+          <span className="min-w-0 truncate text-[10px] font-bold uppercase tracking-wide text-gray-400">
+            {[candidate.city, candidate.distance_miles != null ? `${candidate.distance_miles} mi` : null].filter(Boolean).join(' · ')}
+          </span>
+        </p>
+        {facts && <p className="mt-1 text-[12px] font-bold leading-snug text-gray-600 dark:text-gray-300">{facts}</p>}
+        {vs.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {vs.map(v => (
+              <span key={v.text} className={`rounded-full px-1.5 py-0.5 text-[9.5px] font-black ${v.tone === 'same' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-[#C9A24D]/12 text-[#7a5a1e] dark:text-[#e8c97a]'}`}>{v.text}</span>
+            ))}
+          </div>
+        )}
+      </button>
+      <motion.button
+        type="button"
+        onClick={onToggle}
+        whileTap={{ scale: 0.86 }}
+        aria-label={added ? 'Remove from the CMA' : 'Add to the CMA'}
+        aria-pressed={added}
+        className={`grid h-10 w-10 shrink-0 self-center place-items-center rounded-full transition-colors duration-200 ${added ? 'bg-emerald-600 text-white shadow-[0_8px_18px_-8px_rgba(16,185,129,0.9)]' : 'border-2 border-gray-200 text-gray-500 dark:border-gray-700 dark:text-gray-300'}`}
+      >
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.span key={added ? 'in' : 'out'} initial={{ scale: 0.3, rotate: -45, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} exit={{ scale: 0.3, opacity: 0 }} transition={{ type: 'spring', stiffness: 600, damping: 28 }}>
+            {added ? <Check className="h-5 w-5" strokeWidth={3} /> : <Plus className="h-5 w-5" strokeWidth={2.6} />}
+          </motion.span>
+        </AnimatePresence>
+      </motion.button>
+    </div>
+  )
+}
+
 interface PropertyPopupData {
   photos: string[]
   address?: string | null
@@ -2142,230 +2309,330 @@ function PropertyLocationMap({ lat, lng, label, road }: { lat: number, lng: numb
   )
 }
 
-// Same pop-open, click-to-zoom pattern as the Showcases property detail view
-// (components/PropertyDetailsModal.tsx) - photo + filmstrip picture-selector below it, then the
-// full fact set - a lighter version scoped to what a CMA comp actually has.
-function PropertyPopupModal({ open, onClose, data, onPrev, onNext, compAdded, onToggleComp }: {
+// Swipeable photo strip (CSS scroll-snap, so a phone swipe is the native one) with arrows and
+// position dots - used by the home sheet below. `goRef` lets the filmstrip under it jump to a photo.
+function SwipePhotos({ photos, resetKey, onIndex, goRef }: {
+  photos: string[], resetKey: string, onIndex?: (i: number) => void, goRef?: React.MutableRefObject<((i: number) => void) | null>
+}) {
+  const stripRef = useRef<HTMLDivElement>(null)
+  const [index, setIndex] = useState(0)
+  useEffect(() => { setIndex(0); stripRef.current?.scrollTo({ left: 0 }) }, [resetKey])
+  useEffect(() => { onIndex?.(index) }, [index, onIndex])
+  const go = (i: number) => {
+    const el = stripRef.current
+    if (!el || photos.length === 0) return
+    const next = (i + photos.length) % photos.length
+    el.scrollTo({ left: next * el.clientWidth, behavior: 'smooth' })
+    setIndex(next)
+  }
+  if (goRef) goRef.current = go
+  const onScroll = () => {
+    const el = stripRef.current
+    if (!el || !el.clientWidth) return
+    const i = Math.round(el.scrollLeft / el.clientWidth)
+    if (i !== index) setIndex(Math.max(0, Math.min(photos.length - 1, i)))
+  }
+  return (
+    <>
+      <div ref={stripRef} onScroll={onScroll} className="scrollbar-hide flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain">
+        {photos.map((p, i) => (
+          <img key={i} src={normalizeImageUrl(p)} alt="" draggable={false} loading={i < 2 ? 'eager' : 'lazy'} className="h-full w-full shrink-0 snap-center object-cover" />
+        ))}
+      </div>
+      {photos.length > 1 && (
+        <>
+          <button type="button" onClick={() => go(index - 1)} aria-label="Previous photo" className="cma-photo-arrow left-2.5"><ChevronLeft className="h-5 w-5" /></button>
+          <button type="button" onClick={() => go(index + 1)} aria-label="Next photo" className="cma-photo-arrow right-2.5"><ChevronRight className="h-5 w-5" /></button>
+          <div className="pointer-events-none absolute inset-x-0 bottom-12 flex justify-center gap-1 sm:hidden">
+            {photos.slice(0, 12).map((_, i) => (
+              <span key={i} className={`h-1.5 rounded-full bg-white shadow transition-all duration-300 ${i === Math.min(index, 11) ? 'w-4 opacity-100' : 'w-1.5 opacity-60'}`} />
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  )
+}
+
+// Thumbnail filmstrip under the sheet's photo - the current one ringed in gold and kept in view.
+function PhotoFilmstrip({ photos, index, onPick }: { photos: string[], index: number, onPick: (i: number) => void }) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([])
+  useEffect(() => { refs.current[index]?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' }) }, [index])
+  return (
+    <div className="scrollbar-hide flex gap-1.5 overflow-x-auto px-4 pt-3 sm:px-6">
+      {photos.map((p, i) => (
+        <button
+          key={i}
+          type="button"
+          ref={el => { refs.current[i] = el }}
+          onClick={() => onPick(i)}
+          aria-label={`Photo ${i + 1}`}
+          className={`relative h-12 w-16 shrink-0 overflow-hidden rounded-lg transition duration-300 ${i === index ? 'ring-2 ring-[#C9A24D] ring-offset-2 ring-offset-white dark:ring-offset-[#151517]' : 'opacity-55 hover:opacity-100'}`}
+        >
+          <img src={normalizeImageUrl(p)} alt="" loading="lazy" className="h-full w-full object-cover" />
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// The CMA builder's home details: the same sheet as the Showcase's home details
+// (components/PropertyDetailsModal.tsx) - built from its pieces (useSwipeToClose / useIsPhone /
+// usePagePin from components/ui/windowMotion, NavButton / SideArrow / SLIDE_HOME): on a phone a
+// sheet that slides up, pulls down to close and has the street, prev / next and X in its header;
+// on a wide screen a centred window with big arrows beside it. Content is scoped to what a CMA
+// subject / comp has (photos, status + match, add as comp, the fact chips, school, description,
+// street read).
+function PropertyPopupModal({ open, onClose, data, onPrev, onNext, compAdded, onToggleComp, navIndex, navTotal }: {
   open: boolean, onClose: () => void, data: PropertyPopupData | null, onPrev?: () => void, onNext?: () => void
   /** Comps step: whether this home is one of the report's comps, and the add / remove toggle. */
   compAdded?: boolean, onToggleComp?: () => void
+  /** Where this home sits in the list it was opened from (the "3/60" between the header arrows). */
+  navIndex?: number, navTotal?: number
 }) {
-  const [index, setIndex] = useState(0)
-  // Toggled by the mini map button next to the photo counter - swaps the photo area for an
-  // interactive Google map of THIS property's location, stays open until toggled back.
+  const shown = useLastValue(open ? data : null)
+  const phone = useIsPhone()
+  const reduce = useReducedMotion()
+  const { sheetRef, y: sheetY } = useSwipeToClose(onClose, phone && open)
+  const releasePagePin = usePagePin(open)
+  const [photoIndex, setPhotoIndex] = useState(0)
+  // Toggled by the map button on the photo - swaps the photos for an interactive Google map of THIS
+  // property's location; stays until toggled back.
   const [showMap, setShowMap] = useState(false)
-  useEffect(() => { if (open) { setIndex(0); setShowMap(false) } }, [open, data])
+  const homeKey = shown ? `${shown.address || ''}|${shown.lat ?? ''}|${shown.lng ?? ''}` : ''
+  useEffect(() => { setShowMap(false); setPhotoIndex(0) }, [homeKey])
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const photoGoRef = useRef<((i: number) => void) | null>(null)
+
+  // Which way the next home slides in (prev from the left, next from the right).
+  const [move, setMove] = useState<HomeMove | null>(null)
+  const goPrev = onPrev ? () => { setMove(m => ({ dir: -1, kind: 'nav', seq: (m?.seq || 0) + 1 })); onPrev() } : null
+  const goNext = onNext ? () => { setMove(m => ({ dir: 1, kind: 'nav', seq: (m?.seq || 0) + 1 })); onNext() } : null
+  const hasNav = !!(goPrev || goNext)
+  const goPrevRef = useRef(goPrev); goPrevRef.current = goPrev
+  const goNextRef = useRef(goNext); goNextRef.current = goNext
 
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t?.closest?.('input, textarea, select, [contenteditable="true"]')) return
       if (e.key === 'Escape') onClose()
-      if (data && data.photos.length > 1) {
-        if (e.key === 'ArrowRight') setIndex(i => (i + 1) % data.photos.length)
-        if (e.key === 'ArrowLeft') setIndex(i => (i - 1 + data.photos.length) % data.photos.length)
-      }
+      if (e.key === 'ArrowRight' && goNextRef.current) { e.preventDefault(); goNextRef.current() }
+      if (e.key === 'ArrowLeft' && goPrevRef.current) { e.preventDefault(); goPrevRef.current() }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose, data])
+  }, [open, onClose])
 
-  if (!open || !data) return null
-  const pics = data.photos.length > 0 ? data.photos : []
-  const hasGeo = typeof data.lat === 'number' && typeof data.lng === 'number'
+  if (typeof document === 'undefined') return null
+  const d = shown
+  const pics = d?.photos || []
+  const hasGeo = !!d && typeof d.lat === 'number' && typeof d.lng === 'number'
+  const off = typeof window !== 'undefined' ? window.innerHeight : 900
+  const sheetMotion = reduce
+    ? { initial: { opacity: 0 }, animate: { opacity: 1, transition: { duration: 0.16 } }, exit: { opacity: 0, transition: { duration: 0.14 } } }
+    : phone
+      ? { initial: { y: off }, animate: { y: 0, transition: SHEET_SPRING }, exit: { y: off, transition: { duration: 0.26, ease: [0.32, 0, 0.67, 0] as const } } }
+      : { initial: { opacity: 0, y: 48, scale: 0.97 }, animate: { opacity: 1, y: 0, scale: 1, transition: SHEET_DESKTOP_SPRING }, exit: { opacity: 0, y: 36, scale: 0.98, transition: { duration: 0.2, ease: [0.4, 0, 1, 1] as const } } }
 
-  // Portaled straight to document.body - this modal is opened from deep inside the page (the
-  // Comps tab AND the Analysis tab), both nested under ancestors that get an active CSS
-  // `transform` at various points (animate-step-in on step switch, hover/scale utilities
-  // elsewhere). Any ancestor with a transform becomes the containing block for a `position:
-  // fixed` descendant, which silently repositions this overlay relative to that ancestor's box
-  // instead of the viewport - it opened, just far down the page instead of centered. Portaling
-  // escapes the whole ancestor chain so `fixed inset-0` is always relative to the real viewport.
+  // Portaled straight to document.body - opened from deep inside the page (Comps AND Analysis),
+  // under ancestors that get a CSS transform at times (the step-in animation), which would make a
+  // `position: fixed` overlay position itself against that ancestor instead of the screen.
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-3 sm:p-6" onClick={onClose}>
-      {/* Step between properties (map/list order) - shown only when the opener wired handlers. */}
-      {onPrev && (
-        <button
-          type="button"
-          onClick={e => { e.stopPropagation(); onPrev() }}
-          aria-label="Previous home"
-          title="Previous home"
-          className="absolute left-1 top-1/2 z-[101] flex -translate-y-1/2 flex-col items-center gap-0.5 rounded-2xl bg-[#C9A24D] px-1.5 py-2.5 text-[#111827] shadow-xl shadow-black/40 ring-2 ring-white/70 transition hover:-translate-x-0.5 hover:bg-[#e0b85f] sm:left-4 sm:px-2.5 sm:py-3 lg:left-[calc(50%-24rem-5rem)]"
+    <AnimatePresence onExitComplete={releasePagePin}>
+      {open && d && (
+        <motion.div
+          key="cma-home-sheet"
+          data-scroll-lock="off"
+          className="cma-touch fixed inset-0 z-[100] flex items-end justify-center overscroll-none sm:items-center sm:p-6"
+          onClick={onClose}
         >
-          <ChevronsLeft className="h-5 w-5 sm:h-6 sm:w-6" />
-          <span className="hidden text-[9px] font-black uppercase tracking-wide sm:block">Prev home</span>
-        </button>
-      )}
-      {onNext && (
-        <button
-          type="button"
-          onClick={e => { e.stopPropagation(); onNext() }}
-          aria-label="Next home"
-          title="Next home"
-          className="absolute right-1 top-1/2 z-[101] flex -translate-y-1/2 flex-col items-center gap-0.5 rounded-2xl bg-[#C9A24D] px-1.5 py-2.5 text-[#111827] shadow-xl shadow-black/40 ring-2 ring-white/70 transition hover:translate-x-0.5 hover:bg-[#e0b85f] sm:right-4 sm:px-2.5 sm:py-3 lg:right-[calc(50%-24rem-5rem)]"
-        >
-          <ChevronsRight className="h-5 w-5 sm:h-6 sm:w-6" />
-          <span className="hidden text-[9px] font-black uppercase tracking-wide sm:block">Next home</span>
-        </button>
-      )}
-      <div className="relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-[#151517]" onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute right-3 top-3 z-10 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"><X className="h-4 w-4" /></button>
-        {/* ONE scroll region for the whole modal - photo, filmstrip and details scroll together.
-            Previously the photo/filmstrip sat in their own non-scrolling box, so the scrollbar
-            started below them and left a dead gutter ("black bar") beside the photo. */}
-        <div className="flex-1 overflow-y-auto">
-          {/* aspect-[4/3] matches real MLS photo proportions - a fixed short/wide box was forcing
-              heavy object-cover crops that read as "zoomed in" and too wide. */}
-          {/* overflow-hidden + rounded-t-3xl here (not just on the modal) so the photo's OWN top
-              corners are clipped flush on BOTH sides - the .cma-comp-photo scale animation could
-              otherwise bleed a square top-right corner past the modal's rounding. */}
-          <div className="relative aspect-[4/3] max-h-[420px] w-full overflow-hidden rounded-t-3xl bg-gray-100 dark:bg-gray-800">
-            {hasGeo && showMap ? (
-              <iframe
-                title={data.address ? `Map of ${data.address}` : 'Property location'}
-                src={`https://www.google.com/maps?q=${data.lat},${data.lng}&z=18&t=h&output=embed`}
-                className="h-full w-full border-0"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              />
-            ) : pics.length > 0 ? (
-              // key={index} replays the same instant-switch/slight-zoom animation (.cma-comp-photo,
-              // globals.css) used on the public report, on open and on every arrow/thumbnail
-              // switch - was a plain abrupt src swap before.
-              <img key={index} src={normalizeImageUrl(pics[index])} alt="" className="cma-comp-photo h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center"><Home className="h-10 w-10 text-gray-300" /></div>
-            )}
-            {!showMap && data.status && (
-              <span className={`absolute left-3 top-3 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-white shadow-lg ${COMP_STATUS_BADGE_STYLE[data.status] || 'bg-gray-800'}`}>
-                {COMP_STATUS_LABEL[data.status] || data.status}
-              </span>
-            )}
-            {!showMap && typeof data.matchScore === 'number' && (
-              <span className="absolute bottom-3 left-3 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-white shadow-lg">{data.matchScore}% Match</span>
-            )}
-            {!showMap && pics.length > 1 && (
-              <>
-                <button onClick={() => setIndex(i => (i - 1 + pics.length) % pics.length)} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white hover:bg-black/60"><ChevronLeft className="h-5 w-5" /></button>
-                <button onClick={() => setIndex(i => (i + 1) % pics.length)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white hover:bg-black/60"><ChevronRight className="h-5 w-5" /></button>
-              </>
-            )}
-            {/* Comps step: is it one of the report's comps - and add / remove it right here. */}
-            {onToggleComp && (
-              <button
-                type="button"
-                onClick={onToggleComp}
-                className={`absolute bottom-3 left-1/2 z-[2] inline-flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-wide shadow-lg transition active:scale-95 ${compAdded ? 'bg-emerald-600 text-white ring-2 ring-white/80' : 'bg-white text-[#111827] ring-2 ring-[#C9A24D] hover:bg-[#fffaf0]'}`}
-              >
-                {compAdded ? <><Check className="h-3.5 w-3.5" strokeWidth={3} /> In your comps</> : <><Plus className="h-3.5 w-3.5" strokeWidth={3} /> Add as comp</>}
-              </button>
-            )}
-            {/* bottom-right cluster: the open-map BUTTON (white, so it reads as tappable), then the
-                photo counter (dark, just information) */}
-            <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
-              {hasGeo && (
-                <button
-                  type="button"
-                  onClick={() => setShowMap(v => !v)}
-                  aria-label={showMap ? 'Back to photos' : 'Open location map'}
-                  className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-[#111827] shadow-md ring-1 ring-black/10 transition hover:-translate-y-0.5 hover:bg-[#fffaf0] active:scale-95"
-                >
-                  {showMap ? <><ImageIcon className="h-3.5 w-3.5 text-[#C9A24D]" /> Photos</> : <><MapPin className="h-3.5 w-3.5 text-[#C9A24D]" /> Map</>}
-                </button>
-              )}
-              {!showMap && pics.length > 1 && (
-                <span className="rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-bold text-white">{index + 1} / {pics.length}</span>
-              )}
-            </div>
-          </div>
-
-          {/* Picture selector filmstrip, same treatment as Showcases - borderless now that it's
-              part of the same scroll flow as the details below it. */}
-          {!showMap && pics.length > 1 && (
-            <div className="flex items-center gap-2 bg-white p-2.5 dark:bg-[#151517]">
-              <button onClick={() => setIndex(i => (i - 1 + pics.length) % pics.length)} className="hidden shrink-0 rounded-full border border-gray-200 bg-white p-1.5 text-gray-500 hover:border-[#C9A24D] hover:text-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] sm:block"><ChevronLeft className="h-3.5 w-3.5" /></button>
-              <div className="scrollbar-hide flex flex-1 gap-1.5 overflow-x-auto">
-                {pics.map((p, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setIndex(i)}
-                    className={`relative h-12 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition ${i === index ? 'border-[#C9A24D]' : 'border-transparent opacity-60 hover:opacity-100'}`}
+          <motion.div
+            aria-hidden
+            className="absolute inset-0 bg-[#0B0B0B]/80"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: { duration: 0.2, ease: 'easeOut' } }}
+            exit={{ opacity: 0, transition: { duration: phone ? 0.26 : 0.2, delay: phone ? 0 : 0.04 } }}
+          />
+          {hasNav && (
+            <>
+              <SideArrow narrow dir={-1} onClick={goPrev} />
+              <SideArrow narrow dir={1} onClick={goNext} />
+            </>
+          )}
+          <motion.div
+            ref={sheetRef}
+            {...sheetMotion}
+            className="relative flex h-[calc(100%-2.5rem)] w-full max-w-3xl flex-col overflow-hidden rounded-t-[26px] shadow-2xl sm:h-auto sm:max-h-[90vh] sm:rounded-[28px]"
+            style={{ overscrollBehavior: 'contain', y: phone && !reduce ? sheetY : undefined }}
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={d.address || 'Home details'}
+          >
+            <PropertySurface surface="app" gold="#C9A24D" ink="#111827" className="flex min-h-0 flex-1 flex-col bg-white dark:bg-[#151517]">
+              {/* header - on a phone also the handle you pull down to close */}
+              <div className="z-40 border-b border-[color:var(--pp-gold-line)] bg-[var(--pp-card)] px-4 pb-2.5 pt-1.5 sm:px-6 sm:py-3">
+                <div aria-hidden className="mx-auto mb-1.5 h-[5px] w-10 rounded-full bg-[color:var(--pp-gold-line)] sm:hidden" />
+                <div className="relative flex items-center justify-between gap-2 sm:gap-3">
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    <motion.div
+                      key={homeKey}
+                      className="min-w-0 flex-1 leading-tight"
+                      initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } }}
+                      exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8, transition: { duration: 0.14 } }}
+                    >
+                      <p title={d.address || undefined} className={`line-clamp-2 break-words font-serif font-black leading-[1.15] ${streetSize(d.address)} ${pp.heading}`}>{d.address}</p>
+                      {d.cityState && <p className={`mt-0.5 flex min-w-0 items-center gap-1 text-[11px] font-semibold ${pp.muted}`}><MapPin className="h-3 w-3 shrink-0 text-[color:var(--pp-gold)]" /><span className="min-w-0 truncate">{d.cityState}</span></p>}
+                    </motion.div>
+                  </AnimatePresence>
+                  {hasNav && (
+                    <div className="flex shrink-0 items-center rounded-full border border-[color:var(--pp-gold-line)] bg-[var(--pp-card)]">
+                      <NavButton dir={-1} onClick={goPrev} />
+                      {navIndex != null && navIndex >= 0 && navTotal ? (
+                        <span className={`min-w-[2.6rem] select-none text-center text-[11px] font-black tabular-nums max-[359px]:hidden ${pp.muted}`}>
+                          {navIndex + 1}<span className="opacity-50">/</span>{navTotal}
+                        </span>
+                      ) : null}
+                      <NavButton dir={1} onClick={goNext} />
+                    </div>
+                  )}
+                  <motion.button
+                    whileTap={{ scale: 0.88 }}
+                    whileHover={{ rotate: 90 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+                    onClick={onClose}
+                    className={`grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--pp-gold-wash)] transition-colors hover:bg-[color:var(--pp-gold-line)] ${pp.heading}`}
+                    title="Close"
+                    aria-label="Close"
                   >
-                    <img src={normalizeImageUrl(p)} alt="" className="h-full w-full object-cover" />
-                  </button>
-                ))}
+                    <X size={18} strokeWidth={2.5} />
+                  </motion.button>
+                </div>
               </div>
-              <button onClick={() => setIndex(i => (i + 1) % pics.length)} className="hidden shrink-0 rounded-full border border-gray-200 bg-white p-1.5 text-gray-500 hover:border-[#C9A24D] hover:text-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] sm:block"><ChevronRight className="h-3.5 w-3.5" /></button>
-            </div>
-          )}
-          <div className="p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate text-lg font-black text-[#111827] dark:text-white">{data.address}</p>
-              {data.cityState && <p className="text-xs font-bold uppercase tracking-wide text-gray-400">{data.cityState}</p>}
-            </div>
-            {data.price != null && (
-              <div className="shrink-0 text-right">
-                <p className="text-xl font-black text-[#8b7355] dark:text-[#d7b974]">{formatMoney(data.price)}</p>
-                {/* The status badge on the photo + the "Sold" date chip already say it's a closed
-                    sale, so a "Closed price" label here was redundant and just added a line. Keep
-                    only the $/sqft, folded onto one line. */}
-                {!!data.pricePerSqft && <p className="text-[9px] font-bold text-gray-400">${data.pricePerSqft}/sqft</p>}
+
+              <div ref={scrollRef} className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
+                <AnimatePresence mode="wait" initial={false} custom={move} onExitComplete={() => scrollRef.current?.scrollTo({ top: 0 })}>
+                  <motion.div key={homeKey} custom={move} variants={reduce ? FADE_HOME : SLIDE_HOME} initial="enter" animate="center" exit="exit">
+                    <div className="relative aspect-[4/3] max-h-[440px] w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
+                      {hasGeo && showMap ? (
+                        <iframe
+                          title={d.address ? `Map of ${d.address}` : 'Property location'}
+                          src={`https://www.google.com/maps?q=${d.lat},${d.lng}&z=18&t=h&output=embed`}
+                          className="h-full w-full border-0"
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                        />
+                      ) : pics.length > 0 ? (
+                        <SwipePhotos photos={pics} resetKey={homeKey} onIndex={setPhotoIndex} goRef={photoGoRef} />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center"><Home className="h-10 w-10 text-gray-300" /></div>
+                      )}
+                      {!showMap && d.status && (
+                        <span className={`absolute left-3 top-3 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-white shadow-lg ${COMP_STATUS_BADGE_STYLE[d.status] || 'bg-gray-800'}`}>
+                          {COMP_STATUS_LABEL[d.status] || d.status}
+                        </span>
+                      )}
+                      {!showMap && typeof d.matchScore === 'number' && (
+                        <span className="absolute right-3 top-3 rounded-full bg-emerald-600 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-white shadow-lg">{d.matchScore}% Match</span>
+                      )}
+                      {/* bottom: add / remove as a comp (Comps step), the map toggle and the photo counter */}
+                      <div className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-2">
+                        {onToggleComp ? (
+                          <motion.button
+                            type="button"
+                            whileTap={{ scale: 0.94 }}
+                            onClick={onToggleComp}
+                            className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-[11px] font-black uppercase tracking-wide shadow-lg transition-colors ${compAdded ? 'bg-emerald-600 text-white ring-2 ring-white/80' : 'bg-white text-[#111827] ring-2 ring-[#C9A24D] hover:bg-[#fffaf0]'}`}
+                          >
+                            <AnimatePresence mode="popLayout" initial={false}>
+                              <motion.span key={compAdded ? 'in' : 'out'} initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} className="inline-flex items-center gap-1.5">
+                                {compAdded ? <><Check className="h-3.5 w-3.5" strokeWidth={3} /> In your comps</> : <><Plus className="h-3.5 w-3.5" strokeWidth={3} /> Add as comp</>}
+                              </motion.span>
+                            </AnimatePresence>
+                          </motion.button>
+                        ) : <span />}
+                        <div className="flex items-center gap-1.5">
+                          {hasGeo && (
+                            <button
+                              type="button"
+                              onClick={() => setShowMap(v => !v)}
+                              aria-label={showMap ? 'Back to photos' : 'Open location map'}
+                              className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-[#111827] shadow-md ring-1 ring-black/10 transition hover:-translate-y-0.5 hover:bg-[#fffaf0] active:scale-95"
+                            >
+                              {showMap ? <><ImageIcon className="h-3.5 w-3.5 text-[#C9A24D]" /> Photos</> : <><MapPin className="h-3.5 w-3.5 text-[#C9A24D]" /> Map</>}
+                            </button>
+                          )}
+                          {!showMap && pics.length > 1 && (
+                            <span className="rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-bold tabular-nums text-white">{photoIndex + 1} / {pics.length}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {!showMap && pics.length > 1 && <PhotoFilmstrip photos={pics} index={photoIndex} onPick={i => photoGoRef.current?.(i)} />}
+                    <div className="p-4 sm:p-6">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#C9A24D]">{d.priceLabel || 'Price'}</p>
+                          {d.price != null ? (
+                            <p className="font-serif text-2xl font-black text-[#111827] dark:text-white">{formatMoney(d.price)}</p>
+                          ) : <p className="font-serif text-2xl font-black text-gray-300">—</p>}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {!!d.pricePerSqft && <span className="rounded-full bg-[#C9A24D]/10 px-2.5 py-1 text-[11px] font-black text-[#8b7355] dark:text-[#d7b974]">${d.pricePerSqft}/sqft</span>}
+                          {d.distanceMiles != null && <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-black text-gray-600 dark:bg-gray-800 dark:text-gray-300">{d.distanceMiles} mi away</span>}
+                        </div>
+                      </div>
+                      <div className="mt-4 grid grid-flow-row-dense grid-cols-3 gap-2 sm:grid-cols-4">
+                        {d.facts.map((f, i) => (
+                          <CmaFactChip key={i} icon={f.icon} value={f.value} label={f.label} dynamicSpan={!f.fixedSpan} secondary={f.secondary}
+                            className={`cma-chip-in ${f.label === 'Basement' ? 'max-sm:!col-span-full' : ''}`} />
+                        ))}
+                        {d.schoolDistrict && (
+                          <div
+                            className="cma-chip-in relative flex flex-col items-center justify-center gap-1 rounded-xl border border-gray-200 bg-white py-2 text-center dark:border-gray-800 dark:bg-[#0B0B0B] max-sm:!col-span-full"
+                            style={{ gridColumn: `span ${chipSpan(d.schoolDistrict)} / span ${chipSpan(d.schoolDistrict)}` }}
+                          >
+                            {d.sameSchool && (
+                              <span title="Same school district as the subject property" className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-600">
+                                <Check className="h-2.5 w-2.5 text-white" />
+                              </span>
+                            )}
+                            <GraduationCap className="h-3.5 w-3.5 text-[#C9A24D]" />
+                            <span className={`max-w-full truncate px-2 font-black leading-tight text-[#111827] dark:text-white ${chipValueTextClass(d.schoolDistrict || '')}`} title={d.schoolDistrict}>{d.schoolDistrict}</span>
+                            <span className="text-[7px] font-black uppercase tracking-widest text-gray-400">School</span>
+                          </div>
+                        )}
+                      </div>
+                      {d.description && (
+                        <div className="mt-4 border-t border-gray-100 pt-4 dark:border-gray-800">
+                          <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-[#C9A24D]">Description</p>
+                          <p className="text-[13px] font-medium leading-relaxed text-gray-600 dark:text-gray-400">{d.description}</p>
+                        </div>
+                      )}
+                      {d.roadContext?.summary && (
+                        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4 text-[11px] dark:border-gray-800">
+                          {ROAD_VERDICT_STYLE[d.roadContext.verdict] && (
+                            <span className={`rounded-full px-2 py-0.5 font-black uppercase tracking-wide ${ROAD_VERDICT_STYLE[d.roadContext.verdict].cls}`}>{ROAD_VERDICT_STYLE[d.roadContext.verdict].label}</span>
+                          )}
+                          <span className="font-semibold text-gray-600 dark:text-gray-300">{d.roadContext.summary}</span>
+                          {d.roadContext.max_speed_mph ? <span className="font-bold text-gray-400">~{d.roadContext.max_speed_mph} mph nearby</span> : null}
+                        </div>
+                      )}
+                      {/* breathing room above the phone's home bar */}
+                      <div className="h-[env(safe-area-inset-bottom)]" />
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
               </div>
-            )}
-          </div>
-          {/* Same fact-chip treatment as the Analysis step's side-by-side comparison, so a comp
-              looks like the same property whether you're eyeing it here or lining it up against
-              the subject later. Distance already lives in data.facts as a normal chip, so the old
-              standalone "X miles..." line above was pure duplication - removed. School district
-              flows in as a normal grid cell instead of breaking out onto its own full-width
-              strip. Every tile's span is driven by how long its own value actually is (chipSpan)
-              - a short "3" stays one tile, "Full, Finished, Walkout" or a long district name
-              claims 2-3 - and grid-flow-row-dense backfills the gaps that leaves with whatever
-              shorter tile comes next, so nothing wastes a line the way a fixed-width layout does.
-              The side-by-side comparison's own compact grid uses the same dynamicSpan treatment
-              for its Basement/School tiles, just at a smaller `compact` size. */}
-          <div className="mt-4 grid grid-flow-row-dense grid-cols-3 gap-2 sm:grid-cols-4">
-            {data.facts.map((f, i) => (
-              <CmaFactChip key={i} icon={f.icon} value={f.value} label={f.label} dynamicSpan={!f.fixedSpan} secondary={f.secondary}
-                className={f.label === 'Basement' ? 'max-sm:!col-span-full' : ''} />
-            ))}
-            {data.schoolDistrict && (
-              <div
-                className="relative flex flex-col items-center justify-center gap-1 rounded-xl border border-gray-200 bg-white py-2 text-center dark:border-gray-800 dark:bg-[#0B0B0B] max-sm:!col-span-full"
-                style={{ gridColumn: `span ${chipSpan(data.schoolDistrict)} / span ${chipSpan(data.schoolDistrict)}` }}
-              >
-                {data.sameSchool && (
-                  <span title="Same school district as the subject property" className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-600">
-                    <Check className="h-2.5 w-2.5 text-white" />
-                  </span>
-                )}
-                <GraduationCap className="h-3.5 w-3.5 text-[#C9A24D]" />
-                <span className={`max-w-full truncate px-2 font-black leading-tight text-[#111827] dark:text-white ${chipValueTextClass(data.schoolDistrict || '')}`} title={data.schoolDistrict}>{data.schoolDistrict}</span>
-                <span className="text-[7px] font-black uppercase tracking-widest text-gray-400">School</span>
-              </div>
-            )}
-          </div>
-          {data.description && (
-            <div className="mt-4 border-t border-gray-100 pt-4 dark:border-gray-800">
-              <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-[#C9A24D]">Description</p>
-              <p className="text-xs font-medium leading-relaxed text-gray-600 dark:text-gray-400">{data.description}</p>
-            </div>
-          )}
-          {/* The full location map lives behind the map button on the photo now - keep only the
-              street/road read here (it's data the photo toggle doesn't show). */}
-          {data.roadContext?.summary && (
-            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4 text-[11px] dark:border-gray-800">
-              {ROAD_VERDICT_STYLE[data.roadContext.verdict] && (
-                <span className={`rounded-full px-2 py-0.5 font-black uppercase tracking-wide ${ROAD_VERDICT_STYLE[data.roadContext.verdict].cls}`}>{ROAD_VERDICT_STYLE[data.roadContext.verdict].label}</span>
-              )}
-              <span className="font-semibold text-gray-600 dark:text-gray-300">{data.roadContext.summary}</span>
-              {data.roadContext.max_speed_mph ? <span className="font-bold text-gray-400">~{data.roadContext.max_speed_mph} mph nearby</span> : null}
-            </div>
-          )}
-          </div>
-        </div>
-      </div>
-    </div>,
+            </PropertySurface>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
     document.body,
   )
 }
@@ -2521,7 +2788,8 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
   const { showToast } = useToast()
   const [comparables, setComparables] = useState<CmaComparable[]>(() => normalizeAnalysisComparables(report.comparables))
   const [activeId, setActiveId] = useState<string | null>(() => normalizeAnalysisComparables(report.comparables)[0]?.id || null)
-  const [popup, setPopup] = useState<{ kind: 'subject' | 'comp' } | null>(null)
+  // 0 = the subject, k = comparables[k - 1] - the details sheet steps through them with prev / next.
+  const [popup, setPopup] = useState<{ pos: number } | null>(null)
   const [generating, setGenerating] = useState(false)
   const [progressPct, setProgressPct] = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
@@ -2584,6 +2852,10 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
     const benchmarkEnd = marketReviewEnd + 8_000
     const reasoningEnd = benchmarkEnd + 150_000
     let lastActiveCompIndex = -1
+    // Phones (user, 10/20): no flipping the whole side-by-side view to each comp as the AI reaches
+    // it - on a phone that redraws the page under the agent's thumb. Only the scan on the one comp
+    // card it's working on (CompOrderRail) moves.
+    const followScanAcrossPage = typeof window === 'undefined' || !window.matchMedia('(max-width: 639px)').matches
 
     const updateProgress = () => {
       const elapsedMs = Date.now() - startedAtMs
@@ -2602,7 +2874,7 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
         pct = 10 + ((compIndex + compFraction) / stagedCompCount) * 38
         label = `Reviewing comparable ${compIndex + 1} of ${stagedCompCount}...`
         nextScanStage = compIndex + 1
-        if (compIndex !== lastActiveCompIndex) {
+        if (compIndex !== lastActiveCompIndex && followScanAcrossPage) {
           lastActiveCompIndex = compIndex
           const comp = includedNow[compIndex]
           if (comp) setActiveId(comp.id)
@@ -2924,7 +3196,7 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
               <button
                 onClick={handleGenerate}
                 disabled={generating}
-                className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e0b85f] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#C9A24D]/40 transition hover:shadow-xl hover:shadow-[#C9A24D]/50 disabled:opacity-70 sm:w-auto"
+                className="cma-btn cma-btn-gold inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e0b85f] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#C9A24D]/40 transition hover:shadow-xl hover:shadow-[#C9A24D]/50 disabled:opacity-70 sm:w-auto"
               >
                 {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 {generating ? 'Analyzing…' : genError ? 'Try again' : 'Create AI Analysis'}
@@ -3001,8 +3273,8 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
           onPrev={() => setActiveId(comparables[Math.max(0, activeIndex - 1)]?.id || active.id)}
           onNext={() => setActiveId(comparables[Math.min(comparables.length - 1, activeIndex + 1)]?.id || active.id)}
           onContinueClick={handleContinue}
-          onOpenSubjectDetails={() => setPopup({ kind: 'subject' })}
-          onOpenCompDetails={() => setPopup({ kind: 'comp' })}
+          onOpenSubjectDetails={() => setPopup({ pos: 0 })}
+          onOpenCompDetails={() => setPopup({ pos: activeIndex + 1 })}
           focusSignal={compareFocusSignal}
         />
       )}
@@ -3010,7 +3282,15 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
       <PropertyPopupModal
         open={!!popup}
         onClose={() => setPopup(null)}
-        data={popup ? buildAnalysisPopupData(popup.kind, report.subject, active, report.pricing?.ai_estimate?.subject_road_context ?? null) : null}
+        data={popup ? buildAnalysisPopupData(
+          popup.pos === 0 ? 'subject' : 'comp', report.subject,
+          popup.pos === 0 ? active : comparables[popup.pos - 1] || active,
+          report.pricing?.ai_estimate?.subject_road_context ?? null,
+        ) : null}
+        navIndex={popup?.pos}
+        navTotal={comparables.length + 1}
+        onPrev={popup && popup.pos > 0 ? () => setPopup({ pos: popup.pos - 1 }) : undefined}
+        onNext={popup && popup.pos < comparables.length ? () => setPopup({ pos: popup.pos + 1 }) : undefined}
       />
 
       <SectionCard title="Side-by-Side Comparison" subtitle="Major differences at a glance.">
@@ -3037,9 +3317,23 @@ function CompOrderRail({ comparables, activeId, onSelect, onReorder, scanStage =
   scanStage?: number,
 }) {
   const [draggedId, setDraggedId] = useState<string | null>(null)
+  const railRef = useRef<HTMLDivElement>(null)
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
+  // Keep the card being scanned (or the one picked) in view by sliding the row SIDEWAYS only - a
+  // scrollIntoView would also scroll the page, which on a phone yanked the view up and down.
+  const centerItem = useCallback((i: number) => {
+    const rail = railRef.current, el = itemRefs.current[i]
+    if (!rail || !el) return
+    const left = el.offsetLeft - (rail.clientWidth - el.offsetWidth) / 2
+    rail.scrollTo({ left: Math.max(0, left), behavior: 'smooth' })
+  }, [])
+  useEffect(() => { if (scanStage >= 1) centerItem(scanStage - 1) }, [scanStage, centerItem])
+  const activeIndex = comparables.findIndex(c => c.id === activeId)
+  useEffect(() => { if (activeIndex >= 0 && scanStage < 0) centerItem(activeIndex) }, [activeIndex, scanStage, centerItem])
+
   return (
-    <SectionCard title="Comparable Order" subtitle="Drag to reorder, or click one to compare it side-by-side with the subject.">
-      <div className="scrollbar-hide flex gap-3 overflow-x-auto pb-1.5">
+    <SectionCard title="Comparable Order" subtitle="Tap one to compare it with the subject. On a computer, drag to reorder.">
+      <div ref={railRef} className="scrollbar-hide -mx-1 flex snap-x gap-2.5 overflow-x-auto px-1 pb-2 pt-1 sm:gap-3">
         {comparables.map((c, i) => {
           const isActive = c.id === activeId
           const scanning = scanStage >= 0 && scanStage === i + 1
@@ -3047,6 +3341,7 @@ function CompOrderRail({ comparables, activeId, onSelect, onReorder, scanStage =
           return (
             <button
               key={c.id}
+              ref={el => { itemRefs.current[i] = el }}
               type="button"
               draggable
               onDragStart={() => setDraggedId(c.id)}
@@ -3056,23 +3351,25 @@ function CompOrderRail({ comparables, activeId, onSelect, onReorder, scanStage =
               }}
               onDragEnd={() => setDraggedId(null)}
               onClick={() => onSelect(c.id)}
-              className={`group flex w-48 shrink-0 cursor-grab flex-col overflow-hidden rounded-2xl border-2 text-left shadow-sm transition active:cursor-grabbing ${
+              className={`group flex w-36 shrink-0 snap-start flex-col active:scale-[0.97] overflow-hidden rounded-2xl border-2 bg-white text-left transition-[border-color,box-shadow,transform] duration-300 dark:bg-[#151517] sm:w-48 sm:cursor-grab sm:active:cursor-grabbing ${
                 isActive
-                  ? 'border-[#C9A24D] shadow-md shadow-[#C9A24D]/20'
-                  : 'border-gray-200 hover:border-gray-300 hover:shadow-md dark:border-gray-800 dark:hover:border-gray-600'
-              } ${!c.is_included ? 'opacity-50' : ''}`}
+                  ? '-translate-y-0.5 border-[#C9A24D] shadow-[0_14px_28px_-16px_rgba(201,162,77,0.9)]'
+                  : 'border-gray-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md dark:border-gray-800 dark:hover:border-gray-600'
+              } ${scanning ? 'border-[#C9A24D] shadow-[0_0_0_4px_rgba(201,162,77,0.18)]' : ''} ${!c.is_included ? 'opacity-50' : ''}`}
             >
               <div className="relative overflow-hidden">
-                {c.photo_url ? <img src={normalizeImageUrl(c.photo_url || undefined)} alt="" className="aspect-[4/3] w-full object-cover" /> : <div className="flex aspect-[4/3] w-full items-center justify-center bg-gray-100 dark:bg-gray-800"><Home className="h-5 w-5 text-gray-300" /></div>}
+                {c.photo_url
+                  ? <img src={normalizeImageUrl(c.photo_url || undefined)} alt="" draggable={false} className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-[1.04]" />
+                  : <div className="flex aspect-[4/3] w-full items-center justify-center bg-gray-100 dark:bg-gray-800"><Home className="h-5 w-5 text-gray-300" /></div>}
                 {scanning && <span className="ohp-comp-scan-line" />}
                 {scanning && <span className="pointer-events-none absolute inset-0 bg-[#C9A24D]/10" />}
                 {scanned && (
                   <span className="absolute inset-0 flex items-center justify-center bg-black/45">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg"><Check className="h-4 w-4" strokeWidth={3} /></span>
+                    <span className="cma-check-pop flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg"><Check className="h-4 w-4" strokeWidth={3} /></span>
                   </span>
                 )}
-                <span className={`absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black shadow ${isActive ? 'bg-[#C9A24D] text-white' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>{i + 1}</span>
-                <GripVertical className="absolute right-1.5 top-1.5 h-4 w-4 text-white drop-shadow" />
+                <span className={`absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black shadow transition-colors ${isActive ? 'bg-[#C9A24D] text-white' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>{i + 1}</span>
+                <GripVertical className="absolute right-1.5 top-1.5 hidden h-4 w-4 text-white drop-shadow sm:block" />
                 {!c.is_included && (
                   <span title={c.override_reason || undefined} className="absolute left-1.5 top-7 rounded-full bg-red-600 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white shadow">Irrelevant</span>
                 )}
@@ -3085,10 +3382,12 @@ function CompOrderRail({ comparables, activeId, onSelect, onReorder, scanStage =
                   </div>
                 )}
               </div>
-              <div className="p-2.5">
-                <p className="truncate text-xs font-black text-[#111827] dark:text-white">{c.street_address}</p>
+              <div className="p-2 sm:p-2.5">
+                <p className="truncate text-[11px] font-black text-[#111827] dark:text-white sm:text-xs">{c.street_address}</p>
                 <p className="mt-0.5 text-[10px] font-bold text-[#8b7355] dark:text-[#d7b974]">{formatMoney(compDisplayPrice(c).value)}</p>
               </div>
+              {/* the picked comp's gold underline glides from card to card */}
+              {isActive && <motion.span layoutId="cma-rail-active" className="h-1 w-full bg-gradient-to-r from-[#8b7355] via-[#C9A24D] to-[#e0b85f]" />}
             </button>
           )
         })}
@@ -3197,6 +3496,167 @@ function PaneMap({ lat, lng, label }: { lat: number, lng: number, label: string 
   )
 }
 
+// Phones (user, 10/20 - "mobile isn't set up for comparing property to property"): the subject and
+// this comp face off photo-to-photo, then every fact head-to-head with the difference spelled out
+// ("▲ 149 sq ft") instead of two truncated columns. Swipe the facts left / right for the next /
+// previous comp; the new comp slides in from the side it came from.
+type FaceOffRow = { label: string, a: React.ReactNode, b: React.ReactNode, an?: number | null, bn?: number | null, unit?: string, money?: boolean, decimals?: number }
+
+function faceOffDelta(row: FaceOffRow): { text: string, up: boolean } | null {
+  if (row.an == null || row.bn == null || !isFinite(row.an) || !isFinite(row.bn)) return null
+  const d = row.bn - row.an
+  if (Math.abs(d) < (row.decimals ? 0.005 : 0.5)) return null
+  const abs = Math.abs(d)
+  const shown = row.money
+    ? formatMoney(abs, { compact: true })
+    : abs.toLocaleString(undefined, { maximumFractionDigits: row.decimals ?? 0 })
+  return { text: `${shown}${row.unit ? ` ${row.unit}` : ''}`, up: d > 0 }
+}
+
+function PhoneFaceOffTile({ who, address, price, photos, fallback, mapMode, lat, lng, onOpen, accent }: {
+  who: string, address?: string | null, price?: number | null, photos?: string[] | null, fallback?: string | null,
+  mapMode: boolean, lat?: number | null, lng?: number | null, onOpen: () => void, accent: 'ink' | 'gold',
+}) {
+  const list = photos && photos.length ? photos : fallback ? [fallback] : []
+  const hasGeo = typeof lat === 'number' && typeof lng === 'number'
+  return (
+    <div className="relative min-w-0">
+      <div onClick={onOpen} className="relative aspect-[4/5] w-full cursor-pointer overflow-hidden rounded-2xl bg-gray-100 shadow-[0_18px_34px_-22px_rgba(17,24,39,0.7)] ring-1 ring-black/5 dark:bg-gray-800 dark:ring-white/10">
+        {mapMode && hasGeo ? (
+          <iframe
+            title={`Map of ${address || who}`}
+            src={`https://www.google.com/maps?q=${lat},${lng}&z=17&t=h&output=embed`}
+            className="pointer-events-none h-full w-full border-0"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        ) : list.length > 0 ? (
+          <SwipePhotos photos={list} resetKey={`${who}-${address}`} />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center"><Home className="h-7 w-7 text-gray-300" /></div>
+        )}
+        <span className={`pointer-events-none absolute left-2 top-2 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] shadow ${accent === 'gold' ? 'bg-[#C9A24D] text-white' : 'bg-[#111827] text-white'}`}>{who}</span>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-2.5 pb-2 pt-8">
+          <p className="truncate text-[11px] font-black leading-tight text-white">{address || '—'}</p>
+          <p className="text-[11px] font-bold text-[#f3d896]">{price != null ? formatMoney(price, { compact: true }) : 'Not listed'}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PhoneCompare({ subject, comp, index, total, showMaps, onPrev, onNext, onOpenSubjectDetails, onOpenCompDetails }: {
+  subject: CmaSubjectProperty, comp: CmaComparable, index: number, total: number, showMaps: boolean,
+  onPrev: () => void, onNext: () => void, onOpenSubjectDetails: () => void, onOpenCompDetails: () => void,
+}) {
+  const reduce = useReducedMotion()
+  // Slide direction: the comp after this one comes in from the right, the one before from the left.
+  const lastIndex = useRef(index)
+  const dir = index >= lastIndex.current ? 1 : -1
+  useEffect(() => { lastIndex.current = index }, [index])
+
+  const subjectPrice = subject.list_price ?? null
+  const compPrice = comp.sale_price ?? comp.list_price ?? null
+  const subjectPsf = subject.list_price && subject.sqft ? pricePerSqft(subject.list_price, subject.sqft) : null
+  const compPsf = comp.price_per_sqft ?? pricePerSqft(comp.sale_price ?? comp.list_price, comp.sqft)
+  const acres = (v?: number | null) => (v ? sqftToAcres(v) : null)
+  const garageN = (g?: string | null) => { const m = (g || '').match(/(\d+)/); return m ? Number(m[1]) : (/none|^no$/i.test(g || '') ? 0 : null) }
+  const rows: FaceOffRow[] = [
+    { label: 'Price', a: subjectPrice != null ? formatMoney(subjectPrice, { compact: true }) : '—', b: compPrice != null ? formatMoney(compPrice, { compact: true }) : '—', an: subjectPrice, bn: compPrice, money: true },
+    { label: '$ / sq ft', a: subjectPsf ? `$${Math.round(subjectPsf)}` : '—', b: compPsf ? `$${Math.round(compPsf)}` : '—', an: subjectPsf, bn: compPsf, money: true },
+    { label: 'Sq ft', a: subject.sqft ? subject.sqft.toLocaleString() : '—', b: comp.sqft ? comp.sqft.toLocaleString() : '—', an: subject.sqft, bn: comp.sqft, unit: 'sq ft' },
+    { label: 'Beds', a: subject.beds ?? '—', b: comp.beds ?? '—', an: subject.beds, bn: comp.beds, decimals: 1 },
+    { label: 'Baths', a: subject.baths ?? '—', b: comp.baths ?? '—', an: subject.baths, bn: comp.baths, decimals: 1 },
+    { label: 'Acres', a: acres(subject.lot_size) ?? '—', b: acres(comp.lot_size) ?? '—', an: acres(subject.lot_size), bn: acres(comp.lot_size), unit: 'ac', decimals: 2 },
+    { label: 'Built', a: subject.year_built ?? '—', b: comp.year_built ?? '—', an: subject.year_built, bn: comp.year_built, unit: 'yrs' },
+    { label: 'Garage', a: subject.garage || '—', b: comp.garage || '—', an: garageN(subject.garage), bn: garageN(comp.garage), unit: 'car' },
+    { label: 'Basement', a: basementFactValue(subject.basement, subject.below_grade_finished_area, subject.sqft, subject.above_grade_finished_area) || '—', b: basementFactValue(comp.basement, comp.below_grade_finished_area, comp.sqft, comp.above_grade_finished_area) || '—' },
+    { label: 'School', a: subject.school_district || '—', b: comp.school_district || '—' },
+    ...(comp.distance_miles != null ? [{ label: 'Distance', a: '—', b: `${comp.distance_miles} mi` } as FaceOffRow] : []),
+    ...(comp.sale_date ? [{ label: 'Sold', a: '—', b: formatDate(comp.sale_date) } as FaceOffRow] : []),
+    { label: 'Days on market', a: subject.days_on_market ?? '—', b: comp.days_on_market ?? '—' },
+  ]
+
+  return (
+    <div className="sm:hidden">
+      <div className="relative grid grid-cols-2 gap-2.5 p-3">
+        <PhoneFaceOffTile who="Subject" accent="ink" address={subject.street_address} price={subjectPrice} photos={subject.photos} fallback={subject.photo_url}
+          mapMode={showMaps} lat={subject.latitude} lng={subject.longitude} onOpen={onOpenSubjectDetails} />
+        <AnimatePresence mode="popLayout" initial={false} custom={dir}>
+          <motion.div
+            key={comp.id}
+            custom={dir}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, x: dir * 40, scale: 0.96 }}
+            animate={{ opacity: 1, x: 0, scale: 1, transition: { type: 'spring', stiffness: 380, damping: 34 } }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, x: -dir * 40, scale: 0.96, transition: { duration: 0.16 } }}
+          >
+            <PhoneFaceOffTile who={`Comp #${index + 1}`} accent="gold" address={comp.street_address} price={compPrice} photos={comp.photos} fallback={comp.photo_url}
+              mapMode={showMaps} lat={comp.latitude} lng={comp.longitude} onOpen={onOpenCompDetails} />
+          </motion.div>
+        </AnimatePresence>
+        {/* the "VS" medallion where the two photos meet */}
+        <span className="pointer-events-none absolute left-1/2 top-1/2 z-10 grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white font-serif text-[13px] font-black italic text-[#111827] shadow-[0_10px_24px_-8px_rgba(0,0,0,0.6)] ring-4 ring-[#C9A24D]/60 dark:bg-[#0B0B0B] dark:text-white">vs</span>
+      </div>
+
+      <motion.div
+        drag={total > 1 ? 'x' : false}
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.22}
+        dragDirectionLock
+        onDragEnd={(_, info) => {
+          if (info.offset.x < -70 || info.velocity.x < -500) { if (index < total - 1) onNext() }
+          else if (info.offset.x > 70 || info.velocity.x > 500) { if (index > 0) onPrev() }
+        }}
+        className="mx-3 mb-3 touch-pan-y"
+      >
+        <AnimatePresence mode="wait" initial={false} custom={dir}>
+          <motion.div
+            key={comp.id}
+            custom={dir}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, x: dir * 56 }}
+            animate={{ opacity: 1, x: 0, transition: { type: 'spring', stiffness: 360, damping: 34 } }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, x: -dir * 56, transition: { duration: 0.14 } }}
+            className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-[#0B0B0B]"
+          >
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-gray-100 bg-[#fbfaf7] px-3 py-2 text-[9px] font-black uppercase tracking-[0.16em] dark:border-gray-800 dark:bg-white/[0.03]">
+              <span className="text-[#111827] dark:text-white">Subject</span>
+              <span className="text-gray-300">·</span>
+              <span className="text-right text-[#8b7355] dark:text-[#d7b974]">Comp #{index + 1}</span>
+            </div>
+            {rows.map((row, i) => {
+              const delta = faceOffDelta(row)
+              const same = String(row.a) === String(row.b) && String(row.a) !== '—'
+              return (
+                <div key={row.label} className={`px-3 py-2 ${i % 2 ? 'bg-[#fbfaf7]/70 dark:bg-white/[0.015]' : ''}`}>
+                  <p className="mb-0.5 text-center text-[9px] font-black uppercase tracking-[0.16em] text-gray-400">{row.label}</p>
+                  <div className="grid grid-cols-2 items-start gap-3">
+                    <p className="min-w-0 break-words text-[13px] font-black leading-snug text-[#111827] dark:text-white">{row.a}</p>
+                    <div className="min-w-0 text-right">
+                      <p className="break-words text-[13px] font-black leading-snug">
+                        <span className={`rounded px-0.5 [box-decoration-break:clone] [-webkit-box-decoration-break:clone] ${!same && row.b !== '—' && row.a !== '—' ? 'cma-diff text-[#7a5a1e] dark:text-[#e8c97a]' : 'text-[#111827] dark:text-white'}`}>{row.b}</span>
+                      </p>
+                      {delta ? (
+                        <p className={`mt-0.5 text-[10px] font-black ${delta.up ? 'text-[#8b7355] dark:text-[#d7b974]' : 'text-slate-500 dark:text-slate-400'}`}>{delta.up ? '▲' : '▼'} {delta.text}</p>
+                      ) : same ? (
+                        <p className="mt-0.5 flex items-center justify-end gap-0.5 text-[10px] font-black text-emerald-600 dark:text-emerald-400"><Check className="h-3 w-3" strokeWidth={3} /> Same</p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </motion.div>
+        </AnimatePresence>
+        {total > 1 && (
+          <p className="mt-2 flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-400">
+            <ChevronLeft className="h-3 w-3" /> Swipe for the {index < total - 1 ? 'next' : 'previous'} comp <ChevronRight className="h-3 w-3" />
+          </p>
+        )}
+      </motion.div>
+    </div>
+  )
+}
+
 function SideBySidePanel({ subject, comp, index, total, onUpdate, onUpdateStrength, onUpdateQuality, onPrev, onNext, onContinueClick, onOpenSubjectDetails, onOpenCompDetails, focusSignal = 0 }: {
   subject: CmaSubjectProperty, comp: CmaComparable, index: number, total: number, onUpdate: (p: Partial<CmaComparable>) => void,
   onUpdateStrength: (value: string) => void,
@@ -3274,59 +3734,16 @@ function SideBySidePanel({ subject, comp, index, total, onUpdate, onUpdateStreng
               {showMaps ? <><ImageIcon className="h-3.5 w-3.5" /> Photos</> : <><MapPin className="h-3.5 w-3.5" /> Maps</>}
             </button>
           )}
-          <button onClick={onContinueClick} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#111827] px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827] sm:px-4">
+          <button onClick={onContinueClick} className="cma-btn inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#111827] px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827] sm:px-4">
             <span className="sm:hidden">Pricing</span><span className="hidden sm:inline">Continue to Pricing</span> <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
           </button>
         </div>
       </div>
 
-      {/* Phones (user, 10/17): one head-to-head instead of two tall stacked panes - the two photos
-          side by side, then every fact in one table with the subject and this comp next to each
-          other, so the differences read at a glance without scrolling between them. */}
-      <div className="sm:hidden">
-        <div className="grid grid-cols-2 gap-2 p-3">
-          {[{ who: 'Subject', addr: subject.street_address, geo: subjectHasGeo, lat: subject.latitude, lng: subject.longitude, photos: subject.photos, fallback: subject.photo_url, key: 'subject', open: onOpenSubjectDetails, onIdx: onSubjectIndexChange, pos: subjectPhotoPos },
-            { who: `Comp #${index + 1}`, addr: comp.street_address, geo: compHasGeo, lat: comp.latitude, lng: comp.longitude, photos: comp.photos, fallback: comp.photo_url, key: comp.id, open: onOpenCompDetails, onIdx: onCompIndexChange, pos: compPhotoPos }].map(p => (
-            <div key={p.who} className="min-w-0">
-              <p className="mb-1 flex items-baseline justify-between gap-1 text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">
-                <span className="truncate">{p.who}</span>
-                {!showMaps && p.pos.total > 1 && <span className="shrink-0 font-semibold text-gray-400">{p.pos.index + 1}/{p.pos.total}</span>}
-              </p>
-              <div className="overflow-hidden rounded-xl [&_img]:!object-cover">
-                {showMaps && p.geo ? (
-                  <PaneMap lat={p.lat as number} lng={p.lng as number} label={p.addr || p.who} />
-                ) : (
-                  <PropertyPhotoCarousel resetKey={`m-${p.key}`} photos={p.photos} fallbackUrl={p.fallback} onIndexChange={p.onIdx} onPhotoClick={p.open} />
-                )}
-              </div>
-              <p className="mt-1 truncate text-[11px] font-black text-[#111827] dark:text-white">{p.addr}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mx-3 mb-3 overflow-hidden rounded-xl border border-gray-100 dark:border-gray-800">
-          <div className="grid grid-cols-[1fr_1fr_1fr] bg-[#fbfaf7] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-gray-400 dark:bg-white/[0.03]">
-            <span></span><span className="text-right">Subject</span><span className="text-right">Comp #{index + 1}</span>
-          </div>
-          {([
-            ['Price', formatMoney(subject.list_price, { compact: true }), formatMoney(comp.sale_price ?? comp.list_price, { compact: true })],
-            ['$ / Sq ft', subjectPsf ? `$${Math.round(subjectPsf)}` : '—', psf ? `$${Math.round(psf)}` : '—'],
-            ['Sq ft', subject.sqft ? subject.sqft.toLocaleString() : '—', comp.sqft ? comp.sqft.toLocaleString() : '—'],
-            ['Beds', subject.beds ?? '—', comp.beds ?? '—'],
-            ['Baths', subject.baths ?? '—', comp.baths ?? '—'],
-            ['Acres', subject.lot_size ? sqftToAcres(subject.lot_size) : '—', comp.lot_size ? sqftToAcres(comp.lot_size) : '—'],
-            ['Built', subject.year_built ?? '—', comp.year_built ?? '—'],
-            ['Basement', basementFactValue(subject.basement, subject.below_grade_finished_area, subject.sqft, subject.above_grade_finished_area) || '—', basementFactValue(comp.basement, comp.below_grade_finished_area, comp.sqft, comp.above_grade_finished_area) || '—'],
-            ['School', subject.school_district || '—', comp.school_district || '—'],
-            ['Days on market', subject.days_on_market ?? '—', comp.days_on_market ?? '—'],
-          ] as [string, React.ReactNode, React.ReactNode][]).map(([label, a, b], i) => (
-            <div key={label} className={`grid grid-cols-[1fr_1fr_1fr] items-center gap-2 px-3 py-2 text-[12.5px] ${i % 2 ? 'bg-[#fbfaf7]/60 dark:bg-white/[0.015]' : ''}`}>
-              <span className="text-[10px] font-black uppercase tracking-wide text-gray-400">{label}</span>
-              <span className="min-w-0 truncate text-right font-black text-[#111827] dark:text-white" title={String(a)}>{a}</span>
-              <span className={`min-w-0 truncate text-right font-black ${String(a) !== String(b) ? 'text-[#8b6a2b] dark:text-[#e8c97a]' : 'text-[#111827] dark:text-white'}`} title={String(b)}>{b}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <PhoneCompare
+        subject={subject} comp={comp} index={index} total={total} showMaps={showMaps}
+        onPrev={onPrev} onNext={onNext} onOpenSubjectDetails={onOpenSubjectDetails} onOpenCompDetails={onOpenCompDetails}
+      />
 
       <div className="hidden grid-cols-1 divide-y divide-gray-100 sm:grid sm:grid-cols-2 sm:divide-x sm:divide-y-0 dark:divide-gray-800">
         <div className="p-4">
@@ -3402,29 +3819,21 @@ function SideBySidePanel({ subject, comp, index, total, onUpdate, onUpdateStreng
           </div>
           <span aria-hidden className="hidden sm:block" />
         </div>
-        <p className="mb-3 mt-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Each row describes this comp relative to the subject — "Comp Superior" means Comp #{index + 1} is the better one in that category; "Comp Inferior" means the subject is.</p>
+        <p className="mb-3 mt-1 hidden text-[11px] font-semibold text-gray-500 dark:text-gray-400 sm:block">Each row describes this comp relative to the subject — "Comp Superior" means Comp #{index + 1} is the better one in that category; "Comp Inferior" means the subject is.</p>
+        <p className="mb-3 mt-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 sm:hidden">How Comp #{index + 1} compares — "Superior" means the comp is the better one.</p>
         {/* Comp Weight is a different kind of question from everything below it - it's asking how
             much analytical weight to give this comp overall, not how one attribute compares to
             the subject - so it gets its own bracketed "bubble" (bolder gold border + gradient +
             glow, its own header row) instead of sitting quietly in the same divided list as the
             quality-dimension rows. */}
         <div className="relative mb-3 overflow-hidden rounded-xl border-2 border-[#C9A24D] bg-gradient-to-br from-[#C9A24D]/15 via-white to-white p-2.5 shadow-[0_8px_24px_-12px_rgba(201,162,77,0.6)] dark:border-[#C9A24D]/70 dark:from-[#C9A24D]/10 dark:via-[#151517] dark:to-[#151517]">
-          <div className="flex items-center gap-3">
-            <span className="flex w-24 shrink-0 items-center gap-1.5 text-[10px] font-black uppercase leading-tight tracking-wide text-[#8b7355] dark:text-[#d7b974]">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+            <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-black uppercase leading-tight tracking-wide text-[#8b7355] dark:text-[#d7b974] sm:w-24">
               <Scale className="h-3.5 w-3.5 shrink-0" />
               Comp Weight
             </span>
-            <div className="grid min-w-0 flex-1 gap-1" style={{ gridTemplateColumns: `repeat(${STRENGTH_OPTIONS.length}, minmax(0, 1fr))` }}>
-              {STRENGTH_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => onUpdateStrength(opt.value)}
-                  className={`rounded-lg px-1.5 py-2 text-center text-[10px] font-black uppercase leading-tight tracking-wide transition ${normalizeStrength(comp.strength) === opt.value ? `${STRENGTH_TIER_STYLES[opt.value]} shadow-md scale-[1.03]` : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400'}`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <div className="min-w-0 flex-1">
+              <OptionGrid options={STRENGTH_OPTIONS} value={normalizeStrength(comp.strength)} onChange={onUpdateStrength} tones={STRENGTH_TIER_STYLES} />
             </div>
           </div>
         </div>
@@ -3522,9 +3931,11 @@ function SideBySidePanel({ subject, comp, index, total, onUpdate, onUpdateStreng
 // buttons; this keeps every row a single clean line, with long labels wrapping WITHIN their own
 // cell instead of breaking the row layout.
 function QualityRowLayout({ label, children }: { label: string, children: React.ReactNode }) {
+  // Phones: the label on its own line above the choices (a 6rem label column squeezed the three
+  // choices into two-line pills). Wider screens: label column on the left, like before.
   return (
-    <div className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-      <p className="w-24 shrink-0 text-[10px] font-black uppercase leading-tight tracking-wide text-gray-700 dark:text-gray-400">{label}</p>
+    <div className="flex flex-col gap-1.5 py-2.5 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:gap-3">
+      <p className="shrink-0 text-[10px] font-black uppercase leading-tight tracking-wide text-gray-700 dark:text-gray-400 sm:w-24">{label}</p>
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   )
@@ -3543,23 +3954,52 @@ const STRENGTH_TIER_STYLES: Record<string, string> = {
   weak: 'bg-red-500 text-white dark:bg-red-600',
 }
 
-function OptionGrid({ options, value, onChange, colorCoded }: { options: { value: string, label: string }[], value?: string | null, onChange: (v: string) => void, colorCoded?: boolean }) {
+// Phone wording for the rating choices - the full "Comp Inferior" / "Different from Subject"
+// labels wrapped to two or three lines in a phone-width pill. The row's hint says it's the comp.
+const SHORT_OPTION_LABEL: Record<string, string> = {
+  'Comp Inferior': 'Inferior', 'Comp Superior': 'Superior',
+  'Different from Subject': 'Different', 'Same as Subject': 'Same', 'Similar to Subject': 'Similar',
+}
+
+// One segmented row of equal-width choices; the picked one's colour slides across to the next pick.
+function OptionGrid({ options, value, onChange, colorCoded, tones }: {
+  options: { value: string, label: string }[], value?: string | null, onChange: (v: string) => void, colorCoded?: boolean,
+  /** Per-value colour classes for the picked choice (defaults to the quality-tier colours / gold). */
+  tones?: Record<string, string>
+}) {
+  const groupId = useId()
+  const reduce = useReducedMotion()
   return (
-    <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
-      {options.map(opt => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          className={`rounded-lg px-1.5 py-2 text-center text-[10px] font-black uppercase leading-tight tracking-wide transition ${
-            value === opt.value
-              ? (colorCoded ? AGENT_QUALITY_TIER_STYLES[opt.value] || 'bg-[#C9A24D] text-white' : 'bg-[#C9A24D] text-white')
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
-          }`}
-        >
-          {opt.label}
-        </button>
-      ))}
+    <div className="grid gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-800/70" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+      {options.map(opt => {
+        const on = value === opt.value
+        const tone = (tones && tones[opt.value]) || (colorCoded ? AGENT_QUALITY_TIER_STYLES[opt.value] : '') || 'bg-[#C9A24D] text-white'
+        const toneText = tone.split(' ').filter(c => c.startsWith('text-') || c.startsWith('dark:text-')).join(' ')
+        const toneBg = tone.split(' ').filter(c => !c.startsWith('text-') && !c.startsWith('dark:text-')).join(' ')
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            aria-pressed={on}
+            className={`relative min-h-[36px] rounded-lg px-1.5 py-2 text-center text-[10px] font-black uppercase leading-tight tracking-wide transition-colors duration-200 active:scale-[0.97] ${
+              on ? toneText : 'text-gray-600 hover:bg-white/80 dark:text-gray-400 dark:hover:bg-gray-700/60'
+            }`}
+          >
+            {on && (
+              <motion.span
+                layoutId={reduce ? undefined : `opt-${groupId}`}
+                transition={{ type: 'spring', stiffness: 520, damping: 38 }}
+                className={`absolute inset-0 rounded-lg shadow-md ${toneBg}`}
+              />
+            )}
+            <span className="relative">
+              <span className="sm:hidden">{SHORT_OPTION_LABEL[opt.label] || opt.label}</span>
+              <span className="hidden sm:inline">{opt.label}</span>
+            </span>
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -3930,7 +4370,7 @@ function PricingStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
           dashboard, which an admin uses to view this via the report's own support code. */}
 
       <div className="flex justify-end gap-2">
-        <button onClick={handleContinue} className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-6 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
+        <button onClick={handleContinue} className="cma-btn inline-flex items-center gap-2 rounded-xl bg-[#111827] px-6 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
           Continue to Summary <ArrowLeft className="h-4 w-4 rotate-180" />
         </button>
       </div>

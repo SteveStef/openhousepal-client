@@ -1,8 +1,8 @@
 'use client'
 
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'framer-motion'
-import { useState, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react'
-import { useIsPhone, useLastValue, useSwipeToClose } from '@/components/ui/windowMotion'
+import { useState, useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react'
+import { useIsPhone, useLastValue, usePagePin, useSwipeToClose } from '@/components/ui/windowMotion'
 import { PropertyDetailResponse } from '@/types'
 import { CalendarCheck, CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Heart, Hourglass, Loader2, MapPin, MessageCircle, RefreshCw, Send, X } from 'lucide-react'
 import { normalizeImageUrl } from '@/lib/utils'
@@ -61,21 +61,21 @@ export type HomeMove = { dir: 1 | -1; kind: 'nav' | 'pass'; seq: number }
 
 const GOLD = '#C9A24D'
 const INK = '#111827'
-const SPRING = { type: 'spring', stiffness: 420, damping: 36, mass: 0.9 } as const
-const SHEET_SPRING = { type: 'spring', stiffness: 380, damping: 38, mass: 0.9 } as const
+export const SPRING = { type: 'spring', stiffness: 420, damping: 36, mass: 0.9 } as const
+export const SHEET_SPRING = { type: 'spring', stiffness: 380, damping: 38, mass: 0.9 } as const
 
 // Moving between homes: the next one glides in from the side it's coming from; a passed home
 // slides away to the left, shrinking a touch, before the next one arrives.
 const PASS_EASE = [0.4, 0, 1, 1] as const
 const FADE_LATE = [0.7, 0, 0.84, 0] as const // stays visible while it moves, then fades
-const SLIDE_HOME: Variants = {
+export const SLIDE_HOME: Variants = {
   enter: (m: HomeMove | null) => ({ opacity: 0, x: (m?.dir ?? 1) * 64, scale: 1 }),
   center: { opacity: 1, x: 0, scale: 1, transition: { type: 'spring', stiffness: 340, damping: 34, mass: 0.9 } },
   exit: (m: HomeMove | null) => m?.kind === 'pass'
     ? { opacity: 0, x: -200, scale: 0.94, transition: { x: { duration: 0.3, ease: [0.45, 0, 0.2, 1] }, scale: { duration: 0.3 }, opacity: { duration: 0.3, ease: FADE_LATE } } }
     : { opacity: 0, x: -(m?.dir ?? 1) * 72, transition: { x: { duration: 0.2, ease: PASS_EASE }, opacity: { duration: 0.2, ease: FADE_LATE } } },
 }
-const FADE_HOME: Variants = {
+export const FADE_HOME: Variants = {
   enter: { opacity: 0 },
   center: { opacity: 1, transition: { duration: 0.16 } },
   exit: { opacity: 0, transition: { duration: 0.12 } },
@@ -83,7 +83,7 @@ const FADE_HOME: Variants = {
 
 /** The header's street line shares its row with the arrows and the X, so a long street steps down a
  *  size (and may take two lines, then ends in "…") instead of pushing them aside. */
-function streetSize(street?: string | null) {
+export function streetSize(street?: string | null) {
   const n = (street || '').length
   if (n <= 18) return 'text-[15px] sm:text-base'
   if (n <= 26) return 'text-[14px] sm:text-base'
@@ -91,7 +91,7 @@ function streetSize(street?: string | null) {
 }
 
 /** A round previous / next arrow (the header pill, or the dark phone bar). Dimmed at either end. */
-function NavButton({ dir, onClick, dark = false }: { dir: -1 | 1; onClick?: (() => void) | null; dark?: boolean }) {
+export function NavButton({ dir, onClick, dark = false }: { dir: -1 | 1; onClick?: (() => void) | null; dark?: boolean }) {
   const Icon = dir < 0 ? ChevronLeft : ChevronRight
   return (
     <motion.button
@@ -111,7 +111,11 @@ function NavButton({ dir, onClick, dark = false }: { dir: -1 | 1; onClick?: (() 
 }
 
 /** Wide screens only: a big round arrow just outside the window's left / right edge. */
-function SideArrow({ dir, onClick }: { dir: -1 | 1; onClick?: (() => void) | null }) {
+export function SideArrow({ dir, onClick, narrow = false }: {
+  dir: -1 | 1; onClick?: (() => void) | null
+  /** Beside a max-w-3xl window (the CMA builder's home sheet) instead of this one's max-w-6xl. */
+  narrow?: boolean
+}) {
   const Icon = dir < 0 ? ChevronLeft : ChevronRight
   return (
     <motion.button
@@ -125,8 +129,10 @@ function SideArrow({ dir, onClick }: { dir: -1 | 1; onClick?: (() => void) | nul
       disabled={!onClick}
       aria-label={dir < 0 ? 'Previous home' : 'Next home'}
       title={dir < 0 ? 'Previous home (←)' : 'Next home (→)'}
-      className="absolute top-1/2 z-10 hidden h-14 w-14 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-[#111827] shadow-[0_18px_40px_-14px_rgba(0,0,0,.7)] ring-1 ring-black/5 transition-colors hover:bg-white disabled:cursor-default min-[1320px]:grid"
-      style={dir < 0 ? { left: 'calc(50% - 576px - 76px)' } : { right: 'calc(50% - 576px - 76px)' }}
+      className={`absolute top-1/2 z-10 hidden h-14 w-14 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-[#111827] shadow-[0_18px_40px_-14px_rgba(0,0,0,.7)] ring-1 ring-black/5 transition-colors hover:bg-white disabled:cursor-default ${narrow ? 'min-[1060px]:grid' : 'min-[1320px]:grid'}`}
+      style={narrow
+        ? (dir < 0 ? { left: 'calc(50% - 384px - 76px)' } : { right: 'calc(50% - 384px - 76px)' })
+        : (dir < 0 ? { left: 'calc(50% - 576px - 76px)' } : { right: 'calc(50% - 576px - 76px)' })}
     >
       <Icon size={26} strokeWidth={2.4} />
     </motion.button>
@@ -199,52 +205,9 @@ export default function PropertyDetailsModal({
   // has slid away (see the content's AnimatePresence), so it never jumps while leaving.
   const resetScroll = () => { scrollRef.current?.scrollTo({ top: 0 }); setBarOn(false) }
 
-  // The page behind can't scroll while the window is open: it's pinned in place (position: fixed at
-  // its current scroll) and put back at exactly the same spot once the window has finished closing.
-  // Laid down before the first paint (useLayoutEffect) so the page never scrolls a frame first.
-  // The overlay opts out of the site-wide ScrollLockWatcher (data-scroll-lock="off") - two locks
-  // fighting over <body> is what made a phone jump to the top and back when details closed (10/19).
-  const unlockRef = useRef<(() => void) | null>(null)
-  const isOpenRef = useRef(isOpen)
-  isOpenRef.current = isOpen
-  useLayoutEffect(() => {
-    if (!isOpen || unlockRef.current) return // reopened mid-close: the page is still pinned
-    const body = document.body
-    const html = document.documentElement
-    if (body.style.position === 'fixed') return // something else already pinned it
-    const scrollY = window.scrollY
-    const saved = { overflow: body.style.overflow, position: body.style.position, top: body.style.top, left: body.style.left, right: body.style.right, width: body.style.width, html: html.style.overflow }
-    body.style.overflow = 'hidden'
-    body.style.position = 'fixed'
-    body.style.top = `-${scrollY}px`
-    body.style.left = '0'
-    body.style.right = '0'
-    body.style.width = '100%'
-    html.style.overflow = 'hidden'
-    unlockRef.current = () => {
-      unlockRef.current = null
-      body.style.overflow = saved.overflow
-      body.style.position = saved.position
-      body.style.top = saved.top
-      body.style.left = saved.left
-      body.style.right = saved.right
-      body.style.width = saved.width
-      html.style.overflow = saved.html
-      // Same frame, no smooth scrolling: the page is back exactly where it was, no jump or flash.
-      const behavior = html.style.scrollBehavior
-      html.style.scrollBehavior = 'auto'
-      window.scrollTo(0, scrollY)
-      html.style.scrollBehavior = behavior
-    }
-  }, [isOpen])
-  // Normally released by the close animation finishing (onExitComplete below); this is the backstop
-  // for a close with nothing left to animate.
-  useEffect(() => {
-    if (isOpen) return
-    const t = window.setTimeout(() => { if (!isOpenRef.current) unlockRef.current?.() }, 700)
-    return () => window.clearTimeout(t)
-  }, [isOpen])
-  useEffect(() => () => unlockRef.current?.(), [])
+  // The page behind is pinned while the window is open (shared with the CMA builder sheet - see
+  // usePagePin in components/ui/windowMotion); the close animation finishing releases it.
+  const releasePagePin = usePagePin(isOpen)
 
   // Wide screens: the keyboard's arrow keys step through the homes (not while typing; the photo
   // viewer catches its own arrows first).
@@ -334,7 +297,7 @@ export default function PropertyDetailsModal({
   const hasNav = !!nav && nav.total > 1 && !!(nav.onPrev || nav.onNext)
 
   return (
-    <AnimatePresence onExitComplete={() => { if (!isOpenRef.current) unlockRef.current?.() }}>
+    <AnimatePresence onExitComplete={releasePagePin}>
       {isOpen && (
         <motion.div
           key="sc-window"

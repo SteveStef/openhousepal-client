@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { animate, useMotionValue, useReducedMotion, type MotionValue } from 'framer-motion'
 
 // One open/close feel for the Showcase's windows (tour, comments, adjust search, home details):
@@ -150,4 +150,55 @@ export function useSwipeToClose(onClose: () => void, enabled: boolean): { sheetR
     }
   }, [enabled, sheet, y])
   return { sheetRef, y }
+}
+
+/** The page behind a window can't scroll while it's open: it's pinned in place (position: fixed at
+ *  its current scroll) and put back at exactly the same spot once the window has finished closing.
+ *  Laid down before the first paint (useLayoutEffect) so the page never scrolls a frame first. The
+ *  overlay should opt out of the site-wide ScrollLockWatcher (data-scroll-lock="off") - two locks
+ *  fighting over <body> is what made a phone jump to the top and back when details closed (10/19).
+ *  Returns the handler for the window's <AnimatePresence onExitComplete>, which releases the pin. */
+export function usePagePin(isOpen: boolean): () => void {
+  const unlockRef = useRef<(() => void) | null>(null)
+  const isOpenRef = useRef(isOpen)
+  isOpenRef.current = isOpen
+  useLayoutEffect(() => {
+    if (!isOpen || unlockRef.current) return // reopened mid-close: the page is still pinned
+    const body = document.body
+    const html = document.documentElement
+    if (body.style.position === 'fixed') return // something else already pinned it
+    const scrollY = window.scrollY
+    const saved = { overflow: body.style.overflow, position: body.style.position, top: body.style.top, left: body.style.left, right: body.style.right, width: body.style.width, html: html.style.overflow }
+    body.style.overflow = 'hidden'
+    body.style.position = 'fixed'
+    body.style.top = `-${scrollY}px`
+    body.style.left = '0'
+    body.style.right = '0'
+    body.style.width = '100%'
+    html.style.overflow = 'hidden'
+    unlockRef.current = () => {
+      unlockRef.current = null
+      body.style.overflow = saved.overflow
+      body.style.position = saved.position
+      body.style.top = saved.top
+      body.style.left = saved.left
+      body.style.right = saved.right
+      body.style.width = saved.width
+      html.style.overflow = saved.html
+      // Same frame, no smooth scrolling: the page is back exactly where it was, no jump or flash.
+      const behavior = html.style.scrollBehavior
+      html.style.scrollBehavior = 'auto'
+      window.scrollTo(0, scrollY)
+      html.style.scrollBehavior = behavior
+    }
+  }, [isOpen])
+  // Normally released by the close animation finishing (onExitComplete); this is the backstop for a
+  // close with nothing left to animate.
+  useEffect(() => {
+    if (isOpen) return
+    const t = window.setTimeout(() => { if (!isOpenRef.current) unlockRef.current?.() }, 700)
+    return () => window.clearTimeout(t)
+  }, [isOpen])
+  useEffect(() => () => unlockRef.current?.(), [])
+  return useCallback(() => { if (!isOpenRef.current) unlockRef.current?.() }, [])
 }
