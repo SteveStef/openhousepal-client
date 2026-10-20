@@ -35,6 +35,7 @@ import { acresToSqft, MatchScoreDetails, sqftToAcres } from '@/lib/matchScore'
 import { normalizeImageUrl } from '@/lib/utils'
 import { useHoverPhotoCycle } from '@/lib/useHoverPhotoCycle'
 import CompsMapView from '@/components/CompsMapView'
+import CmaHowWeGotThere from '@/components/cma/CmaHowWeGotThere'
 import Pager from '@/components/Pager'
 import MultiSelectDatabaseInput from '@/components/MultiSelectDatabaseInput'
 import WarningConfirmModal from '@/components/WarningConfirmModal'
@@ -4580,8 +4581,9 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
             </ul>
           </div>
         )}
-        {/* "How this value was calculated" (ValuationTracePanel) is intentionally not shown to the
-            agent - admin can view it via CmaLookupPanel using the report's own support code. */}
+        {/* "How we got there" - the agent-only adjustment grid (10/20). The raw ValuationTracePanel
+            stays admin-only (CmaLookupPanel, via the report's support code). */}
+        <CmaHowWeGotThere estimate={report.pricing?.ai_estimate} />
         {report.mode === 'buyer' && buyerGuidance.inspectionText && (
           <div className="mt-3 rounded-xl bg-[#fbfaf7] p-4 dark:bg-[#0B0B0B]">
             <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">Inspection Concerns</p>
