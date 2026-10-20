@@ -260,8 +260,16 @@ export function compSoldToAsking(c: CmaComparable): number | null {
 export function formatSoldToAsking(c: CmaComparable): string | null {
   const r = compSoldToAsking(c)
   if (r == null) return null
-  const pct = Math.round((r - 1) * 1000) / 10
-  return pct === 0 ? 'At asking' : `${Math.abs(pct)}% ${pct > 0 ? 'over' : 'under'} asking`
+  const fmt = (x: number) => { const p = Math.round((x - 1) * 1000) / 10; return p === 0 ? 'at' : `${Math.abs(p)}% ${p > 0 ? 'over' : 'under'}` }
+  const main = fmt(r) === 'at' ? 'At asking' : `${fmt(r)} asking`
+  // Against the ORIGINAL asking price too when the price was cut (10/20: 2702 E Kings Hwy read
+  // "6.5% over asking" on a reduced price; it was 2.5% over the original $399,900).
+  const sold = c.sale_price ?? c.close_price ?? null
+  const orig = (c as { original_list_price?: number | null }).original_list_price ?? null
+  if (sold && orig && c.list_price && Math.abs(orig - c.list_price) / c.list_price > 0.005) {
+    return `${main} (${fmt(sold / orig)} original)`
+  }
+  return main
 }
 export function compSoldDate(c: CmaComparable): string | null {
   if (c.status !== 'sold' || !isPriceVerified(c)) return null
@@ -319,14 +327,16 @@ export interface CmaAdjustmentGridComp {
   label: string; address: string; sale: number; size: number; lowerLevel: number; baths: number
   garage: number; sewer: number; adjusted: number; weightPct: number; notes: string[]
 }
+export interface CmaAdjustmentGridStep { label: string; amount?: number; value?: number; note?: string; bold?: boolean }
 export interface CmaAdjustmentGrid {
   comps: CmaAdjustmentGridComp[]
   hasSewer: boolean
-  adjustedSalesValue: number          // weighted adjusted sales (blended with a $/sqft check)
-  otherAdjustments: number            // location / condition items the analysis added
-  compBasedValue: number              // what the comparable sales alone support
+  marketPsf: number | null
+  rates: { size: number | null; lowerLevel: number | null }
+  // Every step from the adjusted sales to the final value, each one adding up (10/20: the old
+  // panel skipped the asking-price ceiling, so $521K + $6K appeared to equal $500K).
+  steps: CmaAdjustmentGridStep[]
   finalValue: number | null
-  marketCheck: { amount: number; text: string } | null
   uncertainties: string[]
 }
 export function buildAdjustmentGrid(estimate?: CmaAiEstimate | null): CmaAdjustmentGrid | null {
@@ -344,22 +354,39 @@ export function buildAdjustmentGrid(estimate?: CmaAiEstimate | null): CmaAdjustm
       garage: fa?.garage ?? 0, sewer: fa?.sewer ?? 0, adjusted: c.size_adjusted_price,
       weightPct: Math.round((c.normalized_weight || 0) * 100), notes: fa?.notes || [],
     }
-  })
+  }).sort((a, b) => b.weightPct - a.weightPct)
+  const anchorValue = Math.round(anchor.anchor_value)
   const otherAdjustments = Math.round(trace?.adjustment_total ?? 0)
-  const compBasedValue = Math.round(trace?.v10_formula_fmv ?? (anchor.anchor_value + otherAdjustments))
+  const preExposure = Math.round(trace?.fmv_pre_exposure ?? (anchorValue + otherAdjustments))
+  const formulaValue = Math.round(trace?.v10_formula_fmv ?? preExposure)
   const finalValue = trace?.final_fmv ?? estimate?.value ?? null
-  let marketCheck: CmaAdjustmentGrid['marketCheck'] = null
-  if (finalValue && compBasedValue && Math.abs(finalValue - compBasedValue) / compBasedValue > 0.015) {
-    const apc = trace?.asking_price_check
-    const amount = finalValue - compBasedValue
-    const text = apc?.asking_price && apc?.ratio_used
-      ? `Homes here have been selling at about ${Math.round(apc.ratio_used * 100)}% of their asking price, so the value stays close to what this home's ${formatMoney(apc.asking_price)} asking price implies (${formatMoney(apc.expected_sale_price ?? null)}).`
-      : 'Final judgment on condition, location and market tempo beyond what the adjusted sales capture.'
-    marketCheck = { amount, text }
+  const steps: CmaAdjustmentGridStep[] = [
+    { label: 'Weighted average of the adjusted sales', value: anchorValue },
+  ]
+  if (otherAdjustments) steps.push({ label: 'Location / condition adjustments', amount: otherAdjustments })
+  if (otherAdjustments) steps.push({ label: 'What the comparable sales support', value: preExposure })
+  if (Math.abs(formulaValue - preExposure) > 500) {
+    steps.push({
+      label: 'Asking-price ceiling', amount: formulaValue - preExposure,
+      note: 'Listed a normal length of time with no accepted offer, so the formula holds the value at the asking price until a sale above it is evidenced.',
+    })
+    steps.push({ label: 'Formula value', value: formulaValue })
   }
+  if (finalValue && Math.abs(finalValue - formulaValue) > 500) {
+    const apc = trace?.asking_price_check
+    steps.push({
+      label: 'Final valuation pass', amount: finalValue - formulaValue,
+      note: apc?.asking_price && apc?.ratio_used
+        ? `Weighs condition, location and how homes here sell against asking (about ${Math.round(apc.ratio_used * 100)}% of asking), kept within ${formatMoney(apc.allowed_low_price ?? null)}–${formatMoney(apc.allowed_high_price ?? null)} of what this home's ${formatMoney(apc.asking_price)} asking price implies.`
+        : 'Weighs condition, location and market tempo beyond what the adjusted sales capture.',
+    })
+  }
+  steps.push({ label: 'Estimated fair market value', value: finalValue ?? formulaValue, bold: true })
+  const fa0 = rows.find(c => c.feature_adjustments)?.feature_adjustments as { size_rate_psf?: number, below_grade_rate_psf?: number, market_psf?: number } | undefined
   return {
-    comps, hasSewer: comps.some(c => c.sewer), adjustedSalesValue: Math.round(anchor.anchor_value),
-    otherAdjustments, compBasedValue, finalValue, marketCheck, uncertainties: anchor.main_uncertainties || [],
+    comps, hasSewer: comps.some(c => c.sewer), marketPsf: fa0?.market_psf ?? null,
+    rates: { size: fa0?.size_rate_psf ?? null, lowerLevel: fa0?.below_grade_rate_psf ?? null },
+    steps, finalValue, uncertainties: anchor.main_uncertainties || [],
   }
 }
 export function formatSignedMoney(v: number): string {

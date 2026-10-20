@@ -32,7 +32,7 @@ function pdfImageUrl(url?: string | null): string {
   if (typeof window === 'undefined') return normalized;
   return `${window.location.origin}/api/pdf-image?url=${encodeURIComponent(normalized)}`;
 }
-import { CmaGuidanceSection, buildCmaStaticMapUrl, clientCompStrength, cmaGuidanceSections, resolveCmaMarketMetrics, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, buyerOfferFigures, AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_HEX, STRENGTH_LABEL, STRENGTH_TIER_HEX, compDisplayPrice, effectiveCompPrice, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft, buildAdjustmentGrid, formatSignedMoney, basementDisplay, materialIssuesText, CmaAdjustmentGridComp } from '@/lib/cma';
+import { CmaGuidanceSection, buildCmaStaticMapUrl, clientCompStrength, cmaGuidanceSections, resolveCmaMarketMetrics, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, buyerOfferFigures, AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_HEX, STRENGTH_LABEL, STRENGTH_TIER_HEX, compDisplayPrice, effectiveCompPrice, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft, basementDisplay, materialIssuesText } from '@/lib/cma';
 import { qrPdfSrc } from '@/lib/qr';
 import { salesAreRecent, salesWords } from '@/lib/salesWording'
 
@@ -2595,71 +2595,6 @@ function CmaComparisonTablePage({ report, comparables, agent }: { report: CmaRep
   );
 }
 
-// Adjustment grid (10/20): the bridge between "the comps sold for X" and "this home is worth Y" -
-// each verified sale moved toward the subject in dollars, then what the sales support, then any
-// final step (e.g. the asking-price market check) said out loud instead of hidden.
-function CmaAdjustmentGridPage({ report, agent }: { report: CmaReport; agent: CmaPdfAgent }) {
-  const grid = buildAdjustmentGrid(report.pricing.ai_estimate);
-  if (!grid) return null;
-  const rows: { label: string; get: (c: CmaAdjustmentGridComp) => string; bold?: boolean }[] = [
-    { label: 'Sold Price', get: c => formatMoney(c.sale) },
-    { label: 'Size (Above Grade)', get: c => formatSignedMoney(c.size) },
-    { label: 'Finished Lower Level', get: c => formatSignedMoney(c.lowerLevel) },
-    { label: 'Bathrooms', get: c => formatSignedMoney(c.baths) },
-    { label: 'Garage', get: c => formatSignedMoney(c.garage) },
-    ...(grid.hasSewer ? [{ label: 'Cesspool', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.sewer) }] : []),
-    { label: 'Adjusted Price', get: c => formatMoney(c.adjusted), bold: true },
-    { label: 'Weight in Value', get: c => `${c.weightPct}%` },
-  ];
-  const summary: { label: string; value: string; bold?: boolean; note?: string }[] = [
-    { label: 'Value from adjusted sales', value: formatMoney(grid.adjustedSalesValue), note: 'Weighted adjusted prices, cross-checked against price per square foot.' },
-    ...(grid.otherAdjustments ? [{ label: 'Location / condition adjustments', value: formatSignedMoney(grid.otherAdjustments) }] : []),
-    { label: 'What the comparable sales support', value: formatMoney(grid.compBasedValue), bold: !grid.marketCheck },
-    ...(grid.marketCheck ? [
-      { label: 'Market check', value: formatSignedMoney(grid.marketCheck.amount), note: grid.marketCheck.text },
-      { label: 'Estimated fair market value', value: formatMoney(grid.finalValue), bold: true },
-    ] : []),
-  ];
-  return (
-    <Page size="LETTER" style={cma.page}>
-      <CmaPdfHeader label="Adjustment Grid" title="How the Comps Were Adjusted" subtitle="Each sale moved toward this home, in dollars" />
-      <View style={cma.tableWrap}>
-        <View style={cma.tableHeadRow}>
-          <Text style={[cma.tableLabelCell, { color: '#9CA3AF' }]}></Text>
-          {grid.comps.map(c => <Text key={c.label} style={cma.tableHeadCell}>{`${c.label}\n(${c.address})`}</Text>)}
-        </View>
-        {rows.map((row, index) => (
-          <View key={row.label} style={[cma.tableRow, index % 2 === 1 ? cma.tableRowAlt : {}]}>
-            <Text style={cma.tableLabelCell}>{row.label}</Text>
-            {grid.comps.map(c => <Text key={c.label} style={[cma.tableCell, row.bold ? { fontWeight: 900 } : {}]}>{row.get(c)}</Text>)}
-          </View>
-        ))}
-      </View>
-      <View style={{ marginTop: 14, borderRadius: 10, border: `1 solid ${COLORS.line}`, padding: 12 }}>
-        {summary.map(s => (
-          <View key={s.label} style={{ marginBottom: 6 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 8.5, fontWeight: s.bold ? 900 : 700, color: COLORS.text }}>{s.label}</Text>
-              <Text style={{ fontSize: s.bold ? 11 : 9, fontWeight: 900, color: s.bold ? '#8b7355' : COLORS.text }}>{s.value}</Text>
-            </View>
-            {s.note && <Text style={{ fontSize: 7, color: COLORS.muted, marginTop: 1.5 }}>{s.note}</Text>}
-          </View>
-        ))}
-      </View>
-      {grid.uncertainties.length > 0 && (
-        <View style={{ marginTop: 10, borderRadius: 10, backgroundColor: '#FEF3C7', padding: 10 }}>
-          <Text style={{ fontSize: 7.5, fontWeight: 900, color: '#92400E', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>What the sales can't pin down</Text>
-          {grid.uncertainties.map(u => <Text key={u} style={{ fontSize: 7.5, color: '#78350F', lineHeight: 1.4, marginTop: 1.5 }}>{`• ${u}`}</Text>)}
-        </View>
-      )}
-      <Text style={{ fontSize: 6.8, color: COLORS.muted, marginTop: 8, lineHeight: 1.4 }}>
-        Size is adjusted on above-grade living area. A finished lower level is valued at a fraction of above-grade space; baths and garage spaces at a share of each sale's price. Only sales with a recorded closing price are used.
-      </Text>
-      <CmaPageFooter agent={agent} />
-    </Page>
-  );
-}
-
 // The same 3-position scale as the public site's QualityScaleRow, redrawn with react-pdf
 // primitives (no CSS grid/flexbox shorthand, hex colors instead of Tailwind classes) so a client
 // sees the identical color language in the PDF as on the live report. Parameterized on
@@ -3133,7 +3068,6 @@ export const CmaPresentationDocument = ({ report, agent }: { report: CmaReport; 
       {!hidden.has('comparison_table') && comparables.length > 0 && <CmaComparisonTablePage report={report} comparables={comparables} agent={agent} />}
       {!hidden.has('market_context') && <CmaMarketSnapshotPage report={report} agent={agent} />}
       {!hidden.has('charts') && comparables.length > 0 && <CmaChartsPageV2 report={report} comparables={comparables} agent={agent} />}
-      {!hidden.has('pricing') && <CmaAdjustmentGridPage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaPricingPage report={report} comparables={comparables} agent={agent} />}
       {!hidden.has('pricing') && <CmaInspectionConcernsPage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaOfferSuggestionPage report={report} agent={agent} />}

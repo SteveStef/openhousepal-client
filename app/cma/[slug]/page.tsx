@@ -6,12 +6,12 @@ import { useParams } from 'next/navigation'
 import { PDFDownloadLink } from '@react-pdf/renderer'
 import { Bath, BedDouble, Building2, Calendar, Car, ChevronLeft, ChevronRight, DollarSign, Download, Droplets, Gauge, Home, LandPlot, Layers, Loader2, Maximize2, MapPin, Moon, Ruler, ShieldCheck, Sun, Waves, X } from 'lucide-react'
 import api from '@/lib/api-service'
-import { CmaAiEstimate, CmaComparable, CmaPublicResponse } from '@/types'
+import { CmaComparable, CmaPublicResponse } from '@/types'
 import {
   buildCmaStaticMapUrl, buildCompLocationMapUrl, clientCompStrength, compDisplayPrice, resolveCmaMarketMetrics, effectiveCompPrice, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange,
   CmaGuidanceSection, cmaGuidanceSections, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, COMP_STATUS_BADGE_STYLE,
   AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_STYLES, STRENGTH_LABEL, STRENGTH_SCALE_STYLES, STRENGTH_STYLES,
-  buyerOfferFigures, buildAdjustmentGrid, formatSignedMoney, basementDisplay, materialIssuesText, CmaAdjustmentGridComp, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft,
+  buyerOfferFigures, basementDisplay, materialIssuesText, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft,
 } from '@/lib/cma'
 import { CmaPresentationDocument } from '@/lib/pdfs'
 import { googleMapsLoader } from '@/lib/googleMapsLoader'
@@ -375,10 +375,6 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
           )
         })()}
 
-        {/* Adjustment grid (10/20): each verified sale moved toward this home in dollars, then what
-            the sales support, then any final step said out loud - no jump from "typical sale" to value. */}
-        {!hiddenSections.has('pricing') && <AdjustmentGridSection estimate={pricing.ai_estimate} />}
-
         {/* Agent Final Analysis */}
         {!hiddenSections.has('pricing') && (
           <section className="rounded-3xl bg-[#111827] p-8 text-white print:break-inside-avoid print:border print:border-gray-300 print:bg-white print:text-black sm:p-12">
@@ -528,78 +524,6 @@ function FactsGrid({ children }: { children: React.ReactNode }) {
 
 // Same bordered-card language as MiniFact/PopupFact elsewhere on this page, instead of bare
 // stacked text with nothing to visually group one stat from the next.
-function AdjustmentGridSection({ estimate }: { estimate?: CmaAiEstimate | null }) {
-  const grid = buildAdjustmentGrid(estimate)
-  if (!grid) return null
-  const rows: { label: string, get: (c: CmaAdjustmentGridComp) => string, bold?: boolean }[] = [
-    { label: 'Sold price', get: c => formatMoney(c.sale) },
-    { label: 'Size (above grade)', get: c => formatSignedMoney(c.size) },
-    { label: 'Finished lower level', get: c => formatSignedMoney(c.lowerLevel) },
-    { label: 'Bathrooms', get: c => formatSignedMoney(c.baths) },
-    { label: 'Garage', get: c => formatSignedMoney(c.garage) },
-    ...(grid.hasSewer ? [{ label: 'Cesspool', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.sewer) }] : []),
-    { label: 'Adjusted price', get: c => formatMoney(c.adjusted), bold: true },
-    { label: 'Weight in value', get: c => `${c.weightPct}%` },
-  ]
-  return (
-    <Section eyebrow="Adjustment Grid" title="How the Comps Were Adjusted">
-      <p className="mb-4 text-sm font-semibold text-gray-600 dark:text-gray-300">Each sale moved toward this home, in dollars.</p>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[480px] text-sm">
-          <thead>
-            <tr className="border-b border-gray-200 dark:border-gray-700">
-              <th />
-              {grid.comps.map(c => (
-                <th key={c.label} className="px-3 py-2 text-right text-[11px] font-black uppercase tracking-wide text-gray-500">
-                  {c.label}<span className="block font-semibold normal-case tracking-normal text-gray-400">{c.address}</span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(r => (
-              <tr key={r.label} className="border-b border-gray-100 dark:border-gray-800">
-                <td className="py-2 pr-3 text-xs font-black uppercase tracking-wide text-gray-500">{r.label}</td>
-                {grid.comps.map(c => (
-                  <td key={c.label} className={`px-3 py-2 text-right ${r.bold ? 'font-black text-[#8b7355] dark:text-[#d7b974]' : 'font-semibold text-[#111827] dark:text-white'}`}>{r.get(c)}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="mt-6 space-y-3 rounded-2xl border border-gray-200 p-4 dark:border-gray-700">
-        <GridSummaryLine label="Value from adjusted sales" value={formatMoney(grid.adjustedSalesValue)} note="Weighted adjusted prices, cross-checked against price per square foot." />
-        {grid.otherAdjustments !== 0 && <GridSummaryLine label="Location / condition adjustments" value={formatSignedMoney(grid.otherAdjustments)} />}
-        <GridSummaryLine label="What the comparable sales support" value={formatMoney(grid.compBasedValue)} bold={!grid.marketCheck} />
-        {grid.marketCheck && <GridSummaryLine label="Market check" value={formatSignedMoney(grid.marketCheck.amount)} note={grid.marketCheck.text} />}
-        {grid.marketCheck && <GridSummaryLine label="Estimated fair market value" value={formatMoney(grid.finalValue)} bold />}
-      </div>
-      {grid.uncertainties.length > 0 && (
-        <div className="mt-4 rounded-2xl bg-amber-50 p-4 dark:bg-amber-500/10">
-          <p className="text-[11px] font-black uppercase tracking-wide text-amber-800 dark:text-amber-300">What the sales can&apos;t pin down</p>
-          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-amber-900 dark:text-amber-200">
-            {grid.uncertainties.map(u => <li key={u}>{u}</li>)}
-          </ul>
-        </div>
-      )}
-      <p className="mt-3 text-xs text-gray-400">Size is adjusted on above-grade living area. A finished lower level is valued at a fraction of above-grade space; baths and garage spaces at a share of each sale&apos;s price. Only sales with a recorded closing price are used.</p>
-    </Section>
-  )
-}
-
-function GridSummaryLine({ label, value, note, bold = false }: { label: string, value: string, note?: string, bold?: boolean }) {
-  return (
-    <div>
-      <div className="flex items-baseline justify-between gap-4">
-        <p className={`text-sm ${bold ? 'font-black' : 'font-bold'} text-[#111827] dark:text-white`}>{label}</p>
-        <p className={`font-black ${bold ? 'text-lg text-[#8b7355] dark:text-[#d7b974]' : 'text-sm text-[#111827] dark:text-white'}`}>{value}</p>
-      </div>
-      {note && <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{note}</p>}
-    </div>
-  )
-}
-
 function Fact({ label, value }: { label: string, value: string | number | null | undefined }) {
   return (
     <div className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-gray-200 bg-white px-3 py-4 text-center shadow-sm dark:border-gray-800 dark:bg-[#0B0B0B] print:border-gray-200 print:bg-white print:shadow-none">
