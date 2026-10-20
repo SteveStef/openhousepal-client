@@ -342,6 +342,19 @@ function CmaWorkspacePageInner() {
   const prevStepIndex = useRef(stepIndex)
   const stepDir = stepIndex >= prevStepIndex.current ? 1 : -1
   useEffect(() => { prevStepIndex.current = stepIndex }, [stepIndex])
+  // Every step change (Continue, the step bar, a jump from Review) starts at the top of the new
+  // step (user, 10/20) - instantly, while the old step is already gone and the new one slides in,
+  // so it never reads as a scroll. Any box still focused is let go first, which also puts a
+  // phone's keyboard away instead of carrying it (and a zoom) into the next step.
+  useLayoutEffect(() => {
+    const active = document.activeElement as HTMLElement | null
+    if (active && active !== document.body) active.blur()
+    const html = document.documentElement
+    const behavior = html.style.scrollBehavior
+    html.style.scrollBehavior = 'auto'
+    window.scrollTo(0, 0)
+    html.style.scrollBehavior = behavior
+  }, [step])
   const initialStepSet = useRef(false)
   // Once the agent has visited the Analysis step, keep it mounted for the rest of the session so
   // an in-flight "Create AI Analysis" run - its progress bar, staged scan, generating state -
@@ -585,21 +598,34 @@ function NumberTextField({ label, value, onChange, prefix, icon: Icon }: {
   )
 }
 
-function SegmentedControl<T extends string>({ options, value, onChange }: { options: { value: T, label: string }[], value: T | null | undefined, onChange: (v: T) => void }) {
+// The gold pill slides from the old choice to the new one (subject step's Search / My Listings /
+// Enter Manually). Phones: the choices share one full-width row.
+function SegmentedControl<T extends string>({ options, value, onChange }: { options: { value: T, label: string, short?: string }[], value: T | null | undefined, onChange: (v: T) => void }) {
+  const groupId = useId()
+  const reduce = useReducedMotion()
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {options.map(opt => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          className={`rounded-lg px-3 py-1.5 text-[11px] font-black uppercase tracking-wide transition ${
-            value === opt.value ? 'bg-[#C9A24D] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
-          }`}
-        >
-          {opt.label}
-        </button>
-      ))}
+    <div className="grid w-full grid-flow-col gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-800/70 sm:inline-grid sm:w-auto">
+      {options.map(opt => {
+        const on = value === opt.value
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            aria-pressed={on}
+            className={`relative rounded-lg px-2 py-2 text-[10.5px] font-black uppercase tracking-wide transition-colors duration-200 active:scale-[0.97] sm:px-3.5 sm:text-[11px] ${on ? 'text-white' : 'text-gray-600 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}
+          >
+            {on && (
+              <motion.span
+                layoutId={reduce ? undefined : `seg-${groupId}`}
+                transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#b8923f] to-[#C9A24D] shadow-[0_8px_18px_-10px_rgba(201,162,77,0.9)]"
+              />
+            )}
+            <span className="relative whitespace-nowrap"><span className="sm:hidden">{opt.short || opt.label}</span><span className="hidden sm:inline">{opt.label}</span></span>
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -705,6 +731,14 @@ function NextButton({ onClick, label = 'Continue' }: { onClick: () => void, labe
 function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaReport, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>, onReportUpdated: (r: CmaReport) => void, onNext: () => void }) {
   const [subject, setSubject] = useState<CmaSubjectProperty>(report.subject)
   const [mode, setMode] = useState<'search' | 'mine' | 'manual'>('search')
+  const reduceMotion = useReducedMotion()
+  // The listing being loaded after a tap in My Listings (its row shows a spinner + scan).
+  const [pickingKey, setPickingKey] = useState<string | null>(null)
+  // Which way the picker's panel slides: toward the tab that was picked.
+  const modeIndex = (['search', 'mine', 'manual'] as const).indexOf(mode)
+  const prevModeIndex = useRef(modeIndex)
+  const modeDir = modeIndex >= prevModeIndex.current ? 1 : -1
+  useEffect(() => { prevModeIndex.current = modeIndex }, [modeIndex])
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<any[]>([])
   const [searching, setSearching] = useState(false)
@@ -878,16 +912,28 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
 
   return (
     <div className="space-y-5">
-      {!hasSubject && (
+      {/* Picking a property and the picked property's card swap with a soft lift (user, 10/20). */}
+      <AnimatePresence mode="wait" initial={false}>
+      {!hasSubject ? (
+        <motion.div key="pick" {...SUBJECT_SWAP}>
         <SectionCard title="Select the Subject Property" subtitle="Search by address, pick one of your listings, or enter it manually.">
           <div className="flex flex-wrap gap-1.5">
             <SegmentedControl
-              options={[{ value: 'search', label: 'Search Address' }, { value: 'mine', label: 'My Listings' }, { value: 'manual', label: 'Enter Manually' }]}
+              options={[{ value: 'search', label: 'Search Address', short: 'Search' }, { value: 'mine', label: 'My Listings' }, { value: 'manual', label: 'Enter Manually', short: 'Manual' }]}
               value={mode}
               onChange={v => v === 'manual' ? startManual() : setMode(v)}
             />
           </div>
 
+          {/* Each way of picking slides in from the side of its tab. */}
+          <AnimatePresence mode="wait" initial={false} custom={modeDir}>
+          <motion.div
+            key={mode}
+            custom={modeDir}
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: modeDir * 18 }}
+            animate={{ opacity: 1, x: 0, transition: { type: 'spring', stiffness: 420, damping: 36 } }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -modeDir * 18, transition: { duration: 0.12 } }}
+          >
           {mode === 'search' && (
             <div className="relative mt-4">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -934,27 +980,37 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
           {mode === 'manual' && <ManualAddressPicker onPick={pickManualAddress} />}
 
           {mode === 'mine' && (
-            <div className="mt-4 max-h-80 space-y-2 overflow-y-auto">
+            <div className="mt-4 max-h-80 space-y-2 overflow-y-auto p-0.5">
               {myListings.length === 0 && <p className="py-6 text-center text-sm font-semibold text-gray-400">No active listings found.</p>}
-              {myListings.map(listing => (
-                <button
+              {myListings.map((listing, i) => (
+                <motion.button
                   key={listing.listing_key}
-                  onClick={() => selectMyListing(listing)}
-                  className="flex w-full items-center gap-3 rounded-xl border border-gray-100 p-2.5 text-left transition hover:border-[#C9A24D]/40 dark:border-gray-800"
+                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0, transition: { delay: Math.min(i, 8) * 0.04, type: 'spring', stiffness: 420, damping: 34 } }}
+                  whileTap={{ scale: 0.98 }}
+                  disabled={!!pickingKey}
+                  onClick={async () => { setPickingKey(listing.listing_key); try { await selectMyListing(listing) } finally { setPickingKey(null) } }}
+                  className={`relative flex w-full items-center gap-3 overflow-hidden rounded-xl border p-2.5 text-left transition-colors hover:border-[#C9A24D]/50 hover:bg-[#C9A24D]/[0.04] dark:border-gray-800 ${pickingKey === listing.listing_key ? 'border-[#C9A24D] bg-[#C9A24D]/[0.06]' : 'border-gray-100'}`}
                 >
                   {listing.image ? <img src={normalizeImageUrl(listing.image || undefined)} alt="" className="h-12 w-14 shrink-0 rounded-lg object-cover" /> : <div className="flex h-12 w-14 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800"><Home className="h-4 w-4 text-gray-300" /></div>}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-[#111827] dark:text-white">{listing.address}</p>
                     <p className="text-xs font-semibold text-gray-400">{listing.price ? formatMoney(listing.price) : ''} {listing.bedrooms ? `· ${listing.bedrooms} bd` : ''} {listing.bathrooms ? `· ${listing.bathrooms} ba` : ''}</p>
                   </div>
-                </button>
+                  {pickingKey === listing.listing_key
+                    ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#C9A24D]" />
+                    : <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />}
+                  {pickingKey === listing.listing_key && <span className="ohp-comp-scan-line" />}
+                </motion.button>
               ))}
             </div>
           )}
+          </motion.div>
+          </AnimatePresence>
         </SectionCard>
-      )}
-
-      {hasSubject && (
+        </motion.div>
+      ) : (
+        <motion.div key="subject" {...SUBJECT_SWAP} className="space-y-5">
         <SectionCard
           title="Subject Property"
           subtitle={subject.source === 'manual' && !subject.listing_key ? "Fill in the home's facts - the more complete they are, the better the value." : "Edit any fact that isn't quite right."}
@@ -969,18 +1025,25 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
         >
           <SubjectFactsEditor reportId={report.id} subject={subject} setSubject={setSubject} area={area} />
         </SectionCard>
-      )}
-
-      {hasSubject && (
         <div className="flex justify-end gap-2">
           <button onClick={handleContinue} className="cma-btn inline-flex items-center gap-2 rounded-xl bg-[#111827] px-6 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
             Find Comparables <ArrowLeft className="h-4 w-4 rotate-180" />
           </button>
         </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   )
 }
+
+// The subject step's two states (choosing a property / the picked property's facts) swap with a
+// fade + lift; reduced motion just fades (framer-motion skips the transform there).
+const SUBJECT_SWAP = {
+  initial: { opacity: 0, y: 14, scale: 0.985 },
+  animate: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 360, damping: 32 } },
+  exit: { opacity: 0, y: -10, scale: 0.99, transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } },
+} as const
 
 function mapPropertyToSubject(p: any): CmaSubjectProperty {
   return {
@@ -1181,17 +1244,21 @@ function chipValueTextClass(value: string | number, compact?: boolean): string {
 // 2-column span, independent of dynamicSpan/chipSpan) instead of silently picking one. Every
 // other chip on this page never sets `secondary`, so this is a strict opt-in with no effect on
 // any other stat type.
-function CmaFactChip({ icon: Icon, value, label, compact, dynamicSpan, secondary, className = '' }: {
+function CmaFactChip({ icon: Icon, value, label, compact, dynamicSpan, secondary, vs, className = '' }: {
   icon: any, value: string | number, label: string, compact?: boolean, dynamicSpan?: boolean,
-  secondary?: { value: string | number, label: string }, className?: string,
+  secondary?: { value: string | number, label: string },
+  /** How this value compares with the subject's (desktop side-by-side, same colours as the phone
+   *  head-to-head): gold + ▲/▼ and the difference, or a green "Same". */
+  vs?: ChipVs | null, className?: string,
 }) {
+  const differs = vs && vs.tone !== 'same'
   return (
     <div
-      className={`flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white text-center dark:border-gray-800 dark:bg-[#0B0B0B] ${compact ? 'gap-0.5 px-0.5 py-1.5' : 'gap-1 py-2'} ${className}`}
+      className={`flex flex-col items-center justify-center rounded-xl border bg-white text-center dark:bg-[#0B0B0B] ${differs ? 'border-[#C9A24D]/45' : 'border-gray-200 dark:border-gray-800'} ${compact ? 'gap-0.5 px-0.5 py-1.5' : 'gap-1 py-2'} ${className}`}
       style={secondary ? { gridColumn: 'span 2 / span 2' } : dynamicSpan ? { gridColumn: `span ${chipSpan(value)} / span ${chipSpan(value)}` } : undefined}
     >
       <Icon className={compact ? 'h-3 w-3 text-[#C9A24D]' : 'h-3.5 w-3.5 text-[#C9A24D]'} />
-      <span className={`max-w-full truncate px-0.5 font-black leading-tight text-[#111827] dark:text-white ${chipValueTextClass(value, compact)}`}>{value}</span>
+      <span className={`max-w-full truncate rounded px-0.5 font-black leading-tight ${differs ? 'cma-diff text-[#7a5a1e] dark:text-[#e8c97a]' : 'text-[#111827] dark:text-white'} ${chipValueTextClass(value, compact)}`}>{value}</span>
       <span className={`font-black uppercase tracking-widest text-gray-400 ${compact ? 'text-[6px]' : 'text-[7px]'}`}>{label}</span>
       {secondary && (
         <>
@@ -1199,8 +1266,30 @@ function CmaFactChip({ icon: Icon, value, label, compact, dynamicSpan, secondary
           <span className={`font-black uppercase tracking-widest text-gray-400 ${compact ? 'text-[6px]' : 'text-[7px]'}`}>{secondary.label}</span>
         </>
       )}
+      {vs && (vs.tone === 'same'
+        ? <span className="inline-flex items-center gap-0.5 text-[8px] font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-400"><Check className="h-2.5 w-2.5" strokeWidth={3} /> Same</span>
+        : vs.text
+          ? <span className={`max-w-full truncate px-0.5 text-[8.5px] font-black ${vs.tone === 'up' ? 'text-[#8b7355] dark:text-[#d7b974]' : vs.tone === 'down' ? 'text-slate-500 dark:text-slate-400' : 'text-[#8b7355] dark:text-[#d7b974]'}`}>{vs.tone === 'up' ? '▲ ' : vs.tone === 'down' ? '▼ ' : ''}{vs.text}</span>
+          : null)}
     </div>
   )
+}
+
+type ChipVs = { tone: 'same' | 'up' | 'down' | 'diff', text?: string }
+
+// The comp's value against the subject's, for CmaFactChip's `vs`: numbers get ▲ / ▼ and the
+// difference, text gets same / different; nothing when either side is missing.
+function chipVs(subjectValue: number | string | null | undefined, compValue: number | string | null | undefined,
+  opts: { money?: boolean, unit?: string, decimals?: number } = {}): ChipVs | null {
+  if (subjectValue == null || compValue == null || subjectValue === '' || compValue === '' || subjectValue === '—' || compValue === '—') return null
+  if (typeof subjectValue === 'number' && typeof compValue === 'number') {
+    const d = compValue - subjectValue
+    if (Math.abs(d) < (opts.decimals ? 0.005 : 0.5)) return { tone: 'same' }
+    const abs = Math.abs(d)
+    const shown = opts.money ? formatMoney(abs, { compact: true }) : abs.toLocaleString(undefined, { maximumFractionDigits: opts.decimals ?? 0 })
+    return { tone: d > 0 ? 'up' : 'down', text: `${shown}${opts.unit ? ` ${opts.unit}` : ''}` }
+  }
+  return String(subjectValue).trim().toLowerCase() === String(compValue).trim().toLowerCase() ? { tone: 'same' } : { tone: 'diff' }
 }
 
 // The CMA similarity engine scores size using above-grade finished area (_v10_sqft on the
@@ -1760,11 +1849,7 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
             // search after search), not just one request - staying up through every intermediate
             // step is what actually stops the grid from flashing a different result set on every
             // step before it finally settles.
-            <div className="mt-4 flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-100 bg-white py-16 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
-              <OhpSpinner size={36} />
-              <p className="text-sm font-black text-gray-600 dark:text-gray-300">Finding the best comparables...</p>
-              <p className="text-xs font-semibold text-gray-400">Widening the search until there are enough strong matches to work with.</p>
-            </div>
+            <CompSearchRadar radiusMiles={radius} soldWithinDays={soldWithinDays} photo={subjectPhotos[0] || null} />
           ) : searching ? (
             <div className="mt-4 flex items-center justify-center gap-3 rounded-2xl border border-dashed border-gray-200 py-12 text-sm font-bold text-gray-400 dark:border-gray-800">
               <OhpSpinner size={24} label="Searching" />
@@ -1831,6 +1916,7 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
                     className={`min-w-[240px] max-w-full flex-1 ${pagedResults.length === 1 ? 'sm:max-w-[420px]' : 'sm:max-w-[300px]'}`}
                   >
                     <CompCandidateCard
+                      subject={subject}
                       candidate={candidate}
                       matchScore={scoreFor(candidate)}
                       matchDetails={backendCardMatchDetails(candidate.similarity_details)}
@@ -2115,7 +2201,93 @@ function matchBreakdownTitle(d: MatchScoreDetails): string {
   return `Underlying relevance ${(d.rawRelevanceScore * 100).toFixed(1)}%${dist}: ${parts.join("; ")}.`
 }
 
-function CompCandidateCard({ candidate, matchScore, matchDetails, added, sameSchool, onToggle, onOpenDetails }: { candidate: CmaCompCandidate, matchScore?: number, matchDetails?: MatchScoreDetails, added: boolean, sameSchool: boolean, onToggle: () => void, onOpenDetails: () => void }) {
+// "Finding the best comparables" while the first search widens itself (shown/hidden by CompsStep's
+// `optimizing`, unchanged). A radar sweeps out from the subject's photo, pings pop up where homes
+// are found, and the live radius / sale window tick up as the search widens - compact enough to
+// sit right under the step header on a phone (user, 10/20: "basically off-screen on mobile").
+function CompSearchRadar({ radiusMiles, soldWithinDays, photo }: { radiusMiles: number, soldWithinDays: string, photo: string | null }) {
+  const reduce = useReducedMotion()
+  const stages = ['Mapping sales around the home', 'Scoring each match against the subject', 'Widening until enough strong matches']
+  const [stage, setStage] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setStage(s => (s + 1) % stages.length), 2600)
+    return () => clearInterval(t)
+  }, [stages.length])
+  const pings = [
+    { top: '22%', left: '68%', d: 0.2 }, { top: '64%', left: '24%', d: 0.9 }, { top: '30%', left: '28%', d: 1.6 },
+    { top: '72%', left: '70%', d: 2.3 }, { top: '48%', left: '84%', d: 3.0 },
+  ]
+  return (
+    <div className="mt-4 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-[#151517]">
+      <div className="flex items-center gap-4 p-4 sm:gap-6 sm:p-6">
+        <div className="relative h-24 w-24 shrink-0 sm:h-40 sm:w-40">
+          {/* rings */}
+          {[0, 1, 2].map(i => (
+            <span key={i} className="absolute rounded-full border border-[#C9A24D]/25" style={{ inset: `${i * 17}%` }} />
+          ))}
+          {/* the sweep */}
+          {!reduce && (
+            <motion.span
+              className="absolute inset-0 rounded-full"
+              style={{ background: 'conic-gradient(from 0deg, rgba(201,162,77,0) 0deg, rgba(201,162,77,0) 280deg, rgba(201,162,77,0.45) 360deg)' }}
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2.6, ease: 'linear', repeat: Infinity }}
+            />
+          )}
+          {/* homes found */}
+          {pings.map((p, i) => (
+            <motion.span
+              key={i}
+              className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.18)]"
+              style={{ top: p.top, left: p.left }}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={reduce ? { scale: 1, opacity: 1 } : { scale: [0, 1.25, 1, 1, 0], opacity: [0, 1, 1, 1, 0] }}
+              transition={reduce ? { duration: 0.2 } : { duration: 3.4, times: [0, 0.12, 0.2, 0.85, 1], repeat: Infinity, delay: p.d }}
+            />
+          ))}
+          {/* the subject in the middle */}
+          <span className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full bg-gray-100 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.6)] ring-[3px] ring-white dark:bg-gray-800 dark:ring-[#151517] sm:h-14 sm:w-14 sm:ring-4">
+            {photo ? <img src={normalizeImageUrl(photo)} alt="" className="h-full w-full object-cover" /> : <Home className="m-auto mt-4 h-5 w-5 text-gray-300" />}
+          </span>
+        </div>
+        <div className="min-w-0 flex-1 text-left">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#C9A24D]">Finding the best comparables</p>
+          <div className="relative mt-1 h-6 overflow-hidden">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.p
+                key={stage}
+                initial={reduce ? { opacity: 0 } : { opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduce ? { opacity: 0 } : { opacity: 0, y: -12 }}
+                transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                className="absolute inset-x-0 truncate text-[13px] font-black text-[#111827] dark:text-white sm:text-base"
+              >
+                {stages[stage]}…
+              </motion.p>
+            </AnimatePresence>
+          </div>
+          <p className="mt-1 hidden text-xs font-semibold text-gray-400 sm:block">Widening the search until there are enough strong matches to work with.</p>
+          <div className="mt-2 flex flex-wrap gap-1.5 sm:mt-3 sm:gap-2">
+            <motion.span key={`r-${radiusMiles}`} initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="inline-flex items-center gap-1 rounded-full bg-[#C9A24D]/12 px-2 py-0.5 text-[10.5px] sm:gap-1.5 sm:px-3 sm:py-1 sm:text-[11px] font-black text-[#8b7355] dark:text-[#d7b974]">
+              <MapPin className="h-3.5 w-3.5" /> Within {radiusMiles} mi
+            </motion.span>
+            {soldWithinDays && (
+              <motion.span key={`d-${soldWithinDays}`} initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10.5px] sm:gap-1.5 sm:px-3 sm:py-1 sm:text-[11px] font-black text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                <Calendar className="h-3.5 w-3.5" /> Sold in {soldWithinDays} days
+              </motion.span>
+            )}
+          </div>
+        </div>
+      </div>
+      {/* an indeterminate sweep along the bottom edge */}
+      <div className="relative h-1 overflow-hidden bg-[#C9A24D]/10">
+        <span className="cma-indeterminate absolute inset-y-0 w-1/3 rounded-full bg-gradient-to-r from-transparent via-[#C9A24D] to-transparent" />
+      </div>
+    </div>
+  )
+}
+
+function CompCandidateCard({ candidate, subject, matchScore, matchDetails, added, sameSchool, onToggle, onOpenDetails }: { candidate: CmaCompCandidate, subject?: CmaSubjectProperty, matchScore?: number, matchDetails?: MatchScoreDetails, added: boolean, sameSchool: boolean, onToggle: () => void, onOpenDetails: () => void }) {
   const dp = compDisplayPrice(candidate as unknown as CmaComparable)
   // $/sqft on this selector always derives from whatever price we're showing (close price once
   // sold data is backfilled, list price otherwise) - it's just an orientation number for
@@ -2179,6 +2351,17 @@ function CompCandidateCard({ candidate, matchScore, matchDetails, added, sameSch
           <p className="min-w-0 truncate text-[10px] font-bold uppercase tracking-wide text-gray-400">{cityState || '—'}</p>
           {psf && <span className="shrink-0 text-[10px] font-bold text-gray-400">${psf}/sqft</span>}
         </div>
+        {/* How it differs from the subject - same chips as the phone rows (user loved those). */}
+        {subject && (() => {
+          const vs = compVsSubject(candidate, subject, sameSchool)
+          return vs.length > 0 ? (
+            <div className="mt-1.5 flex flex-nowrap gap-1 overflow-hidden [mask-image:linear-gradient(to_right,black_88%,transparent)]">
+              {vs.map(v => (
+                <span key={v.text} className={`shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9.5px] font-black ${v.tone === 'same' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-[#C9A24D]/12 text-[#7a5a1e] dark:text-[#e8c97a]'}`}>{v.text}</span>
+              ))}
+            </div>
+          ) : null
+        })()}
         {dp.unverified && (
           // Why a high-Match sale isn't auto-picked: no sold price on record, so it can't carry any
           // weight in the value (417 Dogwood Ln looked like the picker skipped its best cards, 10/20).
@@ -2205,6 +2388,22 @@ function CompCandidateCard({ candidate, matchScore, matchDetails, added, sameSch
   )
 }
 
+// How a candidate differs from the subject, as short chips - school first (the one agents look for),
+// then size and age. Shared by the phone rows and the desktop cards.
+function compVsSubject(candidate: CmaCompCandidate, subject: CmaSubjectProperty, sameSchool: boolean): { text: string, tone: 'same' | 'diff' }[] {
+  const vs: { text: string, tone: 'same' | 'diff' }[] = []
+  if (candidate.school_district) vs.push(sameSchool ? { text: 'Same school', tone: 'same' } : { text: 'Other school', tone: 'diff' })
+  if (subject.sqft && candidate.sqft) {
+    const d = Math.round(candidate.sqft - subject.sqft)
+    vs.push(Math.abs(d) < 50 ? { text: 'Same size', tone: 'same' } : { text: `${d > 0 ? '+' : '−'}${Math.abs(d).toLocaleString()} sf`, tone: 'diff' })
+  }
+  if (subject.year_built && candidate.year_built && candidate.year_built !== subject.year_built) {
+    const d = candidate.year_built - subject.year_built
+    vs.push({ text: `${Math.abs(d)} yrs ${d > 0 ? 'newer' : 'older'}`, tone: Math.abs(d) <= 5 ? 'same' : 'diff' })
+  }
+  return vs
+}
+
 // Phones (user, 10/20): one compact row per candidate instead of a full-width card each - photo,
 // price, the facts, and how it differs from the subject ("−149 sq ft · same school · 0.1 mi"), so
 // the agent can compare a dozen homes against the subject without scrolling a screen per home.
@@ -2221,20 +2420,14 @@ function CompCandidateRow({ candidate, subject, matchScore, added, sameSchool, o
     candidate.sqft && `${Math.round(candidate.sqft).toLocaleString()} sf`,
     acres > 0 && `${acres.toLocaleString(undefined, { maximumFractionDigits: 2 })} ac`,
   ].filter(Boolean).join(' · ')
-  const vs: { text: string, tone: 'same' | 'diff' }[] = []
-  if (subject.sqft && candidate.sqft) {
-    const d = Math.round(candidate.sqft - subject.sqft)
-    vs.push(Math.abs(d) < 50 ? { text: 'Same size', tone: 'same' } : { text: `${d > 0 ? '+' : '−'}${Math.abs(d).toLocaleString()} sf`, tone: 'diff' })
-  }
-  if (subject.year_built && candidate.year_built && candidate.year_built !== subject.year_built) {
-    const d = candidate.year_built - subject.year_built
-    vs.push({ text: `${Math.abs(d)} yrs ${d > 0 ? 'newer' : 'older'}`, tone: Math.abs(d) <= 5 ? 'same' : 'diff' })
-  }
-  if (candidate.school_district) vs.push(sameSchool ? { text: 'Same school', tone: 'same' } : { text: 'Other school', tone: 'diff' })
+  const vs = compVsSubject(candidate, subject, sameSchool)
 
   return (
-    <div className={`flex items-stretch gap-3 rounded-2xl border-2 bg-white p-2 transition-[border-color,box-shadow] duration-300 dark:bg-[#151517] ${added ? 'border-emerald-500 shadow-[0_12px_26px_-18px_rgba(16,185,129,0.9)]' : 'border-transparent shadow-sm'}`}>
-      <button type="button" onClick={onOpenDetails} className="relative h-[92px] w-[104px] shrink-0 overflow-hidden rounded-xl bg-gray-100 active:scale-[0.97] dark:bg-gray-800">
+    // Every row is the same height (user, 10/20); the add / added button sits in the top-right
+    // corner so the "how it differs" chips keep their own single line (they fade out at the edge
+    // rather than wrapping).
+    <div className={`relative flex h-[118px] items-stretch gap-3 rounded-2xl border-2 bg-white p-2 transition-[border-color,box-shadow] duration-300 dark:bg-[#151517] ${added ? 'border-emerald-500 shadow-[0_12px_26px_-18px_rgba(16,185,129,0.9)]' : 'border-transparent shadow-sm'}`}>
+      <button type="button" onClick={onOpenDetails} className="relative h-full w-[104px] shrink-0 overflow-hidden rounded-xl bg-gray-100 active:scale-[0.97] dark:bg-gray-800">
         {photo ? <img src={normalizeImageUrl(photo)} alt="" loading="lazy" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Home className="h-5 w-5 text-gray-300" /></div>}
         {typeof matchScore === 'number' && (
           <span className={`absolute bottom-1 left-1 rounded-full px-1.5 py-0.5 text-[9px] font-black text-white shadow ${matchScore >= 70 ? 'bg-emerald-600' : 'bg-gray-500'}`}>{matchScore}%</span>
@@ -2243,19 +2436,19 @@ function CompCandidateRow({ candidate, subject, matchScore, added, sameSchool, o
           <span className={`absolute left-1 top-1 rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white shadow ${COMP_STATUS_BADGE_STYLE[candidate.status] || 'bg-gray-800'}`}>{COMP_STATUS_LABEL[candidate.status] || candidate.status}</span>
         )}
       </button>
-      <button type="button" onClick={onOpenDetails} className="min-w-0 flex-1 py-0.5 text-left">
-        <p className="line-clamp-2 break-words text-[13px] font-black leading-tight text-[#111827] dark:text-white">{candidate.street_address}</p>
-        <p className="mt-0.5 flex min-w-0 items-baseline gap-1.5">
+      <button type="button" onClick={onOpenDetails} className="flex min-w-0 flex-1 flex-col py-0.5 text-left">
+        <p className="truncate pr-10 text-[13px] font-black leading-tight text-[#111827] dark:text-white">{candidate.street_address}</p>
+        <p className="mt-0.5 flex min-w-0 items-baseline gap-1.5 pr-10">
           <span className={`shrink-0 text-[13px] font-black ${dp.unverified ? 'text-gray-400' : 'text-[#8b7355] dark:text-[#d7b974]'}`}>{formatMoney(dp.value, { compact: true })}</span>
           <span className="min-w-0 truncate text-[10px] font-bold uppercase tracking-wide text-gray-400">
             {[candidate.city, candidate.distance_miles != null ? `${candidate.distance_miles} mi` : null].filter(Boolean).join(' · ')}
           </span>
         </p>
-        {facts && <p className="mt-1 text-[12px] font-bold leading-snug text-gray-600 dark:text-gray-300">{facts}</p>}
+        {facts && <p className="mt-1 truncate text-[11.5px] font-bold text-gray-600 dark:text-gray-300">{facts}</p>}
         {vs.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
+          <div className="mt-auto flex flex-nowrap gap-1 overflow-hidden [mask-image:linear-gradient(to_right,black_88%,transparent)]">
             {vs.map(v => (
-              <span key={v.text} className={`rounded-full px-1.5 py-0.5 text-[9.5px] font-black ${v.tone === 'same' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-[#C9A24D]/12 text-[#7a5a1e] dark:text-[#e8c97a]'}`}>{v.text}</span>
+              <span key={v.text} className={`shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9.5px] font-black ${v.tone === 'same' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-[#C9A24D]/12 text-[#7a5a1e] dark:text-[#e8c97a]'}`}>{v.text}</span>
             ))}
           </div>
         )}
@@ -2266,11 +2459,11 @@ function CompCandidateRow({ candidate, subject, matchScore, added, sameSchool, o
         whileTap={{ scale: 0.86 }}
         aria-label={added ? 'Remove from the CMA' : 'Add to the CMA'}
         aria-pressed={added}
-        className={`grid h-10 w-10 shrink-0 self-center place-items-center rounded-full transition-colors duration-200 ${added ? 'bg-emerald-600 text-white shadow-[0_8px_18px_-8px_rgba(16,185,129,0.9)]' : 'border-2 border-gray-200 text-gray-500 dark:border-gray-700 dark:text-gray-300'}`}
+        className={`absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full transition-colors duration-200 ${added ? 'bg-emerald-600 text-white shadow-[0_8px_18px_-8px_rgba(16,185,129,0.9)]' : 'border-2 border-gray-200 bg-white text-gray-500 dark:border-gray-700 dark:bg-[#151517] dark:text-gray-300'}`}
       >
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span key={added ? 'in' : 'out'} initial={{ scale: 0.3, rotate: -45, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} exit={{ scale: 0.3, opacity: 0 }} transition={{ type: 'spring', stiffness: 600, damping: 28 }}>
-            {added ? <Check className="h-5 w-5" strokeWidth={3} /> : <Plus className="h-5 w-5" strokeWidth={2.6} />}
+            {added ? <Check className="h-[18px] w-[18px]" strokeWidth={3} /> : <Plus className="h-[18px] w-[18px]" strokeWidth={2.6} />}
           </motion.span>
         </AnimatePresence>
       </motion.button>
@@ -2830,9 +3023,31 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
   const [activeId, setActiveId] = useState<string | null>(() => normalizeAnalysisComparables(report.comparables)[0]?.id || null)
   // 0 = the subject, k = comparables[k - 1] - the details sheet steps through them with prev / next.
   const [popup, setPopup] = useState<{ pos: number } | null>(null)
+  // A subject saved with only its cover photo (picked from My Listings before 10/20) gets its full
+  // Bright gallery here, for DISPLAY only - so the side-by-side lets the agent swipe the subject's
+  // photos against the comp's (user, 10/20). Nothing is saved: changing the saved subject would
+  // mark a finished report as "changed after final QA".
+  const [subjectGallery, setSubjectGallery] = useState<string[] | null>(null)
+  useEffect(() => {
+    const s = report.subject
+    setSubjectGallery(null)
+    if (s?.source !== 'mls' || !s.listing_key || (s.photos?.length || 0) > 1) return
+    let cancelled = false
+    api.cma.subjectFromListing(s.listing_key).then(r => {
+      const more = r.success ? r.data?.photos : null
+      if (!cancelled && more && more.length > (s.photos?.length || 0)) setSubjectGallery(more)
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [report.id, report.subject?.listing_key])
+  const shownSubject = useMemo(
+    () => (subjectGallery ? { ...report.subject, photos: subjectGallery } : report.subject),
+    [report.subject, subjectGallery],
+  )
   const [generating, setGenerating] = useState(false)
   const [progressPct, setProgressPct] = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
+  const [progressStage, setProgressStage] = useState(0)
   const [progressElapsedSec, setProgressElapsedSec] = useState(0)
   // Which comp (1-based position in the rail) the AI is "scanning" right now during generation.
   // -1 = not generating. Drives the per-comp scan line + done checkmarks in CompOrderRail.
@@ -2875,22 +3090,20 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
   // but hasn't hit Save on yet, is never lost by a generation running mid-edit. Strength/quality
   // are safe to copy straight over - the server only ever fills those in where the agent hadn't
   // already picked something, so this can't clobber a manual choice.
-  // Real progress isn't available (one blocking API call, not a stream) - this simulates staged
-  // movement through what the backend is actually doing. The final reasoning call gets the
-  // longest part of the timeline so the bar does not race ahead and then look frozen while
-  // OpenHousePal AI is still reconciling the valuation. Caps below 100% until the real response
-  // lands. `startedAtMs` is a parameter (not always Date.now()) so a generation resumed after
-  // navigating away and back can seed this from the server's real start time instead of
-  // restarting the animation from 0%.
+  // Real progress isn't available (one background run, polled), so this paces a staged timeline to
+  // what a report actually takes - about 4 minutes end to end (user, 10/20) - with the final
+  // valuation (the longest part) given most of it. It never reaches 100% on its own: it eases
+  // toward 97% until the real result lands. `startedAtMs` comes from the server when a run is
+  // resumed after leaving the page, so the bar picks up where it really is.
   const startProgressSimulation = (startedAtMs: number) => {
     const includedNow = comparables.filter(c => c.is_included)
     const stagedCompCount = Math.min(includedNow.length, MAX_COMPS)
-    const subjectMs = 4_000
-    const perCompMs = 4_000
+    const subjectMs = 12_000
+    const perCompMs = stagedCompCount > 0 ? Math.round(50_000 / stagedCompCount) : 0
     const compReviewEnd = subjectMs + stagedCompCount * perCompMs
-    const marketReviewEnd = compReviewEnd + 9_000
-    const benchmarkEnd = marketReviewEnd + 8_000
-    const reasoningEnd = benchmarkEnd + 150_000
+    const marketReviewEnd = compReviewEnd + 20_000
+    const benchmarkEnd = marketReviewEnd + 15_000
+    const reasoningEnd = benchmarkEnd + 120_000
     let lastActiveCompIndex = -1
     // Phones (user, 10/20): no flipping the whole side-by-side view to each comp as the AI reaches
     // it - on a phone that redraws the page under the agent's thumb. Only the scan on the one comp
@@ -2901,18 +3114,20 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
       const elapsedMs = Date.now() - startedAtMs
       setProgressElapsedSec(Math.floor(elapsedMs / 1000))
 
-      let pct = 3
-      let label = 'Reading subject property photos and data...'
+      let pct = 2
+      let stage = 0
+      let label = 'Reading the subject’s photos and facts'
       let nextScanStage = 0
 
       if (elapsedMs < subjectMs) {
-        pct = 3 + (elapsedMs / subjectMs) * 7
+        pct = 2 + (elapsedMs / subjectMs) * 6
       } else if (stagedCompCount > 0 && elapsedMs < compReviewEnd) {
         const compElapsed = elapsedMs - subjectMs
         const compIndex = Math.min(stagedCompCount - 1, Math.floor(compElapsed / perCompMs))
         const compFraction = (compElapsed - compIndex * perCompMs) / perCompMs
-        pct = 10 + ((compIndex + compFraction) / stagedCompCount) * 38
-        label = `Reviewing comparable ${compIndex + 1} of ${stagedCompCount}...`
+        pct = 8 + ((compIndex + compFraction) / stagedCompCount) * 27
+        stage = 1
+        label = `Reviewing comparable ${compIndex + 1} of ${stagedCompCount}`
         nextScanStage = compIndex + 1
         if (compIndex !== lastActiveCompIndex && followScanAcrossPage) {
           lastActiveCompIndex = compIndex
@@ -2920,27 +3135,33 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
           if (comp) setActiveId(comp.id)
         }
       } else if (elapsedMs < marketReviewEnd) {
-        pct = 48 + ((elapsedMs - compReviewEnd) / 9_000) * 13
-        label = 'Comparing condition, size, and market evidence...'
+        pct = 35 + ((elapsedMs - compReviewEnd) / 20_000) * 10
+        stage = 2
+        label = 'Comparing size, condition and market evidence'
         nextScanStage = stagedCompCount + 1
       } else if (elapsedMs < benchmarkEnd) {
-        pct = 61 + ((elapsedMs - marketReviewEnd) / 8_000) * 9
-        label = 'Reconciling comp roles and valuation benchmarks...'
+        pct = 45 + ((elapsedMs - marketReviewEnd) / 15_000) * 7
+        stage = 3
+        label = 'Setting each comp’s weight and the value range'
         nextScanStage = stagedCompCount + 1
       } else if (elapsedMs < reasoningEnd) {
-        const reasoningElapsedMs = elapsedMs - benchmarkEnd
-        pct = 70 + (reasoningElapsedMs / 150_000) * 19
-        label = 'OpenHousePal AI is finalizing the valuation...'
+        const r = (elapsedMs - benchmarkEnd) / 120_000
+        // eases out a little so the bar keeps visibly moving through the longest stretch
+        pct = 52 + (1 - Math.pow(1 - r, 1.4)) * 36
+        stage = 4
+        label = 'Working out the final value - the longest part'
         nextScanStage = stagedCompCount + 1
       } else {
         const finalCheckMs = elapsedMs - reasoningEnd
-        pct = 89 + 7 * (1 - Math.exp(-finalCheckMs / 25_000))
-        label = 'Checking valuation language and report consistency...'
+        pct = 88 + 9 * (1 - Math.exp(-finalCheckMs / 30_000))
+        stage = 5
+        label = 'Checking every number and sentence in the report'
         nextScanStage = stagedCompCount + 1
       }
 
       setProgressLabel(label)
-      setProgressPct(Math.min(96, Math.round(pct)))
+      setProgressStage(stage)
+      setProgressPct(Math.min(97, Math.round(pct)))
       setScanStage(nextScanStage)
     }
 
@@ -3221,24 +3442,26 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
               meter + button wrapping to a second line. */}
           {/* Phones (user, 10/17): title + what it does, then the usage meter, then one full-width
               button with what this run will use under it. Wide screens: one row, like before. */}
-          <div className="relative grid grid-cols-1 gap-3 sm:flex sm:flex-nowrap sm:items-center sm:justify-between sm:gap-x-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#C9A24D] shadow-lg shadow-[#C9A24D]/40">
-                <Sparkles className="h-5 w-5 text-white" />
+          {/* Phones (user, 10/20): "OpenHousePal AI" and the usage meter are two equal pills on ONE row,
+              then the button - a thinner top section. Wide screens: one row, like before. */}
+          <div className="relative grid grid-cols-2 items-stretch gap-2 sm:flex sm:flex-nowrap sm:items-center sm:justify-between sm:gap-x-4">
+            <div className="flex min-w-0 items-center gap-2 rounded-xl border border-[#C9A24D]/30 bg-white/70 px-3 py-1.5 dark:bg-black/20 sm:gap-3 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:dark:bg-transparent">
+              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[#C9A24D] shadow-md shadow-[#C9A24D]/40 sm:h-11 sm:w-11 sm:rounded-2xl sm:shadow-lg">
+                <Sparkles className="h-3 w-3 text-white sm:h-5 sm:w-5" />
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-black text-[#111827] dark:text-white">OpenHousePal AI</p>
-                <p className="text-xs font-semibold leading-snug text-gray-500 dark:text-gray-400">Reads every comp's photos and data, rates strength/quality, and proposes a value estimate.</p>
+                <p className="truncate text-[11px] font-black text-[#111827] dark:text-white sm:text-sm">OpenHousePal AI</p>
+                <p className="hidden text-xs font-semibold leading-snug text-gray-500 dark:text-gray-400 sm:block">Reads every comp's photos and data, rates strength/quality, and proposes a value estimate.</p>
               </div>
             </div>
-            <MonthlyAiUsageMeter variant="inline" compact className="w-full shrink-0 sm:w-auto" refreshKey={generating ? 'gen' : 'idle'} />
-            <div className="flex shrink-0 flex-col items-stretch gap-1 sm:items-end">
+            <MonthlyAiUsageMeter variant="inline" compact stretch className="min-w-0 sm:w-auto sm:min-w-[230px] sm:shrink-0" refreshKey={generating ? 'gen' : 'idle'} />
+            <div className="col-span-2 flex shrink-0 flex-col items-stretch gap-1 sm:items-end">
               <button
                 onClick={handleGenerate}
                 disabled={generating}
-                className="cma-btn cma-btn-gold inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e0b85f] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#C9A24D]/40 transition hover:shadow-xl hover:shadow-[#C9A24D]/50 disabled:opacity-70 sm:w-auto"
+                className={`cma-btn cma-btn-gold ${generating ? 'cma-btn-working' : ''} inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e0b85f] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#C9A24D]/40 transition hover:shadow-xl hover:shadow-[#C9A24D]/50 disabled:cursor-progress sm:w-auto`}
               >
-                {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {generating ? <Sparkles className="h-4 w-4 animate-[spin_2.4s_linear_infinite]" /> : <Sparkles className="h-4 w-4" />}
                 {generating ? 'Analyzing…' : genError ? 'Try again' : 'Create AI Analysis'}
               </button>
               {!generating && aiEstimate?.percent != null && (
@@ -3253,26 +3476,7 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {genError}
             </p>
           )}
-          {generating && (
-            <div className="relative mt-4">
-              <div
-                className="h-2 w-full overflow-hidden rounded-full bg-white/60 dark:bg-black/30"
-                role="progressbar"
-                aria-label={progressLabel}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={progressPct}
-              >
-                <div className="h-full rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e0b85f] transition-all duration-700 ease-out" style={{ width: `${progressPct}%` }} />
-              </div>
-              <div className="mt-1.5 flex min-w-0 items-baseline justify-between gap-4 text-xs font-bold text-[#8b7355] dark:text-[#d7b974]">
-                  <span className="min-w-0 truncate">{progressLabel}{progressPct >= 70 ? ' Final valuation and consistency checks are the longest part.' : ''}</span>
-                  <span className="shrink-0 tabular-nums">
-                    {progressPct}% | {Math.floor(progressElapsedSec / 60)}:{String(progressElapsedSec % 60).padStart(2, '0')}
-                  </span>
-              </div>
-            </div>
-          )}
+          {generating && <AiGenerationProgress pct={progressPct} label={progressLabel} stage={progressStage} elapsedSec={progressElapsedSec} />}
         </div>
       )}
 
@@ -3303,7 +3507,7 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
 
       {active && (
         <SideBySidePanel
-          subject={report.subject}
+          subject={shownSubject}
           comp={active}
           index={activeIndex}
           total={comparables.length}
@@ -3323,7 +3527,7 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
         open={!!popup}
         onClose={() => setPopup(null)}
         data={popup ? buildAnalysisPopupData(
-          popup.pos === 0 ? 'subject' : 'comp', report.subject,
+          popup.pos === 0 ? 'subject' : 'comp', shownSubject,
           popup.pos === 0 ? active : comparables[popup.pos - 1] || active,
           report.pricing?.ai_estimate?.subject_road_context ?? null,
         ) : null}
@@ -3347,6 +3551,121 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
       </div>
     </div>
   )
+}
+
+// The AI analysis while it runs (user, 10/20: "a much cooler animation and a real progress bar").
+// A live percentage that counts up, a glowing bar with a light sweeping through it, what it's doing
+// right now, time so far / about how long is left (paced to the ~4 minutes a report takes), and the
+// six stages - every stage on a wide screen, just the current one on a phone.
+const AI_STAGES = ['Subject', 'Comparables', 'Market evidence', 'Comp weights', 'Final value', 'Report check']
+const AI_TYPICAL_SEC = 240
+
+function AiGenerationProgress({ pct, label, stage, elapsedSec }: { pct: number, label: string, stage: number, elapsedSec: number }) {
+  const reduce = useReducedMotion()
+  const shownPct = useCountUp(pct)
+  const left = Math.max(0, AI_TYPICAL_SEC - elapsedSec)
+  const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+  const leftText = elapsedSec > AI_TYPICAL_SEC + 20 ? 'Almost there' : left < 45 ? 'Under a minute left' : `About ${Math.ceil(left / 60)} min left`
+  return (
+    <div className="relative mt-4 overflow-hidden rounded-2xl border border-[#C9A24D]/30 bg-white/70 p-3.5 dark:bg-black/25 sm:p-4">
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974]">
+            <span className="relative flex h-2 w-2">
+              {!reduce && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#C9A24D] opacity-70" />}
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#C9A24D]" />
+            </span>
+            <span className="sm:hidden">Step {Math.min(stage + 1, AI_STAGES.length)} of {AI_STAGES.length} · {AI_STAGES[stage]}</span>
+            <span className="hidden sm:inline">OpenHousePal AI is working</span>
+          </p>
+          <div className="relative mt-1 h-5 overflow-hidden">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.p
+                key={label}
+                initial={reduce ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduce ? { opacity: 0 } : { opacity: 0, y: -10 }}
+                transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                className="absolute inset-x-0 truncate text-[13px] font-black text-[#111827] dark:text-white"
+              >
+                {label}
+              </motion.p>
+            </AnimatePresence>
+          </div>
+        </div>
+        <p className="shrink-0 font-serif text-3xl font-black leading-none tabular-nums text-[#111827] dark:text-white sm:text-4xl">
+          {shownPct}<span className="text-lg text-[#C9A24D] sm:text-xl">%</span>
+        </p>
+      </div>
+
+      <div
+        className="relative mt-3 h-3 w-full overflow-hidden rounded-full bg-[#C9A24D]/12 dark:bg-white/10"
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={pct}
+      >
+        <motion.div
+          className="relative h-full rounded-full bg-gradient-to-r from-[#8b7355] via-[#C9A24D] to-[#f0cf7f] shadow-[0_0_14px_rgba(201,162,77,0.65)]"
+          initial={false}
+          animate={{ width: `${Math.max(3, pct)}%` }}
+          transition={{ type: 'spring', stiffness: 60, damping: 20 }}
+        >
+          {!reduce && <span className="cma-bar-sheen absolute inset-y-0 w-16 bg-gradient-to-r from-transparent via-white/70 to-transparent" />}
+          <span className="absolute -right-1 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-[#f6dc9b] shadow-[0_0_12px_4px_rgba(240,207,127,0.8)]" />
+        </motion.div>
+      </div>
+
+      <div className="mt-2 flex items-center justify-between gap-3 text-[11px] font-bold tabular-nums text-gray-500 dark:text-gray-400">
+        <span>{clock(elapsedSec)} so far</span>
+        <span className="text-[#8b7355] dark:text-[#d7b974]">{leftText}</span>
+      </div>
+
+      {/* every stage, wide screens only */}
+      <ol className="mt-3 hidden grid-cols-6 gap-1.5 sm:grid">
+        {AI_STAGES.map((name, i) => {
+          const done = i < stage
+          const now = i === stage
+          return (
+            <li key={name} className={`relative overflow-hidden rounded-xl border px-2 py-1.5 text-center text-[10px] font-black uppercase tracking-wide transition-colors duration-500 ${
+              done ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+                : now ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#d7b974]'
+                  : 'border-gray-200 text-gray-400 dark:border-gray-800'
+            }`}>
+              {now && !reduce && <span className="ohp-comp-scan-line" />}
+              <span className="relative inline-flex items-center gap-1">
+                {done && <Check key={`d-${name}`} className="cma-check-pop h-3 w-3" strokeWidth={3} />}
+                {name}
+              </span>
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
+}
+
+// Counts a number up smoothly to its new value (the AI progress percentage).
+function useCountUp(target: number): number {
+  const [shown, setShown] = useState(target)
+  const shownRef = useRef(target)
+  useEffect(() => {
+    const from = shownRef.current
+    if (from === target) return
+    const start = performance.now()
+    let raf = 0
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / 600)
+      const v = Math.round(from + (target - from) * (1 - Math.pow(1 - t, 3)))
+      shownRef.current = v
+      setShown(v)
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [target])
+  return shown
 }
 
 function CompOrderRail({ comparables, activeId, onSelect, onReorder, scanStage = -1 }: {
@@ -3391,15 +3710,15 @@ function CompOrderRail({ comparables, activeId, onSelect, onReorder, scanStage =
               }}
               onDragEnd={() => setDraggedId(null)}
               onClick={() => onSelect(c.id)}
-              className={`group flex w-36 shrink-0 snap-start flex-col active:scale-[0.97] overflow-hidden rounded-2xl border-2 bg-white text-left transition-[border-color,box-shadow,transform] duration-300 dark:bg-[#151517] sm:w-48 sm:cursor-grab sm:active:cursor-grabbing ${
+              className={`group flex w-36 shrink-0 snap-start flex-col overflow-hidden rounded-2xl border-2 bg-white text-left transition-[border-color,box-shadow,transform] duration-300 dark:bg-[#151517] sm:w-48 sm:cursor-grab sm:active:cursor-grabbing ${
                 isActive
                   ? '-translate-y-0.5 border-[#C9A24D] shadow-[0_14px_28px_-16px_rgba(201,162,77,0.9)]'
-                  : 'border-gray-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md dark:border-gray-800 dark:hover:border-gray-600'
+                  : 'border-gray-200 dark:border-gray-800 [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:border-gray-300 [@media(hover:hover)]:hover:shadow-md dark:[@media(hover:hover)]:hover:border-gray-600'
               } ${scanning ? 'border-[#C9A24D] shadow-[0_0_0_4px_rgba(201,162,77,0.18)]' : ''} ${!c.is_included ? 'opacity-50' : ''}`}
             >
               <div className="relative overflow-hidden">
                 {c.photo_url
-                  ? <img src={normalizeImageUrl(c.photo_url || undefined)} alt="" draggable={false} className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-[1.04]" />
+                  ? <img src={normalizeImageUrl(c.photo_url || undefined)} alt="" draggable={false} className="aspect-[4/3] w-full object-cover transition duration-500 [@media(hover:hover)]:group-hover:scale-[1.04]" />
                   : <div className="flex aspect-[4/3] w-full items-center justify-center bg-gray-100 dark:bg-gray-800"><Home className="h-5 w-5 text-gray-300" /></div>}
                 {scanning && <span className="ohp-comp-scan-line" />}
                 {scanning && <span className="pointer-events-none absolute inset-0 bg-[#C9A24D]/10" />}
@@ -3427,7 +3746,9 @@ function CompOrderRail({ comparables, activeId, onSelect, onReorder, scanStage =
                 <p className="mt-0.5 text-[10px] font-bold text-[#8b7355] dark:text-[#d7b974]">{formatMoney(compDisplayPrice(c).value)}</p>
               </div>
               {/* the picked comp's gold underline glides from card to card */}
-              {isActive && <motion.span layoutId="cma-rail-active" className="h-1 w-full bg-gradient-to-r from-[#8b7355] via-[#C9A24D] to-[#e0b85f]" />}
+              {/* plain span, not a shared-layout animation: framer re-measuring it inside this
+                  sideways-scrolling row made the cards shake while scrolling on a phone (10/20) */}
+              {isActive && <span className="cma-rail-underline h-1 w-full bg-gradient-to-r from-[#8b7355] via-[#C9A24D] to-[#e0b85f]" />}
             </button>
           )
         })}
@@ -3446,8 +3767,15 @@ function PropertyPhotoCarousel({ resetKey, photos, fallbackUrl, onIndexChange, o
   useEffect(() => { setIndex(0) }, [resetKey])
   const safeIndex = Math.min(index, Math.max(list.length - 1, 0))
   const thumbRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const thumbStripRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    thumbRefs.current[safeIndex]?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' })
+    // Slide the filmstrip only - scrollIntoView would also scroll the page (it jumped the page down
+    // to the thumbnails whenever a comp opened, fighting the scroll-to-top on every step change).
+    const strip = thumbStripRef.current, thumb = thumbRefs.current[safeIndex]
+    if (strip && thumb) {
+      const left = thumb.offsetLeft // the strip is relative, so this is measured from its left edge
+      if (left < strip.scrollLeft || left + thumb.offsetWidth > strip.scrollLeft + strip.clientWidth) strip.scrollTo({ left: Math.max(0, left - 8), behavior: 'smooth' })
+    }
   }, [safeIndex, resetKey])
   // Lets the parent header line show the live "current / total" position instead of a static
   // photo count - PropertyPhotoCarousel still owns the index itself, this just reports it out.
@@ -3500,7 +3828,7 @@ function PropertyPhotoCarousel({ resetKey, photos, fallbackUrl, onIndexChange, o
         )}
       </div>
       {list.length > 1 && (
-        <div className="scrollbar-hide mt-1.5 flex gap-1 overflow-x-auto scroll-smooth">
+        <div ref={thumbStripRef} className="scrollbar-hide relative mt-1.5 flex gap-1 overflow-x-auto scroll-smooth">
           {list.map((url, i) => (
             <button
               type="button"
@@ -3826,17 +4154,17 @@ function SideBySidePanel({ subject, comp, index, total, onUpdate, onUpdateStreng
             <PropertyPhotoCarousel resetKey={comp.id} photos={comp.photos} fallbackUrl={comp.photo_url} onIndexChange={onCompIndexChange} onPhotoClick={onOpenCompDetails} />
           )}
           <div className="mt-3 grid grid-flow-row-dense grid-cols-6 gap-1">
-            <CmaFactChip compact icon={DollarSign} value={formatMoney(comp.sale_price ?? comp.list_price, { compact: true })} label="Price" />
-            <CmaFactChip compact icon={Calculator} value={psf ? `$${Math.round(psf)}` : '—'} label="$/Sqft" />
-            <CmaFactChip compact dynamicSpan icon={Ruler} {...sqftChipProps(comp.sqft)} />
-            <CmaFactChip compact icon={Bed} value={comp.beds ?? '—'} label="Beds" />
-            <CmaFactChip compact icon={Bath} value={comp.baths ?? '—'} label="Baths" />
-            <CmaFactChip compact icon={LandPlot} value={comp.lot_size ? sqftToAcres(comp.lot_size) : '—'} label="Acres" />
-            <CmaFactChip compact icon={Building2} value={comp.year_built ?? '—'} label="Built" />
+            <CmaFactChip compact icon={DollarSign} value={formatMoney(comp.sale_price ?? comp.list_price, { compact: true })} label="Price" vs={chipVs(subject.list_price, comp.sale_price ?? comp.list_price, { money: true })} />
+            <CmaFactChip compact icon={Calculator} value={psf ? `$${Math.round(psf)}` : '—'} label="$/Sqft" vs={chipVs(subjectPsf, psf, { money: true })} />
+            <CmaFactChip compact dynamicSpan icon={Ruler} {...sqftChipProps(comp.sqft)} vs={chipVs(subject.sqft, comp.sqft, { unit: 'sf' })} />
+            <CmaFactChip compact icon={Bed} value={comp.beds ?? '—'} label="Beds" vs={chipVs(subject.beds, comp.beds, { decimals: 1 })} />
+            <CmaFactChip compact icon={Bath} value={comp.baths ?? '—'} label="Baths" vs={chipVs(subject.baths, comp.baths, { decimals: 1 })} />
+            <CmaFactChip compact icon={LandPlot} value={comp.lot_size ? sqftToAcres(comp.lot_size) : '—'} label="Acres" vs={chipVs(subject.lot_size ? sqftToAcres(subject.lot_size) : null, comp.lot_size ? sqftToAcres(comp.lot_size) : null, { unit: 'ac', decimals: 2 })} />
+            <CmaFactChip compact icon={Building2} value={comp.year_built ?? '—'} label="Built" vs={chipVs(subject.year_built, comp.year_built, { unit: 'yrs' })} />
             {basementFactValue(comp.basement, comp.below_grade_finished_area, comp.sqft, comp.above_grade_finished_area) && (
-              <CmaFactChip compact dynamicSpan icon={Layers} value={basementFactValue(comp.basement, comp.below_grade_finished_area, comp.sqft, comp.above_grade_finished_area)!} label="Basement" />
+              <CmaFactChip compact dynamicSpan icon={Layers} value={basementFactValue(comp.basement, comp.below_grade_finished_area, comp.sqft, comp.above_grade_finished_area)!} label="Basement" vs={chipVs(basementFactValue(subject.basement, subject.below_grade_finished_area, subject.sqft, subject.above_grade_finished_area), basementFactValue(comp.basement, comp.below_grade_finished_area, comp.sqft, comp.above_grade_finished_area))} />
             )}
-            {comp.school_district && <CmaFactChip compact dynamicSpan icon={GraduationCap} value={comp.school_district} label="School" />}
+            {comp.school_district && <CmaFactChip compact dynamicSpan icon={GraduationCap} value={comp.school_district} label="School" vs={chipVs(subject.school_district, comp.school_district)} />}
             <CmaFactChip compact icon={Calendar} value={comp.days_on_market ?? '—'} label="DOM" />
           </div>
         </div>
@@ -3938,23 +4266,21 @@ function SideBySidePanel({ subject, comp, index, total, onUpdate, onUpdateStreng
             note verbatim; editing it even slightly reverts to the plain look, since it's now the
             agent's own words. Row count grows with the text so the whole note is visible without
             scrolling instead of being clipped at a fixed 2 lines. */}
+        {/* The comp note (AI-written until the agent edits it) - a roomy box that grows with its
+            text so the whole suggestion is readable without scrolling inside it (user, 10/20). */}
         {(() => {
           const isAiText = !!comp.ai_commentary && comp.commentary === comp.ai_commentary
-          const rows = Math.min(8, Math.max(2, Math.ceil((comp.commentary?.length || 0) / 50)))
           return (
-            <div className={`mt-2.5 rounded-xl border transition ${isAiText ? 'border-[#C9A24D]/30 bg-[#C9A24D]/5 p-1.5' : 'border-transparent'}`}>
-              {isAiText && (
-                <p className="flex items-center gap-1.5 px-2 pb-1 pt-0.5 text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">
-                  <Sparkles className="h-3 w-3" /> AI Generated
-                </p>
-              )}
-              <textarea
+            <div className={`mt-3 rounded-2xl border transition ${isAiText ? 'border-[#C9A24D]/35 bg-[#C9A24D]/5 p-2' : 'border-transparent'}`}>
+              <p className={`flex items-center gap-1.5 px-2 pb-1.5 pt-0.5 text-[10px] font-black uppercase tracking-wide ${isAiText ? 'text-[#8b7355] dark:text-[#d7b974]' : 'text-gray-400'}`}>
+                {isAiText ? <><Sparkles className="h-3 w-3" /> AI Generated note</> : 'Your note on this comp'}
+              </p>
+              <AutoGrowTextarea
                 value={comp.commentary || ''}
-                onChange={e => onUpdate({ commentary: e.target.value })}
+                onChange={v => onUpdate({ commentary: v })}
                 placeholder="Why is this a strong or weak comp? Renovations, finish quality, land, functional vs. wasted space, what the sale demonstrates about the market..."
-                rows={rows}
-                className={`w-full rounded-xl px-3.5 py-2 text-sm font-medium outline-none focus:border-[#C9A24D] dark:text-white ${
-                  isAiText ? 'border border-transparent bg-transparent' : 'border border-gray-200 bg-white dark:border-gray-700 dark:bg-[#151517]'
+                className={`w-full resize-none rounded-xl px-3.5 py-3 text-[15px] font-medium leading-relaxed text-[#111827] outline-none transition focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/10 dark:text-white ${
+                  isAiText ? 'border border-transparent bg-white/70 dark:bg-black/20' : 'border border-gray-200 bg-white dark:border-gray-700 dark:bg-[#151517]'
                 }`}
               />
             </div>
@@ -3970,6 +4296,19 @@ function SideBySidePanel({ subject, comp, index, total, onUpdate, onUpdateStreng
 // "Well Below Subject" x5) used to wrap unevenly across 2 ragged rows of differently-sized
 // buttons; this keeps every row a single clean line, with long labels wrapping WITHIN their own
 // cell instead of breaking the row layout.
+// A textarea as tall as its text (at least ~5 lines), re-measured as the text changes and when the
+// comp switches - so a long AI note is fully visible instead of hidden behind a two-line box.
+function AutoGrowTextarea({ value, onChange, placeholder, className = '' }: { value: string, onChange: (v: string) => void, placeholder?: string, className?: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.max(132, el.scrollHeight + 2)}px`
+  }, [value])
+  return <textarea ref={ref} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={5} className={className} />
+}
+
 function QualityRowLayout({ label, children }: { label: string, children: React.ReactNode }) {
   // Phones: the label on its own line above the choices (a 6rem label column squeezed the three
   // choices into two-line pills). Wider screens: label column on the left, like before.
@@ -4076,31 +4415,52 @@ const COMPARISON_ROWS: { key: keyof CmaComparable | 'psf', label: string, format
   { key: 'sale_date', label: 'Sale Date', format: v => formatDate(v.sale_date) },
 ]
 
+// The same approach as the client report's Comparable Overview (app/cma/[slug]): on a phone the
+// table keeps readable columns and slides sideways with the row names pinned on the left - on a
+// SOLID background (the old pinned cells inherited a see-through row colour, so the sliding
+// columns showed through and the words piled on top of each other, user 10/20). Wider screens fit
+// every column without scrolling.
 function ComparisonTable({ subject, comparables }: { subject: CmaSubjectProperty, comparables: CmaComparable[] }) {
+  const pinned = 'sticky left-0 z-[2] w-[108px] min-w-[108px] whitespace-normal leading-tight shadow-[6px_0_10px_-8px_rgba(17,24,39,0.35)] sm:static sm:w-[16%] sm:min-w-0 sm:shadow-none'
   return (
-    <div className="overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-800">
-      <table className="w-full min-w-[640px] border-collapse text-sm">
-        <thead>
-          <tr className="bg-gray-50 dark:bg-white/5">
-            <th className="sticky left-0 bg-gray-50 p-3 text-left text-[10px] font-black uppercase tracking-wide text-gray-500 dark:bg-[#1a1a1c] dark:text-gray-400"></th>
-            <th className="bg-[#C9A24D]/10 p-3 text-left text-[11px] font-black uppercase tracking-wide text-[#8b7355] dark:bg-[#C9A24D]/10 dark:text-[#d7b974]">Subject</th>
-            {comparables.map((c, i) => (
-              <th key={c.id} className="p-3 text-left text-[11px] font-black uppercase tracking-wide text-gray-600 dark:text-gray-400">#{i + 1}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {COMPARISON_ROWS.map((row, i) => (
-            <tr key={row.label} className={`border-t border-gray-200 transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/5 ${i % 2 === 1 ? 'bg-gray-50/60 dark:bg-white/[0.02]' : ''}`}>
-              <td className="sticky left-0 bg-inherit p-3 text-xs font-bold text-gray-600 dark:text-gray-400">{row.label}</td>
-              <td className="bg-[#C9A24D]/5 p-3 text-xs font-black text-[#111827] dark:text-white">{row.format(subject)}</td>
-              {comparables.map(c => (
-                <td key={c.id} className="p-3 text-xs font-semibold text-gray-600 dark:text-gray-300">{row.format(c)}</td>
+    <div>
+      <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-gray-400 sm:hidden">Swipe to see every comparable →</p>
+      <div className="overflow-x-auto rounded-xl border border-gray-200 pb-0.5 [scrollbar-width:thin] dark:border-gray-800 sm:overflow-hidden sm:rounded-2xl">
+        <table className="w-full min-w-[600px] border-collapse text-[12.5px] sm:min-w-0 sm:table-fixed sm:text-sm">
+          <thead>
+            <tr className="border-b-2 border-[#111827] dark:border-white/80 sm:border-b sm:border-gray-200 sm:dark:border-gray-800">
+              <th className={`${pinned} bg-white p-2.5 text-left text-[10px] font-black uppercase tracking-wide text-gray-400 dark:bg-[#151517] sm:bg-gray-50 sm:p-3 sm:dark:bg-[#1a1a1c]`}></th>
+              <th className="bg-[#fbf6ea] p-2.5 text-left align-bottom text-[11px] font-black uppercase tracking-wide text-[#8b7355] dark:bg-[#211d14] dark:text-[#d7b974] sm:p-3">
+                <span className="block truncate">Subject</span>
+                <span className="mt-0.5 block truncate text-[9px] normal-case tracking-normal text-gray-400" title={subject.street_address || undefined}>{subject.street_address || '—'}</span>
+              </th>
+              {comparables.map((c, i) => (
+                <th key={c.id} className="bg-white p-2.5 text-left align-bottom text-[11px] font-black uppercase tracking-wide text-gray-600 dark:bg-[#151517] dark:text-gray-400 sm:bg-gray-50 sm:p-3 sm:dark:bg-[#1a1a1c]">
+                  <span className="block truncate">#{i + 1}</span>
+                  <span className="mt-0.5 block truncate text-[9px] normal-case tracking-normal text-gray-400" title={c.street_address || undefined}>{c.street_address || '—'}</span>
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {COMPARISON_ROWS.map((row, i) => {
+              const zebra = i % 2 === 1
+              const rowBg = zebra ? 'bg-[#f7f7f8] dark:bg-[#1a1a1c]' : 'bg-white dark:bg-[#151517]'
+              const subjectValue = row.format(subject)
+              return (
+                <tr key={row.label} className={`group border-t border-gray-100 dark:border-gray-800 ${rowBg}`}>
+                  <td className={`${pinned} ${rowBg} p-2.5 text-[11.5px] font-bold text-gray-600 transition-colors group-hover:bg-[#f6efdc] dark:text-gray-400 dark:group-hover:bg-[#2a2416] sm:truncate sm:p-3 sm:text-xs`}>{row.label}</td>
+                  <td className={`truncate p-2.5 text-[12.5px] font-black text-[#111827] transition-colors group-hover:bg-[#f6efdc] dark:text-white dark:group-hover:bg-[#2a2416] sm:p-3 sm:text-xs ${zebra ? 'bg-[#f6f0e1] dark:bg-[#1f1b13]' : 'bg-[#fbf7ee] dark:bg-[#1c1912]'}`} title={String(subjectValue)}>{subjectValue}</td>
+                  {comparables.map(c => {
+                    const value = row.format(c)
+                    return <td key={c.id} className="truncate p-2.5 text-[12.5px] font-semibold text-gray-700 transition-colors group-hover:bg-[#f6efdc] dark:text-gray-300 dark:group-hover:bg-[#2a2416] sm:p-3 sm:text-xs" title={String(value)}>{value}</td>
+                  })}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

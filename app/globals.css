@@ -1359,12 +1359,27 @@ input:-webkit-autofill:active {
 @keyframes cma-dock-in { from { transform: translateY(110%); } to { transform: none; } }
 .cma-dock { animation: cma-dock-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
 
+/* The comp order rail's picked-card underline: a plain fade-in (no shared-layout animation). */
+@keyframes cma-underline-in { from { transform: scaleX(0.2); opacity: 0; } to { transform: none; opacity: 1; } }
+.cma-rail-underline { transform-origin: center; animation: cma-underline-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* The Create AI Analysis button while the run is going: gold light keeps moving across it. */
+@keyframes cma-btn-working { from { background-position: 0% 50%; } to { background-position: 200% 50%; } }
+.cma-btn-working { background-image: linear-gradient(110deg, #b8923f 0%, #e0b85f 25%, #f6dc9b 40%, #e0b85f 55%, #b8923f 80%, #e0b85f 100%) !important; background-size: 200% 100% !important; animation: cma-btn-working 2.2s linear infinite; }
+
+/* A light sweeping through the AI progress bar's filled part. */
+@keyframes cma-bar-sheen { from { left: -4rem; } to { left: 100%; } }
+.cma-bar-sheen { animation: cma-bar-sheen 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+
+/* An endless sweep for a loading bar with no real percentage (the comp search's first widen). */
+@keyframes cma-indeterminate { from { left: -35%; } to { left: 100%; } }
+.cma-indeterminate { animation: cma-indeterminate 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
 /* A value that differs from the subject's gets a little highlight wipe when a comp comes in. */
 @keyframes cma-diff-in { from { background-size: 0% 100%; } to { background-size: 100% 100%; } }
 .cma-diff { background-image: linear-gradient(rgba(201, 162, 77, 0.16), rgba(201, 162, 77, 0.16)); background-repeat: no-repeat; animation: cma-diff-in 0.6s 0.15s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .cma-chip-in, .cma-step-current, .cma-check-pop, .cma-dock, .cma-diff { animation: none; }
+  .cma-chip-in, .cma-step-current, .cma-check-pop, .cma-dock, .cma-diff, .cma-indeterminate, .cma-bar-sheen, .cma-rail-underline, .cma-btn-working { animation: none; }
   .cma-btn, .cma-btn::after { transition: none; }
 }
 

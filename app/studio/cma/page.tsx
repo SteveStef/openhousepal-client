@@ -1,10 +1,12 @@
 'use client'
 
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, Calculator, Download, Home, Loader2, Moon, Plus, Search, Share2, Sun, Trash2, User, X } from 'lucide-react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { useEscapeToClose, useIsPhone, usePagePin, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
+import { ArrowLeft, Calculator, Check, Download, Home, Loader2, Moon, Plus, Search, Share2, Sun, Trash2, User, X } from 'lucide-react'
 import { pdf } from '@react-pdf/renderer'
 import api from '@/lib/api-service'
 import { CmaMode, CmaReport, CmaReportListItem, CmaStatus, Site, SiteDomain } from '@/types'
@@ -453,83 +455,156 @@ function CmaDashboardInner() {
   )
 }
 
+// The "New CMA" window (user, 10/20: "poorly animated"). Phones: a sheet that slides up from the
+// bottom and pulls down to close (the Showcase sheet's own mechanics - components/ui/windowMotion).
+// Wider screens: a centred window that springs up into place. Either way the two report types are
+// big cards whose gold selection glides between them, and Continue presses with the builder's
+// button feel. The page behind is pinned while it's open.
 function CreateCmaModal({ onClose, onCreated }: { onClose: () => void, onCreated: (id: string) => void }) {
   const [clientName, setClientName] = useState('')
   const [mode, setMode] = useState<CmaMode>('listing')
   const [isCreating, setIsCreating] = useState(false)
+  const [open, setOpen] = useState(true)
+  const phone = useIsPhone()
+  const reduce = useReducedMotion()
+  const sheetMotion = useSheetMotion()
+  const close = useCallback(() => setOpen(false), [])
+  const { sheetRef, y } = useSwipeToClose(close, phone && open && !isCreating)
+  const releasePagePin = usePagePin(open)
+  useEscapeToClose(close, open && !isCreating)
 
   const handleCreate = async () => {
     setIsCreating(true)
     const response = await api.cma.create({ client_name: clientName.trim() || undefined, mode })
-    setIsCreating(false)
     if (response.success && response.data) onCreated(response.data.id)
+    else setIsCreating(false)
   }
 
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.94, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.94, y: 8 }}
-        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-[#151517]"
-        onClick={event => event.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-lg font-black tracking-tight text-[#111827] dark:text-white">New CMA</p>
-            <p className="text-xs font-semibold text-gray-400">You'll pick the subject property next.</p>
-          </div>
-          <button onClick={onClose} className="shrink-0 rounded-full p-2 text-gray-400 transition hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+  const options: { value: CmaMode, title: string, sub: string, icon: React.ComponentType<{ className?: string }> }[] = [
+    { value: 'listing', title: 'Seller / Listing', sub: 'What should this home list for?', icon: Home },
+    { value: 'buyer', title: 'Buyer / Offer', sub: 'What should my buyer offer?', icon: User },
+  ]
 
-        <div className="mt-5">
-          <label className="text-xs font-black uppercase tracking-wide text-gray-400">Client Name (optional)</label>
-          <input
-            value={clientName}
-            onChange={event => setClientName(event.target.value)}
-            placeholder="e.g. The Johnsons"
-            className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white"
-          />
-        </div>
-
-        <div className="mt-4">
-          <label className="text-xs font-black uppercase tracking-wide text-gray-400">This CMA is for a...</label>
-          <div className="mt-1.5 grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setMode('listing')}
-              className={`rounded-xl border-2 px-4 py-3 text-sm font-black transition ${mode === 'listing' ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#d7b974]' : 'border-gray-200 text-gray-500 dark:border-gray-700 dark:text-gray-400'}`}
-            >
-              Seller / Listing
-            </button>
-            <button
-              onClick={() => setMode('buyer')}
-              className={`rounded-xl border-2 px-4 py-3 text-sm font-black transition ${mode === 'buyer' ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#d7b974]' : 'border-gray-200 text-gray-500 dark:border-gray-700 dark:text-gray-400'}`}
-            >
-              Buyer / Offer
-            </button>
-          </div>
-        </div>
-
-        <motion.button
-          whileTap={{ scale: 0.97 }}
-          onClick={handleCreate}
-          disabled={isCreating}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#111827] px-5 py-3 text-sm font-black text-white shadow-sm transition-colors hover:bg-black disabled:opacity-60 dark:bg-white dark:text-[#111827]"
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <AnimatePresence onExitComplete={() => { releasePagePin(); onClose() }}>
+      {open && (
+        <motion.div
+          key="cma-create"
+          data-scroll-lock="off"
+          className="cma-touch fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4"
+          onClick={() => { if (!isCreating) close() }}
         >
-          {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-          Continue to Subject Property
-        </motion.button>
-      </motion.div>
-    </motion.div>
+          <motion.div
+            aria-hidden
+            className="absolute inset-0 bg-[#0B0B0B]/70"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: { duration: 0.2, ease: 'easeOut' } }}
+            exit={{ opacity: 0, transition: { duration: 0.22 } }}
+          />
+          <motion.div
+            ref={sheetRef}
+            {...sheetMotion}
+            style={{ y: phone && !reduce ? y : undefined }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="New CMA"
+            className="relative w-full max-w-md overflow-hidden rounded-t-[28px] border border-gray-200 bg-white px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2 shadow-2xl dark:border-gray-800 dark:bg-[#151517] sm:rounded-[28px] sm:p-6"
+            onClick={event => event.stopPropagation()}
+          >
+            <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-[#C9A24D]/15 blur-3xl" />
+            <div aria-hidden className="mx-auto mb-3 h-[5px] w-10 rounded-full bg-gray-200 dark:bg-gray-700 sm:hidden" />
+            <motion.div
+              initial="hidden"
+              animate="show"
+              variants={{ hidden: {}, show: { transition: { staggerChildren: reduce ? 0 : 0.05, delayChildren: reduce ? 0 : 0.08 } } }}
+              className="relative"
+            >
+              <motion.div variants={CREATE_ITEM} className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#C9A24D] to-[#e0b85f] text-white shadow-lg shadow-[#C9A24D]/30">
+                    <Calculator className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="font-serif text-xl font-black tracking-tight text-[#111827] dark:text-white">New CMA</p>
+                    <p className="text-xs font-semibold text-gray-400">You&apos;ll pick the subject property next.</p>
+                  </div>
+                </div>
+                <motion.button
+                  whileTap={{ scale: 0.88 }}
+                  whileHover={{ rotate: 90 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+                  onClick={close}
+                  aria-label="Close"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 hover:text-[#111827] dark:bg-gray-800 dark:text-gray-400 dark:hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </motion.button>
+              </motion.div>
+
+              <motion.div variants={CREATE_ITEM} className="mt-5">
+                <label htmlFor="cma-client-name" className="text-[10px] font-black uppercase tracking-[0.16em] text-gray-400">Client name (optional)</label>
+                <input
+                  id="cma-client-name"
+                  value={clientName}
+                  onChange={event => setClientName(event.target.value)}
+                  onKeyDown={event => { if (event.key === 'Enter' && !isCreating) handleCreate() }}
+                  placeholder="e.g. The Johnsons"
+                  className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-base font-semibold outline-none transition focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/15 dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white sm:text-sm"
+                />
+              </motion.div>
+
+              <motion.div variants={CREATE_ITEM} className="mt-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-gray-400">This CMA is for a...</p>
+                <div className="mt-1.5 grid grid-cols-2 gap-2.5">
+                  {options.map(opt => {
+                    const on = mode === opt.value
+                    const Icon = opt.icon
+                    return (
+                      <motion.button
+                        key={opt.value}
+                        type="button"
+                        whileTap={{ scale: 0.96 }}
+                        onClick={() => setMode(opt.value)}
+                        aria-pressed={on}
+                        className={`relative overflow-hidden rounded-2xl border-2 p-3 text-left transition-colors duration-300 ${on ? 'border-[#C9A24D]' : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'}`}
+                      >
+                        {on && <motion.span layoutId="cma-create-mode" transition={{ type: 'spring', stiffness: 460, damping: 36 }} className="absolute inset-0 bg-gradient-to-br from-[#C9A24D]/20 via-[#C9A24D]/10 to-transparent" />}
+                        <span className="relative flex items-center justify-between">
+                          <span className={`grid h-8 w-8 place-items-center rounded-xl transition-colors duration-300 ${on ? 'bg-[#C9A24D] text-white' : 'bg-gray-100 text-gray-400 dark:bg-gray-800'}`}><Icon className="h-4 w-4" /></span>
+                          <span className={`grid h-5 w-5 place-items-center rounded-full border-2 transition-colors duration-300 ${on ? 'border-[#C9A24D] bg-[#C9A24D] text-white' : 'border-gray-300 dark:border-gray-600'}`}>
+                            {on && <Check className="cma-check-pop h-3 w-3" strokeWidth={3} />}
+                          </span>
+                        </span>
+                        <span className={`relative mt-2 block text-sm font-black ${on ? 'text-[#111827] dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>{opt.title}</span>
+                        <span className="relative mt-0.5 block text-[11px] font-semibold leading-snug text-gray-400">{opt.sub}</span>
+                      </motion.button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+
+              <motion.div variants={CREATE_ITEM}>
+                <button
+                  onClick={handleCreate}
+                  disabled={isCreating}
+                  className="cma-btn mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#111827] px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-black/10 disabled:opacity-80 dark:bg-white dark:text-[#111827]"
+                >
+                  {isCreating
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Setting up your CMA…</>
+                    : <>Continue to Subject Property <ArrowLeft className="h-4 w-4 rotate-180" /></>}
+                </button>
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body,
   )
 }
+
+const CREATE_ITEM = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 420, damping: 34 } },
+} as const
