@@ -110,6 +110,14 @@ function ShowcaseContent() {
   })()
   const linkedHome = homeInPath || searchParams.get('property')
 
+  // Framed on an agent's own domain (the IDX site's /showcase/... page): tell the site which home
+  // is open, so its address bar follows along - a refresh or a copied link reopens the same home
+  // there (components/public-site/FramePathSync).
+  useEffect(() => {
+    if (window.parent === window || !pathname) return
+    try { window.parent.postMessage({ type: 'ohp:path', path: pathname }, '*') } catch { /* no parent */ }
+  }, [pathname])
+
   // This Showcase's own agent opened the client link while signed in (e.g. from a calendar
   // follow-up): nothing they do here may count as the client's activity - no view tracking, and
   // likes / comments go out signed so the server files them as the agent's. A slim bar says so and

@@ -33,6 +33,7 @@ import { fontClass } from '@/components/website-public/blocks/fontClass'
 import BlogCoverArt from '@/components/BlogCoverArt'
 import IdxOneTap from '@/components/website-public/IdxOneTap'
 import RememberShowcase from '@/components/website-public/showcase/RememberShowcase'
+import FramePathSync from '@/components/public-site/FramePathSync'
 import { resolveMediaUrl } from '@/lib/api-service'
 import { DEFAULT_SITE_THEME, SearchFilterParams, SiteContent, type SiteTheme } from '@/components/website-public/types'
 import type { PropertySiteResolveResponse } from '@/components/property-sites/CinematicLuxuryTemplate'
@@ -1061,6 +1062,7 @@ async function ShowcaseAliasPage({ siteId, shareToken, home, basePrefix, accent 
   return (
     <main className="h-[100dvh] w-full overflow-hidden bg-[#f7f5f1]">
       {mine?.code && <RememberShowcase code={mine.code} name={mine.name} />}
+      <FramePathSync src={src} basePrefix={basePrefix.startsWith('/ohp-site-render/') ? basePrefix : ''} prefix={`/showcase/${encodeURIComponent(shareToken)}`} />
       <iframe src={src} title="Showcase" className="h-full w-full border-0" />
     </main>
   )
