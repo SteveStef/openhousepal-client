@@ -28,7 +28,7 @@ export default function CmaHowWeGotThere({ estimate }: { estimate?: CmaAiEstimat
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-3 inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-xs font-black uppercase tracking-wide text-gray-600 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-300"
+        className="cma-btn mt-3 inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-xs font-black uppercase tracking-wide text-gray-600 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-300"
       >
         <Calculator className="h-3.5 w-3.5" /> How we got there
       </button>
