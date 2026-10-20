@@ -25,7 +25,7 @@ import { HUB_MOBILE_HEADERS } from '@/components/agent-hub/HubLuxeTheme'
 import { LUXE_METALS, LUXE_METAL_ORDER, metalOf, type LuxeMetal } from '@/lib/luxeMetals'
 import { ACCENT_COLORS } from '@/lib/accentSwatches'
 import { BRAND_ACCENT_COLORS, BRAND_MAIN_COLORS } from '@/lib/brandSwatches'
-import { BigToggle, ChoiceCard, Field, isLight, PinnedPreview, StepCtx, SubHead, Swatches, toJpeg, useGate } from './SetupUi'
+import { BigToggle, ChoiceCard, Field, isLight, StepCtx, SubHead, Swatches, toJpeg, useGate } from './SetupUi'
 import ZillowLinkHelp, { ZILLOW_REVIEW_PLACEHOLDER } from '@/components/reviews/ZillowLinkHelp'
 import QrBrandPicker from '@/components/settings/QrBrandPicker'
 import FormLookPicker, { FormPhonePreview } from '@/components/forms/FormLookPicker'
@@ -441,6 +441,15 @@ const SIG_SOCIALS = [
   { id: 'tiktok', label: 'TikTok', icon: Music2 },
 ] as const
 
+// "Match my Agent Hub" (the default, like the forms step - user, 10/20): the hub's Classic/Luxe
+// style, its color or metal, and light/dark, copied onto the signature. Luxe hubs are IDX-only.
+function hubSignatureLook(look: Record<string, any>, plan: string | null) {
+  const luxe = look.hubTheme === 'luxe' && plan === 'IDX'
+  return { luxe, luxeMetal: metalOf(look.hubLuxeMetal), accentColor: hubAccentOf(look.hubAccent), darkMode: look.visitorDarkMode === true }
+}
+const matchesHub = (c: SignatureConfig, h: ReturnType<typeof hubSignatureLook>) =>
+  c.luxe === h.luxe && c.darkMode === h.darkMode && (h.luxe ? c.luxeMetal === h.luxeMetal : c.accentColor.toLowerCase() === h.accentColor.toLowerCase())
+
 export function SignatureStep({ ctx }: { ctx: StepCtx }) {
   const { user } = useAuth()
   const [cfg, setCfg] = useState<SignatureConfig | null>(null)
@@ -449,6 +458,8 @@ export function SignatureStep({ ctx }: { ctx: StepCtx }) {
   const [emailVersion, setEmailVersion] = useState(0)
   const [copied, setCopied] = useState<'' | 'ok' | 'err'>('')
   const [client, setClient] = useState<'gmail' | 'outlook' | 'apple'>('gmail')
+  const [colorMode, setColorMode] = useState<'hub' | 'own'>('hub')
+  const hubLook = hubSignatureLook(ctx.data.look || {}, ctx.plan)
   const saveTimer = useRef<number | undefined>(undefined)
   const pending = useRef<SignatureConfig | null>(null)
 
@@ -473,6 +484,13 @@ export function SignatureStep({ ctx }: { ctx: StepCtx }) {
       // every social they added in "Your socials" goes on, like the Agent Hub (once - see seedSignatureSocials)
       const seeded = seedSignatureSocials(c, hubConfig)
       if (seeded) { c = seeded; changed = true }
+      // Never styled yet (no color/Luxe/dark saved, step not done): start on the Agent Hub's look.
+      // Someone who already picked their own colors keeps them and lands on "Pick my own".
+      const saved = s.success ? s.data?.config : null
+      const sigDone = ctx.data.steps.some(x => x.id === 'signature' && x.status === 'done')
+      const fresh = !sigDone && !saved?.accentColor && !saved?.luxe && !saved?.darkMode
+      if (fresh && !matchesHub(c, hubLook)) { c = { ...c, ...hubLook }; changed = true }
+      setColorMode(fresh || matchesHub(c, hubLook) ? 'hub' : 'own')
       setCfg(c)
       if (changed) persist(c)
     })
@@ -544,11 +562,28 @@ export function SignatureStep({ ctx }: { ctx: StepCtx }) {
 
   return (
     <div className="space-y-8">
-      {/* the live preview stays in view while they choose */}
-      <PinnedPreview>
-        <SignatureDualPreview siteHtml={siteHtml} emailVersion={emailVersion} />
-      </PinnedPreview>
+      {/* the preview sits in its own place - it doesn't follow them down the page (user, 10/20) */}
+      <SignatureDualPreview siteHtml={siteHtml} emailVersion={emailVersion} />
 
+      <div>
+        <SubHead sub="Start from your Agent Hub, or choose a look just for your signature.">Colors</SubHead>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <ChoiceCard on={colorMode === 'hub'} onClick={() => { setColorMode('hub'); update(c => ({ ...c, ...hubLook })) }} title="Match my Agent Hub"
+            blurb={`${hubLook.luxe ? `Luxe, ${LUXE_METALS[hubLook.luxeMetal].label.toLowerCase()}` : 'Classic, your hub color'}, ${hubLook.darkMode ? 'dark' : 'light'} - the same as your Agent Hub.`}>
+            <div className="flex h-16 items-center justify-center gap-2 rounded-2xl ring-1 ring-black/5" style={{ background: SIG_THEME_LOOK[hubLook.darkMode ? 'dark' : 'light'][hubLook.luxe ? 'luxe' : 'classic'] }}>
+              <span className="h-9 w-9 rounded-xl" style={{ background: hubLook.luxe ? `linear-gradient(135deg, ${LUXE_METALS[hubLook.luxeMetal].deep}, ${LUXE_METALS[hubLook.luxeMetal].base} 45%, ${LUXE_METALS[hubLook.luxeMetal].light} 70%, ${LUXE_METALS[hubLook.luxeMetal].deep})` : hubLook.accentColor }} />
+              <span className="h-3 w-20 rounded-full" style={{ background: hubLook.luxe ? LUXE_METALS[hubLook.luxeMetal].base : hubLook.accentColor }} />
+            </div>
+          </ChoiceCard>
+          <ChoiceCard on={colorMode === 'own'} onClick={() => setColorMode('own')} title="Pick my own" blurb="Choose a style, color and font just for your signature.">
+            <div className="flex h-16 items-center justify-center gap-1.5 rounded-2xl bg-[#fbfaf7] dark:bg-white/[0.04]">
+              {ACCENT_COLORS.slice(0, 5).map(a => <span key={a.color} className="h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#141416]" style={{ background: a.color }} />)}
+            </div>
+          </ChoiceCard>
+        </div>
+      </div>
+
+      {colorMode === 'own' && <>
       <div>
         <SubHead sub="Classic takes your color and font. Luxe is our premade look: serif type and a metal finish.">Style</SubHead>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -605,6 +640,8 @@ export function SignatureStep({ ctx }: { ctx: StepCtx }) {
           </div>
         </div>
       )}
+
+      </>}
 
       {available.length > 0 && (
         <div>
