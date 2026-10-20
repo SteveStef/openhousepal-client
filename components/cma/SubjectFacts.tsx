@@ -597,15 +597,10 @@ export function SubjectFactsEditor({ reportId, subject, setSubject, area }: {
         </div>
 
         <div>
-          <p className={sectionLabelClass}>Condition & Description</p>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[14rem_1fr]">
-            <SelectField label="Overall Condition" value={subject.condition || ''} options={CONDITIONS} onChange={v => set({ condition: v || null })} />
-            <Labeled label="Recent Updates">
-              <input className={inputClass} value={subject.recent_updates || ''} onChange={e => set({ recent_updates: e.target.value || null })}
-                placeholder="e.g. new roof 2022, kitchen 2019, HVAC 2021" />
-            </Labeled>
-          </div>
-          <div className="mt-2.5">
+          {/* No condition / recent-updates questions (user, 10/20): the analysis reads condition and
+              updates from the description and the photos, so the agent isn't asked to type them. */}
+          <p className={sectionLabelClass}>Description</p>
+          <div>
             <Labeled label="Description" hint="Describe the home the way a listing would - finishes, layout, lot, anything special. The analysis reads this.">
               <textarea rows={4} className={`${inputClass} resize-y font-medium leading-relaxed`} value={subject.public_remarks || ''}
                 onChange={e => set({ public_remarks: e.target.value || null })} />

@@ -2010,6 +2010,11 @@ class ApiService {
     resyncQa: (id: string) =>
       this.request<CmaReport>(`/api/cma/${id}/resync-qa`, { method: 'POST' }),
 
+    // The full subject for an MLS listing from our Bright record (location, school district,
+    // township, county, lot, basement, garage, utilities, taxes, description, every photo).
+    subjectFromListing: (listingKey: string) =>
+      this.request<CmaSubjectProperty>(`/api/cma/subject-from-listing/${encodeURIComponent(listingKey)}`),
+
     // Manual subject (a home not on the MLS yet) - see backend cma_manual_subject_service.py.
     subjectArea: (lat: number, lng: number) =>
       this.request<CmaSubjectArea>(`/api/cma/subject-area?lat=${lat}&lng=${lng}`),

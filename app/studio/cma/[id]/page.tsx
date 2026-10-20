@@ -714,6 +714,32 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
 
   useEffect(() => { setSubject(report.subject); subjectLoaded.current = false }, [report.id])
 
+  // A report saved with a thin MLS subject (picked from My Listings before 10/20) is filled in from
+  // the Bright record when it opens - only blanks are filled, nothing the agent typed is replaced.
+  useEffect(() => {
+    const s = report.subject
+    if (s?.source !== 'mls' || !s.listing_key) return
+    if (s.latitude != null && s.school_district && s.public_remarks && s.township) return
+    let cancelled = false
+    api.cma.subjectFromListing(s.listing_key).then(r => {
+      if (cancelled || !r.success || !r.data) return
+      const full = r.data
+      setSubject(cur => {
+        const merged: CmaSubjectProperty = { ...cur }
+        for (const [k, v] of Object.entries(full) as [keyof CmaSubjectProperty, unknown][]) {
+          const now = merged[k] as unknown
+          if ((now == null || now === '' || (Array.isArray(now) && now.length === 0)) && v != null && v !== '') {
+            (merged as unknown as Record<string, unknown>)[k] = v
+          }
+        }
+        if ((full.photos?.length || 0) > (cur.photos?.length || 0)) merged.photos = full.photos
+        return merged
+      })
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [report.id])
+
   // Autosave, debounced the same way this file already debounces the address search below (a
   // plain setTimeout/clearTimeout in a useEffect) - skips the first run after a report loads/
   // switches so it doesn't immediately re-save data that was just fetched.
@@ -747,19 +773,32 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
     return () => { cancelled = true; clearTimeout(t) }
   }, [query, mode])
 
+  // Every MLS pick fills the WHOLE subject from our Bright record (10/20: picking "My listing"
+  // filled only address, price, beds/baths/sqft and one photo - no map location, school district,
+  // township, county, lot, basement, utilities or description - and the address lookup itself
+  // leaves out water, sewer, taxes and garage).
+  const fullSubjectFor = async (listingKey?: string | null): Promise<CmaSubjectProperty | null> => {
+    if (!listingKey) return null
+    const r = await api.cma.subjectFromListing(listingKey)
+    return r.success && r.data ? r.data : null
+  }
+
   const selectAddress = async (address: string) => {
     setSearching(true)
     const response = await api.properties.lookup(address)
-    setSearching(false)
     if (response.success && response.data) {
       const p = response.data
-      setSubject(mapPropertyToSubject(p))
+      const full = await fullSubjectFor(p.ListingKey ?? p.listing_key)
+      setSubject(full || mapPropertyToSubject(p))
       setSuggestions([])
       setQuery('')
     }
+    setSearching(false)
   }
 
-  const selectMyListing = (listing: MyListingItem) => {
+  const selectMyListing = async (listing: MyListingItem) => {
+    const full = await fullSubjectFor(listing.listing_key)
+    if (full) { setSubject(full); return }
     setSubject({
       listing_key: listing.listing_key,
       source: 'mls',
