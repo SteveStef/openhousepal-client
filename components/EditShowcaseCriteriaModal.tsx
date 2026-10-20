@@ -4,7 +4,7 @@ import AreaPicksMap from '@/components/maps/AreaPicksMap'
 import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { backdropMotion, panelMotion, useEscapeToClose } from '@/components/ui/windowMotion'
+import { backdropMotion, useEscapeToClose, useIsPhone, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 import {
   X, Send, CheckCircle2, Mail, Phone, Search, MapPin, Copy, Check, Crosshair, DollarSign, BedDouble, Bath,
   Scale, SlidersHorizontal, MessageSquareText, Sparkles, Loader2, Target, ArrowRight, Home, Ruler, RotateCcw,
@@ -146,6 +146,9 @@ const screenSlide = {
 function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessage, agent, currentCompareProperty, hasExplicitCompareOverride, focus = 'all', onRefineFurther, audience = 'client', preview }: EditShowcaseCriteriaModalProps) {
   const their = audience === 'agent' ? 'their' : 'your'
   useEscapeToClose(onClose)
+  const sheetMotion = useSheetMotion()
+  const isPhoneSheet = useIsPhone()
+  const { sheetRef, y: sheetY } = useSwipeToClose(onClose, isPhoneSheet)
   const googleAutocompleteRef = useRef<GooglePlacesAutocompleteRef>(null)
   const [formData, setFormData] = useState<FormState>(() => ({
     address: preferences?.address || '',
@@ -734,7 +737,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
   const shell = (opts: { icon: ReactNode; kicker: string; title: string; sub?: string; wide?: boolean; xl?: boolean; summary?: boolean; children: ReactNode; footer?: ReactNode; headerExtra?: ReactNode; headerSide?: ReactNode }) => (
     <motion.div {...backdropMotion} className="fixed inset-0 z-50 flex items-end justify-center bg-[#0b0b0c]/60 sm:items-center sm:p-4" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <style>{GOLD_CSS}</style>
-      <motion.div {...panelMotion}
+      <motion.div ref={sheetRef} {...sheetMotion} style={isPhoneSheet ? { y: sheetY } : undefined}
         className={`flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-[0_40px_100px_-30px_rgba(0,0,0,.7)] ring-1 ring-black/5 dark:bg-[#141416] dark:ring-white/10 sm:rounded-[28px] ${opts.xl ? 'sm:max-h-[90dvh] sm:max-w-3xl' : opts.wide ? 'sm:max-w-xl' : 'sm:max-w-md'}`}>
         {/* lit header - a slow gold aurora drifting behind it */}
         <div className="relative isolate shrink-0 overflow-hidden bg-[#0b0b0c] px-5 pb-5 pt-5 text-white sm:px-7">

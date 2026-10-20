@@ -2,7 +2,7 @@
 
 import { OhpSpinner } from '@/components/brand/OhpLoader'
 import { AnimatePresence, motion } from 'framer-motion'
-import { backdropMotion, panelMotion, useEscapeToClose, useLastValue } from '@/components/ui/windowMotion'
+import { backdropMotion, useEscapeToClose, useIsPhone, useLastValue, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 import { useState, useRef, useEffect } from 'react'
 import { X, MessageCircle, Send } from 'lucide-react'
 import { Property } from '@/types'
@@ -32,6 +32,9 @@ const formatDate = (dateString: string) => {
 // the full property details view first.
 function QuickCommentWindow({ property, isOpen, onClose, onAddComment, isLoading = false }: QuickCommentModalProps & { property: NonNullable<QuickCommentModalProps['property']> }) {
   useEscapeToClose(onClose)
+  const sheetMotion = useSheetMotion()
+  const phone = useIsPhone()
+  const { sheetRef, y: sheetY } = useSwipeToClose(onClose, phone)
   const [newComment, setNewComment] = useState('')
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -57,7 +60,9 @@ function QuickCommentWindow({ property, isOpen, onClose, onAddComment, isLoading
     <div className="fixed inset-0 z-[10000] flex items-end justify-center p-3 sm:items-center sm:p-4" onClick={onClose}>
       <motion.div {...backdropMotion} className="absolute inset-0 bg-black/55" />
       <motion.div
-        {...panelMotion}
+        ref={sheetRef}
+        {...sheetMotion}
+        style={phone ? { y: sheetY } : undefined}
         onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-sm bg-white dark:bg-[#151517] rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col max-h-[80vh]"
       >

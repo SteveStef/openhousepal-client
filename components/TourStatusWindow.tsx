@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CalendarCheck, CalendarClock, CalendarPlus, Check, Hourglass, X } from 'lucide-react'
-import { backdropMotion, panelMotion, useLastValue } from '@/components/ui/windowMotion'
+import { backdropMotion, useIsPhone, useLastValue, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 
 // A showing request as the buyer sees it: waiting on the agent ("Pending approval") or confirmed,
 // the times they asked for, when they sent it - and a way to ask for another time.
@@ -53,6 +53,9 @@ export default function TourStatusWindow({ tour, address, agentName, onClose, on
   onRequestAnother: () => void
 }) {
   const shown = useLastValue(tour)
+  const sheetMotion = useSheetMotion()
+  const phone = useIsPhone()
+  const { sheetRef, y: sheetY } = useSwipeToClose(onClose, phone && !!tour)
   const [host, setHost] = useState<HTMLElement | null>(null)
   useEffect(() => { setHost(document.body) }, [])
   useEffect(() => {
@@ -69,7 +72,7 @@ export default function TourStatusWindow({ tour, address, agentName, onClose, on
     <AnimatePresence>
       {tour && shown && (
         <motion.div {...backdropMotion} className="fixed inset-0 z-[120] flex items-end justify-center bg-[#0b0b0c]/60 sm:items-center sm:p-4" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-          <motion.div {...panelMotion} className="w-full overflow-hidden rounded-t-[28px] bg-white shadow-[0_40px_100px_-30px_rgba(0,0,0,.7)] dark:bg-[#141416] sm:max-w-md sm:rounded-[28px]">
+          <motion.div ref={sheetRef} {...sheetMotion} style={phone ? { y: sheetY } : undefined} className="w-full overflow-hidden rounded-t-[28px] bg-white shadow-[0_40px_100px_-30px_rgba(0,0,0,.7)] dark:bg-[#141416] sm:max-w-md sm:rounded-[28px]">
             {/* status header */}
             <div className={`relative isolate overflow-hidden px-6 pb-6 pt-6 text-white ${state === 'confirmed' || state === 'done' ? 'bg-emerald-600' : 'bg-[#0b0b0c]'}`}>
               <div className="absolute inset-0 -z-10" style={{ background: state === 'pending' ? 'radial-gradient(120% 120% at 100% 0%, rgba(245,158,11,.45), transparent 55%), linear-gradient(135deg,#0b0b0c,#18140c)' : 'radial-gradient(120% 120% at 100% 0%, rgba(255,255,255,.25), transparent 55%)' }} />

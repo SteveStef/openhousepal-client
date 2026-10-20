@@ -1,7 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { backdropMotion, panelMotion, useEscapeToClose, useLastValue } from '@/components/ui/windowMotion'
+import { backdropMotion, useEscapeToClose, useIsPhone, useLastValue, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, ArrowRight, CalendarDays, Check, Loader2, Moon, Send, Sun, Sunrise, X } from 'lucide-react'
@@ -125,6 +125,9 @@ function ScheduleTourWindow({
   const [note, setNote] = useState('')
   const [sending, setSending] = useState(false)
   useEscapeToClose(onClose, !sending)
+  const sheetMotion = useSheetMotion()
+  const isPhone = useIsPhone()
+  const { sheetRef, y: sheetY } = useSwipeToClose(onClose, isPhone && !sending)
   const [error, setError] = useState('')
 
   // Closes itself a moment after the request went through.
@@ -205,7 +208,9 @@ function ScheduleTourWindow({
     >
       <style>{TOUR_CSS}</style>
       <motion.div
-        {...panelMotion}
+        ref={sheetRef}
+        {...sheetMotion}
+        style={isPhone ? { y: sheetY } : undefined}
         className="relative grid max-h-[100dvh] w-full grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-t-[26px] bg-white shadow-[0_40px_100px_-30px_rgba(0,0,0,.7)] dark:bg-[#111113] sm:max-h-[min(640px,calc(100dvh-2.5rem))] sm:max-w-[920px] sm:grid-cols-[300px_minmax(0,1fr)] sm:grid-rows-1 sm:rounded-[30px]"
       >
         {/* ---- the home, lit */}

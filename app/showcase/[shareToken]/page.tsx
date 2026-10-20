@@ -4,13 +4,13 @@ import { useState, useEffect, useLayoutEffect, useCallback, Suspense, useRef } f
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { homeSlug } from '@/lib/showcaseLink'
 import { applyAccentRecolor } from '@/lib/accentRecolor'
-import { ArrowUpDown, MapPin, Calendar, SlidersHorizontal, Tag, BedDouble, GraduationCap, Home as HomeIcon } from 'lucide-react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { ArrowUpDown, MapPin, Calendar, SlidersHorizontal, Tag, BedDouble, GraduationCap, Home as HomeIcon, X } from 'lucide-react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Collection, CollectionPreferences, Property, Comment, TourRequest, PropertyTour } from '@/types'
 import { getToken } from '@/lib/token'
 import api from '@/lib/api-service'
 import PropertyGrid from '@/components/PropertyGrid'
-import PropertyDetailsModal from '@/components/PropertyDetailsModal'
+import PropertyDetailsModal, { type HomeMove } from '@/components/PropertyDetailsModal'
 import QuickCommentModal from '@/components/QuickCommentModal'
 import ScheduleTourModal from '@/components/ScheduleTourModal'
 import TourStatusWindow, { tourState } from '@/components/TourStatusWindow'
@@ -18,7 +18,7 @@ import EditShowcaseCriteriaModal from '@/components/EditShowcaseCriteriaModal'
 import { notify, useToast } from '@/contexts/ToastContext'
 import MLSComplianceFooter from '@/components/MLSComplianceFooter'
 import LiveIndicator from '@/components/LiveIndicator'
-import { isPropertyAvailableStatus, haversineMiles } from '@/lib/utils'
+import { isPropertyAvailableStatus, haversineMiles, normalizeImageUrl } from '@/lib/utils'
 import { computeMatchScore } from '@/lib/matchScore'
 import OhpLoader from '@/components/brand/OhpLoader'
 import { todayLocal } from '@/lib/relativeDays'
@@ -87,6 +87,9 @@ function ShowcaseContent() {
   const [isEditCriteriaOpen, setIsEditCriteriaOpen] = useState(false)
 
   const isInternalSyncRef = useRef(false)
+  // The homes in the list on screen right now, and the list the open details window steps through.
+  const filteredIdsRef = useRef<string[]>([])
+  const navIdsRef = useRef<string[]>([])
 
   // "Change your search" in their email opens straight to it (?search=1).
   const openedFromLinkRef = useRef(false)
@@ -336,6 +339,7 @@ function ShowcaseContent() {
   }
 
   const filteredProperties = getFilteredProperties()
+  filteredIdsRef.current = filteredProperties.map(p => String(p.id))
 
   const getTabCounts = () => {
     if (!showcase || !matchedProperties) return { all: 0, liked: 0, disliked: 0, soldRemoved: 0 }
@@ -350,6 +354,24 @@ function ShowcaseContent() {
   }
 
   const tabCounts = getTabCounts()
+
+  // "Added to Passed": a small note in the middle of the screen the first 3 times this visitor
+  // passes on a home (remembered in this browser), so they know where it went. Never again after.
+  const reduceMotion = useReducedMotion()
+  const [passHint, setPassHint] = useState<{ key: number; photo: string | null } | null>(null)
+  const passHintTimer = useRef<number | undefined>(undefined)
+  const maybeShowPassHint = (property: Property | null) => {
+    const KEY = 'ohp_pass_hint_seen'
+    let seen = 0
+    try { seen = parseInt(window.localStorage.getItem(KEY) || '0', 10) || 0 } catch { /* storage blocked */ }
+    if (seen >= 3) return
+    try { window.localStorage.setItem(KEY, String(seen + 1)) } catch { /* storage blocked - still show it */ }
+    const raw = property?.ListPictureURL || null
+    setPassHint({ key: Date.now(), photo: raw ? normalizeImageUrl(raw) : null })
+    window.clearTimeout(passHintTimer.current)
+    passHintTimer.current = window.setTimeout(() => setPassHint(null), 1900)
+  }
+  useEffect(() => () => window.clearTimeout(passHintTimer.current), [])
 
   // Handle property interactions
   const handlePropertyLike = async (propertyId: string | number, liked: boolean) => {
@@ -410,6 +432,9 @@ function ShowcaseContent() {
 
   const handlePropertyDislike = async (propertyId: string | number, disliked: boolean) => {
     if (!showcase) return
+    // A visitor's first few passes show where the home went ("Added to Passed"); after that the
+    // card simply leaving says enough - no toast either way.
+    if (disliked) maybeShowPassHint(matchedProperties.find(p => String(p.id) === String(propertyId)) || null)
 
     // Optimistic UI update
     const optimisticProperties = matchedProperties.map(property =>
@@ -456,7 +481,7 @@ function ShowcaseContent() {
         }))
       }
 
-      showToast(disliked ? 'Property marked as not interested' : 'Property unmarked as not interested', 'success')
+      if (!disliked) showToast('Property unmarked as not interested', 'success')
     } else {
       // Rollback
       setMatchedProperties(matchedProperties)
@@ -613,26 +638,53 @@ function ShowcaseContent() {
     }
   }, [showcase?.id, ownerViewing])
 
-  const handlePropertyClick = useCallback((property: Property) => {
-    isInternalSyncRef.current = true
-
+  // A home's own address in this Showcase: /showcase/dana-k7q2/732-buck-ln (?property=<id> if it has no street).
+  const homeUrl = useCallback((property: Property) => {
     const currentParams = new URLSearchParams(window.location.search)
     currentParams.delete('property')
     const slug = homeSlug(property.FullStreetAddress)
     const target = slug ? `${showcaseBase}/${slug}` : showcaseBase
     if (!slug) currentParams.set('property', String(property.id))
     const q = currentParams.toString()
-    if (`${target}${q ? `?${q}` : ''}` !== `${window.location.pathname}${window.location.search}`) {
-      window.history.pushState(null, '', `${target}${q ? `?${q}` : ''}`)
+    return `${target}${q ? `?${q}` : ''}`
+  }, [showcaseBase])
+
+  // The homes the details window steps through with its arrows: the list it was opened from, as it
+  // was then (a home passed on the way is dropped from it, so the arrows never land on it again).
+  const [homeMove, setHomeMove] = useState<HomeMove | null>(null)
+  const moveSeq = useRef(0)
+  const passedInDetailsRef = useRef(false)
+
+  const handlePropertyClick = useCallback((property: Property) => {
+    isInternalSyncRef.current = true
+
+    // Opening a home is one step in the browser's history (marked, so closing it goes back to the
+    // list instead of adding another step - Back then leaves the Showcase as expected).
+    const url = homeUrl(property)
+    if (url !== `${window.location.pathname}${window.location.search}`) {
+      window.history.pushState({ ohpHome: true }, '', url)
     }
 
+    navIdsRef.current = filteredIdsRef.current
+    setHomeMove(null)
     // Set state immediately
     setSelectedProperty(property)
     setIsModalOpen(true)
     loadPropertyDetails(property)
 
     setTimeout(() => { isInternalSyncRef.current = false }, 100)
-  }, [loadPropertyDetails, showcaseBase])
+  }, [loadPropertyDetails, homeUrl])
+
+  // Step to another home inside the open window - same history step, new address.
+  const goToHome = useCallback((property: Property, dir: 1 | -1, kind: HomeMove['kind'] = 'nav') => {
+    isInternalSyncRef.current = true
+    window.history.replaceState({ ohpHome: !!window.history.state?.ohpHome }, '', homeUrl(property))
+    setHomeMove({ dir, kind, seq: ++moveSeq.current })
+    setSelectedProperty(property)
+    setIsModalOpen(true)
+    loadPropertyDetails(property)
+    setTimeout(() => { isInternalSyncRef.current = false }, 100)
+  }, [loadPropertyDetails, homeUrl])
 
   const handleCloseModal = useCallback(() => {
     isInternalSyncRef.current = true
@@ -641,14 +693,38 @@ function ShowcaseContent() {
     setIsModalOpen(false)
     setSelectedProperty(null)
 
-    const currentParams = new URLSearchParams(window.location.search)
-    if (currentParams.has('property') || window.location.pathname !== showcaseBase) {
-      currentParams.delete('property')
-      window.history.pushState(null, '', `${showcaseBase}${currentParams.toString() ? `?${currentParams.toString()}` : ''}`)
+    if (window.history.state?.ohpHome) {
+      // We opened this home from the list: closing = going back to the list's own history step.
+      window.history.back()
+    } else {
+      const currentParams = new URLSearchParams(window.location.search)
+      if (currentParams.has('property') || window.location.pathname !== showcaseBase) {
+        currentParams.delete('property')
+        window.history.replaceState(null, '', `${showcaseBase}${currentParams.toString() ? `?${currentParams.toString()}` : ''}`)
+      }
     }
 
     setTimeout(() => { isInternalSyncRef.current = false }, 100)
   }, [showcaseBase])
+
+  // While a home is open the page must not be scrolled by the browser's own history restore - the
+  // window puts it back exactly where it was when it closes (no jump, no flash).
+  useEffect(() => {
+    if (!('scrollRestoration' in window.history)) return
+    if (isModalOpen) { window.history.scrollRestoration = 'manual'; return }
+    const t = window.setTimeout(() => { window.history.scrollRestoration = 'auto' }, 900)
+    return () => window.clearTimeout(t)
+  }, [isModalOpen])
+
+  // Passed homes from inside the window: once it closes, the Disliked tab's count pops so they see
+  // where those homes went.
+  const [dislikedPulse, setDislikedPulse] = useState(0)
+  useEffect(() => {
+    if (isModalOpen || !passedInDetailsRef.current) return
+    passedInDetailsRef.current = false
+    const t = window.setTimeout(() => setDislikedPulse(n => n + 1), 380)
+    return () => window.clearTimeout(t)
+  }, [isModalOpen])
 
   // Handle URL sync for property details (Single Source of Truth)
   useEffect(() => {
@@ -891,6 +967,45 @@ function ShowcaseContent() {
     </div>
   )
 
+  // Previous / next home for the open details window.
+  const navIds = navIdsRef.current.length ? navIdsRef.current : filteredIdsRef.current
+  const openId = selectedProperty ? String(selectedProperty.id) : ''
+  const navIndex = navIds.indexOf(openId)
+  const homeById = (id?: string) => (id ? matchedProperties.find(p => String(p.id) === id) || null : null)
+  const prevHome = navIndex > 0 ? homeById(navIds[navIndex - 1]) : null
+  const nextHome = navIndex >= 0 ? homeById(navIds[navIndex + 1]) : homeById(navIds[0])
+  const detailsNav = isModalOpen && selectedProperty && navIds.length > 1
+    ? {
+        index: navIndex,
+        total: navIds.length,
+        onPrev: prevHome ? () => goToHome(prevHome, -1) : null,
+        onNext: nextHome ? () => goToHome(nextHome, 1) : null,
+      }
+    : null
+
+  // Pass from inside the details: the button flips to "Passed" for a beat, then the home slides off
+  // and the next one in the list takes its place (the one before it at the end of the list; the
+  // window closes if it was the last). The passed home is in the Disliked tab now.
+  const openIdRef = useRef('')
+  openIdRef.current = openId
+  const handleDetailsDislike = (propertyId: string | number, disliked: boolean) => {
+    handlePropertyDislike(propertyId, disliked)
+    if (!disliked) return
+    passedInDetailsRef.current = true
+    const id = String(propertyId)
+    const ids = navIds
+    const i = ids.indexOf(id)
+    const after = i >= 0 ? ids.slice(i + 1).map(homeById).find(p => p && !p.disliked) || null : null
+    const before = i > 0 ? ids.slice(0, i).reverse().map(homeById).find(p => p && !p.disliked) || null : null
+    window.setTimeout(() => {
+      if (activeTab !== 'disliked' && activeTab !== 'sold_removed') navIdsRef.current = navIdsRef.current.filter(x => x !== id)
+      if (openIdRef.current !== id) return // they already moved on themselves
+      if (after) goToHome(after, 1, 'pass')
+      else if (before) goToHome(before, -1, 'pass')
+      else handleCloseModal()
+    }, reduceMotion ? 150 : 430)
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col transition-colors">
@@ -946,7 +1061,7 @@ function ShowcaseContent() {
   const visitorFullName = [visitorFirstName, visitorLastName].filter(Boolean).join(' ')
 
   return (
-    <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col transition-colors">
+    <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col transition-colors" style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}>
       {ownerViewing && (
         <div className="sticky top-0 z-40 border-b border-[#C9A24D]/30 bg-[#111827] text-white">
           <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2 sm:px-6">
@@ -1087,13 +1202,17 @@ function ShowcaseContent() {
                     <motion.span layoutId="showcase-tab" className="absolute inset-0 bg-white shadow-[inset_0_3px_0_0_#C9A24D] dark:bg-[#151517]" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />
                   )}
                   <span className="relative truncate">{'short' in tab ? <><span className="sm:hidden">{tab.short}</span><span className="hidden sm:inline">{tab.label}</span></> : tab.label}</span>
-                  <motion.span key={tab.count} initial={{ scale: 0.6, opacity: 0.4 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 600, damping: 18 }}
+                  <motion.span key={`${tab.count}-${tab.key === 'disliked' ? dislikedPulse : 0}`} initial={{ scale: 0.6, opacity: 0.4 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 600, damping: 18 }}
                     className={`relative shrink-0 px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] ${
                     activeTab === tab.key
                       ? 'bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8cf8a]'
                       : 'bg-gray-100 dark:bg-gray-800 text-[#6B7280] dark:text-gray-400'
                   }`}>
                     {tab.count}
+                    {tab.key === 'disliked' && dislikedPulse > 0 && (
+                      <motion.span key={`ping-${dislikedPulse}`} aria-hidden className="pointer-events-none absolute inset-0 rounded-full ring-2 ring-rose-400"
+                        initial={{ opacity: 0.9, scale: 1 }} animate={{ opacity: 0, scale: 1.9 }} transition={{ duration: 0.9, ease: 'easeOut' }} />
+                    )}
                   </motion.span>
                 </motion.button>
               ))}
@@ -1156,8 +1275,10 @@ function ShowcaseContent() {
             isOpen={isModalOpen}
             onClose={handleCloseModal}
             onLike={handlePropertyLike}
-            onDislike={handlePropertyDislike}
+            onDislike={handleDetailsDislike}
             onAddComment={handleAddComment}
+            nav={detailsNav}
+            move={homeMove}
             onScheduleTour={p => handleScheduleTourClick(p)}
             agent={{ name: showcase.agentFullName || showcase.agentName, photoUrl: showcase.agentPhotoUrl }}
             isLoadingDetails={isLoadingDetails}
@@ -1227,6 +1348,38 @@ function ShowcaseContent() {
 
         </div>
       </div>
+
+      {/* "Added to Passed" - centre of the screen, over everything, never in the way of a tap. */}
+      <AnimatePresence>
+        {passHint && (
+          <motion.div key={passHint.key} role="status" aria-live="polite" className="pointer-events-none fixed inset-0 z-[130] grid place-items-center px-6"
+            initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 1 }}>
+            <motion.div
+              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.88, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0, transition: reduceMotion ? { duration: 0.15 } : { type: 'spring', stiffness: 480, damping: 30 } }}
+              exit={reduceMotion ? { opacity: 0, transition: { duration: 0.15 } } : { opacity: 0, scale: 0.94, y: 18, transition: { duration: 0.24, ease: [0.4, 0, 1, 1] } }}
+              className="flex items-center gap-3 rounded-2xl bg-[#111827] py-3 pl-3 pr-5 text-white shadow-[0_24px_60px_-18px_rgba(0,0,0,.7)] ring-1 ring-white/10"
+            >
+              <span className="relative h-11 w-11 shrink-0">
+                {passHint.photo
+                  ? <img src={passHint.photo} alt="" className="h-full w-full rounded-xl object-cover opacity-80 grayscale-[35%]" />
+                  : <span className="grid h-full w-full place-items-center rounded-xl bg-white/10"><HomeIcon className="h-5 w-5 text-white/70" /></span>}
+                <motion.span
+                  initial={reduceMotion ? false : { scale: 0, rotate: -90 }}
+                  animate={{ scale: 1, rotate: 0, transition: { delay: 0.12, type: 'spring', stiffness: 600, damping: 16 } }}
+                  className="absolute -bottom-1 -right-1 grid h-5 w-5 place-items-center rounded-full bg-rose-500 text-white ring-2 ring-[#111827]"
+                >
+                  <X size={11} strokeWidth={3.5} />
+                </motion.span>
+              </span>
+              <span className="leading-tight">
+                <span className="block text-sm font-black tracking-tight">Added to Passed</span>
+                <span className="mt-0.5 block text-[11px] font-semibold text-white/55">Find it any time under Disliked</span>
+              </span>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <MLSComplianceFooter />
     </div>

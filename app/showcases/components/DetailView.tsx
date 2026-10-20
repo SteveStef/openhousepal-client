@@ -8,7 +8,7 @@ import api, { resolveMediaUrl } from '@/lib/api-service'
 import { Calendar, Copy, Check, ArrowUpDown, Mail, MapPin, MessageSquareText, Phone, Share2, User, SlidersHorizontal, X } from 'lucide-react'
 import PropertyGrid from '@/components/PropertyGrid'
 import ShowcaseRadiusContextLine from '@/components/ShowcaseRadiusContextLine'
-import PropertyDetailsModal from '@/components/PropertyDetailsModal'
+import PropertyDetailsModal, { type HomeMove } from '@/components/PropertyDetailsModal'
 import QuickCommentModal from '@/components/QuickCommentModal'
 import EditShowcaseCriteriaModal from '@/components/EditShowcaseCriteriaModal'
 import { Collection, Property, Comment, Site, SiteDomain } from '@/types'
@@ -203,6 +203,18 @@ export const DetailView = memo(function DetailView({
     if (rec(a) !== rec(b)) return rec(b) - rec(a)
     return sortOrder === 'asc' ? comparison : -comparison
   })
+
+  // Previous / next home in the open details window - the list on screen, in its order.
+  const [homeMove, setHomeMove] = useState<HomeMove | null>(null)
+  const navIndex = selectedProperty ? filteredProperties.findIndex(p => String(p.id) === String(selectedProperty.id)) : -1
+  const stepTo = (k: number, dir: 1 | -1) => {
+    const p = filteredProperties[k]
+    if (!p) return null
+    return () => { setHomeMove(m => ({ dir, kind: 'nav', seq: (m?.seq || 0) + 1 })); onPropertyClick(p) }
+  }
+  const detailsNav = isModalOpen && navIndex >= 0 && filteredProperties.length > 1
+    ? { index: navIndex, total: filteredProperties.length, onPrev: stepTo(navIndex - 1, -1), onNext: stepTo(navIndex + 1, 1) }
+    : null
 
   const formatAddressForTitle = (property: Property) => {
     // Street address + city only - no state/zip.
@@ -643,6 +655,8 @@ export const DetailView = memo(function DetailView({
           commentsError={commentsError}
           shareUrl={shareUrl ? `${shareUrl}/${homeSlug(selectedProperty?.FullStreetAddress) || ''}`.replace(/\/$/, '') : null}
           focusComments={focusComments}
+          nav={detailsNav}
+          move={homeMove}
         />
 
         <EditShowcaseCriteriaModal

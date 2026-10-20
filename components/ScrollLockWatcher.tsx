@@ -46,6 +46,10 @@ export default function ScrollLockWatcher() {
     // current scroll) and put back exactly where it was when the pop-up closes.
     const touch = window.matchMedia('(pointer: coarse)').matches
     let savedY = 0
+    // Only undo a pin this watcher made: a window that pins the page itself (the Showcase's home
+    // details) keeps its own pin, and a pop-up opened over it must not unpin the page on close -
+    // that sent a phone to the top of the Showcase and back (10/19).
+    let pinned = false
     const body = document.body
     const apply = (on: boolean) => {
       if (on === locked) return
@@ -54,7 +58,8 @@ export default function ScrollLockWatcher() {
         const gap = window.innerWidth - html.clientWidth
         html.style.overflow = 'hidden'
         if (gap > 0) html.style.paddingRight = `${gap}px`
-        if (touch) {
+        if (touch && body.style.position !== 'fixed') {
+          pinned = true
           savedY = window.scrollY
           body.style.position = 'fixed'
           body.style.top = `-${savedY}px`
@@ -65,7 +70,8 @@ export default function ScrollLockWatcher() {
       } else {
         html.style.overflow = ''
         html.style.paddingRight = ''
-        if (touch && body.style.position === 'fixed') {
+        if (pinned) {
+          pinned = false
           body.style.position = ''
           body.style.top = ''
           body.style.left = ''

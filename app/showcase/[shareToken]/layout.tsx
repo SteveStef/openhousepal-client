@@ -1,5 +1,10 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { ogFetch, firstName } from '@/lib/og/shared'
+
+// The page may draw to the very bottom edge of an iPhone, so the details window's Love / Pass bar
+// can sit flush on the bottom and pad itself clear of the home indicator (env(safe-area-inset-*)
+// only reports real values with viewport-fit=cover). The page pads its own sides for landscape.
+export const viewport: Viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover' }
 
 // Server passthrough: renders nothing of its own, only contributes the share-preview text.
 // (page.tsx is a client component and can't export metadata itself.) The preview IMAGE is

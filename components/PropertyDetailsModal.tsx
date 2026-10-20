@@ -1,9 +1,10 @@
 'use client'
 
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion, type Variants } from 'framer-motion'
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react'
+import { useIsPhone, useLastValue, useSwipeToClose } from '@/components/ui/windowMotion'
 import { PropertyDetailResponse } from '@/types'
-import { ArrowLeft, CalendarCheck, CalendarDays, Check, Copy, Heart, Hourglass, Loader2, MapPin, MessageCircle, RefreshCw, Send, X } from 'lucide-react'
+import { CalendarCheck, CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Heart, Hourglass, Loader2, MapPin, MessageCircle, RefreshCw, Send, X } from 'lucide-react'
 import { normalizeImageUrl } from '@/lib/utils'
 import { tourState, tourWhen, type TourLike } from '@/components/TourStatusWindow'
 import PropertyMap from './PropertyMap'
@@ -47,11 +48,81 @@ interface PropertyDetailsModalProps {
   tourRequest?: TourLike | null
   /** Agent side only: the bar under the photos - which of their Showcases have this home + Add to a Showcase. */
   showcaseTools?: boolean
+  /** Previous / next home in the list the window was opened from (arrows in the header, the phone
+   *  bar, beside the window on a wide screen, and the keyboard's arrow keys). */
+  nav?: HomeNav | null
+  /** How the last home change happened - which way the next home slides in, and a Pass sends the
+   *  passed home off to the side. */
+  move?: HomeMove | null
 }
+
+export type HomeNav = { index: number; total: number; onPrev?: (() => void) | null; onNext?: (() => void) | null }
+export type HomeMove = { dir: 1 | -1; kind: 'nav' | 'pass'; seq: number }
 
 const GOLD = '#C9A24D'
 const INK = '#111827'
 const SPRING = { type: 'spring', stiffness: 420, damping: 36, mass: 0.9 } as const
+const SHEET_SPRING = { type: 'spring', stiffness: 380, damping: 38, mass: 0.9 } as const
+
+// Moving between homes: the next one glides in from the side it's coming from; a passed home
+// slides away to the left, shrinking a touch, before the next one arrives.
+const PASS_EASE = [0.4, 0, 1, 1] as const
+const FADE_LATE = [0.7, 0, 0.84, 0] as const // stays visible while it moves, then fades
+const SLIDE_HOME: Variants = {
+  enter: (m: HomeMove | null) => ({ opacity: 0, x: (m?.dir ?? 1) * 64, scale: 1 }),
+  center: { opacity: 1, x: 0, scale: 1, transition: { type: 'spring', stiffness: 340, damping: 34, mass: 0.9 } },
+  exit: (m: HomeMove | null) => m?.kind === 'pass'
+    ? { opacity: 0, x: -200, scale: 0.94, transition: { x: { duration: 0.3, ease: [0.45, 0, 0.2, 1] }, scale: { duration: 0.3 }, opacity: { duration: 0.3, ease: FADE_LATE } } }
+    : { opacity: 0, x: -(m?.dir ?? 1) * 72, transition: { x: { duration: 0.2, ease: PASS_EASE }, opacity: { duration: 0.2, ease: FADE_LATE } } },
+}
+const FADE_HOME: Variants = {
+  enter: { opacity: 0 },
+  center: { opacity: 1, transition: { duration: 0.16 } },
+  exit: { opacity: 0, transition: { duration: 0.12 } },
+}
+
+/** A round previous / next arrow (the header pill, or the dark phone bar). Dimmed at either end. */
+function NavButton({ dir, onClick, dark = false }: { dir: -1 | 1; onClick?: (() => void) | null; dark?: boolean }) {
+  const Icon = dir < 0 ? ChevronLeft : ChevronRight
+  return (
+    <motion.button
+      type="button"
+      whileTap={onClick ? { scale: 0.86, x: dir * 2 } : undefined}
+      onClick={onClick || undefined}
+      disabled={!onClick}
+      aria-label={dir < 0 ? 'Previous home' : 'Next home'}
+      title={dir < 0 ? 'Previous home' : 'Next home'}
+      className={dark
+        ? 'grid h-[42px] w-9 shrink-0 place-items-center rounded-xl text-white/85 transition-colors hover:bg-white/10 disabled:opacity-25'
+        : `grid h-9 w-9 shrink-0 place-items-center rounded-full transition-colors hover:bg-[var(--pp-gold-wash)] disabled:opacity-30 ${pp.heading}`}
+    >
+      <Icon size={dark ? 20 : 18} strokeWidth={2.5} />
+    </motion.button>
+  )
+}
+
+/** Wide screens only: a big round arrow just outside the window's left / right edge. */
+function SideArrow({ dir, onClick }: { dir: -1 | 1; onClick?: (() => void) | null }) {
+  const Icon = dir < 0 ? ChevronLeft : ChevronRight
+  return (
+    <motion.button
+      type="button"
+      initial={{ opacity: 0, x: dir * -10 }}
+      animate={{ opacity: onClick ? 1 : 0.25, x: 0, transition: { delay: 0.15, duration: 0.3 } }}
+      exit={{ opacity: 0 }}
+      whileHover={onClick ? { scale: 1.06, x: dir * 3 } : undefined}
+      whileTap={onClick ? { scale: 0.92 } : undefined}
+      onClick={e => { e.stopPropagation(); onClick?.() }}
+      disabled={!onClick}
+      aria-label={dir < 0 ? 'Previous home' : 'Next home'}
+      title={dir < 0 ? 'Previous home (←)' : 'Next home (→)'}
+      className="absolute top-1/2 z-10 hidden h-14 w-14 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-[#111827] shadow-[0_18px_40px_-14px_rgba(0,0,0,.7)] ring-1 ring-black/5 transition-colors hover:bg-white disabled:cursor-default min-[1320px]:grid"
+      style={dir < 0 ? { left: 'calc(50% - 576px - 76px)' } : { right: 'calc(50% - 576px - 76px)' }}
+    >
+      <Icon size={26} strokeWidth={2.4} />
+    </motion.button>
+  )
+}
 
 // The Showcase detail window (also Discovery's "View Details", the open house wizard's preview and
 // the agent's own Showcase view). Built from the shared property design (components/property/
@@ -61,7 +132,7 @@ const SPRING = { type: 'spring', stiffness: 420, damping: 36, mass: 0.9 } as con
 // Kept light so scrolling stays smooth: no backdrop blur behind the window (it re-blurred the
 // animating page underneath on every frame) and no sticky jump bar.
 export default function PropertyDetailsModal({
-  property,
+  property: propertyProp,
   isOpen,
   onClose,
   onLike,
@@ -81,7 +152,14 @@ export default function PropertyDetailsModal({
   tourRequest = null,
   focusComments = false,
   showcaseTools = false,
+  nav = null,
+  move = null,
 }: PropertyDetailsModalProps) {
+  // Keep the home on screen while the window animates closed (pages clear it the moment they close).
+  const property = useLastValue(propertyProp)
+  const phone = useIsPhone()
+  const reduce = useReducedMotion()
+  const { sheetRef, y: sheetY } = useSwipeToClose(onClose, phone && isOpen)
   const [newComment, setNewComment] = useState('')
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -108,49 +186,70 @@ export default function PropertyDetailsModal({
     }
   }
 
-  // Each home opens at the top, not wherever the last one was scrolled to.
-  useEffect(() => { scrollRef.current?.scrollTo({ top: 0 }); setBarOn(false) }, [property?.id])
+  // Each home opens at the top, not wherever the last one was scrolled to - reset once the old home
+  // has slid away (see the content's AnimatePresence), so it never jumps while leaving.
+  const resetScroll = () => { scrollRef.current?.scrollTo({ top: 0 }); setBarOn(false) }
 
-  // Prevent background scroll when modal is open. Applied via useLayoutEffect (fires
-  // synchronously before the browser paints) rather than useEffect - otherwise the browser
-  // paints at least one frame of the modal's fading-in backdrop over a still-unlocked,
-  // still-scrolling background first, which reads as the background "scrolling" messily right
-  // as the modal opens (most visible if the agent was scrolled deep into a showcase's grid).
-  const scrollRestoreTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // The page behind can't scroll while the window is open: it's pinned in place (position: fixed at
+  // its current scroll) and put back at exactly the same spot once the window has finished closing.
+  // Laid down before the first paint (useLayoutEffect) so the page never scrolls a frame first.
+  // The overlay opts out of the site-wide ScrollLockWatcher (data-scroll-lock="off") - two locks
+  // fighting over <body> is what made a phone jump to the top and back when details closed (10/19).
+  const unlockRef = useRef<(() => void) | null>(null)
+  const isOpenRef = useRef(isOpen)
+  isOpenRef.current = isOpen
   useLayoutEffect(() => {
-    if (isOpen) {
-      // Cancel any pending restore left over from a just-closed instance so a quick reopen
-      // doesn't get its lock pulled out from under it a moment later by a stale timer.
-      if (scrollRestoreTimeoutRef.current) {
-        clearTimeout(scrollRestoreTimeoutRef.current)
-        scrollRestoreTimeoutRef.current = null
-      }
-      const scrollY = window.scrollY
-      const originalBodyOverflow = document.body.style.overflow
-      const originalBodyPosition = document.body.style.position
-      const originalBodyTop = document.body.style.top
-      const originalBodyWidth = document.body.style.width
-      const originalHtmlOverflow = document.documentElement.style.overflow
-      document.body.style.overflow = 'hidden'
-      document.body.style.position = 'fixed'
-      document.body.style.top = `-${scrollY}px`
-      document.body.style.width = '100%'
-      document.documentElement.style.overflow = 'hidden'
-      return () => {
-        // Restore once the closing animation is done, not the instant isOpen flips false -
-        // restoring immediately jumps the page back while the window is still sliding out.
-        scrollRestoreTimeoutRef.current = setTimeout(() => {
-          document.body.style.overflow = originalBodyOverflow
-          document.body.style.position = originalBodyPosition
-          document.body.style.top = originalBodyTop
-          document.body.style.width = originalBodyWidth
-          document.documentElement.style.overflow = originalHtmlOverflow
-          window.scrollTo(0, scrollY)
-          scrollRestoreTimeoutRef.current = null
-        }, 260)
-      }
+    if (!isOpen || unlockRef.current) return // reopened mid-close: the page is still pinned
+    const body = document.body
+    const html = document.documentElement
+    if (body.style.position === 'fixed') return // something else already pinned it
+    const scrollY = window.scrollY
+    const saved = { overflow: body.style.overflow, position: body.style.position, top: body.style.top, left: body.style.left, right: body.style.right, width: body.style.width, html: html.style.overflow }
+    body.style.overflow = 'hidden'
+    body.style.position = 'fixed'
+    body.style.top = `-${scrollY}px`
+    body.style.left = '0'
+    body.style.right = '0'
+    body.style.width = '100%'
+    html.style.overflow = 'hidden'
+    unlockRef.current = () => {
+      unlockRef.current = null
+      body.style.overflow = saved.overflow
+      body.style.position = saved.position
+      body.style.top = saved.top
+      body.style.left = saved.left
+      body.style.right = saved.right
+      body.style.width = saved.width
+      html.style.overflow = saved.html
+      // Same frame, no smooth scrolling: the page is back exactly where it was, no jump or flash.
+      const behavior = html.style.scrollBehavior
+      html.style.scrollBehavior = 'auto'
+      window.scrollTo(0, scrollY)
+      html.style.scrollBehavior = behavior
     }
   }, [isOpen])
+  // Normally released by the close animation finishing (onExitComplete below); this is the backstop
+  // for a close with nothing left to animate.
+  useEffect(() => {
+    if (isOpen) return
+    const t = window.setTimeout(() => { if (!isOpenRef.current) unlockRef.current?.() }, 700)
+    return () => window.clearTimeout(t)
+  }, [isOpen])
+  useEffect(() => () => unlockRef.current?.(), [])
+
+  // Wide screens: the keyboard's arrow keys step through the homes (not while typing; the photo
+  // viewer catches its own arrows first).
+  useEffect(() => {
+    if (!isOpen || !nav) return
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t?.closest?.('input, textarea, select, [contenteditable="true"]')) return
+      if (e.key === 'ArrowRight' && nav.onNext) { e.preventDefault(); nav.onNext() }
+      if (e.key === 'ArrowLeft' && nav.onPrev) { e.preventDefault(); nav.onPrev() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isOpen, nav])
 
   // Escape closes the window (the photo viewer catches its own Escape first).
   useEffect(() => {
@@ -215,53 +314,124 @@ export default function PropertyDetailsModal({
   const toComments = () => document.getElementById('sc-comments')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   const tour = onScheduleTour ? () => onScheduleTour(property) : undefined
 
+  // Phone: a sheet that slides up from the bottom edge and back down (also when pulled down).
+  // Wider screens keep the centred window that rises and settles. Reduced motion: fades only.
+  const off = typeof window !== 'undefined' ? window.innerHeight : 900
+  const sheetMotion = reduce
+    ? { initial: { opacity: 0 }, animate: { opacity: 1, transition: { duration: 0.16 } }, exit: { opacity: 0, transition: { duration: 0.14 } } }
+    : phone
+      ? { initial: { y: off }, animate: { y: 0, transition: SHEET_SPRING }, exit: { y: off, transition: { duration: 0.26, ease: [0.32, 0, 0.67, 0] as const } } }
+      : { initial: { opacity: 0, y: 48, scale: 0.97 }, animate: { opacity: 1, y: 0, scale: 1, transition: SPRING }, exit: { opacity: 0, y: 36, scale: 0.98, transition: { duration: 0.2, ease: [0.4, 0, 1, 1] as const } } }
+  const hasNav = !!nav && nav.total > 1 && !!(nav.onPrev || nav.onNext)
+
   return (
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={() => { if (!isOpenRef.current) unlockRef.current?.() }}>
       {isOpen && (
         <motion.div
           key="sc-window"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0, transition: { duration: 0.2, delay: 0.04 } }}
-          transition={{ duration: 0.18, ease: 'easeOut' }}
-          className="fixed inset-0 flex items-end justify-center overscroll-none bg-[#0B0B0B]/80 sm:items-center sm:p-6"
+          data-scroll-lock="off"
+          className="fixed inset-0 flex items-end justify-center overscroll-none sm:items-center sm:p-6"
           style={{ zIndex }}
           onClick={onClose}
         >
+          {/* The dimmed page behind fades on its own, so the sheet itself stays solid as it slides. */}
           <motion.div
-            initial={{ opacity: 0, y: 48, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1, transition: SPRING }}
-            exit={{ opacity: 0, y: 36, scale: 0.98, transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }}
-            className="flex h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-t-[26px] shadow-2xl sm:h-[88vh] sm:rounded-[28px]"
-            style={{ overscrollBehavior: 'contain' }}
+            aria-hidden
+            className="absolute inset-0 bg-[#0B0B0B]/80"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: { duration: 0.2, ease: 'easeOut' } }}
+            exit={{ opacity: 0, transition: { duration: phone ? 0.26 : 0.2, delay: phone ? 0 : 0.04 } }}
+          />
+          {/* Wide screens: big arrows either side of the window for the previous / next home. */}
+          {hasNav && (
+            <>
+              <SideArrow dir={-1} onClick={nav!.onPrev} />
+              <SideArrow dir={1} onClick={nav!.onNext} />
+            </>
+          )}
+          <motion.div
+            ref={sheetRef}
+            {...sheetMotion}
+            className="relative flex h-[calc(100%-2.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-t-[26px] shadow-2xl sm:h-[88vh] sm:rounded-[28px]"
+            style={{ overscrollBehavior: 'contain', y: phone && !reduce ? sheetY : undefined }}
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={home.street || 'Home details'}
           >
             <PropertySurface surface="app" gold={GOLD} ink={INK} className="flex min-h-0 flex-1 flex-col bg-[var(--pp-bg)]">
-              {/* header */}
-              <div className="z-40 flex items-center justify-between gap-3 border-b border-[color:var(--pp-gold-line)] bg-[var(--pp-card)] px-4 py-3 sm:px-6">
-                <div className="flex min-w-0 items-center gap-2">
-                  <motion.button whileHover={{ x: -2 }} whileTap={{ scale: 0.9 }} onClick={onClose} className={`-ml-1 shrink-0 rounded-full p-2 transition-colors hover:bg-[var(--pp-gold-wash)] ${pp.muted}`} title="Back" aria-label="Back">
-                    <ArrowLeft size={20} />
-                  </motion.button>
-                  <div className="min-w-0 leading-tight">
-                    <p className={`truncate font-serif text-[15px] font-black sm:text-base ${pp.heading}`}>{home.street}</p>
-                    {home.place && <p className={`flex items-center gap-1 truncate text-[11px] font-semibold ${pp.muted}`}><MapPin className="h-3 w-3 shrink-0 text-[color:var(--pp-gold)]" />{home.place}</p>}
-                  </div>
-                </div>
-                {shareUrl && (
+              {/* header - on a phone also the handle you pull down to close */}
+              <div className="z-40 border-b border-[color:var(--pp-gold-line)] bg-[var(--pp-card)] px-4 pb-2.5 pt-1.5 sm:px-6 sm:py-3">
+                <div aria-hidden className="mx-auto mb-1.5 h-[5px] w-10 rounded-full bg-[color:var(--pp-gold-line)] sm:hidden" />
+                <div className="relative flex items-center justify-between gap-2 sm:gap-3">
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    <motion.div
+                      key={String(property.id)}
+                      className="min-w-0 flex-1 leading-tight"
+                      initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } }}
+                      exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8, transition: { duration: 0.14 } }}
+                    >
+                      <p className={`truncate font-serif text-[15px] font-black sm:text-base ${pp.heading}`}>{home.street}</p>
+                      {home.place && <p className={`flex items-center gap-1 truncate text-[11px] font-semibold ${pp.muted}`}><MapPin className="h-3 w-3 shrink-0 text-[color:var(--pp-gold)]" />{home.place}</p>}
+                    </motion.div>
+                  </AnimatePresence>
+                  {shareUrl && (
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleCopyLink}
+                      className={`hidden shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-4 py-2 text-[10px] font-black uppercase tracking-widest shadow-sm transition-colors sm:inline-flex ${copied ? 'border-emerald-600 bg-emerald-600 text-white' : `border-[color:var(--pp-gold-line)] bg-[var(--pp-card)] hover:border-[color:var(--pp-gold)] ${pp.heading}`}`}
+                    >
+                      {copied ? <Check size={12} /> : <Copy size={12} className="text-[color:var(--pp-gold)]" />}
+                      {copied ? 'Copied!' : 'Copy Share Link'}
+                    </motion.button>
+                  )}
+                  {shareUrl && (
+                    <motion.button whileTap={{ scale: 0.9 }} onClick={handleCopyLink} aria-label="Copy share link"
+                      className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border transition-colors sm:hidden ${copied ? 'border-emerald-600 bg-emerald-600 text-white' : `border-[color:var(--pp-gold-line)] ${pp.heading}`}`}>
+                      {copied ? <Check size={15} /> : <Copy size={15} className="text-[color:var(--pp-gold)]" />}
+                    </motion.button>
+                  )}
+                  {/* Previous / next home - up top too, since the phone bar only shows once you scroll. */}
+                  {hasNav && (
+                    <div className="flex shrink-0 items-center rounded-full border border-[color:var(--pp-gold-line)] bg-[var(--pp-card)]">
+                      <NavButton dir={-1} onClick={nav!.onPrev} />
+                      {nav!.index >= 0 && (
+                        <span className={`min-w-[2.6rem] select-none text-center text-[11px] font-black tabular-nums ${pp.muted}`}>
+                          {nav!.index + 1}<span className="opacity-50">/</span>{nav!.total}
+                        </span>
+                      )}
+                      <NavButton dir={1} onClick={nav!.onNext} />
+                    </div>
+                  )}
                   <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleCopyLink}
-                    className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-4 py-2 text-[10px] font-black uppercase tracking-widest shadow-sm transition-colors ${copied ? 'border-emerald-600 bg-emerald-600 text-white' : `border-[color:var(--pp-gold-line)] bg-[var(--pp-card)] hover:border-[color:var(--pp-gold)] ${pp.heading}`}`}
+                    whileTap={{ scale: 0.88 }}
+                    whileHover={{ rotate: 90 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+                    onClick={onClose}
+                    className={`grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--pp-gold-wash)] transition-colors hover:bg-[color:var(--pp-gold-line)] ${pp.heading}`}
+                    title="Close"
+                    aria-label="Close"
                   >
-                    {copied ? <Check size={12} /> : <Copy size={12} className="text-[color:var(--pp-gold)]" />}
-                    {copied ? 'Copied!' : 'Copy Share Link'}
+                    <X size={18} strokeWidth={2.5} />
                   </motion.button>
-                )}
+                </div>
               </div>
 
               <div ref={scrollRef} onScroll={e => { const on = e.currentTarget.scrollTop > 640; if (on !== barOn) setBarOn(on) }} className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
-                <div className="px-4 pb-10 pt-4 sm:px-7 sm:pt-6">
+                {/* One home at a time: the next one slides in from the side it came from; a passed
+                    home slides off to the left and the next takes its place. */}
+                <AnimatePresence mode="wait" initial={false} custom={move} onExitComplete={resetScroll}>
+                <motion.div
+                  key={String(property.id)}
+                  custom={move}
+                  variants={reduce ? FADE_HOME : SLIDE_HOME}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  style={{ transformOrigin: '50% 0%' }}
+                  className="px-4 pb-28 pt-4 sm:px-7 sm:pt-6 lg:pb-10"
+                >
                   {/* The photos take the whole top; the buyer's Love / Pass, tour and comments ride beside the rest. */}
                   <PropertyHero
                     home={home}
@@ -426,34 +596,44 @@ export default function PropertyDetailsModal({
                   </div>
 
                   <BrightNotice home={home} updatedAt={property.updated_at} className="mt-12" />
-                </div>
+                </motion.div>
+                </AnimatePresence>
+              </div>
 
-                {/* Phones: Love / Pass / tour / message ride along once you've scrolled past the price panel. */}
-                <AnimatePresence>
-                {showVisitorActions && barOn && (
-                  <motion.div
-                    key="phone-bar"
-                    initial={{ y: 90, opacity: 0 }} animate={{ y: 0, opacity: 1, transition: SPRING }} exit={{ y: 90, opacity: 0, transition: { duration: 0.2 } }}
-                    className="sticky bottom-3 z-30 mx-3 mb-3 flex items-center gap-2 rounded-2xl bg-[var(--pp-ink)] p-2 shadow-[0_20px_40px_-12px_rgba(0,0,0,.55)] ring-1 ring-white/10 lg:hidden"
-                  >
+              {/* Phones: Love / Pass / tour / message ride along once you've scrolled past the price
+                  panel - flush with the bottom edge (no gap above the browser's own bar), clear of
+                  the iPhone home indicator, with the previous / next home either side. */}
+              <AnimatePresence>
+              {showVisitorActions && barOn && (
+                <motion.div
+                  key="phone-bar"
+                  initial={reduce ? { opacity: 0 } : { y: '105%' }}
+                  animate={reduce ? { opacity: 1 } : { y: 0, transition: SPRING }}
+                  exit={reduce ? { opacity: 0 } : { y: '105%', transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }}
+                  className="absolute inset-x-0 bottom-0 z-30 rounded-t-[22px] bg-[var(--pp-ink)] px-2 pt-2 shadow-[0_-16px_40px_-18px_rgba(0,0,0,.6)] ring-1 ring-white/10 lg:hidden"
+                  style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+                >
+                  <div className="flex items-center gap-1.5">
+                    {hasNav && <NavButton dir={-1} onClick={nav!.onPrev} dark />}
                     <div className="min-w-0 flex-1">
                       <TakeButtons compact liked={!!property.liked} disliked={!!property.disliked}
                         onLike={() => onLike?.(property.id!, !property.liked)} onPass={() => onDislike?.(property.id!, !property.disliked)} />
                     </div>
                     {tour && (
                       <motion.button whileTap={{ scale: 0.9 }} onClick={tour} aria-label="Schedule a tour"
-                        className={`grid h-[42px] w-12 place-items-center rounded-xl ${tourState(tourRequest) === 'confirmed' ? 'bg-emerald-500 text-white' : tourState(tourRequest) === 'pending' || property.hasTourScheduled ? 'bg-amber-400 text-[#111827]' : 'bg-white/10 text-white'}`}>
+                        className={`grid h-[42px] w-11 shrink-0 place-items-center rounded-xl ${tourState(tourRequest) === 'confirmed' ? 'bg-emerald-500 text-white' : tourState(tourRequest) === 'pending' || property.hasTourScheduled ? 'bg-amber-400 text-[#111827]' : 'bg-white/10 text-white'}`}>
                         {tourState(tourRequest) === 'confirmed' ? <CalendarCheck size={17} /> : tourState(tourRequest) === 'pending' || property.hasTourScheduled ? <Hourglass size={17} /> : <CalendarDays size={17} />}
                       </motion.button>
                     )}
-                    <motion.button whileTap={{ scale: 0.9 }} onClick={toComments} aria-label="Message your agent" className="relative grid h-[42px] w-12 place-items-center rounded-xl bg-[var(--pp-gold)] text-[color:var(--pp-ink)]">
+                    <motion.button whileTap={{ scale: 0.9 }} onClick={toComments} aria-label="Message your agent" className="relative grid h-[42px] w-11 shrink-0 place-items-center rounded-xl bg-[var(--pp-gold)] text-[color:var(--pp-ink)]">
                       <MessageCircle size={17} />
                       {comments.length > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-white px-1.5 text-[9px] font-black text-[#111827]">{comments.length}</span>}
                     </motion.button>
-                  </motion.div>
-                )}
-                </AnimatePresence>
-              </div>
+                    {hasNav && <NavButton dir={1} onClick={nav!.onNext} dark />}
+                  </div>
+                </motion.div>
+              )}
+              </AnimatePresence>
             </PropertySurface>
           </motion.div>
         </motion.div>
