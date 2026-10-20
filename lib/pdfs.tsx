@@ -32,7 +32,7 @@ function pdfImageUrl(url?: string | null): string {
   if (typeof window === 'undefined') return normalized;
   return `${window.location.origin}/api/pdf-image?url=${encodeURIComponent(normalized)}`;
 }
-import { CmaGuidanceSection, buildCmaStaticMapUrl, clientCompStrength, cmaGuidanceSections, resolveCmaMarketMetrics, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, buyerOfferFigures, AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_HEX, STRENGTH_LABEL, STRENGTH_TIER_HEX, compDisplayPrice, effectiveCompPrice, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft, buildAdjustmentGrid, formatSignedMoney, CmaAdjustmentGridComp } from '@/lib/cma';
+import { CmaGuidanceSection, buildCmaStaticMapUrl, clientCompStrength, cmaGuidanceSections, resolveCmaMarketMetrics, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, buyerOfferFigures, AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_HEX, STRENGTH_LABEL, STRENGTH_TIER_HEX, compDisplayPrice, effectiveCompPrice, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft, buildAdjustmentGrid, formatSignedMoney, basementDisplay, materialIssuesText, CmaAdjustmentGridComp } from '@/lib/cma';
 import { qrPdfSrc } from '@/lib/qr';
 import { salesAreRecent, salesWords } from '@/lib/salesWording'
 
@@ -2565,7 +2565,7 @@ function CmaComparisonTablePage({ report, comparables, agent }: { report: CmaRep
     { label: 'Baths', subject: String(s.baths ?? '—'), comp: c => String(c.baths ?? '—') },
     { label: 'Year Built', subject: String(s.year_built ?? '—'), comp: c => String(c.year_built ?? '—') },
     { label: 'Garage', subject: s.garage || '—', comp: c => c.garage || '—' },
-    { label: 'Basement', subject: s.basement || '—', comp: c => c.basement || '—' },
+    { label: 'Basement', subject: basementDisplay(s), comp: c => basementDisplay(c) },
     { label: 'Annual Taxes', subject: s.annual_taxes ? formatMoney(s.annual_taxes) : '—', comp: c => c.annual_taxes ? formatMoney(c.annual_taxes) : '—' },
     { label: 'Days on Market', subject: String(s.days_on_market ?? '—'), comp: c => String(c.days_on_market ?? '—') },
     { label: 'Distance', subject: '—', comp: c => c.distance_miles != null ? `${c.distance_miles} miles` : '—' },
@@ -2646,6 +2646,12 @@ function CmaAdjustmentGridPage({ report, agent }: { report: CmaReport; agent: Cm
           </View>
         ))}
       </View>
+      {grid.uncertainties.length > 0 && (
+        <View style={{ marginTop: 10, borderRadius: 10, backgroundColor: '#FEF3C7', padding: 10 }}>
+          <Text style={{ fontSize: 7.5, fontWeight: 900, color: '#92400E', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>What the sales can't pin down</Text>
+          {grid.uncertainties.map(u => <Text key={u} style={{ fontSize: 7.5, color: '#78350F', lineHeight: 1.4, marginTop: 1.5 }}>{`• ${u}`}</Text>)}
+        </View>
+      )}
       <Text style={{ fontSize: 6.8, color: COLORS.muted, marginTop: 8, lineHeight: 1.4 }}>
         Size is adjusted on above-grade living area. A finished lower level is valued at a fraction of above-grade space; baths and garage spaces at a share of each sale's price. Only sales with a recorded closing price are used.
       </Text>
@@ -2756,7 +2762,7 @@ function CmaComparablePage({ comp, index, agent }: { comp: CmaComparable; index:
     { label: 'Baths', value: comp.baths },
     { label: 'Reported Finished Area', value: comp.sqft ? formatNumber(comp.sqft) : null },
     { label: 'Above-Grade Finished Area', value: comp.above_grade_finished_area ? formatNumber(comp.above_grade_finished_area) : null },
-    { label: 'Below-Grade Finished Area', value: comp.below_grade_finished_area || /finished/i.test((comp.basement || '').replace(/unfinished/i, '')) ? belowGradeDisplay(comp) : null },
+    { label: 'Below-Grade Finished Area', value: belowGradeDisplay(comp) !== '—' ? belowGradeDisplay(comp) : null },
     { label: 'Sold Date', value: compSoldDate(comp) },
     { label: 'Sold vs. Asking', value: formatSoldToAsking(comp) },
     { label: 'Year Built', value: comp.year_built },
@@ -2803,6 +2809,7 @@ function CmaComparablePage({ comp, index, agent }: { comp: CmaComparable; index:
           <Text style={{ fontSize: 18, fontFamily: 'Montserrat', fontWeight: 900, color: COLORS.text }}>{formatMoney(compDisplayPrice(comp).value)}</Text>
           {psf && <Text style={{ fontSize: 7, color: COLORS.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.8 }}>${psf}/sqft above grade</Text>}
           {priceCaption && <Text style={{ fontSize: 6.5, color: compDisplayPrice(comp).unverified ? '#92400E' : COLORS.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.6 }}>{priceCaption}</Text>}
+          {(comp.material_issues || []).length > 0 && <Text style={{ fontSize: 6.5, color: '#B91C1C', marginTop: 2, fontWeight: 700 }}>{`Note: ${materialIssuesText(comp)}`}</Text>}
         </View>
       </View>
 

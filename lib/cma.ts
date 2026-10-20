@@ -273,18 +273,40 @@ export function compStatusBadgeText(c: CmaComparable): string {
   if (c.status === 'sold' && !isPriceVerified(c)) return 'Sold - price not reported'
   return COMP_STATUS_LABEL[c.status] || c.status
 }
+// Deal-breakers on record, in plain words: "cesspool (sewer); listing says sold as-is".
+export function materialIssuesText(c: CmaComparable): string {
+  return (c.material_issues || []).map(i => i.replace(/^listing says: /, 'listing says ')).join('; ')
+}
 // Small caption under the comp's price.
 export function compPriceCaption(c: CmaComparable): string | null {
   if (c.status === 'sold' && !isPriceVerified(c)) return 'Last asking price - sold price not reported'
   if (c.status === 'sold') return [compSoldDate(c) ? `Sold ${compSoldDate(c)}` : 'Sold', formatSoldToAsking(c)].filter(Boolean).join(' - ')
   return compDisplayPrice(c).label
 }
+// What the listing TEXT says about the lower level when Bright's Basement field doesn't (2407 E Kings
+// Hwy: field "Full", remarks "partially finished basement" - the table and the write-up disagreed).
+// Same patterns as the backend's _remarks_finished_basement.
+export function remarksBasementFinish(p: { public_remarks?: string | null }): 'partial' | 'finished' | null {
+  const t = (p.public_remarks || '').toLowerCase()
+  if (/partially[\s-]+finished\s+(?:lower[\s-]+level|basement)|basement\s+(?:is\s+)?partially\s+finished/.test(t)) return 'partial'
+  if (/(?<!un)finished\s+(?:lower[\s-]+level|basement|walk[\s-]?out)|basement\s+(?:is\s+)?(?:fully\s+)?finished/.test(t)) return 'finished'
+  return null
+}
+// Basement for display: Bright's field, plus what the listing says when the field is silent on finish.
+export function basementDisplay(p: { basement?: string | null; public_remarks?: string | null }): string {
+  const b = p.basement || ''
+  if (/finished/i.test(b.replace(/unfinished/i, ''))) return b || '—'
+  const hint = remarksBasementFinish(p)
+  if (!hint) return b || '—'
+  const said = hint === 'partial' ? 'partially finished' : 'finished'
+  return b ? `${b} (listing: ${said})` : `Listing: ${said}`
+}
 // Finished below-grade area for display: the MLS can say "Fully Finished" with 0 sqft on record -
 // that's "Not reported", never a hard 0.
-export function belowGradeDisplay(p: { below_grade_finished_area?: number | null; basement?: string | null }): string {
+export function belowGradeDisplay(p: { below_grade_finished_area?: number | null; basement?: string | null; public_remarks?: string | null }): string {
   if (p.below_grade_finished_area && p.below_grade_finished_area > 0) return formatNumber(p.below_grade_finished_area)
   const raw = (p.basement || '').toLowerCase()
-  if (raw.replace('unfinished', '').includes('finished')) return 'Not reported'
+  if (raw.replace('unfinished', '').includes('finished') || remarksBasementFinish(p)) return 'Not reported'
   // Only a basement recorded as unfinished (or none) is a real 0 - "Full" alone says nothing about finish.
   return raw.includes('unfinished') || raw === 'none' || raw === 'no' ? '0' : '—'
 }
@@ -305,6 +327,7 @@ export interface CmaAdjustmentGrid {
   compBasedValue: number              // what the comparable sales alone support
   finalValue: number | null
   marketCheck: { amount: number; text: string } | null
+  uncertainties: string[]
 }
 export function buildAdjustmentGrid(estimate?: CmaAiEstimate | null): CmaAdjustmentGrid | null {
   const trace = estimate?.valuation_trace
@@ -336,7 +359,7 @@ export function buildAdjustmentGrid(estimate?: CmaAiEstimate | null): CmaAdjustm
   }
   return {
     comps, hasSewer: comps.some(c => c.sewer), adjustedSalesValue: Math.round(anchor.anchor_value),
-    otherAdjustments, compBasedValue, finalValue, marketCheck,
+    otherAdjustments, compBasedValue, finalValue, marketCheck, uncertainties: anchor.main_uncertainties || [],
   }
 }
 export function formatSignedMoney(v: number): string {

@@ -11,7 +11,7 @@ import {
   buildCmaStaticMapUrl, buildCompLocationMapUrl, clientCompStrength, compDisplayPrice, resolveCmaMarketMetrics, effectiveCompPrice, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange,
   CmaGuidanceSection, cmaGuidanceSections, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, COMP_STATUS_BADGE_STYLE,
   AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_STYLES, STRENGTH_LABEL, STRENGTH_SCALE_STYLES, STRENGTH_STYLES,
-  buyerOfferFigures, buildAdjustmentGrid, formatSignedMoney, CmaAdjustmentGridComp, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft,
+  buyerOfferFigures, buildAdjustmentGrid, formatSignedMoney, basementDisplay, materialIssuesText, CmaAdjustmentGridComp, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft,
 } from '@/lib/cma'
 import { CmaPresentationDocument } from '@/lib/pdfs'
 import { googleMapsLoader } from '@/lib/googleMapsLoader'
@@ -575,6 +575,14 @@ function AdjustmentGridSection({ estimate }: { estimate?: CmaAiEstimate | null }
         {grid.marketCheck && <GridSummaryLine label="Market check" value={formatSignedMoney(grid.marketCheck.amount)} note={grid.marketCheck.text} />}
         {grid.marketCheck && <GridSummaryLine label="Estimated fair market value" value={formatMoney(grid.finalValue)} bold />}
       </div>
+      {grid.uncertainties.length > 0 && (
+        <div className="mt-4 rounded-2xl bg-amber-50 p-4 dark:bg-amber-500/10">
+          <p className="text-[11px] font-black uppercase tracking-wide text-amber-800 dark:text-amber-300">What the sales can&apos;t pin down</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-amber-900 dark:text-amber-200">
+            {grid.uncertainties.map(u => <li key={u}>{u}</li>)}
+          </ul>
+        </div>
+      )}
       <p className="mt-3 text-xs text-gray-400">Size is adjusted on above-grade living area. A finished lower level is valued at a fraction of above-grade space; baths and garage spaces at a share of each sale&apos;s price. Only sales with a recorded closing price are used.</p>
     </Section>
   )
@@ -826,7 +834,7 @@ function SubjectPopupModal({ subject, onClose }: { subject: CmaPublicResponse['s
             <PopupFact icon={Droplets} label="Water" value={formatUtilityValue(subject.water_source)} />
             <PopupFact icon={Building2} label="School" value={subject.school_district || '-'} className="sm:col-span-2" />
             <PopupFact icon={Waves} label="Sewer" value={formatUtilityValue(subject.sewer)} />
-            <PopupFact icon={Layers} label="Basement" value={subject.basement || '-'} />
+            <PopupFact icon={Layers} label="Basement" value={basementDisplay(subject)} />
           </div>
           {subject.public_remarks && (
             <div className="mt-4 rounded-2xl bg-[#fbfaf7] p-4 dark:bg-[#0B0B0B]">
@@ -939,6 +947,7 @@ function ComparableSection({ comp, index, onOpen }: { comp: CmaComparable, index
             <p className="text-xl font-black leading-none text-[#8b7355] dark:text-[#d7b974]">{formatMoney(compDisplayPrice(comp).value)}</p>
             {psf && <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-gray-400">${psf}/sqft above grade</p>}
             {compPriceCaption(comp) && <p className={`mt-1 text-[10px] font-black uppercase tracking-wide text-gray-400 ${compDisplayPrice(comp).unverified ? "text-amber-700 dark:text-amber-300" : ""}`}>{compPriceCaption(comp)}</p>}
+            {(comp.material_issues || []).length > 0 && <p className="mt-1 text-[10px] font-black text-red-700 dark:text-red-300">Note: {materialIssuesText(comp)}</p>}
           </div>
         </div>
       </div>
@@ -1005,7 +1014,7 @@ function ComparableSection({ comp, index, onOpen }: { comp: CmaComparable, index
               Distance-from-Subject bar used to handle before it moved onto the photo. */}
           <div className="mt-2 flex flex-1 flex-col gap-2">
             <WideCompFact icon={Building2} label="School District" value={comp.school_district || '-'} compact className="flex-1 max-sm:justify-center max-sm:text-center" />
-            <WideCompFact icon={Layers} label="Basement" value={comp.basement || '-'} compact className="flex-1 max-sm:justify-center max-sm:text-center" />
+            <WideCompFact icon={Layers} label="Basement" value={basementDisplay(comp)} compact className="flex-1 max-sm:justify-center max-sm:text-center" />
           </div>
         </div>
 
@@ -1024,6 +1033,7 @@ function ComparableSection({ comp, index, onOpen }: { comp: CmaComparable, index
                 <p className="text-xl font-black text-[#8b7355] dark:text-[#d7b974]">{formatMoney(compDisplayPrice(comp).value)}</p>
                 {psf && <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">${psf}/sqft above grade</p>}
                 {compPriceCaption(comp) && <p className={`text-[10px] font-black uppercase tracking-wide text-gray-400 ${compDisplayPrice(comp).unverified ? "text-amber-700 dark:text-amber-300" : ""}`}>{compPriceCaption(comp)}</p>}
+                {(comp.material_issues || []).length > 0 && <p className="mt-1 text-[10px] font-black text-red-700 dark:text-red-300">Note: {materialIssuesText(comp)}</p>}
               </div>
             </div>
           </div>
@@ -1213,6 +1223,7 @@ function ComparablePopupModal({ comp, subject, onClose }: { comp: CmaComparable 
               <p className="text-xl font-black text-[#8b7355] dark:text-[#d7b974]">{formatMoney(compDisplayPrice(comp).value)}</p>
               {psf && <p className="text-[9px] font-black uppercase tracking-wide text-gray-400">${psf}/sqft above grade</p>}
               {compPriceCaption(comp) && <p className={`text-[9px] font-black uppercase tracking-wide text-gray-400 ${compDisplayPrice(comp).unverified ? "text-amber-700 dark:text-amber-300" : ""}`}>{compPriceCaption(comp)}</p>}
+              {(comp.material_issues || []).length > 0 && <p className="mt-1 text-[10px] font-black text-red-700 dark:text-red-300">Note: {materialIssuesText(comp)}</p>}
             </div>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">

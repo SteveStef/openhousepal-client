@@ -2718,6 +2718,7 @@ export interface CmaComparable {
   year_built?: number | null;
   architectural_style?: string[] | string | null;
   levels?: string[] | string | null;
+  material_issues?: string[] | null;  // deal-breakers on record (cesspool, "listing says: sold as-is"...)
   township?: string | null;
   subdivision_name?: string | null;
   garage?: string | null;
@@ -3052,6 +3053,7 @@ export interface CmaValuationTrace {
     mode?: 'closed_only' | 'mixed' | 'insufficient';
     anchor_validity?: 'ok' | 'weak' | 'invalid' | null;
     anchor_validity_reason?: string | null;
+    main_uncertainties?: string[];   // 10/20: what the comp set cannot pin down, in client words
     // authoritative descriptive stats over the weighted comp set - one source any "average /
     // median" figure shown anywhere is cross-checked against.
     comp_stats?: {
