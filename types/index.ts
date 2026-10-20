@@ -4043,3 +4043,25 @@ export interface CheckoutCode {
   billing_cycle?: string | null
   message?: string
 }
+
+// GET /admin/ai/failures - every feature failure we already record, newest first.
+export interface AdminFailure {
+  at: string | null;
+  source: 'ai' | 'cma' | 'media' | 'email' | 'connection';
+  feature: string;
+  owner_id: string | null;
+  owner_name: string | null;
+  owner_email: string | null;
+  code: string | null;
+  message: string | null;
+  kind: 'error' | 'limit';
+  ref: string | null;
+}
+
+export interface AdminFailuresResponse {
+  days: number;
+  count: number;
+  errors: number;
+  by_feature: Record<string, number>;
+  failures: AdminFailure[];
+}

@@ -697,6 +697,11 @@ class ApiService {
 
     getAIAgentDetail: (ownerId: string) => this.request<AIAdminAgentDetail>(`/admin/ai/agents/${ownerId}`),
 
+    // Every feature failure we already record (AI calls, CMA generations, AI Media, emails,
+    // connections) - see backend admin_failures_service.py.
+    getRecentFailures: (days = 14, includeLimits = false) =>
+      this.request<import('@/types').AdminFailuresResponse>(`/admin/ai/failures?days=${days}&include_limits=${includeLimits}`),
+
     getStorageAgents: () => this.request<AdminStorageAgentSummary[]>('/admin/storage/agents'),
     /** Agent activity tracker - every agent's usage (counts only, never their clients' details). */
     getActivity: () => this.request<AdminActivityOverview>('/admin/activity'),

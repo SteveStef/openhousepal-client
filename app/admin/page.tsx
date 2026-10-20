@@ -6,7 +6,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
-  Activity, Building2, Cpu, FileSearch, FlaskConical, HardDrive, HelpCircle, LayoutDashboard, LifeBuoy, ShieldCheck, Ticket, Users, Wallet, Workflow,
+  Activity, AlertOctagon, Building2, Cpu, FileSearch, FlaskConical, HardDrive, HelpCircle, LayoutDashboard, LifeBuoy, ShieldCheck, Ticket, Users, Wallet, Workflow,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import api from '@/lib/api-service'
@@ -15,6 +15,7 @@ import AuthGuard from '@/components/AuthGuard'
 import Toast from '@/components/Toast'
 import LuxeHero, { LuxeStats } from '@/components/ui/LuxeHero'
 import AIUsagePanel from '@/components/admin/AIUsagePanel'
+import RecentFailuresPanel from '@/components/admin/RecentFailuresPanel'
 import ProviderBalancesPanel from '@/components/admin/ProviderBalancesPanel'
 import AgentStorageUsagePanel from '@/components/admin/AgentStorageUsagePanel'
 import SupportInboxPanel from '@/components/admin/SupportInboxPanel'
@@ -28,7 +29,7 @@ import BrokerageGroupsPanel from '@/components/admin/BrokerageGroupsPanel'
 import AdminOverviewPanel from '@/components/admin/AdminOverviewPanel'
 import PromoCodesPanel from '@/components/admin/PromoCodesPanel'
 
-type Tab = 'overview' | 'agents' | 'groups' | 'codes' | 'activity' | 'support' | 'questions' | 'ai' | 'providers' | 'storage' | 'cma' | 'cmatest' | 'flows'
+type Tab = 'overview' | 'agents' | 'groups' | 'codes' | 'activity' | 'support' | 'questions' | 'failures' | 'ai' | 'providers' | 'storage' | 'cma' | 'cmatest' | 'flows'
 
 // The admin's sections, grouped the way they're used.
 const NAV: { group: string; items: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }>; blurb: string }[] }[] = [
@@ -44,6 +45,7 @@ const NAV: { group: string; items: { key: Tab; label: string; icon: React.Compon
     { key: 'questions', label: 'Questions', icon: HelpCircle, blurb: 'Questions from the public site.' },
   ] },
   { group: 'Costs', items: [
+    { key: 'failures', label: 'Recent failures', icon: AlertOctagon, blurb: 'Anything that failed for an agent - who, which feature, when, and the error.' },
     { key: 'ai', label: 'AI usage & cost', icon: Cpu, blurb: 'AI spend by agent and feature, and the spending limits.' },
     { key: 'providers', label: 'Provider billing', icon: Wallet, blurb: 'Balances with the services we pay for.' },
     { key: 'storage', label: 'Storage', icon: HardDrive, blurb: 'How much each agent is storing.' },
@@ -205,6 +207,7 @@ function AdminDashboardContent() {
               {tab === 'activity' && <AgentActivityPanel groups={groups} />}
               {tab === 'support' && <SupportInboxPanel onRead={refreshUnreadCounts} />}
               {tab === 'questions' && <PublicQuestionsPanel onRead={refreshUnreadCounts} />}
+              {tab === 'failures' && <RecentFailuresPanel />}
               {tab === 'ai' && <AIUsagePanel />}
               {tab === 'providers' && <ProviderBalancesPanel />}
               {tab === 'storage' && <AgentStorageUsagePanel />}
