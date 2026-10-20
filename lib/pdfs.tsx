@@ -32,7 +32,7 @@ function pdfImageUrl(url?: string | null): string {
   if (typeof window === 'undefined') return normalized;
   return `${window.location.origin}/api/pdf-image?url=${encodeURIComponent(normalized)}`;
 }
-import { CmaGuidanceSection, buildCmaStaticMapUrl, clientCompStrength, cmaGuidanceSections, resolveCmaMarketMetrics, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, buyerOfferFigures, AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_HEX, STRENGTH_LABEL, STRENGTH_TIER_HEX, compDisplayPrice, effectiveCompPrice } from '@/lib/cma';
+import { CmaGuidanceSection, buildCmaStaticMapUrl, clientCompStrength, cmaGuidanceSections, resolveCmaMarketMetrics, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, buyerOfferFigures, AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_HEX, STRENGTH_LABEL, STRENGTH_TIER_HEX, compDisplayPrice, effectiveCompPrice, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft, buildAdjustmentGrid, formatSignedMoney, CmaAdjustmentGridComp } from '@/lib/cma';
 import { qrPdfSrc } from '@/lib/qr';
 import { salesAreRecent, salesWords } from '@/lib/salesWording'
 
@@ -2198,7 +2198,7 @@ function CmaFinalFact({ label, value }: { label: string; value: string | number 
 }
 
 function getCmaSubjectStats(s: CmaSubjectProperty, authoritativeStatus?: CmaFinalStatus | null) {
-  const subjectPsf = s.list_price && s.sqft ? pricePerSqft(s.list_price, s.sqft) : null;
+  const subjectPsf = subjectPricePerSqft(s);
   // Issue #3 - one source for status: the final timeline/status object on ai_estimate when the
   // report has been analyzed; the raw subject.mls_status only as a pre-analysis fallback.
   const statusValue = authoritativeStatus?.label || (s.mls_status ? formatMlsStatusLabel(s.mls_status) : null);
@@ -2208,8 +2208,8 @@ function getCmaSubjectStats(s: CmaSubjectProperty, authoritativeStatus?: CmaFina
     s.baths != null ? { label: 'Baths', value: String(s.baths) } : null,
     s.sqft != null ? { label: 'Reported Finished Area', value: formatNumber(s.sqft) } : null,
     s.above_grade_finished_area != null ? { label: 'Above-Grade Finished Area', value: formatNumber(s.above_grade_finished_area) } : null,
-    s.below_grade_finished_area != null ? { label: 'Below-Grade Finished Area', value: formatNumber(s.below_grade_finished_area) } : null,
-    subjectPsf != null ? { label: '/ Sq Ft', value: `$${subjectPsf}` } : null,
+    s.below_grade_finished_area != null ? { label: 'Below-Grade Finished Area', value: belowGradeDisplay(s) } : null,
+    subjectPsf != null ? { label: '/ Sq Ft Above Grade', value: `$${subjectPsf}` } : null,
     s.year_built != null ? { label: 'Year Built', value: String(s.year_built) } : null,
     s.lot_size != null ? { label: 'Acres', value: formatAcresFromSqft(s.lot_size).replace(' ac', '') } : null,
     s.school_district ? { label: 'School District', value: pdfDistrict(s.school_district) } : null,
@@ -2385,15 +2385,15 @@ function CmaCoverPage({ report, agent }: { report: CmaReport; agent: CmaPdfAgent
 
 function CmaSubjectPage({ report, agent }: { report: CmaReport; agent: CmaPdfAgent }) {
   const s = report.subject;
-  const subjectPsf = s.list_price && s.sqft ? pricePerSqft(s.list_price, s.sqft) : null;
+  const subjectPsf = subjectPricePerSqft(s);
   const statusValue = report.pricing?.ai_estimate?.status?.label || (s.mls_status ? formatMlsStatusLabel(s.mls_status) : null);
   const subjectStats = [
     s.beds != null ? { label: 'Beds', value: String(s.beds) } : null,
     s.baths != null ? { label: 'Baths', value: String(s.baths) } : null,
     s.sqft != null ? { label: 'Reported Finished Area', value: formatNumber(s.sqft) } : null,
     s.above_grade_finished_area != null ? { label: 'Above-Grade Finished Area', value: formatNumber(s.above_grade_finished_area) } : null,
-    s.below_grade_finished_area != null ? { label: 'Below-Grade Finished Area', value: formatNumber(s.below_grade_finished_area) } : null,
-    subjectPsf != null ? { label: '/ Sq Ft', value: `$${subjectPsf}` } : null,
+    s.below_grade_finished_area != null ? { label: 'Below-Grade Finished Area', value: belowGradeDisplay(s) } : null,
+    subjectPsf != null ? { label: '/ Sq Ft Above Grade', value: `$${subjectPsf}` } : null,
     s.year_built != null ? { label: 'Year Built', value: String(s.year_built) } : null,
     s.lot_size != null ? { label: 'Acres', value: formatAcresFromSqft(s.lot_size).replace(' ac', '') } : null,
     s.school_district ? { label: 'School District', value: pdfDistrict(s.school_district) } : null,
@@ -2552,11 +2552,14 @@ function CmaComparisonTablePage({ report, comparables, agent }: { report: CmaRep
   const s = report.subject;
   const subjectHeader = `Subject\n(${s.street_address || 'Address unavailable'})`;
   const rows: { label: string; subject: string; comp: (c: CmaComparable) => string }[] = [
-    { label: 'List / Sale Price', subject: formatMoney(s.list_price), comp: c => formatMoney(compDisplayPrice(c).value) },
-    { label: 'List / Sale $/Sqft', subject: s.list_price && s.sqft ? `$${pricePerSqft(s.list_price, s.sqft)}` : '—', comp: c => { const p = pricePerSqft(effectiveCompPrice(c), c.sqft); return p ? `$${p}` : '—'; } },
+    // A sale with no closing price on record shows its asking price marked as such, never as a sale.
+    { label: 'Sold / List Price', subject: formatMoney(s.list_price), comp: c => compDisplayPrice(c).unverified ? `${formatMoney(compDisplayPrice(c).value)} asking (sold price n/a)` : formatMoney(compDisplayPrice(c).value) },
+    ...(comparables.some(c => compSoldDate(c)) ? [{ label: 'Sold Date', subject: '—', comp: (c: CmaComparable) => compSoldDate(c) || '—' }] : []),
+    ...(comparables.some(c => compSoldToAsking(c) != null) ? [{ label: 'Sold vs. Asking', subject: '—', comp: (c: CmaComparable) => formatSoldToAsking(c) || '—' }] : []),
+    { label: '$/Sqft (Above Grade)', subject: subjectPricePerSqft(s) ? `$${subjectPricePerSqft(s)}` : '—', comp: c => { const p = compPricePerSqft(c); return p ? `$${p}` : '—'; } },
     { label: 'Reported Finished Area', subject: formatNumber(s.sqft), comp: c => formatNumber(c.sqft) },
     ...([s, ...comparables].some(p => p.above_grade_finished_area != null) ? [{ label: 'Above-Grade Finished Area', subject: formatNumber(s.above_grade_finished_area), comp: (c: CmaComparable) => formatNumber(c.above_grade_finished_area) }] : []),
-    ...([s, ...comparables].some(p => p.below_grade_finished_area != null) ? [{ label: 'Below-Grade Finished Area', subject: formatNumber(s.below_grade_finished_area), comp: (c: CmaComparable) => formatNumber(c.below_grade_finished_area) }] : []),
+    ...([s, ...comparables].some(p => p.below_grade_finished_area != null) ? [{ label: 'Below-Grade Finished Area', subject: belowGradeDisplay(s), comp: (c: CmaComparable) => belowGradeDisplay(c) }] : []),
     { label: 'Lot Size', subject: formatAcresFromSqft(s.lot_size), comp: c => formatAcresFromSqft(c.lot_size) },
     { label: 'Beds', subject: String(s.beds ?? '—'), comp: c => String(c.beds ?? '—') },
     { label: 'Baths', subject: String(s.baths ?? '—'), comp: c => String(c.baths ?? '—') },
@@ -2587,6 +2590,65 @@ function CmaComparisonTablePage({ report, comparables, agent }: { report: CmaRep
           </View>
         ))}
       </View>
+      <CmaPageFooter agent={agent} />
+    </Page>
+  );
+}
+
+// Adjustment grid (10/20): the bridge between "the comps sold for X" and "this home is worth Y" -
+// each verified sale moved toward the subject in dollars, then what the sales support, then any
+// final step (e.g. the asking-price market check) said out loud instead of hidden.
+function CmaAdjustmentGridPage({ report, agent }: { report: CmaReport; agent: CmaPdfAgent }) {
+  const grid = buildAdjustmentGrid(report.pricing.ai_estimate);
+  if (!grid) return null;
+  const rows: { label: string; get: (c: CmaAdjustmentGridComp) => string; bold?: boolean }[] = [
+    { label: 'Sold Price', get: c => formatMoney(c.sale) },
+    { label: 'Size (Above Grade)', get: c => formatSignedMoney(c.size) },
+    { label: 'Finished Lower Level', get: c => formatSignedMoney(c.lowerLevel) },
+    { label: 'Bathrooms', get: c => formatSignedMoney(c.baths) },
+    { label: 'Garage', get: c => formatSignedMoney(c.garage) },
+    ...(grid.hasSewer ? [{ label: 'Cesspool', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.sewer) }] : []),
+    { label: 'Adjusted Price', get: c => formatMoney(c.adjusted), bold: true },
+    { label: 'Weight in Value', get: c => `${c.weightPct}%` },
+  ];
+  const summary: { label: string; value: string; bold?: boolean; note?: string }[] = [
+    { label: 'Value from adjusted sales', value: formatMoney(grid.adjustedSalesValue), note: 'Weighted adjusted prices, cross-checked against price per square foot.' },
+    ...(grid.otherAdjustments ? [{ label: 'Location / condition adjustments', value: formatSignedMoney(grid.otherAdjustments) }] : []),
+    { label: 'What the comparable sales support', value: formatMoney(grid.compBasedValue), bold: !grid.marketCheck },
+    ...(grid.marketCheck ? [
+      { label: 'Market check', value: formatSignedMoney(grid.marketCheck.amount), note: grid.marketCheck.text },
+      { label: 'Estimated fair market value', value: formatMoney(grid.finalValue), bold: true },
+    ] : []),
+  ];
+  return (
+    <Page size="LETTER" style={cma.page}>
+      <CmaPdfHeader label="Adjustment Grid" title="How the Comps Were Adjusted" subtitle="Each sale moved toward this home, in dollars" />
+      <View style={cma.tableWrap}>
+        <View style={cma.tableHeadRow}>
+          <Text style={[cma.tableLabelCell, { color: '#9CA3AF' }]}></Text>
+          {grid.comps.map(c => <Text key={c.label} style={cma.tableHeadCell}>{`${c.label}\n(${c.address})`}</Text>)}
+        </View>
+        {rows.map((row, index) => (
+          <View key={row.label} style={[cma.tableRow, index % 2 === 1 ? cma.tableRowAlt : {}]}>
+            <Text style={cma.tableLabelCell}>{row.label}</Text>
+            {grid.comps.map(c => <Text key={c.label} style={[cma.tableCell, row.bold ? { fontWeight: 900 } : {}]}>{row.get(c)}</Text>)}
+          </View>
+        ))}
+      </View>
+      <View style={{ marginTop: 14, borderRadius: 10, border: `1 solid ${COLORS.line}`, padding: 12 }}>
+        {summary.map(s => (
+          <View key={s.label} style={{ marginBottom: 6 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 8.5, fontWeight: s.bold ? 900 : 700, color: COLORS.text }}>{s.label}</Text>
+              <Text style={{ fontSize: s.bold ? 11 : 9, fontWeight: 900, color: s.bold ? '#8b7355' : COLORS.text }}>{s.value}</Text>
+            </View>
+            {s.note && <Text style={{ fontSize: 7, color: COLORS.muted, marginTop: 1.5 }}>{s.note}</Text>}
+          </View>
+        ))}
+      </View>
+      <Text style={{ fontSize: 6.8, color: COLORS.muted, marginTop: 8, lineHeight: 1.4 }}>
+        Size is adjusted on above-grade living area. A finished lower level is valued at a fraction of above-grade space; baths and garage spaces at a share of each sale's price. Only sales with a recorded closing price are used.
+      </Text>
       <CmaPageFooter agent={agent} />
     </Page>
   );
@@ -2681,8 +2743,9 @@ function CmaComparableQualitySection({ comp }: { comp: CmaComparable }) {
 }
 
 function CmaComparablePage({ comp, index, agent }: { comp: CmaComparable; index: number; agent: CmaPdfAgent }) {
-  const psf = pricePerSqft(effectiveCompPrice(comp), comp.sqft);
+  const psf = compPricePerSqft(comp);
   const note = comp.commentary || comp.ai_commentary;
+  const priceCaption = compPriceCaption(comp);
   const cityState = [comp.city, comp.state].filter(Boolean).join(', ');
   const isLongNote = (note || '').length > 650;
   const q = comp.quality;
@@ -2693,7 +2756,9 @@ function CmaComparablePage({ comp, index, agent }: { comp: CmaComparable; index:
     { label: 'Baths', value: comp.baths },
     { label: 'Reported Finished Area', value: comp.sqft ? formatNumber(comp.sqft) : null },
     { label: 'Above-Grade Finished Area', value: comp.above_grade_finished_area ? formatNumber(comp.above_grade_finished_area) : null },
-    { label: 'Below-Grade Finished Area', value: comp.below_grade_finished_area ? formatNumber(comp.below_grade_finished_area) : null },
+    { label: 'Below-Grade Finished Area', value: comp.below_grade_finished_area || /finished/i.test((comp.basement || '').replace(/unfinished/i, '')) ? belowGradeDisplay(comp) : null },
+    { label: 'Sold Date', value: compSoldDate(comp) },
+    { label: 'Sold vs. Asking', value: formatSoldToAsking(comp) },
     { label: 'Year Built', value: comp.year_built },
     { label: 'Acres', value: comp.lot_size ? formatAcresFromSqft(comp.lot_size).replace(' ac', '') : null },
     { label: 'School District', value: pdfDistrict(comp.school_district) },
@@ -2730,13 +2795,14 @@ function CmaComparablePage({ comp, index, agent }: { comp: CmaComparable; index:
           </View>
         )}
         <View style={{ position: 'absolute', top: 10, left: 10, backgroundColor: COMP_STATUS_HEX[comp.status] || '#374151', borderRadius: 12, paddingVertical: 4, paddingHorizontal: 10 }}>
-          <Text style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: '#FFFFFF' }}>{COMP_STATUS_LABEL[comp.status] || comp.status}</Text>
+          <Text style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: '#FFFFFF' }}>{compStatusBadgeText(comp)}</Text>
         </View>
         {/* White pill / black price (not the reverse) - saves ink across a multi-page PDF with a
             price badge on every comp photo. */}
         <View style={{ position: 'absolute', left: 12, bottom: 12, backgroundColor: COLORS.white, borderRadius: 8, paddingVertical: 7, paddingHorizontal: 12, border: '1 solid rgba(0,0,0,0.08)' }}>
           <Text style={{ fontSize: 18, fontFamily: 'Montserrat', fontWeight: 900, color: COLORS.text }}>{formatMoney(compDisplayPrice(comp).value)}</Text>
-          {psf && <Text style={{ fontSize: 7, color: COLORS.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.8 }}>${psf}/sqft</Text>}
+          {psf && <Text style={{ fontSize: 7, color: COLORS.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.8 }}>${psf}/sqft above grade</Text>}
+          {priceCaption && <Text style={{ fontSize: 6.5, color: compDisplayPrice(comp).unverified ? '#92400E' : COLORS.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.6 }}>{priceCaption}</Text>}
         </View>
       </View>
 
@@ -2794,9 +2860,10 @@ function CmaBarChart({ title, subjectLabel, subjectValue, bars, formatValue }: {
 }
 
 function CmaChartsPage({ report, comparables, agent }: { report: CmaReport; comparables: CmaComparable[]; agent: CmaPdfAgent }) {
-  const psfBars = comparables.map((c, i) => ({ label: `#${i + 1}`, value: pricePerSqft(effectiveCompPrice(c) ?? compDisplayPrice(c).value, c.sqft) ?? 0 }));
-  const saleBars = comparables.map((c, i) => ({ label: `#${i + 1}`, value: effectiveCompPrice(c) ?? compDisplayPrice(c).value ?? 0 }));
-  const subjectPsf = report.subject.list_price && report.subject.sqft ? pricePerSqft(report.subject.list_price, report.subject.sqft) : null;
+  // Only prices that are real (a verified sale, or a current asking price) - an unreported sale is left off the charts.
+  const psfBars = comparables.map((c, i) => ({ label: `#${i + 1}`, value: compPricePerSqft(c) })).filter((b): b is { label: string; value: number } => b.value != null);
+  const saleBars = comparables.map((c, i) => ({ label: `#${i + 1}`, value: effectiveCompPrice(c) })).filter((b): b is { label: string; value: number } => b.value != null);
+  const subjectPsf = subjectPricePerSqft(report.subject);
   // Authoritative backend stats (ai_estimate.comp_stats) when present; computeMarketMetrics only
   // as the fallback for pre-comp_stats reports. metricsWeighted === metricsAll (the "weighted"
   // pool is the same valuation-comp set) - kept as an alias so the labels below don't change.
@@ -2831,9 +2898,10 @@ function CmaChartsPage({ report, comparables, agent }: { report: CmaReport; comp
 }
 
 function CmaChartsPageV2({ report, comparables, agent }: { report: CmaReport; comparables: CmaComparable[]; agent: CmaPdfAgent }) {
-  const psfBars = comparables.map((c, i) => ({ label: `#${i + 1}`, value: pricePerSqft(effectiveCompPrice(c) ?? compDisplayPrice(c).value, c.sqft) ?? 0 }));
-  const saleBars = comparables.map((c, i) => ({ label: `#${i + 1}`, value: effectiveCompPrice(c) ?? compDisplayPrice(c).value ?? 0 }));
-  const subjectPsf = report.subject.list_price && report.subject.sqft ? pricePerSqft(report.subject.list_price, report.subject.sqft) : null;
+  // Only prices that are real (a verified sale, or a current asking price) - an unreported sale is left off the charts.
+  const psfBars = comparables.map((c, i) => ({ label: `#${i + 1}`, value: compPricePerSqft(c) })).filter((b): b is { label: string; value: number } => b.value != null);
+  const saleBars = comparables.map((c, i) => ({ label: `#${i + 1}`, value: effectiveCompPrice(c) })).filter((b): b is { label: string; value: number } => b.value != null);
+  const subjectPsf = subjectPricePerSqft(report.subject);
   // Authoritative backend stats (ai_estimate.comp_stats) when present; computeMarketMetrics only
   // as the fallback for pre-comp_stats reports. metricsWeighted === metricsAll (the "weighted"
   // pool is the same valuation-comp set) - kept as an alias so the labels below don't change.
@@ -3058,6 +3126,7 @@ export const CmaPresentationDocument = ({ report, agent }: { report: CmaReport; 
       {!hidden.has('comparison_table') && comparables.length > 0 && <CmaComparisonTablePage report={report} comparables={comparables} agent={agent} />}
       {!hidden.has('market_context') && <CmaMarketSnapshotPage report={report} agent={agent} />}
       {!hidden.has('charts') && comparables.length > 0 && <CmaChartsPageV2 report={report} comparables={comparables} agent={agent} />}
+      {!hidden.has('pricing') && <CmaAdjustmentGridPage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaPricingPage report={report} comparables={comparables} agent={agent} />}
       {!hidden.has('pricing') && <CmaInspectionConcernsPage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaOfferSuggestionPage report={report} agent={agent} />}

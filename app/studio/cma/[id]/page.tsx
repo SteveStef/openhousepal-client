@@ -968,6 +968,7 @@ function mapPropertyToSubject(p: any): CmaSubjectProperty {
     year_built: p.YearBuilt ?? null,
     property_type: p.PropertyType || null,
     architectural_style: p.ArchitecturalStyle ?? p.architectural_style ?? null,
+    levels: p.Levels ?? p.levels ?? null,
     township: p.Township ?? p.township ?? null,
     subdivision_name: p.SubdivisionName ?? p.subdivision_name ?? null,
     garage: p.GarageYN ? (p.GarageSpaces ? `${p.GarageSpaces} Car` : 'Yes') : (p.GarageYN === false ? 'None' : null),
@@ -1040,6 +1041,7 @@ function candidateToComparable(c: CmaCompCandidate): CmaComparable {
     baths: c.baths,
     year_built: c.year_built,
     architectural_style: c.architectural_style,
+    levels: c.levels,
     township: c.township,
     subdivision_name: c.subdivision_name,
     garage: c.garage,
@@ -1225,6 +1227,7 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
   // to a fixed radius - stops the moment the agent drags the circle/slider themselves.
   const [radius, setRadius] = useState(RADIUS_STEPS[0])
   const autoRadiusRef = useRef(true)
+  const radiusExtraStepRef = useRef(false)
   // Same autofill rule as the Similar Properties sheet (CreateOpenHouseWizard) - seed the price
   // and beds range from the subject itself so the very first search already returns real comps,
   // not an unbounded dump of every property in the radius. Price band is a wide ±35% (the tighter
@@ -1289,6 +1292,7 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
   useEffect(() => {
     autoManagedRef.current = report.comparables.length === 0
     autoRadiusRef.current = true
+    radiusExtraStepRef.current = false
     setOptimizing(true)
     setComparables(report.comparables)
     setSubjectPhotoIndex(0)
@@ -1354,13 +1358,14 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
     year_built: subject.year_built,
     property_type: subject.property_type,
     architectural_style: subject.architectural_style,
+    levels: subject.levels,
     public_remarks: subject.public_remarks,
   }), [
     subject.listing_key, subject.source,
     subject.sqft, subject.above_grade_finished_area, subject.lot_size, subject.city, subject.school_district,
     subject.township, subject.subdivision_name,
     subject.latitude, subject.longitude, subject.year_built, subject.property_type,
-    subject.architectural_style, subject.public_remarks,
+    subject.architectural_style, subject.levels, subject.public_remarks,
   ])
   // Backend continuous relevance is the only CMA card score authority. Sorting, badges, map
   // popups, auto-selection, and saved comps all consume this exact returned integer.
@@ -1440,7 +1445,12 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
           // with two usable twins (backtest, 10/19).
           const strongCount = authoritativeResults.filter(c => isAutoPickable(c) && scoreFor(c) >= 70).length
           const currentIndex = RADIUS_STEPS.indexOf(radius)
-          if (strongCount < MIN_STRONG_MATCHES && currentIndex < RADIUS_STEPS.length - 1) {
+          // One step past "enough": every in-circle sale is scored (proximity is part of the score),
+          // so a wider circle only ADDS candidates - a better match just past the line now competes
+          // instead of being cut (417 Dogwood Ln stopped at 1 mi; its best sale, 85%, sat at 1.5 mi).
+          const enough = strongCount >= MIN_STRONG_MATCHES
+          if (currentIndex < RADIUS_STEPS.length - 1 && (!enough || !radiusExtraStepRef.current)) {
+            if (enough) radiusExtraStepRef.current = true
             setRadius(RADIUS_STEPS[currentIndex + 1])
             willWidenAgain = true
           } else {
@@ -1494,7 +1504,11 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
     setComparables(cs => [...cs, { ...candidateToComparable(candidate), order_index: cs.length }])
   }
 
-  const sortedResults = useMemo(() => [...results].sort((a, b) => scoreFor(b) - scoreFor(a)), [results, scoreFor])
+  // Usable sales first, then Match % - so the first cards ARE the ones the auto-pick chooses. A
+  // high-scoring sale with no sold price (or another housing product) sorts after them, labelled.
+  const sortedResults = useMemo(() => [...results].sort((a, b) => (
+    Number(isAutoPickable(b)) - Number(isAutoPickable(a)) || scoreFor(b) - scoreFor(a)
+  )), [results, scoreFor])
 
   // Paginate the candidate GRID (the map still plots every result). Default 24 per page with a
   // per-page picker + windowed page numbers, same pattern as the rest of the app.
@@ -1970,12 +1984,29 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
   )
 }
 
+// Hover breakdown of the backend Match % - one line per scored component (backend snake_case keys;
+// the old text read camelCase keys that never existed, so most parts showed "-").
+const MATCH_COMPONENT_LABELS: Record<string, string> = {
+  proximity: "distance", market_area: "same area", size: "size", property_type: "home type", lot: "lot",
+  age: "age", style: "style / levels", recency: "how recent", data_reliability: "data quality",
+}
+function matchBreakdownTitle(d: MatchScoreDetails): string {
+  const parts = Object.entries(d.componentPoints).map(([k, pts]) => {
+    const score = d.componentScores[k]
+    const max = score ? pts / score : null
+    return `${MATCH_COMPONENT_LABELS[k] || k} ${pts.toFixed(1)}${max ? "/" + Math.round(max) : ""}`
+  })
+  const dist = d.candidateDistanceMiles != null ? ` at ${d.candidateDistanceMiles.toFixed(2)} mi` : ""
+  return `Underlying relevance ${(d.rawRelevanceScore * 100).toFixed(1)}%${dist}: ${parts.join("; ")}.`
+}
+
 function CompCandidateCard({ candidate, matchScore, matchDetails, added, sameSchool, onToggle, onOpenDetails }: { candidate: CmaCompCandidate, matchScore?: number, matchDetails?: MatchScoreDetails, added: boolean, sameSchool: boolean, onToggle: () => void, onOpenDetails: () => void }) {
   const dp = compDisplayPrice(candidate as unknown as CmaComparable)
   // $/sqft on this selector always derives from whatever price we're showing (close price once
   // sold data is backfilled, list price otherwise) - it's just an orientation number for
   // browsing candidates, not a valuation input.
-  const psf = pricePerSqft(dp.value, candidate.sqft)
+  // A sale with no closing price on record shows its last asking price - never a $/sqft from it.
+  const psf = dp.unverified ? null : pricePerSqft(dp.value, candidate.sqft)
   const candidateAcres = sqftToAcres(candidate.lot_size)
   const cityState = [candidate.city, candidate.state].filter(Boolean).join(', ')
   const photos = candidate.photos && candidate.photos.length > 0 ? candidate.photos : (candidate.photo_url ? [candidate.photo_url] : [])
@@ -1994,7 +2025,7 @@ function CompCandidateCard({ candidate, matchScore, matchDetails, added, sameSch
           </div>
         )}
         {typeof matchScore === 'number' && (
-          <div title={matchDetails ? `Underlying relevance ${(matchDetails.rawRelevanceScore * 100).toFixed(1)}%; proximity ${matchDetails.componentPoints.proximity?.toFixed(1) ?? '—'}/22 at ${matchDetails.candidateDistanceMiles?.toFixed(2) ?? '—'} mi; local half-life ${matchDetails.localMarketHalfLifeMiles.toFixed(2)} mi; size ${matchDetails.componentPoints.size?.toFixed(1) ?? '—'}/20; market ${matchDetails.componentPoints.marketArea?.toFixed(1) ?? '—'}/16; type ${matchDetails.componentPoints.propertyType?.toFixed(1) ?? '—'}/12; lot ${matchDetails.componentPoints.lot?.toFixed(1) ?? '—'}/9; age/style ${matchDetails.componentPoints.ageStyle?.toFixed(1) ?? '—'}/10; recency ${matchDetails.componentPoints.recency?.toFixed(1) ?? '—'}/7; reliability ${matchDetails.componentPoints.dataReliability?.toFixed(1) ?? '—'}/4; modifier ×${matchDetails.productModifier.toFixed(2)}.` : undefined} className={`absolute left-2 top-2 rounded-full px-2.5 py-1.5 text-xs font-black uppercase tracking-wide text-white shadow-lg ${matchScore >= 70 ? 'bg-emerald-600' : 'bg-gray-500'}`}>
+          <div title={matchDetails ? matchBreakdownTitle(matchDetails) : undefined} className={`absolute left-2 top-2 rounded-full px-2.5 py-1.5 text-xs font-black uppercase tracking-wide text-white shadow-lg ${matchScore >= 70 ? 'bg-emerald-600' : 'bg-gray-500'}`}>
             {matchScore}% Match
           </div>
         )}
@@ -2025,7 +2056,7 @@ function CompCandidateCard({ candidate, matchScore, matchDetails, added, sameSch
       <div className="p-2.5">
         <div className="flex items-start justify-between gap-2">
           <p className="min-w-0 truncate text-xs font-black text-[#111827] dark:text-white">{candidate.street_address}</p>
-          <span className="shrink-0 text-right text-sm font-black text-[#8b7355] dark:text-[#d7b974]">
+          <span className={`shrink-0 text-right text-sm font-black ${dp.unverified ? "text-gray-400" : "text-[#8b7355] dark:text-[#d7b974]"}`} title={dp.unverified ? "Last asking price - the sold price isn't on record yet" : undefined}>
             {formatMoney(dp.value)}
           </span>
         </div>
@@ -2033,6 +2064,13 @@ function CompCandidateCard({ candidate, matchScore, matchDetails, added, sameSch
           <p className="min-w-0 truncate text-[10px] font-bold uppercase tracking-wide text-gray-400">{cityState || '—'}</p>
           {psf && <span className="shrink-0 text-[10px] font-bold text-gray-400">${psf}/sqft</span>}
         </div>
+        {dp.unverified && (
+          // Why a high-Match sale isn't auto-picked: no sold price on record, so it can't carry any
+          // weight in the value (417 Dogwood Ln looked like the picker skipped its best cards, 10/20).
+          <p className="mt-1 rounded-lg bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+            Sold price not on record yet - shown at last asking. Can't be used in the value.
+          </p>
+        )}
         <div className="mt-1.5 grid grid-cols-4 gap-1">
           <CmaFactChip icon={Bed} value={candidate.beds ?? '-'} label="Beds" />
           <CmaFactChip icon={Bath} value={candidate.baths ?? '-'} label="Baths" />

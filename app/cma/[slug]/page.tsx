@@ -6,12 +6,12 @@ import { useParams } from 'next/navigation'
 import { PDFDownloadLink } from '@react-pdf/renderer'
 import { Bath, BedDouble, Building2, Calendar, Car, ChevronLeft, ChevronRight, DollarSign, Download, Droplets, Gauge, Home, LandPlot, Layers, Loader2, Maximize2, MapPin, Moon, Ruler, ShieldCheck, Sun, Waves, X } from 'lucide-react'
 import api from '@/lib/api-service'
-import { CmaComparable, CmaPublicResponse } from '@/types'
+import { CmaAiEstimate, CmaComparable, CmaPublicResponse } from '@/types'
 import {
   buildCmaStaticMapUrl, buildCompLocationMapUrl, clientCompStrength, compDisplayPrice, resolveCmaMarketMetrics, effectiveCompPrice, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange,
   CmaGuidanceSection, cmaGuidanceSections, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, COMP_STATUS_BADGE_STYLE,
   AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_STYLES, STRENGTH_LABEL, STRENGTH_SCALE_STYLES, STRENGTH_STYLES,
-  buyerOfferFigures,
+  buyerOfferFigures, buildAdjustmentGrid, formatSignedMoney, CmaAdjustmentGridComp, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft,
 } from '@/lib/cma'
 import { CmaPresentationDocument } from '@/lib/pdfs'
 import { googleMapsLoader } from '@/lib/googleMapsLoader'
@@ -307,11 +307,13 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
                   </tr>
                 </thead>
                 <tbody>
-                  <OverviewRow index={0} label="List / Sale Price" subjectValue={formatMoney(subject.list_price)} comparables={comparables} get={c => formatMoney(compDisplayPrice(c).value)} />
-                  <OverviewRow index={1} label="List / Sale $/Sqft" subjectValue={subject.list_price && subject.sqft ? `$${pricePerSqft(subject.list_price, subject.sqft)}` : '—'} comparables={comparables} get={c => { const p = pricePerSqft(effectiveCompPrice(c), c.sqft); return p ? `$${p}` : '—' }} />
+                  <OverviewRow index={0} label="Sold / List Price" subjectValue={formatMoney(subject.list_price)} comparables={comparables} get={c => compDisplayPrice(c).unverified ? `${formatMoney(compDisplayPrice(c).value)} asking (sold price n/a)` : formatMoney(compDisplayPrice(c).value)} />
+                  {comparables.some(c => compSoldDate(c)) && <OverviewRow index={1} label="Sold Date" subjectValue="—" comparables={comparables} get={c => compSoldDate(c) || '—'} />}
+                  {comparables.some(c => compSoldToAsking(c) != null) && <OverviewRow index={0} label="Sold vs. Asking" subjectValue="—" comparables={comparables} get={c => formatSoldToAsking(c) || '—'} />}
+                  <OverviewRow index={1} label="$/Sqft (Above Grade)" subjectValue={subjectPricePerSqft(subject) ? `$${subjectPricePerSqft(subject)}` : '—'} comparables={comparables} get={c => { const p = compPricePerSqft(c); return p ? `$${p}` : '—' }} />
                   <OverviewRow index={2} label="Reported Finished Area" subjectValue={formatNumber(subject.sqft)} comparables={comparables} get={c => formatNumber(c.sqft)} />
                   {[subject, ...comparables].some(p => p.above_grade_finished_area != null) && <OverviewRow index={2} label="Above-Grade Finished Area" subjectValue={formatNumber(subject.above_grade_finished_area)} comparables={comparables} get={c => formatNumber(c.above_grade_finished_area)} />}
-                  {[subject, ...comparables].some(p => p.below_grade_finished_area != null) && <OverviewRow index={2} label="Below-Grade Finished Area" subjectValue={formatNumber(subject.below_grade_finished_area)} comparables={comparables} get={c => formatNumber(c.below_grade_finished_area)} />}
+                  {[subject, ...comparables].some(p => p.below_grade_finished_area != null) && <OverviewRow index={2} label="Below-Grade Finished Area" subjectValue={belowGradeDisplay(subject)} comparables={comparables} get={c => belowGradeDisplay(c)} />}
                   <OverviewRow index={3} label="Lot Size" subjectValue={formatAcresFromSqft(subject.lot_size)} comparables={comparables} get={c => formatAcresFromSqft(c.lot_size)} />
                   <OverviewRow index={4} label="Beds" subjectValue={String(subject.beds ?? '—')} comparables={comparables} get={c => String(c.beds ?? '—')} />
                   <OverviewRow index={5} label="Baths" subjectValue={String(subject.baths ?? '—')} comparables={comparables} get={c => String(c.baths ?? '—')} />
@@ -362,16 +364,20 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
                   <Fact label="Typical price per sq ft" value={(metricsAll.psfMedian ?? metricsAll.psfAvg) != null ? `$${Math.round((metricsAll.psfMedian ?? metricsAll.psfAvg) as number)}` : '—'} />
                 </div>
                 <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2">
-                  {/* A sold home whose closing price couldn't be confirmed shows its list price (the
-                      same number its card shows) instead of an empty bar. */}
-                  <BarChart title="Price Per Square Foot" subjectValue={subject.list_price && subject.sqft ? pricePerSqft(subject.list_price, subject.sqft) : null} bars={comparables.map((c, i) => ({ label: `#${i + 1}`, value: pricePerSqft(effectiveCompPrice(c) ?? compDisplayPrice(c).value, c.sqft) ?? 0 }))} formatValue={v => `$${v}`} />
-                  <BarChart title="Comparable Sale Prices" subjectValue={subject.list_price} bars={comparables.map((c, i) => ({ label: `#${i + 1}`, value: effectiveCompPrice(c) ?? compDisplayPrice(c).value ?? 0 }))} formatValue={v => formatMoney(v, { compact: true })} />
+                  {/* Only real prices (a verified sale or a current asking price): a sale whose closing
+                      price isn't on record is left off rather than charted at its asking price (10/20). */}
+                  <BarChart title="Price Per Square Foot" subjectValue={subjectPricePerSqft(subject)} bars={comparables.map((c, i) => ({ label: `#${i + 1}`, value: compPricePerSqft(c) })).filter((b): b is { label: string; value: number } => b.value != null)} formatValue={v => `$${v}`} />
+                  <BarChart title="Comparable Sale Prices" subjectValue={subject.list_price} bars={comparables.map((c, i) => ({ label: `#${i + 1}`, value: effectiveCompPrice(c) })).filter((b): b is { label: string; value: number } => b.value != null)} formatValue={v => formatMoney(v, { compact: true })} />
                 </div>
               </>
             )}
           </Section>
           )
         })()}
+
+        {/* Adjustment grid (10/20): each verified sale moved toward this home in dollars, then what
+            the sales support, then any final step said out loud - no jump from "typical sale" to value. */}
+        {!hiddenSections.has('pricing') && <AdjustmentGridSection estimate={pricing.ai_estimate} />}
 
         {/* Agent Final Analysis */}
         {!hiddenSections.has('pricing') && (
@@ -522,6 +528,70 @@ function FactsGrid({ children }: { children: React.ReactNode }) {
 
 // Same bordered-card language as MiniFact/PopupFact elsewhere on this page, instead of bare
 // stacked text with nothing to visually group one stat from the next.
+function AdjustmentGridSection({ estimate }: { estimate?: CmaAiEstimate | null }) {
+  const grid = buildAdjustmentGrid(estimate)
+  if (!grid) return null
+  const rows: { label: string, get: (c: CmaAdjustmentGridComp) => string, bold?: boolean }[] = [
+    { label: 'Sold price', get: c => formatMoney(c.sale) },
+    { label: 'Size (above grade)', get: c => formatSignedMoney(c.size) },
+    { label: 'Finished lower level', get: c => formatSignedMoney(c.lowerLevel) },
+    { label: 'Bathrooms', get: c => formatSignedMoney(c.baths) },
+    { label: 'Garage', get: c => formatSignedMoney(c.garage) },
+    ...(grid.hasSewer ? [{ label: 'Cesspool', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.sewer) }] : []),
+    { label: 'Adjusted price', get: c => formatMoney(c.adjusted), bold: true },
+    { label: 'Weight in value', get: c => `${c.weightPct}%` },
+  ]
+  return (
+    <Section eyebrow="Adjustment Grid" title="How the Comps Were Adjusted">
+      <p className="mb-4 text-sm font-semibold text-gray-600 dark:text-gray-300">Each sale moved toward this home, in dollars.</p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[480px] text-sm">
+          <thead>
+            <tr className="border-b border-gray-200 dark:border-gray-700">
+              <th />
+              {grid.comps.map(c => (
+                <th key={c.label} className="px-3 py-2 text-right text-[11px] font-black uppercase tracking-wide text-gray-500">
+                  {c.label}<span className="block font-semibold normal-case tracking-normal text-gray-400">{c.address}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.label} className="border-b border-gray-100 dark:border-gray-800">
+                <td className="py-2 pr-3 text-xs font-black uppercase tracking-wide text-gray-500">{r.label}</td>
+                {grid.comps.map(c => (
+                  <td key={c.label} className={`px-3 py-2 text-right ${r.bold ? 'font-black text-[#8b7355] dark:text-[#d7b974]' : 'font-semibold text-[#111827] dark:text-white'}`}>{r.get(c)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-6 space-y-3 rounded-2xl border border-gray-200 p-4 dark:border-gray-700">
+        <GridSummaryLine label="Value from adjusted sales" value={formatMoney(grid.adjustedSalesValue)} note="Weighted adjusted prices, cross-checked against price per square foot." />
+        {grid.otherAdjustments !== 0 && <GridSummaryLine label="Location / condition adjustments" value={formatSignedMoney(grid.otherAdjustments)} />}
+        <GridSummaryLine label="What the comparable sales support" value={formatMoney(grid.compBasedValue)} bold={!grid.marketCheck} />
+        {grid.marketCheck && <GridSummaryLine label="Market check" value={formatSignedMoney(grid.marketCheck.amount)} note={grid.marketCheck.text} />}
+        {grid.marketCheck && <GridSummaryLine label="Estimated fair market value" value={formatMoney(grid.finalValue)} bold />}
+      </div>
+      <p className="mt-3 text-xs text-gray-400">Size is adjusted on above-grade living area. A finished lower level is valued at a fraction of above-grade space; baths and garage spaces at a share of each sale&apos;s price. Only sales with a recorded closing price are used.</p>
+    </Section>
+  )
+}
+
+function GridSummaryLine({ label, value, note, bold = false }: { label: string, value: string, note?: string, bold?: boolean }) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-4">
+        <p className={`text-sm ${bold ? 'font-black' : 'font-bold'} text-[#111827] dark:text-white`}>{label}</p>
+        <p className={`font-black ${bold ? 'text-lg text-[#8b7355] dark:text-[#d7b974]' : 'text-sm text-[#111827] dark:text-white'}`}>{value}</p>
+      </div>
+      {note && <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{note}</p>}
+    </div>
+  )
+}
+
 function Fact({ label, value }: { label: string, value: string | number | null | undefined }) {
   return (
     <div className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-gray-200 bg-white px-3 py-4 text-center shadow-sm dark:border-gray-800 dark:bg-[#0B0B0B] print:border-gray-200 print:bg-white print:shadow-none">
@@ -570,7 +640,7 @@ function SubjectShowcaseCard({ subject }: { subject: CmaPublicResponse['subject'
   const [prevPhoto, setPrevPhoto] = useState<string | null>(null)
   const lastPhoto = useRef<string | null>(null)
   useEffect(() => { setPrevPhoto(lastPhoto.current); lastPhoto.current = currentPhoto || null }, [currentPhoto])
-  const subjectPsf = subject.list_price && subject.sqft ? pricePerSqft(subject.list_price, subject.sqft) : null
+  const subjectPsf = subjectPricePerSqft(subject)
   const stats = [
     subject.beds != null ? { icon: BedDouble, label: 'Beds', value: String(subject.beds) } : null,
     subject.baths != null ? { icon: Bath, label: 'Baths', value: String(subject.baths) } : null,
@@ -699,7 +769,7 @@ function SubjectPopupModal({ subject, onClose }: { subject: CmaPublicResponse['s
   }, [onClose])
 
   const pics = subject.photos && subject.photos.length > 0 ? subject.photos : (subject.photo_url ? [subject.photo_url] : [])
-  const psf = subject.list_price && subject.sqft ? pricePerSqft(subject.list_price, subject.sqft) : null
+  const psf = subjectPricePerSqft(subject)
   const cityState = [subject.city, subject.state].filter(Boolean).join(', ')
 
   return (
@@ -842,13 +912,13 @@ function ComparableSection({ comp, index, onOpen }: { comp: CmaComparable, index
     const start = Math.min(Math.max(photoIndex - 2, 0), photos.length - maxVisible)
     return photos.slice(start, start + maxVisible).map((photo, offset) => ({ photo, photoIndex: start + offset }))
   }, [photoIndex, photos])
-  const psf = comp.price_per_sqft ?? pricePerSqft(compDisplayPrice(comp).value, comp.sqft)
+  const psf = compPricePerSqft(comp)
   const note = comp.commentary || comp.ai_commentary
   const displayedStrength = clientCompStrength(comp)
   const cityOnly = comp.city || ''
   const locationMapUrl = buildCompLocationMapUrl(comp, '700x320')
   const statusLabel = COMP_STATUS_LABEL[comp.status] || comp.status
-  const statusBadgeText = comp.status === 'sold' && comp.sale_date ? `${statusLabel} • ${formatDate(comp.sale_date)}` : statusLabel
+  const statusBadgeText = compSoldDate(comp) ? `${statusLabel} • ${compSoldDate(comp)}` : compStatusBadgeText(comp)
   const shiftPhoto = (direction: -1 | 1) => {
     if (photos.length < 2) return
     setPhotoIndex(i => (i + direction + photos.length) % photos.length)
@@ -867,7 +937,8 @@ function ComparableSection({ comp, index, onOpen }: { comp: CmaComparable, index
           </div>
           <div className="shrink-0 text-right">
             <p className="text-xl font-black leading-none text-[#8b7355] dark:text-[#d7b974]">{formatMoney(compDisplayPrice(comp).value)}</p>
-            {psf && <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-gray-400">${psf}/sqft</p>}
+            {psf && <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-gray-400">${psf}/sqft above grade</p>}
+            {compPriceCaption(comp) && <p className={`mt-1 text-[10px] font-black uppercase tracking-wide text-gray-400 ${compDisplayPrice(comp).unverified ? "text-amber-700 dark:text-amber-300" : ""}`}>{compPriceCaption(comp)}</p>}
           </div>
         </div>
       </div>
@@ -951,7 +1022,8 @@ function ComparableSection({ comp, index, onOpen }: { comp: CmaComparable, index
               </div>
               <div className="shrink-0 text-left lg:text-right">
                 <p className="text-xl font-black text-[#8b7355] dark:text-[#d7b974]">{formatMoney(compDisplayPrice(comp).value)}</p>
-                {psf && <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">${psf}/sqft</p>}
+                {psf && <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">${psf}/sqft above grade</p>}
+                {compPriceCaption(comp) && <p className={`text-[10px] font-black uppercase tracking-wide text-gray-400 ${compDisplayPrice(comp).unverified ? "text-amber-700 dark:text-amber-300" : ""}`}>{compPriceCaption(comp)}</p>}
               </div>
             </div>
           </div>
@@ -1100,7 +1172,7 @@ function ComparablePopupModal({ comp, subject, onClose }: { comp: CmaComparable 
   const locationMapUrl = comp ? buildCompLocationMapUrl(comp, '700x320') : null
 
   if (!comp) return null
-  const psf = comp.price_per_sqft ?? pricePerSqft(compDisplayPrice(comp).value, comp.sqft)
+  const psf = compPricePerSqft(comp)
   const cityState = [comp.city, comp.state].filter(Boolean).join(', ')
   const note = comp.commentary || comp.ai_commentary
 
@@ -1112,7 +1184,7 @@ function ComparablePopupModal({ comp, subject, onClose }: { comp: CmaComparable 
           {pics.length > 0 ? <img src={normalizeImageUrl(pics[photoIndex])} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Home className="h-10 w-10 text-gray-300" /></div>}
           <span className="absolute left-3 top-3 rounded-full bg-[#111827] px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-white shadow-lg">Comparable</span>
           <span className={`absolute right-12 top-3 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-white shadow-lg ${COMP_STATUS_BADGE_STYLE[comp.status] || 'bg-gray-800'}`}>
-            {COMP_STATUS_LABEL[comp.status] || comp.status}
+            {compStatusBadgeText(comp)}
           </span>
           {pics.length > 1 && (
             <>
@@ -1139,7 +1211,8 @@ function ComparablePopupModal({ comp, subject, onClose }: { comp: CmaComparable 
             </div>
             <div className="shrink-0 text-right">
               <p className="text-xl font-black text-[#8b7355] dark:text-[#d7b974]">{formatMoney(compDisplayPrice(comp).value)}</p>
-              {psf && <p className="text-[9px] font-black uppercase tracking-wide text-gray-400">${psf}/sqft</p>}
+              {psf && <p className="text-[9px] font-black uppercase tracking-wide text-gray-400">${psf}/sqft above grade</p>}
+              {compPriceCaption(comp) && <p className={`text-[9px] font-black uppercase tracking-wide text-gray-400 ${compDisplayPrice(comp).unverified ? "text-amber-700 dark:text-amber-300" : ""}`}>{compPriceCaption(comp)}</p>}
             </div>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">

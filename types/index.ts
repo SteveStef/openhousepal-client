@@ -2646,6 +2646,7 @@ export interface CmaSubjectProperty {
   lot_size?: number | null;
   year_built?: number | null;
   architectural_style?: string[] | string | null;
+  levels?: string[] | string | null;
   township?: string | null;
   subdivision_name?: string | null;
   property_type?: string | null;
@@ -2716,6 +2717,7 @@ export interface CmaComparable {
   baths?: number | null;
   year_built?: number | null;
   architectural_style?: string[] | string | null;
+  levels?: string[] | string | null;
   township?: string | null;
   subdivision_name?: string | null;
   garage?: string | null;
@@ -2987,6 +2989,13 @@ export interface CmaValuationTraceComp {
   normalized_weight: number;
   dollar_contribution_to_anchor?: number;
   sale_to_list?: number | null;
+  // 10/20 adjustment grid: sale price -> size -> lower level / baths / garage / cesspool -> adjusted
+  listing_key?: string | null;
+  size_adjustment?: number;
+  feature_adjustments?: {
+    below_grade: number; baths: number; garage: number; sewer?: number; total: number;
+    notes?: string[]; below_grade_rate_psf?: number;
+  };
 }
 
 export interface CmaValuationTrace {
@@ -3145,6 +3154,7 @@ export interface CmaValuationTrace {
   subject_asking?: number | null;
   ai_value_cross_check?: number | null;
   final_fmv?: number;
+  asking_price_check?: { asking_price?: number; ratio_used?: number; expected_sale_price?: number; allowed_low_price?: number; allowed_high_price?: number; passed_over?: boolean } | null;
   range_pct?: number;
   range_floor_pct?: number;
   confidence_seed?: 'low' | 'medium' | 'high';
@@ -3318,6 +3328,7 @@ export interface CmaCompCandidate {
   baths?: number | null;
   year_built?: number | null;
   architectural_style?: string[] | string | null;
+  levels?: string[] | string | null;
   township?: string | null;
   subdivision_name?: string | null;
   garage?: string | null;

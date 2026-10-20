@@ -1,4 +1,4 @@
-import { CmaComparable, CmaPricing, CmaStatus } from '@/types'
+import { CmaAiEstimate, CmaComparable, CmaPricing, CmaStatus, CmaSubjectProperty } from '@/types'
 
 // Short support code an agent can hand to OpenHousePal support so admin can pull up the exact
 // report - the first 12 hex characters of the report's own id (dashes stripped), grouped for
@@ -237,6 +237,113 @@ export function compDisplayPrice(c: CmaComparable): { value: number | null; labe
   return { value: c.list_price ?? null, label: 'List price', unverified: false }
 }
 
+// ---- Report display helpers (10/20 graded report: 417 Dogwood Ln) ------------------------------
+// One basis for every $/sqft on the page: price / ABOVE-GRADE finished area. The subject's figure
+// used to divide by total area incl. a finished basement ($160) while comps used above-grade -
+// on the same basis the subject was the most expensive per foot, not a bargain.
+export function psfBasisSqft(p: { above_grade_finished_area?: number | null; sqft?: number | null }): number | null {
+  return p.above_grade_finished_area || p.sqft || null
+}
+export function subjectPricePerSqft(s: CmaSubjectProperty): number | null {
+  return s.list_price ? pricePerSqft(s.list_price, psfBasisSqft(s)) : null
+}
+export function compPricePerSqft(c: CmaComparable): number | null {
+  return pricePerSqft(effectiveCompPrice(c), psfBasisSqft(c))
+}
+// Sold price / last asking price, e.g. 1.138 for a sale 13.8% over asking. Verified sales only.
+export function compSoldToAsking(c: CmaComparable): number | null {
+  if (c.status !== 'sold' || !isPriceVerified(c)) return null
+  const sold = c.sale_price ?? c.close_price ?? null
+  const asking = c.list_price ?? null
+  return sold && asking ? sold / asking : null
+}
+export function formatSoldToAsking(c: CmaComparable): string | null {
+  const r = compSoldToAsking(c)
+  if (r == null) return null
+  const pct = Math.round((r - 1) * 1000) / 10
+  return pct === 0 ? 'At asking' : `${Math.abs(pct)}% ${pct > 0 ? 'over' : 'under'} asking`
+}
+export function compSoldDate(c: CmaComparable): string | null {
+  if (c.status !== 'sold' || !isPriceVerified(c)) return null
+  const d = c.close_date || c.sale_date
+  return d ? formatDate(d) : null
+}
+// Status badge: a sale with no closing price on record is never a bare "SOLD" over its asking price.
+export function compStatusBadgeText(c: CmaComparable): string {
+  if (c.status === 'sold' && !isPriceVerified(c)) return 'Sold - price not reported'
+  return COMP_STATUS_LABEL[c.status] || c.status
+}
+// Small caption under the comp's price.
+export function compPriceCaption(c: CmaComparable): string | null {
+  if (c.status === 'sold' && !isPriceVerified(c)) return 'Last asking price - sold price not reported'
+  if (c.status === 'sold') return [compSoldDate(c) ? `Sold ${compSoldDate(c)}` : 'Sold', formatSoldToAsking(c)].filter(Boolean).join(' - ')
+  return compDisplayPrice(c).label
+}
+// Finished below-grade area for display: the MLS can say "Fully Finished" with 0 sqft on record -
+// that's "Not reported", never a hard 0.
+export function belowGradeDisplay(p: { below_grade_finished_area?: number | null; basement?: string | null }): string {
+  if (p.below_grade_finished_area && p.below_grade_finished_area > 0) return formatNumber(p.below_grade_finished_area)
+  const raw = (p.basement || '').toLowerCase()
+  if (raw.replace('unfinished', '').includes('finished')) return 'Not reported'
+  // Only a basement recorded as unfinished (or none) is a real 0 - "Full" alone says nothing about finish.
+  return raw.includes('unfinished') || raw === 'none' || raw === 'no' ? '0' : '—'
+}
+
+// ---- Adjustment grid (10/20) ---------------------------------------------------------------
+// What a client (or an appraiser) expects to see between "the comps sold for X" and "this home is
+// worth Y": each verified sale, the dollar adjustments that move it toward this home, the adjusted
+// price, how much it counts, and - when the final value isn't simply the adjusted comps - why.
+export interface CmaAdjustmentGridComp {
+  label: string; address: string; sale: number; size: number; lowerLevel: number; baths: number
+  garage: number; sewer: number; adjusted: number; weightPct: number; notes: string[]
+}
+export interface CmaAdjustmentGrid {
+  comps: CmaAdjustmentGridComp[]
+  hasSewer: boolean
+  adjustedSalesValue: number          // weighted adjusted sales (blended with a $/sqft check)
+  otherAdjustments: number            // location / condition items the analysis added
+  compBasedValue: number              // what the comparable sales alone support
+  finalValue: number | null
+  marketCheck: { amount: number; text: string } | null
+}
+export function buildAdjustmentGrid(estimate?: CmaAiEstimate | null): CmaAdjustmentGrid | null {
+  const trace = estimate?.valuation_trace
+  const anchor = trace?.anchor
+  const rows = (anchor?.comps || []).filter(c => c.price_basis !== 'list_context' && c.raw_sale_price)
+  // Reports made before the grid existed have no per-comp feature trace - show nothing rather than zeros.
+  if (!anchor?.anchor_value || rows.length === 0 || !rows.some(c => c.feature_adjustments)) return null
+  const comps = rows.map(c => {
+    const fa = c.feature_adjustments
+    const m = /\((.+)\)\s*$/.exec(c.label || '')
+    return {
+      label: (c.label || '').replace(/\s*\(.+\)\s*$/, ''), address: m ? m[1] : '',
+      sale: c.raw_sale_price, size: c.size_adjustment ?? 0, lowerLevel: fa?.below_grade ?? 0, baths: fa?.baths ?? 0,
+      garage: fa?.garage ?? 0, sewer: fa?.sewer ?? 0, adjusted: c.size_adjusted_price,
+      weightPct: Math.round((c.normalized_weight || 0) * 100), notes: fa?.notes || [],
+    }
+  })
+  const otherAdjustments = Math.round(trace?.adjustment_total ?? 0)
+  const compBasedValue = Math.round(trace?.v10_formula_fmv ?? (anchor.anchor_value + otherAdjustments))
+  const finalValue = trace?.final_fmv ?? estimate?.value ?? null
+  let marketCheck: CmaAdjustmentGrid['marketCheck'] = null
+  if (finalValue && compBasedValue && Math.abs(finalValue - compBasedValue) / compBasedValue > 0.015) {
+    const apc = trace?.asking_price_check
+    const amount = finalValue - compBasedValue
+    const text = apc?.asking_price && apc?.ratio_used
+      ? `Homes here have been selling at about ${Math.round(apc.ratio_used * 100)}% of their asking price, so the value stays close to what this home's ${formatMoney(apc.asking_price)} asking price implies (${formatMoney(apc.expected_sale_price ?? null)}).`
+      : 'Final judgment on condition, location and market tempo beyond what the adjusted sales capture.'
+    marketCheck = { amount, text }
+  }
+  return {
+    comps, hasSewer: comps.some(c => c.sewer), adjustedSalesValue: Math.round(anchor.anchor_value),
+    otherAdjustments, compBasedValue, finalValue, marketCheck,
+  }
+}
+export function formatSignedMoney(v: number): string {
+  if (!v) return '—'
+  return `${v > 0 ? '+' : '−'}${formatMoney(Math.abs(v))}`
+}
+
 // ---- 3-tier valuation classification -----------------------------------------------------
 // Only three labels are ever shown: Strong / Supporting / Weaker.
 //   strong     - close, reliable local sale the value leans on (weight 1.0)
@@ -456,10 +563,12 @@ export const AREA_TIERS = ['different_from_subject', 'same_as_subject', 'similar
 // language: the point of a comp is that it resembles the subject, so the center tier (an
 // exact/near-exact match) is green, and either flanking tier is red, since both represent a real
 // difference that makes the comp a weaker match.
+// Comp Superior / Comp Inferior are amber, not red (10/20): a client read a red "COMP SUPERIOR"
+// as a negative about their home. Either direction is a difference the value adjusts for, not a flaw.
 export const QUALITY_TIER_STYLES: Record<string, string> = {
-  below: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  below: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
   similar: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-  above: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  above: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
   different_from_subject: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
   same_as_subject: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
   similar_to_subject: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
@@ -479,9 +588,9 @@ export const AGENT_QUALITY_TIER_STYLES: Record<string, string> = {
 // Same 3-tier semantics as QUALITY_TIER_STYLES above, as hex - @react-pdf/renderer can't read
 // Tailwind classes (same reason COMP_STATUS_HEX exists alongside COMP_STATUS_BADGE_STYLE).
 export const QUALITY_TIER_HEX: Record<string, { bg: string; text: string }> = {
-  below: { bg: '#FEE2E2', text: '#B91C1C' },
+  below: { bg: '#FEF3C7', text: '#92400E' },
   similar: { bg: '#D1FAE5', text: '#047857' },
-  above: { bg: '#FEE2E2', text: '#B91C1C' },
+  above: { bg: '#FEF3C7', text: '#92400E' },
   different_from_subject: { bg: '#FEE2E2', text: '#B91C1C' },
   same_as_subject: { bg: '#D1FAE5', text: '#047857' },
   similar_to_subject: { bg: '#FEE2E2', text: '#B91C1C' },
