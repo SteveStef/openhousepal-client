@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { Calendar, Copy, Check, ArrowUpDown, Mail, MapPin, MessageSquareText, Phone, Share2, User, SlidersHorizontal, X } from 'lucide-react'
-import PropertyGrid from '@/components/PropertyGrid'
+import PropertyGrid, { SHOWCASE_TABS } from '@/components/PropertyGrid'
 import ShowcaseRadiusContextLine from '@/components/ShowcaseRadiusContextLine'
 import PropertyDetailsModal, { type HomeMove } from '@/components/PropertyDetailsModal'
 import QuickCommentModal from '@/components/QuickCommentModal'
@@ -590,6 +590,7 @@ export const DetailView = memo(function DetailView({
           showDetailedViewCount={true}
           destination={radiusSearchPreferences ? { address: radiusSearchPreferences.address, lat: radiusSearchPreferences.lat, lng: radiusSearchPreferences.long } : undefined}
           animationKey={activeTab}
+          animationOrder={SHOWCASE_TABS}
           compareProperty={
             (selectedCollection.preferences as any)?.show_match_score !== false
               ? selectedCollection.originalProperty || undefined

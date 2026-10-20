@@ -9,7 +9,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Collection, CollectionPreferences, Property, Comment, TourRequest, PropertyTour } from '@/types'
 import { getToken } from '@/lib/token'
 import api from '@/lib/api-service'
-import PropertyGrid from '@/components/PropertyGrid'
+import PropertyGrid, { SHOWCASE_TABS } from '@/components/PropertyGrid'
 import PropertyDetailsModal, { type HomeMove } from '@/components/PropertyDetailsModal'
 import QuickCommentModal from '@/components/QuickCommentModal'
 import ScheduleTourModal from '@/components/ScheduleTourModal'
@@ -1272,6 +1272,7 @@ function ShowcaseContent() {
               sortControl={sortControlNode}
               phoneCompact
               animationKey={activeTab}
+              animationOrder={SHOWCASE_TABS}
               recommendedBy={(showcase.agentFullName || showcase.agentName || '').split(' ')[0] || null}
             />
           </div>
