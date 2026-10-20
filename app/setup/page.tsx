@@ -18,17 +18,18 @@ import type { Gate, StepCtx } from '@/components/setup/SetupUi'
 import { AboutStep, ContactStep, LicenseStep, PhotoStep, SocialsStep, StoryStep } from '@/components/setup/InfoSteps'
 import { BrandStep, FormsStep, HubStep, ReviewsStep, SalesStep, SignatureStep } from '@/components/setup/FeatureSteps'
 import { AlertsStep, AreasStep, CalendarStep, CrmStep, HomesStep, MailboxStep, WebsiteStep } from '@/components/setup/ConnectSteps'
+import { DomainStep } from '@/components/setup/DomainStep'
 
 const STEP_VIEWS: Record<SetupStepId, (p: { ctx: StepCtx }) => React.ReactElement> = {
   about: AboutStep, contact: ContactStep, license: LicenseStep, photo: PhotoStep, story: StoryStep, socials: SocialsStep,
   sales: SalesStep, reviews: ReviewsStep, brand: BrandStep, hub: HubStep, forms: FormsStep, signature: SignatureStep,
-  alerts: AlertsStep, calendar: CalendarStep, mailbox: MailboxStep, crm: CrmStep, areas: AreasStep, homes: HomesStep, website: WebsiteStep,
+  alerts: AlertsStep, calendar: CalendarStep, mailbox: MailboxStep, crm: CrmStep, areas: AreasStep, homes: HomesStep, website: WebsiteStep, domain: DomainStep,
 }
 const GROUPS: { title: string; ids: SetupStepId[] }[] = [
   { title: 'About you', ids: ['about', 'contact', 'license', 'photo', 'story', 'socials'] },
   { title: 'Your pages', ids: ['sales', 'reviews', 'brand', 'hub', 'forms', 'signature'] },
   { title: 'Staying in touch', ids: ['alerts', 'calendar', 'mailbox', 'crm'] },
-  { title: 'Your website', ids: ['areas', 'homes', 'website'] },
+  { title: 'Your website', ids: ['areas', 'homes', 'website', 'domain'] },
 ]
 // The website steps get the whole width: choices on the left, a tall live preview on the right.
 const WIDE_STEPS: SetupStepId[] = ['homes', 'website']

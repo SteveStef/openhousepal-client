@@ -1,4 +1,5 @@
 import type { MarketingMoments, SiteSeo, ShowingStatus, ShowcaseInbox, EmailPerson, ClientEmailRow } from '@/types'
+import type { DomainContact, DomainSearch, DomainShop, OneClick, PurchasedDomain } from '@/lib/domainShop'
 
 // One "which home?" suggestion for a public showing request (any on-market listing, the agent's first).
 export type PublicHomeSuggestion = {
@@ -1587,6 +1588,23 @@ class ApiService {
     deleteDomain: (domainId: string) =>
       this.request<null>(`/studio/sites/me/domains/${domainId}`, { method: 'DELETE' }),
 
+    /** One-click connect: can their domain company add the records for them? */
+    getOneClick: (domainId: string, back = 'website') =>
+      this.request<OneClick>(`/studio/sites/me/domains/${domainId}/one-click?back=${back}`),
+    oneClickReturn: (domainId: string, body: { state: string; error?: string | null; back?: string }) =>
+      this.request<{ done: boolean; error: string | null; next_url: string | null; status?: string }>(`/studio/sites/me/domains/${domainId}/one-click/return`, { method: 'POST', body: JSON.stringify(body) }),
+
+    /** Buy a domain (Name.com + PayPal) - see lib/domainShop.ts */
+    getDomainShop: () => this.request<DomainShop>('/studio/sites/me/domain-shop'),
+    searchDomains: (q: string) => this.request<DomainSearch>(`/studio/sites/me/domain-shop/search?q=${encodeURIComponent(q)}`),
+    buyDomain: (domain: string, contact: DomainContact, back: string) =>
+      this.request<{ purchase_id: string; approve_url: string | null }>('/studio/sites/me/domain-shop/buy', { method: 'POST', body: JSON.stringify({ domain, contact, back }) }),
+    getDomainPurchase: (id: string) => this.request<PurchasedDomain>(`/studio/sites/me/domain-shop/purchases/${id}`),
+    cancelDomainCheckout: (id: string) => this.request<{ status: string }>(`/studio/sites/me/domain-shop/purchases/${id}/cancel-checkout`, { method: 'POST' }),
+    stopDomainRenewal: (id: string) => this.request<PurchasedDomain>(`/studio/sites/me/domain-shop/purchases/${id}/stop-renewing`, { method: 'POST' }),
+    getDomainTransferCode: (id: string) => this.request<{ code: string }>(`/studio/sites/me/domain-shop/purchases/${id}/transfer-code`, { method: 'POST' }),
+    resendDomainEmail: (id: string) => this.request<{ sent: boolean }>(`/studio/sites/me/domain-shop/purchases/${id}/resend-email`, { method: 'POST' }),
+
     getPublicBaseUrl: () => this.request<{ base_url: string; is_idx_site?: boolean }>('/studio/sites/me/public-base-url'),
 
     getLinkDomain: () => this.request<LinkDomainState>('/studio/sites/me/link-domain'),
@@ -2439,7 +2457,7 @@ class ApiService {
   };
 }
 
-export type SetupStepId = 'about' | 'contact' | 'license' | 'photo' | 'story' | 'socials' | 'sales' | 'reviews' | 'brand' | 'hub' | 'forms' | 'signature' | 'alerts' | 'calendar' | 'mailbox' | 'crm' | 'areas' | 'homes' | 'website'
+export type SetupStepId = 'about' | 'contact' | 'license' | 'photo' | 'story' | 'socials' | 'sales' | 'reviews' | 'brand' | 'hub' | 'forms' | 'signature' | 'alerts' | 'calendar' | 'mailbox' | 'crm' | 'areas' | 'homes' | 'website' | 'domain'
 export interface MailboxInfo {
   connected: boolean
   provider: 'google' | 'microsoft' | null

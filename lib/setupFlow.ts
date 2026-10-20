@@ -160,5 +160,12 @@ export function stepCopy(id: SetupStepId, plan: string | null, hasMls: boolean):
         powers: ['Your IDX website', 'Home search for your clients'],
         skip: 'Your website stays offline - nobody can see it yet.',
       }
+    case 'domain':
+      return {
+        icon: AtSign, label: 'Web address', title: ['Your ', 'web address'],
+        intro: 'Keep your free address, use a domain you already own, or get a new one right here - we set it all up for you.',
+        powers: ['Your website address', 'QR codes & links', 'Email signature'],
+        skip: 'Your website keeps its free OpenHousePal address.',
+      }
   }
 }

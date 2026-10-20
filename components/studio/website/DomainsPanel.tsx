@@ -7,6 +7,8 @@ import { SiteDomain } from '@/types'
 import { copyText } from '@/lib/copyText'
 import { ohpHostUrl } from '@/lib/publicResourceLinks'
 import DomainSetupGuide from './DomainSetupGuide'
+import OneClickConnect from '@/components/domains/OneClickConnect'
+import BuyDomain, { PurchasedDomainCard, useDomainShop } from '@/components/domains/BuyDomain'
 
 const OHP_BASE_DOMAIN = process.env.NEXT_PUBLIC_OHP_BASE_DOMAIN || 'openhousepal.com'
 // Agents can connect their own domain once the platform side (Cloudflare custom hostnames + the
@@ -50,7 +52,7 @@ function StatusChip({ status }: { status: SiteDomain['status'] }) {
   )
 }
 
-function DomainRow({ domain, partner, onChanged }: { domain: SiteDomain; partner?: SiteDomain; onChanged: () => void }) {
+function DomainRow({ domain, partner, onChanged, back, bought }: { domain: SiteDomain; partner?: SiteDomain; onChanged: () => void; back: string; bought: boolean }) {
   const [checking, setChecking] = useState(false)
   const [settingPrimary, setSettingPrimary] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -132,14 +134,21 @@ function DomainRow({ domain, partner, onChanged }: { domain: SiteDomain; partner
         </ul>
       )}
 
-      {domain.status !== 'ACTIVE' && (
+      {domain.status !== 'ACTIVE' && bought && (
+        // Bought here - we set the records ourselves; it just needs a little time.
+        <p className="mt-3 flex items-start gap-1.5 rounded-xl bg-emerald-50 p-2.5 text-[12px] font-semibold text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200">
+          <ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0" /> Nothing for you to do - we set this up for you. New domains usually open within an hour (sometimes up to a day).
+        </p>
+      )}
+      {domain.status !== 'ACTIVE' && !bought && <OneClickConnect domainId={domain.id} back={back} />}
+      {domain.status !== 'ACTIVE' && !bought && (
         <DomainSetupGuide
           hostname={domain.hostname}
           target={domain.instructions.find(i => i.type === 'CNAME')?.value || `sites.${OHP_BASE_DOMAIN}`}
           pair={domain.instructions.some(i => i.type === 'FORWARD')}
         />
       )}
-      {domain.status === 'ACTIVE' && partner && partner.status !== 'ACTIVE' && (
+      {domain.status === 'ACTIVE' && partner && partner.status !== 'ACTIVE' && !bought && (
         <p className="mt-2 rounded-xl bg-[#FAFAF7] p-2.5 text-[11px] font-semibold text-gray-500 dark:bg-white/[0.04] dark:text-white/55">
           {partner.last_error === 'forward_http'
             ? <>Your site is live at {domain.hostname}, but {partner.hostname} forwards to http://{domain.hostname}, which shows &quot;page not found&quot;. At your domain company, change that forward to https://{domain.hostname} (on GoDaddy, switch the small http:// dropdown to https://), permanent (301).</>
@@ -173,19 +182,30 @@ function DomainRow({ domain, partner, onChanged }: { domain: SiteDomain; partner
   )
 }
 
-export default function DomainsPanel({ subdomainSlug, bare = false }: { subdomainSlug: string; bare?: boolean }) {
+/** `back` = where one-click connect / PayPal send the agent afterwards ('website' | 'settings' | 'setup').
+ *  `startWith` opens on "I already have one" or "Get a new one". `hideFree` drops the free-address card (setup shows its own). */
+export default function DomainsPanel({ subdomainSlug, bare = false, back = 'website', startWith = 'have', hideFree = false, onChanged }: {
+  subdomainSlug: string; bare?: boolean; back?: string; startWith?: 'have' | 'buy'; hideFree?: boolean; onChanged?: () => void
+}) {
   const [domains, setDomains] = useState<SiteDomain[]>([])
   const [loading, setLoading] = useState(true)
   const [hostname, setHostname] = useState('')
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [mode, setMode] = useState<'have' | 'buy'>(startWith)
+  const { shop, reload: reloadShop } = useDomainShop()
+  const purchases = (shop?.purchases || []).filter(p => p.status !== 'ABANDONED')
+  const boughtHosts = new Set(purchases.filter(p => p.status === 'ACTIVE' || p.status === 'REGISTERING').flatMap(p => [p.domain, `www.${p.domain}`]))
 
   const load = () => {
     api.sites.getDomains().then(res => {
       if (res.success && res.data) setDomains(res.data)
       setLoading(false)
     })
+    onChanged?.()
   }
+  const refreshAll = () => { load(); reloadShop() }
+  useEffect(() => { setMode(startWith) }, [startWith])
 
   useEffect(() => { load() }, [])
 
@@ -216,7 +236,7 @@ export default function DomainsPanel({ subdomainSlug, bare = false }: { subdomai
       )}
 
       {/* Always-on OHP subdomain - never removable, keeps working even if a custom domain breaks */}
-      <div className={`${bare ? '' : 'mt-3 '}relative overflow-hidden rounded-2xl border border-[#C9A24D]/30 bg-gradient-to-br from-[#fffdf8] via-[#fbf6ec] to-[#f4ead7] p-3.5 dark:border-white/10 dark:from-[#0b0f0e] dark:via-[#111827] dark:to-[#1d1810]`}>
+      {!hideFree && <div className={`${bare ? '' : 'mt-3 '}relative overflow-hidden rounded-2xl border border-[#C9A24D]/30 bg-gradient-to-br from-[#fffdf8] via-[#fbf6ec] to-[#f4ead7] p-3.5 dark:border-white/10 dark:from-[#0b0f0e] dark:via-[#111827] dark:to-[#1d1810]`}>
         <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-[#C9A24D]/20 blur-2xl" />
         <div className="relative flex items-center justify-between gap-2">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]">OpenHousePal address</p>
@@ -240,9 +260,9 @@ export default function DomainsPanel({ subdomainSlug, bare = false }: { subdomai
           </a>
         </div>
         <p className="relative mt-2 text-[11px] font-semibold text-gray-500 dark:text-white/50">Always available, even if a custom domain has an issue.</p>
-      </div>
+      </div>}
 
-      <div className="mt-5 flex items-center gap-2">
+      <div className={`${hideFree ? '' : 'mt-5 '}flex items-center gap-2`}>
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]">Your own domain</p>
         <span className="h-px flex-1 bg-gradient-to-r from-[#C9A24D]/40 to-transparent" />
       </div>
@@ -253,12 +273,33 @@ export default function DomainsPanel({ subdomainSlug, bare = false }: { subdomai
       ) : domains.length > 0 && (
         <div className="mt-2.5 space-y-2.5">
           {domains.filter(d => !(d.redirect_target_domain_id && domains.some(m => m.id === d.redirect_target_domain_id))).map(domain => (
-            <DomainRow key={domain.id} domain={domain} partner={domains.find(d => d.redirect_target_domain_id === domain.id)} onChanged={load} />
+            <DomainRow key={domain.id} domain={domain} partner={domains.find(d => d.redirect_target_domain_id === domain.id)} onChanged={refreshAll} back={back} bought={boughtHosts.has(domain.hostname)} />
+          ))}
+        </div>
+      )}
+      {purchases.length > 0 && (
+        <div className="mt-2.5 space-y-2.5">
+          {purchases.map(p => <PurchasedDomainCard key={p.id} p={p} onChanged={refreshAll} />)}
+        </div>
+      )}
+
+      {CUSTOM_DOMAINS_LIVE && (
+        <div className="mt-3 grid grid-cols-2 gap-1 rounded-2xl bg-[#f4efe4] p-1 dark:bg-white/[0.05]" role="tablist">
+          {([['have', 'I already have one'], ['buy', 'Get a new one']] as const).map(([id, label]) => (
+            <button key={id} type="button" role="tab" aria-selected={mode === id} onClick={() => setMode(id)}
+              className={`rounded-xl px-2 py-2 text-[11px] font-black uppercase tracking-wide transition ${mode === id ? 'bg-white text-[#111827] shadow-sm dark:bg-[#1f1f22] dark:text-white' : 'text-gray-500 hover:text-[#111827] dark:text-white/50 dark:hover:text-white'}`}>
+              {label}
+            </button>
           ))}
         </div>
       )}
 
-      {!CUSTOM_DOMAINS_LIVE ? (
+      {CUSTOM_DOMAINS_LIVE && mode === 'buy' ? (
+        <div className="mt-3 rounded-2xl border border-dashed border-[#C9A24D]/50 bg-[#fffdf8] p-3 dark:border-white/15 dark:bg-white/[0.02]">
+          <p className="mb-2.5 text-[12px] font-semibold leading-snug text-gray-500 dark:text-white/55">Don&apos;t have a domain yet? Pick one here - we buy it in your name and set it all up. Nothing to do at any other company.</p>
+          <BuyDomain back={back} shop={shop} />
+        </div>
+      ) : !CUSTOM_DOMAINS_LIVE ? (
         <div className="mt-3 rounded-2xl border border-dashed border-[#C9A24D]/50 bg-[#fffdf8] p-3.5 dark:border-white/15 dark:bg-white/[0.02]">
           <p className="text-[12.5px] font-black text-[#111827] dark:text-white">Connecting your own domain opens soon</p>
           <p className="mt-1 text-[12px] font-semibold leading-snug text-gray-500 dark:text-white/55">Have a domain like <span className="font-mono font-bold text-[#111827] dark:text-white">janesmithhomes.com</span>? You&apos;ll be able to connect it here with step-by-step help for your domain company. Your OpenHousePal address above works in the meantime.</p>
