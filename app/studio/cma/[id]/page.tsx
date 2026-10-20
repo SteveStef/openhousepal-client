@@ -19,7 +19,7 @@ import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   CmaAiEstimate, CmaComparable, CmaCompCandidate, CmaCompStatus, CmaCompStrength, CmaMode,
-  CmaPricing, CmaQualityAssessment, CmaReport, CmaRoadContext, CmaSubjectProperty, CmaValuationTrace, MyListingItem, Site, SiteDomain,
+  CmaLocatedAddress, CmaPricing, CmaQualityAssessment, CmaReport, CmaRoadContext, CmaSubjectArea, CmaSubjectProperty, CmaValuationTrace, MyListingItem, Site, SiteDomain,
 } from '@/types'
 import {
   AGENT_QUALITY_TIER_STYLES, CMA_STATUS_STYLES, COMP_STATUS_BADGE_STYLE, COMP_STATUS_LABEL, QUALITY_LABELS, STRENGTH_LABEL,
@@ -39,6 +39,7 @@ import { openHousePalPublicUrl, websitePublicUrl } from '@/lib/publicResourceLin
 import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
+import { ManualAddressPicker, SubjectFactsEditor, applyAreaSuggestions, subjectFromAddress } from '@/components/cma/SubjectFacts'
 
 type StepId = 'subject' | 'comps' | 'analysis' | 'pricing' | 'summary'
 
@@ -772,6 +773,36 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
     setSubject(s => s.street_address ? s : { source: 'manual', beds: null, baths: null, sqft: null, lot_size: null, year_built: null } as CmaSubjectProperty)
   }
 
+  // Nearby MLS homes' school district / township / water / sewer - dropdown suggestions for every
+  // subject, and the pre-fill for a manual one (see pickManualAddress).
+  const [area, setArea] = useState<CmaSubjectArea | null>(null)
+  const areaKey = subject.latitude != null && subject.longitude != null ? `${subject.latitude.toFixed(5)},${subject.longitude.toFixed(5)}` : ''
+  useEffect(() => {
+    if (!areaKey) { setArea(null); return }
+    let cancelled = false
+    const [lat, lng] = areaKey.split(',').map(Number)
+    api.cma.subjectArea(lat, lng).then(r => { if (!cancelled && r.success && r.data) setArea(r.data) })
+    return () => { cancelled = true }
+  }, [areaKey])
+
+  // "Enter Manually": the Google-picked address becomes a manual subject, then the nearby MLS
+  // facts fill what's blank and a Street View photo is fetched when there's none yet.
+  const pickManualAddress = async (picked: CmaLocatedAddress) => {
+    const base = subjectFromAddress(picked)
+    setSubject(base)
+    const areaRes = await api.cma.subjectArea(picked.latitude, picked.longitude)
+    if (areaRes.success && areaRes.data) {
+      const found = areaRes.data
+      setArea(found)
+      setSubject(s => applyAreaSuggestions(s, found))
+    }
+    const photo = await api.cma.googleSubjectPhoto(report.id, { kind: 'street_view', latitude: picked.latitude, longitude: picked.longitude })
+    if (photo.success && photo.data) {
+      const url = photo.data.photo_url
+      setSubject(s => s.photo_url ? s : { ...s, photo_url: url, photos: [url], photo_source: 'street_view' })
+    }
+  }
+
   const handleContinue = async () => {
     // Must actually wait for the save - the next step reads fresh subject data (e.g. list_price
     // for its default price range) the instant it mounts, and onNext() switching steps
@@ -844,6 +875,8 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
             </div>
           )}
 
+          {mode === 'manual' && <ManualAddressPicker onPick={pickManualAddress} />}
+
           {mode === 'mine' && (
             <div className="mt-4 max-h-80 space-y-2 overflow-y-auto">
               {myListings.length === 0 && <p className="py-6 text-center text-sm font-semibold text-gray-400">No active listings found.</p>}
@@ -868,7 +901,7 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
       {hasSubject && (
         <SectionCard
           title="Subject Property"
-          subtitle="Edit any fact that isn't quite right."
+          subtitle={subject.source === 'manual' && !subject.listing_key ? "Fill in the home's facts - the more complete they are, the better the value." : "Edit any fact that isn't quite right."}
           right={
             <button
               onClick={() => setSubject({ source: 'manual' } as CmaSubjectProperty)}
@@ -878,60 +911,7 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
             </button>
           }
         >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[15rem_1fr]">
-            {/* Left rail: photo + Market Status stacked directly under it, so the right column
-                stays short. Market Status fields are stacked one-per-line - two columns squeezed
-                the date/price inputs into an unreadable width. */}
-            <div className="space-y-3">
-              <div className="aspect-[4/3] w-full overflow-hidden rounded-2xl bg-gray-100 shadow-sm ring-1 ring-black/5 dark:bg-gray-800 dark:ring-white/10">
-                {subject.photo_url ? <img src={normalizeImageUrl(subject.photo_url || undefined)} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Home className="h-7 w-7 text-gray-300" /></div>}
-              </div>
-              <div className="rounded-2xl border border-gray-100 bg-[#fbfaf7] p-3 dark:border-gray-800 dark:bg-[#0B0B0B]">
-                <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">Market Status</p>
-                <div className="space-y-2.5">
-                  <TextField label="Days on Market" type="number" value={subject.days_on_market} onChange={v => setSubject(s => ({ ...s, days_on_market: v ? Number(v) : null }))} />
-                  <TextField label="Current Status" value={subject.mls_status} onChange={v => setSubject(s => ({ ...s, mls_status: v }))} />
-                  <TextField label="Last Sale Date" type="date" value={subject.last_sale_date} onChange={v => setSubject(s => ({ ...s, last_sale_date: v }))} />
-                  <NumberTextField label="Last Sale Price" icon={DollarSign} value={subject.last_sale_price} onChange={v => setSubject(s => ({ ...s, last_sale_price: v }))} />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <p className="mb-1.5 text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">Location</p>
-                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                  <div className="col-span-2 sm:col-span-4"><TextField label="Street Address" value={subject.street_address} onChange={v => setSubject(s => ({ ...s, street_address: v }))} /></div>
-                  <TextField label="City" value={subject.city} onChange={v => setSubject(s => ({ ...s, city: v }))} />
-                  <TextField label="State" value={subject.state} onChange={v => setSubject(s => ({ ...s, state: v }))} />
-                  <TextField label="Zip" value={subject.zipcode} onChange={v => setSubject(s => ({ ...s, zipcode: v }))} />
-                  <TextField label="School District" value={subject.school_district} onChange={v => setSubject(s => ({ ...s, school_district: v }))} />
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-1.5 text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">Property Facts</p>
-                {/* 5 across on desktop so the short numeric facts (Sq Ft / Lot / Year Built) share
-                    a line - two rows instead of four. */}
-                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-                  <NumberTextField label="List Price" icon={DollarSign} value={subject.list_price} onChange={v => setSubject(s => ({ ...s, list_price: v }))} />
-                  <TextField label="Beds" type="number" value={subject.beds} onChange={v => setSubject(s => ({ ...s, beds: v ? Number(v) : null }))} />
-                  <TextField label="Baths" type="number" value={subject.baths} onChange={v => setSubject(s => ({ ...s, baths: v ? Number(v) : null }))} />
-                  <NumberTextField label="Sq Ft" icon={Ruler} value={subject.sqft} onChange={v => setSubject(s => ({ ...s, sqft: v }))} />
-                  <TextField
-                    label="Lot (Acres)"
-                    type="number"
-                    value={subject.lot_size ? sqftToAcres(subject.lot_size) : ''}
-                    onChange={v => setSubject(s => ({ ...s, lot_size: v ? acresToSqft(Number(v)) : null }))}
-                  />
-                  <TextField label="Year Built" type="number" value={subject.year_built} onChange={v => setSubject(s => ({ ...s, year_built: v ? Number(v) : null }))} />
-                  <TextField label="Property Type" value={subject.property_type} onChange={v => setSubject(s => ({ ...s, property_type: v }))} />
-                  <TextField label="Garage" value={subject.garage} onChange={v => setSubject(s => ({ ...s, garage: v }))} placeholder="2 Car Att." />
-                  <TextField label="Basement" value={subject.basement} onChange={v => setSubject(s => ({ ...s, basement: v }))} placeholder="Finished" />
-                </div>
-              </div>
-            </div>
-          </div>
+          <SubjectFactsEditor reportId={report.id} subject={subject} setSubject={setSubject} area={area} />
         </SectionCard>
       )}
 
@@ -1359,13 +1339,14 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
     property_type: subject.property_type,
     architectural_style: subject.architectural_style,
     levels: subject.levels,
+    stories: subject.stories,
     public_remarks: subject.public_remarks,
   }), [
     subject.listing_key, subject.source,
     subject.sqft, subject.above_grade_finished_area, subject.lot_size, subject.city, subject.school_district,
     subject.township, subject.subdivision_name,
     subject.latitude, subject.longitude, subject.year_built, subject.property_type,
-    subject.architectural_style, subject.levels, subject.public_remarks,
+    subject.architectural_style, subject.levels, subject.stories, subject.public_remarks,
   ])
   // Backend continuous relevance is the only CMA card score authority. Sorting, badges, map
   // popups, auto-selection, and saved comps all consume this exact returned integer.

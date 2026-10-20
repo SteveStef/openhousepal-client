@@ -8,6 +8,9 @@ interface GooglePlacesAutocompleteProps {
   value: string
   onChange: (address: string) => void
   onCoordinatesChange?: (lat: number, lng: number, address: string) => void
+  // The whole Google place (address parts + location) - for callers that need street / city /
+  // state / ZIP separately, e.g. the CMA builder's manual subject.
+  onPlaceSelected?: (place: google.maps.places.PlaceResult) => void
   placeholder?: string
   className?: string
   disabled?: boolean
@@ -76,6 +79,7 @@ const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GoogleP
   value,
   onChange,
   onCoordinatesChange,
+  onPlaceSelected,
   placeholder = "123 Main Street, City, State, ZIP",
   className = "",
   disabled = false,
@@ -102,12 +106,14 @@ const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GoogleP
   // Refs to hold the latest callback functions
   const onChangeRef = useRef(onChange)
   const onCoordinatesChangeRef = useRef(onCoordinatesChange)
+  const onPlaceSelectedRef = useRef(onPlaceSelected)
 
   // Update refs when props change
   useEffect(() => {
     onChangeRef.current = onChange
     onCoordinatesChangeRef.current = onCoordinatesChange
-  }, [onChange, onCoordinatesChange])
+    onPlaceSelectedRef.current = onPlaceSelected
+  }, [onChange, onCoordinatesChange, onPlaceSelected])
 
   // Logic to resolve the best match for the current text
   const resolveAddress = async (): Promise<{address: string, lat: number, lng: number} | null> => {
@@ -146,6 +152,7 @@ const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GoogleP
                 inputRef.current.value = formattedAddress;
               }
 
+              onPlaceSelectedRef.current?.(place);
               resolve({ address: formattedAddress, lat, lng });
             } else {
               resolve(null);
@@ -206,6 +213,7 @@ const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GoogleP
               const lng = place.geometry.location.lng()
               onCoordinatesChangeRef.current(lat, lng, formattedAddress)
             }
+            onPlaceSelectedRef.current?.(place)
           })
         }
       } catch (err) {

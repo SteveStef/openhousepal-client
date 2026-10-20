@@ -6,7 +6,7 @@ export type PublicHomeSuggestion = {
   price?: number | null; status?: string | null; photo?: string | null; mine?: boolean; listing_key?: string
   beds?: number | null; baths?: number | null; sqft?: number | null
 }
-import { ApiResponse, User, OpenHouse, OpenHouseFormRequest, SearchPreferences, Notification, NotificationResponse, NotificationPreferences, AgentFormConfig, FormCampaign, CampaignLookup, PublicFormConfig, PublicFormSummary, FormSubmissionListItem, MyListingsResponse, MyListingItem, ManualListingPayload, HostRequest, CreateHostRequestPayload, CreateHostRequestResult, ListingDetail, ListingHostNote, CounterHostRequestPayload, AgentSearchResult, TeamMember, TeamMembership, Broadcast, IncomingBroadcast, CreateBroadcastPayload, IncomingTeamInvite, TrustedHost, HostRequestEvent, CounterBackPayload, RespondToBroadcastPayload, NearbyAmenitiesResponse, BrandKit, DesignProject, DesignProjectCreatePayload, DesignBlock, Site, SiteDomain, SiteBlock, SitePage, SiteTheme, FeaturedSettings, MediaSettings, PropertyWebsite, PropertyWebsiteDraft, PropertyWebsiteAnalytics, Blog, BlogListItem, BlogBlock, BlogAnalytics, PublicBlogSummary, PublicBlogDetail, LinkedProperty, Lead, LeadDetail, LeadOpenHouse, LeadStatus, LeadRepresented, LeadSourceFilter, LeadSort, LeadNote, StatSummary, StatHistory, StatMetric, FormStats, UnfinishedFormResponse, CmaReport, CmaReportListItem, CmaMode, CmaStatus, CmaSubjectProperty, CmaComparable, CmaPricing, CmaMarketContext, CmaImprovement, CmaPresentationSettings, CmaCompSearchParams, CmaCompCandidate, CmaShareResponse, CmaPublicResponse, FinancialToolStatus,
+import { ApiResponse, User, OpenHouse, OpenHouseFormRequest, SearchPreferences, Notification, NotificationResponse, NotificationPreferences, AgentFormConfig, FormCampaign, CampaignLookup, PublicFormConfig, PublicFormSummary, FormSubmissionListItem, MyListingsResponse, MyListingItem, ManualListingPayload, HostRequest, CreateHostRequestPayload, CreateHostRequestResult, ListingDetail, ListingHostNote, CounterHostRequestPayload, AgentSearchResult, TeamMember, TeamMembership, Broadcast, IncomingBroadcast, CreateBroadcastPayload, IncomingTeamInvite, TrustedHost, HostRequestEvent, CounterBackPayload, RespondToBroadcastPayload, NearbyAmenitiesResponse, BrandKit, DesignProject, DesignProjectCreatePayload, DesignBlock, Site, SiteDomain, SiteBlock, SitePage, SiteTheme, FeaturedSettings, MediaSettings, PropertyWebsite, PropertyWebsiteDraft, PropertyWebsiteAnalytics, Blog, BlogListItem, BlogBlock, BlogAnalytics, PublicBlogSummary, PublicBlogDetail, LinkedProperty, Lead, LeadDetail, LeadOpenHouse, LeadStatus, LeadRepresented, LeadSourceFilter, LeadSort, LeadNote, StatSummary, StatHistory, StatMetric, FormStats, UnfinishedFormResponse, CmaReport, CmaReportListItem, CmaMode, CmaStatus, CmaSubjectProperty, CmaComparable, CmaPricing, CmaMarketContext, CmaImprovement, CmaPresentationSettings, CmaCompSearchParams, CmaCompCandidate, CmaShareResponse, CmaPublicResponse, CmaSubjectArea, CmaLocatedAddress, FinancialToolStatus,
   SellerNetSheet, SellerNetSheetListItem, SnsProperty, SnsScenario, SnsLineItem, SnsCompensation, SnsTaxProration, SellerNetSheetPublicResponse,
   BuyerCashNeeded, BuyerCashNeededListItem, BcnProperty, BcnAmount, BcnDownPaymentScenario, BcnLoanType, BcnLineItem, BcnCredits, BcnMonthlyContext, BuyerCashNeededPublicResponse,
   AIConversationListItem, AIConversation, AISendMessageResponse, AIInsightsResponse, DailyDigest,
@@ -2009,6 +2009,22 @@ class ApiService {
     // cma_service.resync_qa.
     resyncQa: (id: string) =>
       this.request<CmaReport>(`/api/cma/${id}/resync-qa`, { method: 'POST' }),
+
+    // Manual subject (a home not on the MLS yet) - see backend cma_manual_subject_service.py.
+    subjectArea: (lat: number, lng: number) =>
+      this.request<CmaSubjectArea>(`/api/cma/subject-area?lat=${lat}&lng=${lng}`),
+
+    locateAddress: (address: string) =>
+      this.request<CmaLocatedAddress>(`/api/cma/locate?address=${encodeURIComponent(address)}`),
+
+    uploadSubjectPhoto: (id: string, file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return this.request<{ photo_url: string }>(`/api/cma/${id}/subject-photo`, { method: 'POST', body: formData })
+    },
+
+    googleSubjectPhoto: (id: string, payload: { kind: 'street_view' | 'aerial', latitude?: number | null, longitude?: number | null }) =>
+      this.request<{ photo_url: string, kind: string }>(`/api/cma/${id}/subject-photo/google`, { method: 'POST', body: JSON.stringify(payload) }),
   };
 
   public sellerNetSheet = {

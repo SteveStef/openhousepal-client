@@ -2662,6 +2662,47 @@ export interface CmaSubjectProperty {
   sewer?: string[] | string | null;
   public_remarks?: string | null;
   agent_notes?: string | null;
+  // Typed in on the manual-entry path (a home not on the MLS yet). `baths` stays the total the
+  // engine reads: full + 0.5 per half bath, the way Bright counts BathroomsTotal.
+  full_baths?: number | null;
+  half_baths?: number | null;
+  garage_spaces?: number | null;
+  stories?: number | null;
+  county?: string | null;
+  heating?: string | null;
+  cooling?: string | null;
+  condition?: string | null;
+  recent_updates?: string | null;
+  photo_source?: 'upload' | 'street_view' | 'aerial' | null;
+}
+
+// GET /api/cma/subject-area - location facts most nearby MLS homes share, in the MLS's spelling.
+export interface CmaSubjectArea {
+  nearby_count: number;
+  school_district: string | null;
+  township: string | null;
+  county: string | null;
+  city: string | null;
+  zipcode: string | null;
+  subdivision_name: string | null;
+  water_source: string | null;
+  sewer: string | null;
+  school_district_options: string[];
+  township_options: string[];
+  subdivision_options: string[];
+}
+
+export interface CmaLocatedAddress {
+  street_address: string | null;
+  city: string | null;
+  state: string | null;
+  zipcode: string | null;
+  county: string | null;
+  township: string | null;
+  latitude: number;
+  longitude: number;
+  precise: boolean;
+  formatted_address: string | null;
 }
 
 export interface CmaQualityAssessment {
