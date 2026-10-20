@@ -315,8 +315,11 @@ export function belowGradeDisplay(p: { below_grade_finished_area?: number | null
   if (p.below_grade_finished_area && p.below_grade_finished_area > 0) return formatNumber(p.below_grade_finished_area)
   const raw = (p.basement || '').toLowerCase()
   if (raw.replace('unfinished', '').includes('finished') || remarksBasementFinish(p)) return 'Not reported'
-  // Only a basement recorded as unfinished (or none) is a real 0 - "Full" alone says nothing about finish.
-  return raw.includes('unfinished') || raw === 'none' || raw === 'no' ? '0' : '—'
+  // Only a basement recorded as unfinished (or none) is a real 0. A basement described with no
+  // finish at all ("Full, Outside Entrance, Poured Concrete") is valued as unfinished, so say that
+  // rather than a dash next to the other comps' "Not reported" (417 Dogwood Ln v5, 10/20).
+  if (raw.includes('unfinished') || raw === 'none' || raw === 'no') return '0'
+  return raw.trim() ? 'None on record' : '—'
 }
 
 // ---- Adjustment grid (10/20) ---------------------------------------------------------------

@@ -3321,10 +3321,12 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
     // pipeline touches - are preserved from local state; commentary additionally falls back to
     // the AI's note only when the agent hasn't written their own yet (the textarea's "AI
     // Generated" marker tracks that same verbatim match and disappears the moment it's edited).
+    // order_index comes from the server too: the engine renumbers comps by share of value before
+    // writing "Comp #N", and keeping the old pick order here saved it back over that (10/20).
     setComparables(cs => cs.map(c => {
       const u = byId.get(c.id)
       if (!u) return c
-      return { ...u, is_included: c.is_included, override_reason: c.override_reason, order_index: c.order_index, commentary: c.commentary || u.ai_commentary }
+      return { ...u, is_included: c.is_included, override_reason: c.override_reason, order_index: u.order_index ?? c.order_index, commentary: c.commentary || u.ai_commentary }
     }))
     onReportUpdated(updated)
     const completed = hasCompletedAiAnalysis(updated)
@@ -3420,7 +3422,7 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
       setComparables(cs => cs.map(c => {
         const u = byId.get(c.id)
         if (!u) return c
-        return { ...u, is_included: c.is_included, override_reason: c.override_reason, order_index: c.order_index, commentary: c.commentary }
+        return { ...u, is_included: c.is_included, override_reason: c.override_reason, order_index: u.order_index ?? c.order_index, commentary: c.commentary }
       }))
       onReportUpdated(updated)
       showToast('Valuation recomputed from your current comp set.', 'success')
