@@ -41,8 +41,10 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ kind: strin
     case 'form':
       return renderFormCard(q.get('agent') || '', q.get('form') || '', fonts, process.env.NODE_ENV !== 'production' ? q.get('look') : null)
     case 'spotlight':
-      // ?addr= only for local design review (a very long address on a real Spotlight)
-      return renderSpotlightCard(q.get('host') || '', q.get('path') || '', fonts, process.env.NODE_ENV !== 'production' ? q.get('addr') : null)
+      // ?addr= / ?status= / ?accent= only for local design review (a very long address, another
+      // status or brand color on a real Spotlight)
+      return renderSpotlightCard(q.get('host') || '', q.get('path') || '', fonts, process.env.NODE_ENV !== 'production' ? q.get('addr') : null,
+        process.env.NODE_ENV !== 'production' ? { status: q.get('status'), accent: q.get('accent') } : null)
     case 'property':
       return renderPropertyCard(q.get('agent') || '', q.get('listing') || '', fonts)
     case 'site':
@@ -50,9 +52,12 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ kind: strin
       return renderSiteCard(q.get('site') || '', q.get('host') || '', fonts, process.env.NODE_ENV !== 'production' ? q.get('look') : null)
     case 'idxlisting':
       // ?look= is the site's look ('luxe-gold-light', 'classic-1e3a5f-dark'), set by the page
-      return renderIdxListingCard(q.get('site') || '', q.get('listing') || '', q.get('own') === '1', fonts, q.get('look'))
+      // ?status= only for local design review (Coming Soon / Sold / For Rent on a real listing)
+      return renderIdxListingCard(q.get('site') || '', q.get('listing') || '', q.get('own') === '1', fonts, q.get('look'), process.env.NODE_ENV !== 'production' ? q.get('status') : null)
     case 'sales':
-      return renderSalesCard(q.get('agent') || '', fonts, process.env.NODE_ENV !== 'production' ? q.get('look') : null)
+      // ?look= / ?sales= (keep only the latest N sales) / ?area= (another service area) only for local design review
+      return renderSalesCard(q.get('agent') || '', fonts, process.env.NODE_ENV !== 'production' ? q.get('look') : null, process.env.NODE_ENV !== 'production' ? q.get('sales') : null,
+        process.env.NODE_ENV !== 'production' ? q.get('area') : null)
     default:
       return new Response('unknown card kind', { status: 404 })
   }

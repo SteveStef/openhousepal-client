@@ -16,6 +16,7 @@ import { usableAccent } from '@/components/property-sites/spotlight/tone'
 import { DEFAULT_SITE_THEME } from '@/components/website-public/types'
 import { CLASSIC_DEFAULT_ACCENT, normalizeSiteTheme, siteLuxeMetal, siteMode, siteTemplate } from '@/lib/siteTheme'
 import { salesSummary } from '@/lib/agentSales'
+import { salesAreRecent, salesWords } from '@/lib/salesWording'
 
 type Fonts = ReturnType<typeof ogFonts>
 
@@ -37,7 +38,10 @@ const fmtN = (n: number) => (n % 1 === 0 ? String(n) : n.toFixed(1))
 export type OgHome = { photo: string | null; price: string; facts: string; street: string; city: string; match: number | null; isNew?: boolean }
 
 /** A listing photo with Bright's bottom-left watermark pushed out of frame (scaled from the top-right). */
-export function MlsSafePhoto({ src, w, h, radius = 0, corners }: { src: string | null; w: number; h: number; radius?: number; corners?: [number, number, number, number] }) {
+export function MlsSafePhoto({ src, w, h, radius = 0, corners, center = false }: { src: string | null; w: number; h: number; radius?: number; corners?: [number, number, number, number]
+  /** centre the photo side to side instead of zooming from the right - only where something already
+   *  covers the bottom-left (the Sales grid's price + town) */
+  center?: boolean }) {
   // corners = [top-left, top-right, bottom-right, bottom-left]. Zoomed 16% from the right so the
   // watermark falls outside; as centred top-to-bottom as it can be while the bottom tenth (where the
   // watermark sits) still falls outside - wide boxes showed only roofs (user, 10/19).
@@ -52,7 +56,7 @@ export function MlsSafePhoto({ src, w, h, radius = 0, corners }: { src: string |
   if (!r.some(Boolean) || !dim) {
     return (
       <div style={{ display: 'flex', position: 'relative', width: w, height: h, overflow: 'hidden', backgroundColor: '#E9E2D3' }}>
-        {src ? <img src={src} width={bw} height={bh} style={{ position: 'absolute', top: -top, right: 0, width: bw, height: bh, objectFit: 'cover' }} /> : null}
+        {src ? <img src={src} width={bw} height={bh} style={{ position: 'absolute', top: -top, ...(center ? { left: -Math.round((bw - w) / 2) } : { right: 0 }), width: bw, height: bh, objectFit: 'cover' }} /> : null}
       </div>
     )
   }
@@ -353,24 +357,25 @@ export function CmaCard({ forName, ...rest }: {
 /** The agent's pill on every card (user, 10/19): their real headshot at 84px (initials when there's
  *  none), the name, the brokerage in the card's accent. `tone` = what it sits on - a dark photo
  *  scrim / dark panel, or a light panel (Classic / Luxe light looks). */
-export function AgentPill({ name, brokerage, photo, accent, tone = 'dark', ring }: {
-  name: string; brokerage: string | null; photo: string | null; accent: string; tone?: 'dark' | 'light'; ring?: string
+export function AgentPill({ name, brokerage, photo, accent, tone = 'dark', ring, scale = 1 }: {
+  name: string; brokerage: string | null; photo: string | null; accent: string; tone?: 'dark' | 'light'; ring?: string; scale?: number
 }) {
+  const z = (n: number) => Math.round(n * scale * 10) / 10
   const light = mixHex(accent, '#ffffff', 0.45)
   const btnInk = lum(accent) > 0.6 ? '#111827' : '#ffffff'
   const rgb = [1, 3, 5].map(i => parseInt(accent.slice(i, i + 2), 16)).join(',')
   const onLight = tone === 'light'
   const label = onLight ? mixHex(accent, '#16130e', 0.3) : light
   return (
-    <div style={{ display: 'flex', alignSelf: 'flex-start', alignItems: 'center', gap: 17, padding: '8px 30px 8px 8px', borderRadius: 999,
+    <div style={{ display: 'flex', alignSelf: 'flex-start', alignItems: 'center', gap: z(17), padding: `${z(8)}px ${z(30)}px ${z(8)}px ${z(8)}px`, borderRadius: 999,
       backgroundColor: onLight ? 'rgba(255,255,255,0.78)' : 'rgba(9,7,4,0.6)', border: `1.5px solid rgba(${rgb},${onLight ? 0.55 : 0.45})`,
       ...(onLight ? { boxShadow: '0 14px 30px -18px rgba(22,19,14,0.45)' } : {}) }}>
       {photo
-        ? <img src={photo} width={84} height={84} style={{ width: 84, height: 84, borderRadius: 999, objectFit: 'cover', border: `3px solid ${ring || (onLight ? accent : light)}` }} />
-        : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 84, height: 84, borderRadius: 999, backgroundColor: accent, color: btnInk, fontSize: 30, fontWeight: 900 }}>{initialsOf(name)}</div>}
+        ? <img src={photo} width={z(84)} height={z(84)} style={{ width: z(84), height: z(84), borderRadius: 999, objectFit: 'cover', border: `3px solid ${ring || (onLight ? accent : light)}` }} />
+        : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: z(84), height: z(84), borderRadius: 999, backgroundColor: accent, color: btnInk, fontSize: z(30), fontWeight: 900 }}>{initialsOf(name)}</div>}
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', fontSize: name.length > 20 ? 27 : 33, fontWeight: 900, lineHeight: 1.05, color: onLight ? '#16130e' : '#ffffff' }}>{name}</div>
-        {brokerage ? <div style={{ display: 'flex', fontSize: 16.5, fontWeight: 900, letterSpacing: 2.5, textTransform: 'uppercase', color: label, marginTop: 4 }}>{brokerage}</div> : null}
+        <div style={{ display: 'flex', fontSize: z(name.length > 20 ? 27 : 33), fontWeight: 900, lineHeight: 1.05, color: onLight ? '#16130e' : '#ffffff' }}>{name}</div>
+        {brokerage ? <div style={{ display: 'flex', fontSize: z(16.5), fontWeight: 900, letterSpacing: z(2.5), textTransform: 'uppercase', color: label, marginTop: z(4) }}>{brokerage}</div> : null}
       </div>
     </div>
   )
@@ -817,7 +822,7 @@ export async function renderFormCard(agentSlug: string, formSlug: string, fonts:
 
 const photoUrl = (p: any): string | null => (typeof p === 'string' ? p : p?.url || p?.src || null)
 
-export async function renderSpotlightCard(host: string, path: string, fonts: Fonts, previewAddress?: string | null): Promise<ImageResponse> {
+export async function renderSpotlightCard(host: string, path: string, fonts: Fonts, previewAddress?: string | null, preview?: { status?: string | null; accent?: string | null } | null): Promise<ImageResponse> {
   try {
     const data = await ogFetch<any>(
       `/public/property-sites/resolve?host=${encodeURIComponent(host)}&path=${encodeURIComponent(path)}`,
@@ -829,13 +834,14 @@ export async function renderSpotlightCard(host: string, path: string, fonts: Fon
     const photos: string[] = (Array.isArray(prop.photos) ? prop.photos : []).map(photoUrl).filter(Boolean) as string[]
     const heroUrl = content.hero_image || content.header?.photo || photos[0] || prop.photo_url || prop.img_src
     const [photo, agentPhoto] = await Promise.all([imgToDataUri(heroUrl, 5000), imgToDataUri(agent.photo_url, 4500)])
-    const { eyebrow, lease, sold } = homeLabel(prop.status, `${prop.property_type || ''} ${prop.mls_property_type || ''}`)
+    const { eyebrow, lease, sold } = homeLabel(preview?.status || prop.status, `${prop.property_type || ''} ${prop.mls_property_type || ''}`)
     const price = num(sold ? (prop.close_price ?? prop.sold_price ?? prop.price) : (prop.price ?? prop.list_price))
     // the page's own accent: Editorial Estate's default is its bronze, Cinematic Luxury's its gold
     const template = String(data.template_id || content.template_id || 'cinematic_luxury')
+    const brandColor = preview?.accent ? `#${preview.accent.replace('#', '')}` : data.brand_kit?.secondary_color
     const accent = template === 'editorial_estate'
-      ? usableAccent(data.brand_kit?.secondary_color, '#8d7548', 'light')
-      : usableAccent(data.brand_kit?.secondary_color, C.gold, 'dark')
+      ? usableAccent(brandColor, '#8d7548', 'light')
+      : usableAccent(brandColor, C.gold, 'dark')
     return IR(
       <HomePhotoCard photo={photo} street={previewAddress || titleCase(prop.address || prop.street_address) || 'A home worth seeing'} place={titleCase(prop.city)}
         eyebrow={eyebrow} sub={homeSub(price, lease, num(prop.beds ?? prop.bedrooms), num(prop.baths ?? prop.bathrooms), num(prop.sqft ?? prop.living_area), 'Take the full tour')}
@@ -1048,28 +1054,16 @@ export async function renderHubCard(agentSlug: string, fonts: Fonts): Promise<Im
 }
 
 // --- IDX website + Sales page ----------------------------------------------------------------
-// Link previews #10 / #11 (user, 10/19): the same family as the home cards - the agent's 84px pill,
-// a small label, one serif headline, one line under it, no buttons or stat rows - on a panel in the
-// page's own look (Luxe metal or Classic accent, light or dark), with the page's photo(s) beside it.
 
-/** "Philly Main Line & Suburbs" -> one line if it fits big, else two balanced lines. */
-function headlineLines(text: string, width: number): { lines: string[]; size: number } {
-  // Playfair black runs wide on capitals and '&' - measured ~0.7em a letter for these short lines
-  if (fitSize(text, width, 0.7, 66, 30) >= 52) return { lines: [text], size: fitSize(text, width, 0.7, 66, 30) }
-  const words = text.split(/\s+/)
-  let best: string[] = [text]
-  let bestMax = Infinity
-  for (let i = 1; i < words.length; i++) {
-    const a = words.slice(0, i).join(' '), b = words.slice(i).join(' ')
-    const m = Math.max(a.length, b.length)
-    if (m < bestMax) { bestMax = m; best = [a, b] }
-  }
-  return { lines: best, size: Math.min(...best.map(l => fitSize(l, width, 0.7, 62, 28))) }
-}
-
-export function BrandPanelCard({ look, agentName, agentBrokerage, agentPhoto, eyebrow, headline, sub, photos, tag }: {
+/** Link preview #11 with two or more sales (user, 10/20): the agent's pill, "Recent Sales", how much
+ *  they've sold in big serif, the Agent Hub's Sold / Avg stats and their service area on a panel in
+ *  the hub's look - two or four sale photos (never three), each tagged with its price, beside it. */
+export function SalesGridCard({ look, agentName, agentBrokerage, agentPhoto, eyebrow, amount, stats, area, photos, homes = [] }: {
   look: HubLook; agentName: string; agentBrokerage: string | null; agentPhoto: string | null
-  eyebrow: string; headline: string; sub: string | null; photos: (string | null)[]; tag?: string | null
+  eyebrow: string; amount: string; stats: { value: string; label: string }[]; area: string | null
+  photos: (string | null)[]
+  /** each photo's sale, in `photos` order: the full price and the town, as the hub's sale cards show them */
+  homes?: { price: string | null; town: string | null }[]
 }) {
   const dark = look.dark
   const ink = dark ? '#F3ECDD' : '#16130e'
@@ -1078,40 +1072,50 @@ export function BrandPanelCard({ look, agentName, agentBrokerage, agentPhoto, ey
   const panel = dark
     ? `linear-gradient(140deg, ${look.night[0]} 0%, ${look.night[1]} 58%, ${look.night[2]} 100%)`
     : `linear-gradient(140deg, ${look.wash[0]} 0%, ${look.wash[1]} 58%, ${look.wash[2]} 100%)`
-  const shots = photos.filter(Boolean) as string[]
-  const PW = 560 // the photo side
-  const COLW = 1200 - PW - 72 - 52 // the text column
-  const { lines, size } = headlineLines(headline, COLW)
-  const subSize = sub ? fitSize(sub, COLW, 0.5, 27, 18) : 27
-  const Tag = ({ text }: { text: string }) => (
-    <div style={{ display: 'flex', position: 'absolute', top: 16, left: 16, alignItems: 'center', gap: 8, padding: '7px 15px', borderRadius: 999, backgroundColor: 'rgba(17,17,17,0.82)', color: '#fff', fontSize: 16, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase' }}>
-      <div style={{ display: 'flex', width: 8, height: 8, borderRadius: 999, backgroundColor: look.light }} />
-      {text}
-    </div>
-  )
+  const all = photos.map((src, i) => ({ src, price: homes[i]?.price || null, town: homes[i]?.town || null })).filter(x => x.src) as { src: string; price: string | null; town: string | null }[]
+  const shots = all.slice(0, all.length >= 4 ? 4 : all.length >= 2 ? 2 : 1)
+  const PW = 730 // the photo side
+  const half = (PW - 4) / 2
+  // 4 = 2x2, 2 = two stacked, 1 (a photo failed to load) = the whole side
+  const boxes: [number, number, number, number][] = shots.length === 4 ? [[0, 0, half, 313], [half + 4, 0, half, 313], [0, 317, half, 313], [half + 4, 317, half, 313]]
+    : shots.length === 2 ? [[0, 0, PW, 313], [0, 317, PW, 313]]
+    : [[0, 0, PW, 630]]
+  const big = shots.length === 2
+  const COLW = 1200 - PW - 40 - 40 // the text column
+  const amountSize = fitSize(amount, COLW, 0.66, 104, 48)
+  // up to two lines, as big as two lines allow
+  // (0.6em a letter + a line's worth of slack: words don't break evenly at the line end)
+  const areaSize = area ? fitSize(area, (COLW - 30) * 2 - 90, 0.6, 24, 15) : 24
+  // dark text on a light button, white on a dark one (Navy / Charcoal / Black accents)
+  const btnInk = lum(mixHex(look.light, look.base, 0.5)) < 0.5 ? '#ffffff' : '#16130e'
   return (
     <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: dark ? look.night[0] : look.wash[0], backgroundImage: panel, overflow: 'hidden' }}>
-      {/* the page's photo(s), right */}
-      <div style={{ position: 'absolute', top: 0, right: 0, width: PW, height: 630, display: 'flex', flexDirection: 'column', backgroundColor: dark ? '#111' : '#E9E2D3' }}>
-        {shots.length >= 3 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', width: PW, height: 630 }}>
-            <div style={{ display: 'flex', position: 'relative' }}>
-              <MlsSafePhoto src={shots[0]} w={PW} h={376} />
-              {tag ? <Tag text={tag} /> : null}
+      <div style={{ position: 'absolute', top: 0, right: 0, width: PW, height: 630, display: 'flex', backgroundColor: dark ? '#111' : '#E9E2D3' }}>
+        {shots.length ? shots.map((x, i) => (
+          <div key={i} style={{ display: 'flex', position: 'absolute', left: boxes[i][0], top: boxes[i][1], width: boxes[i][2], height: boxes[i][3] }}>
+            <MlsSafePhoto src={x.src} w={boxes[i][2]} h={boxes[i][3]} center />
+            {/* like the hub's sale cards: the matte red Sold tablet top-left, the full
+                price and the town over a dark fade at the bottom (no "Sold for" - the badge says it) */}
+            <div style={{ position: 'absolute', top: 0, left: 0, width: boxes[i][2], height: boxes[i][3], display: 'flex',
+              backgroundImage: 'linear-gradient(0deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.12) 52%, rgba(0,0,0,0.08) 100%)' }} />
+            <div style={{ display: 'flex', position: 'absolute', top: 14, left: 14, alignItems: 'center', gap: 8, padding: '7px 13px', borderRadius: 9,
+              backgroundImage: 'linear-gradient(160deg, #b23a3a 0%, #9b2c2c 48%, #7d2222 100%)', border: '1px solid rgba(255,255,255,0.16)',
+              color: '#fff7f5', fontSize: 14, fontWeight: 900, letterSpacing: 3, textTransform: 'uppercase' }}>
+              <div style={{ display: 'flex', width: 7, height: 7, borderRadius: 999, backgroundColor: '#fff' }} />
+              Sold
             </div>
-            <div style={{ display: 'flex', marginTop: 4 }}>
-              <div style={{ display: 'flex', position: 'relative' }}><MlsSafePhoto src={shots[1]} w={(PW - 4) / 2} h={250} /></div>
-              <div style={{ display: 'flex', position: 'relative', marginLeft: 4 }}><MlsSafePhoto src={shots[2]} w={(PW - 4) / 2} h={250} /></div>
-            </div>
+            {x.price || x.town ? (
+              <div style={{ display: 'flex', flexDirection: 'column', position: 'absolute', left: big ? 24 : 18, right: 18, bottom: big ? 20 : 16 }}>
+                {x.price ? <div style={{ display: 'flex', fontSize: big ? 52 : 36, fontWeight: 900, lineHeight: 1.02, letterSpacing: big ? -1 : -0.5, color: '#fff' }}>{x.price}</div> : null}
+                {x.town ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: big ? 9 : 6, marginTop: big ? 8 : 5, fontSize: big ? 26 : 20, fontWeight: 700, color: 'rgba(255,255,255,0.88)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <Ico d={ICON.pin} size={big ? 24 : 18} color={look.light} /> {x.town}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
-        ) : shots.length === 2 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', width: PW, height: 630 }}>
-            <div style={{ display: 'flex', position: 'relative' }}><MlsSafePhoto src={shots[0]} w={PW} h={313} />{tag ? <Tag text={tag} /> : null}</div>
-            <div style={{ display: 'flex', marginTop: 4 }}><MlsSafePhoto src={shots[1]} w={PW} h={313} /></div>
-          </div>
-        ) : shots.length === 1 ? (
-          <div style={{ display: 'flex', position: 'relative' }}><MlsSafePhoto src={shots[0]} w={PW} h={630} />{tag ? <Tag text={tag} /> : null}</div>
-        ) : (
+        )) : (
           <div style={{ display: 'flex', width: PW, height: 630, alignItems: 'center', justifyContent: 'center', backgroundImage: `linear-gradient(140deg, ${look.deep}, ${look.base} 55%, ${look.light})` }}>
             <svg width={180} height={180} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round">
               {HOUSE_D.map((d, i) => <path key={i} d={d} />)}
@@ -1123,17 +1127,42 @@ export function BrandPanelCard({ look, agentName, agentBrokerage, agentPhoto, ey
       <div style={{ position: 'absolute', top: 0, right: PW, width: 4, height: 630, display: 'flex', backgroundImage: `linear-gradient(180deg, ${look.light}, ${look.base} 50%, ${look.deep})` }} />
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 7, display: 'flex', backgroundImage: `linear-gradient(90deg, ${look.deep}, ${look.base}, ${look.light}, ${look.base}, ${look.deep})` }} />
 
-      <div style={{ position: 'absolute', top: 0, left: 0, width: 1200 - PW, height: '100%', display: 'flex', flexDirection: 'column', padding: '52px 52px 58px 72px' }}>
-        <AgentPill name={agentName} brokerage={agentBrokerage} photo={agentPhoto} accent={dark ? look.base : look.deep} tone={dark ? 'dark' : 'light'} ring={dark ? look.light : look.base} />
-        <div style={{ display: 'flex', flexDirection: 'column', marginTop: 'auto' }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, width: 1200 - PW, height: '100%', display: 'flex', flexDirection: 'column', padding: '44px 40px 44px 40px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <AgentPill name={agentName} brokerage={agentBrokerage} photo={agentPhoto} accent={dark ? look.base : look.deep} tone={dark ? 'dark' : 'light'} ring={dark ? look.light : look.base} scale={0.9} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', paddingTop: 34 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 20, fontWeight: 900, letterSpacing: 6, textTransform: 'uppercase', color: label }}>
             <div style={{ display: 'flex', width: 34, height: 2, backgroundColor: look.base }} />
             {eyebrow}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', marginTop: 14 }}>
-            {lines.map((l, i) => <div key={i} style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: size, lineHeight: 1.08, letterSpacing: -1, color: ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: COLW }}>{l}</div>)}
+          <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start', alignItems: 'center' }}>
+          <div style={{ display: 'flex', fontSize: amountSize, fontWeight: 900, lineHeight: 1, letterSpacing: -3, color: ink, marginTop: 14 }}>{amount}</div>
+          {stats.length ? (
+            <div style={{ display: 'flex', alignItems: 'stretch', marginTop: 24 }}>
+              {stats.map((st, i) => (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingLeft: i ? 22 : 0, marginLeft: i ? 22 : 0, borderLeft: i ? `2px solid ${look.base}66` : 'none' }}>
+                  <div style={{ display: 'flex', fontSize: 32, fontWeight: 900, lineHeight: 1.05, color: ink }}>{st.value}</div>
+                  <div style={{ display: 'flex', fontSize: 13, fontWeight: 900, letterSpacing: 2.5, textTransform: 'uppercase', color: subInk, marginTop: 5 }}>{st.label}</div>
+                </div>
+              ))}
+            </div>
+          ) : null}
           </div>
-          {sub ? <div style={{ display: 'flex', fontSize: subSize, color: subInk, marginTop: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: COLW }}>{sub}</div> : null}
+          {area ? (
+            <div style={{ display: 'flex', flexDirection: 'column', marginTop: 28, paddingTop: 20, borderTop: `2px solid ${look.base}55`, maxWidth: COLW }}>
+              <div style={{ display: 'flex', fontSize: 13, fontWeight: 900, letterSpacing: 3, textTransform: 'uppercase', color: label }}>Service area</div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 6, maxWidth: COLW }}>
+                <div style={{ display: 'flex', marginTop: Math.round(areaSize * 0.18) }}><Ico d={ICON.pin} size={20} color={look.base} /></div>
+                <div style={{ display: 'flex', fontSize: areaSize, fontWeight: 800, lineHeight: 1.25, color: ink, maxWidth: COLW - 30 }}>{area}</div>
+              </div>
+            </div>
+          ) : null}
+          <div style={{ display: 'flex', alignSelf: 'flex-start', alignItems: 'center', gap: 12, height: 60, padding: '0 30px', marginTop: 28, borderRadius: 999, fontSize: 22, fontWeight: 900,
+            backgroundImage: `linear-gradient(135deg, ${look.light}, ${look.base})`, color: btnInk, boxShadow: `0 12px 26px -14px ${look.deep}` }}>
+            See more from me
+            <svg width={23} height={23} viewBox="0 0 24 24" fill="none" stroke={btnInk} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
+          </div>
         </div>
       </div>
     </div>
@@ -1155,8 +1184,75 @@ function lookFromParam(spec: string | null | undefined): HubLook | null {
   return null
 }
 
-/** The agent's IDX website - its home page and any page without a card of its own: the site's hero
- *  photo, the agent, "Homes for Sale", the site's name (or the market they serve) and their towns. */
+const SEARCH_D = ['M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z', 'M21 21l-4.35-4.35']
+
+/** Link preview #10 (user, 10/20): the Agent Hub's business card, elevated - the same headshot, title,
+ *  name, market, phone and email, but on the site's own photo behind a double-framed card in the
+ *  site's look, a metal "Home Search" tag in the corner, and the button "Create your Showcase". */
+export function IdxSiteCard({ look, photo, agentPhoto, name, title, brokerage, market, phone, email }: {
+  look: HubLook; photo: string | null; agentPhoto: string | null; name: string; title: string | null; brokerage: string | null
+  market: string | null; phone: string | null; email: string | null
+}) {
+  const ink = look.dark ? '#F3ECDD' : '#16130e'
+  const sub = look.dark ? 'rgba(243,236,221,0.74)' : mixHex(look.deep, '#16130e', 0.3)
+  const label = look.dark ? look.light : look.deep
+  const cardBg = look.dark ? `linear-gradient(135deg, ${look.night[0]} 0%, ${look.night[1]} 55%, ${look.night[2]} 100%)` : `linear-gradient(135deg, ${look.wash[0]} 0%, ${look.wash[1]} 55%, ${look.wash[2]} 100%)`
+  // dark text on a light button, white on a dark one (Navy / Charcoal / Black accents)
+  const btnInk = lum(mixHex(look.light, look.base, 0.5)) < 0.5 ? '#ffffff' : '#16130e'
+  const COLW = 560
+  return (
+    <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: '#0b0a08', alignItems: 'center', justifyContent: 'center' }}>
+      {photo ? <div style={{ display: 'flex', position: 'absolute', top: 0, left: 0 }}><MlsSafePhoto src={photo} w={1200} h={630} /></div> : null}
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex',
+        backgroundImage: `radial-gradient(900px 520px at 50% 50%, rgba(8,7,6,0.5) 0%, rgba(8,7,6,0.42) 70%, rgba(8,7,6,0.55) 100%), linear-gradient(135deg, ${mixHex(look.deep, '#000000', 0.4)}66, transparent 60%)` }} />
+      <div style={{ display: 'flex', position: 'relative', width: 1090, height: 530, borderRadius: 30, overflow: 'hidden',
+        backgroundImage: cardBg, boxShadow: '0 44px 100px -30px rgba(0,0,0,0.9)', border: `2px solid ${look.light}` }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 10, display: 'flex', backgroundImage: `linear-gradient(90deg, ${look.deep}, ${look.base}, ${look.light}, ${look.base}, ${look.deep})` }} />
+        <div style={{ position: 'absolute', top: 26, left: 26, right: 26, bottom: 26, display: 'flex', border: `1px solid ${look.base}66`, borderRadius: 20 }} />
+        <div style={{ position: 'absolute', top: 32, left: 32, right: 32, bottom: 32, display: 'flex', border: `1px solid ${look.base}33`, borderRadius: 16 }} />
+        {/* the site's tag, top right */}
+        <div style={{ display: 'flex', position: 'absolute', top: 50, right: 56, alignItems: 'center', gap: 9, height: 38, padding: '0 16px', borderRadius: 999,
+          backgroundImage: `linear-gradient(135deg, ${look.light}, ${look.base})`, color: btnInk, fontSize: 13, fontWeight: 900, letterSpacing: 2.5, textTransform: 'uppercase', boxShadow: `0 10px 22px -14px ${look.deep}` }}>
+          <Ico d={SEARCH_D} size={16} color={btnInk} /> Home Search
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '0 0 0 66px' }}>
+          <div style={{ display: 'flex', padding: 7, borderRadius: 34, backgroundImage: `linear-gradient(140deg, ${look.light}, ${look.base} 60%, ${look.deep})`, boxShadow: `0 24px 50px -20px ${look.deep}b3` }}>
+            {agentPhoto
+              ? <img src={agentPhoto} width={290} height={350} style={{ width: 290, height: 350, borderRadius: 28, objectFit: 'cover' }} />
+              : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 290, height: 350, borderRadius: 28, backgroundColor: look.dark ? '#000' : '#16130e', color: look.light, fontSize: 96, fontWeight: 900 }}>{initialsOf(name)}</div>}
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 60px 0 54px', flex: 1, minWidth: 0 }}>
+          {(title || brokerage) ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 900, letterSpacing: 4, textTransform: 'uppercase', color: label }}>
+              <div style={{ display: 'flex', width: 28, height: 2, backgroundColor: look.base }} />
+              {[title, brokerage].filter(Boolean).join('  ·  ')}
+            </div>
+          ) : null}
+          <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: name.length > 20 ? 54 : name.length > 15 ? 62 : 70, lineHeight: 1.02, letterSpacing: -1, color: ink, marginTop: 12 }}>{name}</div>
+          {market ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, fontSize: fitSize(market, COLW - 34, 0.5, 24, 17), fontWeight: 700, color: sub, maxWidth: COLW, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <Ico d={ICON.pin} size={22} color={look.base} /> {market}
+            </div>
+          ) : null}
+          <div style={{ display: 'flex', width: 120, height: 2, backgroundColor: look.base, marginTop: 26, marginBottom: 22 }} />
+          {phone ? <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 26, fontWeight: 800, color: ink }}><Ico d={ICON.phone} color={look.base} /> {fmtPhone(phone)}</div> : null}
+          {email ? <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: email.length > 30 ? 20 : 24, fontWeight: 700, color: ink, marginTop: 10 }}><Ico d={ICON.mail} color={look.base} /> {email}</div> : null}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 52, padding: '0 24px', borderRadius: 999, fontSize: 19, fontWeight: 900, flexShrink: 0,
+              backgroundImage: `linear-gradient(135deg, ${look.light}, ${look.base})`, color: btnInk, boxShadow: `0 12px 26px -14px ${look.deep}` }}>
+              Create your Showcase
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={btnInk} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** The agent's IDX website - its home page and any page without a card of its own: IdxSiteCard on the
+ *  site's hero photo, with the site's name (or the market they serve) under the agent's name. */
 export async function renderSiteCard(siteId: string, host: string, fonts: Fonts, lookSpec?: string | null): Promise<ImageResponse> {
   try {
     const [resolved, profile, areas] = await Promise.all([
@@ -1183,24 +1279,24 @@ export async function renderSiteCard(siteId: string, host: string, fonts: Fonts,
     const brand = seoName || (home?.title && home.title !== 'Home' ? String(home.title) : '')
     const market = profile?.market ? String(profile.market).trim() : ''
     // the brand when it isn't just their name, else where they work
-    const headline = (brand && brand.toLowerCase() !== name.toLowerCase() ? brand : '') || market || (towns[0]?.name ? `${titleCase(towns[0].name)} Real Estate` : 'Find Your Next Home')
-    const townNames = towns.map(t => titleCase(t?.name)).filter(Boolean)
-    const sub = headline === market || !market ? (townNames.length ? townNames.slice(0, 4).join('  ·  ') : (host || null)) : market
+    const townNames = towns.map(t => titleCase(t?.name)).filter(Boolean) as string[]
+    const headline = (brand && brand.toLowerCase() !== name.toLowerCase() ? brand : '') || market || (townNames[0] ? `${townNames[0]} Real Estate` : '')
     const look = lookFromParam(lookSpec) || siteLookOf(snap?.theme)
+    const title = profile?.title ? String(profile.title).replace(/[®�]/g, '').trim() : ''
     return IR(
-      <BrandPanelCard look={look} agentName={name} agentBrokerage={profile?.brokerage || null} agentPhoto={agentPhoto}
-        eyebrow="Homes for Sale" headline={headline} sub={sub} photos={[photo]} />,
+      <IdxSiteCard look={look} photo={photo} agentPhoto={agentPhoto} name={name} title={title ? (/^realtor$/i.test(title) ? 'Realtor®' : title) : null}
+        brokerage={profile?.brokerage || null} market={headline || null} phone={profile?.phone || null} email={profile?.email || null} />,
       fonts,
     )
   } catch {
-    return IR(<BrandPanelCard look={lookFromParam(lookSpec) || siteLookOf(null)} agentName="Your agent" agentBrokerage={null} agentPhoto={null} eyebrow="Homes for Sale" headline="Find Your Next Home" sub={host || null} photos={[]} />, fonts)
+    return IR(<IdxSiteCard look={lookFromParam(lookSpec) || siteLookOf(null)} photo={null} agentPhoto={null} name="Your agent" title={null} brokerage={null} market={null} phone={null} email={null} />, fonts)
   }
 }
 
 /** A home on the agent's IDX website - the same card as their other home links (photo, status,
  *  "Street, Town", price + facts, the agent's pill), in the site's accent / metal (`lookSpec`, from
  *  the page). `own` = one of the agent's featured homes, else a search result. */
-export async function renderIdxListingCard(siteId: string, listingKey: string, own: boolean, fonts: Fonts, lookSpec?: string | null): Promise<ImageResponse> {
+export async function renderIdxListingCard(siteId: string, listingKey: string, own: boolean, fonts: Fonts, lookSpec?: string | null, previewStatus?: string | null): Promise<ImageResponse> {
   const accent = (lookFromParam(lookSpec) || siteLookOf(null)).base
   try {
     const base = `/public/sites/${encodeURIComponent(siteId)}`
@@ -1214,7 +1310,7 @@ export async function renderIdxListingCard(siteId: string, listingKey: string, o
       imgToDataUri((Array.isArray(p.photos) && photoUrl(p.photos[0])) || p.photo, 5000),
       imgToDataUri(profile?.photo_url, 4500),
     ])
-    const { eyebrow, lease, sold } = homeLabel(p.status || r.MlsStatus, `${p.property_type || ''} ${r.PropertyType || ''} ${r.MlsPropertyType || ''}`)
+    const { eyebrow, lease, sold } = homeLabel(previewStatus || p.status || r.MlsStatus, `${p.property_type || ''} ${r.PropertyType || ''} ${r.MlsPropertyType || ''}`)
     const price = num(sold ? (r.ClosePrice ?? p.price) : p.price)
     // a seller who withheld the address: the API already put the town in its place
     const street = p.address_withheld ? '' : titleCase(p.address || p.street_address)
@@ -1230,27 +1326,53 @@ export async function renderIdxListingCard(siteId: string, listingKey: string, o
 }
 
 
-/** The Sales page on the Agent Hub (link previews #11): the agent, "Recent Sales", how many homes
- *  they've sold, the volume and the towns - three of their latest sales beside it - in the hub's look. */
-export async function renderSalesCard(agentSlug: string, fonts: Fonts, previewLook?: string | null): Promise<ImageResponse> {
+/** The Sales page on the Agent Hub (link previews #11), in the hub's look (user, 10/20). No sales:
+ *  the Agent Hub's own business card. One sale: that home full-bleed, "Recently Sold", its price.
+ *  Two or more: SalesGridCard - "Recent Sales" (just "Sales" from $50M, the salesWording rule), the
+ *  volume big, Homes sold / Avg price, the service area, and two or four of the latest sales. */
+export async function renderSalesCard(agentSlug: string, fonts: Fonts, previewLook?: string | null, previewSales?: string | null, previewArea?: string | null): Promise<ImageResponse> {
   try {
     const data = await ogFetch<any>(`/agent-hub/public/${encodeURIComponent(agentSlug)}`, 60)
     const cfg = data?.config || {}
     const profile = cfg.profile || {}
-    const s = salesSummary(cfg)
-    const [agentPhoto, ...photos] = await Promise.all([
-      imgToDataUri(hubPhotoUrl(cfg), 4500),
-      ...s.photos.slice(0, 3).map(u => imgToDataUri(u, 4500)),
-    ])
+    const keep = previewSales && /^\d+$/.test(previewSales) ? Number(previewSales) : null
+    const s = salesSummary(keep == null ? cfg : {
+      ...cfg,
+      recentSales: (Array.isArray(cfg.recentSales) ? cfg.recentSales : []).slice().sort((a: any, b: any) => String(b?.sold_date || '').localeCompare(String(a?.sold_date || ''))).slice(0, keep),
+    })
+    if (!s.count) return renderHubCard(agentSlug, fonts)
+    const look = lookFromParam(previewLook) || hubLook(cfg)
+    const recent = salesAreRecent(s.volume)
+    const latest = s.latest
+    const agentPhoto = await imgToDataUri(hubPhotoUrl(cfg), 4500)
+    const agent = { agentName: profile.name || 'Your agent', agentBrokerage: profile.brokerage || null, agentPhoto }
+    if (s.count === 1 && latest) {
+      const photo = await imgToDataUri(latest.image || (Array.isArray(latest.photos) ? latest.photos[0] : null), 5000)
+      // the hub's accent on a dark photo: lift Navy / Charcoal / Black so the label still reads
+      const accent = lum(look.base) < 0.35 ? mixHex(look.base, '#ffffff', 0.55) : look.base
+      return IR(
+        <HomePhotoCard {...agent} photo={photo} street={titleCase(latest.address) || 'A home sold'} place={titleCase(latest.city)} accent={accent}
+          eyebrow={salesWords('Recently Sold', recent)}
+          sub={homeSub(num(latest.price), false, num(latest.beds), num(latest.baths), num(latest.sqft), 'Sold').replace(/^\$/, 'Sold for $')} />,
+        fonts,
+      )
+    }
+    const items = s.sold.slice(0, s.sold.length >= 4 ? 4 : 2)
+    const photos = await Promise.all(items.map(x => imgToDataUri(x.photo, 4500)))
+    // the Agent Hub Sales page's own stats (Sold / Volume / Avg) - the volume is the big number
+    const area = previewArea || String(profile.market || '').trim() || (s.towns.length ? s.towns.join(', ') : null)
     return IR(
-      <BrandPanelCard look={lookFromParam(previewLook) || hubLook(cfg)} agentName={profile.name || 'Your agent'} agentBrokerage={profile.brokerage || null} agentPhoto={agentPhoto}
-        eyebrow="Recent Sales" headline={s.headline} sub={s.sub} photos={photos.filter(Boolean)} tag={s.count ? 'Sold' : null} />,
+      <SalesGridCard look={look} {...agent} eyebrow={salesWords('Recent Sales', recent)} amount={compactUsd(s.volume)}
+        stats={[{ value: String(s.count), label: 'Sales' }, { value: compactUsd(Math.round(s.volume / s.count)), label: 'Avg price' }, { value: compactUsd(s.top), label: 'Top sale' }]}
+        area={area} photos={photos} homes={items.map(x => ({ price: money(x.price), town: x.town ? titleCase(x.town) : null }))} />,
       fonts,
     )
   } catch {
-    return IR(<BrandPanelCard look={hubLook(null)} agentName="Your agent" agentBrokerage={null} agentPhoto={null} eyebrow="Recent Sales" headline="Recently Sold" sub={null} photos={[]} />, fonts)
+    return renderHubCard(agentSlug, fonts)
   }
 }
+
+const compactUsd = (n: number) => (n >= 1e6 ? `$${parseFloat((n / 1e6).toFixed(n >= 1e7 ? 0 : 1))}M` : n >= 1000 ? `$${Math.round(n / 1000)}K` : `$${Math.round(n)}`)
 
 const hubPhotoUrl = (cfg: any): string | null => {
   const u = cfg?.profilePhotoUrl || cfg?.profile?.photoUrl || cfg?.profile?.photo_url

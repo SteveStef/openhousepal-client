@@ -135,11 +135,12 @@ const compactMoney = (n: number) => (n >= 1e6 ? `$${(n / 1e6).toFixed(n >= 1e7 ?
 /** What the Sales page counts (Sold, $100K+ - isEligibleSale), for its link preview and share
  *  text: "24 Homes Sold", "$38.2M in sales  ·  Gladwyne, Villanova & Bryn Mawr", the latest shown
  *  sales' photos. Used by lib/og/cards (the card) and app/[slug]/sales/layout.tsx (the text). */
-export function salesSummary(cfg: any): { count: number; volume: number; headline: string; sub: string | null; photos: string[]; towns: string[] } {
+export function salesSummary(cfg: any): { count: number; volume: number; headline: string; sub: string | null; photos: string[]; towns: string[]; latest: AgentSale | null; sold: { photo: string; price: number; town: string }[]; top: number } {
   const all: AgentSale[] = Array.isArray(cfg?.recentSales) ? cfg.recentSales : []
   const eligible = all.filter(x => x && isEligibleSale(x))
   const shown = eligible.filter(x => x.visible !== false).sort((a, b) => String(b.sold_date || '').localeCompare(String(a.sold_date || '')))
   const volume = eligible.reduce((t, x) => t + (Number(x.price) || 0), 0)
+  const top = eligible.reduce((m, x) => Math.max(m, Number(x.price) || 0), 0)
   const tally = new Map<string, number>()
   for (const x of eligible) { const c = tidyTown(x.city); if (c) tally.set(c, (tally.get(c) || 0) + 1) }
   const towns = Array.from(tally.entries()).sort((a, b) => b[1] - a[1]).map(([c]) => c).slice(0, 3)
@@ -148,5 +149,9 @@ export function salesSummary(cfg: any): { count: number; volume: number; headlin
   const where = towns.length > 1 ? `${towns.slice(0, -1).join(', ')} & ${towns[towns.length - 1]}` : towns[0] || ''
   const sub = [volume ? `${compactMoney(volume)} in sales` : null, where || null].filter(Boolean).join('  ·  ') || null
   const photos = shown.map(x => x.image || (Array.isArray(x.photos) ? x.photos[0] : null)).filter((u): u is string => typeof u === 'string' && !!u)
-  return { count, volume, headline, sub, photos, towns }
+  // the newest shown sale with a photo (the Sales card's big picture), else the newest shown
+  const latest = shown.find(x => x.image || (Array.isArray(x.photos) && x.photos[0])) || shown[0] || null
+  // the Sales card's grid: exactly the sales the Agent Hub shows, in the agent's own order, with a photo
+  const sold = getEligibleSales(all).filter(x => x.visible).map(x => ({ photo: x.image || (Array.isArray(x.photos) ? x.photos[0] : ''), price: Number(x.price) || 0, town: tidyTown(x.city) })).filter(x => typeof x.photo === 'string' && !!x.photo) as { photo: string; price: number; town: string }[]
+  return { count, volume, headline, sub, photos, towns, latest, sold, top }
 }
