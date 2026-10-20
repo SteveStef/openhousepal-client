@@ -1359,6 +1359,10 @@ input:-webkit-autofill:active {
 @keyframes cma-dock-in { from { transform: translateY(110%); } to { transform: none; } }
 .cma-dock { animation: cma-dock-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
 
+/* The comp step's map arriving: a soft fade + settle (its price tags then drop in one by one). */
+@keyframes cma-map-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: none; } }
+.cma-map-in { animation: cma-map-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
 /* The comp order rail's picked-card underline: a plain fade-in (no shared-layout animation). */
 @keyframes cma-underline-in { from { transform: scaleX(0.2); opacity: 0; } to { transform: none; opacity: 1; } }
 .cma-rail-underline { transform-origin: center; animation: cma-underline-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
@@ -1379,7 +1383,7 @@ input:-webkit-autofill:active {
 .cma-diff { background-image: linear-gradient(rgba(201, 162, 77, 0.16), rgba(201, 162, 77, 0.16)); background-repeat: no-repeat; animation: cma-diff-in 0.6s 0.15s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .cma-chip-in, .cma-step-current, .cma-check-pop, .cma-dock, .cma-diff, .cma-indeterminate, .cma-bar-sheen, .cma-rail-underline, .cma-btn-working { animation: none; }
+  .cma-chip-in, .cma-step-current, .cma-check-pop, .cma-dock, .cma-diff, .cma-indeterminate, .cma-bar-sheen, .cma-rail-underline, .cma-btn-working, .cma-map-in { animation: none; }
   .cma-btn, .cma-btn::after { transition: none; }
 }
 

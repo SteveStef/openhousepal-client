@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { useIsPhone, useLastValue, usePagePin, useSwipeToClose } from '@/components/ui/windowMotion'
+import { useEscapeToClose, useIsPhone, useLastValue, usePagePin, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 import { FADE_HOME, NavButton, SHEET_SPRING, SideArrow, SLIDE_HOME, SPRING as SHEET_DESKTOP_SPRING, streetSize, type HomeMove } from '@/components/PropertyDetailsModal'
 import { PropertySurface, pp } from '@/components/property/PropertyKit'
 import api from '@/lib/api-service'
@@ -1386,6 +1386,8 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
   const [refineOpen, setRefineOpen] = useState(false)
   // Phones show the results list OR the map (both at once stacked a crowded map under a long list).
   const [phoneView, setPhoneView] = useState<'list' | 'map'>('list')
+  // The desktop card grid scrolls on its own - each new page of results starts at its top.
+  const compGridRef = useRef<HTMLDivElement>(null)
   // Floor of 200 days sold, then widens itself (200 -> 300 -> ... -> 750) whenever a sold search
   // comes back with fewer than 5 matches, so a quiet market still surfaces comps instead of an
   // empty result. Stops auto-widening the moment the agent edits it by hand.
@@ -1643,6 +1645,15 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
   const COMPS_PER_PAGE_OPTIONS = [12, 24, 48, 96]
   const [compsPerPage, setCompsPerPage] = useState(24)
   const [compsPage, setCompsPage] = useState(1)
+  const phoneListRef = useRef<HTMLDivElement>(null)
+  const firstPageRender = useRef(true)
+  useEffect(() => {
+    compGridRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    // Phones: the Pager sits under the list - bring the top of the new page into view.
+    if (firstPageRender.current) { firstPageRender.current = false; return }
+    const list = phoneListRef.current
+    if (list && list.offsetParent !== null) window.scrollTo({ top: Math.max(0, list.getBoundingClientRect().top + window.scrollY - 90), behavior: 'smooth' })
+  }, [compsPage])
   const totalCompPages = Math.max(1, Math.ceil(sortedResults.length / compsPerPage))
   useEffect(() => { setCompsPage(1) }, [compsPerPage, sortedResults.length])
   useEffect(() => { if (compsPage > totalCompPages) setCompsPage(totalCompPages) }, [compsPage, totalCompPages])
@@ -1875,10 +1886,10 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
             <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(500px,0.8fr)_minmax(420px,1.2fr)] lg:items-start 2xl:grid-cols-[minmax(940px,1.85fr)_minmax(420px,1fr)]">
               <div className={`min-w-0 ${phoneView === 'map' ? 'max-sm:hidden' : ''}`}>
               {/* Phones: compact rows that say how each home differs from the subject. */}
-              <div className="space-y-2 sm:hidden">
+              <div ref={phoneListRef} className="space-y-2 sm:hidden">
                 {pagedResults.map((candidate, i) => (
                   <motion.div
-                    key={candidate.listing_key}
+                    key={`${compsPage}-${candidate.listing_key}`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0, transition: { delay: Math.min(i, 10) * 0.03, type: 'spring', stiffness: 420, damping: 36 } }}
                   >
@@ -1902,17 +1913,21 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
                 // independently, so flex-grow correctly fills leftover space in ANY row, including
                 // a partial last one - no dead gap. Each card stays between 240-300px wide, and
                 // however many fit at that width is however many end up per row.
+                ref={compGridRef}
                 className="hidden max-h-[520px] flex-wrap content-start gap-4 overflow-y-auto pr-1 sm:flex lg:max-h-[calc(100vh-380px)]"
                 style={{ overscrollBehavior: 'auto' }}
               >
-                {pagedResults.map(candidate => (
+                {pagedResults.map((candidate, i) => (
                   // The wider cap only applies with exactly one result total - a card that just
                   // happens to land alone in its row because of an odd count (e.g. 4 results = 3
                   // then 1 trailing) stays at the normal 300px instead of stretching, which looked
                   // exaggerated. One true result gets a little breathing room instead of sitting
                   // capped at the same width as if it had neighbors.
-                  <div
-                    key={candidate.listing_key}
+                  <motion.div
+                    key={`${compsPage}-${candidate.listing_key}`}
+                    // cards fill in one after another on load and on every page change (10/20)
+                    initial={{ opacity: 0, y: 14, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1, transition: { delay: Math.min(i, 12) * 0.035, type: 'spring', stiffness: 380, damping: 32 } }}
                     className={`min-w-[240px] max-w-full flex-1 ${pagedResults.length === 1 ? 'sm:max-w-[420px]' : 'sm:max-w-[300px]'}`}
                   >
                     <CompCandidateCard
@@ -1925,7 +1940,7 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
                       onToggle={() => toggleAdd(candidate)}
                       onOpenDetails={() => setPopup({ type: 'candidate', candidate })}
                     />
-                  </div>
+                  </motion.div>
                 ))}
               </div>
               {sortedResults.length > COMPS_PER_PAGE_OPTIONS[0] && (
@@ -1961,6 +1976,7 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
                   onOpenDetails={candidate => setPopup({ type: 'candidate', candidate })}
                   matchScoreFor={scoreFor}
                   heightClassName="h-[62vh] sm:h-[380px] lg:h-[calc(100vh-380px)]"
+                  pulseKeys={pagedResults.map(c => c.listing_key)}
                 />
               </div>
             </div>
@@ -2015,171 +2031,186 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
         )
       })()}
 
-      {refineOpen && (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/70 p-3 sm:items-center sm:p-6" onClick={() => setRefineOpen(false)}>
-          <div className="relative max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white shadow-2xl dark:bg-[#151517]" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-5 py-4 dark:border-gray-800 dark:bg-[#151517]">
-              <div>
-                <h2 className="text-xl font-black tracking-tight text-gray-900 dark:text-white">Refine Your Search</h2>
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                  Comps near <span className="font-black text-gray-900 dark:text-white">{subject.street_address || 'the subject property'}</span> - results update live as you edit.
+      {/* Refine Your Search (user, 10/20: nicer + phone-ready): the Showcase-style sheet, the fields
+          grouped into What sold / Where / The home with one-tap chips, results updating live, and a
+          pinned button saying how many homes match. Every field drives the same search as before. */}
+      <CmaSheet
+        open={refineOpen}
+        onClose={() => setRefineOpen(false)}
+        title="Refine Your Search"
+        subtitle={<>Comps near <span className="font-black text-gray-900 dark:text-white">{subject.street_address || 'the subject property'}</span> - results update live.</>}
+        headerRight={
+          <span className="hidden items-center gap-1.5 rounded-full bg-[#C9A24D]/12 px-3 py-1.5 text-[11px] font-black text-[#8b7355] dark:text-[#d7b974] sm:inline-flex">
+            {searching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />} {results.length} homes
+          </span>
+        }
+        footer={
+          <button onClick={() => setRefineOpen(false)} className="cma-btn flex w-full items-center justify-center gap-2 rounded-2xl bg-[#111827] px-5 py-3 text-sm font-black text-white shadow-sm dark:bg-white dark:text-[#111827] sm:ml-auto sm:w-auto">
+            {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            Show {results.length} {results.length === 1 ? 'home' : 'homes'}
+          </button>
+        }
+      >
+        <div className="grid gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+          {/* The subject - a compact one-line card on a phone, the full card on a wide screen. */}
+          <div className="min-w-0 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-[#0B0B0B] lg:self-start">
+            <div className="flex items-center gap-3 p-2.5 lg:hidden">
+              <div className="h-14 w-16 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800">
+                {subjectPhotos.length > 0 ? <img src={normalizeImageUrl(subjectPhotos[0])} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Home className="h-5 w-5 text-gray-300" /></div>}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-[#111827] dark:text-white">{subject.street_address || 'Subject Property'}</p>
+                <p className="truncate text-[11px] font-bold text-gray-500 dark:text-gray-400">
+                  {[subject.beds != null && `${subject.beds} bd`, subject.baths != null && `${subject.baths} ba`, subject.sqft && `${Math.round(subject.sqft).toLocaleString()} sf`, subjectAcres ? `${subjectAcres.toLocaleString(undefined, { maximumFractionDigits: 2 })} ac` : null, subject.year_built && `built ${subject.year_built}`].filter(Boolean).join(' · ')}
                 </p>
               </div>
-              <button onClick={() => setRefineOpen(false)} className="shrink-0 rounded-full bg-gray-100 p-2 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400"><X className="h-4 w-4" /></button>
             </div>
-
-            <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-              <div className="min-w-0 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-[#0B0B0B]">
-                <div className="relative h-48 w-full bg-gray-100 dark:bg-gray-800 sm:h-56">
-                  {subjectPhotos.length > 0 ? (
-                    <img src={normalizeImageUrl(subjectPhotos[subjectPhotoIndex])} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center"><Home className="h-8 w-8 text-gray-300" /></div>
-                  )}
-                  {subjectPhotos.length > 1 && (
-                    <>
-                      <button type="button" onClick={() => setSubjectPhotoIndex(i => (i - 1 + subjectPhotos.length) % subjectPhotos.length)} className="absolute left-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/70" aria-label="Previous photo">
-                        <ChevronLeft className="h-4 w-4" />
-                      </button>
-                      <button type="button" onClick={() => setSubjectPhotoIndex(i => (i + 1) % subjectPhotos.length)} className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/70" aria-label="Next photo">
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
-                      <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-bold text-white">{subjectPhotoIndex + 1} / {subjectPhotos.length}</span>
-                    </>
-                  )}
-                </div>
-                <div className="p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="min-w-0 truncate text-sm font-black text-[#111827] dark:text-white">{subject.street_address || 'Subject Property'}</p>
-                    {!!subject.list_price && <p className="shrink-0 text-lg font-black text-[#8b7355] dark:text-[#d7b974]">{formatMoney(subject.list_price)}</p>}
-                  </div>
-                  <p className="mt-0.5 truncate text-[10px] font-black uppercase tracking-wide text-gray-400">{[subject.city, subject.state].filter(Boolean).join(', ') || '—'}</p>
-                  {/* Full stat set. The short fixed-format stats (beds ... sewer) are all uniform
-                      single tiles on their own rows - keeps the small icons grouped. Only the two
-                      genuinely long text values, Basement and School District, get the wide row
-                      below (previously $-formatted Taxes / "Public Sewer" tripped the length-based
-                      span and ballooned to double width). */}
-                  <div className="mt-2.5 grid grid-cols-4 gap-1.5">
-                    <CmaFactChip icon={Bed} value={subject.beds || '-'} label="Beds" />
-                    <CmaFactChip icon={Bath} value={subject.baths || '-'} label="Baths" />
-                    <CmaFactChip icon={Ruler} {...sqftChipProps(subject.sqft)} />
-                    <CmaFactChip icon={LandPlot} value={subjectAcres ? subjectAcres.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '-'} label="Acres" />
-                    <CmaFactChip icon={Building2} value={subject.year_built ?? '-'} label="Built" />
-                    <CmaFactChip icon={Calendar} value={subject.days_on_market ?? '-'} label="DOM" />
-                    <CmaFactChip icon={DollarSign} value={subject.annual_taxes ? formatMoney(subject.annual_taxes) : '-'} label="Taxes" />
-                    <CmaFactChip icon={Droplets} value={formatUtilityValue(subject.water_source)} label="Water" />
-                    <CmaFactChip icon={Waves} value={formatUtilityValue(subject.sewer)} label="Sewer" />
-                    {subject.garage && <CmaFactChip icon={Car} value={subject.garage} label="Garage" />}
-                  </div>
-                  {(subject.basement || subject.school_district) && (
-                    <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                      {basementFactValue(subject.basement, subject.below_grade_finished_area, subject.sqft, subject.above_grade_finished_area) && (
-                        <CmaFactChip icon={Layers} value={basementFactValue(subject.basement, subject.below_grade_finished_area, subject.sqft, subject.above_grade_finished_area)!} label="Basement" />
-                      )}
-                      {subject.school_district && <CmaFactChip icon={GraduationCap} value={subject.school_district} label="School District" />}
-                    </div>
-                  )}
-                </div>
+            <div className="hidden lg:block">
+              <div className="relative h-52 w-full bg-gray-100 dark:bg-gray-800">
+                {subjectPhotos.length > 0 ? (
+                  <img key={subjectPhotoIndex} src={normalizeImageUrl(subjectPhotos[subjectPhotoIndex])} alt="" className="cma-comp-photo h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center"><Home className="h-8 w-8 text-gray-300" /></div>
+                )}
+                {subjectPhotos.length > 1 && (
+                  <>
+                    <button type="button" onClick={() => setSubjectPhotoIndex(i => (i - 1 + subjectPhotos.length) % subjectPhotos.length)} className="cma-photo-arrow left-2" aria-label="Previous photo"><ChevronLeft className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => setSubjectPhotoIndex(i => (i + 1) % subjectPhotos.length)} className="cma-photo-arrow right-2" aria-label="Next photo"><ChevronRight className="h-4 w-4" /></button>
+                    <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-bold text-white">{subjectPhotoIndex + 1} / {subjectPhotos.length}</span>
+                  </>
+                )}
+                <span className="absolute left-2 top-2 rounded-full bg-[#111827] px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-white">Subject</span>
               </div>
+              <div className="p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 truncate text-sm font-black text-[#111827] dark:text-white">{subject.street_address || 'Subject Property'}</p>
+                  {!!subject.list_price && <p className="shrink-0 text-lg font-black text-[#8b7355] dark:text-[#d7b974]">{formatMoney(subject.list_price)}</p>}
+                </div>
+                <p className="mt-0.5 truncate text-[10px] font-black uppercase tracking-wide text-gray-400">{[subject.city, subject.state].filter(Boolean).join(', ') || '—'}</p>
+                <div className="mt-2.5 grid grid-cols-4 gap-1.5">
+                  <CmaFactChip icon={Bed} value={subject.beds || '-'} label="Beds" />
+                  <CmaFactChip icon={Bath} value={subject.baths || '-'} label="Baths" />
+                  <CmaFactChip icon={Ruler} {...sqftChipProps(subject.sqft)} />
+                  <CmaFactChip icon={LandPlot} value={subjectAcres ? subjectAcres.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '-'} label="Acres" />
+                  <CmaFactChip icon={Building2} value={subject.year_built ?? '-'} label="Built" />
+                  <CmaFactChip icon={Calendar} value={subject.days_on_market ?? '-'} label="DOM" />
+                  <CmaFactChip icon={DollarSign} value={subject.annual_taxes ? formatMoney(subject.annual_taxes) : '-'} label="Taxes" />
+                  <CmaFactChip icon={Droplets} value={formatUtilityValue(subject.water_source)} label="Water" />
+                  <CmaFactChip icon={Waves} value={formatUtilityValue(subject.sewer)} label="Sewer" className="col-span-2" />
+                  {subject.garage && <CmaFactChip icon={Car} value={subject.garage} label="Garage" className="col-span-2" />}
+                </div>
+                {(subject.basement || subject.school_district) && (
+                  <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                    {basementFactValue(subject.basement, subject.below_grade_finished_area, subject.sqft, subject.above_grade_finished_area) && (
+                      <CmaFactChip icon={Layers} value={basementFactValue(subject.basement, subject.below_grade_finished_area, subject.sqft, subject.above_grade_finished_area)!} label="Basement" />
+                    )}
+                    {subject.school_district && <CmaFactChip icon={GraduationCap} value={subject.school_district} label="School District" />}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
 
-              <div className="grid gap-3">
-                <div>
-                  <FieldLabel>Status</FieldLabel>
-                  <div className="flex flex-wrap gap-1.5">
-                    {COMP_STATUS_OPTIONS.map(opt => (
+          <div className="grid min-w-0 gap-3">
+            <RefineGroup title="What sold" icon={Calendar}>
+              <div>
+                <FieldLabel>Status</FieldLabel>
+                <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
+                  {COMP_STATUS_OPTIONS.map(opt => {
+                    const on = statuses.includes(opt.value)
+                    return (
                       <button
                         key={opt.value}
                         type="button"
                         onClick={() => toggleStatus(opt.value)}
-                        className={`rounded-lg px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition ${
-                          statuses.includes(opt.value) ? 'bg-[#C9A24D] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
+                        aria-pressed={on}
+                        className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-[10.5px] font-black uppercase tracking-wide transition-colors active:scale-[0.97] ${
+                          on ? 'bg-[#C9A24D] text-white shadow-[0_8px_18px_-10px_rgba(201,162,77,0.9)]' : 'bg-white text-gray-500 ring-1 ring-gray-200 hover:ring-[#C9A24D] dark:bg-[#0B0B0B] dark:text-gray-400 dark:ring-gray-700'
                         }`}
                       >
-                        {opt.label}
+                        {on && <Check className="cma-check-pop h-3 w-3" strokeWidth={3} />}{opt.label}
                       </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <TextField label="Min Price" type="text" value={minPrice ? Number(minPrice).toLocaleString() : ''} onChange={v => setMinPrice(v.replace(/\D/g, ''))} placeholder="0" />
-                  <TextField label="Max Price" type="text" value={maxPrice ? Number(maxPrice).toLocaleString() : ''} onChange={v => setMaxPrice(v.replace(/\D/g, ''))} placeholder="No Max" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <FieldLabel>Min Beds</FieldLabel>
-                    <select value={minBeds} onChange={e => setMinBeds(Number(e.target.value))} className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
-                      {[0, 1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n === 0 ? 'Any' : `${n}+`}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <FieldLabel>Min Baths</FieldLabel>
-                    <select value={minBaths} onChange={e => setMinBaths(Number(e.target.value))} className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
-                      {[0, 1, 1.5, 2, 2.5, 3, 4].map(n => <option key={n} value={n}>{n === 0 ? 'Any' : `${n}+`}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <TextField label="Min Sq Ft" type="number" value={minSqft} onChange={setMinSqft} placeholder="Any" />
-                  <TextField label="Max Sq Ft" type="number" value={maxSqft} onChange={setMaxSqft} placeholder="Any" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <FieldLabel>Min Acres</FieldLabel>
-                    <select value={minAcres} onChange={e => setMinAcres(Number(e.target.value))} className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
-                      {[0, 0.1, 0.25, 0.5, 0.75, 1].map(n => <option key={n} value={n}>{n === 0 ? 'Any' : `${n}+`}</option>)}
-                    </select>
-                  </div>
-                  <TextField label="Max Acres" type="number" value={maxAcres} onChange={setMaxAcres} placeholder="Any" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <TextField label="Min Year Built" type="number" value={minYearBuilt} onChange={setMinYearBuilt} placeholder="Any" />
-                  <TextField label="Max Year Built" type="number" value={maxYearBuilt} onChange={setMaxYearBuilt} placeholder="Any" />
-                </div>
-
-                <div>
-                  <FieldLabel>Radius</FieldLabel>
-                  <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-[#151517]">
-                    <input type="range" min="1" max="25" step="1" value={radius} onChange={e => { autoRadiusRef.current = false; setRadius(Number(e.target.value)) }} className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-[#C9A24D] dark:bg-gray-700" />
-                    <div className="min-w-[70px] text-right"><span className="text-base font-black text-gray-900 dark:text-white">{radius}</span><span className="ml-1 text-[9px] font-bold uppercase text-gray-500">Miles</span></div>
-                  </div>
-                </div>
-
-                {statuses.includes('sold') && (
-                  <div>
-                    <FieldLabel>Sold In The Last</FieldLabel>
-                    <div className="flex items-center gap-2">
-                      <input type="number" value={soldWithinDays} onChange={e => { autoSoldDaysRef.current = false; setSoldWithinDays(e.target.value) }} placeholder="Any time" className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white" />
-                      <span className="shrink-0 text-[10px] font-bold uppercase text-gray-500">Days</span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <FieldLabel>School District</FieldLabel>
-                    <MultiSelectDatabaseInput values={schoolDistrictSel} onChange={setSchoolDistrictSel} apiMethod={api.properties.searchSchoolDistricts} placeholder="Any" maxItems={1} />
-                  </div>
-                  <div>
-                    <FieldLabel>City</FieldLabel>
-                    <MultiSelectDatabaseInput values={citySel} onChange={setCitySel} apiMethod={api.properties.cities} placeholder="Any" maxItems={1} />
-                  </div>
+                    )
+                  })}
                 </div>
               </div>
-            </div>
+              {statuses.includes('sold') && (
+                <div>
+                  <FieldLabel>Sold in the last</FieldLabel>
+                  <div className="flex items-center gap-2">
+                    <input type="number" value={soldWithinDays} onChange={e => { autoSoldDaysRef.current = false; setSoldWithinDays(e.target.value) }} placeholder="Any time" className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white" />
+                    <span className="shrink-0 text-[10px] font-bold uppercase text-gray-500">Days</span>
+                  </div>
+                  <div className="mt-2">
+                    <QuickChips options={['90', '180', '365', '730']} value={soldWithinDays} onPick={v => { autoSoldDaysRef.current = false; setSoldWithinDays(v) }} suffix=" days" />
+                  </div>
+                </div>
+              )}
+            </RefineGroup>
 
-            <div className="flex justify-end border-t border-gray-100 px-5 py-4 dark:border-gray-800">
-              <button onClick={() => setRefineOpen(false)} className="cma-btn inline-flex items-center gap-2 rounded-xl bg-[#111827] px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
-                Done
-              </button>
-            </div>
+            <RefineGroup title="Where" icon={MapPin}>
+              <div>
+                <FieldLabel>Radius</FieldLabel>
+                <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2.5 dark:border-gray-700 dark:bg-[#151517]">
+                  <input type="range" min="1" max="25" step="1" value={radius} onChange={e => { autoRadiusRef.current = false; setRadius(Number(e.target.value)) }} className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-[#C9A24D] dark:bg-gray-700" />
+                  <motion.div key={radius} initial={{ scale: 0.8, opacity: 0.4 }} animate={{ scale: 1, opacity: 1 }} className="min-w-[64px] text-right"><span className="text-base font-black text-gray-900 dark:text-white">{radius}</span><span className="ml-1 text-[9px] font-bold uppercase text-gray-500">mi</span></motion.div>
+                </div>
+                <div className="mt-2">
+                  <QuickChips options={[1, 2, 3, 5, 10]} value={radius} onPick={v => { autoRadiusRef.current = false; setRadius(v) }} suffix=" mi" />
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <FieldLabel>School District</FieldLabel>
+                  <MultiSelectDatabaseInput values={schoolDistrictSel} onChange={setSchoolDistrictSel} apiMethod={api.properties.searchSchoolDistricts} placeholder="Any" maxItems={1} />
+                </div>
+                <div>
+                  <FieldLabel>City</FieldLabel>
+                  <MultiSelectDatabaseInput values={citySel} onChange={setCitySel} apiMethod={api.properties.cities} placeholder="Any" maxItems={1} />
+                </div>
+              </div>
+            </RefineGroup>
+
+            <RefineGroup title="The home" icon={Home}>
+              <div className="grid grid-cols-2 gap-3">
+                <TextField label="Min Price" type="text" value={minPrice ? Number(minPrice).toLocaleString() : ''} onChange={v => setMinPrice(v.replace(/\D/g, ''))} placeholder="0" />
+                <TextField label="Max Price" type="text" value={maxPrice ? Number(maxPrice).toLocaleString() : ''} onChange={v => setMaxPrice(v.replace(/\D/g, ''))} placeholder="No max" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <FieldLabel>Min Beds</FieldLabel>
+                  <select value={minBeds} onChange={e => setMinBeds(Number(e.target.value))} className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
+                    {[0, 1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n === 0 ? 'Any' : `${n}+`}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <FieldLabel>Min Baths</FieldLabel>
+                  <select value={minBaths} onChange={e => setMinBaths(Number(e.target.value))} className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
+                    {[0, 1, 1.5, 2, 2.5, 3, 4].map(n => <option key={n} value={n}>{n === 0 ? 'Any' : `${n}+`}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <TextField label="Min Sq Ft" type="number" value={minSqft} onChange={setMinSqft} placeholder="Any" />
+                <TextField label="Max Sq Ft" type="number" value={maxSqft} onChange={setMaxSqft} placeholder="Any" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <FieldLabel>Min Acres</FieldLabel>
+                  <select value={minAcres} onChange={e => setMinAcres(Number(e.target.value))} className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
+                    {[0, 0.1, 0.25, 0.5, 0.75, 1].map(n => <option key={n} value={n}>{n === 0 ? 'Any' : `${n}+`}</option>)}
+                  </select>
+                </div>
+                <TextField label="Max Acres" type="number" value={maxAcres} onChange={setMaxAcres} placeholder="Any" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <TextField label="Min Year Built" type="number" value={minYearBuilt} onChange={setMinYearBuilt} placeholder="Any" />
+                <TextField label="Max Year Built" type="number" value={maxYearBuilt} onChange={setMaxYearBuilt} placeholder="Any" />
+              </div>
+            </RefineGroup>
           </div>
         </div>
-      )}
+      </CmaSheet>
 
     </div>
   )
@@ -2538,6 +2569,103 @@ function PropertyLocationMap({ lat, lng, label, road }: { lat: number, lng: numb
       {road?.summary && (
         <p className="mt-1 text-[10px] font-medium text-gray-400">Street read from OpenStreetMap road data — a strong hint, not a noise measurement.</p>
       )}
+    </div>
+  )
+}
+
+// A CMA builder window with the Showcase sheet mechanics (components/ui/windowMotion): on a phone
+// a sheet that slides up, pulls down to close (from anywhere that isn't a text box or a scrolled
+// list) and keeps a pinned footer; on a wide screen a centred window that springs into place. The
+// page behind is pinned while it's open. Used by Refine Your Search.
+function CmaSheet({ open, onClose, title, subtitle, headerRight, footer, children, maxWidth = 'sm:max-w-4xl' }: {
+  open: boolean, onClose: () => void, title: string, subtitle?: React.ReactNode, headerRight?: React.ReactNode,
+  footer?: React.ReactNode, children: React.ReactNode, maxWidth?: string,
+}) {
+  const phone = useIsPhone()
+  const reduce = useReducedMotion()
+  const sheetMotion = useSheetMotion()
+  const { sheetRef, y } = useSwipeToClose(onClose, phone && open)
+  const releasePagePin = usePagePin(open)
+  useEscapeToClose(onClose, open)
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <AnimatePresence onExitComplete={releasePagePin}>
+      {open && (
+        <motion.div key="cma-sheet" data-scroll-lock="off" className="cma-touch fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-6" onClick={onClose}>
+          <motion.div
+            aria-hidden
+            className="absolute inset-0 bg-[#0B0B0B]/75"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: { duration: 0.2, ease: 'easeOut' } }}
+            exit={{ opacity: 0, transition: { duration: 0.22 } }}
+          />
+          <motion.div
+            ref={sheetRef}
+            {...sheetMotion}
+            style={{ y: phone && !reduce ? y : undefined }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            onClick={e => e.stopPropagation()}
+            className={`relative flex max-h-[calc(100%-2.5rem)] w-full flex-col overflow-hidden rounded-t-[26px] bg-white shadow-2xl dark:bg-[#151517] sm:max-h-[88vh] sm:rounded-[28px] ${maxWidth}`}
+          >
+            <div className="z-10 border-b border-gray-100 bg-white px-4 pb-3 pt-1.5 dark:border-gray-800 dark:bg-[#151517] sm:px-6 sm:py-4">
+              <div aria-hidden className="mx-auto mb-2 h-[5px] w-10 rounded-full bg-gray-200 dark:bg-gray-700 sm:hidden" />
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="font-serif text-xl font-black tracking-tight text-gray-900 dark:text-white sm:text-2xl">{title}</h2>
+                  {subtitle && <div className="mt-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400">{subtitle}</div>}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  {headerRight}
+                  <motion.button
+                    whileTap={{ scale: 0.88 }}
+                    whileHover={{ rotate: 90 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+                    onClick={onClose}
+                    aria-label="Close"
+                    className="grid h-9 w-9 place-items-center rounded-full bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 hover:text-[#111827] dark:bg-gray-800 dark:text-gray-400 dark:hover:text-white"
+                  >
+                    <X className="h-4 w-4" />
+                  </motion.button>
+                </div>
+              </div>
+            </div>
+            <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">{children}</div>
+            {footer && (
+              <div className="border-t border-gray-100 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 dark:border-gray-800 dark:bg-[#151517] sm:px-6 sm:py-4">{footer}</div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body,
+  )
+}
+
+// A titled group of Refine fields (What sold / Where / The home).
+function RefineGroup({ title, icon: Icon, children }: { title: string, icon: React.ComponentType<{ className?: string }>, children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl border border-gray-100 bg-[#fbfaf7] p-3.5 dark:border-gray-800 dark:bg-white/[0.02] sm:p-4">
+      <p className="mb-3 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974]"><Icon className="h-3.5 w-3.5" /> {title}</p>
+      <div className="grid gap-3">{children}</div>
+    </section>
+  )
+}
+
+// Small one-tap value chips under a Refine field (radius / sold window).
+function QuickChips<T extends string | number>({ options, value, onPick, suffix }: { options: T[], value: T | string, onPick: (v: T) => void, suffix: string }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map(o => {
+        const on = String(o) === String(value)
+        return (
+          <button key={String(o)} type="button" onClick={() => onPick(o)}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-black transition-colors active:scale-95 ${on ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:ring-[#C9A24D] dark:bg-[#0B0B0B] dark:text-gray-300 dark:ring-gray-700'}`}>
+            {o}{suffix}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -3433,39 +3561,46 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
           </div>
         </div>
       ) : (
-        <div className="relative overflow-hidden rounded-2xl border-2 border-[#C9A24D]/50 bg-gradient-to-br from-[#C9A24D]/15 via-[#C9A24D]/5 to-transparent p-5 shadow-[0_0_40px_-12px_rgba(201,162,77,0.5)] dark:border-[#C9A24D]/40">
+        <div className="relative overflow-hidden rounded-2xl border-2 border-[#C9A24D]/50 bg-gradient-to-br from-[#C9A24D]/15 via-[#C9A24D]/5 to-transparent p-4 shadow-[0_0_40px_-12px_rgba(201,162,77,0.5)] dark:border-[#C9A24D]/40 sm:p-6">
           <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-[#C9A24D]/20 blur-3xl" />
-          {/* The screenshot layout, locked in for BOTH states (idle "Generate AI Analysis" and the
-              wider "Analyzing…"): heading left, AI-usage meter, button right, spread by
-              justify-between. sm:flex-nowrap + the heading block's min-w-0 / clamped description
-              keep it on ONE row - if space gets tight the description ellipsizes instead of the
-              meter + button wrapping to a second line. */}
-          {/* Phones (user, 10/17): title + what it does, then the usage meter, then one full-width
-              button with what this run will use under it. Wide screens: one row, like before. */}
-          {/* Phones (user, 10/20): "OpenHousePal AI" and the usage meter are two equal pills on ONE row,
-              then the button - a thinner top section. Wide screens: one row, like before. */}
-          <div className="relative grid grid-cols-2 items-stretch gap-2 sm:flex sm:flex-nowrap sm:items-center sm:justify-between sm:gap-x-4">
-            <div className="flex min-w-0 items-center gap-2 rounded-xl border border-[#C9A24D]/30 bg-white/70 px-3 py-1.5 dark:bg-black/20 sm:gap-3 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:dark:bg-transparent">
-              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[#C9A24D] shadow-md shadow-[#C9A24D]/40 sm:h-11 sm:w-11 sm:rounded-2xl sm:shadow-lg">
-                <Sparkles className="h-3 w-3 text-white sm:h-5 sm:w-5" />
+          {/* faint gold grid behind the desktop card */}
+          <div aria-hidden className="pointer-events-none absolute inset-0 hidden opacity-[0.35] [background-image:linear-gradient(rgba(201,162,77,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(201,162,77,0.12)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:linear-gradient(90deg,transparent,black_40%,black)] sm:block" />
+          {/* Phones (user, 10/20): "OpenHousePal AI" and the usage meter are two equal pills on ONE
+              row, then the button - a thinner top section. Wide screens (user, 10/20: "much nicer on
+              desktop too"): what the AI does on the left - a glowing mark, the title, the line, and
+              three "it will…" chips - and a control column on the right: usage, the button, and
+              what this run will use. Same elements, placed by the grid. */}
+          <div className="relative grid grid-cols-2 items-stretch gap-2 sm:grid-cols-[minmax(0,1fr)_18rem] sm:items-center sm:gap-x-8 sm:gap-y-2.5">
+            <div className="flex min-w-0 items-center gap-2 rounded-xl border border-[#C9A24D]/30 bg-white/70 px-3 py-1.5 dark:bg-black/20 sm:row-span-2 sm:gap-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:dark:bg-transparent">
+              <div className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[#C9A24D] shadow-md shadow-[#C9A24D]/40 sm:h-16 sm:w-16 sm:rounded-[20px] sm:bg-gradient-to-br sm:from-[#b8923f] sm:via-[#C9A24D] sm:to-[#f0cf7f] sm:shadow-[0_18px_36px_-14px_rgba(201,162,77,0.9)]">
+                <span aria-hidden className="absolute inset-0 hidden rounded-[20px] ring-1 ring-white/40 sm:block" />
+                <span aria-hidden className="absolute -inset-2 hidden animate-[spin_9s_linear_infinite] rounded-full border border-dashed border-[#C9A24D]/40 sm:block" />
+                <Sparkles className="h-3 w-3 text-white sm:h-7 sm:w-7" />
               </div>
               <div className="min-w-0">
-                <p className="truncate text-[11px] font-black text-[#111827] dark:text-white sm:text-sm">OpenHousePal AI</p>
-                <p className="hidden text-xs font-semibold leading-snug text-gray-500 dark:text-gray-400 sm:block">Reads every comp's photos and data, rates strength/quality, and proposes a value estimate.</p>
+                <p className="truncate text-[11px] font-black text-[#111827] dark:text-white sm:font-serif sm:text-2xl">OpenHousePal AI</p>
+                <p className="hidden text-[13px] font-semibold leading-snug text-gray-500 dark:text-gray-400 sm:block">Reads every comp's photos and data, rates strength and quality, and proposes a value estimate.</p>
+                <div className="mt-2.5 hidden flex-wrap gap-1.5 sm:flex">
+                  {[{ icon: ImageIcon, t: 'Reads every photo' }, { icon: Scale, t: 'Rates each comp' }, { icon: DollarSign, t: 'Proposes a value' }].map(({ icon: Icon, t }) => (
+                    <span key={t} className="inline-flex items-center gap-1.5 rounded-full border border-[#C9A24D]/30 bg-white/80 px-2.5 py-1 text-[11px] font-black text-[#8b7355] dark:bg-black/30 dark:text-[#d7b974]">
+                      <Icon className="h-3.5 w-3.5" /> {t}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
-            <MonthlyAiUsageMeter variant="inline" compact stretch className="min-w-0 sm:w-auto sm:min-w-[230px] sm:shrink-0" refreshKey={generating ? 'gen' : 'idle'} />
-            <div className="col-span-2 flex shrink-0 flex-col items-stretch gap-1 sm:items-end">
+            <MonthlyAiUsageMeter variant="inline" compact stretch className="min-w-0 sm:col-start-2 sm:w-full sm:bg-white/80 sm:py-2 sm:dark:bg-black/30" refreshKey={generating ? 'gen' : 'idle'} />
+            <div className="col-span-2 flex shrink-0 flex-col items-stretch gap-1 sm:col-span-1 sm:col-start-2">
               <button
                 onClick={handleGenerate}
                 disabled={generating}
-                className={`cma-btn cma-btn-gold ${generating ? 'cma-btn-working' : ''} inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e0b85f] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#C9A24D]/40 transition hover:shadow-xl hover:shadow-[#C9A24D]/50 disabled:cursor-progress sm:w-auto`}
+                className={`cma-btn cma-btn-gold ${generating ? 'cma-btn-working' : ''} inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e0b85f] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#C9A24D]/40 transition hover:shadow-xl hover:shadow-[#C9A24D]/50 disabled:cursor-progress sm:py-3.5 sm:text-[15px]`}
               >
                 {generating ? <Sparkles className="h-4 w-4 animate-[spin_2.4s_linear_infinite]" /> : <Sparkles className="h-4 w-4" />}
                 {generating ? 'Analyzing…' : genError ? 'Try again' : 'Create AI Analysis'}
               </button>
               {!generating && aiEstimate?.percent != null && (
-                <span className="text-center text-[10.5px] font-bold text-[#8b7355] dark:text-[#d7b974] sm:text-right">
+                <span className="text-center text-[10.5px] font-bold text-[#8b7355] dark:text-[#d7b974]">
                   Uses about {aiEstimate.percent < 1 ? '<1' : Math.round(aiEstimate.percent)}% of your monthly AI{aiEstimate.max_percent != null && aiEstimate.max_percent > (aiEstimate.percent || 0) + 0.5 ? ` (never over ${Math.round(aiEstimate.max_percent)}%)` : ''}
                 </span>
               )}

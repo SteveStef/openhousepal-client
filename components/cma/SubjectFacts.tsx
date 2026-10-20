@@ -130,6 +130,15 @@ function withBaths(s: CmaSubjectProperty, full: number | null, half: number | nu
 const stripMunicipalSuffix = (name: string | null | undefined) =>
   (name || '').replace(/\s+(township|borough|city|town|village)$/i, '').trim() || null
 
+// Column span for the LAST field of a 2 / 3 / 4-column grid (phone / tablet / desktop) so it
+// stretches to finish its row instead of leaving empty cells. `count` = fields in the grid.
+function fillRowSpan(count: number): string {
+  const phone = count % 2 === 1 ? 'col-span-2' : 'col-span-1'
+  const tablet = ({ 0: 'sm:col-span-1', 1: 'sm:col-span-3', 2: 'sm:col-span-2' } as Record<number, string>)[count % 3]
+  const desktop = ({ 0: 'lg:col-span-1', 1: 'lg:col-span-4', 2: 'lg:col-span-3', 3: 'lg:col-span-2' } as Record<number, string>)[count % 4]
+  return `${phone} ${tablet} ${desktop}`
+}
+
 // Facts the valuation leans on - shown as a short "still missing" list so a manual subject
 // isn't sent to the engine half-filled.
 export function missingKeyFacts(s: CmaSubjectProperty): string[] {
@@ -289,7 +298,7 @@ function SelectField({ label, value, options, onChange, placeholder = 'Not sure'
   const all = value && !options.some(o => o.value === value) ? [{ value, label: value }, ...options] : options
   return (
     <Labeled label={label} hint={hint}>
-      <select value={value} onChange={e => onChange(e.target.value)} className={`${inputClass} pr-8`}>
+      <select value={value} onChange={e => onChange(e.target.value)} className={`${inputClass} !pl-2.5 pr-7`}>
         <option value="">{placeholder}</option>
         {all.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
@@ -557,34 +566,47 @@ export function SubjectFactsEditor({ reportId, subject, setSubject, area }: {
             <NumberField label="Full Baths" value={full} onChange={v => setSubject(s => withBaths(s, v, bathParts(s).half ?? (v != null ? 0 : null)))} decimals />
             <NumberField label="Half Baths" value={half} onChange={v => setSubject(s => withBaths(s, bathParts(s).full ?? (v != null ? 0 : null), v))} decimals />
             <NumberField label="Above-Grade Sq Ft" icon={Ruler} value={above} onChange={setAbove} hint="Finished space above ground." />
-            <SelectField label="Basement" value={bsmtKind} options={BASEMENT} onChange={v => setBasement(v, walkout)} />
+            {/* The walkout box sits inside the Basement cell (it used to take a grid cell of its own
+                and leave holes in the grid). */}
+            <div>
+              <SelectField label="Basement" value={bsmtKind} options={BASEMENT} onChange={v => setBasement(v, walkout)} />
+              {bsmtKind && bsmtKind !== 'None' && (
+                <label className="mt-1.5 flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300">
+                  <input type="checkbox" checked={walkout} onChange={e => setBasement(bsmtKind, e.target.checked)} className="h-4 w-4 accent-[#C9A24D]" /> Walkout
+                </label>
+              )}
+            </div>
             {bsmtFinished && (
               <NumberField label="Finished Lower-Level Sq Ft" icon={Ruler} value={below} onChange={setBelow} hint="Needed to value the lower level." />
             )}
-            {bsmtKind && bsmtKind !== 'None' && (
-              <label className="flex items-center gap-2 self-end pb-2 text-xs font-bold text-gray-600 dark:text-gray-300">
-                <input type="checkbox" checked={walkout} onChange={e => setBasement(bsmtKind, e.target.checked)} className="h-4 w-4 accent-[#C9A24D]" /> Walkout basement
-              </label>
-            )}
             <NumberField label="Lot (Acres)" value={subject.lot_size ? Number((subject.lot_size / 43560).toFixed(3)) : null}
               onChange={v => set({ lot_size: v ? Math.round(v * 43560) : null })} decimals placeholder="0.25" />
-            <SelectField label="Garage" value={garageSpaces(subject) != null ? String(Math.min(4, garageSpaces(subject) as number)) : ''} options={GARAGE}
-              onChange={v => set(v === '' ? { garage_spaces: null, garage: null } : { garage_spaces: Number(v), garage: Number(v) === 0 ? 'None' : `${v} Car` })} />
+            {/* the last field stretches to finish its row at every width - no empty cells (10/20) */}
+            <div className={fillRowSpan(bsmtFinished ? 12 : 11)}>
+              <SelectField label="Garage" value={garageSpaces(subject) != null ? String(Math.min(4, garageSpaces(subject) as number)) : ''} options={GARAGE}
+                onChange={v => set(v === '' ? { garage_spaces: null, garage: null } : { garage_spaces: Number(v), garage: Number(v) === 0 ? 'None' : `${v} Car` })} />
+            </div>
           </div>
           {subject.sqft ? <p className="mt-1.5 text-[11px] font-semibold text-gray-400">Total finished: {Number(subject.sqft).toLocaleString()} sq ft</p> : null}
         </div>
 
         <div>
           <p className={sectionLabelClass}>Systems & Costs</p>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-flow-row-dense grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+            {/* Sewer gets two columns (its values are long - "On Site Septic"); the order + spans
+                fill every row at 2, 3 and 4 columns with no empty cells (user, 10/20). */}
             <SelectField label="Water" value={listText(subject.water_source)} options={WATER} onChange={v => set({ water_source: v || null })} />
-            <SelectField label="Sewer" value={listText(subject.sewer)} options={SEWER} onChange={v => set({ sewer: v || null })} />
+            <NumberField label="Annual Taxes" icon={DollarSign} value={subject.annual_taxes} onChange={v => set({ annual_taxes: v })} />
+            <div className="col-span-2">
+              <SelectField label="Sewer" value={listText(subject.sewer)} options={SEWER} onChange={v => set({ sewer: v || null })} />
+            </div>
             <SelectField label="Heating" value={heat.system} options={HEAT_SYSTEMS.map(v => ({ value: v, label: v }))}
               onChange={v => set({ heating: [v, heat.fuel].filter(Boolean).join(', ') || null })} />
             <SelectField label="Heating Fuel" value={heat.fuel} options={HEAT_FUELS.map(v => ({ value: v, label: v }))}
               onChange={v => set({ heating: [heat.system, v].filter(Boolean).join(', ') || null })} />
-            <SelectField label="Cooling" value={subject.cooling || ''} options={COOLING.map(v => ({ value: v, label: v === 'Ductless/Mini-Split' ? 'Ductless / mini-split' : v }))} onChange={v => set({ cooling: v || null })} />
-            <NumberField label="Annual Taxes" icon={DollarSign} value={subject.annual_taxes} onChange={v => set({ annual_taxes: v })} />
+            <div className="col-span-2 sm:col-span-3 lg:col-span-2">
+              <SelectField label="Cooling" value={subject.cooling || ''} options={COOLING.map(v => ({ value: v, label: v === 'Ductless/Mini-Split' ? 'Ductless / mini-split' : v }))} onChange={v => set({ cooling: v || null })} />
+            </div>
           </div>
         </div>
 

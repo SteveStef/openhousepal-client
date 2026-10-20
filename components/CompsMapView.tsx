@@ -21,6 +21,9 @@ interface CompsMapViewProps {
   onOpenDetails: (candidate: CmaCompCandidate) => void
   matchScoreFor: (candidate: CmaCompCandidate) => number
   heightClassName?: string
+  /** The listing keys on the results page being shown - when it changes, those homes bounce on the
+   *  map so the agent sees where the new page of cards sits (CMA comp step, 10/20). */
+  pulseKeys?: string[]
 }
 
 const MILES_TO_METERS = 1609.34
@@ -90,12 +93,18 @@ function priceTagIcon(label: string, color: string, added: boolean): google.maps
   }
 }
 
-export default function CompsMapView({ subject, candidates, addedKeys, radiusMiles, onRadiusChange, onToggleAdd, onOpenDetails, matchScoreFor, heightClassName = 'h-[560px]' }: CompsMapViewProps) {
+export default function CompsMapView({ subject, candidates, addedKeys, radiusMiles, onRadiusChange, onToggleAdd, onOpenDetails, matchScoreFor, heightClassName = 'h-[560px]', pulseKeys }: CompsMapViewProps) {
   const mapDivRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const circleRef = useRef<google.maps.Circle | null>(null)
   const subjectMarkerRef = useRef<google.maps.Marker | null>(null)
   const candidateMarkersRef = useRef<google.maps.Marker[]>([])
+  // listing key -> its marker, for the page-change bounce
+  const markerByKeyRef = useRef<Map<string, google.maps.Marker>>(new Map())
+  // the result set the markers were last dropped in for (a new set drops in; an added/removed
+  // toggle on the same set just redraws in place)
+  const droppedForRef = useRef("")
+  const dropTimersRef = useRef<number[]>([])
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null)
   const radiusMilesRef = useRef(radiusMiles)
   const onRadiusChangeRef = useRef(onRadiusChange)
@@ -187,14 +196,23 @@ export default function CompsMapView({ subject, candidates, addedKeys, radiusMil
     if (!map || !loaded) return
 
     candidateMarkersRef.current.forEach(m => m.setMap(null))
+    dropTimersRef.current.forEach(t => window.clearTimeout(t))
+    dropTimersRef.current = []
+    markerByKeyRef.current = new Map()
+    // A NEW result set drops its price tags in one after another; toggling a comp on the same set
+    // just redraws in place (no re-drop). Reduced motion: everything appears at once.
+    const setKey = candidates.map(c => c.listing_key).join('|')
+    const reduce = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const dropIn = setKey !== droppedForRef.current && !reduce
+    droppedForRef.current = setKey
     candidateMarkersRef.current = candidates
       .filter(c => c.latitude != null && c.longitude != null)
-      .map(candidate => {
+      .map((candidate, i) => {
         const added = addedKeys.has(candidate.listing_key)
         const price = candidate.sale_price ?? candidate.list_price
         const statusColor = COMP_STATUS_HEX[candidate.status] || DEFAULT_STATUS_COLOR
         const marker = new google.maps.Marker({
-          map,
+          map: dropIn ? null : map,
           position: { lat: candidate.latitude as number, lng: candidate.longitude as number },
           icon: priceTagIcon(price ? formatMoney(price, { compact: true }) : '—', statusColor, added),
           title: candidate.street_address || 'Comparable',
@@ -264,10 +282,33 @@ export default function CompsMapView({ subject, candidates, addedKeys, radiusMil
           iw.setContent(container)
           iw.open({ map, anchor: marker })
         })
+        markerByKeyRef.current.set(candidate.listing_key, marker)
+        if (dropIn) {
+          dropTimersRef.current.push(window.setTimeout(() => {
+            marker.setAnimation(google.maps.Animation.DROP)
+            marker.setMap(map)
+          }, 150 + Math.min(i, 40) * 22))
+        }
         return marker
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candidates, addedKeys, loaded])
+  useEffect(() => () => { dropTimersRef.current.forEach(t => window.clearTimeout(t)) }, [])
+
+  // A new page of result cards: those homes bounce twice on the map, so the agent can see where
+  // the cards they're now looking at sit. The first page on load is covered by the drop-in.
+  const pulseKey = (pulseKeys || []).join('|')
+  const lastPulseRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!loaded || !pulseKey) return
+    const first = lastPulseRef.current === null
+    lastPulseRef.current = pulseKey
+    if (first || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const markers = pulseKey.split('|').map(k => markerByKeyRef.current.get(k)).filter(Boolean) as google.maps.Marker[]
+    markers.forEach(m => m.setAnimation(google.maps.Animation.BOUNCE))
+    const t = window.setTimeout(() => markers.forEach(m => m.setAnimation(null)), 1400)
+    return () => { window.clearTimeout(t); markers.forEach(m => m.setAnimation(null)) }
+  }, [pulseKey, loaded])
 
   if (!hasSubjectLocation) {
     return (
@@ -289,7 +330,7 @@ export default function CompsMapView({ subject, candidates, addedKeys, radiusMil
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800">
+    <div className="cma-map-in relative overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800">
       {!loaded && (
         <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-white/70 text-sm font-bold text-gray-400 dark:bg-[#151517]/70">
           <Loader2 className="h-5 w-5 animate-spin text-[#C9A24D]" /> Loading map...
