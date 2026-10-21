@@ -2156,8 +2156,10 @@ function CmaOfferFact({ label, value }: { label: string; value: string | number 
   );
 }
 
+const pdfParas = (text: string) => (text || '').split(/\n+/).map(p => p.trim()).filter(Boolean);
+
 function PdfParagraphs({ text, style, spacing = 7 }: { text: string; style: Style; spacing?: number }) {
-  const paragraphs = text.split(/\n+/).map(p => p.trim()).filter(Boolean);
+  const paragraphs = pdfParas(text);
   if (paragraphs.length === 0) return null;
   return (
     <>
@@ -2175,14 +2177,18 @@ function CmaGuidanceSections({ sections }: { sections: CmaGuidanceSection[] }) {
     <View>
       {sections.map((section, index) => (
         <View key={`${section.title}-${index}`} style={{ marginBottom: index === sections.length - 1 ? 0 : 11 }}>
-          {section.title ? (
-            // minPresenceAhead: a heading never sits alone at the bottom of a page with its text on
-            // the next ("EV CHARGING INSTALLATION", 417 Dogwood Ln v7, 10/20).
-            <Text minPresenceAhead={40} style={{ fontSize: 8.2, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.9, color: '#8b7355', marginBottom: 4 }}>
-              {section.title}
-            </Text>
-          ) : null}
-          <PdfParagraphs text={section.body} style={{ fontSize: 10, lineHeight: 1.55, color: COLORS.text }} />
+          {/* A heading and its first paragraph never split across pages - minPresenceAhead alone
+              still left "LOT AND DRAINAGE" at the bottom of a page with its text on the next
+              (417 Dogwood Ln v10, 10/21). Later paragraphs flow normally. */}
+          <View wrap={false}>
+            {section.title ? (
+              <Text style={{ fontSize: 8.2, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.9, color: '#8b7355', marginBottom: 4 }}>
+                {section.title}
+              </Text>
+            ) : null}
+            <PdfParagraphs text={pdfParas(section.body)[0] || ''} style={{ fontSize: 10, lineHeight: 1.55, color: COLORS.text }} />
+          </View>
+          <PdfParagraphs text={pdfParas(section.body).slice(1).join('\n')} style={{ fontSize: 10, lineHeight: 1.55, color: COLORS.text, marginTop: 7 }} />
         </View>
       ))}
     </View>
