@@ -9,7 +9,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { smartBackClick } from '@/lib/navHistory'
 import {
-  AlertTriangle, ArrowLeft, ArrowUpDown, Bath, Bed, Building2, Calculator, Calendar, Car, Check, ChevronLeft,
+  AlertTriangle, ArrowLeft, ArrowUpDown, Bath, Bed, Building2, Calculator, Calendar, Car, Check, ChevronLeft, Clock,
   ChevronRight, ChevronsLeft, ChevronsRight, DollarSign, Download, Droplets, ExternalLink, GraduationCap, GripVertical, Home, LandPlot, Layers,
   Image as ImageIcon, Loader2, MapPin, Moon, Plus, RefreshCw, Ruler, Scale, Search, Share2, ShieldAlert, Sparkles, Sun, Trash2, Waves, X,
 } from 'lucide-react'
@@ -990,17 +990,18 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
                   whileTap={{ scale: 0.98 }}
                   disabled={!!pickingKey}
                   onClick={async () => { setPickingKey(listing.listing_key); try { await selectMyListing(listing) } finally { setPickingKey(null) } }}
-                  className={`relative flex w-full items-center gap-3 overflow-hidden rounded-xl border p-2.5 text-left transition-colors hover:border-[#C9A24D]/50 hover:bg-[#C9A24D]/[0.04] dark:border-gray-800 ${pickingKey === listing.listing_key ? 'border-[#C9A24D] bg-[#C9A24D]/[0.06]' : 'border-gray-100'}`}
+                  className={`relative flex w-full items-center gap-3 overflow-hidden rounded-xl border p-2.5 text-left transition-[border-color,background-color,box-shadow] duration-200 hover:border-[#C9A24D]/50 hover:bg-[#C9A24D]/[0.04] dark:border-gray-800 ${pickingKey === listing.listing_key ? 'border-[#C9A24D] bg-[#C9A24D]/[0.07] shadow-[0_0_0_3px_rgba(201,162,77,0.18)] dark:border-[#C9A24D]' : 'border-gray-100'}`}
                 >
                   {listing.image ? <img src={normalizeImageUrl(listing.image || undefined)} alt="" className="h-12 w-14 shrink-0 rounded-lg object-cover" /> : <div className="flex h-12 w-14 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800"><Home className="h-4 w-4 text-gray-300" /></div>}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-[#111827] dark:text-white">{listing.address}</p>
                     <p className="text-xs font-semibold text-gray-400">{listing.price ? formatMoney(listing.price) : ''} {listing.bedrooms ? `· ${listing.bedrooms} bd` : ''} {listing.bathrooms ? `· ${listing.bathrooms} ba` : ''}</p>
                   </div>
+                  {/* picked: the row lights up gold and a check pops in right away - it reads as
+                      "selected" even when the listing loads too fast for any progress effect */}
                   {pickingKey === listing.listing_key
-                    ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#C9A24D]" />
+                    ? <span className="cma-check-pop flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#C9A24D] text-white shadow"><Check className="h-3 w-3" strokeWidth={3} /></span>
                     : <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />}
-                  {pickingKey === listing.listing_key && <span className="ohp-comp-scan-line" />}
                 </motion.button>
               ))}
             </div>
@@ -3219,19 +3220,21 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
   // are safe to copy straight over - the server only ever fills those in where the agent hadn't
   // already picked something, so this can't clobber a manual choice.
   // Real progress isn't available (one background run, polled), so this paces a staged timeline to
-  // what a report actually takes - about 4 minutes end to end (user, 10/20) - with the final
-  // valuation (the longest part) given most of it. It never reaches 100% on its own: it eases
-  // toward 97% until the real result lands. `startedAtMs` comes from the server when a run is
-  // resumed after leaving the page, so the bar picks up where it really is.
+  // what a report actually takes - a new home runs about 2.5-3 minutes end to end, a re-run of the
+  // same home closer to 2 because its photo review is reused (live runs 10/21; it was ~4 before the
+  // speed-ups) - with the final valuation (the longest part) given most of it. It never reaches
+  // 100% on its own: it eases toward 97% until the real result lands. `startedAtMs` comes from the
+  // server when a run is resumed after leaving the page, so the bar picks up where it really is.
   const startProgressSimulation = (startedAtMs: number) => {
     const includedNow = comparables.filter(c => c.is_included)
     const stagedCompCount = Math.min(includedNow.length, MAX_COMPS)
-    const subjectMs = 12_000
-    const perCompMs = stagedCompCount > 0 ? Math.round(50_000 / stagedCompCount) : 0
+    const subjectMs = 8_000
+    const perCompMs = stagedCompCount > 0 ? Math.round(36_000 / stagedCompCount) : 0
     const compReviewEnd = subjectMs + stagedCompCount * perCompMs
-    const marketReviewEnd = compReviewEnd + 20_000
-    const benchmarkEnd = marketReviewEnd + 15_000
-    const reasoningEnd = benchmarkEnd + 120_000
+    const marketReviewEnd = compReviewEnd + 12_000
+    const benchmarkEnd = marketReviewEnd + 10_000
+    const reasoningMs = 80_000
+    const reasoningEnd = benchmarkEnd + reasoningMs
     let lastActiveCompIndex = -1
     // Phones (user, 10/20): no flipping the whole side-by-side view to each comp as the AI reaches
     // it - on a phone that redraws the page under the agent's thumb. Only the scan on the one comp
@@ -3263,17 +3266,17 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
           if (comp) setActiveId(comp.id)
         }
       } else if (elapsedMs < marketReviewEnd) {
-        pct = 35 + ((elapsedMs - compReviewEnd) / 20_000) * 10
+        pct = 35 + ((elapsedMs - compReviewEnd) / 12_000) * 10
         stage = 2
         label = 'Comparing size, condition and market evidence'
         nextScanStage = stagedCompCount + 1
       } else if (elapsedMs < benchmarkEnd) {
-        pct = 45 + ((elapsedMs - marketReviewEnd) / 15_000) * 7
+        pct = 45 + ((elapsedMs - marketReviewEnd) / 10_000) * 7
         stage = 3
         label = 'Setting each comp’s weight and the value range'
         nextScanStage = stagedCompCount + 1
       } else if (elapsedMs < reasoningEnd) {
-        const r = (elapsedMs - benchmarkEnd) / 120_000
+        const r = (elapsedMs - benchmarkEnd) / reasoningMs
         // eases out a little so the bar keeps visibly moving through the longest stretch
         pct = 52 + (1 - Math.pow(1 - r, 1.4)) * 36
         stage = 4
@@ -3281,7 +3284,7 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
         nextScanStage = stagedCompCount + 1
       } else {
         const finalCheckMs = elapsedMs - reasoningEnd
-        pct = 88 + 9 * (1 - Math.exp(-finalCheckMs / 30_000))
+        pct = 88 + 9 * (1 - Math.exp(-finalCheckMs / 25_000))
         stage = 5
         label = 'Checking every number and sentence in the report'
         nextScanStage = stagedCompCount + 1
@@ -3347,7 +3350,7 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
   // the page can never turn a finished report into "Network error". If even the start request is
   // lost, the report itself says whether it's running.
   const [genError, setGenError] = useState<string | null>(null)
-  const [aiEstimate, setAiEstimate] = useState<{ percent: number | null; max_percent: number | null } | null>(null)
+  const [aiEstimate, setAiEstimate] = useState<{ usd: number; percent: number | null; max_percent: number | null } | null>(null)
   useEffect(() => { api.cma.aiEstimate().then(r => { if (r.success && r.data) setAiEstimate(r.data) }) }, [])
   const pollUntilDone = () => {
     if (resumePollRef.current) clearInterval(resumePollRef.current)
@@ -3541,27 +3544,7 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
         // Explicit "used" state rather than just removing the banner - a banner that silently
         // vanishes reads the same as "nothing happened" if the agent glances back a moment later,
         // especially since generation takes a while and they may not be looking right when it lands.
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/10">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600">
-              <Check className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <p className="text-sm font-black text-emerald-700 dark:text-emerald-300">AI Analysis Generated</p>
-              <p className="text-xs font-semibold text-emerald-600/80 dark:text-emerald-400/70">Comp ratings and a value estimate are filled in below - edit anything by hand as needed.</p>
-            </div>
-          </div>
-          {/* Done is done - no re-run from here, just a finished AI-analysis bar. */}
-          <div className="flex w-full shrink-0 items-center gap-2.5 sm:w-56">
-            <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-emerald-100 dark:bg-emerald-900/30">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400" />
-              <div className="pointer-events-none absolute inset-y-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/60 to-transparent animate-shimmer-mini" />
-            </div>
-            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-              <Sparkles className="h-3.5 w-3.5" /> Complete
-            </span>
-          </div>
-        </div>
+        <AiAnalysisComplete report={report} monthlyLimitUsd={aiEstimate?.percent ? aiEstimate.usd / (aiEstimate.percent / 100) : null} celebrate={justGenerated} />
       ) : (
         <div className="relative overflow-hidden rounded-2xl border-2 border-[#C9A24D]/50 bg-gradient-to-br from-[#C9A24D]/15 via-[#C9A24D]/5 to-transparent p-4 shadow-[0_0_40px_-12px_rgba(201,162,77,0.5)] dark:border-[#C9A24D]/40 sm:p-6">
           <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-[#C9A24D]/20 blur-3xl" />
@@ -3692,10 +3675,10 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
 
 // The AI analysis while it runs (user, 10/20: "a much cooler animation and a real progress bar").
 // A live percentage that counts up, a glowing bar with a light sweeping through it, what it's doing
-// right now, time so far / about how long is left (paced to the ~4 minutes a report takes), and the
-// six stages - every stage on a wide screen, just the current one on a phone.
+// right now, time so far / about how long is left (paced to the ~2.5-3 minutes a new home takes),
+// and the six stages - every stage on a wide screen, just the current one on a phone.
 const AI_STAGES = ['Subject', 'Comparables', 'Market evidence', 'Comp weights', 'Final value', 'Report check']
-const AI_TYPICAL_SEC = 240
+const AI_TYPICAL_SEC = 170
 
 function AiGenerationProgress({ pct, label, stage, elapsedSec }: { pct: number, label: string, stage: number, elapsedSec: number }) {
   const reduce = useReducedMotion()
@@ -3787,6 +3770,82 @@ function AiGenerationProgress({ pct, label, stage, elapsedSec }: { pct: number, 
   )
 }
 
+// The finished AI analysis (user, 10/21: "a little cooler, and show how much AI usage it took").
+// The bar fills to 100% with a light sweeping through it, the check pops in, and two stat pills say
+// what this run used of the monthly AI allowance and how long it took. `celebrate` = it finished
+// while the agent was watching, so the fill plays out; coming back later it just shows full.
+function AiAnalysisComplete({ report, monthlyLimitUsd, celebrate }: { report: CmaReport, monthlyLimitUsd: number | null, celebrate: boolean }) {
+  const reduce = useReducedMotion()
+  const play = celebrate && !reduce
+  const cost = report.ai_analysis?.cost_usd ?? null
+  const usedPct = cost != null && monthlyLimitUsd ? (cost / monthlyLimitUsd) * 100 : null
+  const usedText = usedPct == null ? null : usedPct < 1 ? '<1%' : `${Math.round(usedPct)}%`
+  const tookSec = report.ai_analysis?.generated_at && report.generation_started_at
+    ? Math.round((new Date(report.ai_analysis.generated_at).getTime() - new Date(report.generation_started_at).getTime()) / 1000)
+    : null
+  const tookText = tookSec != null && tookSec > 0 && tookSec < 3600 ? `${Math.floor(tookSec / 60)}:${String(tookSec % 60).padStart(2, '0')}` : null
+  return (
+    <motion.div
+      initial={play ? { opacity: 0, y: 10, scale: 0.98 } : false}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+      className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-[#C9A24D]/[0.06] p-4 shadow-[0_18px_40px_-28px_rgba(16,185,129,0.7)] dark:border-emerald-900/40 dark:from-emerald-900/15 dark:via-[#111113] dark:to-[#C9A24D]/[0.06] sm:p-5"
+    >
+      <div aria-hidden className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-emerald-400/15 blur-3xl" />
+      <div className="relative flex flex-col gap-3.5 sm:flex-row sm:items-center sm:gap-5">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center sm:h-12 sm:w-12">
+            {play && <span aria-hidden className="absolute inset-0 animate-ping rounded-2xl bg-emerald-400/40 [animation-iteration-count:2]" />}
+            <span className="relative flex h-full w-full items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30">
+              <Check className={`h-5 w-5 text-white sm:h-6 sm:w-6 ${play ? 'cma-check-pop' : ''}`} strokeWidth={3} />
+            </span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-black text-emerald-700 dark:text-emerald-300 sm:text-base">AI Analysis Complete</p>
+            <p className="text-xs font-semibold leading-snug text-emerald-700/70 dark:text-emerald-300/60">Comp ratings and a value estimate are filled in below - edit anything by hand as needed.</p>
+          </div>
+        </div>
+        {/* Done is done - no re-run from here: the full bar, then what the run used. */}
+        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-[19rem]">
+          <div className="flex items-center gap-2.5">
+            <div className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-emerald-100 dark:bg-emerald-900/30">
+              <motion.div
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-[#e0b85f]"
+                initial={play ? { width: '70%' } : false}
+                animate={{ width: '100%' }}
+                transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+              >
+                {!reduce && (
+                  <span className="absolute inset-0 overflow-hidden rounded-full">
+                    <span className="cma-bar-sheen absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/70 to-transparent" />
+                  </span>
+                )}
+              </motion.div>
+            </div>
+            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+              <Sparkles className="h-3.5 w-3.5" /> 100%
+            </span>
+          </div>
+          {(usedText || tookText) && (
+            <div className="grid grid-cols-2 gap-1.5">
+              {usedText && (
+                <span className="inline-flex items-center justify-center gap-1 rounded-lg border border-[#C9A24D]/30 bg-white/80 px-2 py-1 text-[11px] font-black text-[#8b7355] dark:bg-black/30 dark:text-[#d7b974]">
+                  <Sparkles className="h-3 w-3 shrink-0" /> {usedText} of monthly AI
+                </span>
+              )}
+              {tookText && (
+                <span className={`inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-white/80 px-2 py-1 text-[11px] font-black tabular-nums text-emerald-700 dark:border-emerald-900/40 dark:bg-black/30 dark:text-emerald-300 ${usedText ? '' : 'col-span-2'}`}>
+                  <Clock className="h-3 w-3" /> Took {tookText}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 // Counts a number up smoothly to its new value (the AI progress percentage).
 function useCountUp(target: number): number {
   const [shown, setShown] = useState(target)
@@ -3857,9 +3916,12 @@ function CompOrderRail({ comparables, activeId, onSelect, onReorder, scanStage =
                   : 'border-gray-200 dark:border-gray-800 [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:border-gray-300 [@media(hover:hover)]:hover:shadow-md dark:[@media(hover:hover)]:hover:border-gray-600'
               } ${scanning ? 'border-[#C9A24D] shadow-[0_0_0_4px_rgba(201,162,77,0.18)]' : ''} ${!c.is_included ? 'opacity-50' : ''}`}
             >
-              <div className="relative overflow-hidden">
+              {/* own compositing layer (isolate + translateZ) so the zoomed photo and its dark city
+                  shading stay clipped together while the card lifts - without it a hairline
+                  showed at the photo's bottom edge on hover and the shading dropped out (10/21) */}
+              <div className="relative isolate overflow-hidden [transform:translateZ(0)]">
                 {c.photo_url
-                  ? <img src={normalizeImageUrl(c.photo_url || undefined)} alt="" draggable={false} className="aspect-[4/3] w-full object-cover transition duration-500 [@media(hover:hover)]:group-hover:scale-[1.04]" />
+                  ? <img src={normalizeImageUrl(c.photo_url || undefined)} alt="" draggable={false} className="block aspect-[4/3] w-full object-cover transition-transform duration-500 will-change-transform [@media(hover:hover)]:group-hover:scale-[1.04]" />
                   : <div className="flex aspect-[4/3] w-full items-center justify-center bg-gray-100 dark:bg-gray-800"><Home className="h-5 w-5 text-gray-300" /></div>}
                 {scanning && <span className="ohp-comp-scan-line" />}
                 {scanning && <span className="pointer-events-none absolute inset-0 bg-[#C9A24D]/10" />}
@@ -3876,7 +3938,7 @@ function CompOrderRail({ comparables, activeId, onSelect, onReorder, scanStage =
                 {/* Same bottom-center city overlay pattern as OpenHouseCard.tsx - gradient,
                     MapPin icon, bold white uppercase text. */}
                 {c.city && (
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-1.5 pb-1.5 pt-6">
+                  <div className="pointer-events-none absolute inset-x-0 -bottom-px z-[1] flex items-center justify-center gap-1 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-1.5 pb-[7px] pt-6">
                     <MapPin className="h-2.5 w-2.5 shrink-0 text-white" />
                     <span className="max-w-[80%] truncate text-[9px] font-black uppercase tracking-wide text-white">{c.city}</span>
                   </div>
@@ -5188,58 +5250,70 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
       </SectionCard>
 
       <SectionCard title="Complete & Send" subtitle="Preview the PDF, copy the client link, or open the live CMA in a new tab.">
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Mark Ready is THE action here (user, 10/17 - it blended in with PDF): its own big gold
-              button, full width on phones; PDF / Download / Share sit together under it. */}
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-            <button
-              onClick={markReady}
-              disabled={readyState !== 'idle'}
-              className={`group relative inline-flex h-12 w-full shrink-0 items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-2xl px-6 text-sm font-black uppercase tracking-wide shadow-lg transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-default disabled:hover:translate-y-0 sm:h-11 sm:w-auto ${
-                readyState === 'done'
-                  ? 'bg-emerald-600 text-white shadow-emerald-600/30'
-                  : readyState === 'saving'
-                    ? 'bg-[#C9A24D]/70 text-white shadow-[#C9A24D]/20'
-                    : 'bg-gradient-to-r from-[#b8913f] via-[#C9A24D] to-[#e0b85f] text-white shadow-[#C9A24D]/40 hover:shadow-xl hover:shadow-[#C9A24D]/50'
-              }`}
-            >
-              <span className={`absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 ${readyState === 'done' ? 'translate-x-full' : 'group-hover:translate-x-full'}`} />
-              {readyState === 'idle' && <span aria-hidden className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-[#C9A24D]/50 animate-pulse" />}
-              {readyState === 'saving' ? (
-                <Loader2 className="relative h-4 w-4 animate-spin" />
-              ) : readyState === 'done' ? (
-                <Check className="relative h-4 w-4" strokeWidth={3} />
-              ) : (
-                <Sparkles className="relative h-4 w-4 transition group-hover:rotate-12 group-hover:scale-110" />
-              )}
-              <span className="relative">{readyState === 'saving' ? 'Marking Ready...' : readyState === 'done' ? 'Ready to send' : 'Mark Ready'}</span>
-            </button>
-            <div className="grid w-full grid-cols-3 items-center gap-1 rounded-xl border border-[#C9A24D]/25 bg-[#C9A24D]/[0.06] p-1 sm:flex sm:w-auto">
-              {/* Open in a new tab / save as a file - never replaces this page (user, 10/21) */}
-              {(['open', 'download'] as const).map(kind => (
-                <button
-                  key={kind}
-                  type="button"
-                  disabled={!agent || !!pdfBusy}
-                  onClick={async () => {
-                    if (!agent) return
-                    setPdfBusy(kind)
-                    try { await pdfFile.run(kind === 'open' ? 'tab' : 'share') }
-                    catch { showToast("Couldn't make the PDF. Try again in a moment.", 'error') }
-                    finally { setPdfBusy('') }
-                  }}
-                  title={kind === 'open' ? 'Open the PDF in a new tab' : 'Save the PDF to this device'}
-                  className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-[10px] font-black uppercase tracking-wide text-[#8b7355] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#C9A24D]/15 hover:shadow-md disabled:opacity-50 disabled:hover:translate-y-0 dark:text-[#d7b974]"
-                >
-                  {pdfBusy === kind || pdfFile.iosHint === 'preparing' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : kind === 'open' ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
-                  {pdfFile.iosHint === 'preparing' ? 'Preparing…' : pdfFile.iosHint === 'tap' ? 'Tap again' : kind === 'open' ? 'Open PDF' : 'Download'}
-                </button>
-              ))}
-              <button onClick={handleShare} disabled={sharing} title="Share Link" className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#111827] px-3 text-[10px] font-black uppercase tracking-wide text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 dark:bg-white dark:text-[#111827]">
-                {sharing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />} Share
-              </button>
-            </div>
+        {/* Rearranged 10/21 (user: "nicer animations and clicks, rearrange for mobile and
+            desktop"). Mark Ready stays THE action (user, 10/17): a big gold button. Next to it on a
+            computer - under it on a phone - three equal tiles: Open PDF, Download, Share link.
+            Every press gives a squish, the icon nudges on hover, and a finished action flashes a
+            check. The small switches, report code and Delete sit on their own row under a line. */}
+        <div className="grid gap-2.5 sm:grid-cols-[minmax(12rem,15rem)_minmax(0,1fr)] sm:items-stretch">
+          <motion.button
+            onClick={markReady}
+            disabled={readyState !== 'idle'}
+            whileTap={readyState === 'idle' ? { scale: 0.96 } : undefined}
+            className={`group relative inline-flex h-14 w-full items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-2xl px-6 text-sm font-black uppercase tracking-wide shadow-lg transition-[background-color,box-shadow,transform] duration-300 disabled:cursor-default sm:h-auto sm:min-h-[4.5rem] ${
+              readyState === 'done'
+                ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-emerald-600/30'
+                : readyState === 'saving'
+                  ? 'bg-[#C9A24D]/70 text-white shadow-[#C9A24D]/20'
+                  : 'bg-gradient-to-r from-[#b8913f] via-[#C9A24D] to-[#e0b85f] text-white shadow-[#C9A24D]/40 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[#C9A24D]/50'
+            }`}
+          >
+            <span className={`absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 ${readyState === 'done' ? 'translate-x-full' : 'group-hover:translate-x-full'}`} />
+            {readyState === 'idle' && <span aria-hidden className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-[#C9A24D]/50 animate-pulse" />}
+            {readyState === 'saving' ? (
+              <Loader2 className="relative h-4 w-4 animate-spin" />
+            ) : readyState === 'done' ? (
+              <span key="ready-check" className="cma-check-pop relative flex h-6 w-6 items-center justify-center rounded-full bg-white/25"><Check className="h-4 w-4" strokeWidth={3} /></span>
+            ) : (
+              <Sparkles className="relative h-4 w-4 transition group-hover:rotate-12 group-hover:scale-110" />
+            )}
+            <span className="relative">{readyState === 'saving' ? 'Marking Ready...' : readyState === 'done' ? 'Ready to send' : 'Mark Ready'}</span>
+          </motion.button>
+
+          <div className="grid grid-cols-3 gap-2">
+            {/* Open in a new tab / save as a file - never replaces this page (user, 10/21) */}
+            {(['open', 'download'] as const).map(kind => (
+              <ExportTile
+                key={kind}
+                icon={kind === 'open' ? ExternalLink : Download}
+                label={pdfFile.iosHint === 'preparing' ? 'Preparing…' : pdfFile.iosHint === 'tap' ? 'Tap again' : kind === 'open' ? 'Open PDF' : 'Download'}
+                hint={kind === 'open' ? 'New tab' : 'Save the PDF'}
+                title={kind === 'open' ? 'Open the PDF in a new tab' : 'Save the PDF to this device'}
+                busy={pdfBusy === kind || pdfFile.iosHint === 'preparing'}
+                disabled={!agent || !!pdfBusy}
+                onClick={async () => {
+                  if (!agent) return false
+                  setPdfBusy(kind)
+                  try { await pdfFile.run(kind === 'open' ? 'tab' : 'share'); return true }
+                  catch { showToast("Couldn't make the PDF. Try again in a moment.", 'error'); return false }
+                  finally { setPdfBusy('') }
+                }}
+              />
+            ))}
+            <ExportTile
+              icon={Share2}
+              label="Share link"
+              hint="Copy or send"
+              title="Share Link"
+              dark
+              busy={sharing}
+              disabled={sharing}
+              onClick={async () => { await handleShare(); return false }}
+            />
           </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2.5 border-t border-gray-100 pt-4 dark:border-gray-800">
 
           {/* Web version only: end the shared page with the agent's Email Signature card instead of
               the plain contact block (the PDF never changes). Plans with Email Signature only. */}
@@ -5334,6 +5408,54 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
         />
       )}
     </div>
+  )
+}
+
+// One export action on the last step (Open PDF / Download / Share link). Icon in a round badge over
+// the label on a phone, beside it on a computer. Squishes on press, the icon nudges up on hover,
+// and when `onClick` resolves true the badge flashes a check for a moment.
+function ExportTile({ icon: Icon, label, hint, title, busy, disabled, dark = false, onClick }: {
+  icon: React.ComponentType<{ className?: string }>, label: string, hint: string, title: string,
+  busy: boolean, disabled: boolean, dark?: boolean, onClick: () => Promise<boolean>,
+}) {
+  const reduce = useReducedMotion()
+  const [flash, setFlash] = useState(false)
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (flashTimer.current) clearTimeout(flashTimer.current) }, [])
+  return (
+    <motion.button
+      type="button"
+      title={title}
+      disabled={disabled}
+      whileTap={disabled || reduce ? undefined : { scale: 0.94 }}
+      transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+      onClick={async () => {
+        if (await onClick()) {
+          setFlash(true)
+          if (flashTimer.current) clearTimeout(flashTimer.current)
+          flashTimer.current = setTimeout(() => setFlash(false), 1600)
+        }
+      }}
+      className={`group relative flex min-h-[4.5rem] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border px-2 py-2.5 text-center transition-[border-color,box-shadow,transform,background-color] duration-300 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-row sm:justify-start sm:gap-3 sm:px-3.5 sm:text-left [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:disabled:hover:translate-y-0 ${
+        dark
+          ? 'border-[#111827] bg-[#111827] text-white shadow-md shadow-black/20 [@media(hover:hover)]:hover:shadow-lg dark:border-white dark:bg-white dark:text-[#111827]'
+          : 'border-[#C9A24D]/30 bg-[#C9A24D]/[0.06] text-[#8b7355] [@media(hover:hover)]:hover:border-[#C9A24D]/60 [@media(hover:hover)]:hover:bg-[#C9A24D]/[0.12] [@media(hover:hover)]:hover:shadow-[0_12px_24px_-16px_rgba(201,162,77,0.9)] dark:text-[#d7b974]'
+      }`}
+    >
+      <span className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors duration-300 ${
+        flash ? 'bg-emerald-500 text-white' : dark ? 'bg-white/15 dark:bg-[#111827]/10' : 'bg-white shadow-sm dark:bg-black/30'
+      }`}>
+        {busy
+          ? <Loader2 className="h-4 w-4 animate-spin" />
+          : flash
+            ? <Check key="flash" className="cma-check-pop h-4 w-4" strokeWidth={3} />
+            : <Icon className="h-4 w-4 transition-transform duration-300 [@media(hover:hover)]:group-hover:-translate-y-0.5 [@media(hover:hover)]:group-hover:scale-110" />}
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-[10.5px] font-black uppercase tracking-wide sm:text-[11px]">{flash ? 'Done' : label}</span>
+        <span className={`hidden truncate text-[10.5px] font-semibold sm:block ${dark ? 'text-white/60 dark:text-[#111827]/55' : 'text-[#8b7355]/70 dark:text-[#d7b974]/60'}`}>{hint}</span>
+      </span>
+    </motion.button>
   )
 }
 
