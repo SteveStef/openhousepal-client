@@ -822,7 +822,7 @@ export type PriceEvent = { date: string | null; event: string; price?: number | 
 
 const EVENT_DOT: Record<string, string> = {
   'Sold': 'bg-[var(--pp-gold)]', 'Price reduced': 'bg-emerald-500', 'Price increased': 'bg-rose-500',
-  'Under contract': 'bg-sky-500', 'Listing removed': 'bg-gray-400', 'Rented': 'bg-gray-400', 'Listed for rent': 'bg-gray-400',
+  'Under contract': 'bg-sky-500', 'Taken off market': 'bg-gray-400', 'Listing removed': 'bg-gray-400', 'Rented': 'bg-gray-400', 'Listed for rent': 'bg-gray-400',
 }
 
 /** Every listing this home has had - listed, price cuts, under contract, sold - newest first. Uses
