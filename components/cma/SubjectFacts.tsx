@@ -442,9 +442,19 @@ function SubjectPhoto({ reportId, subject, setSubject }: { reportId: string, sub
   const fileRef = useRef<HTMLInputElement>(null)
   const hasGeo = subject.latitude != null && subject.longitude != null
 
-  const use = (url: string, source: 'upload' | 'street_view' | 'aerial') => setSubject(s => ({
-    ...s, photo_url: url, photo_source: source, photos: [url, ...(s.photos || []).filter(p => p !== url)],
-  }))
+  // Which photo came from where, for the photos added in this visit (the listing's own photos have
+  // no entry) - so picking a thumbnail keeps the right label and "Back to listing photo" knows
+  // which ones are Google's (user, 10/21: after Street View there was no clear way back).
+  const [sources, setSources] = useState<Record<string, 'upload' | 'street_view' | 'aerial'>>(() =>
+    subject.photo_url && subject.photo_source ? { [subject.photo_url]: subject.photo_source } : {})
+  const use = (url: string, source: 'upload' | 'street_view' | 'aerial') => {
+    setSources(m => ({ ...m, [url]: source }))
+    setSubject(s => ({ ...s, photo_url: url, photo_source: source, photos: [url, ...(s.photos || []).filter(p => p !== url)] }))
+  }
+  const allPhotos = (subject.photos && subject.photos.length ? subject.photos : subject.photo_url ? [subject.photo_url] : [])
+  const listingPhotos = allPhotos.filter(p => !sources[p])
+  const pick = (url: string) => setSubject(s => ({ ...s, photo_url: url, photo_source: sources[url] ?? null }))
+  const showingGoogle = subject.photo_source === 'street_view' || subject.photo_source === 'aerial'
 
   const upload = async (file: File) => {
     setBusy('upload')
@@ -483,7 +493,35 @@ function SubjectPhoto({ reportId, subject, setSubject }: { reportId: string, sub
             {subject.photo_source === 'street_view' ? 'Google Street View' : 'Aerial view'}
           </span>
         )}
+        {showingGoogle && listingPhotos.length > 0 && !busy && (
+          <button type="button" onClick={() => pick(listingPhotos[0])}
+            className="cma-btn absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-black text-[#111827] shadow-lg ring-1 ring-black/10 hover:bg-white">
+            <ImageIcon className="h-3.5 w-3.5 text-[#C9A24D]" /> Back to listing photo
+          </button>
+        )}
       </div>
+      {allPhotos.length > 1 && (
+        <div>
+          <p className="mb-1 text-[10px] font-black uppercase tracking-wide text-gray-400">Cover photo · tap to choose ({allPhotos.length})</p>
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
+            {allPhotos.map((p, i) => {
+              const on = p === subject.photo_url
+              const src = sources[p]
+              return (
+                <button key={p + i} type="button" onClick={() => pick(p)} aria-pressed={on}
+                  title={src === 'street_view' ? 'Google Street View' : src === 'aerial' ? 'Aerial view' : src === 'upload' ? 'Your upload' : `Listing photo ${listingPhotos.indexOf(p) + 1}`}
+                  className={`relative h-14 w-[4.5rem] shrink-0 overflow-hidden rounded-lg transition sm:h-12 sm:w-16 ${on ? 'ring-2 ring-[#C9A24D] ring-offset-1 ring-offset-white dark:ring-offset-[#151517]' : 'opacity-75 ring-1 ring-black/10 hover:opacity-100 dark:ring-white/10'}`}>
+                  <img src={normalizeImageUrl(p)} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  {src && src !== 'upload' && (
+                    <span className="absolute inset-x-0 bottom-0 bg-black/60 py-px text-center text-[8px] font-black uppercase tracking-wide text-white">{src === 'street_view' ? 'Street' : 'Aerial'}</span>
+                  )}
+                  {on && <span className="absolute right-0.5 top-0.5 rounded-full bg-[#C9A24D] p-0.5"><Check className="h-2.5 w-2.5 text-white" /></span>}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) upload(f) }} />
       <div className="flex gap-1.5">
         <button type="button" className={btn} disabled={!!busy} onClick={() => fileRef.current?.click()}><Upload className="h-3 w-3" /> Upload</button>

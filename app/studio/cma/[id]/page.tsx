@@ -10,10 +10,10 @@ import { useParams, useRouter } from 'next/navigation'
 import { smartBackClick } from '@/lib/navHistory'
 import {
   AlertTriangle, ArrowLeft, ArrowUpDown, Bath, Bed, Building2, Calculator, Calendar, Car, Check, ChevronLeft,
-  ChevronRight, ChevronsLeft, ChevronsRight, Copy, DollarSign, Download, Droplets, GraduationCap, GripVertical, Home, LandPlot, Layers,
+  ChevronRight, ChevronsLeft, ChevronsRight, DollarSign, Download, Droplets, ExternalLink, GraduationCap, GripVertical, Home, LandPlot, Layers,
   Image as ImageIcon, Loader2, MapPin, Moon, Plus, RefreshCw, Ruler, Scale, Search, Share2, ShieldAlert, Sparkles, Sun, Trash2, Waves, X,
 } from 'lucide-react'
-import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer'
+import { downloadPdf, openPdf } from '@/lib/pdfFile'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useEscapeToClose, useIsPhone, useLastValue, usePagePin, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 import { FADE_HOME, NavButton, SHEET_SPRING, SideArrow, SLIDE_HOME, SPRING as SHEET_DESKTOP_SPRING, streetSize, type HomeMove } from '@/components/PropertyDetailsModal'
@@ -4230,18 +4230,23 @@ function SideBySidePanel({ subject, comp, index, total, onUpdate, onUpdateStreng
         </div>
         <div className="flex flex-nowrap items-center justify-end gap-1.5 sm:flex-wrap sm:gap-2">
           {(compHasGeo || subjectHasGeo) && (
-            <button
-              type="button"
-              onClick={() => setShowMaps(v => !v)}
-              title={showMaps ? 'Back to photos on both panes' : 'Swap both panes to a map — stays on as you flip through comps so you can compare locations'}
-              className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-2 text-xs font-black uppercase tracking-wide transition sm:px-3.5 ${
-                showMaps
-                  ? 'border-[#C9A24D] bg-[#C9A24D] text-white shadow-sm shadow-[#C9A24D]/30'
-                  : 'border-gray-200 bg-white text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:bg-transparent dark:text-gray-400 dark:hover:text-[#d7b974]'
-              }`}
-            >
-              {showMaps ? <><ImageIcon className="h-3.5 w-3.5" /> Photos</> : <><MapPin className="h-3.5 w-3.5" /> Maps</>}
-            </button>
+            // Both choices always visible (user, 10/21: after switching to the map there was no
+            // clear way back to the listing photos) - the active one is filled.
+            <div role="group" aria-label="Show photos or map" className="inline-flex rounded-xl border border-gray-200 bg-white p-0.5 dark:border-gray-700 dark:bg-transparent">
+              {([['photos', 'Photos', ImageIcon], ['map', 'Map', MapPin]] as const).map(([key, label, Icon]) => {
+                const on = (key === 'map') === showMaps
+                return (
+                  <button key={key} type="button" aria-pressed={on} onClick={() => setShowMaps(key === 'map')}
+                    title={key === 'map' ? 'Show both homes on a map - stays on as you flip through comps' : 'Show the listing photos'}
+                    className={`inline-flex items-center gap-1 rounded-[10px] px-2.5 py-1.5 text-xs font-black uppercase tracking-wide transition sm:px-3 ${
+                      on ? 'bg-[#C9A24D] text-white shadow-sm shadow-[#C9A24D]/30' : 'text-gray-500 hover:text-[#8b7355] dark:text-gray-400 dark:hover:text-[#d7b974]'
+                    }`}>
+                    {/* icons only on a phone, where this shares the row with Pricing */}
+                    <Icon className="h-3.5 w-3.5" /> <span className="max-sm:sr-only">{label}</span>
+                  </button>
+                )
+              })}
+            </div>
           )}
           <button onClick={onContinueClick} className="cma-btn inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#111827] px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827] sm:px-4">
             <span className="sm:hidden">Pricing</span><span className="hidden sm:inline">Continue to Pricing</span> <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
@@ -4930,7 +4935,7 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
   const router = useRouter()
   const { user } = useAuth()
   const [agent, setAgent] = useState<any>(null)
-  const [showPdf, setShowPdf] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState<'' | 'open' | 'download'>('')
   const [showShare, setShowShare] = useState(false)
   const [sharePath, setSharePath] = useState<string | null>(report.share_slug ? `/cma/${report.share_slug}` : null)
   const [idxSite, setIdxSite] = useState<Site | null>(null)
@@ -5204,24 +5209,28 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
               <span className="relative">{readyState === 'saving' ? 'Marking Ready...' : readyState === 'done' ? 'Ready to send' : 'Mark Ready'}</span>
             </button>
             <div className="grid w-full grid-cols-3 items-center gap-1 rounded-xl border border-[#C9A24D]/25 bg-[#C9A24D]/[0.06] p-1 sm:flex sm:w-auto">
-              <button
-                onClick={() => setShowPdf(true)}
-                disabled={!agent}
-                title="Generate PDF"
-                className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-[10px] font-black uppercase tracking-wide text-[#8b7355] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#C9A24D]/15 hover:shadow-md disabled:opacity-50 disabled:hover:translate-y-0 dark:text-[#d7b974]"
-              >
-                <Layers className="h-3.5 w-3.5" /> PDF
-              </button>
-              {agent ? (
-                <PDFDownloadLink document={<CmaPresentationDocument report={report} agent={agent} />} fileName={`CMA-${(report.subject.street_address || 'Report').replace(/[^a-z0-9]+/gi, '-')}.pdf`} className="flex">
-                  {({ loading }) => (
-                    <span className="inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-[10px] font-black uppercase tracking-wide text-[#8b7355] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#C9A24D]/15 hover:shadow-md dark:text-[#d7b974]">
-                      {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
-                      Download
-                    </span>
-                  )}
-                </PDFDownloadLink>
-              ) : <span />}
+              {/* Open in a new tab / save as a file - never replaces this page (user, 10/21) */}
+              {(['open', 'download'] as const).map(kind => (
+                <button
+                  key={kind}
+                  type="button"
+                  disabled={!agent || !!pdfBusy}
+                  onClick={async () => {
+                    if (!agent) return
+                    setPdfBusy(kind)
+                    const doc = <CmaPresentationDocument report={report} agent={agent} />
+                    const name = `CMA-${(report.subject.street_address || 'Report').replace(/[^a-z0-9]+/gi, '-')}.pdf`
+                    try { await (kind === 'open' ? openPdf(doc, name) : downloadPdf(doc, name)) }
+                    catch { showToast("Couldn't make the PDF. Try again in a moment.", 'error') }
+                    finally { setPdfBusy('') }
+                  }}
+                  title={kind === 'open' ? 'Open the PDF in a new tab' : 'Save the PDF to this device'}
+                  className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-[10px] font-black uppercase tracking-wide text-[#8b7355] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#C9A24D]/15 hover:shadow-md disabled:opacity-50 disabled:hover:translate-y-0 dark:text-[#d7b974]"
+                >
+                  {pdfBusy === kind ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : kind === 'open' ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+                  {kind === 'open' ? 'Open PDF' : 'Download'}
+                </button>
+              ))}
               <button onClick={handleShare} disabled={sharing} title="Share Link" className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#111827] px-3 text-[10px] font-black uppercase tracking-wide text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 dark:bg-white dark:text-[#111827]">
                 {sharing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />} Share
               </button>
@@ -5311,15 +5320,7 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
         isLoading={isDeleting}
       />
 
-      {showPdf && agent && (
-        <CmaPdfModal
-          report={report}
-          agent={agent}
-          onClose={() => setShowPdf(false)}
-          onReportUpdated={onReportUpdated}
-          onJump={onJump}
-        />
-      )}
+
       {showShare && shareLinks && (
         <CmaShareLinksModal
           isOpen={showShare}
@@ -5695,36 +5696,3 @@ function ValuationTracePanel({ trace }: { trace: CmaValuationTrace }) {
   )
 }
 
-function CmaPdfModal({ report, agent, onClose }: { report: CmaReport, agent: any, onClose: () => void, onReportUpdated: (r: CmaReport) => void, onJump: (s: StepId) => void, skipAutoRefresh?: boolean }) {
-  // The generated report is always final and export-ready the moment generation completes - every
-  // fix that can be made runs automatically inside the generation pipeline itself, before this
-  // report is ever saved. So this preview never gates on QA state, never shows a "needs your
-  // attention" popup, and never asks the agent to regenerate/recompute from here - the download is
-  // simply always available. Any remaining QA diagnostics are agent-only info on the Review step's
-  // "QA / Review Items" panel, not a blocker here.
-  const liveReport = report
-  const fileName = `CMA-${(liveReport.subject.street_address || 'Report').replace(/[^a-z0-9]+/gi, '-')}.pdf`
-
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black/70">
-      <div className="flex items-center justify-between bg-[#111827] px-5 py-3">
-        <p className="text-sm font-black text-white">CMA Presentation Preview</p>
-        <div className="flex items-center gap-2">
-          <PDFDownloadLink document={<CmaPresentationDocument report={liveReport} agent={agent} />} fileName={fileName}>
-            {({ loading }) => (
-              <span className="inline-flex items-center gap-2 rounded-xl bg-[#C9A24D] px-4 py-2 text-xs font-black uppercase tracking-wide text-white">
-                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />} Download PDF
-              </span>
-            )}
-          </PDFDownloadLink>
-          <button onClick={onClose} className="rounded-xl p-2 text-white/70 hover:bg-white/10 hover:text-white"><X className="h-5 w-5" /></button>
-        </div>
-      </div>
-      <div className="flex-1">
-        <PDFViewer width="100%" height="100%" showToolbar={false}>
-          <CmaPresentationDocument report={liveReport} agent={agent} />
-        </PDFViewer>
-      </div>
-    </div>
-  )
-}

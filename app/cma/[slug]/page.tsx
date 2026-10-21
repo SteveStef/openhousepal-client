@@ -3,8 +3,8 @@
 import SignatureSiteCard from '@/components/studio/blogs/SignatureSiteCard'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { PDFDownloadLink } from '@react-pdf/renderer'
-import { Bath, BedDouble, Building2, Calendar, Car, ChevronLeft, ChevronRight, DollarSign, Download, Droplets, Gauge, Home, LandPlot, Layers, Loader2, Maximize2, MapPin, Moon, Ruler, ShieldCheck, Sun, Waves, X } from 'lucide-react'
+import { downloadPdf, openPdf } from '@/lib/pdfFile'
+import { Bath, BedDouble, Building2, Calendar, Car, ChevronLeft, ChevronRight, DollarSign, Download, Droplets, ExternalLink, Gauge, Home, LandPlot, Layers, Loader2, Maximize2, MapPin, Moon, Ruler, ShieldCheck, Sun, Waves, X } from 'lucide-react'
 import api from '@/lib/api-service'
 import { CmaComparable, CmaPublicResponse } from '@/types'
 import {
@@ -83,6 +83,7 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
   const [activeMapCompId, setActiveMapCompId] = useState<string | null>(null)
   const [embedded, setEmbedded] = useState(false)
   const [dark, setDark] = useState(true)
+  const [pdfBusy, setPdfBusy] = useState<'' | 'open' | 'download'>('')
 
   // applyDark is the one place that ever touches the <dark> class on <html> - both the initial
   // embedded-vs-direct default below and the toggle button call this directly instead of each
@@ -163,13 +164,33 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
             {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
         )}
-        <PDFDownloadLink document={<CmaPresentationDocument report={data as any} agent={agent} />} fileName={fileName}>
-          {({ loading: pdfLoading }) => (
-            <span className="inline-flex items-center gap-2 rounded-full bg-[#111827] px-5 py-3 text-xs font-black uppercase tracking-wide text-white shadow-2xl transition hover:bg-black dark:bg-white dark:text-[#111827]">
-              {pdfLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Save PDF
-            </span>
-          )}
-        </PDFDownloadLink>
+        {/* Save as a file, or open in a new tab - this page never gets replaced (user, 10/21) */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={!!pdfBusy}
+            onClick={async () => {
+              setPdfBusy('open')
+              try { await openPdf(<CmaPresentationDocument report={data as any} agent={agent} />, fileName) } finally { setPdfBusy('') }
+            }}
+            title="Open the PDF in a new tab"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#111827] shadow-2xl ring-1 ring-black/10 transition hover:bg-gray-50 disabled:opacity-60 dark:bg-[#1c1f25] dark:text-white dark:ring-white/10"
+          >
+            {pdfBusy === 'open' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+            <span className="sr-only">Open PDF</span>
+          </button>
+          <button
+            type="button"
+            disabled={!!pdfBusy}
+            onClick={async () => {
+              setPdfBusy('download')
+              try { await downloadPdf(<CmaPresentationDocument report={data as any} agent={agent} />, fileName) } finally { setPdfBusy('') }
+            }}
+            className="inline-flex items-center gap-2 rounded-full bg-[#111827] px-5 py-3 text-xs font-black uppercase tracking-wide text-white shadow-2xl transition hover:bg-black disabled:opacity-60 dark:bg-white dark:text-[#111827]"
+          >
+            {pdfBusy === 'download' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Save PDF
+          </button>
+        </div>
       </div>
 
       <header className="relative overflow-hidden bg-[#111827] px-6 py-7 text-center text-white sm:px-10 sm:py-8 print:bg-white print:text-black print:py-5">
