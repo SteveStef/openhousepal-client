@@ -328,7 +328,10 @@ export function belowGradeDisplay(p: { below_grade_finished_area?: number | null
 // price, how much it counts, and - when the final value isn't simply the adjusted comps - why.
 export interface CmaAdjustmentGridComp {
   label: string; address: string; sale: number; size: number; lowerLevel: number; baths: number
-  garage: number; sewer: number; adjusted: number; weightPct: number; notes: string[]
+  garage: number; sewer: number; lot: number; adjusted: number; weightPct: number; notes: string[]
+  // The lower-level area the grid used and whether it was estimated (finished per the MLS, no area
+  // recorded) - a bad guess there moves the value, so the agent sees it (10/20 review).
+  lowerLevelSqft: number | null; lowerLevelEstimated: boolean
 }
 export interface CmaAdjustmentGridStep { label: string; amount?: number; value?: number; note?: string; bold?: boolean }
 export interface CmaAdjustmentGrid {
@@ -354,7 +357,8 @@ export function buildAdjustmentGrid(estimate?: CmaAiEstimate | null): CmaAdjustm
     return {
       label: (c.label || '').replace(/\s*\(.+\)\s*$/, ''), address: m ? m[1] : '',
       sale: c.raw_sale_price, size: c.size_adjustment ?? 0, lowerLevel: fa?.below_grade ?? 0, baths: fa?.baths ?? 0,
-      garage: fa?.garage ?? 0, sewer: fa?.sewer ?? 0, adjusted: c.size_adjusted_price,
+      garage: fa?.garage ?? 0, sewer: fa?.sewer ?? 0, lot: fa?.lot ?? 0, adjusted: c.size_adjusted_price,
+      lowerLevelSqft: fa?.comp_below_grade_sqft ?? null, lowerLevelEstimated: !!fa?.comp_below_grade_estimated,
       weightPct: Math.round((c.normalized_weight || 0) * 100), notes: fa?.notes || [],
     }
   }).sort((a, b) => b.weightPct - a.weightPct)
@@ -378,7 +382,10 @@ export function buildAdjustmentGrid(estimate?: CmaAiEstimate | null): CmaAdjustm
   if (finalValue && Math.abs(finalValue - formulaValue) > 500) {
     const apc = trace?.asking_price_check
     steps.push({
-      label: 'Final valuation pass', amount: finalValue - formulaValue,
+      // Named for what it is when the home has sat longer than its comps (10/20 review: "show the
+      // market-time discount as an explicit, labeled step").
+      label: apc?.passed_over ? 'Market-time trim (listed longer than its comps took to sell)' : 'Final valuation pass',
+      amount: finalValue - formulaValue,
       note: apc?.asking_price && apc?.ratio_used
         ? `Weighs condition, location and how homes here sell against asking (about ${Math.round(apc.ratio_used * 100)}% of asking), kept within ${formatMoney(apc.allowed_low_price ?? null)}–${formatMoney(apc.allowed_high_price ?? null)} of what this home's ${formatMoney(apc.asking_price)} asking price implies.`
         : 'Weighs condition, location and market tempo beyond what the adjusted sales capture.',

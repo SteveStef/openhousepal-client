@@ -16,10 +16,13 @@ export default function CmaHowWeGotThere({ estimate }: { estimate?: CmaAiEstimat
   const rows: { label: string, get: (c: CmaAdjustmentGridComp) => string, bold?: boolean }[] = [
     { label: 'Sold price', get: c => formatMoney(c.sale) },
     { label: 'Size (above grade)', get: c => formatSignedMoney(c.size) },
+    // the comp's lower-level area the grid used - "est." when the MLS says finished but records no size
+    { label: 'Lower level used', get: c => c.lowerLevelSqft == null ? '—' : `${c.lowerLevelSqft.toLocaleString()} sq ft${c.lowerLevelEstimated ? ' (est.)' : ''}` },
     { label: 'Finished lower level', get: c => formatSignedMoney(c.lowerLevel) },
     { label: 'Bathrooms', get: c => formatSignedMoney(c.baths) },
     { label: 'Garage', get: c => formatSignedMoney(c.garage) },
     ...(grid.hasSewer ? [{ label: 'Cesspool', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.sewer) }] : []),
+    ...(grid.comps.some(c => c.lot) ? [{ label: 'Lot size', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.lot) }] : []),
     { label: 'Adjusted price', get: c => formatMoney(c.adjusted), bold: true },
     { label: 'Share of value', get: c => `${c.weightPct}%` },
   ]
