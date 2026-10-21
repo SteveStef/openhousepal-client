@@ -9,6 +9,7 @@ import type { SeoPagesData } from '@/lib/api-service'
 import { autoSectionMeta, type SeoCtx } from '@/lib/siteSeoAuto'
 import SeoPagesList, { seoCtxFrom, type SeoPreviewPage } from './SeoPagesList'
 import OhpSwitch from '@/components/ui/OhpSwitch'
+import GoogleListingCard from './GoogleListingCard'
 
 // IDX editor -> "Google" tab: everything that decides how the site looks in a Google result and a
 // browser tab - the site name, the home result's blue title + grey description, the tab icon, and
@@ -81,6 +82,9 @@ export default function SearchAppearancePanel({ seo, onChange, pages, defaults, 
 
   return (
     <div className="space-y-5">
+      {/* In Google at all? (automatic - this only reports) */}
+      <GoogleListingCard />
+
       {/* Google-ready meter */}
       <div className="rounded-2xl border border-[#C9A24D]/30 bg-gradient-to-br from-[#fffaf0] to-[#f6ead2] p-4 dark:border-white/10 dark:from-[#C9A24D]/10 dark:to-transparent">
         <div className="flex items-center justify-between gap-3">

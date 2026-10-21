@@ -120,7 +120,7 @@ export function LuxeHomeCardBody({ image, price, location, status, statusClass, 
         <span aria-hidden className="hub-lx-sweep absolute inset-y-0 left-0 w-1/3" />
         {/* status with the open house (badge) right beside it - never stacked on the price */}
         <span className="absolute left-2.5 right-2.5 top-2.5 flex items-center gap-1">
-          <span className={`inline-flex shrink-0 items-center font-black uppercase ${sold ? 'hub-lx-sold rounded-[9px] px-3 py-1.5 text-[10px]' : `rounded-full px-2 py-0.5 text-[9px] shadow ${statusClass}`}`}>{sold && <span className="hub-lx-sold-dot" />}<span className="relative">{status}</span></span>
+          <span className={`inline-flex shrink-0 items-center font-black uppercase ${sold ? 'hub-lx-sold rounded-full px-2 py-0.5 text-[9px]' : `rounded-full px-2 py-0.5 text-[9px] shadow ${statusClass}`}`}><span className="relative">{status}</span></span>
           {badge && <span className="flex min-w-0">{badge}</span>}
         </span>
         <span className="absolute inset-x-0 bottom-0 p-3 text-left">
@@ -151,7 +151,7 @@ export function LuxeGridHomeCard({ image, price, address, location, status, stat
           <span className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.4s] ease-out group-hover/lx:scale-110" style={{ backgroundImage: sizedBg(image || '/placeholder.jpg', 640) }} />
           <span className="absolute inset-0 bg-gradient-to-t from-[#0b0f0e] via-[#0b0f0e]/25 to-black/5" />
           <span aria-hidden className="hub-lx-sweep absolute inset-y-0 left-0 w-1/3" />
-          <span className={`absolute left-3 top-3 font-black uppercase ${sold ? 'hub-lx-sold rounded-[10px] px-3.5 py-2 text-[11px]' : `rounded-full px-2.5 py-1 text-[10px] shadow ${statusClass}`}`}>{sold && <span className="hub-lx-sold-dot" />}<span className="relative">{status}</span></span>
+          <span className={`absolute left-3 top-3 font-black uppercase ${sold ? 'hub-lx-sold rounded-full px-2.5 py-1 text-[10px]' : `rounded-full px-2.5 py-1 text-[10px] shadow ${statusClass}`}`}><span className="relative">{status}</span></span>
           <span className="absolute inset-x-0 bottom-0 p-4">
             {badge && <span className="mb-2 flex">{badge}</span>}
             <span className="block h-px w-10 bg-gradient-to-r from-[var(--m-light)] to-transparent" />
@@ -198,18 +198,18 @@ export function LuxeVideoCardBody({ thumb, title, kicker }: { thumb: string; tit
 // An article as a cover: the photo fills the card, the title is set on it in serif over a deep
 // gradient, the category sits top-left as a metal-edged chip, and the metal frame runs around it.
 export const LUXE_BLOG_CARD = 'hub-lx-card group/lx relative block h-[232px] w-[222px] shrink-0 snap-start overflow-hidden rounded-[20px] p-[1.5px] text-left lg:h-[248px] lg:w-[244px]'
-export function LuxeBlogCardBody({ image, category, title }: { image?: string; category: string; title: string }) {
+export function LuxeBlogCardBody({ image, category, title, large = false }: { image?: string; category: string; title: string; large?: boolean }) {
   return (
     <>
       <span aria-hidden className="absolute inset-0 rounded-[20px] bg-gradient-to-br from-[var(--m-cream)] via-[rgba(var(--m-rgb),0.45)] to-[var(--m-deep)]" />
       <span className="relative block h-full w-full overflow-hidden rounded-[18.5px] bg-[#0f1420]">
-        {image ? <span className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.6s] ease-out group-hover/lx:scale-[1.07]" style={{ backgroundImage: sizedBg(image, 640) }} /> : <span className="absolute inset-0 block"><BlogCoverArt category={category} title={title} showWord={false} /></span>}
+        {image ? <span className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.6s] ease-out group-hover/lx:scale-[1.07]" style={{ backgroundImage: sizedBg(image, large ? 1280 : 640) }} /> : <span className="absolute inset-0 block"><BlogCoverArt category={category} title={title} showWord={false} /></span>}
         <span className="absolute inset-0 bg-gradient-to-t from-[#070a0f] via-[#070a0f]/55 to-black/10" />
         <span aria-hidden className="hub-lx-sweep absolute inset-y-0 left-0 w-1/3" />
         <span className="absolute left-3 top-3 rounded-full border border-[rgba(var(--m-light-rgb),0.55)] bg-black/35 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-[var(--m-cream)] ">{category}</span>
-        <span className="absolute inset-x-0 bottom-0 p-4">
+        <span className={`absolute inset-x-0 bottom-0 ${large ? "p-5 lg:p-7" : "p-4"}`}>
           <span className="block h-px w-9 bg-gradient-to-r from-[var(--m-light)] to-transparent" />
-          <span className="mt-2.5 line-clamp-3 block font-serif text-[17px] font-black leading-[1.18] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,.4)]">{title}</span>
+          <span className={`mt-2.5 block font-serif font-black ${large ? "line-clamp-2 max-w-[38ch] text-[22px] lg:text-[28px]" : "line-clamp-3 text-[17px]"} leading-[1.18] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,.4)]`}>{title}</span>
           <span className="mt-2.5 inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.24em] text-[var(--m-light)] transition-transform duration-300 group-hover/lx:translate-x-1">Read the story <span aria-hidden>&rarr;</span></span>
         </span>
       </span>

@@ -212,9 +212,21 @@ export default function WebsiteEditorShell({ onActionsChange, onBarEndChange, ta
     return () => clearTimeout(timeoutId)
   }, [site, homePage.blocks, featuredSettings, areasVersion])
 
-  // The real https://{slug}.openhousepal.com address only opens once the wildcard DNS record is
-  // live - until then (and locally) this is the same site on openhousepal.com (see ohpHostUrl).
-  const siteUrl = site ? ohpHostUrl(`${site.subdomain_slug}.${OHP_BASE_DOMAIN}`) : ''
+  // The site's address: the agent's own domain once it's connected and live (primary + ACTIVE -
+  // the same rule as every share link, lib/publicResourceLinks), else https://{slug}.openhousepal.com.
+  // Re-read when they leave the Domain tab, so connecting a domain updates the link right away.
+  // It used to always show the openhousepal.com address, even with a domain connected (user, 10/20).
+  const [ownDomain, setOwnDomain] = useState<string | null>(null)
+  useEffect(() => {
+    if (!site || activeTab === 'domains') return
+    let live = true
+    api.sites.getDomains().then(res => {
+      if (!live || !res.success) return
+      setOwnDomain((res.data || []).find(d => d.is_primary && d.status === 'ACTIVE')?.hostname || null)
+    })
+    return () => { live = false }
+  }, [site, activeTab])
+  const siteUrl = site ? ohpHostUrl(ownDomain || `${site.subdomain_slug}.${OHP_BASE_DOMAIN}`) : ''
 
   // ---- Live preview that follows what you're editing (same feel as the Spotlight editor) ----
   // The open tab (and, on Content, the open section) is scrolled into view and outlined in gold.

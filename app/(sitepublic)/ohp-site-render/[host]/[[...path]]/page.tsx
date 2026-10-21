@@ -27,7 +27,7 @@ import HomeCard from '@/components/website-public/HomeCard'
 import SiteFormLauncher from '@/components/website-public/SiteFormLauncher'
 import SiteNavProgress from '@/components/website-public/SiteNavProgress'
 import { normalizeSiteTheme } from '@/lib/siteTheme'
-import { cardVersion, siteLookParam } from '@/lib/og/shared'
+import { cardVersion, ogFetch, showcaseShareText, siteLookParam } from '@/lib/og/shared'
 import { toTitleCase } from '@/lib/cheatSheetContent'
 import { fontClass } from '@/components/website-public/blocks/fontClass'
 import BlogCoverArt from '@/components/BlogCoverArt'
@@ -58,6 +58,8 @@ interface ResolveResponse {
   published_snapshot: SiteContent
   redirect_to: string | null
   canonical_hostname: string | null
+  /** Search Console codes for the home page's google-site-verification tag (ours + the agent's). */
+  google_verification?: string[]
 }
 
 // Next.js dedupes identical fetch() calls (same URL + options) within one request, so calling
@@ -272,11 +274,18 @@ async function baseMetadata({
     return publicAliasMetadata('Open house sign-in', `https://${OHP_BASE_DOMAIN}/open-house/${encodeURIComponent(path[1])}`)
   }
   if (path?.[0] === 'showcase' || path?.[0] === 'showcases') {
+    // Named for the guest it was made for ("Lori's personal Showcase") - the same text as the
+    // openhousepal.com link; applySiteSeo leaves the site name off private client links.
+    const data = path[1] ? await ogFetch<any>(`/collections/shared/${encodeURIComponent(path[1])}`, 120) : null
+    const share = showcaseShareText(data)
     return publicAliasMetadata(
-      'A personal home showcase',
+      share.title,
       path[1] ? `https://${OHP_BASE_DOMAIN}/showcase/${encodeURIComponent(path[1])}` : undefined,
       // in the site's own colour, like the Showcase itself on this domain
-      { ogImage: path[1] ? ogCard('showcase', { token: path[1], accent: normalizeSiteTheme({ ...DEFAULT_SITE_THEME, ...(resolved.published_snapshot?.theme || {}) }).secondary_color?.replace('#', ''), v: 'c2' }) : undefined },
+      {
+        description: share.description,
+        ogImage: path[1] ? ogCard('showcase', { token: path[1], accent: normalizeSiteTheme({ ...DEFAULT_SITE_THEME, ...(resolved.published_snapshot?.theme || {}) }).secondary_color?.replace('#', ''), v: share.v }) : undefined,
+      },
     )
   }
   if (path?.[0] === 'cma' && path[1]) {
@@ -397,6 +406,8 @@ function applySiteSeo(meta: Metadata, resolved: ResolveResponse, path: string[] 
     // a neighborhood page - the agent can override its Google text in the Google tab too
     title = (custom?.title || '').trim() || (baseTitle && siteName ? withSiteName(baseTitle, siteName) : baseTitle)
     description = (custom?.description || '').trim() || meta.description
+  } else if (segs[0] === 'showcase' || segs[0] === 'showcases') {
+    // A guest's own Showcase is named for them alone - no " | Agent Name" on the end.
   } else if (baseTitle && siteName && !baseTitle.includes(siteName)) {
     // every other page (a home, a blog post) carries the site's name too, when it fits
     title = withSiteName(baseTitle, siteName)
@@ -417,6 +428,9 @@ function applySiteSeo(meta: Metadata, resolved: ResolveResponse, path: string[] 
     applicationName: siteName || undefined,
     ...(icon ? { icons: { icon: [{ url: icon }], apple: [{ url: icon }] } } : {}),
     ...(seo.allow_indexing === false ? { robots: { index: false, follow: false } } : {}),
+    // Search Console ownership proof (google_search_service - automatic, plus any code the agent
+    // pasted). Google only looks on the home page.
+    ...(key === 'home' && resolved.google_verification?.length ? { verification: { google: resolved.google_verification } } : {}),
     openGraph: {
       ...(meta.openGraph || {}),
       ...(title ? { title: title as string } : {}),
@@ -800,12 +814,17 @@ async function BlogIndex({ siteId, theme, basePrefix }: { siteId: string; theme:
   return <MediaHub theme={theme} basePrefix={basePrefix} posts={posts} videos={videos} tours={tours} agentName={profile?.name} channelUrl={media?.channel_url} />
 }
 
-async function BlogDetail({ siteId, slug, theme, basePrefix }: { siteId: string; slug: string; theme: any; basePrefix: string }) {
+async function BlogDetail({ siteId, slug, theme, basePrefix, path }: { siteId: string; slug: string; theme: any; basePrefix: string; path?: string[] }) {
   const [post, media] = await Promise.all([
     fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/blog/${encodeURIComponent(slug)}`),
     fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/blog?limit=48`),
   ])
-  if (!post) notFound()
+  if (!post) {
+    // an old site's /blog/<post> that isn't a post here
+    const oldTo = path ? await oldLinkTarget(siteId, path) : null
+    if (oldTo) permanentRedirect(`${basePrefix}${oldTo}`)
+    notFound()
+  }
   const hubSlug = await resolveAgentHubSlug(siteId)
   const related = ((media?.posts || []) as any[])
     .filter(p => p.slug !== slug && (!post.category || p.category === post.category))
@@ -998,9 +1017,14 @@ async function CommunitiesIndex({ siteId, theme, basePrefix }: { siteId: string;
   )
 }
 
-async function PropertyDetail({ siteId, listingKey, theme, basePrefix }: { siteId: string; listingKey: string; theme: any; basePrefix: string }) {
+async function PropertyDetail({ siteId, listingKey, theme, basePrefix, path }: { siteId: string; listingKey: string; theme: any; basePrefix: string; path?: string[] }) {
   const p = await fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/properties/${encodeURIComponent(listingKey)}`)
-  if (!p) notFound()
+  if (!p) {
+    // an old site's /properties/<home> that isn't a listing here
+    const oldTo = path ? await oldLinkTarget(siteId, path) : null
+    if (oldTo) permanentRedirect(`${basePrefix}${oldTo}`)
+    notFound()
+  }
   return <PropertyDetailView p={p} theme={theme} basePrefix={basePrefix} siteId={siteId} />
 }
 
@@ -2519,6 +2543,45 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
   )
 }
 
+// Page names other real estate websites use (IDX vendors, WordPress themes, Squarespace...) -> the
+// page here that does the same job. Checked only after the agent's own pages, Agent Hub links and
+// built-in sections, so it never shadows anything real. Anything else gets the site's own friendly
+// "page not found" (not-found.tsx), which Google drops from its results.
+const LEGACY_PAGE_PATHS: Array<[RegExp, string]> = [
+  [/^(about[-_]?(me|us)?|bio|meet[-_].*|our[-_]?(team|agents?|story)|team|agents?|who[-_]we[-_]are)$/, '/about'],
+  [/^(contact[-_]?(me|us)?|get[-_]in[-_]touch|reach[-_]out|connect)$/, '/contact'],
+  [/^(listings?|my[-_]listings|featured([-_](listings|properties|homes))?|exclusive[-_]listings|current[-_]listings|our[-_]listings|properties[-_]for[-_]sale)$/, '/properties'],
+  [/^(home[-_]?search|search[-_](homes|properties|listings|mls)|property[-_]search|idx|mls([-_]search)?|find[-_]a[-_]home|homes[-_]for[-_]sale|for[-_]sale|buy|buyers?|buying)$/, '/search'],
+  [/^(blogs|news|articles|posts|insights|market[-_](updates?|reports?))$/, '/blog'],
+  [/^(sold|sold[-_](listings|homes|properties)|past[-_](sales|transactions)|recent[-_]sales|closed)$/, '/sales'],
+  [/^(home[-_]?(value|valuation|worth|evaluation)([-_].*)?|whats?[-_]my[-_]home[-_]worth|sell|sellers?|selling|cma)$/, '/home-value'],
+  [/^(areas?|communities|community|neighbou?rhoods?[-_].*|towns)$/, '/neighborhoods'],
+  [/^(testimonials?[-_].*|client[-_]reviews|reviews[-_].*)$/, '/testimonials'],
+  [/^(index\.(html?|php)|home|wp-.*|.*\.(php|aspx?|html?))$/, '/'],
+]
+
+// An address from the site that used to live on the agent's own domain -> the page here the old-links
+// scan matched it to (backend services/website/old_links_service; the agent can change or turn one off
+// on the Domain tab). One cached call per address; null when it isn't one of the old site's pages.
+async function oldLinkTarget(siteId: string, path: string[]): Promise<string | null> {
+  const joined = '/' + path.map(seg => { try { return decodeURIComponent(seg) } catch { return seg } }).join('/')
+  try {
+    const res = await fetch(`${INTERNAL_API_URL}/public/sites/${siteId}/redirects?path=${encodeURIComponent(joined)}`, { next: { revalidate: 60 } })
+    if (!res.ok) return null
+    const data = await res.json()
+    // a path on this site only - never '//other-host'
+    return typeof data?.target === 'string' && /^\/(?!\/)/.test(data.target) ? data.target : null
+  } catch {
+    return null
+  }
+}
+
+function legacyPagePath(path: string[]): string | null {
+  const first = (path[0] || '').toLowerCase()
+  for (const [re, to] of LEGACY_PAGE_PATHS) if (re.test(first)) return to
+  return null
+}
+
 export default async function PublicSitePage({
   params,
   searchParams,
@@ -2591,6 +2654,7 @@ export default async function PublicSitePage({
   let pageHasContactCta = false
   let showShowcaseCreatorCta = false
   let showcaseCreatorListings: any[] = []
+  let oldLinkTo: string | null = null
   const currentSearchParams = await searchParams
   const wantsSiteChrome = currentSearchParams.site_chrome === '1'
   // Classic opens every page on a light banner (ClassicPageHero / the split home hero), so its
@@ -2598,14 +2662,14 @@ export default async function PublicSitePage({
   const luxeLook = theme.template !== 'default'
   if (path?.[0] === 'blog') {
     if (path[1]) {
-      content = <BlogDetail siteId={resolved.site_id} slug={path[1]} theme={theme} basePrefix={basePrefix} />
+      content = <BlogDetail siteId={resolved.site_id} slug={path[1]} theme={theme} basePrefix={basePrefix} path={path} />
     } else {
       content = <BlogIndex siteId={resolved.site_id} theme={theme} basePrefix={basePrefix} category={currentSearchParams.category} />
       hasDarkHero = true
     }
   } else if (path?.[0] === 'properties') {
     if (path[1]) {
-      content = <PropertyDetail siteId={resolved.site_id} listingKey={path[1]} theme={theme} basePrefix={basePrefix} />
+      content = <PropertyDetail siteId={resolved.site_id} listingKey={path[1]} theme={theme} basePrefix={basePrefix} path={path} />
     } else {
       content = <PropertiesIndex siteId={resolved.site_id} theme={theme} basePrefix={basePrefix} />
       hasDarkHero = true
@@ -2632,7 +2696,12 @@ export default async function PublicSitePage({
     // A Listing Spotlight on the agent's own connected domain (<domain>/listings/<slug>) - the
     // link the app hands out once a custom domain is ACTIVE (see property_website_service.public_url).
     const propertySite = await resolvePropertySite(host, joinPath(path))
-    if (!propertySite) notFound()
+    if (!propertySite) {
+      // not a Spotlight - maybe an old site's /listings/<home> (the old-links scan)
+      const oldTo = await oldLinkTarget(resolved.site_id, path)
+      if (oldTo) permanentRedirect(`${basePrefix}${oldTo}`)
+      notFound()
+    }
     const publicUrl = `https://${propertySite.canonical_hostname || host}`
     return propertySite.template_id === 'editorial_estate'
       ? <EditorialEstateTemplate data={propertySite} publicUrl={publicUrl} />
@@ -2706,6 +2775,14 @@ export default async function PublicSitePage({
       const hubSlug = (await resolveAgentHubSlug(resolved.site_id)) as string
       content = <HubAliasPage rest={[hubSlug, path[0].toLowerCase() === 'sales' ? 'sales' : 'review']} query={queryString(currentSearchParams)} basePrefix={basePrefix} />
       exactExternalResource = true
+    } else if (path?.length && (oldLinkTo = await oldLinkTarget(resolved.site_id, path))) {
+      // A page of the site that used to live on this domain, found by the old-links scan (Internet
+      // Archive) and matched to its page here - more exact than the generic names below.
+      permanentRedirect(`${basePrefix}${oldLinkTo}`)
+    } else if (path?.length && legacyPagePath(path)) {
+      // An address from the site that used to live on this domain (Google still lists it) -
+      // sent to the same kind of page here instead of "page not found" (user, 10/20).
+      permanentRedirect(`${basePrefix}${legacyPagePath(path)}`)
     } else if (path?.length === 1) {
       // No page-builder page matched a single-segment path - try the shared Area system before
       // giving up, since community pages (/villanova-pa) aren't page-builder pages (see

@@ -71,7 +71,7 @@ export default function ListingFeatureCard({ listing, luxe = false, compact = fa
   const soldDate = sold ? soldOn(listing.sold_date) : ''
 
   const statusPill = sold
-    ? 'hub-lx-sold rounded-[9px] px-3 py-1.5 text-[10px]'
+    ? 'hub-lx-sold rounded-full px-2.5 py-1 text-[9.5px]' // same pill as Active, in red
     : `rounded-full px-2.5 py-1 text-[9.5px] shadow ${getSaleStatusClass(listing.status)}`
 
   // The first photo only - a mosaic of three read as busy and made the card tall.
@@ -82,7 +82,7 @@ export default function ListingFeatureCard({ listing, luxe = false, compact = fa
       {luxe && <span aria-hidden className="hub-lx-sweep absolute inset-y-0 left-0 w-1/3" />}
       {/* status, with the open house (if any) right beside it */}
       <span className="absolute left-3 right-3 top-3 flex flex-wrap items-center gap-1.5">
-        <span className={`inline-flex items-center font-black uppercase tracking-wide ${statusPill}`}>{sold && <span className="hub-lx-sold-dot" />}<span className="relative">{status}</span></span>
+        <span className={`inline-flex items-center font-black uppercase tracking-wide ${statusPill}`}><span className="relative">{status}</span></span>
         {openHouses.length > 0 && <span className="hidden min-w-0 sm:flex"><OpenHouseChip openHouses={listing.open_houses} variant={luxe ? 'luxe' : 'classic'} compact /></span>}
       </span>
       {sold && soldDate && (

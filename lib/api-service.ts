@@ -24,6 +24,16 @@ import { tidyAllCaps } from './cheatSheetContent';
 
 /** Something wrong with an agent's own domain right now, in plain words + the fix (domain_health_service). */
 export type DomainIssue = { hostname: string; code: string; title: string; fix: string; since: string }
+export type OldLink = {
+  id: string; source_path: string; target_path: string | null; confidence: number; match_reason: string | null
+  is_enabled: boolean; agent_approved: boolean; last_seen_at: string | null
+}
+export type OldLinksPayload = {
+  domain: string | null
+  scan: { status?: 'running' | 'done' | 'failed'; found?: number | null; matched?: number | null; error?: string | null; finished_at?: string | null } | null
+  redirects: OldLink[]
+  targets: { path: string; label: string; group: string }[]
+}
 export type AdminDomainIssue = DomainIssue & { agent_id: string; agent_name: string; agent_email: string; brokerage?: string | null }
 
 export interface PlanImpact {
@@ -1546,6 +1556,11 @@ class ApiService {
     // Everything the Google tab previews every page from - see backend site_routes.get_my_seo_pages.
     getSeoPages: () => this.request<SeoPagesData>('/studio/sites/me/seo-pages'),
 
+    // "Show up on Google" card - the site is put in Google/Bing automatically (backend google_search_service).
+    getGoogleStatus: () => this.request<GoogleSearchStatus>('/studio/sites/me/google'),
+    retryGoogle: () => this.request<GoogleSearchStatus>('/studio/sites/me/google/retry', { method: 'POST' }),
+    setGoogleCode: (code: string) => this.request<GoogleSearchStatus>('/studio/sites/me/google/code', { method: 'PUT', body: JSON.stringify({ code }) }),
+
     getAreas: (lite = false) => this.request<AgentMarketArea[]>(`/studio/sites/me/areas${lite ? '?lite=true' : ''}`),
 
     addArea: (name: string, state: string, areaType: 'city' | 'neighborhood' = 'city') =>
@@ -1570,6 +1585,12 @@ class ApiService {
     publish: () => this.request<Site>('/studio/sites/me/publish', { method: 'POST' }),
 
     getDomains: () => this.request<SiteDomain[]>('/studio/sites/me/domains'),
+
+    // Old pages from the agent's previous website on their domain (backend old_links_service)
+    getOldLinks: () => this.request<OldLinksPayload>('/studio/sites/me/old-links'),
+    scanOldLinks: () => this.request<OldLinksPayload>('/studio/sites/me/old-links/scan', { method: 'POST' }),
+    updateOldLink: (id: string, body: { target_path?: string | null; is_enabled?: boolean }) =>
+      this.request<{ id: string; target_path: string | null; is_enabled: boolean; match_reason: string | null }>(`/studio/sites/me/old-links/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
 
     getDomainHealth: () => this.request<{ issues: DomainIssue[] }>('/studio/sites/me/domains/health'),
 
@@ -2503,6 +2524,19 @@ export const api = new ApiService();
 export default api;
 
 /** The IDX neighborhood pages an article can link to (GET /studio/blogs/linkable-areas). */
+/** Is the agent's IDX site in Google yet - see backend google_search_service.status_for. */
+export interface GoogleSearchStatus {
+  state: 'not_live' | 'hidden' | 'unavailable' | 'working' | 'error' | 'done'
+  host: string
+  site_url: string
+  sitemap_url: string
+  verified_at: string | null
+  sitemap_submitted_at: string | null
+  indexnow_pinged_at: string | null
+  last_error: string | null
+  manual_code: string | null
+}
+
 export interface SeoPagesData {
   agent: { name?: string; brokerage?: string; market?: string; phone?: string; title?: string; bio?: string }
   areas: { slug: string; name: string; state?: string; photo?: string | null; median_price?: number | null; active_count?: number | null; school_districts?: string[]; summary?: string }[]

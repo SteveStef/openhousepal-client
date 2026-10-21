@@ -751,8 +751,31 @@ export default function PublicAgentHubPage() {
           </section>
         )
       }
+      // One post: one wide, taller card across the whole row instead of a small card and empty space
+      // (user, 10/20) - like a lone listing's feature card.
+      const soloBlog = eligibleBlogs.length === 1 ? eligibleBlogs[0] : null
+      const soloBlogLink = soloBlog ? resolveBlogHref(soloBlog.link) : null
+      const soloBlogFeature = soloBlog && soloBlogLink ? (
+        <a href={soloBlogLink.href} target={soloBlog.link && !soloBlogLink.isInternal ? '_blank' : undefined} rel={soloBlog.link && !soloBlogLink.isInternal ? 'noreferrer' : undefined} onClick={() => soloBlog.link && recordAgentHubEvent({ type: 'click', label: `Blog: ${soloBlog.title}` })}
+          className={luxe
+            ? `hub-lx-card group/lx relative block h-[260px] w-full overflow-hidden rounded-[20px] p-[1.5px] text-left lg:h-[320px] ${soloBlog.link ? '' : 'pointer-events-none'}`
+            : `group/blog relative block h-[260px] w-full overflow-hidden rounded-[18px] bg-[#111827] shadow-sm transition-shadow duration-500 hover:shadow-[0_24px_48px_-28px_rgba(17,24,39,.55)] lg:h-[320px] ${soloBlog.link ? '' : 'pointer-events-none'}`}>
+          {luxe ? <LuxeBlogCardBody image={soloBlog.image} category={soloBlog.description || 'Blog'} title={soloBlog.title} large /> : (
+            <>
+              {soloBlog.image ? <div className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.6s] ease-out group-hover/blog:scale-[1.04]" style={{ backgroundImage: sizedBg(soloBlog.image, 1280) }} /> : <div className="absolute inset-0"><BlogCoverArt category={soloBlog.description} title={soloBlog.title} showWord={false} /></div>}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#070a0f] via-[#070a0f]/45 to-black/5" />
+              <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#111827] shadow-sm">{soloBlog.description || 'Blog'}</span>
+              <div className="absolute inset-x-0 bottom-0 p-5 lg:p-7">
+                <span className="block h-px w-10 bg-gradient-to-r from-[#e8c97a] to-transparent" />
+                <h3 className="mt-3 line-clamp-2 max-w-[38ch] font-serif text-[22px] font-black leading-[1.15] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,.4)] lg:text-[28px]">{soloBlog.title}</h3>
+                <span className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-[#e8c97a] transition-transform duration-300 group-hover/blog:translate-x-1">Read the story <span aria-hidden>&rarr;</span></span>
+              </div>
+            </>
+          )}
+        </a>
+      ) : undefined
       return (
-        <HubShelf key={id} title="My Blogs" action="Read All" actionHref={blogsPath} sameTab itemCount={eligibleBlogs.length} autoScroll={blogsAutoScroll} scrollPulse={autoScrollStep?.id === id ? autoScrollStep.nonce : 0}>
+        <HubShelf key={id} title="My Blogs" action="Read All" actionHref={blogsPath} sameTab itemCount={eligibleBlogs.length} autoScroll={blogsAutoScroll} scrollPulse={autoScrollStep?.id === id ? autoScrollStep.nonce : 0} feature={soloBlogFeature}>
           {eligibleBlogs.map((item) => {
             const { href, isInternal } = resolveBlogHref(item.link)
             if (luxe) return (
@@ -1033,6 +1056,20 @@ function HubShelf({ title, action, actionHref, actionNode, sameTab = false, chil
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoScroll, scrollPulse, autoScrollPaused, itemCount])
 
+  // Arrows only when there's more than fits on screen - one or two cards (or exactly three on a
+  // computer) have nothing to flip to, and arrows beside them looked silly (user, 10/20).
+  const [canScroll, setCanScroll] = useState(false)
+  useEffect(() => {
+    const row = rowRef.current
+    if (!row) return
+    const measure = () => setCanScroll(row.scrollWidth > row.clientWidth + 2)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(row)
+    Array.from(row.children).forEach(c => ro.observe(c))
+    return () => ro.disconnect()
+  }, [itemCount, feature])
+
   const cards = Children.map(children, (child, i) => {
     if (!isValidElement(child)) return child
     const el = child as ReactElement<{ className?: string }>
@@ -1061,6 +1098,7 @@ function HubShelf({ title, action, actionHref, actionNode, sameTab = false, chil
           {cards}
         </div>
         {sweep && <span key={sweepKey} aria-hidden className={`hub-shelf-sweep hidden lg:block ${sweepKey ? 'is-on' : ''}`} />}
+        {canScroll && <>
         <button
           type="button"
           onClick={scrollPrevious}
@@ -1077,6 +1115,7 @@ function HubShelf({ title, action, actionHref, actionNode, sameTab = false, chil
         >
           <ChevronRight className="h-4 w-4" />
         </button>
+        </>}
       </div>
       )}
     </section>

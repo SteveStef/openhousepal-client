@@ -43,11 +43,20 @@ export function autoSectionMeta(key: string, ctx: SeoCtx): SeoMeta | null {
   const where = market(ctx)
   const towns = ctx.towns.slice(0, 4)
   switch (key) {
-    case 'home':
+    case 'home': {
+      // The agent's name and brokerage lead, so the site comes up when someone searches either
+      // (user, 10/20). The brokerage goes in the title only when it still fits Google's ~60
+      // characters; it's always first in the description.
+      const brokerage = (ctx.agent.brokerage || '').trim()
+      const withBrokerage = name && brokerage ? `${name}, ${brokerage} | ${where} Real Estate` : ''
+      const plain = name ? `${name} | ${where} Real Estate` : `${where} Real Estate`
       return {
-        title: name ? `${name} | ${where} Real Estate` : `${where} Real Estate`,
-        description: seoClip(`Homes for sale in ${where}, what homes really sell for, neighborhood guides and a free home value${name ? ` - from ${name}` : ''}.`),
+        title: withBrokerage && withBrokerage.length <= SEO_TITLE_MAX ? withBrokerage : plain,
+        description: seoClip(name
+          ? `${agentLine(ctx)}: homes for sale in ${where}, what homes really sell for, neighborhood guides and a free home value.`
+          : `Homes for sale in ${where}, what homes really sell for, neighborhood guides and a free home value.`),
       }
+    }
     case 'search':
       return { title: ctx.agent.market && `Search Homes for Sale in ${where}`.length <= 48 ? `Search Homes for Sale in ${where}` : 'Search Homes for Sale', description: seoClip(`Search every home for sale in ${where} - live MLS listings with photos, prices and open houses. Save a search to see new homes first.`) }
     case 'properties':

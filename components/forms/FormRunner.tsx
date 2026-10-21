@@ -234,11 +234,12 @@ export function WelcomeMotionBackdrop({ accent, light = false, intro = false }: 
   // sat right on top of the route card's own corner), which read as one jumbled smudge instead of
   // separate floating pieces.
   // `phone`: where it sits on a phone - only on the welcome screen, in the space kept clear above
-  // the title (so nothing overlaps the content); null = desktop only.
+  // the title (so nothing overlaps the content); null = desktop only. Kept well off the top edge -
+  // up at the very top they looked jammed against it, worst in a pop-up (user, 10/20).
   const floatingCards = [
-    { className: 'sm:left-[2%] sm:bottom-[6%]', phone: 'max-sm:left-3 max-sm:top-3', delay: 0.15, label: 'New Match', value: '$825K', icon: Home },
-    { className: 'sm:right-[4%] sm:top-[6%]', phone: null, delay: 0.45, label: 'Near Parks', value: '0.4 mi', icon: MapPin },
-    { className: 'sm:left-[calc(50%-66px)] sm:top-[3%]', phone: 'max-sm:right-3 max-sm:top-3', delay: 0.75, label: 'Tour Ready', value: 'Today', icon: Sparkles },
+    { className: 'sm:left-[2%] sm:bottom-[6%]', phone: 'max-sm:left-3 max-sm:top-7', delay: 0.15, label: 'New Match', value: '$825K', icon: Home },
+    { className: 'sm:right-[4%] sm:top-[max(44px,9%)]', phone: null, delay: 0.45, label: 'Near Parks', value: '0.4 mi', icon: MapPin },
+    { className: 'sm:left-[calc(50%-66px)] sm:top-[max(32px,6%)]', phone: 'max-sm:right-3 max-sm:top-7', delay: 0.75, label: 'Tour Ready', value: 'Today', icon: Sparkles },
   ]
   // Panel fills/strokes are strong enough to read on both the light theme's near-white backdrop
   // and the dark theme's near-black one - the old sketch panels here used a white/30-35 fill,
@@ -1203,7 +1204,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
   const [topBarHeight, setTopBarHeight] = useState(0)
   const [isSmUp, setIsSmUp] = useState(false)
   // Room kept above the welcome content for the floating cards (phones: the two small cards; desktop: "Tour Ready").
-  const introTopPad = backgroundEffects ? (isSmUp ? 76 : 64) : 0
+  const introTopPad = backgroundEffects ? (isSmUp ? 104 : 88) : 0
   // Showcase Request's welcome screen (branding + title + animation + button) can run taller
   // than a short phone viewport - rather than letting it scroll, it's scaled down to fit.
   const introScrollAreaRef = useRef<HTMLDivElement>(null)

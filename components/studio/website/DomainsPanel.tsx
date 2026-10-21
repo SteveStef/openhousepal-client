@@ -7,6 +7,7 @@ import { SiteDomain } from '@/types'
 import { copyText } from '@/lib/copyText'
 import { ohpHostUrl } from '@/lib/publicResourceLinks'
 import DomainSetupGuide from './DomainSetupGuide'
+import OldLinksPanel from './OldLinksPanel'
 import OneClickConnect from '@/components/domains/OneClickConnect'
 import BuyDomain, { PurchasedDomainCard, useDomainShop } from '@/components/domains/BuyDomain'
 
@@ -156,6 +157,15 @@ function DomainRow({ domain, partner, onChanged, back, bought }: { domain: SiteD
         </p>
       )}
 
+      {domain.status === 'ACTIVE' && partner?.status === 'ACTIVE' && partner.last_error === 'forward_no_paths' && (
+        // GoDaddy-style forwarding: the bare domain's home page forwards, no other page does.
+        <p className="mt-2 rounded-xl bg-amber-50 p-2.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+          {partner.instructions.find(i => i.type === 'A')
+            ? <>Only your home page opens from {partner.hostname} (without www) - other pages, like old ones in Google, show &quot;page not found&quot;. At your domain company, delete the forwarding on {partner.hostname} and add an A record: name @, value {partner.instructions.find(i => i.type === 'A')!.value}.</>
+            : <>Only your home page opens from {partner.hostname} (without www). Your domain company&apos;s forwarding doesn&apos;t pass other pages along, so a page typed or clicked in Google without the www shows &quot;page not found&quot;. Always share {domain.hostname}.</>}
+        </p>
+      )}
+
       {(domain.status !== 'ACTIVE' || (partner && partner.status !== 'ACTIVE') || (!domain.is_primary && !isRedirect)) && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {(domain.status !== 'ACTIVE' || (partner && partner.status !== 'ACTIVE')) && (
@@ -212,6 +222,8 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
   useEffect(() => { load() }, [])
 
   const hasActivePrimary = domains.some(d => d.is_primary && d.status === 'ACTIVE')
+  // a connected own domain (not just its bare-domain forward) - its old site's pages get rerouted
+  const hasActiveCustom = domains.some(d => d.status === 'ACTIVE' && !d.redirect_target_domain_id)
   const ohpHost = `${subdomainSlug}.${OHP_BASE_DOMAIN}`
 
   const handleAdd = async () => {
@@ -335,6 +347,8 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
         </p>
       </div>
       )}
+
+      {hasActiveCustom && !hideFree && <OldLinksPanel />}
     </div>
   )
 }

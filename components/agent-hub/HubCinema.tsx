@@ -196,14 +196,14 @@ export function HomeOverlay({ luxe = false, status, statusClass, price, title, s
 }) {
   const sold = status.toLowerCase() === 'sold'
   const pill = sold
-    ? 'hub-lx-sold rounded-[9px] px-3 py-1.5 text-[10px]' // the same red tablet on both looks
+    ? 'hub-lx-sold rounded-full px-2.5 py-1 text-[10px]' // the same pill as Active, in red
     : `rounded-full px-2.5 py-1 text-[10px] shadow ${statusClass}`
   return (
     <>
       {/* status, with the open house (if any) right beside it - never crowding the price */}
       <div className="absolute left-3 right-3 top-3 flex flex-wrap items-center gap-1.5">
         <Rise as="span" still={still} delay={0.4} className={`inline-flex items-center font-black uppercase tracking-wide ${pill}`}>
-          {sold && <span className="hub-lx-sold-dot" />}<span className="relative">{status}</span>
+          <span className="relative">{status}</span>
         </Rise>
         {badge && <Rise as="span" still={still} delay={0.48} className="flex min-w-0">{badge}</Rise>}
       </div>
