@@ -624,7 +624,8 @@ export const QUALITY_TIER_STYLES: Record<string, string> = {
   above: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
   different_from_subject: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
   same_as_subject: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-  similar_to_subject: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  // Similar Area is a near match (same schools, nearby town), not a negative - amber, not red (10/20).
+  similar_to_subject: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
 }
 
 // Agent-side (studio) version of the same 3-tier scale - deliberately more saturated than the
@@ -635,7 +636,7 @@ export const AGENT_QUALITY_TIER_STYLES: Record<string, string> = {
   above: 'bg-red-500 text-white dark:bg-red-600',
   different_from_subject: 'bg-red-500 text-white dark:bg-red-600',
   same_as_subject: 'bg-emerald-500 text-white dark:bg-emerald-600',
-  similar_to_subject: 'bg-red-500 text-white dark:bg-red-600',
+  similar_to_subject: 'bg-amber-500 text-white dark:bg-amber-600',
 }
 
 // Same 3-tier semantics as QUALITY_TIER_STYLES above, as hex - @react-pdf/renderer can't read
@@ -646,7 +647,7 @@ export const QUALITY_TIER_HEX: Record<string, { bg: string; text: string }> = {
   above: { bg: '#FEF3C7', text: '#92400E' },
   different_from_subject: { bg: '#FEE2E2', text: '#B91C1C' },
   same_as_subject: { bg: '#D1FAE5', text: '#047857' },
-  similar_to_subject: { bg: '#FEE2E2', text: '#B91C1C' },
+  similar_to_subject: { bg: '#FEF3C7', text: '#92400E' },
 }
 
 // Hex twin of STRENGTH_SCALE_STYLES, for the PDF's Comp Weight row (its own independent

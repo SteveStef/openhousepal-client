@@ -2176,7 +2176,9 @@ function CmaGuidanceSections({ sections }: { sections: CmaGuidanceSection[] }) {
       {sections.map((section, index) => (
         <View key={`${section.title}-${index}`} style={{ marginBottom: index === sections.length - 1 ? 0 : 11 }}>
           {section.title ? (
-            <Text style={{ fontSize: 8.2, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.9, color: '#8b7355', marginBottom: 4 }}>
+            // minPresenceAhead: a heading never sits alone at the bottom of a page with its text on
+            // the next ("EV CHARGING INSTALLATION", 417 Dogwood Ln v7, 10/20).
+            <Text minPresenceAhead={40} style={{ fontSize: 8.2, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.9, color: '#8b7355', marginBottom: 4 }}>
               {section.title}
             </Text>
           ) : null}
