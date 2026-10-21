@@ -492,8 +492,9 @@ export async function renderOpenHouseCard(eventId: string, fonts: Fonts): Promis
     const accent = typeof data?.theme?.accentColor === 'string' && /^#[0-9a-f]{6}$/i.test(data.theme.accentColor) ? data.theme.accentColor : C.gold
     return IR(
       <HomePhotoCard photo={photo} street={titleCase(p.address) || 'Open House'} place={titleCase(p.city)} eyebrow="Open House" sub={sub}
-        // no agentName = the home sold since, and not by this host (backend services/sold_branding): no pill
-        agentName={p.agentName || null} agentBrokerage={p.agentBrokerage || null} agentPhoto={agentPhoto} accent={accent} />,
+        // the home sold since, and this host wasn't on the sale (backend services/sold_branding): no pill
+        agentName={p.brandingAllowed === false ? null : (p.agentName || 'Your host')}
+        agentBrokerage={p.brandingAllowed === false ? null : (p.agentBrokerage || null)} agentPhoto={p.brandingAllowed === false ? null : agentPhoto} accent={accent} />,
       fonts,
     )
   } catch {

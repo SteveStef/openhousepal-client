@@ -1289,9 +1289,7 @@ function ShowcaseContent() {
             nav={detailsNav}
             move={homeMove}
             onScheduleTour={p => handleScheduleTourClick(p)}
-            // A home that sold, with this agent not on the sale: no name / photo on it (the API
-            // decides per home - backend services/sold_branding).
-            agent={(selectedProperty as any)?.brandingAllowed === false ? null : { name: showcase.agentFullName || showcase.agentName, photoUrl: showcase.agentPhotoUrl }}
+            agent={{ name: showcase.agentFullName || showcase.agentName, photoUrl: showcase.agentPhotoUrl }}
             isLoadingDetails={isLoadingDetails}
             detailsError={detailsError}
             isLoadingComments={isLoadingComments}

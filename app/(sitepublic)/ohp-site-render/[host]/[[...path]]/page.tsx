@@ -1036,9 +1036,6 @@ async function PropertyDetail({ siteId, listingKey, theme, basePrefix, path }: {
 async function PropertyDetailView({ p, theme, basePrefix, siteId }: { p: any; theme: any; basePrefix: string; siteId?: string }) {
   // The agent's own listing with a published Listing Spotlight: the Spotlight IS its page.
   if (p.spotlight_url) redirect(p.spotlight_url)
-  // A sold home this agent didn't list or sell (the API decides - backend services/sold_branding):
-  // the page shows it without their card, photo, Call/Text/Email or showing form.
-  const branded = p.branding_allowed !== false
   const [areasRaw, agentProfile, hubSlug] = await Promise.all([
     siteId ? fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas`) : Promise.resolve(null),
     siteId ? fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/profile`) : Promise.resolve(null),
@@ -1073,8 +1070,8 @@ async function PropertyDetailView({ p, theme, basePrefix, siteId }: { p: any; th
         theme={theme}
         basePrefix={basePrefix}
         siteId={siteId}
-        agent={branded ? agentProfile : null}
-        showing={branded && hubSlug && showingForm ? { path: `/${hubSlug}/${showingForm.slug}` } : null}
+        agent={agentProfile}
+        showing={hubSlug && showingForm ? { path: `/${hubSlug}/${showingForm.slug}` } : null}
         matchedArea={matchedArea ? { slug: matchedArea.slug, name: matchedArea.name } : null}
         nearby={nearby}
         similar={similar}
