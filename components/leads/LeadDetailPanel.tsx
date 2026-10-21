@@ -111,7 +111,7 @@ function SectionTitle({ children, aside }: { children: React.ReactNode; aside?: 
 }
 
 function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/[0.08] dark:bg-[#151517] sm:p-5 ${className}`}>{children}</div>
+  return <div className={`min-w-0 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/[0.08] dark:bg-[#151517] sm:p-5 ${className}`}>{children}</div>
 }
 
 interface LeadDetailPanelProps {

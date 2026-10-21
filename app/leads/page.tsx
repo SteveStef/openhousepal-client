@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle, ArrowRight, ArrowUpDown, BellRing, ChevronDown, Flame, ListChecks, CalendarClock, CalendarDays, Check, Compass, Download, Eye, EyeOff, Home, Loader2, Mail, MailX,
-  CheckCheck, MessageCircle, MoreHorizontal, Phone, Search, ShieldCheck, Sparkles, Tag, Trash2, UserCheck, Users, X,
+  CheckCheck, MessageCircle, MoreHorizontal, Pencil, Phone, Search, ShieldCheck, Sparkles, Tag, Trash2, UserCheck, Users, X,
 } from 'lucide-react'
 import { copyText } from '@/lib/copyText'
 import LuxeSelect from '@/components/ui/LuxeSelect'
@@ -187,7 +187,10 @@ function LeadsPageInner() {
       if (origin !== 'any' && (l.origin_group || 'other') !== origin) return false
       if (tag && !(l.tags || []).includes(tag)) return false
       if (openHouseId && !l.open_houses?.some(oh => oh.id === openHouseId)) return false
-      if (q && !((l.name || '').toLowerCase().includes(q) || (l.email || '').includes(q) || (qd.length >= 3 && digits(l.phone).includes(qd)))) return false
+      if (q && !((l.name || '').toLowerCase().includes(q) || (l.email || '').includes(q) || (qd.length >= 3 && digits(l.phone).includes(qd))
+        // ...or the open house they came to / Cheat Sheet they scanned (user, 10/21)
+        || (l.places || []).some(p => p.toLowerCase().includes(q))
+        || (l.open_houses || []).some(oh => `${oh.address || ''} ${oh.city || ''}`.toLowerCase().includes(q)))) return false
       return true
     })
     const by = {
@@ -346,7 +349,7 @@ function LeadsPageInner() {
         <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-2xl border border-gray-200 bg-white p-2.5 shadow-sm dark:border-white/[0.08] dark:bg-[#151517] sm:flex sm:flex-wrap">
           <div className="relative min-w-0 sm:min-w-[200px] sm:flex-[2]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={narrow ? "Search leads" : "Search name, email or phone"}
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={narrow ? "Name, email or address" : "Search name, email, phone or open house"}
               className="w-full rounded-xl border border-gray-200 bg-[#faf9f7] py-2.5 pl-9 pr-8 text-sm font-semibold outline-none transition focus:border-[#C9A24D] focus:bg-white dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white" />
             {search && <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>}
           </div>
@@ -462,7 +465,7 @@ function LeadsPageInner() {
                 style={{ position: 'relative', zIndex: menuFor === lead.id ? 30 : 0 }}
                 initial={{ opacity: 0, y: 14, x: pageDir * 18 }} animate={{ opacity: 1, y: 0, x: 0 }} exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.12 } }}
                 transition={{ type: 'spring', stiffness: 420, damping: 36, delay: Math.min(i * 0.025, 0.3) }}>
-                <LeadRow lead={lead} busy={busyId === lead.id} activeTag={tag} onTag={setTag} menuOpen={menuFor === lead.id} showRate={sort === 'email_most' || sort === 'email_least'} showWarmth={sort === 'warmth'}
+                <LeadRow lead={lead} busy={busyId === lead.id} activeTag={tag} inNoAgent={activeView === 'no_agent'} onTag={setTag} menuOpen={menuFor === lead.id} showRate={sort === 'email_most' || sort === 'email_least'} showWarmth={sort === 'warmth'}
                   onOpen={() => setSelectedLeadId(lead.id)}
                   onMenu={open => setMenuFor(open ? lead.id : null)}
                   onStatus={s => setStatus(lead, s)} onContacted={() => markContacted(lead)} onSeen={() => markSeen(lead)}
@@ -584,8 +587,10 @@ const WARMTH_PILL: Record<string, string> = {
   cold: 'bg-gray-100 text-gray-500 dark:bg-white/[0.06] dark:text-gray-400',
 }
 
-function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, activeTag = '', onTag, onOpen, onMenu, onStatus, onContacted, onSeen, onDelete }: {
+function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, activeTag = '', inNoAgent = false, onTag, onOpen, onMenu, onStatus, onContacted, onSeen, onDelete }: {
   lead: Lead; busy: boolean; menuOpen: boolean; showRate?: boolean; showWarmth?: boolean; activeTag?: string; onTag?: (t: string) => void
+  // On the "No agent" tab, a lead who has an agent is only there because you left a note - say so
+  inNoAgent?: boolean
   onOpen: () => void; onMenu: (open: boolean) => void; onStatus: (s: LeadStatus) => void
   onContacted: () => void; onSeen: () => void; onDelete: () => void
 }) {
@@ -632,6 +637,12 @@ function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, a
             <p className={`truncate text-[15px] text-[#111827] dark:text-white ${lead.needs_attention ? 'font-black' : 'font-bold'}`}>{lead.name || lead.email || 'No name given'}</p>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ring-inset ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
             {lead.represented === 'yes' && <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black text-gray-500 dark:bg-white/[0.06] dark:text-gray-400"><ShieldCheck className="h-3 w-3" /> Has an agent</span>}
+            {inNoAgent && lead.represented === 'yes' && lead.has_note && (
+              <span title="They have an agent, but you left a note on them, so they stay on this tab too"
+                className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-800 ring-1 ring-inset ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30">
+                <Pencil className="h-3 w-3" /> Here because you left a note
+              </span>
+            )}
             {lead.unsubscribed && <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black text-gray-500 dark:bg-white/[0.06] dark:text-gray-400"><MailX className="h-3 w-3" /> No emails</span>}
             {!lead.unsubscribed && lead.email_engagement && lead.email_engagement.mode !== 'daily' && (
               <span title={lead.email_engagement.reason || undefined}

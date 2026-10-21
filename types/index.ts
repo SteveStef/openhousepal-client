@@ -2227,6 +2227,9 @@ export interface Lead {
   // submission - lets a card with no property photo show what form this lead came from instead.
   form_title?: string | null;
   open_houses?: LeadOpenHouse[];
+  /** Homes they came to you through (open house, Cheat Sheet / listing they scanned or asked about) -
+   *  searchable. Never the homes inside their Showcase. */
+  places?: string[];
   showcase_deleted?: boolean;
   showcase_new_matches?: number;
   has_second_visit_request?: boolean;

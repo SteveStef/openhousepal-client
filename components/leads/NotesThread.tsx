@@ -67,13 +67,15 @@ export default function NotesThread({ notes, loading, currentUserId, emptyLabel,
           const isSaving = savingId === note.id
           const isMine = currentUserId && note.author_id === currentUserId
           return (
-            <div key={note.id} className="rounded-xl border border-gray-200 bg-[#fbfaf7] p-3 dark:border-gray-800 dark:bg-[#0B0B0B]">
+            // min-w-0 + anywhere-wrapping: a long note (or one long link / address) wraps inside the
+            // card instead of running off the side of the lead view (user, 10/21)
+            <div key={note.id} className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-[#fbfaf7] p-3 dark:border-gray-800 dark:bg-[#0B0B0B]">
               <div className="flex flex-wrap items-center justify-between gap-1.5">
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                   <span className="text-xs font-black text-[#111827] dark:text-white">{isMine ? 'You' : note.author_name || 'Unknown'}</span>
                   <span className="text-[10px] font-bold text-gray-400">{formatRelativeDay(note.updated_at || note.created_at)}</span>
                   {note.open_house_address && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[#C9A24D]/15 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#8b7355]">
+                    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-[#C9A24D]/15 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#8b7355] [overflow-wrap:anywhere]">
                       <Home className="h-2.5 w-2.5" /> {note.open_house_address}
                     </span>
                   )}
@@ -108,7 +110,7 @@ export default function NotesThread({ notes, loading, currentUserId, emptyLabel,
                   </div>
                 </div>
               ) : (
-                <p className="mt-1.5 whitespace-pre-wrap text-sm font-semibold text-[#111827] dark:text-white">{note.text}</p>
+                <p className="mt-1.5 whitespace-pre-wrap text-sm font-semibold text-[#111827] [overflow-wrap:anywhere] dark:text-white">{note.text}</p>
               )}
             </div>
           )
