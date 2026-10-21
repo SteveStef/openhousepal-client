@@ -4333,7 +4333,7 @@ function SideBySidePanel({ subject, comp, index, total, onUpdate, onUpdateStreng
           </div>
           <span aria-hidden className="hidden sm:block" />
         </div>
-        <p className="mb-3 mt-1 hidden text-[11px] font-semibold text-gray-500 dark:text-gray-400 sm:block">Each row describes this comp relative to the subject — "Comp Superior" means Comp #{index + 1} is the better one in that category; "Comp Inferior" means the subject is.</p>
+        <p className="mb-3 mt-1 hidden text-[11px] font-semibold text-gray-500 dark:text-gray-400 sm:block">Each row describes this comp relative to the subject — "Comp Superior" means Comp #{index + 1} is the better one in that category; "Comp Inferior" means the subject is. Ratings are weighed in the final value review, not added as dollar lines.</p>
         <p className="mb-3 mt-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 sm:hidden">How Comp #{index + 1} compares — "Superior" means the comp is the better one.</p>
         {/* Comp Weight is a different kind of question from everything below it - it's asking how
             much analytical weight to give this comp overall, not how one attribute compares to

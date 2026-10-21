@@ -2563,7 +2563,7 @@ function CmaComparisonTablePage({ report, comparables, agent }: { report: CmaRep
     // A sale with no closing price on record shows its asking price marked as such, never as a sale.
     { label: 'Sold / List Price', subject: formatMoney(s.list_price), comp: c => compDisplayPrice(c).unverified ? `${formatMoney(compDisplayPrice(c).value)} asking (sold price n/a)` : formatMoney(compDisplayPrice(c).value) },
     ...(comparables.some(c => compSoldDate(c)) ? [{ label: 'Sold Date', subject: '—', comp: (c: CmaComparable) => compSoldDate(c) || '—' }] : []),
-    ...(comparables.some(c => compSoldToAsking(c) != null) ? [{ label: 'Sold vs. Asking', subject: '—', comp: (c: CmaComparable) => formatSoldToAsking(c) || '—' }] : []),
+    ...(comparables.some(c => compSoldToAsking(c) != null) ? [{ label: 'Sold vs. Final List', subject: '—', comp: (c: CmaComparable) => formatSoldToAsking(c) || '—' }] : []),
     { label: '$/Sqft (Above Grade)', subject: subjectPricePerSqft(s) ? `$${subjectPricePerSqft(s)}` : '—', comp: c => { const p = compPricePerSqft(c); return p ? `$${p}` : '—'; } },
     { label: 'Reported Finished Area', subject: formatNumber(s.sqft), comp: c => formatNumber(c.sqft) },
     ...([s, ...comparables].some(p => p.above_grade_finished_area != null) ? [{ label: 'Above-Grade Finished Area', subject: formatNumber(s.above_grade_finished_area), comp: (c: CmaComparable) => formatNumber(c.above_grade_finished_area) }] : []),
@@ -2687,6 +2687,7 @@ function CmaComparableQualitySection({ comp }: { comp: CmaComparable }) {
       <CmaQualityScaleRow label="Layout" tiers={CMA_QUALITY_TIERS} tier={q.layout} hexMap={QUALITY_TIER_HEX} />
       <CmaQualityScaleRow label="Area" tiers={AREA_TIERS} tier={q.area} hexMap={QUALITY_TIER_HEX} />
       <CmaQualityScaleRow label="Street" tiers={CMA_QUALITY_TIERS} tier={q.street_context} hexMap={QUALITY_TIER_HEX} divider={false} />
+      <Text style={{ marginTop: 3, fontSize: 5.6, color: COLORS.subtext }}>These ratings are weighed in the final value review. They are not separate dollar adjustments.</Text>
     </View>
   );
 }
@@ -2707,7 +2708,7 @@ function CmaComparablePage({ comp, index, agent }: { comp: CmaComparable; index:
     { label: 'Above-Grade Finished Area', value: comp.above_grade_finished_area ? formatNumber(comp.above_grade_finished_area) : null },
     { label: 'Below-Grade Finished Area', value: belowGradeDisplay(comp) !== '—' ? belowGradeDisplay(comp) : null },
     { label: 'Sold Date', value: compSoldDate(comp) },
-    { label: 'Sold vs. Asking', value: formatSoldToAsking(comp) },
+    { label: 'Sold vs. Final List', value: formatSoldToAsking(comp) },
     { label: 'Year Built', value: comp.year_built },
     { label: 'Acres', value: comp.lot_size ? formatAcresFromSqft(comp.lot_size).replace(' ac', '') : null },
     { label: 'School District', value: pdfDistrict(comp.school_district) },

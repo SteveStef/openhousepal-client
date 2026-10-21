@@ -336,7 +336,7 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
                 <tbody>
                   <OverviewRow index={0} label="Sold / List Price" subjectValue={formatMoney(subject.list_price)} comparables={comparables} get={c => compDisplayPrice(c).unverified ? `${formatMoney(compDisplayPrice(c).value)} asking (sold price n/a)` : formatMoney(compDisplayPrice(c).value)} />
                   {comparables.some(c => compSoldDate(c)) && <OverviewRow index={1} label="Sold Date" subjectValue="—" comparables={comparables} get={c => compSoldDate(c) || '—'} />}
-                  {comparables.some(c => compSoldToAsking(c) != null) && <OverviewRow index={0} label="Sold vs. Asking" subjectValue="—" comparables={comparables} get={c => formatSoldToAsking(c) || '—'} />}
+                  {comparables.some(c => compSoldToAsking(c) != null) && <OverviewRow index={0} label="Sold vs. Final List" subjectValue="—" comparables={comparables} get={c => formatSoldToAsking(c) || '—'} />}
                   <OverviewRow index={1} label="$/Sqft (Above Grade)" subjectValue={subjectPricePerSqft(subject) ? `$${subjectPricePerSqft(subject)}` : '—'} comparables={comparables} get={c => { const p = compPricePerSqft(c); return p ? `$${p}` : '—' }} />
                   <OverviewRow index={2} label="Reported Finished Area" subjectValue={formatNumber(subject.sqft)} comparables={comparables} get={c => formatNumber(c.sqft)} />
                   {[subject, ...comparables].some(p => p.above_grade_finished_area != null) && <OverviewRow index={2} label="Above-Grade Finished Area" subjectValue={formatNumber(subject.above_grade_finished_area)} comparables={comparables} get={c => formatNumber(c.above_grade_finished_area)} />}
@@ -1065,7 +1065,7 @@ function ComparableQualitySection({ comp }: { comp: CmaComparable }) {
   return (
     <div className="mt-5 rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-[#151517] print:border-gray-300">
       <p className="mb-0.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">Compared With the Subject</p>
-      <p className="mb-3 text-[10px] font-semibold text-gray-400">Each row describes this comp relative to the subject — &ldquo;Comp Superior&rdquo; means the comp is the better one; &ldquo;Comp Inferior&rdquo; means the subject is.</p>
+      <p className="mb-3 text-[10px] font-semibold text-gray-400">Each row describes this comp relative to the subject — &ldquo;Comp Superior&rdquo; means the comp is the better one; &ldquo;Comp Inferior&rdquo; means the subject is. These ratings are weighed in the final value review; they are not separate dollar adjustments.</p>
       {/* Comp Weight is a different kind of question from the quality-dimension rows below it -
           it's asking how much analytical weight this comp carries overall, not how one attribute
           compares to the subject - so it gets its own bracketed callout instead of sitting in the
