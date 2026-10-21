@@ -3,7 +3,7 @@
 import SignatureSiteCard from '@/components/studio/blogs/SignatureSiteCard'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { downloadPdf, openPdf } from '@/lib/pdfFile'
+import { usePdfFile } from '@/lib/pdfFile'
 import { Bath, BedDouble, Building2, Calendar, Car, ChevronLeft, ChevronRight, DollarSign, Download, Droplets, ExternalLink, Gauge, Home, LandPlot, Layers, Loader2, Maximize2, MapPin, Moon, Ruler, ShieldCheck, Sun, Waves, X } from 'lucide-react'
 import api from '@/lib/api-service'
 import { CmaComparable, CmaPublicResponse } from '@/types'
@@ -84,6 +84,12 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
   const [embedded, setEmbedded] = useState(false)
   const [dark, setDark] = useState(true)
   const [pdfBusy, setPdfBusy] = useState<'' | 'open' | 'download'>('')
+  // iPhones get the PDF built ahead of time so a tap can hand it over (lib/pdfFile)
+  const pdfFile = usePdfFile(
+    () => <CmaPresentationDocument report={data as any} agent={agent} />,
+    `CMA-${(subject.street_address || 'Report').replace(/[^a-z0-9]+/gi, '-')}.pdf`,
+    String((data as any).id ?? subject.street_address ?? ''), true,
+  )
 
   // applyDark is the one place that ever touches the <dark> class on <html> - both the initial
   // embedded-vs-direct default below and the toggle button call this directly instead of each
@@ -147,7 +153,6 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
     offer_suggestion_notes: pricing.ai_estimate?.offer_strategy_considerations ?? pricing.offer_suggestion_notes,
   })
 
-  const fileName = `CMA-${(subject.street_address || 'Report').replace(/[^a-z0-9]+/gi, '-')}.pdf`
   const seeMoreUrl = agent.idx_site_url || (agent.agent_hub_slug ? `/${agent.agent_hub_slug}` : null)
 
   return (
@@ -171,12 +176,12 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
             disabled={!!pdfBusy}
             onClick={async () => {
               setPdfBusy('open')
-              try { await openPdf(<CmaPresentationDocument report={data as any} agent={agent} />, fileName) } finally { setPdfBusy('') }
+              try { await pdfFile.run('tab') } catch { /* nothing to show - the button resets */ } finally { setPdfBusy('') }
             }}
             title="Open the PDF in a new tab"
             className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#111827] shadow-2xl ring-1 ring-black/10 transition hover:bg-gray-50 disabled:opacity-60 dark:bg-[#1c1f25] dark:text-white dark:ring-white/10"
           >
-            {pdfBusy === 'open' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+            {pdfBusy === 'open' || pdfFile.iosHint === 'preparing' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
             <span className="sr-only">Open PDF</span>
           </button>
           <button
@@ -184,11 +189,12 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
             disabled={!!pdfBusy}
             onClick={async () => {
               setPdfBusy('download')
-              try { await downloadPdf(<CmaPresentationDocument report={data as any} agent={agent} />, fileName) } finally { setPdfBusy('') }
+              try { await pdfFile.run('share') } catch { /* nothing to show - the button resets */ } finally { setPdfBusy('') }
             }}
             className="inline-flex items-center gap-2 rounded-full bg-[#111827] px-5 py-3 text-xs font-black uppercase tracking-wide text-white shadow-2xl transition hover:bg-black disabled:opacity-60 dark:bg-white dark:text-[#111827]"
           >
-            {pdfBusy === 'download' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Save PDF
+            {pdfBusy === 'download' || pdfFile.iosHint === 'preparing' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {pdfFile.iosHint === 'preparing' ? 'Preparing…' : pdfFile.iosHint === 'tap' ? 'Tap again to save' : 'Save PDF'}
           </button>
         </div>
       </div>

@@ -13,7 +13,7 @@ import {
   ChevronRight, ChevronsLeft, ChevronsRight, DollarSign, Download, Droplets, ExternalLink, GraduationCap, GripVertical, Home, LandPlot, Layers,
   Image as ImageIcon, Loader2, MapPin, Moon, Plus, RefreshCw, Ruler, Scale, Search, Share2, ShieldAlert, Sparkles, Sun, Trash2, Waves, X,
 } from 'lucide-react'
-import { downloadPdf, openPdf } from '@/lib/pdfFile'
+import { usePdfFile } from '@/lib/pdfFile'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useEscapeToClose, useIsPhone, useLastValue, usePagePin, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 import { FADE_HOME, NavButton, SHEET_SPRING, SideArrow, SLIDE_HOME, SPRING as SHEET_DESKTOP_SPRING, streetSize, type HomeMove } from '@/components/PropertyDetailsModal'
@@ -4936,6 +4936,12 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
   const { user } = useAuth()
   const [agent, setAgent] = useState<any>(null)
   const [pdfBusy, setPdfBusy] = useState<'' | 'open' | 'download'>('')
+  // iPhones get the PDF built ahead of time so a tap can hand it over (lib/pdfFile)
+  const pdfFile = usePdfFile(
+    () => agent ? <CmaPresentationDocument report={report} agent={agent} /> : null,
+    `CMA-${(report.subject.street_address || 'Report').replace(/[^a-z0-9]+/gi, '-')}.pdf`,
+    `${report.id}:${report.updated_at ?? ''}`, !!agent,
+  )
   const [showShare, setShowShare] = useState(false)
   const [sharePath, setSharePath] = useState<string | null>(report.share_slug ? `/cma/${report.share_slug}` : null)
   const [idxSite, setIdxSite] = useState<Site | null>(null)
@@ -5218,17 +5224,15 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
                   onClick={async () => {
                     if (!agent) return
                     setPdfBusy(kind)
-                    const doc = <CmaPresentationDocument report={report} agent={agent} />
-                    const name = `CMA-${(report.subject.street_address || 'Report').replace(/[^a-z0-9]+/gi, '-')}.pdf`
-                    try { await (kind === 'open' ? openPdf(doc, name) : downloadPdf(doc, name)) }
+                    try { await pdfFile.run(kind === 'open' ? 'tab' : 'share') }
                     catch { showToast("Couldn't make the PDF. Try again in a moment.", 'error') }
                     finally { setPdfBusy('') }
                   }}
                   title={kind === 'open' ? 'Open the PDF in a new tab' : 'Save the PDF to this device'}
                   className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-[10px] font-black uppercase tracking-wide text-[#8b7355] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#C9A24D]/15 hover:shadow-md disabled:opacity-50 disabled:hover:translate-y-0 dark:text-[#d7b974]"
                 >
-                  {pdfBusy === kind ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : kind === 'open' ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
-                  {kind === 'open' ? 'Open PDF' : 'Download'}
+                  {pdfBusy === kind || pdfFile.iosHint === 'preparing' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : kind === 'open' ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+                  {pdfFile.iosHint === 'preparing' ? 'Preparing…' : pdfFile.iosHint === 'tap' ? 'Tap again' : kind === 'open' ? 'Open PDF' : 'Download'}
                 </button>
               ))}
               <button onClick={handleShare} disabled={sharing} title="Share Link" className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#111827] px-3 text-[10px] font-black uppercase tracking-wide text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 dark:bg-white dark:text-[#111827]">
