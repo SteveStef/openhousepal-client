@@ -2348,6 +2348,10 @@ export interface AgentTask {
   requested_times?: string[] | null;
   /** What they told you (form answers, their message) - minus the picked times. */
   details?: string[] | null;
+  /** The request this follow-up answers, when the card can answer it in place: a Showcase tour
+   *  (confirm a time / decline) or an open-house second visit / disclosure (Mark scheduled / sent). */
+  request?: { kind: 'tour'; tour_id: string; collection_id: string; confirmed: boolean; done: boolean }
+    | { kind: 'second_visit' | 'disclosure'; request_id: string; handled: boolean } | null;
   /** The home this follow-up is about - linked to it in their Showcase, else the property details page. */
   property?: { address: string; short: string; url?: string | null; where?: 'showcase' | 'listing' | null; mls?: string | null; photo?: string | null; came_from?: string | null;
     list_agent?: { name?: string | null; phone?: string | null; email?: string | null; office?: string | null } | null } | null;

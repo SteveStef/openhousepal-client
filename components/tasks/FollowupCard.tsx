@@ -16,7 +16,9 @@ import {
   AlertTriangle, ArrowUpRight, CalendarCheck, CalendarDays, Compass, CalendarClock, Check, CheckSquare, Clock, Copy, Hash, Home,
   Loader2, Mail, MessageCircle, MessageSquare, MoreHorizontal, Pencil, Phone, QrCode, Ticket, Trash2,
 } from 'lucide-react'
-import type { AgentTask, TaskKind } from '@/types'
+import type { AgentTask, PropertyTour, TaskKind } from '@/types'
+import api from '@/lib/api-service'
+import ViewToursModal from '@/components/ViewToursModal'
 import { copyText } from '@/lib/copyText'
 import { isPhoneDevice, mailHref, smsHref } from '@/lib/smsLink'
 
@@ -581,8 +583,68 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
               </div>
             </div>
           )}
+          {!compact && !done && t.request && <RequestAnswer t={t} onAnswered={onToggleDone} />}
         </div>
       )}
     </article>
+  )
+}
+
+// Answer the request behind this follow-up right on the card - on the Dash as on Follow-ups (user,
+// 10/21): a Showcase tour opens the same window as Showcases (confirm one of their times, or mark it
+// done); a second visit is "Mark scheduled", a disclosure "Mark sent" - either also checks this off.
+function RequestAnswer({ t, onAnswered }: { t: AgentTask; onAnswered: () => void }) {
+  const req = t.request!
+  const [busy, setBusy] = useState(false)
+  const [tours, setTours] = useState<PropertyTour[] | null>(null)
+  const [loading, setLoading] = useState(false)
+  const loadTour = async () => {
+    if (req.kind !== 'tour') return
+    setLoading(true)
+    const r = await api.collections.getTours(req.collection_id)
+    setLoading(false)
+    setTours(((r.success && r.data) || []).filter((x: PropertyTour) => x.id === req.tour_id))
+  }
+  const btn = 'inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] px-3 text-[11.5px] font-bold transition active:scale-[0.97] disabled:opacity-60'
+  if (req.kind === 'tour') {
+    return (
+      <div className="mt-2.5 flex flex-wrap items-center gap-2" onClick={e => e.stopPropagation()}>
+        {req.confirmed
+          ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300"><CalendarCheck className="h-3.5 w-3.5" /> Tour confirmed</span>
+          : <span className="text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">Waiting on your answer</span>}
+        <button type="button" onClick={loadTour} disabled={loading}
+          className={`${btn} bg-[#111827] text-white dark:bg-white dark:text-[#111827]`}>
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarClock className="h-3.5 w-3.5" />}
+          {req.confirmed ? 'View tour' : 'Respond to tour'}
+        </button>
+        {tours && (
+          <ViewToursModal
+            isOpen
+            onClose={() => setTours(null)}
+            tours={tours}
+            isLoading={false}
+            onConfirmTour={async (id, d, time) => { const r = await api.collections.confirmTour(id, d, time); if (r.success) { await loadTour() } }}
+            onUnconfirmTour={async id => { const r = await api.collections.unconfirmTour(id); if (r.success) { await loadTour() } }}
+            onUpdateCompletion={async (id, isDone) => { const r = await api.collections.updateTourCompletion(id, isDone); if (r.success) { setTours(null); if (isDone) onAnswered() } }}
+          />
+        )}
+      </div>
+    )
+  }
+  const label = req.kind === 'second_visit' ? 'Mark scheduled' : 'Mark sent'
+  return (
+    <div className="mt-2.5 flex items-center gap-2" onClick={e => e.stopPropagation()}>
+      <button type="button" disabled={busy || req.handled}
+        onClick={async () => {
+          setBusy(true)
+          const r = await api.openHouses.completeFormRequest(req.request_id)
+          setBusy(false)
+          if (r.success) onAnswered()
+        }}
+        className={`${btn} bg-[#111827] text-white dark:bg-white dark:text-[#111827]`}>
+        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} {req.handled ? (req.kind === 'second_visit' ? 'Scheduled' : 'Sent') : label}
+      </button>
+      <span className="text-[11px] text-gray-500 dark:text-gray-400">{req.kind === 'second_visit' ? 'Once you’ve booked it - also checks this off.' : 'Once you’ve sent it - also checks this off.'}</span>
+    </div>
   )
 }
