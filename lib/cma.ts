@@ -328,7 +328,8 @@ export function belowGradeDisplay(p: { below_grade_finished_area?: number | null
 // price, how much it counts, and - when the final value isn't simply the adjusted comps - why.
 export interface CmaAdjustmentGridComp {
   label: string; address: string; sale: number; size: number; lowerLevel: number; baths: number
-  garage: number; sewer: number; lot: number; adjusted: number; weightPct: number; notes: string[]
+  garage: number; sewer: number; lot: number; time: number; age: number; road: number
+  adjusted: number; weightPct: number; notes: string[]
   // The lower-level area the grid used and whether it was estimated (finished per the MLS, no area
   // recorded) - a bad guess there moves the value, so the agent sees it (10/20 review).
   lowerLevelSqft: number | null; lowerLevelEstimated: boolean
@@ -357,7 +358,8 @@ export function buildAdjustmentGrid(estimate?: CmaAiEstimate | null): CmaAdjustm
     return {
       label: (c.label || '').replace(/\s*\(.+\)\s*$/, ''), address: m ? m[1] : '',
       sale: c.raw_sale_price, size: c.size_adjustment ?? 0, lowerLevel: fa?.below_grade ?? 0, baths: fa?.baths ?? 0,
-      garage: fa?.garage ?? 0, sewer: fa?.sewer ?? 0, lot: fa?.lot ?? 0, adjusted: c.size_adjusted_price,
+      garage: fa?.garage ?? 0, sewer: fa?.sewer ?? 0, lot: fa?.lot ?? 0,
+      time: fa?.time ?? 0, age: fa?.age ?? 0, road: fa?.road ?? 0, adjusted: c.size_adjusted_price,
       lowerLevelSqft: fa?.comp_below_grade_sqft ?? null, lowerLevelEstimated: !!fa?.comp_below_grade_estimated,
       weightPct: Math.round((c.normalized_weight || 0) * 100), notes: fa?.notes || [],
     }

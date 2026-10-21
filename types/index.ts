@@ -3042,7 +3042,7 @@ export interface CmaValuationTraceComp {
   listing_key?: string | null;
   size_adjustment?: number;
   feature_adjustments?: {
-    below_grade: number; baths: number; garage: number; sewer?: number; lot?: number; total: number;
+    below_grade: number; baths: number; garage: number; sewer?: number; lot?: number; time?: number; age?: number; road?: number; total: number;
     notes?: string[]; below_grade_rate_psf?: number;
     comp_below_grade_sqft?: number; comp_below_grade_estimated?: boolean;
   };
