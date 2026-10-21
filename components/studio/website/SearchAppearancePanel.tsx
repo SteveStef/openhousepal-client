@@ -22,13 +22,13 @@ export type SeoLink = { key: string; label: string; path: string; fallbackTitle:
 
 /** The pages that can show as sub-links, in the order the site's menu lists them. */
 export function seoLinksFor(pages: SitePage[], area: string, ctx?: SeoCtx): SeoLink[] {
-  const where = area || 'your area'
+  const inWhere = area ? ` in ${area}` : ''
   const custom = pages.filter(p => !p.is_home && p.slug && !['about', 'contact'].includes(p.slug))
   const links: SeoLink[] = [
-    { key: 'search', label: 'Search Homes', path: 'search', fallbackTitle: 'Search Homes', fallbackDescription: `Search every home for sale in ${where} - updated all day, with photos, prices and open houses.` },
-    { key: 'properties', label: 'Featured Listings', path: 'properties', fallbackTitle: 'Featured Listings', fallbackDescription: `Hand-picked homes for sale in ${where}.` },
-    { key: 'neighborhoods', label: 'Neighborhoods', path: 'neighborhoods', fallbackTitle: 'Neighborhoods', fallbackDescription: `Guides to the towns of ${where} - schools, commute, parks and market data.` },
-    { key: 'blog', label: 'Articles', path: 'blog', fallbackTitle: 'Articles & Media', fallbackDescription: `Local market updates and guides for buyers and sellers in ${where}.` },
+    { key: 'search', label: 'Search Homes', path: 'search', fallbackTitle: 'Search Homes', fallbackDescription: `Search every home for sale${inWhere} - updated all day, with photos, prices and open houses.` },
+    { key: 'properties', label: 'Featured Listings', path: 'properties', fallbackTitle: 'Featured Listings', fallbackDescription: `Hand-picked homes for sale${inWhere}, with photos, prices and full details.` },
+    { key: 'neighborhoods', label: 'Neighborhoods', path: 'neighborhoods', fallbackTitle: 'Neighborhoods', fallbackDescription: `Neighborhood guides${inWhere} - schools, commute, parks and market data, town by town.` },
+    { key: 'blog', label: 'Articles', path: 'blog', fallbackTitle: 'Articles & Media', fallbackDescription: `Local market updates and guides for buyers and sellers${inWhere}.` },
     ...custom.map(p => ({ key: p.slug, label: p.title, path: p.slug, fallbackTitle: p.title, fallbackDescription: '' })),
     { key: 'about', label: 'About', path: 'about', fallbackTitle: 'About', fallbackDescription: '' },
     { key: 'contact', label: 'Contact', path: 'contact', fallbackTitle: 'Contact', fallbackDescription: '' },
@@ -83,7 +83,7 @@ export default function SearchAppearancePanel({ seo, onChange, pages, defaults, 
   return (
     <div className="space-y-5">
       {/* In Google at all? (automatic - this only reports) */}
-      <GoogleListingCard />
+      <GoogleListingCard agentName={data?.agent?.name || undefined} />
 
       {/* Google-ready meter */}
       <div className="rounded-2xl border border-[#C9A24D]/30 bg-gradient-to-br from-[#fffaf0] to-[#f6ead2] p-4 dark:border-white/10 dark:from-[#C9A24D]/10 dark:to-transparent">
@@ -134,7 +134,7 @@ export default function SearchAppearancePanel({ seo, onChange, pages, defaults, 
       <Group title="Your main result" hint="The big blue headline and the line under it." active={focusKey === 'home'} onFocus={() => onFocusKey('home')}>
         <Field label="Headline" value={seo.home_title} placeholder={autoHome?.title || `${siteName || 'Your Name'} | Real Estate`} onChange={v => set({ home_title: v })} max={TITLE_MAX}
           action={<button type="button" onClick={suggestTitle} className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-[#8b7355] transition hover:text-[#111827] dark:text-[#e8c97a]"><Wand2 className="h-3 w-3" /> Suggest</button>} />
-        <Field label="Description" value={seo.description} placeholder={autoHome?.description ? `Automatic: ${autoHome.description}` : `e.g. ${siteName || 'We'} help buyers and sellers across ${defaults.area || 'the area'} - search every home for sale, see what's sold, and get a free home value.`} onChange={v => set({ description: v })} max={DESC_MAX} multiline />
+        <Field label="Description" value={seo.description} placeholder={autoHome?.description ? `Automatic: ${autoHome.description}` : `e.g. ${siteName || 'We'} help buyers and sellers${defaults.area ? ` across ${defaults.area}` : ''} - search every home for sale, see what's sold, and get a free home value.`} onChange={v => set({ description: v })} max={DESC_MAX} multiline />
       </Group>
 
       {/* Every page - main pages (Google's sub-links), neighborhoods, articles, homes */}

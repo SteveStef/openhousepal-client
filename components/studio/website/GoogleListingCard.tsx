@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, ChevronDown, Loader2, RefreshCw, Search } from 'lucide-react'
-import api, { type GoogleSearchStatus } from '@/lib/api-service'
+import api, { type GoogleReport, type GoogleSearchStatus } from '@/lib/api-service'
+import GoogleReportModal, { GoogleReportStrip } from './GoogleReport'
 
 // IDX editor -> Google tab: "Show up on Google". Nothing for the agent to do - once the site is
 // published, OpenHousePal proves to Google it's a real site, adds it to Google Search Console and
@@ -13,8 +14,10 @@ import api, { type GoogleSearchStatus } from '@/lib/api-service'
 
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '')
 
-export default function GoogleListingCard() {
+export default function GoogleListingCard({ agentName }: { agentName?: string }) {
   const [s, setS] = useState<GoogleSearchStatus | null>(null)
+  const [report, setReport] = useState<GoogleReport | null>(null)
+  const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [own, setOwn] = useState(false)
   const [code, setCode] = useState('')
@@ -30,6 +33,13 @@ export default function GoogleListingCard() {
   }, [s?.state])
 
   useEffect(() => { if (s) setCode(c => c || s.manual_code || '') }, [s])
+  // Once Google has the site: the last 28 days (cached 12h server-side).
+  useEffect(() => {
+    if (s?.state !== 'done') return
+    let live = true
+    api.sites.getGoogleReport().then(r => { if (live && r.success && r.data?.ready) setReport(r.data) })
+    return () => { live = false }
+  }, [s?.state])
 
   const retry = async () => {
     setBusy(true)
@@ -86,7 +96,7 @@ export default function GoogleListingCard() {
               {s.indexnow_pinged_at && <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-600" strokeWidth={3.5} />Bing told about your latest publish · {day(s.indexnow_pinged_at)}</li>}
             </ul>
           )}
-          {done && (
+          {done && !report?.totals?.impressions && (
             <p className="mt-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
               Google usually starts showing a new site within a few days to two weeks. Searching your name is the quickest test.
             </p>
@@ -98,6 +108,9 @@ export default function GoogleListingCard() {
           )}
         </div>
       </div>
+
+      {report && <GoogleReportStrip report={report} onOpen={() => setOpen(true)} />}
+      <AnimatePresence>{open && report && <GoogleReportModal report={report} agentName={agentName} onClose={() => setOpen(false)} />}</AnimatePresence>
 
       {/* Optional - most agents never need this */}
       <button type="button" onClick={() => setOwn(o => !o)} className="mt-3 inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-gray-400 transition hover:text-[#111827] dark:hover:text-white">

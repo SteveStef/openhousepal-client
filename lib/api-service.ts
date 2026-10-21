@@ -1558,6 +1558,7 @@ class ApiService {
 
     // "Show up on Google" card - the site is put in Google/Bing automatically (backend google_search_service).
     getGoogleStatus: () => this.request<GoogleSearchStatus>('/studio/sites/me/google'),
+    getGoogleReport: () => this.request<GoogleReport>('/studio/sites/me/google/report'),
     retryGoogle: () => this.request<GoogleSearchStatus>('/studio/sites/me/google/retry', { method: 'POST' }),
     setGoogleCode: (code: string) => this.request<GoogleSearchStatus>('/studio/sites/me/google/code', { method: 'PUT', body: JSON.stringify({ code }) }),
 
@@ -2535,6 +2536,22 @@ export interface GoogleSearchStatus {
   indexnow_pinged_at: string | null
   last_error: string | null
   manual_code: string | null
+}
+
+/** The last 28 days in Google - see backend google_search_service.report_for. */
+export interface GoogleReportTotals { impressions: number; clicks: number; ctr: number | null; position: number | null }
+export interface GoogleReport {
+  ready: boolean
+  reason?: string
+  host?: string
+  start?: string
+  end?: string
+  totals?: GoogleReportTotals
+  previous?: GoogleReportTotals
+  days?: { date: string; impressions: number; clicks: number }[]
+  queries?: { query: string; impressions: number; clicks: number; position: number }[]
+  pages?: { path: string; impressions: number; clicks: number }[]
+  fetched_at?: string
 }
 
 export interface SeoPagesData {

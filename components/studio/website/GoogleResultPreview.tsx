@@ -49,7 +49,7 @@ export default function GoogleResultPreview({ seo, pages, defaults, siteUrl, foc
   // Same order as the live site (applySiteSeo): the agent's words, else the automatic ones.
   const autoHome = ctx ? autoSectionMeta('home', ctx) : null
   const title = seo.home_title || autoHome?.title || siteName
-  const description = seo.description || autoHome?.description || `Search homes for sale in ${defaults.area || 'your area'}, see recent sales and connect with ${siteName}.`
+  const description = seo.description || autoHome?.description || `Search homes for sale${defaults.area ? ` in ${defaults.area}` : ''}, see recent sales and connect with ${siteName}.`
   const icon = seo.favicon_url || defaults.logoUrl
   const one = focusKey.startsWith('pg:') && page ? page : null
   const links = seoLinksFor(pages, defaults.area, ctx).map(l => ({ ...l, title: seo.pages[l.key]?.title || l.fallbackTitle, description: seo.pages[l.key]?.description || l.fallbackDescription })).filter(l => l.description).slice(0, 6)

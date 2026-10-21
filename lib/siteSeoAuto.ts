@@ -27,68 +27,125 @@ export function seoClip(text: string, max = SEO_DESC_MAX): string {
 const compactUsd = (n: number) => (n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M` : `$${Math.round(n / 1000)}K`)
 const listOf = (names: string[]) => (names.length <= 1 ? names[0] || '' : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`)
 
+/** Where the agent works, in words: their own market line, else up to three of their towns. ''
+ *  when neither is known yet - then the place is left out, never "the area" (user, 10/20). */
 function market(ctx: SeoCtx): string {
-  return (ctx.agent.market || '').trim() || listOf(ctx.towns.slice(0, 3)) || 'the area'
+  return (ctx.agent.market || '').trim() || listOf(ctx.towns.slice(0, 3))
 }
 
 function agentLine(ctx: SeoCtx): string {
   const name = (ctx.agent.name || '').trim()
   const brokerage = (ctx.agent.brokerage || '').trim()
-  return [name, brokerage].filter(Boolean).join(', ') || 'your local agent'
+  return [name, brokerage].filter(Boolean).join(', ')
+}
+
+/** The richest wording that still fits whole, so Google never shows a cut-off "…" when a shorter
+ *  wording would fit. Candidates go richest first; blanks (a missing fact) are skipped. */
+function fit(max: number, ...candidates: (string | false | null | undefined | 0)[]): string {
+  const ok = candidates.filter((c): c is string => typeof c === 'string' && !!c.trim()).map(c => c.replace(/\s+/g, ' ').trim())
+  return ok.find(c => c.length <= max) || seoClip(ok[ok.length - 1] || '', max)
 }
 
 /** The built-in sections (+ the home page's fallback description). */
 export function autoSectionMeta(key: string, ctx: SeoCtx): SeoMeta | null {
   const name = (ctx.agent.name || '').trim()
+  const brokerage = (ctx.agent.brokerage || '').trim()
+  const who = agentLine(ctx)
   const where = market(ctx)
+  const inWhere = where ? ` in ${where}` : ''
+  const acrossWhere = where ? ` across ${where}` : ''
+  // 'the Main Line' reads as 'Main Line Real Estate' at the front of a title
+  const titleWhere = where.replace(/^the\s+/i, '')
   const towns = ctx.towns.slice(0, 4)
+  const T = SEO_TITLE_MAX
+  const D = SEO_DESC_MAX
   switch (key) {
-    case 'home': {
+    case 'home':
       // The agent's name and brokerage lead, so the site comes up when someone searches either
-      // (user, 10/20). The brokerage goes in the title only when it still fits Google's ~60
-      // characters; it's always first in the description.
-      const brokerage = (ctx.agent.brokerage || '').trim()
-      const withBrokerage = name && brokerage ? `${name}, ${brokerage} | ${where} Real Estate` : ''
-      const plain = name ? `${name} | ${where} Real Estate` : `${where} Real Estate`
+      // (user, 10/20) - in the title whenever it fits Google's ~60 characters, always first in
+      // the description.
       return {
-        title: withBrokerage && withBrokerage.length <= SEO_TITLE_MAX ? withBrokerage : plain,
-        description: seoClip(name
-          ? `${agentLine(ctx)}: homes for sale in ${where}, what homes really sell for, neighborhood guides and a free home value.`
-          : `Homes for sale in ${where}, what homes really sell for, neighborhood guides and a free home value.`),
+        title: fit(T,
+          name && brokerage && where && `${name}, ${brokerage} | ${titleWhere} Real Estate`,
+          name && where && `${name} | ${titleWhere} Real Estate`,
+          name && brokerage && `${name} | ${brokerage}`,
+          name && `${name} | Real Estate`,
+          where && `${titleWhere} Real Estate`,
+          'Homes for Sale & Real Estate'),
+        description: fit(D,
+          who && `${who}: search every home for sale${inWhere}, see what homes really sell for, explore neighborhood guides and get a free home value.`,
+          who && `${who}: every home for sale${inWhere}, what homes really sell for, neighborhood guides and a free home value.`,
+          who && `${who}: homes for sale${inWhere}, recent sales, neighborhood guides and a free home value.`,
+          `Search every home for sale${inWhere}, see what homes really sell for, explore neighborhood guides and get a free home value.`),
       }
-    }
     case 'search':
-      return { title: ctx.agent.market && `Search Homes for Sale in ${where}`.length <= 48 ? `Search Homes for Sale in ${where}` : 'Search Homes for Sale', description: seoClip(`Search every home for sale in ${where} - live MLS listings with photos, prices and open houses. Save a search to see new homes first.`) }
+      return {
+        title: fit(48, where && `Search Homes for Sale in ${where}`, 'Search Homes for Sale'),
+        description: fit(D,
+          `Search every home for sale${inWhere} - live MLS listings with photos, prices and open houses, updated all day. Save a search and see new homes first.`,
+          `Search every home for sale${inWhere} - live MLS listings with photos, prices and open houses. Save a search to see new homes first.`,
+          `Every home for sale${inWhere}, live from the MLS - photos, prices and open houses.`),
+      }
     case 'properties':
-      return { title: 'Featured Homes for Sale', description: seoClip(`Featured homes for sale from ${agentLine(ctx)} - photos, prices, full details and private showings across ${where}.`) }
+      return {
+        title: 'Featured Homes for Sale',
+        description: fit(D,
+          who && `Featured homes for sale from ${who} - photos, prices, full details and private showings${acrossWhere}.`,
+          who && `Featured homes for sale from ${who} - photos, prices, full details and private showings.`,
+          `Featured homes for sale${inWhere} - photos, prices, full details and private showings, hand-picked for you.`),
+      }
     case 'neighborhoods':
       return {
         title: towns.length ? 'Neighborhood Guides' : 'Neighborhoods',
-        description: seoClip(towns.length
-          ? `Neighborhood guides to ${listOf(towns)}${ctx.towns.length > towns.length ? ' and more' : ''}: homes for sale, schools, commute, market trends and local favorites.`
-          : `Guides to the neighborhoods of ${where}: homes for sale, schools, commute and market trends.`),
+        description: fit(D,
+          towns.length && `Neighborhood guides to ${ctx.towns.length > towns.length ? `${towns.join(', ')} and more` : listOf(towns)}: homes for sale, schools, commute, market trends and local favorites.`,
+          towns.length && `Neighborhood guides to ${towns.slice(0, 2).join(', ')} and more: homes for sale, schools, commute and market trends.`,
+          where && `Neighborhood guides to ${where}: homes for sale, schools, commute, market trends and local favorites.`,
+          `Neighborhood guides${name ? ` from ${name}` : ''}: homes for sale, schools, commute, market trends and local favorites, town by town.`),
       }
     case 'blog':
-      return { title: 'Articles & Market Updates', description: seoClip(`Market updates, neighborhood guides and advice for buyers and sellers in ${where}${name ? `, from ${name}` : ''}.`) }
+      return {
+        title: 'Articles & Market Updates',
+        description: fit(D,
+          `Market updates, neighborhood guides and honest advice for buyers and sellers${inWhere}${name ? ` - from ${name}` : ''}.`,
+          `Market updates, neighborhood guides and advice for buyers and sellers${inWhere}.`),
+      }
     case 'testimonials': {
       const r = ctx.reviews
+      const rated = r && r.count ? `${r.count} client ${r.count === 1 ? 'review' : 'reviews'}${r.average ? `, rated ${r.average.toFixed(1)} out of 5` : ''}` : ''
       return {
         title: name ? `${name} Reviews` : 'Client Reviews',
-        description: seoClip(r && r.count
-          ? `${r.count} client ${r.count === 1 ? 'review' : 'reviews'}${r.average ? `, rated ${r.average.toFixed(1)} out of 5` : ''} - what buyers and sellers in ${where} say about working with ${name || 'me'}.`
-          : `What buyers and sellers in ${where} say about working with ${name || 'me'}.`),
+        description: fit(D,
+          rated && `${rated} - what buyers and sellers${inWhere} say about working with ${name || 'me'}.`,
+          rated && `${rated} - what clients say about working with ${name || 'me'}.`,
+          `Real stories from real clients - what buyers and sellers${inWhere} say about working with ${name || 'me'}.`),
       }
     }
     case 'about': {
+      const intro = [name, ctx.agent.title, brokerage ? `with ${brokerage}` : ''].filter(Boolean).join(', ')
       return {
         title: name ? `About ${name}` : 'About',
-        description: seoClip(`${[name, ctx.agent.title, ctx.agent.brokerage ? `with ${ctx.agent.brokerage}` : ''].filter(Boolean).join(', ')} - helping buyers and sellers across ${where}. My story, my track record and how I work.`),
+        description: fit(D,
+          intro && where && `${intro} - helping buyers and sellers${acrossWhere}. My story, my track record and how I work.`,
+          intro && `${intro} - my story, my track record and how I help buyers and sellers.`,
+          `Helping buyers and sellers${acrossWhere} - my story, my track record and how I work.`),
       }
     }
     case 'home-value':
-      return { title: `What's My Home Worth? Free Home Value`, description: seoClip(`Find out what your home is really worth - a free, no-obligation value from ${name || 'a local agent'}, built from real recent sales in ${where}.`) }
+      return {
+        title: `What's My Home Worth? Free Home Value`,
+        description: fit(D,
+          `Find out what your home is really worth - a free, no-obligation value from ${name || 'a local agent'}, built from real recent sales${where ? ` in ${where}` : ' nearby'}.`,
+          `Find out what your home is really worth - a free, no-obligation value built from real recent sales${where ? ` in ${where}` : ' nearby'}.`),
+      }
     case 'contact':
-      return { title: name ? `Contact ${name}` : 'Contact', description: seoClip(`Talk to ${name || 'me'} about buying or selling in ${where}${ctx.agent.phone ? ` - call ${ctx.agent.phone}` : ''}, send a message or book a free consultation.`) }
+      return {
+        title: name ? `Contact ${name}` : 'Contact',
+        description: fit(D,
+          `Talk to ${name || 'me'} about buying or selling${inWhere}${ctx.agent.phone ? ` - call ${ctx.agent.phone}` : ''}, send a message or book a free consultation.`,
+          `Talk to ${name || 'me'} about buying or selling${inWhere} - send a message or book a free consultation.`,
+          `Talk to ${name || 'me'} about buying or selling a home - call, send a message or book a free consultation.`),
+      }
     default:
       return null
   }
