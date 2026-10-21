@@ -291,6 +291,41 @@ function Labeled({ label, hint, children }: { label: string, hint?: string, chil
   )
 }
 
+// iPhone date boxes (10/20): an empty one shows TODAY's date (looked like a real sale date), its
+// Reset button doesn't reach React's onChange, and its built-in width overflowed the card. So the
+// native text is hidden while empty (a "Not set" label shows instead), the value is also read on
+// input/blur, and there's our own Clear button.
+function DateField({ value, onChange }: { value: string, onChange: (v: string) => void }) {
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const sync = () => { if (el.value !== value) onChange(el.value) }
+    el.addEventListener('input', sync)
+    el.addEventListener('blur', sync)
+    return () => { el.removeEventListener('input', sync); el.removeEventListener('blur', sync) }
+  }, [value, onChange])
+  return (
+    <div className="relative flex min-w-0 items-center gap-2">
+      <div className="relative min-w-0 flex-1">
+        <input
+          ref={ref}
+          type="date"
+          className={`${inputClass} block min-w-0 appearance-none ${value ? '' : 'text-transparent dark:text-transparent'}`}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+        />
+        {!value && <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-semibold text-gray-400">Not set</span>}
+      </div>
+      {value && (
+        <button type="button" onClick={() => onChange('')} className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-black uppercase tracking-wide text-gray-500 hover:text-[#8b7355] dark:text-gray-400">
+          Clear
+        </button>
+      )}
+    </div>
+  )
+}
+
 function SelectField({ label, value, options, onChange, placeholder = 'Not sure', hint }: {
   label: string, value: string, options: { value: string, label: string }[], onChange: (v: string) => void, placeholder?: string, hint?: string
 }) {
@@ -518,7 +553,7 @@ export function SubjectFactsEditor({ reportId, subject, setSubject, area }: {
             {manual && subject.mls_status && (
               <NumberField label="Days on Market" value={subject.days_on_market} onChange={v => set({ days_on_market: v })} />
             )}
-            <Labeled label="Last Sale Date"><input type="date" className={inputClass} value={subject.last_sale_date || ''} onChange={e => set({ last_sale_date: e.target.value || null })} /></Labeled>
+            <Labeled label="Last Sale Date"><DateField value={subject.last_sale_date || ''} onChange={v => set({ last_sale_date: v || null })} /></Labeled>
             <NumberField label="Last Sale Price" icon={DollarSign} value={subject.last_sale_price} onChange={v => set({ last_sale_price: v })} />
           </div>
         </div>

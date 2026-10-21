@@ -3749,7 +3749,11 @@ function AiGenerationProgress({ pct, label, stage, elapsedSec }: { pct: number, 
           animate={{ width: `${Math.max(3, pct)}%` }}
           transition={{ type: 'spring', stiffness: 60, damping: 20 }}
         >
-          {!reduce && <span className="cma-bar-sheen absolute inset-y-0 w-16 bg-gradient-to-r from-transparent via-white/70 to-transparent" />}
+          {!reduce && (
+            <span className="absolute inset-0 overflow-hidden rounded-full">
+              <span className="cma-bar-sheen absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+            </span>
+          )}
           <span className="absolute -right-1 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-[#f6dc9b] shadow-[0_0_12px_4px_rgba(240,207,127,0.8)]" />
         </motion.div>
       </div>

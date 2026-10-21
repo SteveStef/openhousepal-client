@@ -238,8 +238,11 @@ export default function MonthlyAiUsageMeter({
             {fill}
           </div>
           <span className={`shrink-0 text-xs font-black tabular-nums ${pctColor}`}>{pct}%</span>
-          {recentNote && <span className={`shrink-0 whitespace-nowrap text-[9px] font-black ${recentColor}`} title={recentNote}>+{recent}% last hr</span>}
+          {recentNote && <span className={`hidden shrink-0 whitespace-nowrap text-[9px] font-black sm:inline ${recentColor}`} title={recentNote}>+{recent}% last hr</span>}
         </div>
+        {/* On a phone the pill is too narrow for the bar, the % and this note on one row - the note
+            pushed past the pill's edge (10/20) - so it gets its own line there. */}
+        {recentNote && <p className={`whitespace-nowrap text-[9px] font-black leading-tight sm:hidden ${recentColor}`}>+{recent}% in the last hour</p>}
         {exhausted ? (
           <p className={`flex items-center gap-1 whitespace-nowrap text-[9px] font-bold leading-tight ${onDark ? 'text-red-300' : 'text-red-600 dark:text-red-400'}`}>
             <AlertTriangle className="h-2.5 w-2.5 shrink-0" /> Limit reached — resets the 1st.
