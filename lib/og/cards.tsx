@@ -403,7 +403,8 @@ function homeSub(price: number | null, lease: boolean, beds: number | null, bath
  *  serif line and one line under it. */
 export function HomePhotoCard({ photo, street: streetIn, place, eyebrow, sub, agentName, agentBrokerage, agentPhoto, accent }: {
   photo: string | null; street: string; place: string; eyebrow: string; sub: string
-  agentName: string; agentBrokerage: string | null; agentPhoto: string | null; accent: string
+  /** null = no agent pill: a sold home the sharing agent didn't list or sell (backend services/sold_branding). */
+  agentName: string | null; agentBrokerage: string | null; agentPhoto: string | null; accent: string
 }) {
   const light = mixHex(accent, '#ffffff', 0.45)
   // an MLS unit field left empty ("1330 N Avignon Dr #") - no dangling '#'
@@ -429,7 +430,7 @@ export function HomePhotoCard({ photo, street: streetIn, place, eyebrow, sub, ag
 
       <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', padding: '52px 72px 58px', color: '#fff' }}>
         {/* the agent first - their real headshot, the same pill size as the article card's (user, 10/19) */}
-        <AgentPill name={agentName} brokerage={agentBrokerage} photo={agentPhoto} accent={accent} />
+        {agentName ? <AgentPill name={agentName} brokerage={agentBrokerage} photo={agentPhoto} accent={accent} /> : null}
 
         <div style={{ display: 'flex', flexDirection: 'column', marginTop: 'auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 20, fontWeight: 900, letterSpacing: 6, textTransform: 'uppercase', color: light }}>
@@ -491,7 +492,8 @@ export async function renderOpenHouseCard(eventId: string, fonts: Fonts): Promis
     const accent = typeof data?.theme?.accentColor === 'string' && /^#[0-9a-f]{6}$/i.test(data.theme.accentColor) ? data.theme.accentColor : C.gold
     return IR(
       <HomePhotoCard photo={photo} street={titleCase(p.address) || 'Open House'} place={titleCase(p.city)} eyebrow="Open House" sub={sub}
-        agentName={p.agentName || 'Your host'} agentBrokerage={p.agentBrokerage || null} agentPhoto={agentPhoto} accent={accent} />,
+        // no agentName = the home sold since, and not by this host (backend services/sold_branding): no pill
+        agentName={p.agentName || null} agentBrokerage={p.agentBrokerage || null} agentPhoto={agentPhoto} accent={accent} />,
       fonts,
     )
   } catch {
@@ -856,10 +858,12 @@ export async function renderPropertyCard(agentId: string, listingKey: string, fo
   try {
     const data = await ogFetch<any>(`/api/properties/agent/${encodeURIComponent(agentId)}/listing/${encodeURIComponent(listingKey)}`)
     const p = data?.property || {}
+    // A sold home this agent didn't list or sell: no agent pill (the API decides - sold_branding).
+    const branded = data?.brandingAllowed !== false && data?.branding_allowed !== false
     const [photo, agentPhoto] = await Promise.all([
       imgToDataUri(p.ListPictureURL || p.img_src || p.image || (Array.isArray(p.photos) ? p.photos[0] : null), 5000),
       // agentPhotoUrl is what the page sends (agent_photo_url never existed - the card showed initials)
-      imgToDataUri(data?.agentPhotoUrl || data?.agent_photo_url, 4500),
+      branded ? imgToDataUri(data?.agentPhotoUrl || data?.agent_photo_url, 4500) : Promise.resolve(null),
     ])
     const bits = [
       p.bedrooms || p.BedroomsTotal ? `${p.bedrooms || p.BedroomsTotal} bd` : null,
@@ -877,7 +881,7 @@ export async function renderPropertyCard(agentId: string, listingKey: string, fo
     return IR(
       <HomePhotoCard photo={photo} street={titleCase(p.street_address || p.FullStreetAddress || p.address) || 'A home worth seeing'} place={titleCase(p.city || p.City)}
         eyebrow={eyebrow} sub={sub} accent={C.gold}
-        agentName={data?.agentName || data?.agent_name || p.list_agent_full_name || 'Your agent'}
+        agentName={branded ? (data?.agentName || data?.agent_name || p.list_agent_full_name || 'Your agent') : null}
         agentBrokerage={data?.agentBrokerage || data?.agent_brokerage || null} agentPhoto={agentPhoto} />,
       fonts,
     )
@@ -1310,9 +1314,11 @@ export async function renderIdxListingCard(siteId: string, listingKey: string, o
     ])
     if (!p) throw new Error('no listing')
     const r = p.report || {}
+    // A sold home this agent didn't list or sell: no agent pill (the API decides - sold_branding).
+    const branded = p.branding_allowed !== false
     const [photo, agentPhoto] = await Promise.all([
       imgToDataUri((Array.isArray(p.photos) && photoUrl(p.photos[0])) || p.photo, 5000),
-      imgToDataUri(profile?.photo_url, 4500),
+      branded ? imgToDataUri(profile?.photo_url, 4500) : Promise.resolve(null),
     ])
     const { eyebrow, lease, sold } = homeLabel(previewStatus || p.status || r.MlsStatus, `${p.property_type || ''} ${r.PropertyType || ''} ${r.MlsPropertyType || ''}`)
     const price = num(sold ? (r.ClosePrice ?? p.price) : p.price)
@@ -1321,7 +1327,7 @@ export async function renderIdxListingCard(siteId: string, listingKey: string, o
     return IR(
       <HomePhotoCard photo={photo} street={street || titleCase(p.city) || 'A home worth seeing'} place={street ? titleCase(p.city) : ''}
         eyebrow={eyebrow} sub={homeSub(price, lease, num(p.bedrooms ?? p.beds), num(p.bathrooms ?? p.baths), num(p.living_area ?? p.sqft), 'Take a look inside')}
-        agentName={profile?.name || 'Your agent'} agentBrokerage={profile?.brokerage || null} agentPhoto={agentPhoto} accent={accent} />,
+        agentName={branded ? (profile?.name || 'Your agent') : null} agentBrokerage={branded ? (profile?.brokerage || null) : null} agentPhoto={agentPhoto} accent={accent} />,
       fonts,
     )
   } catch {

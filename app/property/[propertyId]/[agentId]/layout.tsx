@@ -10,9 +10,14 @@ export async function generateMetadata({ params }: { params: Promise<{ propertyI
   const address = [p.street_address || p.FullStreetAddress, p.city || p.City].filter(Boolean).map((v: string) => toTitleCase(String(v))).join(', ')
   if (!address) return {}
 
-  const agentName = data?.agentName || data?.agent_name
-  const title = `${address} — for sale`
-  const description = agentName
+  // Empty for a sold home this agent didn't list or sell (backend services/sold_branding).
+  const agentName = data?.brandingAllowed === false ? null : (data?.agentName || data?.agent_name)
+  // A sold home never says "for sale" or "Listed with" (a buyer's agent didn't list it either).
+  const sold = /closed|sold/i.test(String(p.MlsStatus || p.home_status || p.StandardStatus || ''))
+  const title = `${address} — ${sold ? 'sold' : 'for sale'}`
+  const description = sold
+    ? `${address}. Photos and details.`
+    : agentName
     ? `${address}. Listed with ${agentName}. Photos, details, and how to schedule a tour.`
     : `${address}. Photos, details, and how to schedule a tour.`
 

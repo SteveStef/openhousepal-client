@@ -312,7 +312,7 @@ class ApiService {
     }),
 
     getPropertyForAgent: async (propertyId: string, agentId: string) => {
-      const response = await this.request<{ property: any, agentName: string, agentPhotoUrl?: string | null, agentBrokerage?: string | null, spotlightUrl?: string | null, expectedOnMarketDate?: string | null, priceHistory?: any[] }>(`/api/properties/agent/${agentId}/listing/${propertyId}`, {}, false);
+      const response = await this.request<{ property: any, agentName: string, agentPhotoUrl?: string | null, agentBrokerage?: string | null, spotlightUrl?: string | null, expectedOnMarketDate?: string | null, priceHistory?: any[], brandingAllowed?: boolean }>(`/api/properties/agent/${agentId}/listing/${propertyId}`, {}, false);
       if (response.success && response.data?.property) {
         return {
           ...response,
@@ -324,6 +324,8 @@ class ApiService {
             spotlightUrl: response.data.spotlightUrl ?? undefined,
             expectedOnMarketDate: response.data.expectedOnMarketDate ?? null,
             priceHistory: response.data.priceHistory ?? [],
+            // false = a sold home this agent didn't list or sell - the agent fields come back empty
+            brandingAllowed: response.data.brandingAllowed !== false,
           }
         };
       }
