@@ -358,13 +358,13 @@ export const DashboardView = memo(function DashboardView({
             </div>
           {/* Filters + Create: same left + right edges as the search row above. */}
           <div className="mt-2 flex w-full flex-wrap items-stretch gap-2 sm:flex-nowrap">
-            <span className="flex items-center gap-1 whitespace-nowrap rounded-full border border-[#C9A24D]/30 bg-white/70 px-2.5 py-1 text-[11px] font-black text-[#8b7355] dark:border-white/10 dark:bg-white/[0.06] dark:text-[#e8c97a]">
+            <span className="hidden items-center gap-1 whitespace-nowrap rounded-full border border-[#C9A24D]/30 bg-white/70 px-2.5 py-1 text-[11px] font-black text-[#8b7355] dark:border-white/10 dark:bg-white/[0.06] dark:text-[#e8c97a] sm:flex">
               <AnimatedNumber value={filteredCollections.length} duration={500} /> {filteredCollections.length === 1 ? 'result' : 'results'}
             </span>
             <LuxeSelect
-              className="w-[118px] flex-shrink-0"
+              className="min-w-0 flex-1 sm:w-[118px] sm:flex-none"
               ariaLabel="Filter by budget"
-              icon={<Wallet size={12} />}
+              icon={<Wallet size={12} className="hidden sm:block" />}
               value={budgetFilter}
               placeholderValue="ALL"
               onChange={setBudgetFilter}
@@ -372,15 +372,20 @@ export const DashboardView = memo(function DashboardView({
               options={BUDGET_OPTIONS}
             />
             <LuxeSelect
-              className="w-[120px] flex-shrink-0"
+              className="min-w-0 flex-1 sm:w-[120px] sm:flex-none"
               ariaLabel="Sort Showcases"
-              icon={<ArrowUpDown size={12} />}
+              icon={<ArrowUpDown size={12} className="hidden sm:block" />}
               value={sortBy}
               placeholderValue="smart"
               onChange={setSortBy}
               menuWidth={220}
               options={tab === 'INACTIVE' ? SORT_OPTIONS : SORT_OPTIONS.filter(o => o.value !== 'slept')}
             />
+            {/* Phones only: the New matches filter joins this row, short - "New 🏠 3". */}
+            <button onClick={() => setNewOnly(v => !v)} aria-pressed={newOnly} aria-label={`New matches (${newCount})`}
+              className={`flex flex-none items-center justify-center gap-1 whitespace-nowrap rounded-xl border px-2.5 text-[11px] font-black transition-colors sm:hidden ${newOnly ? 'border-green-500 bg-green-500 text-white' : 'border-gray-200 bg-white text-gray-700 dark:border-gray-800 dark:bg-[#151517] dark:text-gray-300'}`}>
+              New <span aria-hidden>🏠</span>{newCount}
+            </button>
 
             {/* Same gradient CTA treatment as the flagship "View Tours" button elsewhere in
                 Showcases (DetailView.tsx) - reads as the primary action, not just another filter
@@ -417,7 +422,7 @@ export const DashboardView = memo(function DashboardView({
             ))}
           </div>
           <button onClick={() => setNewOnly(v => !v)} aria-pressed={newOnly}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-black transition-colors ${newOnly ? 'border-green-500 bg-green-500 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-green-400 hover:text-green-700 dark:border-gray-800 dark:bg-[#151517] dark:text-gray-300'}`}>
+            className={`hidden items-center gap-1.5 rounded-full border sm:flex px-3 py-1.5 text-[12px] font-black transition-colors ${newOnly ? 'border-green-500 bg-green-500 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-green-400 hover:text-green-700 dark:border-gray-800 dark:bg-[#151517] dark:text-gray-300'}`}>
             <Sparkles size={12} /> New matches
             <span className={`rounded-full px-1.5 text-[10px] ${newOnly ? 'bg-white/25' : 'bg-gray-100 dark:bg-gray-800'}`}>{newCount}</span>
           </button>
@@ -784,8 +789,8 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
             <span>{collection.inactiveReason === 'no_response'
               ? `Fell asleep ${collection.inactiveAt ? formatRelativeDay(collection.inactiveAt).toLowerCase() : 'recently'} - ${collection.customer.firstName} ignored 3 weekly emails. Wakes up if they open it.`
               : collection.inactiveReason === 'agent'
-                ? `Switched off by you${collection.inactiveAt ? ' ' + formatRelativeDay(collection.inactiveAt).toLowerCase() : ''} - no new matches, no emails.`
-                : 'Switched off - no new matches, no emails.'}</span>
+                ? `Switched off by you${collection.inactiveAt ? ' ' + formatRelativeDay(collection.inactiveAt).toLowerCase() : ''} - no new matches, no emails. Wakes up if ${collection.customer.firstName} opens it.`
+                : `Switched off - no new matches, no emails. Wakes up if ${collection.customer.firstName} opens it.`}</span>
           </div>
         ) : collection.emailMode && collection.emailMode !== 'daily' && collection.customer.email ? (
           <div title={collection.emailModeReason || undefined}
