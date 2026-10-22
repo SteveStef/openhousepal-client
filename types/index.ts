@@ -71,6 +71,12 @@ export interface Property {
   disliked?: boolean;
   /** The agent's "I recommend this home for you" (Showcase) - tagged on the card, sorted first. */
   agentRecommended?: boolean;
+  /** Showcase: moved into the Sold/Removed folder (off the market and filed by the buyer or agent).
+   *  Off-market homes NOT filed stay in the list with a status notice (lib/showcaseStatus). */
+  soldFiled?: boolean;
+  /** Sold price + date, on a closed home only. */
+  ClosePrice?: number | null;
+  CloseDate?: string | null;
   viewed?: boolean;
   viewCount?: number;
   lastViewedAt?: string;
@@ -2584,7 +2590,7 @@ export type CmaCompStatus = 'sold' | 'pending' | 'active_under_contract' | 'acti
 // Only 'strong' | 'supporting' | 'weak' are shown. 'primary'/'context'/'excluded' are legacy
 // values still in old saved reports - fold them in with normalizeStrength() from @/lib/cma.
 export type CmaCompStrength = 'strong' | 'supporting' | 'weak' | 'primary' | 'context' | 'excluded';
-export type CmaSimpleRating = 'below' | 'similar' | 'above';
+export type CmaSimpleRating = 'below' | 'similar' | 'above' | 'n_a';   // n_a: a condo's Lot
 export type CmaAreaRating = 'different_from_subject' | 'similar_to_subject' | 'same_as_subject';
 
 export interface CmaSimilarityDensityContext {
@@ -2880,6 +2886,8 @@ export interface CmaAiEstimate {
   // True when there weren't enough verified comps for a deterministic anchor - the value is a
   // provisional wide range and qa_blocking carries a "review before export" gate.
   insufficient_evidence?: boolean | null;
+  /** Agent-only "Review before sending": the asking-price check moved the value 5%+ off the comps. */
+  agent_review?: { comps_value: number; final_value: number; gap_pct: number; message: string } | null;
   // OpenStreetMap road/street classification for the SUBJECT (each comp carries its own on
   // comp.road_context).
   subject_road_context?: CmaRoadContext | null;
@@ -3321,6 +3329,17 @@ export interface CmaReportListItem {
   generation_status?: 'generating' | 'complete' | 'failed' | null;
   updated_at?: string | null;
   created_at: string;
+}
+
+export interface CmaCompAutoSearch {
+  results: CmaCompCandidate[];
+  radius_miles: number;
+  sold_within_days: number;
+  usable: number;
+  limited: boolean;
+  limited_message?: string | null;
+  price_band: [number | null, number | null];
+  density: string;
 }
 
 export interface CmaCompSearchParams {

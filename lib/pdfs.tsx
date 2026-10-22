@@ -32,6 +32,7 @@ function pdfImageUrl(url?: string | null): string {
   if (typeof window === 'undefined') return normalized;
   return `${window.location.origin}/api/pdf-image?url=${encodeURIComponent(normalized)}`;
 }
+import { cmaCompetitionView } from '@/lib/cma';
 import { CmaGuidanceSection, buildCmaStaticMapUrl, clientCompStrength, cmaGuidanceSections, resolveCmaMarketMetrics, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, buyerOfferFigures, AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_HEX, STRENGTH_LABEL, STRENGTH_TIER_HEX, compDisplayPrice, effectiveCompPrice, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft, basementDisplay, materialIssuesText } from '@/lib/cma';
 import { qrPdfSrc } from '@/lib/qr';
 import { salesAreRecent, salesWords } from '@/lib/salesWording'
@@ -2627,6 +2628,11 @@ function CmaQualityScaleRow({ label, tiers, tier, displayLabel, hexMap, divider 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingBottom: divider ? 3 : 0, marginBottom: divider ? 3 : 0, borderBottom: divider ? `0.5 solid ${COLORS.line}` : undefined }}>
       <Text style={{ width: 62, fontSize: 6.4, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4, color: COLORS.subtext }}>{label}</Text>
+      {tier === 'n_a' ? (
+        <View style={{ flex: 1, borderRadius: 4, paddingVertical: 3, alignItems: 'center', backgroundColor: '#F9FAFB' }}>
+          <Text style={{ fontSize: 5.7, fontWeight: 900, textTransform: 'uppercase', color: '#9CA3AF' }}>N/A</Text>
+        </View>
+      ) : (
       <View style={{ flexDirection: 'row', flex: 1 }}>
         {tiers.map((t, i) => {
           const active = t === tier;
@@ -2646,6 +2652,7 @@ function CmaQualityScaleRow({ label, tiers, tier, displayLabel, hexMap, divider 
           );
         })}
       </View>
+      )}
     </View>
   );
 }
@@ -3061,6 +3068,49 @@ function CmaBackCoverPage({ agent }: { agent: CmaPdfAgent }) {
   );
 }
 
+// "Other Homes You Could Buy" / "Your Competition" (grader, 10/21): similar homes for sale or under
+// contract now - list prices, never in the sold comp grid or the sold charts. No page when none qualify.
+function CmaCompetitionPage({ report, agent }: { report: CmaReport; agent: CmaPdfAgent }) {
+  const view = cmaCompetitionView(report);
+  if (!view || view.cards.length === 0) return null;
+  return (
+    <Page size="LETTER" style={cma.page}>
+      <CmaPdfHeader label="Current Market" title={view.title} subtitle={view.subtitle} />
+      <Text style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.6, color: COLORS.subtext, marginBottom: 6 }}>{view.note}</Text>
+      {view.callouts.map(c => (
+        <View key={c} style={{ backgroundColor: '#F7F1E3', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 7, marginBottom: 4 }}>
+          <Text style={{ fontSize: 7.4, fontWeight: 700, color: '#8b7355' }}>{c}</Text>
+        </View>
+      ))}
+      <View style={{ marginTop: 6 }}>
+        {view.cards.map(h => (
+          <View key={h.listing_key} wrap={false} style={{ flexDirection: 'row', borderWidth: 0.6, borderColor: COLORS.line, borderRadius: 6, marginBottom: 6, overflow: 'hidden' }}>
+            {h.photo_url
+              ? <Image src={normalizeImageUrl(h.photo_url)} style={{ width: 120, height: 82, objectFit: 'cover' }} />
+              : <View style={{ width: 120, height: 82, backgroundColor: '#F3F4F6' }} />}
+            <View style={{ flex: 1, padding: 7 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 6.2, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.5, color: h.status === 'pending' ? '#B45309' : '#047857' }}>{h.statusLabel}</Text>
+                {h.distance_miles != null && <Text style={{ fontSize: 6.6, color: COLORS.subtext }}>{h.distance_miles} mi</Text>}
+              </View>
+              <Text style={{ fontSize: 12, fontWeight: 900, color: COLORS.text, marginTop: 2 }}>
+                {formatMoney(h.list_price)}{h.price_per_sqft ? `  ·  ${h.price_per_sqft}/sq ft` : ''}
+              </Text>
+              <Text style={{ fontSize: 8, fontWeight: 700, color: COLORS.text, marginTop: 1 }}>{h.street_address}</Text>
+              <Text style={{ fontSize: 7, color: COLORS.subtext, marginTop: 1 }}>
+                {[h.beds != null ? `${h.beds} bd` : null, h.baths != null ? `${h.baths} ba` : null, h.sqft ? `${Math.round(h.sqft).toLocaleString()} sq ft` : null, h.days_on_market != null ? `${h.days_on_market} days on market` : null].filter(Boolean).join('  ·  ')}
+              </Text>
+              {h.highlight && <Text style={{ fontSize: 7.2, fontWeight: 700, color: '#8b7355', marginTop: 2 }}>{h.highlight}</Text>}
+              {h.cutText && <Text style={{ fontSize: 7, fontWeight: 700, color: '#BE123C', marginTop: 1 }}>{h.cutText}</Text>}
+            </View>
+          </View>
+        ))}
+      </View>
+      <CmaPageFooter agent={agent} />
+    </Page>
+  );
+}
+
 export const CmaPresentationDocument = ({ report, agent }: { report: CmaReport; agent: CmaPdfAgent }) => {
   const hidden = new Set(report.presentation?.hidden_sections || []);
   const hiddenCompIds = new Set(report.presentation?.hidden_comp_ids || []);
@@ -3077,6 +3127,7 @@ export const CmaPresentationDocument = ({ report, agent }: { report: CmaReport; 
       {!hidden.has('comparison_table') && comparables.length > 0 && <CmaComparisonTablePage report={report} comparables={comparables} agent={agent} />}
       {!hidden.has('market_context') && <CmaMarketSnapshotPage report={report} agent={agent} />}
       {!hidden.has('charts') && comparables.length > 0 && <CmaChartsPageV2 report={report} comparables={comparables} agent={agent} />}
+      {!hidden.has('competition') && <CmaCompetitionPage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaPricingPage report={report} comparables={comparables} agent={agent} />}
       {!hidden.has('pricing') && <CmaInspectionConcernsPage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaOfferSuggestionPage report={report} agent={agent} />}

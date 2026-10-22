@@ -5,8 +5,9 @@ import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { Property } from '@/types'
 import { formatOpenHouse, formatOpenHouseDay, upcomingOpenHouses } from '@/lib/mlsOpenHouses'
-import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye, Bed, Bath, Square, Home, MapPin, School, Trees, Navigation, Star } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye, Bed, Bath, Square, Home, MapPin, School, Trees, Navigation, Star, FolderInput, Undo2 } from 'lucide-react'
 import { cleanAddress, formatMlsStatus, formatPropertyFeature, isPropertyAvailableStatus, normalizeImageUrl, haversineMiles, googleMapsDirectionsUrl } from '@/lib/utils'
+import { statusNotice, type StatusTone } from '@/lib/showcaseStatus'
 
 // "Lower Merion Township School District" -> "Lower Merion": the words that only make the pill
 // longer (Township, School District, Schools, Public...) come off.
@@ -44,9 +45,20 @@ interface PropertyCardProps {
   onRecommend?: (property: Property) => void
   /** Who recommends it, for the gold banner ("Peter recommends this home"). */
   recommendedBy?: string | null
+  /** Showcase (buyer + agent): a home that's off the market becomes the short "what happened" card
+   *  - big status notice, photo / price / address / beds-baths-sqft, Like - and nothing else. */
+  offMarketNotice?: boolean
+  /** Its "Move to Sold/Removed" button (filed=false: "Move back" from inside the folder). */
+  onMoveToSold?: (property: Property, filed: boolean) => void
 }
 
-const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, destination, matchScore, tourButtonVariant = 'schedule', cropMlsBadge = false, onRecommend, recommendedBy }: PropertyCardProps) {
+const NOTICE_TONE: Record<StatusTone, string> = {
+  sold: 'bg-rose-600 text-white',
+  contract: 'bg-amber-400 text-[#111827]',
+  off: 'bg-[#111827] text-white',
+}
+
+const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, destination, matchScore, tourButtonVariant = 'schedule', cropMlsBadge = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold }: PropertyCardProps) {
   // The agent's pick (user, 10/18) - impossible to miss on both sides; gone once the client passes on it.
   const recommended = !!property.agentRecommended && !property.disliked
   // Memoize visitor interaction counts to avoid redundant filtering on every render
@@ -112,6 +124,132 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
       return false
     }
   }, [property.PriceChangeTimestamp])
+
+  // ---- Off the market, in a Showcase (user, 10/21) ----
+  // What happened, big, on the photo; under it only what still matters - price (the sold price
+  // once it's sold), address and beds / baths / sq ft - plus Like (the client can still tell their
+  // agent they loved it) and the chat. No details window, tour, pass or DOM: none of it applies
+  // now. Until someone moves it, the bottom button files it into Sold/Removed.
+  const notice = offMarketNotice ? statusNotice(property) : null
+  if (notice) {
+    const soldPrice = notice.tone === 'sold' && property.ClosePrice ? property.ClosePrice : null
+    const filed = !!property.soldFiled
+    return (
+      <div data-status-notice={notice.label} className="flex h-full flex-col overflow-hidden rounded-2xl border-2 border-gray-200 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.02)] dark:border-gray-800 dark:bg-[#151517]">
+        <div className="relative aspect-video overflow-hidden bg-gray-100 dark:bg-[#0B0B0B]">
+          {property.ListPictureURL ? (
+            <Image
+              src={normalizeImageUrl(property.ListPictureURL)}
+              alt={property.FullStreetAddress}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className={`object-cover grayscale-[45%] ${cropMlsBadge ? 'origin-top-right scale-[1.13]' : ''}`}
+              loading="lazy"
+              quality={85}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center">
+              <Home className="h-12 w-12 text-gray-300 dark:text-gray-800" />
+            </div>
+          )}
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-t from-black/80 via-black/55 to-black/35 px-5 text-center">
+            <span className={`rounded-xl px-5 py-2 text-[22px] font-black uppercase leading-none tracking-[0.12em] shadow-2xl ring-2 ring-white/40 sm:text-[26px] ${NOTICE_TONE[notice.tone]}`}>
+              {notice.label}
+            </span>
+            <p className="mt-3 max-w-[19rem] text-[13px] font-semibold leading-snug text-white">{notice.line}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-1 flex-col justify-between p-4">
+          <div>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                {soldPrice ? (
+                  <>
+                    <span className="block text-[9px] font-black uppercase tracking-[0.18em] text-rose-600">Sold for</span>
+                    <span className="text-lg font-black leading-none tracking-tight text-[#111827] dark:text-white">{formatPrice(soldPrice)}</span>
+                    {property.ListPrice ? <span className="ml-2 text-[11px] font-bold text-gray-400">Listed {formatPrice(property.ListPrice)}</span> : null}
+                  </>
+                ) : (
+                  <span className="text-lg font-black leading-none tracking-tight text-[#111827] dark:text-white">{formatPrice(property.ListPrice)}</span>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center space-x-1.5">
+                <motion.button
+                  whileTap={{ scale: 0.82 }}
+                  aria-label="Messages"
+                  onClick={(e) => { e.stopPropagation(); onCommentClick?.(property) }}
+                  className={`relative rounded-lg p-1.5 transition-colors ${property.unreadCommentCount ? 'bg-[#C9A24D]/10 text-[#C9A24D]' : 'text-gray-300 hover:text-[#C9A24D]'}`}
+                >
+                  <MessageCircle size={18} fill={property.unreadCommentCount ? 'currentColor' : 'none'} />
+                  {!!property.unreadCommentCount && (
+                    <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full border-2 border-white bg-[#C9A24D] px-0.5 text-[9px] font-black text-white dark:border-[#151517]">
+                      {property.unreadCommentCount}
+                    </span>
+                  )}
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.78 }}
+                  aria-label={property.liked ? 'Loved' : 'Love it'}
+                  aria-pressed={!!property.liked}
+                  onClick={(e) => { e.stopPropagation(); if (property.id !== undefined) onLike?.(property.id, !property.liked) }}
+                  className={`rounded-lg p-1.5 transition-colors ${property.liked ? 'bg-green-500/10 text-green-500' : 'text-gray-300 hover:text-green-500'}`}
+                >
+                  <motion.span key={property.liked ? 'on' : 'off'} initial={property.liked ? { scale: 0.3, rotate: -20 } : false} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 700, damping: 12 }} className="block">
+                    <ThumbsUp size={18} fill={property.liked ? 'currentColor' : 'none'} />
+                  </motion.span>
+                </motion.button>
+              </div>
+            </div>
+
+            <h3 className="line-clamp-1 text-[15px] font-bold leading-snug text-[#111827] dark:text-white" title={cleanAddress(property.FullStreetAddress, property.City)}>
+              {cleanAddress(property.FullStreetAddress, property.City).split(',')[0]}
+            </h3>
+            <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[12px] font-semibold text-gray-500 dark:text-gray-400">
+              <MapPin size={12} className="shrink-0 text-[#C9A24D]" />
+              <span className="truncate">{[property.City ? String(property.City).toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : '', [property.StateOrProvince, property.PostalCode].filter(Boolean).join(' ')].filter(Boolean).join(', ')}</span>
+            </p>
+
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {([
+                [Bed, formatPropertyFeature(property.BedroomsTotal), 'Beds'],
+                [Bath, formatPropertyFeature(property.BathroomsTotal), 'Baths'],
+                [Square, formatPropertyFeature(property.LivingArea, true), 'Sq Ft'],
+              ] as [typeof Bed, string, string][]).map(([Icon, value, label]) => (
+                <span key={label} className="inline-flex items-center gap-1.5 rounded-lg bg-gray-50 px-2 py-1.5 text-[11px] font-bold text-gray-500 ring-1 ring-gray-100 dark:bg-white/[0.04] dark:text-gray-400 dark:ring-white/[0.06]">
+                  <Icon size={13} className="shrink-0 text-[#C9A24D]" />
+                  <span className="font-black text-[#111827] dark:text-white">{value}</span>
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {onMoveToSold && (
+            <div className="mt-4 border-t border-gray-100 pt-4 dark:border-gray-800">
+              {filed ? (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onMoveToSold(property, false) }}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-500 transition-colors hover:bg-gray-50 hover:text-[#111827] dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white"
+                >
+                  <Undo2 size={14} /> {property.disliked ? 'Move back to Disliked' : 'Move back to Matches'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onMoveToSold(property, true) }}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 py-3 text-[10px] font-black uppercase tracking-widest text-white transition-[background-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:bg-[#C9A24D] hover:shadow-lg active:scale-[0.97] dark:bg-white/10"
+                >
+                  <FolderInput size={14} /> Move to Sold/Removed
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

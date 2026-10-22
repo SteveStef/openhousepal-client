@@ -19,7 +19,7 @@ import { useToast } from '@/contexts/ToastContext'
 import api from '@/lib/api-service'
 import { openHousePalPublicUrl, websitePublicUrl } from '@/lib/publicResourceLinks'
 import { useAuth } from '@/contexts/AuthContext'
-import { isPropertyAvailableStatus } from '@/lib/utils'
+import { inSoldFolder } from '@/lib/showcaseStatus'
 
 // Sub-components
 import { DashboardView } from './components/DashboardView'
@@ -366,6 +366,21 @@ function ShowcaseContent() {
       return
     }
     showToast(next ? `Recommended - ${selectedCollection.customer.firstName || 'your client'} will see it at the top` : 'Recommendation removed', 'success')
+  }
+
+  // A home that sold / went under contract / came off the market: move it into the client's
+  // Sold/Removed folder for them (or back out) - their Showcase shows the same.
+  const handleMoveToSold = async (property: Property, filed: boolean) => {
+    if (!selectedCollection || property.id === undefined) return
+    const id = String(property.id)
+    setMatchedProperties(prev => prev.map(p => String(p.id) === id ? { ...p, soldFiled: filed } : p))
+    const { success, error } = await api.collections.moveToSoldFolder(selectedCollection.id, id, filed)
+    if (!success) {
+      setMatchedProperties(prev => prev.map(p => String(p.id) === id ? { ...p, soldFiled: !filed } : p))
+      showToast(error || "Couldn't move that home - try again", 'error')
+      return
+    }
+    showToast(filed ? `Moved to ${selectedCollection.customer.firstName ? `${selectedCollection.customer.firstName}'s ` : ''}Sold/Removed` : 'Moved back', 'success')
   }
 
   const handlePropertyDislike = async (propertyId: string | number, disliked: boolean) => {
@@ -961,10 +976,10 @@ function ShowcaseContent() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           tabCounts={{
-            all: matchedProperties.filter(p => !p.disliked && isPropertyAvailableStatus(p.MlsStatus)).length,
-            liked: matchedProperties.filter(p => p.liked && isPropertyAvailableStatus(p.MlsStatus)).length,
-            disliked: matchedProperties.filter(p => p.disliked && isPropertyAvailableStatus(p.MlsStatus)).length,
-            soldRemoved: matchedProperties.filter(p => !isPropertyAvailableStatus(p.MlsStatus)).length
+            all: matchedProperties.filter(p => !p.disliked && !inSoldFolder(p)).length,
+            liked: matchedProperties.filter(p => p.liked && !inSoldFolder(p)).length,
+            disliked: matchedProperties.filter(p => p.disliked && !inSoldFolder(p)).length,
+            soldRemoved: matchedProperties.filter(p => inSoldFolder(p)).length
           }}
           sortBy={sortBy}
           setSortBy={setSortBy}
@@ -995,6 +1010,7 @@ function ShowcaseContent() {
           onPropertyLike={handlePropertyLike}
           onPropertyDislike={handlePropertyDislike}
           onRecommend={handleRecommend}
+          onMoveToSold={handleMoveToSold}
           onPropertyClick={handlePropertyClick}
           onAddComment={handleAddComment}
           selectedProperty={selectedProperty}

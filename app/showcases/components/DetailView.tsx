@@ -13,6 +13,7 @@ import QuickCommentModal from '@/components/QuickCommentModal'
 import EditShowcaseCriteriaModal from '@/components/EditShowcaseCriteriaModal'
 import { Collection, Property, Comment, Site, SiteDomain } from '@/types'
 import { isPropertyAvailableStatus } from '@/lib/utils'
+import { inSoldFolder } from '@/lib/showcaseStatus'
 import { openHousePalPublicUrl, websitePublicUrl } from '@/lib/publicResourceLinks'
 import { computeMatchScore } from '@/lib/matchScore'
 import { copyText } from '@/lib/copyText'
@@ -42,6 +43,8 @@ interface DetailViewProps {
   onPropertyDislike: (id: string | number, disliked: boolean) => void;
   /** "I recommend this home for you" on one home (or taking it back). */
   onRecommend?: (property: Property) => void;
+  /** An off-the-market home's "Move to Sold/Removed" (filed=false: back out of the folder). */
+  onMoveToSold?: (property: Property, filed: boolean) => void;
   onPropertyClick: (property: Property) => void;
   onAddComment: (id: string | number, comment: string) => void;
   // Modal States
@@ -89,6 +92,7 @@ export const DetailView = memo(function DetailView({
   onPropertyLike,
   onPropertyDislike,
   onRecommend,
+  onMoveToSold,
   onPropertyClick,
   onAddComment,
   selectedProperty,
@@ -174,11 +178,11 @@ export const DetailView = memo(function DetailView({
     .toUpperCase()
 
   const filteredProperties = matchedProperties.filter(property => {
-    const available = isPropertyAvailableStatus(property.MlsStatus)
-    // Sold/removed listings (anything besides Active/Coming Soon) can't be bought anymore, so
-    // they live exclusively in their own tab instead of cluttering Matches/Liked/Disliked.
-    if (activeTab === 'sold_removed') return !available
-    if (!available) return false
+    // Only homes moved into Sold/Removed (by the client or by you) live there. One that just went
+    // under contract / sold / off the market stays in its tab with a notice (lib/showcaseStatus).
+    const filed = inSoldFolder(property)
+    if (activeTab === 'sold_removed') return filed
+    if (filed) return false
     if (activeTab === 'liked') return property.liked
     if (activeTab === 'disliked') return property.disliked
     // Matches tab: everything else - disliked properties only live in their own tab now.
@@ -205,15 +209,17 @@ export const DetailView = memo(function DetailView({
   })
 
   // Previous / next home in the open details window - the list on screen, in its order.
+  // Off-the-market cards don't open the window, so its arrows skip them too.
   const [homeMove, setHomeMove] = useState<HomeMove | null>(null)
-  const navIndex = selectedProperty ? filteredProperties.findIndex(p => String(p.id) === String(selectedProperty.id)) : -1
+  const navList = filteredProperties.filter(p => isPropertyAvailableStatus(p.MlsStatus))
+  const navIndex = selectedProperty ? navList.findIndex(p => String(p.id) === String(selectedProperty.id)) : -1
   const stepTo = (k: number, dir: 1 | -1) => {
-    const p = filteredProperties[k]
+    const p = navList[k]
     if (!p) return null
     return () => { setHomeMove(m => ({ dir, kind: 'nav', seq: (m?.seq || 0) + 1 })); onPropertyClick(p) }
   }
-  const detailsNav = isModalOpen && navIndex >= 0 && filteredProperties.length > 1
-    ? { index: navIndex, total: filteredProperties.length, onPrev: stepTo(navIndex - 1, -1), onNext: stepTo(navIndex + 1, 1) }
+  const detailsNav = isModalOpen && navIndex >= 0 && navList.length > 1
+    ? { index: navIndex, total: navList.length, onPrev: stepTo(navIndex - 1, -1), onNext: stepTo(navIndex + 1, 1) }
     : null
 
   const formatAddressForTitle = (property: Property) => {
@@ -600,6 +606,8 @@ export const DetailView = memo(function DetailView({
           compactHeader
           onRecommend={onRecommend}
           recommendedBy={user?.first_name || null}
+          offMarketNotice
+          onMoveToSold={onMoveToSold}
           sortControl={
             <div className="flex items-center gap-2">
               <div className="relative group w-44">

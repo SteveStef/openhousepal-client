@@ -1,4 +1,4 @@
-import { CmaAiEstimate, CmaComparable, CmaPricing, CmaStatus, CmaSubjectProperty } from '@/types'
+import { CmaAiEstimate, CmaComparable, CmaPricing, CmaReport, CmaStatus, CmaSubjectProperty } from '@/types'
 
 // Short support code an agent can hand to OpenHousePal support so admin can pull up the exact
 // report - the first 12 hex characters of the report's own id (dashes stripped), grouped for
@@ -41,7 +41,7 @@ export function formatCompactNumber(value?: number | null): string {
 }
 
 export function formatAcresFromSqft(value?: number | null, opts: { long?: boolean } = {}): string {
-  if (value === null || value === undefined || Number.isNaN(value) || value <= 0) return 'â€”'
+  if (value === null || value === undefined || Number.isNaN(value) || value <= 0) return '—'   // escaped: a literal dash here was once saved mis-encoded and printed "â€”" in the PDF
   const acres = value / 43560
   const formatted = acres.toLocaleString('en-US', {
     minimumFractionDigits: acres < 0.1 ? 2 : 0,
@@ -328,7 +328,7 @@ export function belowGradeDisplay(p: { below_grade_finished_area?: number | null
 // price, how much it counts, and - when the final value isn't simply the adjusted comps - why.
 export interface CmaAdjustmentGridComp {
   label: string; address: string; sale: number; size: number; lowerLevel: number; baths: number
-  garage: number; sewer: number; lot: number; time: number; age: number; road: number
+  garage: number; sewer: number; lot: number; time: number; age: number; road: number; condition: number
   adjusted: number; weightPct: number; notes: string[]
   // The lower-level area the grid used and whether it was estimated (finished per the MLS, no area
   // recorded) - a bad guess there moves the value, so the agent sees it (10/20 review).
@@ -359,7 +359,7 @@ export function buildAdjustmentGrid(estimate?: CmaAiEstimate | null): CmaAdjustm
       label: (c.label || '').replace(/\s*\(.+\)\s*$/, ''), address: m ? m[1] : '',
       sale: c.raw_sale_price, size: c.size_adjustment ?? 0, lowerLevel: fa?.below_grade ?? 0, baths: fa?.baths ?? 0,
       garage: fa?.garage ?? 0, sewer: fa?.sewer ?? 0, lot: fa?.lot ?? 0,
-      time: fa?.time ?? 0, age: fa?.age ?? 0, road: fa?.road ?? 0, adjusted: c.size_adjusted_price,
+      time: fa?.time ?? 0, age: fa?.age ?? 0, road: fa?.road ?? 0, condition: (fa as { condition?: number } | undefined)?.condition ?? 0, adjusted: c.size_adjusted_price,
       lowerLevelSqft: fa?.comp_below_grade_sqft ?? null, lowerLevelEstimated: !!fa?.comp_below_grade_estimated,
       weightPct: Math.round((c.normalized_weight || 0) * 100), notes: fa?.notes || [],
     }
@@ -609,6 +609,7 @@ export const QUALITY_LABELS: Record<string, string> = {
   different_from_subject: 'Different Area',
   similar_to_subject: 'Similar Area',
   same_as_subject: 'Same Market',
+  n_a: 'N/A',   // a condo's Lot - it has no lot of its own (grader, 10/21)
 }
 
 // Area's own tier ORDER (different_from_subject / same_as_subject / similar_to_subject) -
@@ -743,5 +744,117 @@ export function buyerOfferFigures(pricing: CmaPricing): { min: number | null; ma
     min: f?.opening_offer_low ?? pricing.suggested_offer_min ?? null,
     max: f?.opening_offer_high ?? pricing.suggested_offer_max ?? null,
     strong: f?.strong_offer ?? pricing.strong_offer ?? null,
+  }
+}
+
+// ---- Current competition (grader, 10/21) -----------------------------------------------------------
+// Similar homes for sale / under contract now. Same data for both report types; buyer and seller get
+// different titles, order and callouts. List prices, not closed sales - never in the sold comp grid or
+// the sold charts.
+export interface CmaCompetitionHome {
+  listing_key: string
+  status: 'active' | 'pending'
+  street_address?: string | null
+  city?: string | null
+  photo_url?: string | null
+  list_price?: number | null
+  price_per_sqft?: number | null
+  beds?: number | null
+  baths?: number | null
+  sqft?: number | null
+  days_on_market?: number | null
+  distance_miles?: number | null
+  match_score?: number | null
+  price_cuts?: { count: number; total: number; first_price?: number | null; last_cut_at?: string | null } | null
+}
+
+export interface CmaCompetitionCard extends CmaCompetitionHome {
+  statusLabel: string
+  highlight: string | null
+  cutText: string | null
+}
+
+export interface CmaCompetitionView {
+  title: string
+  subtitle: string
+  note: string
+  cards: CmaCompetitionCard[]
+  callouts: string[]
+  empty: string
+}
+
+const k$ = (n: number) => `$${Math.round(Math.abs(n) / 1000).toLocaleString('en-US')}K`
+
+export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null {
+  const comp = (report.pricing?.ai_estimate as { current_competition?: { homes?: CmaCompetitionHome[] } } | null | undefined)?.current_competition
+  if (!comp) return null
+  const homes = (comp.homes || []).filter(h => h.list_price)
+  const buyer = report.mode === 'buyer'
+  const subject = report.subject || ({} as CmaReport['subject'])
+  const subjAg = subject.above_grade_finished_area || subject.sqft || null
+  const ourPrice = buyer
+    ? (subject.list_price ?? null)
+    : (report.pricing?.ai_estimate?.final_valuation?.value ?? report.pricing?.most_likely_value ?? report.pricing?.ai_estimate?.value ?? null)
+  const ourPsf = ourPrice && subjAg ? ourPrice / subjAg : null
+  const cutText = (h: CmaCompetitionHome) => h.price_cuts && h.price_cuts.count > 0
+    ? `Price cut ${k$(h.price_cuts.total)}${h.price_cuts.count > 1 ? ` (${h.price_cuts.count} cuts)` : ''}`
+    : null
+  const cards: CmaCompetitionCard[] = homes.map(h => {
+    const diff = ourPrice && h.list_price ? h.list_price - ourPrice : null
+    let highlight: string | null = null
+    if (diff != null && Math.abs(diff) >= 1000) {
+      highlight = buyer
+        ? `${k$(diff)} ${diff < 0 ? 'less' : 'more'} than this home`
+        : `${k$(diff)} ${diff < 0 ? 'below' : 'above'} our suggested price`
+    }
+    if (!buyer && ourPsf && h.price_per_sqft) {
+      highlight = `${highlight ? highlight + ' · ' : ''}$${h.price_per_sqft}/sq ft vs our $${Math.round(ourPsf)}`
+    }
+    return {
+      ...h,
+      statusLabel: h.status === 'pending' ? (buyer ? 'Recently went under contract' : 'Under contract') : 'For sale',
+      highlight,
+      cutText: cutText(h),
+    }
+  })
+  // Buyer: best value first (lowest $/sq ft among the strong matches). Seller: closest competitors first.
+  if (buyer) {
+    cards.sort((a, b) => {
+      const sa = (a.match_score || 0) >= 60 ? 0 : 1, sb = (b.match_score || 0) >= 60 ? 0 : 1
+      return sa - sb || (a.price_per_sqft || 1e9) - (b.price_per_sqft || 1e9)
+    })
+  } else {
+    cards.sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
+  }
+  const actives = cards.filter(c => c.status === 'active')
+  const pendings = cards.filter(c => c.status === 'pending')
+  const callouts: string[] = []
+  if (buyer) {
+    const pricier = ourPsf ? actives.filter(a => a.price_per_sqft && ourPsf > a.price_per_sqft).length : 0
+    if (actives.length >= 2 && pricier > actives.length / 2) {
+      callouts.push('This home is priced above most similar options - supports offering below asking.')
+    }
+    const fast = pendings.map(p => p.days_on_market).filter((d): d is number => d != null).sort((a, b) => a - b)
+    if (pendings.length >= 2 && fast.length && fast[Math.floor(fast.length / 2)] <= 14) {
+      callouts.push('Similar homes are selling quickly - be ready to move.')
+    }
+  } else {
+    if (ourPrice && actives.length >= 1 && actives.every(a => (a.list_price || 0) < ourPrice)) {
+      callouts.push('Priced above all current competition - expect longer market time.')
+    }
+    if (actives.some(a => (a.days_on_market || 0) >= 60 || (a.price_cuts?.count || 0) > 0)) {
+      callouts.push('Overpriced homes are sitting - pricing right matters.')
+    }
+    if (pendings.length) callouts.push('The homes under contract show what buyers are paying for right now.')
+  }
+  return {
+    title: buyer ? 'Other Homes You Could Buy' : 'Your Competition',
+    subtitle: buyer
+      ? 'Similar homes for sale or recently under contract near this one.'
+      : 'The homes buyers will compare yours against right now.',
+    note: 'List prices, not closed sales.',
+    cards,
+    callouts,
+    empty: 'No similar homes currently for sale or under contract.',
   }
 }

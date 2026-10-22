@@ -1,5 +1,6 @@
 'use client'
 
+import CurrentCompetition from '@/components/cma/CurrentCompetition'
 import SignatureSiteCard from '@/components/studio/blogs/SignatureSiteCard'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
@@ -401,6 +402,9 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
           </Section>
           )
         })()}
+
+        {/* Similar homes for sale / under contract now - list prices, never mixed into the sold comps above */}
+        {!hiddenSections.has('competition') && <div className="print:break-inside-avoid"><CurrentCompetition report={data as any} /></div>}
 
         {/* Agent Final Analysis */}
         {!hiddenSections.has('pricing') && (
@@ -1037,6 +1041,10 @@ function QualityScaleRow({ label, tiers, tier, displayLabel, styles }: {
   return (
     <div className="flex items-center gap-3 py-1.5 first:pt-0 last:pb-0">
       <span className="w-24 shrink-0 text-[9px] font-black uppercase leading-tight tracking-wide text-gray-500 dark:text-gray-400">{label}</span>
+      {tier === 'n_a' ? (
+        // a condo's Lot - it has no lot of its own
+        <div className="flex-1 rounded-md bg-gray-50 py-1.5 text-center text-[9px] font-black uppercase tracking-wide text-gray-400 dark:bg-gray-800/40">N/A</div>
+      ) : (
       <div className="grid flex-1 grid-cols-3 gap-1">
         {tiers.map(t => (
           <div
@@ -1049,6 +1057,7 @@ function QualityScaleRow({ label, tiers, tier, displayLabel, styles }: {
           </div>
         ))}
       </div>
+      )}
     </div>
   )
 }

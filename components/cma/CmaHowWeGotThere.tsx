@@ -25,6 +25,7 @@ export default function CmaHowWeGotThere({ estimate }: { estimate?: CmaAiEstimat
     ...(grid.comps.some(c => c.lot) ? [{ label: 'Lot size', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.lot) }] : []),
     ...(grid.comps.some(c => c.age) ? [{ label: 'Age', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.age) }] : []),
     ...(grid.comps.some(c => c.road) ? [{ label: 'Busier road', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.road) }] : []),
+    ...(grid.comps.some(c => c.condition) ? [{ label: 'Condition', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.condition) }] : []),
     ...(grid.comps.some(c => c.time) ? [{ label: 'Market change since sale', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.time) }] : []),
     { label: 'Adjusted price', get: c => formatMoney(c.adjusted), bold: true },
     { label: 'Share of value', get: c => `${c.weightPct}%` },

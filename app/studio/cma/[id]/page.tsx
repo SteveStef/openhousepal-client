@@ -14,6 +14,9 @@ import {
   Image as ImageIcon, Loader2, MapPin, Moon, Plus, RefreshCw, Ruler, Scale, Search, Share2, ShieldAlert, Sparkles, Sun, Trash2, Waves, X,
 } from 'lucide-react'
 import { usePdfFile } from '@/lib/pdfFile'
+import SubjectAddressSearch from '@/components/cma/SubjectAddressSearch'
+import CurrentCompetition from '@/components/cma/CurrentCompetition'
+import type { HomeSearchResult } from '@/lib/api-service'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useEscapeToClose, useIsPhone, useLastValue, usePagePin, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 import { FADE_HOME, NavButton, SHEET_SPRING, SideArrow, SLIDE_HOME, SPRING as SHEET_DESKTOP_SPRING, streetSize, type HomeMove } from '@/components/PropertyDetailsModal'
@@ -729,6 +732,7 @@ function NextButton({ onClick, label = 'Continue' }: { onClick: () => void, labe
 // ============================================================================
 
 function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaReport, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>, onReportUpdated: (r: CmaReport) => void, onNext: () => void }) {
+  const { showToast } = useToast()
   const [subject, setSubject] = useState<CmaSubjectProperty>(report.subject)
   const [mode, setMode] = useState<'search' | 'mine' | 'manual'>('search')
   const reduceMotion = useReducedMotion()
@@ -739,9 +743,6 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
   const prevModeIndex = useRef(modeIndex)
   const modeDir = modeIndex >= prevModeIndex.current ? 1 : -1
   useEffect(() => { prevModeIndex.current = modeIndex }, [modeIndex])
-  const [query, setQuery] = useState('')
-  const [suggestions, setSuggestions] = useState<any[]>([])
-  const [searching, setSearching] = useState(false)
   const [myListings, setMyListings] = useState<MyListingItem[]>([])
   const hasSubject = Boolean(subject.street_address)
   const subjectLoaded = useRef(false)
@@ -791,21 +792,6 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
     })
   }, [mode, myListings.length])
 
-  useEffect(() => {
-    if (mode !== 'search' || query.trim().length < 4) { setSuggestions([]); return }
-    let cancelled = false
-    setSearching(true)
-    const t = setTimeout(() => {
-      // Same internal address search the OHP kit uses, minus activeOnly - a CMA subject is
-      // routinely a sold/pending/off-market property too, just never a rental.
-      api.properties.address(query.trim(), { excludeRentals: true }).then(r => {
-        if (cancelled) return
-        if (r.success && r.data) setSuggestions(r.data.results || [])
-        setSearching(false)
-      })
-    }, 350)
-    return () => { cancelled = true; clearTimeout(t) }
-  }, [query, mode])
 
   // Every MLS pick fills the WHOLE subject from our Bright record (10/20: picking "My listing"
   // filled only address, price, beds/baths/sqft and one photo - no map location, school district,
@@ -817,17 +803,13 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
     return r.success && r.data ? r.data : null
   }
 
-  const selectAddress = async (address: string) => {
-    setSearching(true)
-    const response = await api.properties.lookup(address)
-    if (response.success && response.data) {
-      const p = response.data
-      const full = await fullSubjectFor(p.ListingKey ?? p.listing_key)
-      setSubject(full || mapPropertyToSubject(p))
-      setSuggestions([])
-      setQuery('')
-    }
-    setSearching(false)
+  // The address box (components/cma/SubjectAddressSearch, 10/21): a pick loads that exact listing -
+  // a sold or off-market record too - so a condo unit can't come back as another unit or its rental.
+  const pickSearchResult = async (home: HomeSearchResult) => {
+    const full = await fullSubjectFor(home.listingKey)
+    if (full) { setSubject(full); return }
+    const r = await api.properties.lookup(home.address)
+    if (r.success && r.data) setSubject(mapPropertyToSubject(r.data))
   }
 
   const selectMyListing = async (listing: MyListingItem) => {
@@ -894,6 +876,13 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
   }
 
   const handleContinue = async () => {
+    // A CMA values a sale (grader, 10/21: 1420 Locust St #23H was a $1,995/month rental and got a
+    // "$1,850 value" against rental comps). Same rule as the backend's is_lease_listing.
+    const isRental = /lease/i.test(String(subject.property_type || '')) || (!!subject.list_price && subject.list_price < 10000)
+    if (isRental) {
+      showToast("This is a rental listing - a CMA is for sales. Pick the home's sale listing or enter it by hand as a sale.", 'error')
+      return
+    }
     // Must actually wait for the save - the next step reads fresh subject data (e.g. list_price
     // for its default price range) the instant it mounts, and onNext() switching steps
     // synchronously used to race ahead of this PATCH landing in the parent's report state.
@@ -934,48 +923,7 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
             animate={{ opacity: 1, x: 0, transition: { type: 'spring', stiffness: 420, damping: 36 } }}
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -modeDir * 18, transition: { duration: 0.12 } }}
           >
-          {mode === 'search' && (
-            <div className="relative mt-4">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder="Start typing an address..."
-                className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-4 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white"
-              />
-              {searching && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-gray-400" />}
-              {suggestions.length > 0 && (
-                <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-[#151517]">
-                  {suggestions.map((s, i) => (
-                    <button
-                      key={i}
-                      onClick={() => selectAddress(s.address)}
-                      className="flex w-full items-center gap-3 border-b border-gray-50 px-3 py-2.5 text-left last:border-0 hover:bg-[#C9A24D]/10 dark:border-gray-800"
-                    >
-                      <div className="relative h-12 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
-                        {s.image ? <img src={normalizeImageUrl(s.image || undefined)} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Home className="h-4 w-4 text-gray-300" /></div>}
-                        {s.status && (
-                          <div className="absolute inset-x-0 bottom-1 flex justify-center px-1">
-                            <span className={`max-w-full truncate rounded-full px-1.5 py-0.5 text-[7px] font-black uppercase leading-none text-white shadow-sm ${mlsStatusBadgeClass(s.status)}`}>
-                              {formatMlsStatusLabel(s.status)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-[#111827] dark:text-white">{s.address}</p>
-                        {s.price && (
-                          <span className="mt-1 inline-flex items-center rounded-full border border-[#C9A24D]/30 bg-[#C9A24D]/10 px-2 py-0.5 text-[10px] font-black text-[#8b7355] dark:border-[#C9A24D]/40 dark:bg-[#C9A24D]/15 dark:text-[#d7b974]">
-                            {formatMoney(s.price)}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {mode === 'search' && <div className="mt-4"><SubjectAddressSearch autoFocus onPick={pickSearchResult} onEnterManually={() => startManual()} /></div>}
 
           {mode === 'manual' && <ManualAddressPicker onPick={pickManualAddress} />}
 
@@ -1016,18 +964,27 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
           title="Subject Property"
           subtitle={subject.source === 'manual' && !subject.listing_key ? "Fill in the home's facts - the more complete they are, the better the value." : "Edit any fact that isn't quite right."}
           right={
-            <button
-              onClick={() => setSubject({ source: 'manual' } as CmaSubjectProperty)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-gray-500 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-400 dark:hover:border-[#C9A24D] dark:hover:text-[#d7b974]"
-            >
-              <RefreshCw className="h-3 w-3" /> Change Property
-            </button>
+            // Find Comparables sits up here too (user, 10/21: the facts list is long, and scrolling
+            // to the bottom for the next step was a chore on a phone and on a computer). Change
+            // Property shrank to a small pill beside it. Phones keep a second Find Comparables at
+            // the bottom for whoever did scroll through every fact.
+            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+              <button
+                onClick={() => setSubject({ source: 'manual' } as CmaSubjectProperty)}
+                className="inline-flex h-8 items-center gap-1 rounded-full border border-gray-200 px-2.5 text-[10px] font-black uppercase tracking-wide text-gray-500 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-400 dark:hover:border-[#C9A24D] dark:hover:text-[#d7b974]"
+              >
+                <RefreshCw className="h-3 w-3" /> Change
+              </button>
+              <button onClick={handleContinue} className="cma-btn inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#111827] px-4 text-[13px] font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
+                Find Comparables <ArrowLeft className="h-4 w-4 rotate-180" />
+              </button>
+            </div>
           }
         >
           <SubjectFactsEditor reportId={report.id} subject={subject} setSubject={setSubject} area={area} />
         </SectionCard>
-        <div className="flex justify-end gap-2">
-          <button onClick={handleContinue} className="cma-btn inline-flex items-center gap-2 rounded-xl bg-[#111827] px-6 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
+        <div className="flex justify-end gap-2 sm:hidden">
+          <button onClick={handleContinue} className="cma-btn inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#111827] px-6 py-3 text-sm font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
             Find Comparables <ArrowLeft className="h-4 w-4 rotate-180" />
           </button>
         </div>
@@ -1198,7 +1155,7 @@ const SOLD_DAYS_STEPS = [100, 200, 300, 400, 500, 600, 700, 750]
 // either dumped in far more candidates than needed in a dense market, or missed closer comps
 // entirely in a quiet one). Widens only until there are enough genuinely strong (>=70% match)
 // candidates to work with, not just "enough candidates."
-const RADIUS_STEPS = [1, 2, 3, 5, 8, 12, 18, 25]
+const RADIUS_STEPS = [1, 2, 3, 5, 8, 10]   // never 25 mi (grader 10/21); the first search is server-side now
 // Floor for the "widen" loop in CompsStep's runSearch - keeps widening the radius until at least
 // this many genuinely strong (>=70% match) comps exist, rather than settling for 2-3. No matching
 // ceiling constant: once the floor is met the loop just stops, whatever the count landed on -
@@ -1354,6 +1311,11 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
   const [radius, setRadius] = useState(RADIUS_STEPS[0])
   const autoRadiusRef = useRef(true)
   const radiusExtraStepRef = useRef(false)
+  // The first search is one server call that picks its own radius + sold window (grader 10/21: it
+  // used to widen to 25 mi chasing five 70%+ matches). Setting the chosen radius/days afterwards
+  // would re-run the same search once - this skips that echo.
+  const skipEchoSearchRef = useRef(false)
+  const [limitedNote, setLimitedNote] = useState<string | null>(null)
   // Same autofill rule as the Similar Properties sheet (CreateOpenHouseWizard) - seed the price
   // and beds range from the subject itself so the very first search already returns real comps,
   // not an unbounded dump of every property in the radius. Price band is a wide ±35% (the tighter
@@ -1513,9 +1475,43 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
       setOptimizing(false)
       return
     }
+    if (skipEchoSearchRef.current) { skipEchoSearchRef.current = false; return }
     setSearching(true)
     setSearched(true)
     const seq = ++searchSeqRef.current
+    if (autoRadiusRef.current && autoSoldDaysRef.current && statuses.length === 1 && statuses[0] === 'sold') {
+      api.cma.autoSearchComparables({
+        listing_key: report.subject.listing_key || undefined,
+        subject: { ...scoreSubject, state: report.subject.state, list_price: report.subject.list_price, street_address: report.subject.street_address, zipcode: report.subject.zipcode },
+        latitude: report.subject.latitude,
+        longitude: report.subject.longitude,
+        subject_sqft: report.subject.above_grade_finished_area || report.subject.sqft,
+        property_type: report.subject.property_type,
+        statuses,
+        min_beds: minBeds ? minBeds : undefined,
+      }).then(r => {
+        if (seq !== searchSeqRef.current) return
+        setSearching(false)
+        autoRadiusRef.current = false
+        autoSoldDaysRef.current = false
+        if (r.success && r.data) {
+          const authoritative = r.data.results.filter(candidate => typeof candidate.match_score === 'number'
+            && candidate.similarity_details?.scoring_authority === 'backend_continuous_relevance')
+          setResults(authoritative)
+          setLimitedNote(r.data.limited ? (r.data.limited_message || 'Limited comparable sales - agent review recommended.') : null)
+          skipEchoSearchRef.current = true
+          setRadius(r.data.radius_miles)
+          setSoldWithinDays(String(r.data.sold_within_days))
+          if (r.data.price_band?.[0] != null) setMinPrice(String(r.data.price_band[0]))
+          if (r.data.price_band?.[1] != null) setMaxPrice(String(r.data.price_band[1]))
+        } else {
+          showToast(r.error || 'Search failed.', 'error')
+        }
+        setOptimizing(false)
+      })
+      return
+    }
+    setLimitedNote(null)
     const saleDateFrom = soldWithinDays
       ? new Date(Date.now() - Number(soldWithinDays) * 86400000).toISOString().slice(0, 10)
       : undefined
@@ -1856,6 +1852,11 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
             </div>
           )}
 
+          {!optimizing && limitedNote && (
+            <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-300">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {limitedNote}
+            </div>
+          )}
           {optimizing ? (
             // Covers the whole first-load auto-widen chain (radius and/or sold-days stepping up
             // search after search), not just one request - staying up through every intermediate
@@ -1945,7 +1946,7 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
                 ))}
               </div>
               {sortedResults.length > COMPS_PER_PAGE_OPTIONS[0] && (
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-3 dark:border-gray-800">
+                <div className="mt-3 flex flex-col-reverse items-center justify-center gap-2 border-t border-gray-200 pt-3 dark:border-gray-800">
                   <div className="flex items-center gap-2 text-[11px] font-bold text-gray-500 dark:text-gray-400">
                     <span>
                       {sortedResults.length === 0 ? '0' : `${(compsPage - 1) * compsPerPage + 1}–${Math.min(compsPage * compsPerPage, sortedResults.length)}`} of {sortedResults.length}
@@ -2153,11 +2154,11 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
               <div>
                 <FieldLabel>Radius</FieldLabel>
                 <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2.5 dark:border-gray-700 dark:bg-[#151517]">
-                  <input type="range" min="1" max="25" step="1" value={radius} onChange={e => { autoRadiusRef.current = false; setRadius(Number(e.target.value)) }} className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-[#C9A24D] dark:bg-gray-700" />
+                  <input type="range" min="0.25" max="10" step="0.25" value={radius} onChange={e => { autoRadiusRef.current = false; setRadius(Number(e.target.value)) }} className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-[#C9A24D] dark:bg-gray-700" />
                   <motion.div key={radius} initial={{ scale: 0.8, opacity: 0.4 }} animate={{ scale: 1, opacity: 1 }} className="min-w-[64px] text-right"><span className="text-base font-black text-gray-900 dark:text-white">{radius}</span><span className="ml-1 text-[9px] font-bold uppercase text-gray-500">mi</span></motion.div>
                 </div>
                 <div className="mt-2">
-                  <QuickChips options={[1, 2, 3, 5, 10]} value={radius} onPick={v => { autoRadiusRef.current = false; setRadius(v) }} suffix=" mi" />
+                  <QuickChips options={[0.5, 1, 2, 3, 5, 10]} value={radius} onPick={v => { autoRadiusRef.current = false; setRadius(v) }} suffix=" mi" />
                 </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -3629,6 +3630,8 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
         <SideBySidePanel
           subject={shownSubject}
           comp={active}
+          comps={comparables}
+          onSelectIndex={i => setActiveId(comparables[i]?.id || active.id)}
           index={activeIndex}
           total={comparables.length}
           onUpdate={patch => updateComp(active.id, patch)}
@@ -3688,14 +3691,17 @@ function AiGenerationProgress({ pct, label, stage, elapsedSec }: { pct: number, 
   const leftText = elapsedSec > AI_TYPICAL_SEC + 20 ? 'Almost there' : left < 45 ? 'Under a minute left' : `About ${Math.ceil(left / 60)} min left`
   return (
     <div className="relative mt-4 overflow-hidden rounded-2xl border border-[#C9A24D]/30 bg-white/70 p-3.5 dark:bg-black/25 sm:p-4">
+      {/* Fixed-width percentage + one-line step label (user, 10/21: "the entire top section is shaking"):
+          the count-up number changing width squeezed the phone step label onto two lines and back,
+          so the whole card - and the page under it - jumped 15px every few ticks. */}
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974]">
+          <p className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974]">
             <span className="relative flex h-2 w-2">
               {!reduce && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#C9A24D] opacity-70" />}
               <span className="relative inline-flex h-2 w-2 rounded-full bg-[#C9A24D]" />
             </span>
-            <span className="sm:hidden">Step {Math.min(stage + 1, AI_STAGES.length)} of {AI_STAGES.length} · {AI_STAGES[stage]}</span>
+            <span className="truncate sm:hidden">Step {Math.min(stage + 1, AI_STAGES.length)} of {AI_STAGES.length} · {AI_STAGES[stage]}</span>
             <span className="hidden sm:inline">OpenHousePal AI is working</span>
           </p>
           <div className="relative mt-1 h-5 overflow-hidden">
@@ -3713,7 +3719,7 @@ function AiGenerationProgress({ pct, label, stage, elapsedSec }: { pct: number, 
             </AnimatePresence>
           </div>
         </div>
-        <p className="shrink-0 font-serif text-3xl font-black leading-none tabular-nums text-[#111827] dark:text-white sm:text-4xl">
+        <p className="w-[3em] shrink-0 text-right font-serif text-3xl font-black leading-none tabular-nums text-[#111827] dark:text-white sm:text-4xl">
           {shownPct}<span className="text-lg text-[#C9A24D] sm:text-xl">%</span>
         </p>
       </div>
@@ -3752,7 +3758,7 @@ function AiGenerationProgress({ pct, label, stage, elapsedSec }: { pct: number, 
           const done = i < stage
           const now = i === stage
           return (
-            <li key={name} className={`relative overflow-hidden rounded-xl border px-2 py-1.5 text-center text-[10px] font-black uppercase tracking-wide transition-colors duration-500 ${
+            <li key={name} className={`relative flex h-7 items-center justify-center overflow-hidden rounded-xl border px-2 text-center leading-none text-[10px] font-black uppercase tracking-wide transition-colors duration-500 ${
               done ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
                 : now ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#d7b974]'
                   : 'border-gray-200 text-gray-400 dark:border-gray-800'
@@ -4116,9 +4122,9 @@ function PhoneFaceOffTile({ who, address, price, photos, fallback, mapMode, lat,
   )
 }
 
-function PhoneCompare({ subject, comp, index, total, showMaps, onPrev, onNext, onOpenSubjectDetails, onOpenCompDetails }: {
-  subject: CmaSubjectProperty, comp: CmaComparable, index: number, total: number, showMaps: boolean,
-  onPrev: () => void, onNext: () => void, onOpenSubjectDetails: () => void, onOpenCompDetails: () => void,
+function PhoneCompare({ subject, comp, comps, index, total, showMaps, onSelectIndex, onOpenSubjectDetails, onOpenCompDetails }: {
+  subject: CmaSubjectProperty, comp: CmaComparable, comps: CmaComparable[], index: number, total: number, showMaps: boolean,
+  onSelectIndex: (i: number) => void, onOpenSubjectDetails: () => void, onOpenCompDetails: () => void,
 }) {
   const reduce = useReducedMotion()
   // Slide direction: the comp after this one comes in from the right, the one before from the left.
@@ -4129,10 +4135,12 @@ function PhoneCompare({ subject, comp, index, total, showMaps, onPrev, onNext, o
   const subjectPrice = subject.list_price ?? null
   const compPrice = comp.sale_price ?? comp.list_price ?? null
   const subjectPsf = subject.list_price && subject.sqft ? pricePerSqft(subject.list_price, subject.sqft) : null
-  const compPsf = comp.price_per_sqft ?? pricePerSqft(comp.sale_price ?? comp.list_price, comp.sqft)
   const acres = (v?: number | null) => (v ? sqftToAcres(v) : null)
   const garageN = (g?: string | null) => { const m = (g || '').match(/(\d+)/); return m ? Number(m[1]) : (/none|^no$/i.test(g || '') ? 0 : null) }
-  const rows: FaceOffRow[] = [
+  const rowsFor = (comp: CmaComparable): FaceOffRow[] => {
+  const compPrice = comp.sale_price ?? comp.list_price ?? null
+  const compPsf = comp.price_per_sqft ?? pricePerSqft(comp.sale_price ?? comp.list_price, comp.sqft)
+  return [
     { label: 'Price', a: subjectPrice != null ? formatMoney(subjectPrice, { compact: true }) : '—', b: compPrice != null ? formatMoney(compPrice, { compact: true }) : '—', an: subjectPrice, bn: compPrice, money: true },
     { label: '$ / sq ft', a: subjectPsf ? `$${Math.round(subjectPsf)}` : '—', b: compPsf ? `$${Math.round(compPsf)}` : '—', an: subjectPsf, bn: compPsf, money: true },
     { label: 'Sq ft', a: subject.sqft ? subject.sqft.toLocaleString() : '—', b: comp.sqft ? comp.sqft.toLocaleString() : '—', an: subject.sqft, bn: comp.sqft, unit: 'sq ft' },
@@ -4147,6 +4155,31 @@ function PhoneCompare({ subject, comp, index, total, showMaps, onPrev, onNext, o
     ...(comp.sale_date ? [{ label: 'Sold', a: '—', b: formatDate(comp.sale_date) } as FaceOffRow] : []),
     { label: 'Days on market', a: subject.days_on_market ?? '—', b: comp.days_on_market ?? '—' },
   ]
+  }
+
+  // Phones (user, 10/21): the comparison cards sit side by side in a row that snaps from one comp to
+  // the next as you swipe - no fade out/in. Swiping picks that comp; the arrows scroll the row.
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const fromSwipe = useRef(false)
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (settleTimer.current) clearTimeout(settleTimer.current) }, [])
+  useEffect(() => {
+    const el = scrollerRef.current
+    if (!el) return
+    if (fromSwipe.current) { fromSwipe.current = false; return }
+    const card = el.children[index] as HTMLElement | undefined
+    if (card) el.scrollTo({ left: card.offsetLeft - el.offsetLeft - 12, behavior: reduce ? 'auto' : 'smooth' })
+  }, [index, reduce])
+  const onScroll = () => {
+    if (settleTimer.current) clearTimeout(settleTimer.current)
+    settleTimer.current = setTimeout(() => {
+      const el = scrollerRef.current
+      if (!el) return
+      const w = (el.children[0] as HTMLElement | undefined)?.offsetWidth || el.clientWidth
+      const i = Math.max(0, Math.min(comps.length - 1, Math.round(el.scrollLeft / (w + 12))))
+      if (i !== index) { fromSwipe.current = true; onSelectIndex(i) }
+    }, 90)
+  }
 
   return (
     <div className="sm:hidden">
@@ -4169,67 +4202,61 @@ function PhoneCompare({ subject, comp, index, total, showMaps, onPrev, onNext, o
         <span className="pointer-events-none absolute left-1/2 top-1/2 z-10 grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white font-serif text-[13px] font-black italic text-[#111827] shadow-[0_10px_24px_-8px_rgba(0,0,0,0.6)] ring-4 ring-[#C9A24D]/60 dark:bg-[#0B0B0B] dark:text-white">vs</span>
       </div>
 
-      <motion.div
-        drag={total > 1 ? 'x' : false}
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.22}
-        dragDirectionLock
-        onDragEnd={(_, info) => {
-          if (info.offset.x < -70 || info.velocity.x < -500) { if (index < total - 1) onNext() }
-          else if (info.offset.x > 70 || info.velocity.x > 500) { if (index > 0) onPrev() }
-        }}
-        className="mx-3 mb-3 touch-pan-y"
+      <div
+        ref={scrollerRef}
+        data-compare-row
+        onScroll={onScroll}
+        className="scrollbar-hide mb-1 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-3 px-3 pb-2"
       >
-        <AnimatePresence mode="wait" initial={false} custom={dir}>
-          <motion.div
-            key={comp.id}
-            custom={dir}
-            initial={reduce ? { opacity: 0 } : { opacity: 0, x: dir * 56 }}
-            animate={{ opacity: 1, x: 0, transition: { type: 'spring', stiffness: 360, damping: 34 } }}
-            exit={reduce ? { opacity: 0 } : { opacity: 0, x: -dir * 56, transition: { duration: 0.14 } }}
-            className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-[#0B0B0B]"
-          >
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-gray-100 bg-[#fbfaf7] px-3 py-2 text-[9px] font-black uppercase tracking-[0.16em] dark:border-gray-800 dark:bg-white/[0.03]">
-              <span className="text-[#111827] dark:text-white">Subject</span>
-              <span className="text-gray-300">·</span>
-              <span className="text-right text-[#8b7355] dark:text-[#d7b974]">Comp #{index + 1}</span>
-            </div>
-            {rows.map((row, i) => {
-              const delta = faceOffDelta(row)
-              const same = String(row.a) === String(row.b) && String(row.a) !== '—'
-              return (
-                <div key={row.label} className={`px-3 py-2 ${i % 2 ? 'bg-[#fbfaf7]/70 dark:bg-white/[0.015]' : ''}`}>
-                  <p className="mb-0.5 text-center text-[9px] font-black uppercase tracking-[0.16em] text-gray-400">{row.label}</p>
-                  <div className="grid grid-cols-2 items-start gap-3">
-                    <p className="min-w-0 break-words text-[13px] font-black leading-snug text-[#111827] dark:text-white">{row.a}</p>
-                    <div className="min-w-0 text-right">
-                      <p className="break-words text-[13px] font-black leading-snug">
-                        <span className={`rounded px-0.5 [box-decoration-break:clone] [-webkit-box-decoration-break:clone] ${!same && row.b !== '—' && row.a !== '—' ? 'cma-diff text-[#7a5a1e] dark:text-[#e8c97a]' : 'text-[#111827] dark:text-white'}`}>{row.b}</span>
-                      </p>
-                      {delta ? (
-                        <p className={`mt-0.5 text-[10px] font-black ${delta.up ? 'text-[#8b7355] dark:text-[#d7b974]' : 'text-slate-500 dark:text-slate-400'}`}>{delta.up ? '▲' : '▼'} {delta.text}</p>
-                      ) : same ? (
-                        <p className="mt-0.5 flex items-center justify-end gap-0.5 text-[10px] font-black text-emerald-600 dark:text-emerald-400"><Check className="h-3 w-3" strokeWidth={3} /> Same</p>
-                      ) : null}
+        {comps.map((c, ci) => (
+          <div key={c.id} className="w-full shrink-0 snap-center snap-always">
+          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-[#0B0B0B]">
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-gray-100 bg-[#fbfaf7] px-3 py-2 text-[9px] font-black uppercase tracking-[0.16em] dark:border-gray-800 dark:bg-white/[0.03]">
+                <span className="text-[#111827] dark:text-white">Subject</span>
+                <span className="text-gray-300">·</span>
+                <span className="text-right text-[#8b7355] dark:text-[#d7b974]">Comp #{ci + 1}</span>
+              </div>
+              {rowsFor(c).map((row, i) => {
+                const delta = faceOffDelta(row)
+                const same = String(row.a) === String(row.b) && String(row.a) !== '—'
+                return (
+                  <div key={row.label} className={`px-3 py-2 ${i % 2 ? 'bg-[#fbfaf7]/70 dark:bg-white/[0.015]' : ''}`}>
+                    <p className="mb-0.5 text-center text-[9px] font-black uppercase tracking-[0.16em] text-gray-400">{row.label}</p>
+                    <div className="grid grid-cols-2 items-start gap-3">
+                      <p className="min-w-0 break-words text-[13px] font-black leading-snug text-[#111827] dark:text-white">{row.a}</p>
+                      <div className="min-w-0 text-right">
+                        <p className="break-words text-[13px] font-black leading-snug">
+                          <span className={`rounded px-0.5 [box-decoration-break:clone] [-webkit-box-decoration-break:clone] ${!same && row.b !== '—' && row.a !== '—' ? 'cma-diff text-[#7a5a1e] dark:text-[#e8c97a]' : 'text-[#111827] dark:text-white'}`}>{row.b}</span>
+                        </p>
+                        {delta ? (
+                          <p className={`mt-0.5 text-[10px] font-black ${delta.up ? 'text-[#8b7355] dark:text-[#d7b974]' : 'text-slate-500 dark:text-slate-400'}`}>{delta.up ? '▲' : '▼'} {delta.text}</p>
+                        ) : same ? (
+                          <p className="mt-0.5 flex items-center justify-end gap-0.5 text-[10px] font-black text-emerald-600 dark:text-emerald-400"><Check className="h-3 w-3" strokeWidth={3} /> Same</p>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )
-            })}
-          </motion.div>
-        </AnimatePresence>
+                )
+              })}
+  
+          </div>
+          </div>
+        ))}
+      </div>
         {total > 1 && (
-          <p className="mt-2 flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-400">
+          <p className="mb-3 flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-400">
             <ChevronLeft className="h-3 w-3" /> Swipe for the {index < total - 1 ? 'next' : 'previous'} comp <ChevronRight className="h-3 w-3" />
           </p>
         )}
-      </motion.div>
     </div>
   )
 }
 
-function SideBySidePanel({ subject, comp, index, total, onUpdate, onUpdateStrength, onUpdateQuality, onPrev, onNext, onContinueClick, onOpenSubjectDetails, onOpenCompDetails, focusSignal = 0 }: {
-  subject: CmaSubjectProperty, comp: CmaComparable, index: number, total: number, onUpdate: (p: Partial<CmaComparable>) => void,
+// The side-by-side panel's prev/next comp arrows - gold-outlined so they read as the way through the comps.
+const COMP_ARROW_CLS = 'flex h-9 w-9 items-center justify-center rounded-xl border-2 border-[#C9A24D]/60 bg-[#C9A24D]/10 text-[#8b7355] shadow-sm transition hover:border-[#C9A24D] hover:bg-[#C9A24D] hover:text-white active:scale-95 disabled:pointer-events-none disabled:opacity-30 dark:text-[#d7b974] dark:hover:text-white'
+
+function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, onUpdate, onUpdateStrength, onUpdateQuality, onPrev, onNext, onContinueClick, onOpenSubjectDetails, onOpenCompDetails, focusSignal = 0 }: {
+  subject: CmaSubjectProperty, comp: CmaComparable, comps: CmaComparable[], onSelectIndex: (i: number) => void, index: number, total: number, onUpdate: (p: Partial<CmaComparable>) => void,
   onUpdateStrength: (value: string) => void,
   onUpdateQuality: (key: keyof CmaQualityAssessment, value: string) => void,
   onPrev: () => void, onNext: () => void,
@@ -4284,13 +4311,19 @@ function SideBySidePanel({ subject, comp, index, total, onUpdate, onUpdateStreng
           centered in the row (equal 1fr side columns) instead of stuck to the left next to the
           title with nothing balancing it on the right. */}
       <div className="grid grid-cols-[auto_1fr] items-center gap-2 border-b border-gray-100 px-3 py-3 dark:border-gray-800 sm:grid-cols-[1fr_auto_1fr] sm:px-4">
-        <p className="col-span-2 truncate text-base font-black text-[#111827] dark:text-white sm:col-span-1 sm:text-lg">Comparing Subject vs. Comp #{index + 1}</p>
-        <div className="flex items-center justify-start gap-1 sm:justify-center">
-          <button onClick={onPrev} disabled={index <= 0} className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:text-[#111827] disabled:opacity-30 dark:border-gray-700 dark:hover:text-white"><ChevronLeft className="h-4 w-4" /></button>
-          <span className="px-1 text-[10px] font-black text-gray-400">{index + 1} / {total}</span>
-          <button onClick={onNext} disabled={index >= total - 1} className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:text-[#111827] disabled:opacity-30 dark:border-gray-700 dark:hover:text-white"><ChevronRight className="h-4 w-4" /></button>
+        {/* Phones (user, 10/21): Pricing sits on the title line, so the row under it has room for
+            the Photos/Map switch with its words showing, and the comp arrows. */}
+        <div className="col-span-2 flex min-w-0 items-center justify-between gap-2 sm:col-span-1">
+          <p className="truncate text-base font-black text-[#111827] dark:text-white sm:text-lg">
+            <span className="sm:hidden">Subject vs. Comp #{index + 1}</span><span className="hidden sm:inline">Comparing Subject vs. Comp #{index + 1}</span>
+          </p>
+          <button onClick={onContinueClick} className="cma-btn inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#111827] px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827] sm:hidden">
+            Pricing <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+          </button>
         </div>
-        <div className="flex flex-nowrap items-center justify-end gap-1.5 sm:flex-wrap sm:gap-2">
+        {/* Photos/Map in the middle, the comp arrows on the right (user, 10/21: swapped, and the
+            arrows made to stand out - gold outline, bigger chevrons, a bolder count). */}
+        <div className="flex items-center justify-start sm:justify-center">
           {(compHasGeo || subjectHasGeo) && (
             // Both choices always visible (user, 10/21: after switching to the map there was no
             // clear way back to the listing photos) - the active one is filled.
@@ -4300,25 +4333,31 @@ function SideBySidePanel({ subject, comp, index, total, onUpdate, onUpdateStreng
                 return (
                   <button key={key} type="button" aria-pressed={on} onClick={() => setShowMaps(key === 'map')}
                     title={key === 'map' ? 'Show both homes on a map - stays on as you flip through comps' : 'Show the listing photos'}
-                    className={`inline-flex items-center gap-1 rounded-[10px] px-2.5 py-1.5 text-xs font-black uppercase tracking-wide transition sm:px-3 ${
+                    className={`inline-flex items-center gap-1.5 rounded-[10px] px-3.5 py-1.5 text-xs font-black uppercase tracking-wide transition sm:gap-1 sm:px-3 ${
                       on ? 'bg-[#C9A24D] text-white shadow-sm shadow-[#C9A24D]/30' : 'text-gray-500 hover:text-[#8b7355] dark:text-gray-400 dark:hover:text-[#d7b974]'
                     }`}>
-                    {/* icons only on a phone, where this shares the row with Pricing */}
-                    <Icon className="h-3.5 w-3.5" /> <span className="max-sm:sr-only">{label}</span>
+                    <Icon className="h-3.5 w-3.5" /> <span>{label}</span>
                   </button>
                 )
               })}
             </div>
           )}
-          <button onClick={onContinueClick} className="cma-btn inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#111827] px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827] sm:px-4">
-            <span className="sm:hidden">Pricing</span><span className="hidden sm:inline">Continue to Pricing</span> <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+        </div>
+        <div className="flex flex-nowrap items-center justify-end gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5">
+            <button onClick={onPrev} disabled={index <= 0} aria-label="Previous comp" className={COMP_ARROW_CLS}><ChevronLeft className="h-5 w-5" strokeWidth={2.5} /></button>
+            <span className="min-w-[2.6rem] text-center text-xs font-black tabular-nums text-[#111827] dark:text-white">{index + 1} / {total}</span>
+            <button onClick={onNext} disabled={index >= total - 1} aria-label="Next comp" className={COMP_ARROW_CLS}><ChevronRight className="h-5 w-5" strokeWidth={2.5} /></button>
+          </div>
+          <button onClick={onContinueClick} className="cma-btn hidden items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#111827] px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827] sm:inline-flex">
+            Continue to Pricing <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
           </button>
         </div>
       </div>
 
       <PhoneCompare
-        subject={subject} comp={comp} index={index} total={total} showMaps={showMaps}
-        onPrev={onPrev} onNext={onNext} onOpenSubjectDetails={onOpenSubjectDetails} onOpenCompDetails={onOpenCompDetails}
+        subject={subject} comp={comp} comps={comps} index={index} total={total} showMaps={showMaps}
+        onSelectIndex={onSelectIndex} onOpenSubjectDetails={onOpenSubjectDetails} onOpenCompDetails={onOpenCompDetails}
       />
 
       <div className="hidden grid-cols-1 divide-y divide-gray-100 sm:grid sm:grid-cols-2 sm:divide-x sm:divide-y-0 dark:divide-gray-800">
@@ -4389,9 +4428,9 @@ function SideBySidePanel({ subject, comp, index, total, onUpdate, onUpdateStreng
         <div className="grid grid-cols-1 items-center gap-x-2 gap-y-1 sm:grid-cols-[1fr_auto_1fr]">
           <p className="text-sm font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">Comp #{index + 1} — Compared With the Subject</p>
           <div className="flex items-center justify-center gap-1">
-            <button onClick={onPrev} disabled={index <= 0} aria-label="Previous comp" className="rounded-lg border border-gray-200 p-1 text-gray-400 hover:text-[#111827] disabled:opacity-30 dark:border-gray-700 dark:hover:text-white"><ChevronLeft className="h-4 w-4" /></button>
-            <span className="px-1 text-[10px] font-black text-gray-400">{index + 1} / {total}</span>
-            <button onClick={onNext} disabled={index >= total - 1} aria-label="Next comp" className="rounded-lg border border-gray-200 p-1 text-gray-400 hover:text-[#111827] disabled:opacity-30 dark:border-gray-700 dark:hover:text-white"><ChevronRight className="h-4 w-4" /></button>
+            <button onClick={onPrev} disabled={index <= 0} aria-label="Previous comp" className={COMP_ARROW_CLS}><ChevronLeft className="h-5 w-5" strokeWidth={2.5} /></button>
+            <span className="min-w-[2.6rem] text-center text-xs font-black tabular-nums text-[#111827] dark:text-white">{index + 1} / {total}</span>
+            <button onClick={onNext} disabled={index >= total - 1} aria-label="Next comp" className={COMP_ARROW_CLS}><ChevronRight className="h-5 w-5" strokeWidth={2.5} /></button>
           </div>
           <span aria-hidden className="hidden sm:block" />
         </div>
@@ -4462,7 +4501,9 @@ function SideBySidePanel({ subject, comp, index, total, onUpdate, onUpdateStreng
           <QualityRow label="Finish Quality" options={QUALITY_3} value={comp.quality.finish_quality} onChange={v => onUpdateQuality('finish_quality', v)} colorCoded />
           <QualityRow label="Interior Quality" options={QUALITY_3} value={comp.quality.interior} onChange={v => onUpdateQuality('interior', v)} colorCoded />
           <QualityRow label="Exterior Quality" options={QUALITY_3} value={comp.quality.exterior} onChange={v => onUpdateQuality('exterior', v)} colorCoded />
-          <QualityRow label="Lot" options={QUALITY_3} value={comp.quality.lot} onChange={v => onUpdateQuality('lot', v)} colorCoded />
+          {comp.quality.lot === 'n_a'
+            ? <QualityRowLayout label="Lot"><span className="rounded-lg bg-gray-100 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-gray-400 dark:bg-gray-800">N/A - condo</span></QualityRowLayout>
+            : <QualityRow label="Lot" options={QUALITY_3} value={comp.quality.lot} onChange={v => onUpdateQuality('lot', v)} colorCoded />}
           <QualityRow label="Amenities" options={QUALITY_3} value={comp.quality.amenities} onChange={v => onUpdateQuality('amenities', v)} colorCoded />
           <QualityRow label="Layout" options={QUALITY_3} value={comp.quality.layout} onChange={v => onUpdateQuality('layout', v)} colorCoded />
           <QualityRow label="Area" options={AREA_3} value={comp.quality.area} onChange={v => onUpdateQuality('area', v)} colorCoded />
@@ -4756,6 +4797,35 @@ function MoneyField({ label, value, onChange }: { label: string, value?: number 
   )
 }
 
+// Agent-only (grader, 10/21): the asking-price check moved the value 5%+ away from what the comps say -
+// both numbers, so the agent decides before it goes out. Never in the PDF or the client link.
+function AgentReviewBanner({ report }: { report: CmaReport }) {
+  const note = report.pricing?.ai_estimate?.agent_review
+  const pendingNote = (report.pricing?.ai_estimate as { current_competition?: { review?: string | null } } | null)?.current_competition?.review
+  if (!note?.message && pendingNote) {
+    return (
+      <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-sm dark:border-amber-900/40 dark:bg-amber-900/10">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-wide text-amber-800 dark:text-amber-300">Review before sending</p>
+          <p className="mt-0.5 text-xs font-semibold leading-relaxed text-amber-900 dark:text-amber-200">{pendingNote.replace(/^Review before sending:s*/, '')}</p>
+        </div>
+      </div>
+    )
+  }
+  if (!note?.message) return null
+  return (
+    <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-sm dark:border-amber-900/40 dark:bg-amber-900/10">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+      <div className="min-w-0">
+        <p className="text-xs font-black uppercase tracking-wide text-amber-800 dark:text-amber-300">Review before sending</p>
+        <p className="mt-0.5 text-xs font-semibold leading-relaxed text-amber-900 dark:text-amber-200">{note.message.replace(/^Review before sending:s*/, '')}</p>
+        <p className="mt-1.5 text-[11px] font-black tabular-nums text-amber-800 dark:text-amber-300">Comps alone: {formatMoney(note.comps_value)} · Final value: {formatMoney(note.final_value)}</p>
+      </div>
+    </div>
+  )
+}
+
 function PricingStep({ report, onSave, onReportUpdated, onNext }: { report: CmaReport, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>, onReportUpdated: (r: CmaReport) => void, onNext: () => void }) {
   // Mode is fixed at CMA creation (see the picker in studio/cma/page.tsx's CreateCmaModal) - no
   // in-wizard way to change it, so it's a plain derived read, not stateful. Letting it change here
@@ -4813,6 +4883,7 @@ function PricingStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
 
   return (
     <div className="space-y-5">
+      <AgentReviewBanner report={report} />
       {mode === 'listing' ? (
         <SectionCard title="Pricing Conclusion" subtitle="Auto-filled by AI once generated - your numbers always override it.">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -5141,6 +5212,7 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
 
   return (
     <div className="space-y-5">
+      <AgentReviewBanner report={report} />
       <SectionCard title="Final Review" subtitle="Check the numbers, comps, and narrative before you mark the report ready.">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <button onClick={() => onJump('subject')} className="rounded-xl border border-gray-100 p-3 text-left hover:border-[#C9A24D]/40 dark:border-gray-800">
@@ -5220,6 +5292,8 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
         ) : null)}
       </SectionCard>
 
+      {!presentation.hidden_sections.includes('competition') && <CurrentCompetition report={report} agentView />}
+
       {/* QA/Review is intentionally not shown to the agent - admin can view it via CmaLookupPanel
           using the report's own support code (see the Report Code block further down this page). */}
 
@@ -5232,6 +5306,7 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
             { key: 'comparables', label: 'Individual Comparables' },
             { key: 'market_context', label: 'Market Context' },
             { key: 'charts', label: 'Market Analysis' },
+            { key: 'competition', label: 'Current Competition' },
             { key: 'pricing', label: 'Agent Final Analysis' },
           ].map(s => {
             const isHidden = presentation.hidden_sections.includes(s.key)

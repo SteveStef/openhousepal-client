@@ -20,6 +20,7 @@ import MLSComplianceFooter from '@/components/MLSComplianceFooter'
 import LiveIndicator from '@/components/LiveIndicator'
 import { isPropertyAvailableStatus, haversineMiles, normalizeImageUrl } from '@/lib/utils'
 import { computeMatchScore } from '@/lib/matchScore'
+import { inSoldFolder } from '@/lib/showcaseStatus'
 import OhpLoader from '@/components/brand/OhpLoader'
 import { todayLocal } from '@/lib/relativeDays'
 import { useAuth } from '@/contexts/AuthContext'
@@ -262,22 +263,23 @@ function ShowcaseContent() {
 
     let filtered = matchedProperties
 
-    // Apply tab filter - sold/removed listings can't be bought anymore, so they live
-    // exclusively in their own tab instead of cluttering All/Liked/Disliked.
+    // Apply tab filter - only homes moved into Sold/Removed live there. One that just went under
+    // contract / sold / off the market stays in its tab with a notice until it's moved
+    // (lib/showcaseStatus).
     switch (activeTab) {
       case 'liked':
-        filtered = filtered.filter(property => property.liked && isPropertyAvailableStatus(property.MlsStatus))
+        filtered = filtered.filter(property => property.liked && !inSoldFolder(property))
         break
       case 'disliked':
-        filtered = filtered.filter(property => property.disliked && isPropertyAvailableStatus(property.MlsStatus))
+        filtered = filtered.filter(property => property.disliked && !inSoldFolder(property))
         break
       case 'sold_removed':
-        filtered = filtered.filter(property => !isPropertyAvailableStatus(property.MlsStatus))
+        filtered = filtered.filter(property => inSoldFolder(property))
         break
       case 'all':
       default:
-        // Show all properties except disliked and sold/removed ones
-        filtered = filtered.filter(property => !property.disliked && isPropertyAvailableStatus(property.MlsStatus))
+        // Show all properties except disliked and filed ones
+        filtered = filtered.filter(property => !property.disliked && !inSoldFolder(property))
         break
     }
 
@@ -347,17 +349,18 @@ function ShowcaseContent() {
   }
 
   const filteredProperties = getFilteredProperties()
-  filteredIdsRef.current = filteredProperties.map(p => String(p.id))
+  // Off-the-market cards don't open the details window, so the window's arrows skip them too.
+  filteredIdsRef.current = filteredProperties.filter(p => isPropertyAvailableStatus(p.MlsStatus)).map(p => String(p.id))
 
   const getTabCounts = () => {
     if (!showcase || !matchedProperties) return { all: 0, liked: 0, disliked: 0, soldRemoved: 0 }
 
     const properties = matchedProperties
     return {
-      all: properties.filter(p => !p.disliked && isPropertyAvailableStatus(p.MlsStatus)).length,
-      liked: properties.filter(p => p.liked && isPropertyAvailableStatus(p.MlsStatus)).length,
-      disliked: properties.filter(p => p.disliked && isPropertyAvailableStatus(p.MlsStatus)).length,
-      soldRemoved: properties.filter(p => !isPropertyAvailableStatus(p.MlsStatus)).length
+      all: properties.filter(p => !p.disliked && !inSoldFolder(p)).length,
+      liked: properties.filter(p => p.liked && !inSoldFolder(p)).length,
+      disliked: properties.filter(p => p.disliked && !inSoldFolder(p)).length,
+      soldRemoved: properties.filter(p => inSoldFolder(p)).length
     }
   }
 
@@ -495,6 +498,21 @@ function ShowcaseContent() {
       setMatchedProperties(matchedProperties)
       showToast(error || 'Failed to update status', 'error')
     }
+  }
+
+  // A home that sold / went under contract / came off the market: the notice card's button files
+  // it into Sold/Removed (or back out from there). Saved for their agent's view too.
+  const handleMoveToSold = async (property: Property, filed: boolean) => {
+    if (property.id === undefined) return
+    const id = String(property.id)
+    setMatchedProperties(prev => prev.map(p => String(p.id) === id ? { ...p, soldFiled: filed } : p))
+    const { success, error } = await api.public.moveToSoldFolder(shareToken, id, filed)
+    if (!success) {
+      setMatchedProperties(prev => prev.map(p => String(p.id) === id ? { ...p, soldFiled: !filed } : p))
+      showToast(error || "Couldn't move that home - try again", 'error')
+      return
+    }
+    showToast(filed ? 'Moved to Sold/Removed' : 'Moved back', 'success')
   }
 
   const handleAddComment = async (propertyId: string | number, comment: string) => {
@@ -884,13 +902,15 @@ function ShowcaseContent() {
     const raw = (builtAround?.address || '').split(',')[0]
     return raw === raw.toUpperCase() ? raw.toLowerCase().replace(/(^|\s)([a-z])/g, (_: string, x: string, c: string) => x + c.toUpperCase()) : raw
   })()
-  // Each one reads as a short phrase: big value, small plain label under it.
+  // Each one reads as a short phrase: big value, small plain label under it. "Match right now"
+  // counts homes still for sale (not the ones showing a sold / under-contract notice).
+  const forSaleNow = matchedProperties.filter(p => !p.disliked && isPropertyAvailableStatus(p.MlsStatus)).length
   const searchTiles = ([
     { icon: MapPin, value: whereTile || districtTile || 'Anywhere', label: whereTile ? (prefsNow.has_drawn_area ? 'Search area' : prefsNow.address ? `of ${builtStreet || 'the home'}` : 'Towns') : districtTile ? 'School district' : 'Search area' },
     whereTile && districtTile ? { icon: GraduationCap, value: districtTile.replace(/ schools$/, ''), label: 'Schools only' } : null,
     { icon: Tag, value: prefsNow.min_price && prefsNow.max_price ? `${kShort(prefsNow.min_price)} – ${kShort(prefsNow.max_price)}` : prefsNow.max_price ? `Up to ${kShort(prefsNow.max_price)}` : prefsNow.min_price ? `${kShort(prefsNow.min_price)}+` : 'Any', label: 'Price' },
     { icon: BedDouble, value: prefsNow.min_beds ? `${prefsNow.min_beds}+ beds` : 'Any beds', label: prefsNow.min_baths ? `${prefsNow.min_baths}+ baths` : 'Bedrooms' },
-    { icon: HomeIcon, value: `${tabCounts.all} ${tabCounts.all === 1 ? 'home' : 'homes'}`, label: 'Match right now' },
+    { icon: HomeIcon, value: `${forSaleNow} ${forSaleNow === 1 ? 'home' : 'homes'}`, label: 'Match right now' },
   ].filter(Boolean)) as { icon: typeof MapPin; value: string; label: string }[]
   const searchBar = (
     <div className="flex flex-col gap-3 border-t border-gray-100 px-4 py-3 dark:border-gray-800 sm:flex-row sm:items-center sm:px-6">
@@ -1260,7 +1280,7 @@ function ShowcaseContent() {
                 title: 'No homes match your search yet',
                 text: 'New listings that fit will show up here the moment they hit the market. Want to see more right away? Widen your search a little.',
                 action: { label: 'Change your search', onClick: () => openCriteria('all') },
-              } : { title: 'Nothing here yet', text: activeTab === 'liked' ? 'Tap the heart on a home you love and it will show up here.' : activeTab === 'disliked' ? 'Homes you pass on will show up here.' : 'Homes that sell or come off the market move here.' }}
+              } : { title: 'Nothing here yet', text: activeTab === 'liked' ? 'Tap the heart on a home you love and it will show up here.' : activeTab === 'disliked' ? 'Homes you pass on will show up here.' : 'When a home sells or comes off the market, it gets a notice in your list - tap "Move to Sold/Removed" to put it here.' }}
               onLike={handlePropertyLike}
               onDislike={handlePropertyDislike}
               onPropertyClick={handlePropertyClick}
@@ -1274,6 +1294,8 @@ function ShowcaseContent() {
               animationKey={activeTab}
               animationOrder={SHOWCASE_TABS}
               recommendedBy={(showcase.agentFullName || showcase.agentName || '').split(' ')[0] || null}
+              offMarketNotice
+              onMoveToSold={handleMoveToSold}
             />
           </div>
 

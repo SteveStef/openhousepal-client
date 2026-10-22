@@ -59,12 +59,16 @@ interface PropertyGridProps {
   onRecommend?: (property: Property) => void
   /** Name on the "… recommends this home" banner. */
   recommendedBy?: string | null
+  /** Showcase: off-the-market homes show the status-notice card (see PropertyCard). */
+  offMarketNotice?: boolean
+  /** Showcase: the notice card's "Move to Sold/Removed" (and "Move back") button. */
+  onMoveToSold?: (property: Property, filed: boolean) => void
 }
 
 /** The Showcase's tabs in their on-screen order (buyer view and the agent's view). */
 export const SHOWCASE_TABS = ['all', 'liked', 'disliked', 'sold_removed'] as const
 
-export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, sortControl, headerAction, alignHeaderLeftOnMobile = false, compareInfo, destination, compareProperty, tourButtonVariant, cropMlsBadge = false, highlightFirst = false, animationKey, animationOrder, emptyState, compactHeader = false, phoneCompact = false, onRecommend, recommendedBy }: PropertyGridProps) {
+export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, sortControl, headerAction, alignHeaderLeftOnMobile = false, compareInfo, destination, compareProperty, tourButtonVariant, cropMlsBadge = false, highlightFirst = false, animationKey, animationOrder, emptyState, compactHeader = false, phoneCompact = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold }: PropertyGridProps) {
   const firstCardRef = useRef<HTMLDivElement>(null)
   const [isHighlighting, setIsHighlighting] = useState(false)
   const hasFiredRef = useRef(false)
@@ -210,6 +214,8 @@ export default function PropertyGrid({ properties, title = "Properties", onLike,
             cropMlsBadge={cropMlsBadge}
             onRecommend={onRecommend}
             recommendedBy={recommendedBy}
+            offMarketNotice={offMarketNotice}
+            onMoveToSold={onMoveToSold}
           />
         </motion.div>
       ))}

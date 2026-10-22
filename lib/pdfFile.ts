@@ -51,7 +51,8 @@ function openPlaceholderTab(): Window | null {
 function deliverOnIOS(blob: Blob, fileName: string, prefer: 'share' | 'tab'): boolean {
   const file = typeof File !== 'undefined' ? new File([blob], fileName, { type: 'application/pdf' }) : null
   const canShare = !!(file && navigator.canShare?.({ files: [file] }))
-  const share = () => { navigator.share({ files: [file as File], title: fileName }).catch(() => { /* closed the sheet */ }); return true }
+  // the file only: iOS "Save to Files" also saved a `title` as a second file named "text" (user, 10/21)
+  const share = () => { navigator.share({ files: [file as File] }).catch(() => { /* closed the sheet */ }); return true }
   const tab = () => {
     const url = URL.createObjectURL(blob)
     const w = window.open(url, '_blank')

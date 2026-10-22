@@ -7,7 +7,7 @@ export type PublicHomeSuggestion = {
   price?: number | null; status?: string | null; photo?: string | null; mine?: boolean; listing_key?: string
   beds?: number | null; baths?: number | null; sqft?: number | null
 }
-import { ApiResponse, User, OpenHouse, OpenHouseFormRequest, SearchPreferences, Notification, NotificationResponse, NotificationPreferences, AgentFormConfig, FormCampaign, CampaignLookup, PublicFormConfig, PublicFormSummary, FormSubmissionListItem, MyListingsResponse, MyListingItem, ManualListingPayload, HostRequest, CreateHostRequestPayload, CreateHostRequestResult, ListingDetail, ListingHostNote, CounterHostRequestPayload, AgentSearchResult, TeamMember, TeamMembership, Broadcast, IncomingBroadcast, CreateBroadcastPayload, IncomingTeamInvite, TrustedHost, HostRequestEvent, CounterBackPayload, RespondToBroadcastPayload, NearbyAmenitiesResponse, BrandKit, DesignProject, DesignProjectCreatePayload, DesignBlock, Site, SiteDomain, SiteBlock, SitePage, SiteTheme, FeaturedSettings, MediaSettings, PropertyWebsite, PropertyWebsiteDraft, PropertyWebsiteAnalytics, Blog, BlogListItem, BlogBlock, BlogAnalytics, PublicBlogSummary, PublicBlogDetail, LinkedProperty, Lead, LeadDetail, LeadOpenHouse, LeadStatus, LeadRepresented, LeadSourceFilter, LeadSort, LeadNote, StatSummary, StatHistory, StatMetric, FormStats, UnfinishedFormResponse, CmaReport, CmaReportListItem, CmaMode, CmaStatus, CmaSubjectProperty, CmaComparable, CmaPricing, CmaMarketContext, CmaImprovement, CmaPresentationSettings, CmaCompSearchParams, CmaCompCandidate, CmaShareResponse, CmaPublicResponse, CmaSubjectArea, CmaLocatedAddress, FinancialToolStatus,
+import { ApiResponse, User, OpenHouse, OpenHouseFormRequest, SearchPreferences, Notification, NotificationResponse, NotificationPreferences, AgentFormConfig, FormCampaign, CampaignLookup, PublicFormConfig, PublicFormSummary, FormSubmissionListItem, MyListingsResponse, MyListingItem, ManualListingPayload, HostRequest, CreateHostRequestPayload, CreateHostRequestResult, ListingDetail, ListingHostNote, CounterHostRequestPayload, AgentSearchResult, TeamMember, TeamMembership, Broadcast, IncomingBroadcast, CreateBroadcastPayload, IncomingTeamInvite, TrustedHost, HostRequestEvent, CounterBackPayload, RespondToBroadcastPayload, NearbyAmenitiesResponse, BrandKit, DesignProject, DesignProjectCreatePayload, DesignBlock, Site, SiteDomain, SiteBlock, SitePage, SiteTheme, FeaturedSettings, MediaSettings, PropertyWebsite, PropertyWebsiteDraft, PropertyWebsiteAnalytics, Blog, BlogListItem, BlogBlock, BlogAnalytics, PublicBlogSummary, PublicBlogDetail, LinkedProperty, Lead, LeadDetail, LeadOpenHouse, LeadStatus, LeadRepresented, LeadSourceFilter, LeadSort, LeadNote, StatSummary, StatHistory, StatMetric, FormStats, UnfinishedFormResponse, CmaReport, CmaReportListItem, CmaMode, CmaStatus, CmaSubjectProperty, CmaComparable, CmaPricing, CmaMarketContext, CmaImprovement, CmaPresentationSettings, CmaCompSearchParams, CmaCompAutoSearch, CmaCompCandidate, CmaShareResponse, CmaPublicResponse, CmaSubjectArea, CmaLocatedAddress, FinancialToolStatus,
   SellerNetSheet, SellerNetSheetListItem, SnsProperty, SnsScenario, SnsLineItem, SnsCompensation, SnsTaxProration, SellerNetSheetPublicResponse,
   BuyerCashNeeded, BuyerCashNeededListItem, BcnProperty, BcnAmount, BcnDownPaymentScenario, BcnLoanType, BcnLineItem, BcnCredits, BcnMonthlyContext, BuyerCashNeededPublicResponse,
   AIConversationListItem, AIConversation, AISendMessageResponse, AIInsightsResponse, DailyDigest,
@@ -23,7 +23,19 @@ import { getToken, removeToken } from './token';
 import { tidyAllCaps } from './cheatSheetContent';
 
 /** Something wrong with an agent's own domain right now, in plain words + the fix (domain_health_service). */
-export type DomainIssue = { hostname: string; code: string; title: string; fix: string; since: string }
+/** One home from GET /api/properties/address/search (see backend address_search_service.py). */
+export type HomeSearchResult = {
+  listingKey: string; address: string; street: string; unit: string | null
+  city: string; state: string; zipcode: string
+  status: string; statusTier: 'active' | 'pending' | 'sold' | 'off_market'
+  price: number | null; listPrice: number | null; closePrice: number | null; closeDate: string | null
+  image: string | null; lat: number | null; lng: number | null
+  beds: number | null; baths: number | null; sqft: number | null
+  propertyType: string | null; propertySubType: string | null
+  isRental: boolean; selectable: boolean; note: string | null
+  otherRecords: number; match: 'exact' | 'close' | 'fuzzy'
+}
+export type DomainIssue ={ hostname: string; code: string; title: string; fix: string; since: string }
 export type OldLink = {
   id: string; source_path: string; target_path: string | null; confidence: number; match_reason: string | null
   is_enabled: boolean; agent_approved: boolean; last_seen_at: string | null
@@ -261,6 +273,15 @@ class ApiService {
       if (opts?.activeOnly) params.set('active_only', 'true');
       if (opts?.excludeRentals) params.set('exclude_rentals', 'true');
       return this.request<{ results: { address: string, lat: number, lng: number, image?: string | null, status?: string | null, price?: number | null }[] }>(`/api/properties/address?${params.toString()}`);
+    },
+    // Find ONE home by address (CMA subject picker) - unit numbers in any format, St/Street
+    // spellings, town/ZIP after the street; one row per home with its listing key. Backend:
+    // address_search_service.py. Rental-only homes come back selectable=false with a note.
+    searchHomes: async (query: string, opts?: { limit?: number; allowRentals?: boolean }) => {
+      const params = new URLSearchParams({ query });
+      if (opts?.limit) params.set('limit', String(opts.limit));
+      if (opts?.allowRentals) params.set('allow_rentals', 'true');
+      return this.request<{ results: HomeSearchResult[]; tookMs: number }>(`/api/properties/address/search?${params.toString()}`);
     },
     // this is for searching brokerages
     brokerages: async (brokerage: string) => this.request<{results: string[]}>(`/api/properties/brokerages?query=${encodeURIComponent(brokerage)}`),
@@ -892,6 +913,13 @@ class ApiService {
       this.request<{ success: boolean; recommended: boolean }>(`/collections/${collectionId}/properties/${propertyId}/recommend`, {
         method: 'PUT',
         body: JSON.stringify({ recommended }),
+      }),
+
+    /** The agent moves an off-the-market home into the client's Sold/Removed folder (or back out). */
+    moveToSoldFolder: (collectionId: string, propertyId: string, filed: boolean) =>
+      this.request<{ success: boolean; soldFiled: boolean }>(`/collections/${collectionId}/properties/${propertyId}/sold-folder`, {
+        method: 'PUT',
+        body: JSON.stringify({ filed }),
       }),
 
     interact: (collectionId: string, propertyId: string, interactionType: 'like' | 'dislike', value: boolean) =>
@@ -2032,6 +2060,9 @@ class ApiService {
 
     searchComparables: (payload: CmaCompSearchParams) =>
       this.request<CmaCompCandidate[]>('/api/cma/comparables/search', { method: 'POST', body: JSON.stringify(payload) }),
+    /** The comp step's first search - picks its own radius and sold window (see cma_service.auto_search_comparables). */
+    autoSearchComparables: (payload: CmaCompSearchParams) =>
+      this.request<CmaCompAutoSearch>('/api/cma/comparables/auto-search', { method: 'POST', body: JSON.stringify(payload) }),
 
     share: (id: string) => this.request<CmaShareResponse>(`/api/cma/${id}/share`, { method: 'POST' }),
 
@@ -2243,7 +2274,14 @@ class ApiService {
         body: JSON.stringify({ interaction_type: interactionType, value }),
       }, this.publicAsOwner),
 
-    addPropertyComment: (collectionId: string, propertyId: string, content: string, visitorName: string) =>
+    /** The client moves an off-the-market home into their Sold/Removed folder (or back out). */
+    moveToSoldFolder: (shareToken: string, propertyId: string, filed: boolean) =>
+      this.request<{ success: boolean; soldFiled: boolean }>(`/collections/shared/${encodeURIComponent(shareToken)}/properties/${propertyId}/sold-folder`, {
+        method: 'PUT',
+        body: JSON.stringify({ filed }),
+      }, false),
+
+    addPropertyComment:(collectionId: string, propertyId: string, content: string, visitorName: string) =>
       this.request<any>(`/collections/${collectionId}/properties/${propertyId}/comments`, {
         method: 'POST',
         body: JSON.stringify({ content, visitor_name: visitorName }),
