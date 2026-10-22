@@ -3082,8 +3082,11 @@ function CmaCompetitionPage({ report, agent }: { report: CmaReport; agent: CmaPd
           <Text style={{ fontSize: 7.4, fontWeight: 700, color: '#8b7355' }}>{c}</Text>
         </View>
       ))}
-      <View style={{ marginTop: 6 }}>
-        {view.cards.map(h => (
+      {view.groups.map(g => (
+      <View key={g.key} style={{ marginTop: 8 }}>
+        <Text style={{ fontSize: 7.4, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.8, color: g.key === 'pending' ? '#B45309' : '#047857', marginBottom: 1 }}>{`${g.title} · ${g.cards.length}`}</Text>
+        <Text style={{ fontSize: 6.6, color: COLORS.subtext, marginBottom: 4 }}>{g.subtitle}</Text>
+        {g.cards.map(h => (
           <View key={h.listing_key} wrap={false} style={{ flexDirection: 'row', borderWidth: 0.6, borderColor: COLORS.line, borderRadius: 6, marginBottom: 6, overflow: 'hidden' }}>
             {h.photo_url
               ? <Image src={normalizeImageUrl(h.photo_url)} style={{ width: 120, height: 82, objectFit: 'cover' }} />
@@ -3091,7 +3094,7 @@ function CmaCompetitionPage({ report, agent }: { report: CmaReport; agent: CmaPd
             <View style={{ flex: 1, padding: 7 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={{ fontSize: 6.2, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.5, color: h.status === 'pending' ? '#B45309' : '#047857' }}>{h.statusLabel}</Text>
-                {h.distance_miles != null && <Text style={{ fontSize: 6.6, color: COLORS.subtext }}>{h.distance_miles} mi</Text>}
+                <Text style={{ fontSize: 6.6, color: COLORS.subtext }}>{[h.match_score != null ? `${h.match_score}% match` : null, h.distance_miles != null ? `${h.distance_miles} mi` : null].filter(Boolean).join('  ·  ')}</Text>
               </View>
               <Text style={{ fontSize: 12, fontWeight: 900, color: COLORS.text, marginTop: 2 }}>
                 {formatMoney(h.list_price)}{h.price_per_sqft ? `  ·  ${h.price_per_sqft}/sq ft` : ''}
@@ -3106,6 +3109,7 @@ function CmaCompetitionPage({ report, agent }: { report: CmaReport; agent: CmaPd
           </View>
         ))}
       </View>
+      ))}
       <CmaPageFooter agent={agent} />
     </Page>
   );

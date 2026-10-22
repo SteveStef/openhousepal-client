@@ -774,11 +774,15 @@ export interface CmaCompetitionCard extends CmaCompetitionHome {
   cutText: string | null
 }
 
+export interface CmaCompetitionGroup { key: 'active' | 'pending'; title: string; subtitle: string; cards: CmaCompetitionCard[] }
+
 export interface CmaCompetitionView {
   title: string
   subtitle: string
   note: string
   cards: CmaCompetitionCard[]
+  /** For sale now, then under contract (user, 10/21: one list mixing both read as all buyable) */
+  groups: CmaCompetitionGroup[]
   callouts: string[]
   empty: string
 }
@@ -847,13 +851,18 @@ export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null
     }
     if (pendings.length) callouts.push('The homes under contract show what buyers are paying for right now.')
   }
+  const groups: CmaCompetitionGroup[] = [
+    { key: 'active' as const, title: 'For sale now', subtitle: buyer ? 'Other homes like this one you could buy.' : 'The homes buyers will compare yours against.', cards: actives },
+    { key: 'pending' as const, title: 'Under contract', subtitle: buyer ? 'Similar homes that just found a buyer - what is moving.' : 'What buyers are agreeing to pay right now (list prices; contract prices are not public yet).', cards: pendings },
+  ].filter(g => g.cards.length > 0)
   return {
-    title: buyer ? 'Other Homes You Could Buy' : 'Your Competition',
+    title: buyer ? 'Similar Homes on the Market' : 'Your Competition',
     subtitle: buyer
-      ? 'Similar homes for sale or recently under contract near this one.'
-      : 'The homes buyers will compare yours against right now.',
+      ? 'Homes like this one for sale now or recently under contract, with how closely each matches.'
+      : 'Homes like yours for sale now or recently under contract, with how closely each matches.',
     note: 'List prices, not closed sales.',
     cards,
+    groups,
     callouts,
     empty: 'No similar homes currently for sale or under contract.',
   }

@@ -36,8 +36,14 @@ export default function CurrentCompetition({ report, agentView = false }: { repo
               ))}
             </ul>
           )}
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {view.cards.map(h => (
+          {view.groups.map(g => (
+          <div key={g.key} className="mt-5">
+            <div className="flex items-baseline gap-2">
+              <h3 className={`text-[11px] font-black uppercase tracking-[0.18em] ${g.key === 'pending' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>{g.title} · {g.cards.length}</h3>
+              <p className="truncate text-[11px] font-semibold text-gray-400">{g.subtitle}</p>
+            </div>
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {g.cards.map(h => (
               <article key={h.listing_key} className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-[#0B0B0B]">
                 <div className="relative aspect-[16/10] bg-gray-100 dark:bg-gray-800">
                   {h.photo_url
@@ -46,6 +52,11 @@ export default function CurrentCompetition({ report, agentView = false }: { repo
                   <span className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow ${h.status === 'pending' ? 'bg-amber-500' : 'bg-emerald-600'}`}>
                     {h.statusLabel}
                   </span>
+                  {h.match_score != null && (
+                    <span className={`absolute right-2 top-2 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow ${h.match_score >= 70 ? 'bg-emerald-600' : 'bg-gray-700'}`}>
+                      {h.match_score}% match
+                    </span>
+                  )}
                 </div>
                 <div className="p-3">
                   <div className="flex items-baseline justify-between gap-2">
@@ -66,6 +77,8 @@ export default function CurrentCompetition({ report, agentView = false }: { repo
               </article>
             ))}
           </div>
+          </div>
+          ))}
         </>
       )}
 

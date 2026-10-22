@@ -363,7 +363,11 @@ function CmaWorkspacePageInner() {
   // an in-flight "Create AI Analysis" run - its progress bar, staged scan, generating state -
   // survives switching to another step and coming back (it's just hidden, never unmounted).
   const [analysisMounted, setAnalysisMounted] = useState(false)
+  // The comp step stays mounted too once opened (user, 10/21: going to Analysis and back re-ran the
+  // whole search and redrew the map) - it's hidden, not rebuilt, and resyncs its picks when shown.
+  const [compsMounted, setCompsMounted] = useState(false)
   useEffect(() => { if (step === 'analysis') setAnalysisMounted(true) }, [step])
+  useEffect(() => { if (step === 'comps') setCompsMounted(true) }, [step])
 
   const load = useCallback(() => {
     setLoading(true)
@@ -495,13 +499,17 @@ function CmaWorkspacePageInner() {
           key={step}
           initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: stepDir * 32 }}
           animate={{ opacity: 1, x: 0, transition: { type: 'spring', stiffness: 320, damping: 34, mass: 0.9 } }}
-          className={`mt-4 sm:mt-6 ${step === 'analysis' ? 'hidden' : ''}`}
+          className={`mt-4 sm:mt-6 ${step === 'analysis' || step === 'comps' ? 'hidden' : ''}`}
         >
           {step === 'subject' && <SubjectStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('comps')} />}
-          {step === 'comps' && <CompsStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('analysis')} />}
           {step === 'pricing' && <PricingStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('summary')} />}
           {step === 'summary' && <SummaryStep report={report} onSave={save} onReportUpdated={applyReport} onJump={setStep} onDeleted={() => router.push('/studio/cma')} />}
         </motion.div>
+        {(compsMounted || step === 'comps') && (
+          <div className={step === 'comps' ? 'mt-4 animate-step-in sm:mt-6' : 'hidden'}>
+            <CompsStep report={report} visible={step === 'comps'} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('analysis')} />
+          </div>
+        )}
         {(analysisMounted || step === 'analysis') && (
           <div className={step === 'analysis' ? 'mt-4 animate-step-in sm:mt-6' : 'hidden'}>
             <AnalysisStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('pricing')} />
@@ -1202,8 +1210,10 @@ function chipValueTextClass(value: string | number, compact?: boolean): string {
 // 2-column span, independent of dynamicSpan/chipSpan) instead of silently picking one. Every
 // other chip on this page never sets `secondary`, so this is a strict opt-in with no effect on
 // any other stat type.
-function CmaFactChip({ icon: Icon, value, label, compact, dynamicSpan, secondary, vs, className = '' }: {
+function CmaFactChip({ icon: Icon, value, label, compact, dynamicSpan, span, secondary, vs, className = '' }: {
   icon: any, value: string | number, label: string, compact?: boolean, dynamicSpan?: boolean,
+  /** fixed column span (the desktop side-by-side gives subject and comp the same one, so rows line up) */
+  span?: number,
   secondary?: { value: string | number, label: string },
   /** How this value compares with the subject's (desktop side-by-side, same colours as the phone
    *  head-to-head): gold + ▲/▼ and the difference, or a green "Same". */
@@ -1212,8 +1222,8 @@ function CmaFactChip({ icon: Icon, value, label, compact, dynamicSpan, secondary
   const differs = vs && vs.tone !== 'same'
   return (
     <div
-      className={`flex flex-col items-center justify-center rounded-xl border bg-white text-center dark:bg-[#0B0B0B] ${differs ? 'border-[#C9A24D]/45' : 'border-gray-200 dark:border-gray-800'} ${compact ? 'gap-0.5 px-0.5 py-1.5' : 'gap-1 py-2'} ${className}`}
-      style={secondary ? { gridColumn: 'span 2 / span 2' } : dynamicSpan ? { gridColumn: `span ${chipSpan(value)} / span ${chipSpan(value)}` } : undefined}
+      className={`flex flex-col items-center justify-center rounded-xl border bg-white text-center dark:bg-[#0B0B0B] ${differs ? 'border-[#C9A24D]/45' : 'border-gray-200 dark:border-gray-800'} ${compact ? 'min-h-[64px] gap-0.5 px-0.5 py-1.5' : 'gap-1 py-2'} ${className}`}
+      style={secondary ? { gridColumn: 'span 2 / span 2' } : span ? { gridColumn: `span ${span} / span ${span}` } : dynamicSpan ? { gridColumn: `span ${chipSpan(value)} / span ${chipSpan(value)}` } : undefined}
     >
       <Icon className={compact ? 'h-3 w-3 text-[#C9A24D]' : 'h-3.5 w-3.5 text-[#C9A24D]'} />
       <span className={`max-w-full truncate rounded px-0.5 font-black leading-tight ${differs ? 'cma-diff text-[#7a5a1e] dark:text-[#e8c97a]' : 'text-[#111827] dark:text-white'} ${chipValueTextClass(value, compact)}`}>{value}</span>
@@ -1276,6 +1286,13 @@ function formatSqftCompact(totalSqft?: number | null, aboveGradeSqft?: number | 
 // meaningfully diverges from the total (a real finished-basement contribution), it's folded into
 // the Basement fact instead (see basementFactValue below), right alongside the below-grade
 // figure. One fewer tile per property keeps every card grid filling out to whole rows.
+// One span for a subject chip and its comp twin - the wider of the two - so both stat grids wrap the
+// same way and their rows line up (user, 10/21).
+function pairSpan(a?: string | number | null, b?: string | number | null): number {
+  const v = (x?: string | number | null) => (x == null || x === '' ? 1 : chipSpan(typeof x === 'number' ? formatNumber(x) : x))
+  return Math.max(v(a), v(b))
+}
+
 function sqftChipProps(totalSqft?: number | null) {
   return {
     label: 'Sqft',
@@ -1302,7 +1319,7 @@ function basementFactValue(
   return sqftLabel || basementText || null
 }
 
-function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaReport, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>, onReportUpdated: (r: CmaReport) => void, onNext: () => void }) {
+function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext }: { report: CmaReport, visible?: boolean, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>, onReportUpdated: (r: CmaReport) => void, onNext: () => void }) {
   const { showToast } = useToast()
   const [comparables, setComparables] = useState<CmaComparable[]>(report.comparables)
   const [statuses, setStatuses] = useState<CmaCompStatus[]>(['sold'])
@@ -1349,6 +1366,8 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
   const [refineOpen, setRefineOpen] = useState(false)
   // Phones show the results list OR the map (both at once stacked a crowded map under a long list).
   const [phoneView, setPhoneView] = useState<'list' | 'map'>('list')
+  // Tablet / computer (user, 10/21): list only, map only, or both side by side (the default).
+  const [deskView, setDeskView] = useState<'both' | 'list' | 'map'>('both')
   // The desktop card grid scrolls on its own - each new page of results starts at its top.
   const compGridRef = useRef<HTMLDivElement>(null)
   // Floor of 200 days sold, then widens itself (200 -> 300 -> ... -> 750) whenever a sold search
@@ -1401,6 +1420,18 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comparables])
+
+  // Shown again after another step: take the saved picks (Analysis may have reordered or rated them)
+  // without re-saving them; the search results and map stay as they were.
+  const wasVisible = useRef(visible)
+  useEffect(() => {
+    if (visible && !wasVisible.current) {
+      comparablesLoaded.current = false
+      setComparables(report.comparables)
+    }
+    wasVisible.current = visible
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible])
 
   const addedKeys = useMemo(() => new Set(comparables.map(c => c.listing_key).filter(Boolean)), [comparables])
 
@@ -1821,6 +1852,16 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
             </div>
             {/* Phones get the Continue bar pinned to the bottom instead (below). */}
             <div className="hidden items-center gap-2 sm:flex">
+              {!optimizing && results.length > 0 && (
+                <div role="group" aria-label="Show list, map or both" className="inline-flex rounded-xl border border-gray-200 bg-white p-0.5 dark:border-gray-700 dark:bg-[#151517]">
+                  {([['list', 'List', Layers], ['both', 'Both', null], ['map', 'Map', MapPin]] as const).map(([v, label, Icon]) => (
+                    <button key={v} type="button" aria-pressed={deskView === v} onClick={() => setDeskView(v)}
+                      className={`inline-flex items-center gap-1 rounded-[10px] px-2.5 py-1.5 text-[11px] font-black uppercase tracking-wide transition ${deskView === v ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
+                      {Icon && <Icon className="h-3.5 w-3.5" />} {label}
+                    </button>
+                  ))}
+                </div>
+              )}
               <span className="text-xs font-bold text-gray-400">{comparables.length} added</span>
               <button
                 onClick={handleContinue}
@@ -1885,8 +1926,8 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
             // three-card row; that avoids the awkward empty strip after two cards.
             // Height stays a sane fixed cap below lg (mobile/tablet-portrait) and only goes
             // viewport-relative at lg+, where there's room to spare.
-            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(500px,0.8fr)_minmax(420px,1.2fr)] lg:items-start 2xl:grid-cols-[minmax(940px,1.85fr)_minmax(420px,1fr)]">
-              <div className={`min-w-0 ${phoneView === 'map' ? 'max-sm:hidden' : ''}`}>
+            <div className={`mt-4 grid grid-cols-1 gap-4 ${deskView === 'both' ? 'lg:grid-cols-[minmax(500px,0.8fr)_minmax(420px,1.2fr)] lg:items-start 2xl:grid-cols-[minmax(940px,1.85fr)_minmax(420px,1fr)]' : ''}`}>
+              <div className={`min-w-0 ${phoneView === 'map' ? 'max-sm:hidden' : ''} ${deskView === 'map' ? 'sm:hidden' : ''}`}>
               {/* Phones: compact rows that say how each home differs from the subject. */}
               <div ref={phoneListRef} className="space-y-2 sm:hidden">
                 {pagedResults.map((candidate, i) => (
@@ -1916,7 +1957,11 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
                 // a partial last one - no dead gap. Each card stays between 240-300px wide, and
                 // however many fit at that width is however many end up per row.
                 ref={compGridRef}
-                className="hidden max-h-[520px] flex-wrap content-start gap-4 overflow-y-auto pr-1 sm:flex lg:max-h-[calc(100vh-380px)]"
+                // Cards fill the column (user, 10/21: on a tablet two 300px cards left a wide empty
+                // strip and sat in a short scroll box above the map): as many 240px+ columns as fit,
+                // each stretched to share the width - 2 across on a tablet or the side column, 1 when
+                // narrower. Only the side-by-side layout scrolls on its own.
+                className={`hidden content-start gap-4 pr-1 sm:grid sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] ${deskView === 'both' ? 'lg:max-h-[calc(100vh-380px)] lg:overflow-y-auto' : ''}`}
                 style={{ overscrollBehavior: 'auto' }}
               >
                 {pagedResults.map((candidate, i) => (
@@ -1930,7 +1975,7 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
                     // cards fill in one after another on load and on every page change (10/20)
                     initial={{ opacity: 0, y: 14, scale: 0.97 }}
                     animate={{ opacity: 1, y: 0, scale: 1, transition: { delay: Math.min(i, 12) * 0.035, type: 'spring', stiffness: 380, damping: 32 } }}
-                    className={`min-w-[240px] max-w-full flex-1 ${pagedResults.length === 1 ? 'sm:max-w-[420px]' : 'sm:max-w-[300px]'}`}
+                    className={`min-w-0 ${pagedResults.length === 1 ? 'sm:max-w-[420px]' : ''}`}
                   >
                     <CompCandidateCard
                       subject={subject}
@@ -1967,7 +2012,7 @@ function CompsStep({ report, onSave, onReportUpdated, onNext }: { report: CmaRep
                 </div>
               )}
               </div>
-              <div className={`lg:sticky lg:top-6 ${phoneView === 'list' ? 'max-sm:hidden' : ''}`}>
+              <div className={`${deskView === 'both' ? 'lg:sticky lg:top-6' : ''} ${phoneView === 'list' ? 'max-sm:hidden' : ''} ${deskView === 'list' ? 'sm:hidden' : ''}`}>
                 <CompsMapView
                   subject={subject}
                   candidates={sortedResults}
@@ -4369,7 +4414,7 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
       />
 
       <div className="hidden grid-cols-1 divide-y divide-gray-100 sm:grid sm:grid-cols-2 sm:divide-x sm:divide-y-0 dark:divide-gray-800">
-        <div className="p-4">
+        <div className="flex flex-col p-4">
           <div className="mb-2 flex items-baseline justify-between gap-2">
             <p className="min-w-0 truncate text-sm font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">
               Subject · {subject.street_address}{subject.city ? `, ${subject.city}` : ''}
@@ -4381,22 +4426,22 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
           ) : (
             <PropertyPhotoCarousel resetKey="subject" photos={subject.photos} fallbackUrl={subject.photo_url} onIndexChange={onSubjectIndexChange} onPhotoClick={onOpenSubjectDetails} />
           )}
-          <div className="mt-3 grid grid-flow-row-dense grid-cols-6 gap-1">
+          <div className="mt-auto grid grid-flow-row-dense grid-cols-6 gap-1 pt-3">
             <CmaFactChip compact icon={DollarSign} value={formatMoney(subject.list_price, { compact: true })} label="Price" />
             <CmaFactChip compact icon={Calculator} value={subjectPsf ? `$${Math.round(subjectPsf)}` : '—'} label="$/Sqft" />
-            <CmaFactChip compact dynamicSpan icon={Ruler} {...sqftChipProps(subject.sqft)} />
+            <CmaFactChip compact span={pairSpan(subject.sqft, comp.sqft)} icon={Ruler} {...sqftChipProps(subject.sqft)} />
             <CmaFactChip compact icon={Bed} value={subject.beds ?? '—'} label="Beds" />
             <CmaFactChip compact icon={Bath} value={subject.baths ?? '—'} label="Baths" />
             <CmaFactChip compact icon={LandPlot} value={subject.lot_size ? sqftToAcres(subject.lot_size) : '—'} label="Acres" />
             <CmaFactChip compact icon={Building2} value={subject.year_built ?? '—'} label="Built" />
             {basementFactValue(subject.basement, subject.below_grade_finished_area, subject.sqft, subject.above_grade_finished_area) && (
-              <CmaFactChip compact dynamicSpan icon={Layers} value={basementFactValue(subject.basement, subject.below_grade_finished_area, subject.sqft, subject.above_grade_finished_area)!} label="Basement" />
+              <CmaFactChip compact span={pairSpan(basementFactValue(subject.basement, subject.below_grade_finished_area, subject.sqft, subject.above_grade_finished_area), basementFactValue(comp.basement, comp.below_grade_finished_area, comp.sqft, comp.above_grade_finished_area))} icon={Layers} value={basementFactValue(subject.basement, subject.below_grade_finished_area, subject.sqft, subject.above_grade_finished_area)!} label="Basement" />
             )}
-            {subject.school_district && <CmaFactChip compact dynamicSpan icon={GraduationCap} value={subject.school_district} label="School" />}
+            {subject.school_district && <CmaFactChip compact span={pairSpan(subject.school_district, comp.school_district)} icon={GraduationCap} value={subject.school_district} label="School" />}
             <CmaFactChip compact icon={Calendar} value={subject.days_on_market ?? '—'} label="DOM" />
           </div>
         </div>
-        <div className="p-4">
+        <div className="flex flex-col p-4">
           <div className="mb-2 flex items-baseline justify-between gap-2">
             <p className="min-w-0 truncate text-sm font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">
               Comp #{index + 1} · {comp.street_address}{comp.city ? `, ${comp.city}` : ''}
@@ -4408,18 +4453,18 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
           ) : (
             <PropertyPhotoCarousel resetKey={comp.id} photos={comp.photos} fallbackUrl={comp.photo_url} onIndexChange={onCompIndexChange} onPhotoClick={onOpenCompDetails} />
           )}
-          <div className="mt-3 grid grid-flow-row-dense grid-cols-6 gap-1">
+          <div className="mt-auto grid grid-flow-row-dense grid-cols-6 gap-1 pt-3">
             <CmaFactChip compact icon={DollarSign} value={formatMoney(comp.sale_price ?? comp.list_price, { compact: true })} label="Price" vs={chipVs(subject.list_price, comp.sale_price ?? comp.list_price, { money: true })} />
             <CmaFactChip compact icon={Calculator} value={psf ? `$${Math.round(psf)}` : '—'} label="$/Sqft" vs={chipVs(subjectPsf, psf, { money: true })} />
-            <CmaFactChip compact dynamicSpan icon={Ruler} {...sqftChipProps(comp.sqft)} vs={chipVs(subject.sqft, comp.sqft, { unit: 'sf' })} />
+            <CmaFactChip compact span={pairSpan(subject.sqft, comp.sqft)} icon={Ruler} {...sqftChipProps(comp.sqft)} vs={chipVs(subject.sqft, comp.sqft, { unit: 'sf' })} />
             <CmaFactChip compact icon={Bed} value={comp.beds ?? '—'} label="Beds" vs={chipVs(subject.beds, comp.beds, { decimals: 1 })} />
             <CmaFactChip compact icon={Bath} value={comp.baths ?? '—'} label="Baths" vs={chipVs(subject.baths, comp.baths, { decimals: 1 })} />
             <CmaFactChip compact icon={LandPlot} value={comp.lot_size ? sqftToAcres(comp.lot_size) : '—'} label="Acres" vs={chipVs(subject.lot_size ? sqftToAcres(subject.lot_size) : null, comp.lot_size ? sqftToAcres(comp.lot_size) : null, { unit: 'ac', decimals: 2 })} />
             <CmaFactChip compact icon={Building2} value={comp.year_built ?? '—'} label="Built" vs={chipVs(subject.year_built, comp.year_built, { unit: 'yrs' })} />
             {basementFactValue(comp.basement, comp.below_grade_finished_area, comp.sqft, comp.above_grade_finished_area) && (
-              <CmaFactChip compact dynamicSpan icon={Layers} value={basementFactValue(comp.basement, comp.below_grade_finished_area, comp.sqft, comp.above_grade_finished_area)!} label="Basement" vs={chipVs(basementFactValue(subject.basement, subject.below_grade_finished_area, subject.sqft, subject.above_grade_finished_area), basementFactValue(comp.basement, comp.below_grade_finished_area, comp.sqft, comp.above_grade_finished_area))} />
+              <CmaFactChip compact span={pairSpan(basementFactValue(subject.basement, subject.below_grade_finished_area, subject.sqft, subject.above_grade_finished_area), basementFactValue(comp.basement, comp.below_grade_finished_area, comp.sqft, comp.above_grade_finished_area))} icon={Layers} value={basementFactValue(comp.basement, comp.below_grade_finished_area, comp.sqft, comp.above_grade_finished_area)!} label="Basement" vs={chipVs(basementFactValue(subject.basement, subject.below_grade_finished_area, subject.sqft, subject.above_grade_finished_area), basementFactValue(comp.basement, comp.below_grade_finished_area, comp.sqft, comp.above_grade_finished_area))} />
             )}
-            {comp.school_district && <CmaFactChip compact dynamicSpan icon={GraduationCap} value={comp.school_district} label="School" vs={chipVs(subject.school_district, comp.school_district)} />}
+            {comp.school_district && <CmaFactChip compact span={pairSpan(subject.school_district, comp.school_district)} icon={GraduationCap} value={comp.school_district} label="School" vs={chipVs(subject.school_district, comp.school_district)} />}
             <CmaFactChip compact icon={Calendar} value={comp.days_on_market ?? '—'} label="DOM" />
           </div>
         </div>
