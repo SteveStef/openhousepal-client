@@ -4317,11 +4317,11 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-[#151517]">
       {/* Phones: title + Pricing, then Photos/Map and the comp arrows on the row under it. Computers
-          (user, 10/21): one row - the title, then Photos/Map right next to the arrows, then Continue. */}
-      <div className="grid grid-cols-[auto_1fr] items-center gap-2 border-b border-gray-100 px-3 py-3 dark:border-gray-800 sm:flex sm:gap-3 sm:px-4">
+          (user, 10/21): one row - the title, the comp arrows in the middle, Photos/Map + Continue on the right. */}
+      <div className="grid grid-cols-[auto_1fr] items-center gap-2 border-b border-gray-100 px-3 py-3 dark:border-gray-800 sm:grid-cols-[1fr_auto_1fr] sm:gap-3 sm:px-4">
         {/* Phones (user, 10/21): Pricing sits on the title line, so the row under it has room for
             the Photos/Map switch with its words showing, and the comp arrows. */}
-        <div className="col-span-2 flex min-w-0 items-center justify-between gap-2 sm:flex-1">
+        <div className="col-span-2 flex min-w-0 items-center justify-between gap-2 sm:col-span-1">
           <p className="truncate text-base font-black text-[#111827] dark:text-white sm:text-lg">
             <span className="sm:hidden">Subject vs. Comp #{index + 1}</span><span className="hidden sm:inline">Comparing Subject vs. Comp #{index + 1}</span>
           </p>
@@ -4331,7 +4331,7 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
         </div>
         {/* Photos/Map in the middle, the comp arrows on the right (user, 10/21: swapped, and the
             arrows made to stand out - gold outline, bigger chevrons, a bolder count). */}
-        <div className="flex items-center justify-start sm:justify-center">
+        <div className="flex items-center justify-start gap-2 sm:col-start-3 sm:row-start-1 sm:justify-end">
           {(compHasGeo || subjectHasGeo) && (
             // Both choices always visible (user, 10/21: after switching to the map there was no
             // clear way back to the listing photos) - the active one is filled.
@@ -4350,16 +4350,16 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
               })}
             </div>
           )}
+          <button onClick={onContinueClick} className="cma-btn hidden items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#111827] px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827] sm:inline-flex">
+            Continue to Pricing <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+          </button>
         </div>
-        <div className="flex flex-nowrap items-center justify-end gap-1.5 sm:gap-2">
+        <div className="flex flex-nowrap items-center justify-end gap-1.5 sm:col-start-2 sm:row-start-1 sm:justify-center sm:gap-2">
           <div className="flex items-center gap-1.5">
             <button onClick={onPrev} disabled={index <= 0} aria-label="Previous comp" className={COMP_ARROW_CLS}><ChevronLeft className="h-5 w-5" strokeWidth={2.5} /></button>
             <span className="min-w-[2.6rem] text-center text-xs font-black tabular-nums text-[#111827] dark:text-white">{index + 1} / {total}</span>
             <button onClick={onNext} disabled={index >= total - 1} aria-label="Next comp" className={COMP_ARROW_CLS}><ChevronRight className="h-5 w-5" strokeWidth={2.5} /></button>
           </div>
-          <button onClick={onContinueClick} className="cma-btn hidden items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#111827] px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827] sm:inline-flex">
-            Continue to Pricing <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
-          </button>
         </div>
       </div>
 
