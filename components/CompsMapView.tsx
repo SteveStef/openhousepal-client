@@ -199,9 +199,19 @@ export default function CompsMapView({ subject, candidates, addedKeys, radiusMil
     dropTimersRef.current.forEach(t => window.clearTimeout(t))
     dropTimersRef.current = []
     markerByKeyRef.current = new Map()
-    // A NEW result set drops its price tags in one after another; toggling a comp on the same set
-    // just redraws in place (no re-drop). Reduced motion: everything appears at once.
+    // A NEW result set's price tags appear from the subject outward (user, 10/21: no more dropping
+    // in): the nearest ones pop in slowly and a little irregularly, then the rest fill in faster
+    // and faster toward the edge. Toggling a comp on the same set just redraws in place.
+    // Reduced motion: everything appears at once.
     const setKey = candidates.map(c => c.listing_key).join('|')
+    const byDistance = candidates.filter(c => c.latitude != null && c.longitude != null)
+      .map(c => c.listing_key).sort((a, b) => {
+        const da = candidates.find(c => c.listing_key === a)?.distance_miles ?? 99
+        const db = candidates.find(c => c.listing_key === b)?.distance_miles ?? 99
+        return da - db
+      })
+    const ringRank = new Map(byDistance.map((k, i) => [k, i]))
+    const lastRank = Math.max(1, byDistance.length - 1)
     const reduce = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const dropIn = setKey !== droppedForRef.current && !reduce
     droppedForRef.current = setKey
@@ -284,10 +294,20 @@ export default function CompsMapView({ subject, candidates, addedKeys, radiusMil
         })
         markerByKeyRef.current.set(candidate.listing_key, marker)
         if (dropIn) {
+          // time ~ sqrt(rank): wide gaps for the first few, then bunched up - plus some jitter
+          const r = ringRank.get(candidate.listing_key) ?? i
+          const at = 200 + 1700 * Math.sqrt(r / lastRank) * (0.82 + Math.random() * 0.36)
           dropTimersRef.current.push(window.setTimeout(() => {
-            marker.setAnimation(google.maps.Animation.DROP)
+            marker.setOpacity(0)
             marker.setMap(map)
-          }, 150 + Math.min(i, 40) * 22))
+            const start = performance.now()
+            const fade = (now: number) => {
+              const t = Math.min(1, (now - start) / 260)
+              marker.setOpacity(t)
+              if (t < 1) requestAnimationFrame(fade)
+            }
+            requestAnimationFrame(fade)
+          }, at))
         }
         return marker
       })
