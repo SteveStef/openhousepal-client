@@ -3327,6 +3327,8 @@ export interface CmaReportListItem {
   export_allowed?: boolean;
   qa_blocking_count?: number;
   generation_status?: 'generating' | 'complete' | 'failed' | null;
+  generation_started_at?: string | null;
+  generation_error?: string | null;
   updated_at?: string | null;
   created_at: string;
 }

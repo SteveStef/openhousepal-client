@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -16,7 +16,18 @@ import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
 import StudioPageHeader from '@/components/studio/StudioPageHeader'
 import { LuxeTabs } from '@/components/ui/LuxeHero'
-import { CheckCircle2, LayoutGrid, PenLine } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, LayoutGrid, PenLine, Sparkles } from 'lucide-react'
+import { estimatedProgress, estimatedTimeLeft } from '@/lib/cmaProgress'
+
+// Which finished AI runs the agent has already opened from this list (per browser): report id ->
+// the generation_started_at of the run they saw. A run that finished in the last few hours and
+// hasn't been opened yet keeps a small "AI analysis ready" badge on its card.
+const AI_SEEN_KEY = 'ohp-cma-ai-seen'
+const AI_READY_BADGE_HOURS = 6
+const readAiSeen = (): Record<string, string> => {
+  try { return JSON.parse(window.localStorage.getItem(AI_SEEN_KEY) || '{}') || {} } catch { return {} }
+}
+const startedMs = (r: CmaReportListItem) => (r.generation_started_at ? new Date(r.generation_started_at).getTime() : NaN)
 
 // Icons for the CMA status tabs in the header.
 const CMA_STATUS_ICON: Record<string, React.ComponentType<{ className?: string }>> = { ALL: LayoutGrid, DRAFT: PenLine, READY: CheckCircle2, SHARED: Share2 }
@@ -72,17 +83,58 @@ function CmaDashboardInner() {
   // A report's AI analysis can still be running server-side even after backing out to this list -
   // the request that started it keeps going regardless of which page is open, so a card must be
   // able to show that on its own instead of just looking idle. Poll quietly (no loading skeleton)
-  // while any card is mid-generation, so the animated badge clears and the price range/comp count
-  // fill in on their own once it finishes.
+  // every 4s while any card is mid-generation, and tick each card's estimated % every second from
+  // its server start time (user, 10/21: two CMAs at once, watched from this list). Both stop as
+  // soon as nothing is generating.
+  const anyGenerating = reports.some(r => r.generation_status === 'generating')
+  const [nowMs, setNowMs] = useState(() => Date.now())
   useEffect(() => {
-    if (!reports.some(r => r.generation_status === 'generating')) return
-    const interval = setInterval(() => {
+    if (!anyGenerating) return
+    const poll = setInterval(() => {
       api.cma.list().then(response => {
         if (response.success && response.data) setReports(response.data)
       })
     }, 4000)
-    return () => clearInterval(interval)
+    const tick = setInterval(() => setNowMs(Date.now()), 1000)
+    return () => { clearInterval(poll); clearInterval(tick) }
+  }, [anyGenerating])
+
+  // Runs that finish while this page is open get a clear "finished - click to continue" card (the
+  // report still needs the agent's review and pricing, so it's not "done"), plus a toast.
+  const prevGenStatus = useRef<Map<string, CmaReportListItem['generation_status']>>(new Map())
+  const [justFinished, setJustFinished] = useState<Set<string>>(() => new Set())
+  const [aiSeen, setAiSeen] = useState<Record<string, string>>({})
+  useEffect(() => { setAiSeen(readAiSeen()) }, [])
+  useEffect(() => {
+    const prev = prevGenStatus.current
+    const finished: CmaReportListItem[] = []
+    for (const r of reports) {
+      if (prev.get(r.id) === 'generating' && r.generation_status === 'complete') finished.push(r)
+      if (prev.get(r.id) === 'generating' && r.generation_status === 'failed') {
+        showToast(`The AI analysis for ${r.subject_address?.split(',')[0] || 'a CMA'} didn't finish - open it to try again.`, 'error')
+      }
+    }
+    prevGenStatus.current = new Map(reports.map(r => [r.id, r.generation_status]))
+    if (finished.length) {
+      setJustFinished(s => { const n = new Set(s); finished.forEach(r => n.add(r.id)); return n })
+      showToast(finished.length === 1
+        ? `AI analysis finished for ${finished[0].subject_address?.split(',')[0] || 'your CMA'} - open it to review and price it.`
+        : `${finished.length} AI analyses finished - open them to review and price them.`, 'success')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reports])
+  const markAiSeen = (report: CmaReportListItem) => {
+    if (report.generation_status !== 'complete' || !report.generation_started_at) return
+    const next = { ...readAiSeen(), [report.id]: report.generation_started_at }
+    try { window.localStorage.setItem(AI_SEEN_KEY, JSON.stringify(next)) } catch { /* private mode - badge just stays */ }
+    setAiSeen(next)
+  }
+  const aiReadyUnseen = (r: CmaReportListItem) => {
+    if (r.generation_status !== 'complete' || r.status !== 'DRAFT' || !r.generation_started_at) return false
+    if (aiSeen[r.id] === r.generation_started_at) return false
+    const t = startedMs(r)
+    return Number.isFinite(t) && Date.now() - t < AI_READY_BADGE_HOURS * 3600_000
+  }
 
   useEffect(() => {
     Promise.allSettled([api.studio.getBrandKit(), api.agentHub.getMine()]).then(([brandResult, hubResult]) => {
@@ -289,6 +341,13 @@ function CmaDashboardInner() {
           {!loading && filtered.map(report => {
             const hasFairValue = report.fair_value != null
             const compactFairValue = formatMoney(report.fair_value, { compact: true })
+            const isGenerating = report.generation_status === 'generating'
+            const genElapsedMs = Number.isFinite(startedMs(report)) ? Math.max(0, nowMs - startedMs(report)) : 0
+            const genProgress = isGenerating ? estimatedProgress(genElapsedMs, report.comparable_count) : null
+            const genPct = genProgress ? Math.round(genProgress.pct) : 0
+            const finishedNow = report.generation_status === 'complete' && justFinished.has(report.id) && aiSeen[report.id] !== report.generation_started_at
+            const readyBadge = !finishedNow && aiReadyUnseen(report)
+            const failedNoValue = report.generation_status === 'failed' && !hasFairValue
             return (
             <motion.div
               key={report.id}
@@ -299,8 +358,12 @@ function CmaDashboardInner() {
               whileHover={{ y: -4 }}
               whileTap={{ scale: 0.97 }}
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-md transition-colors hover:border-[#C9A24D]/50 hover:shadow-xl dark:border-gray-800 dark:bg-[#151517]">
-              <Link href={`/studio/cma/${report.id}`} className="block">
+              className={`overflow-hidden rounded-3xl border bg-white shadow-md transition-colors hover:border-[#C9A24D]/50 hover:shadow-xl dark:bg-[#151517] ${
+                finishedNow ? 'border-emerald-400 ring-2 ring-emerald-400/40 dark:border-emerald-500'
+                  : isGenerating ? 'border-[#C9A24D]/60 dark:border-[#C9A24D]/50'
+                  : 'border-gray-200 dark:border-gray-800'
+              }`}>
+              <Link href={`/studio/cma/${report.id}`} className="block" onClick={() => markAiSeen(report)}>
                 <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-800">
                   {report.subject_photo_url ? (
                     <img src={report.subject_photo_url} alt="" className="h-full w-full object-cover" />
@@ -308,24 +371,66 @@ function CmaDashboardInner() {
                     <div className="flex h-full w-full items-center justify-center"><Home className="h-6 w-6 text-gray-300" /></div>
                   )}
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/75 to-transparent" />
-                  {report.generation_status === 'generating' && (
-                    <div className="pointer-events-none absolute inset-0 overflow-hidden bg-black/40">
+                  {isGenerating && (
+                    <div className="pointer-events-none absolute inset-0 overflow-hidden bg-black/55">
                       <motion.div
-                        className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-white/25 to-transparent"
+                        className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-white/20 to-transparent"
                         initial={{ x: '-100%' }}
                         animate={{ x: '200%' }}
                         transition={{ duration: 1.6, repeat: Infinity, ease: 'linear' }}
                       />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 shadow-lg">
-                          <span className="relative flex h-2 w-2">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
-                            <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
-                          </span>
-                          <span className="text-xs font-black uppercase tracking-wide text-white">Generating</span>
+                      {/* Estimated, paced like the editor's progress bar (lib/cmaProgress). Sits between
+                          the status pills and the address so neither is covered, even on a phone card. */}
+                      <div className="absolute inset-x-0 bottom-[52px] top-9 flex flex-col items-center justify-center px-4 text-center">
+                        <p className="flex items-baseline gap-1.5">
+                          <span className="hidden text-[9px] font-black uppercase tracking-[0.16em] text-[#e8c97a] sm:inline">AI analysis</span>
+                          <span className="font-serif text-2xl font-black tabular-nums leading-none text-white drop-shadow">{genPct}%</span>
+                        </p>
+                        <div className="mt-1.5 h-1.5 w-full max-w-[150px] overflow-hidden rounded-full bg-white/20">
+                          <div className="h-full rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] transition-[width] duration-1000 ease-linear" style={{ width: `${genPct}%` }} />
                         </div>
+                        <p className="mt-1 hidden text-[10px] font-bold text-white/85 sm:block">{estimatedTimeLeft(genElapsedMs)}</p>
                       </div>
                     </div>
+                  )}
+                  {finishedNow && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-900/80 via-black/55 to-[#8b7355]/70"
+                    >
+                      <div className="absolute inset-x-0 bottom-[52px] top-9 flex flex-col items-center justify-center px-3 text-center">
+                        <p className="flex items-center gap-1.5 text-xs font-black text-white drop-shadow">
+                          <motion.span
+                            initial={{ scale: 0.4 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: 'spring', stiffness: 420, damping: 18 }}
+                            className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/40"
+                          >
+                            <Check className="h-3 w-3" strokeWidth={3.5} />
+                          </motion.span>
+                          AI analysis finished
+                        </p>
+                        <span className="mt-1.5 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#111827] shadow">
+                          Click to continue
+                        </span>
+                      </div>
+                    </motion.div>
+                  )}
+                  {failedNoValue && (
+                    <div className="pointer-events-none absolute inset-0 bg-black/55" title={report.generation_error || undefined}>
+                      <div className="absolute inset-x-0 bottom-[52px] top-9 flex flex-col items-center justify-center px-3 text-center">
+                        <p className="flex items-center gap-1.5 text-xs font-black text-white drop-shadow">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-400" /> AI analysis didn&apos;t finish
+                        </p>
+                        <p className="mt-0.5 hidden text-[10px] font-bold text-white/85 sm:block">Open to retry</p>
+                      </div>
+                    </div>
+                  )}
+                  {readyBadge && (
+                    <span className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-2 py-1 text-[9px] font-black uppercase tracking-wide text-[#111827] shadow">
+                      <Sparkles className="h-3 w-3" /> AI ready
+                    </span>
                   )}
                   <div className="absolute left-2.5 top-2.5 flex items-center gap-1.5">
                     <span className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide shadow ${CMA_STATUS_STYLES[report.status]}`}>
@@ -346,14 +451,18 @@ function CmaDashboardInner() {
                 </div>
               </Link>
               <div className="p-2.5">
-                <Link href={`/studio/cma/${report.id}`} className="block">
+                <Link href={`/studio/cma/${report.id}`} className="block" onClick={() => markAiSeen(report)}>
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
                     <div className="min-w-0">
                       <p className="text-[8px] font-black uppercase tracking-wide text-gray-400">Fair Value</p>
-                      {report.generation_status === 'generating' ? (
+                      {isGenerating ? (
                         <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs font-black text-[#8b7355] dark:text-[#d7b974]">
-                          <Loader2 className="h-3 w-3 shrink-0 animate-spin" /> Analyzing…
+                          <Loader2 className="h-3 w-3 shrink-0 animate-spin" /> Analyzing… {genPct}%
                         </p>
+                      ) : finishedNow && !hasFairValue ? (
+                        <p className="mt-0.5 truncate text-xs font-black text-emerald-600 dark:text-emerald-400">Ready to review</p>
+                      ) : failedNoValue ? (
+                        <p className="mt-0.5 truncate text-xs font-black text-amber-600 dark:text-amber-400">Open to retry</p>
                       ) : (
                         <p className={`mt-0.5 truncate text-xs font-black ${
                           !hasFairValue
