@@ -3052,11 +3052,20 @@ const REQUIRED_QUALITY_KEYS: { key: keyof CmaQualityAssessment, label: string }[
   { key: 'area', label: 'Area' },
   { key: 'street_context', label: 'Street' },
 ]
-function compAnalysisMissing(comp: CmaComparable): string[] {
+// A condo / unit has no lot of its own (HOA land) - its comps' Lot rating is N/A, never required
+// (10/21: "Finish rating each comp: #1 Lot ... #5 Lot" on 1813 Spruce St #4R).
+function isCondoSubject(subject?: CmaSubjectProperty | null): boolean {
+  const t = `${subject?.property_type || ''} ${JSON.stringify((subject as { structure_type?: unknown } | null)?.structure_type || '')}`.toLowerCase()
+  return /condo|unit|flat|apartment|penthouse/.test(t)
+}
+
+function compAnalysisMissing(comp: CmaComparable, subject?: CmaSubjectProperty | null): string[] {
   const missing: string[] = []
   if (!comp.strength) missing.push('Comp Weight')
   const q = comp.quality || {}
+  const condo = isCondoSubject(subject)
   for (const { key, label } of REQUIRED_QUALITY_KEYS) {
+    if (key === 'lot' && condo) continue
     if (!q[key]) missing.push(label)
   }
   return missing
@@ -3491,9 +3500,9 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
   // sitting there permanently), and clears itself once everything's filled.
   const incompleteComps = useMemo(
     () => comparables
-      .map((c, i) => ({ i, id: c.id, missing: compAnalysisMissing(c) }))
+      .map((c, i) => ({ i, id: c.id, missing: compAnalysisMissing(c, report.subject) }))
       .filter(x => x.missing.length > 0),
-    [comparables],
+    [comparables, report.subject],
   )
   const [continueBlocked, setContinueBlocked] = useState(false)
   useEffect(() => { if (incompleteComps.length === 0) setContinueBlocked(false) }, [incompleteComps.length])
@@ -4501,7 +4510,7 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
           <QualityRow label="Finish Quality" options={QUALITY_3} value={comp.quality.finish_quality} onChange={v => onUpdateQuality('finish_quality', v)} colorCoded />
           <QualityRow label="Interior Quality" options={QUALITY_3} value={comp.quality.interior} onChange={v => onUpdateQuality('interior', v)} colorCoded />
           <QualityRow label="Exterior Quality" options={QUALITY_3} value={comp.quality.exterior} onChange={v => onUpdateQuality('exterior', v)} colorCoded />
-          {comp.quality.lot === 'n_a'
+          {comp.quality.lot === 'n_a' || isCondoSubject(subject)
             ? <QualityRowLayout label="Lot"><span className="rounded-lg bg-gray-100 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-gray-400 dark:bg-gray-800">N/A - condo</span></QualityRowLayout>
             : <QualityRow label="Lot" options={QUALITY_3} value={comp.quality.lot} onChange={v => onUpdateQuality('lot', v)} colorCoded />}
           <QualityRow label="Amenities" options={QUALITY_3} value={comp.quality.amenities} onChange={v => onUpdateQuality('amenities', v)} colorCoded />
