@@ -430,7 +430,7 @@ export const DashboardView = memo(function DashboardView({
         {tab === 'INACTIVE' && (
           <p className="-mt-2 mb-5 flex items-start gap-2 text-[12px] font-semibold leading-relaxed text-gray-500 dark:text-gray-400">
             <Moon size={13} className="mt-0.5 shrink-0 text-[#C9A24D]" />
-            Asleep: no new matches and no emails. A Showcase falls asleep when the client ignores 3 weekly emails in a row, or when you switch it off. It wakes up by itself if they open it again, or you can switch it back on.
+            Asleep: no new matches and no emails. A Showcase falls asleep when the client ignores 3 weekly emails in a row - unless you starred it, or in the last 2 weeks opened it or worked that lead (opened the lead, a note, a follow-up) - or when you switch it off. It wakes up by itself if they open it again, or switch it back on (starring it wakes it too).
           </p>
         )}
 
@@ -691,7 +691,7 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
           </div>
         )}
         <motion.button whileTap={{ scale: 0.85 }} onClick={stop(() => onFavoriteToggle(collection.id))}
-          aria-pressed={!!collection.favoritedAt} title={collection.favoritedAt ? 'Starred - click to unstar' : 'Star this Showcase (keeps it at the top)'}
+          aria-pressed={!!collection.favoritedAt} title={collection.favoritedAt ? 'Starred - click to unstar' : 'Star it: stays at the top and never falls asleep'}
           className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full shadow-md backdrop-blur-0 transition-colors ${collection.favoritedAt ? 'bg-[#C9A24D] text-white' : 'bg-white/90 text-gray-400 hover:text-[#C9A24D] dark:bg-[#151517]/90'}`}>
           <Star size={15} fill={collection.favoritedAt ? 'currentColor' : 'none'} strokeWidth={2.5} />
         </motion.button>
@@ -792,11 +792,23 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
                 ? `Switched off by you${collection.inactiveAt ? ' ' + formatRelativeDay(collection.inactiveAt).toLowerCase() : ''} - no new matches, no emails. Wakes up if ${collection.customer.firstName} opens it.`
                 : `Switched off - no new matches, no emails. Wakes up if ${collection.customer.firstName} opens it.`}</span>
           </div>
-        ) : collection.emailMode && collection.emailMode !== 'daily' && collection.customer.email ? (
-          <div title={collection.emailModeReason || undefined}
-            className={`-mb-1 flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[10.5px] font-bold ${collection.emailMode === 'weekly' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300' : 'bg-gray-50 text-gray-500 dark:bg-white/[0.04] dark:text-gray-400'}`}>
-            <Mail size={11} className="shrink-0" />
-            {collection.emailMode === 'weekly' ? 'Emails weekly - not opening them' : 'Emails off'}
+        ) : (collection.favoritedAt || (collection.emailMode && collection.emailMode !== 'daily' && collection.customer.email)) ? (
+          <div className="-mb-1 flex flex-col gap-1.5">
+            {/* Starred = you're minding it: it never falls asleep (the client's emails still follow the email rules). */}
+            {collection.favoritedAt && (
+              <div className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#C9A24D]/20 to-[#e8c97a]/10 px-2.5 py-1.5 text-[10.5px] font-black text-[#8b6a2b] ring-1 ring-[#C9A24D]/30 dark:text-[#e8c97a]">
+                <Star size={11} fill="currentColor" className="shrink-0" /> Starred - stays awake
+              </div>
+            )}
+            {collection.emailMode && collection.emailMode !== 'daily' && collection.customer.email && (
+              <div title={collection.emailModeReason || undefined}
+                className={`flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[10.5px] font-bold ${collection.emailMode === 'weekly' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300' : 'bg-gray-50 text-gray-500 dark:bg-white/[0.04] dark:text-gray-400'}`}>
+                <Mail size={11} className="shrink-0" />
+                {collection.emailMode === 'weekly' ? 'Emails weekly - not opening them'
+                  : !(collection.emailModeReason || '').startsWith("Didn't open") ? 'Emails off'
+                  : collection.favoritedAt ? 'Emails off - not opening them' : 'Emails off - star it to keep it awake'}
+              </div>
+            )}
           </div>
         ) : null}
 

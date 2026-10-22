@@ -609,10 +609,14 @@ function ShowcaseContent() {
     if (!collection) return
     const next = collection.favoritedAt ? null : new Date().toISOString()
     setCollections(prev => prev.map(c => c.id === collectionId ? { ...c, favoritedAt: next } : c))
-    const { success, error } = await api.collections.setFavorite(collectionId, !!next)
+    const { success, data, error } = await api.collections.setFavorite(collectionId, !!next)
     if (!success) {
       setCollections(prev => prev.map(c => c.id === collectionId ? { ...c, favoritedAt: collection.favoritedAt ?? null } : c))
       showToast(error || 'Could not save the star', 'error')
+    } else if (data?.status === 'ACTIVE' && collection.status !== 'ACTIVE') {
+      // Starring a Showcase that fell asleep for no response wakes it (starred ones never sleep).
+      setCollections(prev => prev.map(c => c.id === collectionId ? { ...c, status: 'ACTIVE', inactiveReason: null, inactiveAt: null } : c))
+      showToast('Starred - it\'s awake again and catching up on new homes', 'success')
     }
   }
 

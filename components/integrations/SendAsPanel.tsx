@@ -175,7 +175,8 @@ export function InboxRules() {
   const backoff = [
     'Someone who leaves your emails unopened on 3 different days drops to one email a week.',
     'If they also skip 3 weekly emails, automatic emails to them stop. Their lead card tells you why.',
-    'The moment they open one or use their Showcase, daily updates turn back on by themselves.',
+    'Their Showcase then goes to sleep (Showcases -> Inactive) - unless you starred it, or in the last 2 weeks opened it or worked that lead. You still get its updates while it\'s awake.',
+    'The moment they open one or use their Showcase, daily updates turn back on by themselves (a sleeping Showcase wakes up too).',
     'Your 4:30 emails go out a few seconds apart, never in one burst - bursts look like spam. Every update has a one-click unsubscribe.',
   ]
   return (

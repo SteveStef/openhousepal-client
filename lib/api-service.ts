@@ -979,9 +979,9 @@ class ApiService {
         body: JSON.stringify({ status }),
       }),
 
-    // Star a Showcase - starred ones sort first on the Showcases page.
+    // Star a Showcase - starred ones sort first and never fall asleep (starring a sleeping one wakes it).
     setFavorite: (collectionId: string, favorite: boolean) =>
-      this.request<{ favorited_at: string | null }>(`/collections/${collectionId}/favorite`, {
+      this.request<{ favorited_at: string | null; status?: string }>(`/collections/${collectionId}/favorite`, {
         method: 'PUT',
         body: JSON.stringify({ favorite }),
       }),
