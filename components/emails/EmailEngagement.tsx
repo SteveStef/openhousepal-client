@@ -76,14 +76,24 @@ export function PersonSwitch({ p, onChanged, size = 'sm' }: { p: EmailPerson; on
   )
 }
 
+/** What happened to one sent email, in a few words - the same everywhere (lead view, Emails page).
+ *  Spam / bounce / blocked come from Mailgun's webhooks; nobody can see the spam folder itself. */
+export function deliveryState(e: ClientEmailRow): { tone: 'rose' | 'amber' | 'emerald' | 'gray'; text: string } | null {
+  if (e.delivery === 'spam') return { tone: 'rose', text: 'Marked as spam by them' }
+  if (e.status === 'failed') return { tone: 'rose', text: `Didn't go through${e.error || e.delivery_note ? ` - ${e.error || e.delivery_note}` : ''}` }
+  if (e.delivery === 'delayed' && !e.opened_at) return { tone: 'amber', text: 'Delayed - their email server is slow, retrying' }
+  if (e.opened_at) return null
+  return { tone: 'gray', text: e.delivery === 'delivered' ? 'Delivered - not opened yet' : 'Not opened yet' }
+}
+
 /** One sent email: what, when, opened / clicked. */
 export function EmailRowLine({ e, showTo = false }: { e: ClientEmailRow; showTo?: boolean }) {
   return (
     <div className="flex min-w-0 items-start gap-3">
       <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${e.clicked_at ? 'bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300'
         : e.opened_at ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300'
-          : e.status === 'failed' ? 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300' : 'bg-gray-100 text-gray-400 dark:bg-white/[0.06]'}`}>
-        {e.clicked_at ? <MousePointerClick className="h-3.5 w-3.5" /> : e.opened_at ? <MailOpen className="h-3.5 w-3.5" /> : e.status === 'failed' ? <MailX className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}
+          : (e.status === 'failed' || e.delivery === 'spam') ? 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300' : 'bg-gray-100 text-gray-400 dark:bg-white/[0.06]'}`}>
+        {e.clicked_at ? <MousePointerClick className="h-3.5 w-3.5" /> : e.opened_at ? <MailOpen className="h-3.5 w-3.5" /> : (e.status === 'failed' || e.delivery === 'spam') ? <MailX className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}
       </span>
       <div className="min-w-0 flex-1">
         <p className="line-clamp-2 text-[13px] font-black leading-snug text-[#111827] dark:text-white">{e.subject || e.label}</p>
@@ -93,11 +103,13 @@ export function EmailRowLine({ e, showTo = false }: { e: ClientEmailRow; showTo?
         </p>
         <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] font-bold">
           <span className="text-gray-400">{e.status === 'failed' ? 'Tried' : 'Sent'} {timeAgo(e.sent_at || e.created_at) || '-'}</span>
-          {e.status === 'failed'
-            ? <span className="text-rose-600 dark:text-rose-300" title={e.error || undefined}>Didn&apos;t go through{e.error ? ` - ${e.error}` : ''}</span>
-            : e.opened_at
-              ? <span className="text-emerald-600 dark:text-emerald-300">Opened {timeAgo(e.opened_at)}{e.open_count > 1 ? ` · ${e.open_count}×` : ''}</span>
-              : <span className="text-gray-400">Not opened yet</span>}
+          {e.opened_at && e.delivery !== 'spam' && <span className="text-emerald-600 dark:text-emerald-300">Opened {timeAgo(e.opened_at)}{e.open_count > 1 ? ` · ${e.open_count}×` : ''}</span>}
+          {(() => {
+            const d = deliveryState(e)
+            if (!d) return null
+            const c = d.tone === 'rose' ? 'text-rose-600 dark:text-rose-300' : d.tone === 'amber' ? 'text-amber-600 dark:text-amber-300' : 'text-gray-400'
+            return <span className={c} title={e.delivery_note || e.error || undefined}>{d.text}</span>
+          })()}
           {e.clicked_at && <span className="text-sky-600 dark:text-sky-300">Clicked {timeAgo(e.clicked_at)}{e.click_count > 1 ? ` · ${e.click_count}×` : ''}</span>}
         </p>
       </div>

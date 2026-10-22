@@ -2310,6 +2310,8 @@ export interface Lead {
 
 /** How automatic emails go to one client: daily (normal), weekly (stopped opening them) or off. */
 export type EmailMode = 'daily' | 'weekly' | 'off';
+export type EmailDelivery = 'delivered' | 'delayed' | 'bounced' | 'blocked' | 'spam';
+
 export interface EmailPerson {
   email: string;
   mode: EmailMode;
@@ -2329,6 +2331,8 @@ export interface EmailPerson {
   last_template?: string | null;
   last_opened_at?: string | null;
   last_clicked_at?: string | null;
+  /** Mailgun said their address bounced / was blocked / they marked an email as spam. */
+  problem?: { delivery: EmailDelivery; note?: string | null; at?: string | null } | null;
   lead_id?: string | null;
   name?: string | null;
 }
@@ -2344,6 +2348,11 @@ export interface ClientEmailRow {
   kind: 'auto' | 'personal';
   via?: 'mailbox' | 'openhousepal' | null;
   status: 'sent' | 'failed';
+  /** What Mailgun reported after sending (webhooks). Nobody can see inbox vs spam folder - only
+   *  delivered, delayed, bounced, blocked, or that they marked it as spam. */
+  delivery?: EmailDelivery | null;
+  delivery_note?: string | null;
+  delivery_at?: string | null;
   /** Why it didn't go through, in plain words (failed only). */
   error?: string | null;
   created_at?: string | null;

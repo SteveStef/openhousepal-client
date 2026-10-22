@@ -10,7 +10,7 @@ import { ArrowRight, ArrowUpDown, CalendarClock, Mail, MailCheck, MailOpen, Mail
 import api from '@/lib/api-service'
 import LuxeHero, { LuxeStats, LuxeTabs } from '@/components/ui/LuxeHero'
 import Pager from '@/components/ui/Pager'
-import { ModePill, PersonSwitch, rateTone, sentence } from '@/components/emails/EmailEngagement'
+import { deliveryState, ModePill, PersonSwitch, rateTone, sentence } from '@/components/emails/EmailEngagement'
 import LuxeSelect from '@/components/ui/LuxeSelect'
 import { AnimatePresence, motion } from 'framer-motion'
 import { timeAgo } from '@/lib/leadActivity'
@@ -230,11 +230,12 @@ function EmailsInner() {
                         <Send className="h-3 w-3" /> {e.status === 'failed' ? 'Tried' : 'Sent'} {when(e.sent_at || e.created_at)}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {e.status === 'failed'
-                          ? <Chip tone="rose" icon={MailX}>Didn&apos;t go through{e.error ? ` - ${e.error}` : ''}</Chip>
-                          : e.opened_at
-                            ? <Chip tone="emerald" icon={MailOpen}>Opened {when(e.opened_at)}{e.open_count > 1 ? ` · ${e.open_count}×` : ''}</Chip>
-                            : <Chip tone="gray" icon={Mail}>Not opened yet</Chip>}
+                        {e.opened_at && e.delivery !== 'spam' && <Chip tone="emerald" icon={MailOpen}>Opened {when(e.opened_at)}{e.open_count > 1 ? ` · ${e.open_count}×` : ''}</Chip>}
+                        {(() => {
+                          const d = deliveryState(e)
+                          if (!d) return null
+                          return <Chip tone={d.tone === 'amber' ? 'gray' : d.tone} icon={d.tone === 'rose' ? MailX : Mail}>{d.text}</Chip>
+                        })()}
                         {e.clicked_at && <Chip tone="sky" icon={MousePointerClick}>Clicked {when(e.clicked_at)}{e.click_count > 1 ? ` · ${e.click_count}×` : ''}</Chip>}
                       </div>
                     </div>
