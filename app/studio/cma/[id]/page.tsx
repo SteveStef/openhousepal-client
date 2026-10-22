@@ -4316,13 +4316,12 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-[#151517]">
-      {/* Grid instead of a two-way flex split, so the Prev/1-of-N/Next comp nav lands truly
-          centered in the row (equal 1fr side columns) instead of stuck to the left next to the
-          title with nothing balancing it on the right. */}
-      <div className="grid grid-cols-[auto_1fr] items-center gap-2 border-b border-gray-100 px-3 py-3 dark:border-gray-800 sm:grid-cols-[1fr_auto_1fr] sm:px-4">
+      {/* Phones: title + Pricing, then Photos/Map and the comp arrows on the row under it. Computers
+          (user, 10/21): one row - the title, then Photos/Map right next to the arrows, then Continue. */}
+      <div className="grid grid-cols-[auto_1fr] items-center gap-2 border-b border-gray-100 px-3 py-3 dark:border-gray-800 sm:flex sm:gap-3 sm:px-4">
         {/* Phones (user, 10/21): Pricing sits on the title line, so the row under it has room for
             the Photos/Map switch with its words showing, and the comp arrows. */}
-        <div className="col-span-2 flex min-w-0 items-center justify-between gap-2 sm:col-span-1">
+        <div className="col-span-2 flex min-w-0 items-center justify-between gap-2 sm:flex-1">
           <p className="truncate text-base font-black text-[#111827] dark:text-white sm:text-lg">
             <span className="sm:hidden">Subject vs. Comp #{index + 1}</span><span className="hidden sm:inline">Comparing Subject vs. Comp #{index + 1}</span>
           </p>
