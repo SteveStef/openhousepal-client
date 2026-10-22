@@ -979,6 +979,13 @@ class ApiService {
         body: JSON.stringify({ status }),
       }),
 
+    // Star a Showcase - starred ones sort first on the Showcases page.
+    setFavorite: (collectionId: string, favorite: boolean) =>
+      this.request<{ favorited_at: string | null }>(`/collections/${collectionId}/favorite`, {
+        method: 'PUT',
+        body: JSON.stringify({ favorite }),
+      }),
+
     updateNotifications: (collectionId: string, notifyVisitor: boolean, notifyAgent: boolean) =>
       this.request<{ success: boolean; message: string; notify_visitor: boolean; notify_agent: boolean }>(`/collections/${collectionId}/notifications`, {
         method: 'PATCH',

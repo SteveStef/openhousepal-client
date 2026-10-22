@@ -814,6 +814,15 @@ export interface Collection {
   // (see EditShowcaseCriteriaModal's "Ask Your Agent" tab and DetailView's banner).
   refineRequestMessage?: string | null;
   refineRequestAt?: string | null;
+  /** The agent starred it - sorts first on the Showcases page. */
+  favoritedAt?: string | null;
+  /** Why it's Inactive (asleep): 'no_response' = the client ignored 3 weekly emails (wakes by itself
+   *  when they open it), 'agent' = switched off by hand, null = older rows. */
+  inactiveReason?: string | null;
+  inactiveAt?: string | null;
+  /** The client's automatic emails: daily, weekly (not opening them) or off - and why. */
+  emailMode?: 'daily' | 'weekly' | 'off';
+  emailModeReason?: string | null;
 }
 
 export interface User {

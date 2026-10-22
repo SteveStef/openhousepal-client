@@ -221,6 +221,11 @@ function ShowcaseContent() {
       matchedProperties: backendCollection.matchedProperties || [],
       refineRequestMessage: backendCollection.refine_request_message || null,
       refineRequestAt: backendCollection.refine_request_at || null,
+      favoritedAt: backendCollection.favorited_at || null,
+      inactiveReason: backendCollection.inactive_reason || null,
+      inactiveAt: backendCollection.inactive_at || null,
+      emailMode: backendCollection.email_mode || 'daily',
+      emailModeReason: backendCollection.email_mode_reason || null,
     }
   }, [])
 
@@ -585,12 +590,29 @@ function ShowcaseContent() {
     const newStatus = collection.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
     const { success, error } = await api.collections.updateStatus(collectionId, newStatus)
     if (success) {
-      setCollections(prev => prev.map(c => c.id === collectionId ? { ...c, status: newStatus } : c))
+      // Off by hand = asleep 'agent'; back on clears why it slept.
+      const sleep = newStatus === 'INACTIVE'
+        ? { inactiveReason: 'agent', inactiveAt: new Date().toISOString() }
+        : { inactiveReason: null, inactiveAt: null, ...(collection.inactiveReason === 'no_response' && collection.emailMode === 'off' ? { emailMode: 'daily' as const, emailModeReason: 'Turned back on by you' } : {}) }
+      setCollections(prev => prev.map(c => c.id === collectionId ? { ...c, status: newStatus, ...sleep } : c))
       if (selectedCollection?.id === collectionId) {
-        setSelectedCollection(prev => prev ? { ...prev, status: newStatus } : null)
+        setSelectedCollection(prev => prev ? { ...prev, status: newStatus, ...sleep } : null)
       }
+      showToast(newStatus === 'INACTIVE' ? 'Showcase asleep - moved to Inactive' : 'Showcase awake - catching up on new homes', 'success')
     } else {
       showToast(error || 'Failed to update status', 'error')
+    }
+  }
+
+  const handleFavoriteToggle = async (collectionId: string) => {
+    const collection = collections.find(c => c.id === collectionId)
+    if (!collection) return
+    const next = collection.favoritedAt ? null : new Date().toISOString()
+    setCollections(prev => prev.map(c => c.id === collectionId ? { ...c, favoritedAt: next } : c))
+    const { success, error } = await api.collections.setFavorite(collectionId, !!next)
+    if (!success) {
+      setCollections(prev => prev.map(c => c.id === collectionId ? { ...c, favoritedAt: collection.favoritedAt ?? null } : c))
+      showToast(error || 'Could not save the star', 'error')
     }
   }
 
@@ -1048,6 +1070,7 @@ function ShowcaseContent() {
           onEditPreferences={(c) => { setSelectedCollectionForEdit(c); setIsEditPreferencesModalOpen(true); }}
           onDelete={handleAskDelete}
           onStatusToggle={handleStatusToggle}
+          onFavoriteToggle={handleFavoriteToggle}
           onDismissNew={handleDismissNew}
           onOpenTours={handleDashboardTourClick}
           onOpenComments={handleOpenComments}

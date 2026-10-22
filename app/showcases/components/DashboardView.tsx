@@ -3,7 +3,7 @@
 import { useState, useMemo, memo, forwardRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Collection, Property } from '@/types'
-import { Share2, Edit3, Trash2, Mail, Phone, Check, Copy, Users, Search, MapPin, X, Calendar, Heart, ThumbsDown, MessageSquare, Inbox, BedDouble, Bath, Ruler, Trees, Sparkles, Clock, Eye, Wallet, CheckCircle2, Home as HomeIcon } from 'lucide-react'
+import { Share2, Edit3, Trash2, Mail, Phone, Check, Copy, Users, Search, MapPin, X, Calendar, Heart, ThumbsDown, MessageSquare, Inbox, BedDouble, Bath, Ruler, Trees, Sparkles, Clock, Eye, Wallet, CheckCircle2, Home as HomeIcon, Star, Moon, ArrowUpDown } from 'lucide-react'
 import { formatRelativeDay } from '@/lib/relativeDays'
 import LuxeHero from '@/components/ui/LuxeHero'
 import { copyText } from '@/lib/copyText'
@@ -144,6 +144,7 @@ interface DashboardViewProps {
   onEditPreferences: (collection: Collection) => void;
   onDelete: (collection: Collection) => void;
   onStatusToggle: (collectionId: string) => void;
+  onFavoriteToggle: (collectionId: string) => void;
   onDismissNew: (collectionId: string) => void;
   onPropertyPreviewClick: (collection: Collection, property: Property) => void;
   onOpenTours: (collection: Collection) => void;
@@ -165,6 +166,7 @@ export const DashboardView = memo(function DashboardView({
   onEditPreferences,
   onDelete,
   onStatusToggle,
+  onFavoriteToggle,
   onDismissNew,
   onPropertyPreviewClick,
   onOpenTours,
@@ -176,8 +178,16 @@ export const DashboardView = memo(function DashboardView({
   onOpenActivityInbox,
 }: DashboardViewProps) {
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL')
+  // Active = awake Showcases; Inactive = asleep (no new matches, no emails) - user, 10/22.
+  const [tab, setTab] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE')
+  const [newOnly, setNewOnly] = useState(false)
+  const [sortBy, setSortBy] = useState<SortKey>('smart')
   const [budgetFilter, setBudgetFilter] = useState('ALL')
+  const tabCounts = useMemo(() => ({
+    ACTIVE: collections.filter(c => c.status === 'ACTIVE').length,
+    INACTIVE: collections.filter(c => c.status !== 'ACTIVE').length,
+  }), [collections])
+  const newCount = useMemo(() => collections.filter(c => (c.status === 'ACTIVE') === (tab === 'ACTIVE') && c.stats.newProperties > 0).length, [collections, tab])
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
   const handleCopy = (e: React.MouseEvent, fieldKey: string, value: string) => {
@@ -238,7 +248,7 @@ export const DashboardView = memo(function DashboardView({
         displayLocations.some((l: string) => l.toLowerCase().includes(query))
 
       // Status Filter
-      const matchesStatus = statusFilter === 'ALL' || collection.status === statusFilter
+      const matchesStatus = (collection.status === 'ACTIVE') === (tab === 'ACTIVE') && (!newOnly || collection.stats.newProperties > 0)
 
       // Budget Filter Logic (Numeric Buckets)
       let matchesBudget = true
@@ -265,20 +275,22 @@ export const DashboardView = memo(function DashboardView({
       return matchesSearch && matchesStatus && matchesBudget
     })
     .sort((a, b) => {
-      // Straight recency sort on whichever is more recent - real visitor activity, or the
-      // showcase's own creation. A showcase created today has to outrank one whose last activity
-      // was 3 days ago; treating "has activity at all" as its own tier (regardless of how old)
-      // got that backwards, so this compares actual timestamps instead of boolean tiers.
-      const aTimestamp = Math.max(a.stats.lastActivity ? new Date(a.stats.lastActivity).getTime() : 0, new Date(a.createdAt).getTime())
-      const bTimestamp = Math.max(b.stats.lastActivity ? new Date(b.stats.lastActivity).getTime() : 0, new Date(b.createdAt).getTime())
-      if (aTimestamp !== bTimestamp) return bTimestamp - aTimestamp
-
-      // Tie-break: fresh unseen matches nudge an otherwise-equal showcase up.
-      const aNewMatches = a.stats.newProperties > 0 ? 1 : 0
-      const bNewMatches = b.stats.newProperties > 0 ? 1 : 0
-      return bNewMatches - aNewMatches
+      // Starred ones always lead (user, 10/22), whatever the sort.
+      const fav = (b.favoritedAt ? 1 : 0) - (a.favoritedAt ? 1 : 0)
+      if (fav) return fav
+      // Recency on whichever is more recent - real visitor activity, or the showcase's own
+      // creation. A showcase created today has to outrank one whose last activity was 3 days ago,
+      // so this compares actual timestamps instead of "has activity at all" tiers.
+      const recent = (c: Collection) => Math.max(c.stats.lastActivity ? new Date(c.stats.lastActivity).getTime() : 0, new Date(c.createdAt).getTime())
+      const byRecent = recent(b) - recent(a)
+      const byNew = b.stats.newProperties - a.stats.newProperties
+      if (sortBy === 'new') return byNew || byRecent
+      if (sortBy === 'created') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      if (sortBy === 'slept') return new Date(b.inactiveAt || 0).getTime() - new Date(a.inactiveAt || 0).getTime() || byRecent
+      // 'smart' (default): most recent client activity, then fresh unseen matches.
+      return byRecent || byNew
     })
-  }, [collections, searchTerm, statusFilter, budgetFilter])
+  }, [collections, searchTerm, tab, newOnly, sortBy, budgetFilter])
 
   return (
     <div className="flex-1 p-6 pb-20 sm:pb-32">
@@ -361,12 +373,13 @@ export const DashboardView = memo(function DashboardView({
             />
             <LuxeSelect
               className="w-[120px] flex-shrink-0"
-              ariaLabel="Filter by status"
-              value={statusFilter}
-              placeholderValue="ALL"
-              onChange={setStatusFilter}
-              menuWidth={200}
-              options={STATUS_OPTIONS}
+              ariaLabel="Sort Showcases"
+              icon={<ArrowUpDown size={12} />}
+              value={sortBy}
+              placeholderValue="smart"
+              onChange={setSortBy}
+              menuWidth={220}
+              options={tab === 'INACTIVE' ? SORT_OPTIONS : SORT_OPTIONS.filter(o => o.value !== 'slept')}
             />
 
             {/* Same gradient CTA treatment as the flagship "View Tours" button elsewhere in
@@ -387,6 +400,34 @@ export const DashboardView = memo(function DashboardView({
             </div>
           }
         />
+
+        {/* Active / Inactive (asleep) + new-matches filter */}
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+          <div className="inline-flex rounded-full border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
+            {(['ACTIVE', 'INACTIVE'] as const).map(t => (
+              <button key={t} onClick={() => { setTab(t); if (t === 'ACTIVE' && sortBy === 'slept') setSortBy('smart') }}
+                className={`relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-black transition-colors ${tab === t ? 'text-[#111827]' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
+                {tab === t && <motion.span layoutId="showcase-tab" className="absolute inset-0 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a]" transition={{ type: 'spring', stiffness: 500, damping: 36 }} />}
+                <span className="relative flex items-center gap-1.5">
+                  {t === 'INACTIVE' && <Moon size={12} />}
+                  {t === 'ACTIVE' ? 'Active' : 'Inactive'}
+                  <span className={`rounded-full px-1.5 text-[10px] ${tab === t ? 'bg-white/60' : 'bg-gray-100 dark:bg-gray-800'}`}>{tabCounts[t]}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setNewOnly(v => !v)} aria-pressed={newOnly}
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-black transition-colors ${newOnly ? 'border-green-500 bg-green-500 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-green-400 hover:text-green-700 dark:border-gray-800 dark:bg-[#151517] dark:text-gray-300'}`}>
+            <Sparkles size={12} /> New matches
+            <span className={`rounded-full px-1.5 text-[10px] ${newOnly ? 'bg-white/25' : 'bg-gray-100 dark:bg-gray-800'}`}>{newCount}</span>
+          </button>
+        </div>
+        {tab === 'INACTIVE' && (
+          <p className="-mt-2 mb-5 flex items-start gap-2 text-[12px] font-semibold leading-relaxed text-gray-500 dark:text-gray-400">
+            <Moon size={13} className="mt-0.5 shrink-0 text-[#C9A24D]" />
+            Asleep: no new matches and no emails. A Showcase falls asleep when the client ignores 3 weekly emails in a row, or when you switch it off. It wakes up by itself if they open it again, or you can switch it back on.
+          </p>
+        )}
 
         {/* Cards */}
         {isLoading ? (
@@ -410,11 +451,16 @@ export const DashboardView = memo(function DashboardView({
                 <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">Guests who sign in at your open houses get one automatically. You can also make one for any client.</p>
                 <button onClick={onCreateClick} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#111827] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-black dark:bg-white dark:text-[#111827]">+ Create a Showcase</button>
               </>
+            ) : tab === 'INACTIVE' && tabCounts.INACTIVE === 0 ? (
+              <>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight">Nothing asleep</h3>
+                <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">Every Showcase is awake and updating.</p>
+              </>
             ) : (
               <>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight">No showcases found</h3>
                 <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">Try adjusting your filters.</p>
-                <button onClick={() => { setSearchTerm(''); setBudgetFilter('ALL'); setStatusFilter('ALL') }} className="mt-5 inline-flex items-center gap-2 rounded-xl border border-[#C9A24D]/40 px-5 py-2.5 text-sm font-bold text-[#8b6a2b] transition hover:bg-[#C9A24D]/10 dark:text-[#e8c97a]">Clear filters</button>
+                <button onClick={() => { setSearchTerm(''); setBudgetFilter('ALL'); setNewOnly(false) }} className="mt-5 inline-flex items-center gap-2 rounded-xl border border-[#C9A24D]/40 px-5 py-2.5 text-sm font-bold text-[#8b6a2b] transition hover:bg-[#C9A24D]/10 dark:text-[#e8c97a]">Clear filters</button>
               </>
             )}
           </motion.div>
@@ -431,6 +477,7 @@ export const DashboardView = memo(function DashboardView({
                   onEditPreferences={onEditPreferences}
                   onDelete={onDelete}
                   onStatusToggle={onStatusToggle}
+                  onFavoriteToggle={onFavoriteToggle}
                   onDismissNew={onDismissNew}
                   onPropertyPreviewClick={onPropertyPreviewClick}
                   onOpenTours={onOpenTours}
@@ -457,10 +504,13 @@ const BUDGET_OPTIONS: LuxeOption<string>[] = [
   { value: 'OVER_2500', label: '$2.5M+' },
 ]
 
-const STATUS_OPTIONS: LuxeOption<'ALL' | 'ACTIVE' | 'INACTIVE'>[] = [
-  { value: 'ALL', label: 'All status', hint: 'Live and paused', dot: '#C9A24D' },
-  { value: 'ACTIVE', label: 'Active', hint: 'Sending new matches', dot: '#22c55e' },
-  { value: 'INACTIVE', label: 'Inactive', hint: 'Paused - nothing sent', dot: '#9ca3af' },
+type SortKey = 'smart' | 'new' | 'created' | 'slept'
+// Starred Showcases lead in every sort.
+const SORT_OPTIONS: LuxeOption<SortKey>[] = [
+  { value: 'smart', label: 'Activity', hint: 'Starred, then latest client activity, then new matches' },
+  { value: 'new', label: 'New matches', hint: 'Most new homes first' },
+  { value: 'created', label: 'Newest', hint: 'Most recently made' },
+  { value: 'slept', label: 'Fell asleep', hint: 'Most recently asleep first' },
 ]
 
 // "$1,250,000" -> "$1.25M", "$649,900" -> "$650K" - the photo tiles are small.
@@ -482,6 +532,7 @@ interface ShowcaseCardProps {
   onEditPreferences: (collection: Collection) => void;
   onDelete: (collection: Collection) => void;
   onStatusToggle: (collectionId: string) => void;
+  onFavoriteToggle: (collectionId: string) => void;
   onDismissNew: (collectionId: string) => void;
   onPropertyPreviewClick: (collection: Collection, property: Property) => void;
   onOpenTours: (collection: Collection) => void;
@@ -499,6 +550,7 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
   onEditPreferences,
   onDelete,
   onStatusToggle,
+  onFavoriteToggle,
   onDismissNew,
   onPropertyPreviewClick,
   onOpenTours,
@@ -633,6 +685,11 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
             <span className="text-[10px] font-bold text-gray-400">Needs Update</span>
           </div>
         )}
+        <motion.button whileTap={{ scale: 0.85 }} onClick={stop(() => onFavoriteToggle(collection.id))}
+          aria-pressed={!!collection.favoritedAt} title={collection.favoritedAt ? 'Starred - click to unstar' : 'Star this Showcase (keeps it at the top)'}
+          className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full shadow-md backdrop-blur-0 transition-colors ${collection.favoritedAt ? 'bg-[#C9A24D] text-white' : 'bg-white/90 text-gray-400 hover:text-[#C9A24D] dark:bg-[#151517]/90'}`}>
+          <Star size={15} fill={collection.favoritedAt ? 'currentColor' : 'none'} strokeWidth={2.5} />
+        </motion.button>
       </div>
 
       <div className="flex flex-1 flex-col gap-3 p-4">
@@ -683,7 +740,7 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
               )}
               <span className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest ${active ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/50 dark:bg-green-900/30 dark:text-green-400' : 'border-gray-200 bg-gray-100 text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'}`}>
                 <span className={`inline-flex h-1.5 w-1.5 rounded-full ${active ? 'bg-green-500' : 'bg-gray-400'}`} />
-                {active ? 'Active' : 'Inactive'}
+                {active ? 'Active' : 'Asleep'}
               </span>
             </div>
             {collection.stats.totalProperties > 0 && (
@@ -719,6 +776,24 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
             ))}
           </div>
         </div>
+
+        {/* Why it's asleep / how often the client hears from you */}
+        {!active ? (
+          <div className="-mb-1 flex items-start gap-1.5 rounded-xl bg-gray-50 px-2.5 py-2 text-[10.5px] font-bold leading-snug text-gray-500 dark:bg-white/[0.04] dark:text-gray-400">
+            <Moon size={11} className="mt-px shrink-0 text-[#C9A24D]" />
+            <span>{collection.inactiveReason === 'no_response'
+              ? `Fell asleep ${collection.inactiveAt ? formatRelativeDay(collection.inactiveAt).toLowerCase() : 'recently'} - ${collection.customer.firstName} ignored 3 weekly emails. Wakes up if they open it.`
+              : collection.inactiveReason === 'agent'
+                ? `Switched off by you${collection.inactiveAt ? ' ' + formatRelativeDay(collection.inactiveAt).toLowerCase() : ''} - no new matches, no emails.`
+                : 'Switched off - no new matches, no emails.'}</span>
+          </div>
+        ) : collection.emailMode && collection.emailMode !== 'daily' && collection.customer.email ? (
+          <div title={collection.emailModeReason || undefined}
+            className={`-mb-1 flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[10.5px] font-bold ${collection.emailMode === 'weekly' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300' : 'bg-gray-50 text-gray-500 dark:bg-white/[0.04] dark:text-gray-400'}`}>
+            <Mail size={11} className="shrink-0" />
+            {collection.emailMode === 'weekly' ? 'Emails weekly - not opening them' : 'Emails off'}
+          </div>
+        ) : null}
 
         {/* Needs you: message / tours / likes / dislikes / comments / new matches */}
         <div className="flex min-h-[26px] flex-wrap items-center gap-1.5">
@@ -791,7 +866,7 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
           <button
             onClick={stop(() => onStatusToggle(collection.id))}
             className="flex items-center gap-2 rounded-full py-1 pl-2 pr-1 text-[10px] font-black uppercase tracking-wider text-gray-400 transition-colors hover:text-[#111827] dark:hover:text-white"
-            title={active ? 'Deactivate Showcase' : 'Activate Showcase'}
+            title={active ? 'Put to sleep: no new matches, no emails' : 'Wake up: catches up on new homes and emails start again'}
           >
             <span className={active ? 'text-green-600 dark:text-green-400' : ''}>{active ? 'On' : 'Off'}</span>
             <span className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors duration-300 ${active ? 'bg-green-500 shadow-[0_4px_12px_-4px_rgba(34,197,94,.8)]' : 'bg-gray-200 dark:bg-gray-700'}`}>
