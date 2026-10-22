@@ -346,10 +346,10 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
                 ...(onToggleQrDarkMode ? [{
                   key: 'qr-theme',
                   // Shows the CURRENT theme (moon = dark, sun = light); tap to switch.
-                  label: qrDarkMode ? 'Dark' : 'Light',
+                  label: qrDarkMode ? 'Midnight' : 'Ivory',
                   icon: (qrDarkMode ? 'moon' : 'sun') as 'moon' | 'sun',
                   showInfo: true,
-                  hint: `Sign-in screen theme: ${qrDarkMode ? 'DARK' : 'LIGHT'} (tap to switch). Sets the look of the on-screen Sign-In Sheet/Kiosk guests see when they scan this QR code or use the tablet. Does NOT affect the printed flyer.`,
+                  hint: `Sign-in screen theme: ${qrDarkMode ? 'MIDNIGHT' : 'IVORY'} (tap to switch). Sets the look of the on-screen Sign-In Sheet/Kiosk guests see when they scan this QR code or use the tablet. Does NOT affect the printed flyer.`,
                   onClick: onToggleQrDarkMode,
                 }] : []),
               ]] : []),

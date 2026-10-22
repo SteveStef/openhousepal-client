@@ -30,6 +30,7 @@ import {
   scrollToId, STATUS_COLORS, type PropertySiteAgent, type PropertySiteChapter, type SpotlightModel,
 } from './spotlight/model'
 import { onAccent, usableAccent } from './spotlight/tone'
+import { SP_MOTION_CSS, useOffscreenPause, usePresence } from './spotlight/motion'
 import NearbyMap from '@/components/maps/NearbyMap'
 
 // Types + helpers now live in ./spotlight/model (shared with EditorialEstateTemplate); re-exported
@@ -66,6 +67,7 @@ export default function CinematicLuxuryTemplate({ data, publicUrl }: { data: Pro
   }, [m.photos, p.address])
 
   useCinematicMotion(rootRef, heroImgRef)
+  useOffscreenPause(rootRef)
 
   const navItems: NavItem[] = [
     { id: 'overview', label: 'Overview', show: true },
@@ -88,7 +90,7 @@ export default function CinematicLuxuryTemplate({ data, publicUrl }: { data: Pro
       className={`cl ${display.variable} ${sans.variable} bg-[#0A0A0A] text-white`}
       style={{ ['--sp-accent' as string]: accent, ['--sp-on-accent' as string]: onAccent(accent) }}
     >
-      <style>{CL_CSS}</style>
+      <style>{CL_CSS + SP_MOTION_CSS}</style>
       <ScrollGoldLine />
       <SpotlightViewBeacon siteId={data.site_id} />
       <SpotlightJsonLd m={m} url={publicUrl} />
@@ -205,11 +207,14 @@ function useCinematicMotion(rootRef: React.RefObject<HTMLDivElement | null>, her
             scrollTrigger: { trigger: el.parentElement, start: 'top bottom', end: 'bottom top', scrub: 0.6 },
           })
         })
+        // The photo "window" opening up as it scrolls in. It used to animate clip-path, which
+        // repaints the whole photo every frame; scaling the window (and counter-scaling the
+        // picture inside it) shows exactly the same thing but runs on the graphics card.
         gsap.utils.toArray<HTMLElement>('.cl-wipe').forEach(el => {
-          gsap.fromTo(el, { clipPath: 'inset(12% 8% 12% 8%)' }, {
-            clipPath: 'inset(0% 0% 0% 0%)', ease: 'none',
-            scrollTrigger: { trigger: el, start: 'top 95%', end: 'top 35%', scrub: 0.6 },
-          })
+          const inner = el.querySelector<HTMLElement>('.cl-wipe-in')
+          const st = { trigger: el, start: 'top 95%', end: 'top 35%', scrub: 0.6 }
+          gsap.fromTo(el, { scaleX: 0.84, scaleY: 0.76 }, { scaleX: 1, scaleY: 1, ease: 'none', scrollTrigger: st })
+          if (inner) gsap.fromTo(inner, { scaleX: 1 / 0.84, scaleY: 1 / 0.76 }, { scaleX: 1, scaleY: 1, ease: 'none', scrollTrigger: { ...st } })
         })
       }, root)
       // Remote photos can still be decoding when ScrollTrigger first measures section heights -
@@ -264,6 +269,7 @@ function Monogram({ agent, size = 36 }: { agent?: PropertySiteAgent; size?: numb
 function NavBar({ items, m, logoUrl, onShare, allowTour }: { items: NavItem[]; m: SpotlightModel; logoUrl?: string | null; onShare: () => void; allowTour: boolean }) {
   const [solid, setSolid] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const menu = usePresence(menuOpen, 220)
   const visible = items.filter(i => i.show)
   const active = useScrollSpy(visible.map(i => i.id))
   useEffect(() => {
@@ -285,8 +291,8 @@ function NavBar({ items, m, logoUrl, onShare, allowTour }: { items: NavItem[]; m
 
   return (
     <>
-      <nav className={`fixed inset-x-0 top-0 z-[90] transition-all duration-500 ${solid ? 'border-b border-white/[0.07] bg-[#0A0A0A]/80 ' : 'bg-gradient-to-b from-black/60 to-transparent'}`}>
-        <div className={`flex w-full items-center justify-between gap-4 px-5 transition-all duration-500 sm:px-10 xl:px-14 ${solid ? 'h-16' : 'h-20'}`}>
+      <nav className={`fixed inset-x-0 top-0 z-[90] transition-[background-color,border-color] duration-500 ${solid ? 'border-b border-white/[0.07] bg-[#0A0A0A]/80 ' : 'bg-gradient-to-b from-black/60 to-transparent'}`}>
+        <div className={`flex w-full items-center justify-between gap-4 px-5 transition-[height] duration-500 sm:px-10 xl:px-14 ${solid ? 'h-16' : 'h-20'}`}>
           <button onClick={() => goTo('overview')} className="flex min-w-0 items-center gap-3 text-left" aria-label="Back to top">
             {/* The agent - photo, name, brokerage - on every screen (user, 10/17: phones showed only
                 a logo). A brokerage logo sits beside them on big screens. */}
@@ -327,15 +333,15 @@ function NavBar({ items, m, logoUrl, onShare, allowTour }: { items: NavItem[]; m
         </div>
       </nav>
 
-      {menuOpen && (
-        <div className="cl-menu fixed inset-0 z-[150] flex flex-col bg-[#0A0A0A]/[0.98] px-6 pb-10 pt-5" role="dialog" aria-modal="true" aria-label="Site menu">
+      {menu.show && (
+        <div className={`cl-menu fixed inset-0 z-[150] flex flex-col bg-[#0A0A0A]/[0.98] px-6 pb-10 pt-5 ${menu.closing ? 'is-closing pointer-events-none' : ''}`} role="dialog" aria-modal="true" aria-label="Site menu">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium uppercase tracking-[0.3em] text-white/45">{m.cityState || 'Menu'}</span>
             <button onClick={() => setMenuOpen(false)} className="rounded-full border border-white/15 p-2.5" aria-label="Close menu"><X className="h-4 w-4" /></button>
           </div>
-          <div className="mt-10 flex flex-1 flex-col gap-1 overflow-y-auto">
+          <div className="cl-menu-list mt-10 flex flex-1 flex-col gap-1 overflow-y-auto">
             {visible.map((i, n) => (
-              <button key={i.id} onClick={() => goTo(i.id)} className="group flex items-baseline gap-4 py-2 text-left">
+              <button key={i.id} onClick={() => goTo(i.id)} style={{ ['--i' as string]: n }} className="group flex items-baseline gap-4 py-2 text-left">
                 <span className="w-6 text-[11px] tabular-nums text-white/35">{String(n + 1).padStart(2, '0')}</span>
                 <span className={`sp-display text-4xl leading-tight transition ${active === i.id ? 'text-[color:var(--sp-accent)]' : 'text-white group-hover:text-[color:var(--sp-accent)]'}`}>{i.label}</span>
               </button>
@@ -380,17 +386,24 @@ function ScrollGoldLine() {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     let raf = 0
+    // The page height is measured only when it changes, not on every scroll frame (reading it
+    // mid-scroll can force the browser to lay the page out again).
+    let max = 1
+    const measure = () => { max = document.documentElement.scrollHeight - window.innerHeight }
     const tick = () => {
       raf = 0
       const el = ref.current
       if (!el) return
-      const max = document.documentElement.scrollHeight - window.innerHeight
       el.style.transform = `scaleX(${max > 0 ? Math.min(1, window.scrollY / max) : 0})`
     }
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(tick) }
+    measure()
     tick()
+    const ro = new ResizeObserver(() => { measure(); onScroll() })
+    ro.observe(document.body)
+    window.addEventListener('resize', measure)
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf) }
+    return () => { window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', measure); ro.disconnect(); cancelAnimationFrame(raf) }
   }, [])
   return <div ref={ref} aria-hidden className="cl-progress pointer-events-none fixed inset-x-0 top-0 z-[95] h-[2px] origin-left" style={{ transform: 'scaleX(0)' }} />
 }
@@ -433,7 +446,7 @@ function Hero({ m, imgRef, onPhotos, allowTour }: { m: SpotlightModel; imgRef: R
   const street = p0(p.address)
   const oh = m.nextOpenHouse
   return (
-    <section id="overview" className="relative flex h-[100svh] min-h-[640px] w-full flex-col overflow-hidden bg-[#0A0A0A]">
+    <section id="overview" className="sp-loop relative flex h-[100svh] min-h-[640px] w-full flex-col overflow-hidden bg-[#0A0A0A]">
       <div ref={imgRef} className="absolute inset-0 will-change-transform">
         {m.heroImage ? (
           <HeroMedia hero={m.heroImage} photos={m.photos} mode={m.header.mode} motion={m.header.motion} videoUrl={m.header.videoUrl} videoPoster={m.header.videoPoster} frame={m.header.frame} alt={m.fullAddress} />
@@ -512,24 +525,26 @@ function Hero({ m, imgRef, onPhotos, allowTour }: { m: SpotlightModel; imgRef: R
 function CountUp({ value, delay = 900, ms = 1600 }: { value: string; delay?: number; ms?: number }) {
   const target = Number(value.replace(/,/g, ''))
   const decimals = (value.split('.')[1] || '').length
-  const [shown, setShown] = useState(value)
+  const ref = useRef<HTMLSpanElement>(null)
+  // Writes the rolling number straight into the page (no React re-render 60 times a second).
   useEffect(() => {
-    if (!Number.isFinite(target) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const el = ref.current
+    if (!el || !Number.isFinite(target) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
-    setShown(fmt(0))
+    el.textContent = fmt(0)
     let raf = 0
     const t = window.setTimeout(() => {
       const t0 = performance.now()
       const tick = (now: number) => {
         const k = Math.min(1, (now - t0) / ms)
-        setShown(fmt(target * (1 - Math.pow(1 - k, 4))))
+        el.textContent = fmt(target * (1 - Math.pow(1 - k, 4)))
         if (k < 1) raf = requestAnimationFrame(tick)
       }
       raf = requestAnimationFrame(tick)
     }, delay)
-    return () => { clearTimeout(t); cancelAnimationFrame(raf) }
-  }, [target, decimals, delay, ms])
-  return <>{shown}</>
+    return () => { clearTimeout(t); cancelAnimationFrame(raf); el.textContent = value }
+  }, [target, decimals, delay, ms, value])
+  return <span ref={ref}>{value}</span>
 }
 
 function OpenHouseRibbon({ m, url }: { m: SpotlightModel; url: string }) {
@@ -637,6 +652,7 @@ function StorySection({ m }: { m: SpotlightModel }) {
   const [reading, setReading] = useState(false)
   const close = useCallback(() => setReading(false), [])
   useModalLock(reading, close)
+  const drawer = usePresence(reading, 300)
   const excerpt = storyExcerpt(m.description)
   const more = m.description.replace(/\s+/g, ' ').length > excerpt.length + 20
   const paragraphs = useMemo(() => storyParagraphs(m.description), [m.description])
@@ -669,8 +685,10 @@ function StorySection({ m }: { m: SpotlightModel }) {
         </div>
         {photo && (
           <figure className="cl-reveal lg:col-span-7">
-            <div className="cl-wipe relative aspect-[4/3] overflow-hidden">
-              <img src={photo} alt={m.p.address} loading="lazy" className="cl-parallax h-full w-full object-cover" />
+            <div className="cl-wipe relative aspect-[4/3] overflow-hidden will-change-transform">
+              <div className="cl-wipe-in h-full w-full overflow-hidden will-change-transform">
+                <img src={photo} alt={m.p.address} loading="lazy" className="cl-parallax h-full w-full object-cover will-change-transform" />
+              </div>
             </div>
             {m.cityState && (
               <figcaption className="mt-4 flex items-center gap-3 text-[10px] font-medium uppercase tracking-[0.35em] text-white/40">
@@ -681,10 +699,10 @@ function StorySection({ m }: { m: SpotlightModel }) {
         )}
       </div>
 
-      {reading && (
-        <div className="fixed inset-0 z-[120] flex justify-end" role="dialog" aria-modal="true" aria-label="The full story">
-          <button className="cl-menu absolute inset-0 bg-black/70 " onClick={close} aria-label="Close" />
-          <article className="cl-drawer relative h-full w-full max-w-[640px] overflow-y-auto bg-[#0d0d0d] shadow-[-40px_0_80px_-20px_rgba(0,0,0,.8)]">
+      {drawer.show && (
+        <div className={`fixed inset-0 z-[120] flex justify-end ${drawer.closing ? 'pointer-events-none' : ''}`} role="dialog" aria-modal="true" aria-label="The full story">
+          <button className={`cl-menu absolute inset-0 bg-black/70 ${drawer.closing ? 'is-closing' : ''}`} onClick={close} aria-label="Close" />
+          <article className={`cl-drawer ${drawer.closing ? 'is-closing' : ''} relative h-full w-full max-w-[640px] overflow-y-auto bg-[#0d0d0d] shadow-[-40px_0_80px_-20px_rgba(0,0,0,.8)]`}>
             {photo && (
               <div className="relative h-56 overflow-hidden sm:h-72">
                 <img src={photo} alt="" className="h-full w-full object-cover" />
@@ -828,15 +846,26 @@ function FeatureRiver({ items }: { items: string[] }) {
   const [paused, setPaused] = useState(false)
   const [reduced, setReduced] = useState(false)
   const [asList, setAsList] = useState(false)
+  // Rotates only while it's on screen - turning pages off screen re-laid-out the page every
+  // 4.8 seconds (and made the scroll effects re-measure) while the visitor was reading elsewhere.
+  const [inView, setInView] = useState(false)
+  const boxRef = useRef<HTMLDivElement>(null)
   useEffect(() => { setReduced(window.matchMedia('(prefers-reduced-motion: reduce)').matches) }, [])
   useEffect(() => {
-    if (pages <= 1 || paused || reduced || asList) return
+    const el = boxRef.current
+    if (!el) return
+    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0.2 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+  useEffect(() => {
+    if (pages <= 1 || paused || reduced || asList || !inView) return
     const t = window.setTimeout(() => setPage(p => (p + 1) % pages), 4800)
     return () => window.clearTimeout(t)
-  }, [page, pages, paused, reduced, asList])
+  }, [page, pages, paused, reduced, asList, inView])
   const shown = pages <= 1 || reduced || asList ? items : items.slice(page * PAGE, page * PAGE + PAGE)
   return (
-    <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+    <div ref={boxRef} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
       <ul key={asList ? 'all' : page} className="grid min-h-[168px] content-start gap-x-10 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
         {shown.map((f, i) => (
           <li key={f} className="cl-feat-in flex items-start gap-2.5 border-b border-white/[0.06] pb-3 text-[15px] leading-snug text-white/80" style={{ animationDelay: `${i * 70}ms` }}>
@@ -880,7 +909,7 @@ function VideoSection({ url, poster }: { url: string; poster?: string | null }) 
           className="h-full w-full object-cover" onPlay={() => setPlaying(true)} suppressHydrationWarning
         />
         {!playing && (
-          <button onClick={() => { setPlaying(true); ref.current?.play().catch(() => {}) }} className="group absolute inset-0 flex items-center justify-center bg-black/30 transition hover:bg-black/20" aria-label="Play property film">
+          <button onClick={() => { setPlaying(true); ref.current?.play().catch(() => {}) }} className="sp-loop group absolute inset-0 flex items-center justify-center bg-black/30 transition hover:bg-black/20" aria-label="Play property film">
             <span className="relative flex h-24 w-24 items-center justify-center rounded-full border border-white/40 bg-white/10 transition duration-500 group-hover:scale-110">
               <span className="absolute inset-0 animate-ping rounded-full border border-white/20" />
               <Play className="ml-1 h-8 w-8 fill-white" />
@@ -910,7 +939,7 @@ function VirtualTourSection({ url, poster }: { url: string; poster?: string | nu
   return (
     <Section id="tour" eyebrow="3D virtual tour" title={<>Walk through, <em className="italic text-white/80">from anywhere.</em></>} wide>
       <button onClick={() => setOpen(true)} className="cl-reveal group relative flex aspect-[21/9] min-h-[320px] w-full items-center justify-center overflow-hidden rounded-[2px] bg-[#111]">
-        {poster && <img src={poster} alt="" loading="lazy" className="absolute inset-0 h-full w-full scale-105 object-cover opacity-50 blur-[2px] transition duration-700 group-hover:scale-100 group-hover:opacity-60 group-hover:blur-0" />}
+        {poster && <img src={poster} alt="" loading="lazy" className="absolute inset-0 h-full w-full scale-105 object-cover opacity-50 blur-[2px] transition-[transform,opacity] duration-700 group-hover:scale-100 group-hover:opacity-60" />}
         <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/40" />
         <span className="relative flex flex-col items-center gap-4">
           <span className="flex h-20 w-20 items-center justify-center rounded-full bg-[color:var(--sp-accent)] text-[color:var(--sp-on-accent)] shadow-2xl transition duration-500 group-hover:scale-110"><Box className="h-8 w-8" /></span>
@@ -921,7 +950,7 @@ function VirtualTourSection({ url, poster }: { url: string; poster?: string | nu
         Opens full screen. <a href={url} target="_blank" rel="noreferrer" className="underline underline-offset-4 hover:text-white">Open in a new tab</a>
       </p>
       {open && (
-        <div className="fixed inset-0 z-[200] flex flex-col bg-black" role="dialog" aria-modal="true" aria-label="3D virtual tour">
+        <div className="cl-menu fixed inset-0 z-[200] flex flex-col bg-black" role="dialog" aria-modal="true" aria-label="3D virtual tour">
           <div className="flex items-center justify-between px-4 py-3">
             <span className="text-xs uppercase tracking-[0.3em] text-white/60">3D tour</span>
             <button onClick={close} className="rounded-full bg-white/10 p-2.5 hover:bg-white/20" aria-label="Close tour" autoFocus><X className="h-4 w-4" /></button>
@@ -1173,7 +1202,7 @@ function AgentsSection({ m, url, signatureSlug }: { m: SpotlightModel; url: stri
 function ContactSection({ m, siteId, url, onShare, allowTour }: { m: SpotlightModel; siteId: string; url: string; onShare: () => void; allowTour: boolean }) {
   const bg = m.photos[m.photos.length > 3 ? 3 : 0]
   return (
-    <section id="contact" className="relative scroll-mt-16 overflow-hidden px-5 py-24 sm:px-10 sm:py-32">
+    <section id="contact" className="sp-loop relative scroll-mt-16 overflow-hidden px-5 py-24 sm:px-10 sm:py-32">
       {bg && <img src={bg} alt="" aria-hidden loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-[0.14] blur-sm" />}
       <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-[#0A0A0A]/85 to-[#0A0A0A]" />
       <div className="relative mx-auto grid max-w-6xl grid-cols-1 gap-12 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
@@ -1212,7 +1241,7 @@ function ContactSection({ m, siteId, url, onShare, allowTour }: { m: SpotlightMo
           </div>
         </div>
         <div className="cl-reveal cl-goldcard min-w-0 rounded-[2px] border border-white/10 bg-[#0f0f0f]/90 p-5 shadow-[0_40px_120px_-40px_rgba(0,0,0,.9)] sm:p-10">
-          <LeadForm siteId={siteId} address={m.p.address} tone="dark" agent={m.agent} openHouses={m.has.openHouses ? m.openHouses : []} allowTour={allowTour} />
+          <LeadForm siteId={siteId} address={m.p.address} photo={m.heroImage} place={[m.p.city, [m.p.state, m.p.zipcode].filter(Boolean).join(" ")].filter(Boolean).join(", ")} beds={m.p.beds} baths={m.p.baths} sqft={m.p.sqft} tone="dark" agent={m.agent} openHouses={m.has.openHouses ? m.openHouses : []} allowTour={allowTour} />
         </div>
       </div>
     </section>
@@ -1221,7 +1250,7 @@ function ContactSection({ m, siteId, url, onShare, allowTour }: { m: SpotlightMo
 
 function SiteFooter({ m, navItems }: { m: SpotlightModel; navItems: NavItem[] }) {
   return (
-    <footer className="border-t border-white/[0.07] bg-[#070707] px-5 pb-28 pt-16 sm:px-10 lg:pb-12">
+    <footer className="sp-loop border-t border-white/[0.07] bg-[#070707] px-5 pb-28 pt-16 sm:px-10 lg:pb-12">
       <div className="mx-auto max-w-[1440px] [container-type:inline-size]">
         <div className="flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
@@ -1267,9 +1296,9 @@ const CL_CSS = `
 .cl .animate-marquee-x-slow{animation-duration:170s}
 .cl .animate-marquee-x-reverse-slow{animation-duration:190s}
 .cl .cl-feat-in{animation:clFeatIn .7s cubic-bezier(.2,.7,.2,1) both}
-@keyframes clFeatIn{from{opacity:0;transform:translateY(10px);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
+@keyframes clFeatIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .cl .cl-kenburns{animation:clHeroIn 1.8s ease both,clKen 14s cubic-bezier(.2,.6,.2,1) both}
-@keyframes clHeroIn{from{opacity:0;filter:brightness(.4)}to{opacity:1;filter:none}}
+@keyframes clHeroIn{from{opacity:0}to{opacity:1}}
 @keyframes clKen{from{transform:scale(1.16)}to{transform:scale(1.02)}}
 .cl .cl-mq-a{animation:clMqA 1.6s 1.1s cubic-bezier(.2,.7,.2,1) both}
 .cl .cl-mq-b{animation:clMqB 1.6s 1.25s cubic-bezier(.2,.7,.2,1) both}
@@ -1279,6 +1308,12 @@ const CL_CSS = `
 @keyframes clDrawer{from{transform:translateX(100%)}to{transform:none}}
 .cl .cl-menu{animation:clFade .35s ease both}
 @keyframes clFade{from{opacity:0}to{opacity:1}}
+.cl .cl-menu-list>*{animation:clMenuItem .5s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i,0) * 40ms + 80ms)}
+@keyframes clMenuItem{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.cl .cl-menu.is-closing{animation:clFadeOut .22s ease both}
+@keyframes clFadeOut{to{opacity:0}}
+.cl .cl-drawer.is-closing{animation:clDrawerOut .3s cubic-bezier(.4,0,1,1) both}
+@keyframes clDrawerOut{to{transform:translateX(100%)}}
 .cl .cl-prose::first-letter{font-family:var(--font-cl-display),Georgia,serif;font-size:1.45em;line-height:.9;color:var(--sp-accent);padding-right:.04em}
 /* ---- Luxe layer ---- */
 .cl .cl-progress{background:linear-gradient(90deg,#8b6a2b,var(--sp-accent) 40%,#fff3cf 70%,var(--sp-accent));box-shadow:0 0 12px color-mix(in srgb,var(--sp-accent) 70%,transparent);transition:transform .12s linear}
@@ -1292,8 +1327,8 @@ const CL_CSS = `
 @keyframes clDrawX{to{transform:scaleX(1)}}
 @keyframes clDrawY{to{transform:scaleY(1)}}
 @keyframes clCorner{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
-.cl .cl-leak{background:linear-gradient(105deg,transparent 30%,color-mix(in srgb,var(--sp-accent) 38%,transparent) 45%,rgba(255,243,207,.35) 50%,color-mix(in srgb,var(--sp-accent) 30%,transparent) 55%,transparent 70%);mix-blend-mode:screen;transform:translateX(-110%);animation:clLeak 3.2s .9s cubic-bezier(.45,0,.2,1) forwards}
-@keyframes clLeak{0%{transform:translateX(-110%);opacity:0}15%{opacity:1}100%{transform:translateX(110%);opacity:0}}
+.cl .cl-leak{background:linear-gradient(105deg,transparent 30%,color-mix(in srgb,var(--sp-accent) 38%,transparent) 45%,rgba(255,243,207,.3) 50%,color-mix(in srgb,var(--sp-accent) 30%,transparent) 55%,transparent 70%);transform:translateX(-110%);animation:clLeak 3.2s .9s cubic-bezier(.45,0,.2,1) forwards}
+@keyframes clLeak{0%{transform:translateX(-110%);opacity:0;visibility:visible}15%{opacity:1}99%{visibility:visible}100%{transform:translateX(110%);opacity:0;visibility:hidden}}
 .cl .cl-vignette{background:radial-gradient(120% 90% at 50% 40%,transparent 55%,rgba(0,0,0,.35) 100%)}
 .cl .cl-spark{width:4px;height:4px;border-radius:999px;background:radial-gradient(circle,#fff3cf,var(--sp-accent) 60%,transparent 70%);box-shadow:0 0 10px 2px color-mix(in srgb,var(--sp-accent) 60%,transparent);opacity:0;animation-name:clSpark;animation-timing-function:ease-in-out;animation-iteration-count:infinite}
 @keyframes clSpark{0%{opacity:0;transform:translateY(0) scale(.5)}25%{opacity:.95;transform:translateY(-24px) scale(1)}70%{opacity:.5}100%{opacity:0;transform:translateY(-90px) scale(.6)}}
@@ -1314,10 +1349,10 @@ const CL_CSS = `
 .cl .cl-goldcard{position:relative;border-color:color-mix(in srgb,var(--sp-accent) 30%,transparent)!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--sp-accent) 12%,transparent),0 40px 120px -40px rgba(0,0,0,.9),0 0 80px -30px color-mix(in srgb,var(--sp-accent) 45%,transparent)!important}
 .cl .cl-goldcard:before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent 10%,#fff3cf 50%,transparent 90%);background-size:200% 100%;animation:clEdge 6s ease-in-out infinite}
 @keyframes clEdge{0%{background-position:150% 0}100%{background-position:-50% 0}}
-.cl #photos img,.cl #features img{transition:transform .9s cubic-bezier(.22,.61,.36,1),filter .6s}
+.cl #photos img,.cl #features img{transition:transform .9s cubic-bezier(.22,.61,.36,1)}
 .cl.cl-static .cl-kenburns,.cl.cl-static .cl-menu,.cl.cl-static .cl-mq-a,.cl.cl-static .cl-mq-b,.cl.cl-static .cl-drawer{animation:none}
 .cl.cl-static .cl-frame-t,.cl.cl-static .cl-frame-b,.cl.cl-static .cl-frame-l,.cl.cl-static .cl-frame-r{animation:none;transform:none}
 .cl.cl-static .cl-corner{animation:none;opacity:1}
 .cl.cl-static .cl-leak,.cl.cl-static .cl-spark,.cl.cl-static .cl-glint,.cl.cl-static .cl-gold-text,.cl.cl-static .cl-cta:after,.cl.cl-static .cl-goldcard:before{animation:none}
-@media(prefers-reduced-motion:reduce){.cl .cl-kenburns,.cl .cl-menu,.cl .cl-mq-a,.cl .cl-mq-b,.cl .cl-drawer{animation:none}.cl .animate-marquee-x-slow,.cl .animate-marquee-x-reverse-slow,.cl .cl-feat-in{animation:none}.cl .cl-leak,.cl .cl-spark,.cl .cl-glint,.cl .cl-gold-text,.cl .cl-cta:after,.cl .cl-goldcard:before{animation:none}.cl .cl-frame-t,.cl .cl-frame-b,.cl .cl-frame-l,.cl .cl-frame-r{animation:none;transform:none}.cl .cl-corner{animation:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){.cl .cl-menu-list>*,.cl .cl-menu.is-closing,.cl .cl-drawer.is-closing{animation:none}.cl .cl-kenburns,.cl .cl-menu,.cl .cl-mq-a,.cl .cl-mq-b,.cl .cl-drawer{animation:none}.cl .animate-marquee-x-slow,.cl .animate-marquee-x-reverse-slow,.cl .cl-feat-in{animation:none}.cl .cl-leak,.cl .cl-spark,.cl .cl-glint,.cl .cl-gold-text,.cl .cl-cta:after,.cl .cl-goldcard:before{animation:none}.cl .cl-frame-t,.cl .cl-frame-b,.cl .cl-frame-l,.cl .cl-frame-r{animation:none;transform:none}.cl .cl-corner{animation:none;opacity:1}}
 `

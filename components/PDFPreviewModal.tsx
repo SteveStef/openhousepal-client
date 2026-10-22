@@ -231,7 +231,7 @@ export default function PDFPreviewModal({
         )}
         {type === 'flyer' && onToggleQrDarkMode && (
           <button onClick={onToggleQrDarkMode} className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${qrDarkMode ? 'bg-black text-white ring-1 ring-white/25' : 'bg-white text-gray-900'}`}>
-            <ThemeSwitch dark={Boolean(qrDarkMode)} /> {qrDarkMode ? 'Dark' : 'Light'}
+            <ThemeSwitch dark={Boolean(qrDarkMode)} /> {qrDarkMode ? 'Midnight' : 'Ivory'}
           </button>
         )}
         {showStatsToggle && onToggleStats && (
@@ -348,10 +348,10 @@ export default function PDFPreviewModal({
                 className={`flex shrink-0 items-center gap-2 px-3 py-2 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all duration-300 ${
                   qrDarkMode ? 'bg-black text-white ring-1 ring-white/25 hover:ring-white/40' : 'bg-white text-gray-900 hover:bg-gray-100'
                 }`}
-                title={`Sign-in screen theme: ${qrDarkMode ? 'DARK' : 'LIGHT'} (tap to switch). Sets the look of the on-screen Sign-In Sheet/Kiosk guests see when they scan this QR code or use the tablet. Does NOT affect the printed flyer.`}
+                title={`Sign-in screen theme: ${qrDarkMode ? 'MIDNIGHT' : 'IVORY'} (tap to switch). Sets the look of the on-screen Sign-In Sheet/Kiosk guests see when they scan this QR code or use the tablet. Does NOT affect the printed flyer.`}
               >
                 <ThemeSwitch dark={Boolean(qrDarkMode)} />
-                <span>{qrDarkMode ? 'Dark' : 'Light'}</span>
+                <span>{qrDarkMode ? 'Midnight' : 'Ivory'}</span>
                 <Info size={12} className="opacity-60" />
               </button>
             )}

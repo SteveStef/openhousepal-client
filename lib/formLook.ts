@@ -114,17 +114,18 @@ export const FORM_LOOK_CSS = String.raw`
 @media (prefers-reduced-motion: reduce) { .fr-luxe .fr-title, .fr-luxe.fr-root::before { animation: none; } }
 `
 
-/** A form's saved look fields -> what visitors see (the hub's look when it matches the hub). */
-export type FormLookFields = { look_mode?: 'hub' | 'custom' | null; look_theme?: 'classic' | 'luxe' | null; accent_color?: string | null; luxe_metal?: string | null; dark_mode?: boolean | null }
+/** A form's saved look fields -> what visitors see. 'brand' (the default) = the Brand Kit's look
+ *  (lib/brandKit brandFormLook), 'custom' = its own, 'hub' = legacy "match my Agent Hub". */
+export type FormLookFields = { look_mode?: 'brand' | 'hub' | 'custom' | null; look_theme?: 'classic' | 'luxe' | null; accent_color?: string | null; luxe_metal?: string | null; dark_mode?: boolean | null }
 
-export function resolveFormLook(f: FormLookFields, hub: FormLook, luxeAllowed: boolean): FormLook {
+export function resolveFormLook(f: FormLookFields, hub: FormLook, luxeAllowed: boolean, brand?: FormLook): FormLook {
   const own = f.look_mode === 'custom'
-  const look = own ? formLookOf({ theme: f.look_theme || 'classic', accent: f.accent_color, metal: f.luxe_metal, dark: !!f.dark_mode }) : hub
+  const look = own ? formLookOf({ theme: f.look_theme || 'classic', accent: f.accent_color, metal: f.luxe_metal, dark: !!f.dark_mode }) : f.look_mode === 'brand' && brand ? brand : hub
   return look.theme === 'luxe' && !luxeAllowed ? { ...look, theme: 'classic' } : look
 }
 
-/** "Luxe · Gold · Light" / "Classic · Navy · Dark" */
+/** "Luxe · Gold · Ivory" / "Classic · Navy · Midnight" */
 export function formLookLabel(look: FormLook, colorName: (hex: string) => string | null): string {
   const pick = look.theme === 'luxe' ? LUXE_METALS[look.metal].label : colorName(look.accent) || 'Custom color'
-  return `${look.theme === 'luxe' ? 'Luxe' : 'Classic'} · ${pick} · ${look.dark ? 'Dark' : 'Light'}`
+  return `${look.theme === 'luxe' ? 'Luxe' : 'Classic'} · ${pick} · ${look.dark ? 'Midnight' : 'Ivory'}`
 }

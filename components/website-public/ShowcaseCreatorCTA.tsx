@@ -100,7 +100,9 @@ export default function ShowcaseCreatorCTA({ theme, basePrefix, listings, agent 
   // Playback: runs only while the section is on screen.
   const root = useRef<HTMLElement>(null)
   const [onScreen, setOnScreen] = useState(false)
-  const [t, setT] = useState(0)
+  // The 10-a-second clock lives in FilmClock (just the laptop screen re-renders on each tick); this
+  // section only hears about a scene change - it used to re-render all of itself 10 times a second.
+  const [scene, setScene] = useState(0)
   useEffect(() => {
     const el = root.current
     if (!el || typeof IntersectionObserver === 'undefined') { setOnScreen(true); return }
@@ -108,13 +110,6 @@ export default function ShowcaseCreatorCTA({ theme, basePrefix, listings, agent 
     io.observe(el)
     return () => io.disconnect()
   }, [])
-  useEffect(() => {
-    if (!onScreen) return
-    const id = setInterval(() => setT(v => (v + 1) % TOTAL), TICK)
-    return () => clearInterval(id)
-  }, [onScreen])
-  const scene = STARTS.reduce((acc, s, i) => (t >= s ? i : acc), 0)
-  const local = t - STARTS[scene]
 
   const boxRef = useRef<HTMLDivElement>(null)
   const scale = useScale(boxRef, SCREEN_W + 80)
@@ -185,7 +180,7 @@ export default function ShowcaseCreatorCTA({ theme, basePrefix, listings, agent 
           <div ref={boxRef} className="relative w-full" style={{ height: (SCREEN_H + 70) * scale }}>
             <div className="absolute left-1/2 top-0 origin-top" style={{ width: SCREEN_W + 80, transform: `translateX(-50%) scale(${scale})` }}>
               <Laptop luxe={luxe}>
-                <Film scene={scene} local={local} homes={homes} towns={towns} budget={budget} agentFirst={agentFirst} agentPhoto={agent?.photo_url ? resolveMediaUrl(agent.photo_url) : null} />
+                <FilmClock running={onScreen} onScene={setScene} homes={homes} towns={towns} budget={budget} agentFirst={agentFirst} agentPhoto={agent?.photo_url ? resolveMediaUrl(agent.photo_url) : null} />
               </Laptop>
             </div>
             <p className={`absolute -bottom-1 left-0 right-0 text-center text-[10px] font-black uppercase tracking-[0.3em] ${luxe ? 'text-white/60' : ''}`} style={luxe ? undefined : { color: 'var(--site-faint)' }}>Example</p>
@@ -216,6 +211,21 @@ function Laptop({ luxe, children }: { luxe: boolean; children: React.ReactNode }
 
 type Home = FeaturedShowcaseListing
 
+/** The film's clock: ticks while the section is on screen and tells the section when the scene changes. */
+function FilmClock({ running, onScene, ...film }: {
+  running: boolean; onScene: (scene: number) => void; homes: Home[]; towns: string[]; budget: number | null; agentFirst: string; agentPhoto: string | null
+}) {
+  const [t, setT] = useState(0)
+  useEffect(() => {
+    if (!running) return
+    const id = setInterval(() => setT(v => (v + 1) % TOTAL), TICK)
+    return () => clearInterval(id)
+  }, [running])
+  const scene = STARTS.reduce((acc, s, i) => (t >= s ? i : acc), 0)
+  useEffect(() => { onScene(scene) }, [scene, onScene])
+  return <Film scene={scene} local={t - STARTS[scene]} {...film} />
+}
+
 /** What's on the laptop screen at tick `local` of `scene`. Pure function of time - no clicks. */
 function Film({ scene, local, homes, towns, budget, agentFirst, agentPhoto }: {
   scene: number; local: number; homes: Home[]; towns: string[]; budget: number | null; agentFirst: string; agentPhoto: string | null
@@ -240,7 +250,7 @@ function Film({ scene, local, homes, towns, budget, agentFirst, agentPhoto }: {
 
 function Cursor({ x, y, down = false }: { x: number; y: number; down?: boolean }) {
   return (
-    <motion.div className="pointer-events-none absolute z-30" animate={{ left: x, top: y, scale: down ? 0.82 : 1 }} transition={{ type: 'spring', stiffness: 120, damping: 18 }} style={{ left: x, top: y }}>
+    <motion.div className="pointer-events-none absolute left-0 top-0 z-30" animate={{ x, y, scale: down ? 0.82 : 1 }} transition={{ type: 'spring', stiffness: 120, damping: 18 }}>
       <MousePointer2 className="h-6 w-6 fill-[#111827] text-white drop-shadow-[0_2px_4px_rgba(0,0,0,.4)]" />
       {down && <span className="absolute -left-2 -top-2 h-8 w-8 animate-ping rounded-full bg-[color:var(--site-accent)] opacity-40" />}
     </motion.div>

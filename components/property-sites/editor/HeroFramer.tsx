@@ -120,14 +120,14 @@ export default function HeroFramer({ photo, frame, onChange, motion: mo, nudge =
   ]
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-[#151517]">
+    <div className="-mx-1 rounded-2xl border border-gray-200 bg-white p-3 dark:border-white/10 dark:bg-[#151517] sm:mx-0 sm:p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#d7b974]"><Crosshair className="h-3.5 w-3.5" /> Frame your photo</p>
           <p className="mt-0.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Set the center for a computer <b>and</b> a phone - drag the box so the cross sits on the home, on each tab.</p>
         </div>
         <motion.button type="button" whileTap={{ scale: 0.94 }} onClick={() => setReplay(r => r + 1)}
-          className="inline-flex items-center gap-1 rounded-full bg-[#111827] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-white transition hover:bg-[#C9A24D] hover:text-[#111827] dark:bg-white dark:text-[#111827]">
+          className="inline-flex min-h-[36px] items-center gap-1 rounded-full bg-[#111827] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white sm:min-h-0 sm:px-2.5 transition hover:bg-[#C9A24D] hover:text-[#111827] dark:bg-white dark:text-[#111827]">
           <RotateCcw className="h-3 w-3" /> Play again
         </motion.button>
       </div>
@@ -139,9 +139,9 @@ export default function HeroFramer({ photo, frame, onChange, motion: mo, nudge =
           const on = device === t.id
           return (
             <button key={t.id} type="button" role="tab" aria-selected={on} onClick={() => setDevice(t.id)}
-              className={`relative flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-[12px] font-black transition-colors ${on ? 'text-[#111827] dark:text-white' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
+              className={`relative flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[12px] font-black transition-colors sm:min-h-0 sm:gap-2 sm:px-3 ${on ? 'text-[#111827] dark:text-white' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
               {on && <motion.span layoutId="hf-device" className="absolute inset-0 rounded-lg bg-white shadow-sm dark:bg-white/10" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
-              <t.icon className="relative h-3.5 w-3.5" />
+              <t.icon className="relative hidden h-3.5 w-3.5 shrink-0 min-[400px]:block" />
               <span className="relative">{t.label}</span>
               <AnimatePresence mode="wait" initial={false}>
                 {t.set ? (
@@ -207,12 +207,12 @@ export default function HeroFramer({ photo, frame, onChange, motion: mo, nudge =
             </p>
             {!isSet && (
               <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={confirmSpot}
-                className="inline-flex items-center gap-1 rounded-full bg-[#111827] px-3 py-1.5 text-[10.5px] font-black uppercase tracking-wider text-white transition hover:bg-[#C9A24D] hover:text-[#111827] dark:bg-white dark:text-[#111827]">
+                className="inline-flex min-h-[40px] items-center gap-1 rounded-full bg-[#111827] px-3.5 py-1.5 text-[10.5px] font-black uppercase sm:min-h-0 sm:px-3 tracking-wider text-white transition hover:bg-[#C9A24D] hover:text-[#111827] dark:bg-white dark:text-[#111827]">
                 <Check className="h-3 w-3" strokeWidth={3} /> Use this spot
               </motion.button>
             )}
             <motion.button type="button" whileTap={{ scale: 0.94 }} onClick={() => setSpot(50, 50)} disabled={centered && isSet}
-              className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-gray-500 transition hover:border-[#C9A24D] hover:text-[#111827] disabled:opacity-40 dark:border-white/10 dark:bg-transparent dark:text-gray-300">
+              className="inline-flex min-h-[40px] items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase sm:min-h-0 sm:px-2.5 tracking-wider text-gray-500 transition hover:border-[#C9A24D] hover:text-[#111827] disabled:opacity-40 dark:border-white/10 dark:bg-transparent dark:text-gray-300">
               <Crosshair className="h-3 w-3" /> Center it
             </motion.button>
           </div>
@@ -226,7 +226,7 @@ export default function HeroFramer({ photo, frame, onChange, motion: mo, nudge =
                 const on = Math.abs(f.zoom - z.v) < 0.005
                 return (
                   <button key={z.v} type="button" onClick={() => onChange({ ...f, zoom: z.v })} disabled={mo === 'none'}
-                    className={`relative flex-1 rounded-lg py-1.5 text-[11px] font-black transition-colors disabled:opacity-40 ${on ? 'text-[#111827] dark:text-white' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
+                    className={`relative min-h-[40px] flex-1 rounded-lg py-1.5 text-[12px] font-black transition-colors sm:min-h-0 sm:text-[11px] disabled:opacity-40 ${on ? 'text-[#111827] dark:text-white' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
                     {on && <motion.span layoutId="hf-zoom" className="absolute inset-0 rounded-lg bg-white shadow-sm dark:bg-white/10" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
                     <span className="relative">{z.label}</span>
                   </button>

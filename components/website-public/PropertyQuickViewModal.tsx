@@ -8,6 +8,7 @@ import { AboutHome, BrightNotice, HeroActions, PropertyHero, PropertySurface, ho
 import { SiteTheme } from './types'
 import { fontClass } from './blocks/fontClass'
 import SiteLoader from './SiteLoader'
+import { useIsPhone, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 
 // The IDX quick look: the same real listing (fetched through app/api/website-properties/[siteId]/
 // [listingKey]'s same-origin proxy) in a window over the Featured page / home page, so a visitor
@@ -89,6 +90,10 @@ export default function PropertyQuickViewModal({
   const home = useMemo(() => (ready ? homeFromIdx(ready, { photo: u => resolveMediaUrl(u) || u }) : null), [ready])
   const serif = fontClass(theme.heading_font, 'font-serif')
   const ease = [0.16, 1, 0.3, 1] as const
+  // Phones: a sheet that slides up from the bottom and can be pulled down to close it.
+  const phone = useIsPhone()
+  const sheetMotion = useSheetMotion()
+  const { sheetRef, y } = useSwipeToClose(onClose, phone && !!listingKey)
 
   return (
     <AnimatePresence>
@@ -101,12 +106,14 @@ export default function PropertyQuickViewModal({
         >
           <PropertySurface surface="site" gold="var(--site-accent)" ink={theme.primary_color} serif={serif} className="relative w-full max-w-4xl">
             <motion.div
+              ref={sheetRef}
               className="relative flex h-[92dvh] flex-col overflow-hidden rounded-t-[28px] bg-[var(--pp-bg)] text-left shadow-2xl ring-1 ring-[color:var(--pp-gold-line)] sm:h-[min(88vh,860px)] sm:rounded-[28px]"
-              initial={{ opacity: 0, y: 40, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.98 }}
-              transition={{ duration: 0.5, ease }}
+              {...sheetMotion}
+              style={phone ? { y } : undefined}
               onClick={e => e.stopPropagation()}
             >
-              <button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 z-20 rounded-full bg-white/95 p-2 text-gray-600 shadow-md transition hover:scale-105 hover:bg-white hover:text-gray-900">
+              {phone && <div aria-hidden className="flex h-6 shrink-0 items-center justify-center"><span className="h-1.5 w-10 rounded-full bg-[color:var(--pp-gold-line)]" /></div>}
+              <button onClick={onClose} aria-label="Close" className="absolute right-3 top-3 z-20 grid h-10 w-10 place-items-center rounded-full bg-white/95 text-gray-600 shadow-md transition hover:scale-105 hover:bg-white hover:text-gray-900 sm:right-4 sm:top-4">
                 <X className="h-5 w-5" />
               </button>
 

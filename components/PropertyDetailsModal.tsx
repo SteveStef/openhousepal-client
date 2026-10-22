@@ -472,7 +472,7 @@ export default function PropertyDetailsModal({
                         >
                           <div id="sc-comments" className={`relative isolate overflow-hidden rounded-[26px] bg-[var(--pp-ink)] p-5 text-white shadow-[0_34px_70px_-40px_rgba(0,0,0,.85)] ring-1 transition-shadow duration-700 ${commentsGlow ? 'ring-2 ring-[color:var(--pp-gold)] shadow-[0_0_0_6px_rgba(201,162,77,.25),0_34px_70px_-40px_rgba(0,0,0,.85)]' : 'ring-white/10'}`}>
                             <span aria-hidden className="pp-panel-edge pointer-events-none absolute inset-x-0 top-0 h-px" />
-                            <span aria-hidden className="pointer-events-none absolute -right-16 -top-16 -z-10 h-48 w-48 rounded-full bg-[var(--pp-gold)] opacity-25 blur-3xl" />
+                            <span aria-hidden className="pointer-events-none absolute -right-28 -top-28 -z-10 h-72 w-72 rounded-full opacity-25" style={{ background: 'radial-gradient(closest-side, var(--pp-gold), transparent)' }} />
                             {[['14%', '18%', 0], ['86%', '30%', 1.8]].map(([l, t, d], k) => (
                               <span key={k} aria-hidden className="pp-panel-spark pointer-events-none absolute" style={{ left: l as string, top: t as string, animationDelay: `${d}s` }} />
                             ))}
@@ -524,12 +524,12 @@ export default function PropertyDetailsModal({
                                   })}
                                 </AnimatePresence>
                               ) : (
-                                <div className="scrollbar-hide flex gap-1.5 overflow-x-auto [scrollbar-width:none]">
+                                <div className="scrollbar-hide flex flex-wrap gap-1.5 [scrollbar-width:none] sm:flex-nowrap sm:overflow-x-auto">
                                   {([['Any offers yet?', 'Any offers yet?'], ['Send disclosure', "Could you please send the seller's disclosure?"], ['CMA request', 'Hey, could you make a CMA for this one?']] as const).map(([q, text], k) => (
                                     <motion.button key={q} type="button" onClick={() => setNewComment(text)}
                                       initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + k * 0.07 }}
                                       whileHover={{ y: -1 }} whileTap={{ scale: 0.95 }}
-                                      className="shrink-0 whitespace-nowrap rounded-full border border-white/15 px-3 py-1.5 text-[11px] font-bold text-white/75 transition-colors hover:border-[color:var(--pp-gold)] hover:text-white">
+                                      className="shrink-0 whitespace-nowrap rounded-full border border-white/15 px-3 py-2 text-[11px] sm:py-1.5 font-bold text-white/75 transition-colors hover:border-[color:var(--pp-gold)] hover:text-white">
                                       {q}
                                     </motion.button>
                                   ))}

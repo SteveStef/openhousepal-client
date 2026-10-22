@@ -14,6 +14,7 @@ import LeadDetailModal from '@/components/leads/LeadDetailModal'
 import OhpLoader from '@/components/brand/OhpLoader'
 import FollowupCard from './FollowupCard'
 import { AnimatePresence, motion } from 'framer-motion'
+import { WhenSheet, addDays, nextWeekday, whenText, ymd } from '@/components/ui/WhenPicker'
 
 const DASH_ROWS_KEY = 'dash:followupRows'
 import { useIntegrationStatus } from '@/hooks/useIntegrationStatus'
@@ -468,6 +469,7 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
   const [custom, setCustom] = useState('')  // yyyy-mm-dd
   const [time, setTime] = useState('')      // HH:MM, empty = any time that day (all-day event)
   const [saving, setSaving] = useState(false)
+  const [whenOpen, setWhenOpen] = useState(false)
 
   // The chosen day (local), or null for Someday.
   const pickedDay = (): Date | null => {
@@ -545,15 +547,6 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
           </button>
         ))}
         <span className="mx-1 h-4 w-px bg-gray-200 dark:bg-gray-700" />
-        {([['today', 'Today'], ['tomorrow', 'Tomorrow'], ['custom', 'Pick…'], ['none', 'Someday']] as const).map(([m, label]) => (
-          <button key={m} onClick={() => setDateMode(m)}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wide transition ${
-              dateMode === m ? 'bg-[#C9A24D] text-[#111827]' : 'border border-gray-200 text-gray-400 dark:border-gray-700'
-            }`}>
-            {label}
-          </button>
-        ))}
-        <span className="mx-1 h-4 w-px bg-gray-200 dark:bg-gray-700" />
         <button onClick={() => setPriority(p => p === 'high' ? 'normal' : 'high')}
           className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wide transition ${
             priority === 'high' ? 'bg-red-500 text-white' : 'border border-gray-200 text-gray-400 dark:border-gray-700'
@@ -561,24 +554,53 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
           <AlertTriangle className="h-3 w-3" /> High
         </button>
       </div>
-      {dateMode !== 'none' && (
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          {dateMode === 'custom' && (
-            <input type="date" aria-label="Day" value={custom} min={toLocalInputValue(new Date()).slice(0, 10)}
-              onChange={e => setCustom(e.target.value)}
-              className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white" />
-          )}
-          <label className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-sm dark:border-gray-700 dark:bg-[#0B0B0B]">
-            <Clock className="h-3.5 w-3.5 text-gray-400" />
-            <input type="time" aria-label="Time" value={time} step={900} onChange={e => setTime(e.target.value)}
-              className="bg-transparent font-semibold outline-none dark:text-white [color-scheme:light] dark:[color-scheme:dark]" />
-            {time && <button type="button" onClick={() => setTime('')} aria-label="Clear time" className="text-gray-400 hover:text-gray-600"><X className="h-3.5 w-3.5" /></button>}
-          </label>
-          <span className={`text-[11px] font-semibold ${timePassed ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400'}`}>
+      {/* When (user, 10/22): quick picks first, then the step-by-step picker for any other day
+          and the time - same saved values as the old date / time boxes. */}
+      <p className="mb-1.5 mt-3 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">When</p>
+      <div className="flex flex-wrap gap-1.5">
+        {([['today', 'Today'], ['tomorrow', 'Tomorrow'], ['custom', 'Pick a day…'], ['none', 'Someday']] as const).map(([m, label]) => (
+          <motion.button key={m} type="button" whileTap={{ scale: 0.95 }} onClick={() => (m === 'custom' ? setWhenOpen(true) : setDateMode(m))}
+            className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-full px-3.5 text-[12px] font-black uppercase tracking-wide transition ${
+              dateMode === m ? 'bg-[#C9A24D] text-[#111827]' : 'border border-gray-200 text-gray-500 hover:border-[#C9A24D] dark:border-gray-700 dark:text-gray-400'
+            }`}>
+            {m === 'custom' && <CalendarClock className="h-3.5 w-3.5" />}{label}
+          </motion.button>
+        ))}
+      </div>
+      {dateMode !== 'none' && day && (
+        <div className="mt-2">
+          <button type="button" onClick={() => setWhenOpen(true)}
+            className="flex min-h-[48px] w-full items-center gap-3 rounded-xl border border-gray-200 bg-[#FAFAF7] px-3 text-left transition hover:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B]">
+            <Clock className="h-4 w-4 shrink-0 text-[#C9A24D]" />
+            <span className="min-w-0 flex-1 truncate text-sm font-black text-[#111827] dark:text-white">
+              {whenText({ date: ymd(day), time: time || null, anytime: !time }, 'datetime', 'any time (all-day)')}
+            </span>
+            <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]">{time ? 'Change' : 'Add a time'}</span>
+          </button>
+          <p className={`mt-1 text-[11px] font-semibold ${timePassed ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400'}`}>
             {timePassed ? 'That time has already passed today' : time ? 'Buzzes your phone at that time' : 'No time = any time that day (all-day)'}
-          </span>
+          </p>
         </div>
       )}
+      <WhenSheet open={whenOpen} onClose={() => setWhenOpen(false)} mode="datetime" allowAnytime="Any time that day"
+        title="When should we remind you?" kicker="Follow-up"
+        context={title.trim() || 'Your new follow-up'} contextSub={leadName || null}
+        value={day ? { date: ymd(day), time: time || null, anytime: !time } : null}
+        suggestions={[
+          { label: 'Today', date: addDays(0), anytime: true },
+          { label: 'Tomorrow', date: addDays(1), anytime: true },
+          { label: 'In 3 days', date: addDays(3), anytime: true },
+          { label: 'Next Monday', date: nextWeekday(1), anytime: true },
+        ]}
+        suggestionsLabel="Quick picks - then add a time if you like"
+        onDone={v => {
+          if (!v.date) return
+          const mode = v.date === addDays(0) ? 'today' : v.date === addDays(1) ? 'tomorrow' : 'custom'
+          setDateMode(mode)
+          setCustom(mode === 'custom' ? v.date : '')
+          setTime(v.anytime ? '' : v.time || '')
+          setWhenOpen(false)
+        }} />
       <div className="mt-2 flex justify-end">
         <button onClick={submit} disabled={saving || !title.trim()}
           className="inline-flex items-center gap-1.5 rounded-lg bg-[#C9A24D] px-4 py-2 text-xs font-black uppercase tracking-wide text-[#111827] transition hover:brightness-105 disabled:opacity-50">

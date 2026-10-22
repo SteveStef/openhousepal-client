@@ -179,7 +179,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
                   whileTap={{ scale: 0.82 }}
                   aria-label="Messages"
                   onClick={(e) => { e.stopPropagation(); onCommentClick?.(property) }}
-                  className={`relative rounded-lg p-1.5 transition-colors ${property.unreadCommentCount ? 'bg-[#C9A24D]/10 text-[#C9A24D]' : 'text-gray-300 hover:text-[#C9A24D]'}`}
+                  className={`relative rounded-lg p-1.5 transition-colors before:absolute before:-inset-1.5 before:content-[''] ${property.unreadCommentCount ? 'bg-[#C9A24D]/10 text-[#C9A24D]' : 'text-gray-300 hover:text-[#C9A24D]'}`}
                 >
                   <MessageCircle size={18} fill={property.unreadCommentCount ? 'currentColor' : 'none'} />
                   {!!property.unreadCommentCount && (
@@ -193,7 +193,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
                   aria-label={property.liked ? 'Loved' : 'Love it'}
                   aria-pressed={!!property.liked}
                   onClick={(e) => { e.stopPropagation(); if (property.id !== undefined) onLike?.(property.id, !property.liked) }}
-                  className={`rounded-lg p-1.5 transition-colors ${property.liked ? 'bg-green-500/10 text-green-500' : 'text-gray-300 hover:text-green-500'}`}
+                  className={`relative rounded-lg p-1.5 transition-colors before:absolute before:-inset-1.5 before:content-[''] ${property.liked ? 'bg-green-500/10 text-green-500' : 'text-gray-300 hover:text-green-500'}`}
                 >
                   <motion.span key={property.liked ? 'on' : 'off'} initial={property.liked ? { scale: 0.3, rotate: -20 } : false} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 700, damping: 12 }} className="block">
                     <ThumbsUp size={18} fill={property.liked ? 'currentColor' : 'none'} />
@@ -389,7 +389,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
                   aria-label={recommended ? 'Recommended' : 'Recommend this home'}
                   aria-pressed={recommended}
                   onClick={(e) => { e.stopPropagation(); onRecommend(property) }}
-                  className={`p-1.5 rounded-lg transition-colors ${recommended ? 'text-[#C9A24D] bg-[#C9A24D]/15' : 'text-gray-300 hover:text-[#C9A24D]'}`}
+                  className={`relative p-1.5 rounded-lg transition-colors before:absolute before:-inset-1.5 before:content-[''] ${recommended ? 'text-[#C9A24D] bg-[#C9A24D]/15' : 'text-gray-300 hover:text-[#C9A24D]'}`}
                 >
                   <motion.span key={recommended ? 'on' : 'off'} initial={recommended ? { scale: 0.3, rotate: -30 } : false} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 700, damping: 12 }} className="block">
                     <Star size={18} fill={recommended ? 'currentColor' : 'none'} />
@@ -401,11 +401,12 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
               <motion.button
                 whileTap={{ scale: 0.82 }}
                 whileHover={{ y: -1 }}
+                aria-label="Messages"
                 onClick={(e) => {
                   e.stopPropagation();
                   onCommentClick?.(property);
                 }}
-                className={`relative p-1.5 rounded-lg transition-colors ${
+                className={`relative p-1.5 rounded-lg transition-colors before:absolute before:-inset-1.5 before:content-[''] ${
                   property.unreadCommentCount && property.unreadCommentCount > 0
                     ? 'text-[#C9A24D] bg-[#C9A24D]/10'
                     : 'text-gray-300 hover:text-[#C9A24D]'
@@ -432,7 +433,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
                     onLike?.(property.id, !property.liked);
                   }
                 }}
-                className={`p-1.5 rounded-lg transition-colors ${
+                className={`relative p-1.5 rounded-lg transition-colors before:absolute before:-inset-1.5 before:content-[''] ${
                   property.liked
                     ? 'text-green-500 bg-green-500/10'
                     : 'text-gray-300 hover:text-green-500'
@@ -453,7 +454,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
                     onDislike?.(property.id, !property.disliked);
                   }
                 }}
-                className={`p-1.5 rounded-lg transition-colors ${
+                className={`relative p-1.5 rounded-lg transition-colors before:absolute before:-inset-1.5 before:content-[''] ${
                   property.disliked
                     ? 'text-red-500 bg-red-500/10'
                     : 'text-gray-300 hover:text-red-500'
@@ -485,7 +486,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
             <span className="truncate">{[property.City ? String(property.City).toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : '', [property.StateOrProvince, property.PostalCode].filter(Boolean).join(' ')].filter(Boolean).join(', ')}</span>
             {distanceMiles !== null && (directionsUrl ? (
               <a href={directionsUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title="Get directions in Google Maps"
-                className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-gray-200 px-2 py-0.5 text-[10px] font-black text-[#8b7355] transition-colors hover:border-[#C9A24D] dark:border-gray-700 dark:text-[#e8cf8a]">
+                className="relative ml-auto inline-flex shrink-0 items-center gap-1 rounded-full before:absolute before:-inset-x-1 before:-inset-y-2.5 before:content-[''] border border-gray-200 px-2 py-0.5 text-[10px] font-black text-[#8b7355] transition-colors hover:border-[#C9A24D] dark:border-gray-700 dark:text-[#e8cf8a]">
                 <Navigation size={10} /> {distanceMiles.toFixed(1)} mi
               </a>
             ) : (

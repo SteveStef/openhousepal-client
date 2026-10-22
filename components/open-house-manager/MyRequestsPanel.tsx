@@ -7,6 +7,8 @@ import { useToast } from '@/contexts/ToastContext'
 import { HostRequest, IncomingBroadcast, IncomingTeamInvite } from '@/types'
 import HostRequestCard from './HostRequestCard'
 import EmptyState from './EmptyState'
+import OhSheet from './OhSheet'
+import OfferTimeFlow from './OfferTimeFlow'
 import { formatEventDate, formatTime, TIME_SLOT_OPTIONS, endTimeOptionsFor } from './formatters'
 import TimeSelect from './TimeSelect'
 import { refreshOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
@@ -107,7 +109,7 @@ export function BroadcastCard({ broadcast, onAccept, onCounter, onDecline, busy 
               </button>
             )}
             <button
-              onClick={() => setIsCountering(v => !v)}
+              onClick={() => setIsCountering(true)}
               disabled={busy === broadcast.id}
               className="flex shrink-0 items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 p-2.5 text-gray-500 dark:text-gray-400 transition hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
               aria-label="Propose a different time"
@@ -116,52 +118,12 @@ export function BroadcastCard({ broadcast, onAccept, onCounter, onDecline, busy 
               <CalendarClock size={14} /><span className="ml-1.5 text-xs font-black">Other time</span>
             </button>
           </div>
-          {isCountering && (
-            <div className="mt-3 space-y-3 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Propose a different time</p>
-              <div className="grid grid-cols-3 gap-2">
-                <label className="block">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Date</span>
-                  <input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-2 py-1.5 text-xs font-semibold outline-none focus:border-[#C9A24D] dark:text-white" />
-                </label>
-                <label className="block">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Start</span>
-                  <TimeSelect
-                    value={start}
-                    onChange={value => { setStart(value); if (!endTimeOptionsFor(value).some(opt => opt.value === end)) setEnd('') }}
-                    options={TIME_SLOT_OPTIONS}
-                    placeholder="Start"
-                    className="mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-2 py-1.5 text-xs font-semibold outline-none focus:border-[#C9A24D] dark:text-white"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">End</span>
-                  <TimeSelect
-                    value={end}
-                    onChange={setEnd}
-                    options={endTimeOptionsFor(start)}
-                    placeholder="End"
-                    disabled={!start}
-                    className="mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-2 py-1.5 text-xs font-semibold outline-none focus:border-[#C9A24D] dark:text-white disabled:opacity-50"
-                  />
-                </label>
-              </div>
-              <textarea
-                value={note}
-                onChange={e => setNote(e.target.value)}
-                rows={2}
-                placeholder="Add a note (optional)..."
-                className="w-full resize-none rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-2 py-1.5 text-xs font-medium outline-none focus:border-[#C9A24D] dark:text-white"
-              />
-              <button
-                onClick={() => onCounter(broadcast.id, date, start, end, note.trim())}
-                disabled={busy === broadcast.id}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#111827] dark:bg-white px-3 py-2 text-xs font-black text-white dark:text-[#111827] transition hover:bg-black dark:hover:bg-gray-200 disabled:opacity-50"
-              >
-                {busy === broadcast.id ? <Loader2 size={13} className="animate-spin" /> : <CalendarClock size={13} />} Send Proposed Time
-              </button>
-            </div>
-          )}
+          {/* "Other time" opens the step-by-step window (user, 10/22). */}
+          <OfferTimeFlow open={isCountering} onClose={() => setIsCountering(false)}
+            street={(broadcast.property_address || 'This listing').split(',')[0]}
+            theirDate={broadcast.requested_date} theirStart={broadcast.requested_start_time} theirEnd={broadcast.requested_end_time}
+            theirLabel={`${(broadcast.owner_agent_name || 'They').split(' ')[0]} asked for`} toName={broadcast.owner_agent_name || undefined}
+            onSend={async (d, st, en, n) => { onCounter(broadcast.id, d, st, en, n) }} />
         </>
       )}
     </div>
@@ -369,22 +331,10 @@ export default function MyRequestsPanel({ isOpen, onClose, onActionComplete, foc
     }
   }
 
-  if (!isOpen) return null
-
+  // Slides up on a phone (you stay on Discovery), a panel from the right on a computer.
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 animate-in fade-in duration-200" onClick={onClose}>
-      <div className="flex h-full w-full max-w-md flex-col bg-white dark:bg-[#0B0B0B] shadow-2xl animate-in slide-in-from-right duration-200" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-800 p-5">
-          <div>
-            <h2 className="text-lg font-black text-[#111827] dark:text-white">My Requests</h2>
-            <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">Open houses you've asked to host</p>
-          </div>
-          <button onClick={onClose} className="shrink-0 rounded-full p-2 text-gray-400 transition hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Close">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-5">
+    <OhSheet open={isOpen} onClose={onClose} variant="side" title="My Requests" subtitle="Open houses you've asked to host" icon={<Send className="h-5 w-5" />}>
+        <div>
           {isLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
           ) : loadError ? (
@@ -557,7 +507,6 @@ export default function MyRequestsPanel({ isOpen, onClose, onActionComplete, foc
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </OhSheet>
   )
 }

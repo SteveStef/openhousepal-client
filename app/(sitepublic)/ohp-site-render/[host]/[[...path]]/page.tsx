@@ -1036,15 +1036,19 @@ async function PropertyDetail({ siteId, listingKey, theme, basePrefix, path }: {
 async function PropertyDetailView({ p, theme, basePrefix, siteId }: { p: any; theme: any; basePrefix: string; siteId?: string }) {
   // The agent's own listing with a published Listing Spotlight: the Spotlight IS its page.
   if (p.spotlight_url) redirect(p.spotlight_url)
-  const [areasRaw, agentProfile, hubSlug] = await Promise.all([
+  // The agent's forms are fetched as soon as their hub is known, alongside the rest (not after it).
+  const hubAndForms = siteId ? resolveAgentHubSlug(siteId).then(async slug => ({
+    slug,
+    forms: (slug ? (await fetchJson(`${INTERNAL_API_URL}/agent-hub/forms/public/${encodeURIComponent(slug)}`)) || [] : []) as any[],
+  })) : Promise.resolve({ slug: null as string | null, forms: [] as any[] })
+  const [areasRaw, agentProfile, { slug: hubSlug, forms }] = await Promise.all([
     siteId ? fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas`) : Promise.resolve(null),
     siteId ? fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/profile`) : Promise.resolve(null),
-    siteId ? resolveAgentHubSlug(siteId) : Promise.resolve(null),
+    hubAndForms,
   ])
   const areas: any[] = areasRaw || []
   const matchedArea = p.city ? areas.find((a: any) => a.name?.toLowerCase() === String(p.city).toLowerCase()) : null
-  // The agent's "Schedule a Showing" form opens in a window with this address filled in.
-  const forms: any[] = hubSlug ? (await fetchJson(`${INTERNAL_API_URL}/agent-hub/forms/public/${encodeURIComponent(hubSlug)}`)) || [] : []
+  // "Request a tour": the agent's "Schedule a Showing" form, answered right on the page (IdxTourRequest).
   const showingForm = forms.find((f: any) => f.formType === 'showing')
   const nearby = siteId && p.listing_key && p.latitude != null && p.longitude != null ? (
     <ExploreNearby
@@ -1071,7 +1075,7 @@ async function PropertyDetailView({ p, theme, basePrefix, siteId }: { p: any; th
         basePrefix={basePrefix}
         siteId={siteId}
         agent={agentProfile}
-        showing={hubSlug && showingForm ? { path: `/${hubSlug}/${showingForm.slug}` } : null}
+        showing={hubSlug && showingForm ? { path: `/${hubSlug}/${showingForm.slug}`, hubSlug, formSlug: showingForm.slug, formId: showingForm.formId || null } : null}
         matchedArea={matchedArea ? { slug: matchedArea.slug, name: matchedArea.name } : null}
         nearby={nearby}
         similar={similar}
@@ -1085,16 +1089,21 @@ async function PropertyDetailView({ p, theme, basePrefix, siteId }: { p: any; th
 // The About page - a live mirror of this agent's real Agent Hub (see
 // content_adapters.get_agent_hub_snapshot) rather than a separately hand-written bio block, so
 // the agent's own site can work as their link-tree too, not just openhousepal.com/{slug}.
-async function AboutPage({ siteId, basePrefix, host, framed = false }: { siteId: string; basePrefix: string; host: string; framed?: boolean }) {
+async function AboutPage({ siteId, basePrefix, host, framed = false, query = '' }: { siteId: string; basePrefix: string; host: string; framed?: boolean; query?: string }) {
   const slug = await resolveAgentHubSlug(siteId)
   if (!slug) notFound()
   // Where the framed hub sends a visitor "home" (form submitted, Back with no history). Absolute on
   // the agent's own address: the hub runs on openhousepal.com, where a bare "/" would land on
   // OpenHousePal's own homepage instead of this site's.
   const idxReturn = encodeURIComponent(basePrefix ? `${basePrefix}/` : `https://${host}/`)
+  // The visit's own params reach the hub inside (?src=qr counts a QR scan, ?intro=0 from setup,
+  // campaign tags) - incl. old openhousepal.com/<slug> links forwarded here (proxy.ts).
+  const visitorQs = new URLSearchParams(query)
+  for (const k of ['idx_light', 'idx_return', 'preview']) visitorQs.delete(k)
+  const extra = visitorQs.toString() ? `&${visitorQs.toString()}` : ''
   const src = basePrefix.startsWith('/ohp-site-render/')
-    ? `/${encodeURIComponent(slug)}?idx_light=1&idx_return=${idxReturn}`
-    : `https://${OHP_BASE_DOMAIN}/${encodeURIComponent(slug)}?idx_light=1&idx_return=${idxReturn}`
+    ? `/${encodeURIComponent(slug)}?idx_light=1&idx_return=${idxReturn}${extra}`
+    : `https://${OHP_BASE_DOMAIN}/${encodeURIComponent(slug)}?idx_light=1&idx_return=${idxReturn}${extra}`
   return (
     // dvh, not vh: on phones 100vh runs under the browser bar and cut off the hub's bottom. The
     // 18px overhang (hides the frame's scrollbar) only on desktop - phones have no scrollbar, so it
@@ -1830,7 +1839,7 @@ const TOWN_CARD_STYLE = { backgroundColor: 'var(--site-surface)', borderColor: '
 
 function TownSection({ id, alt = false, children }: { id: string; alt?: boolean; children: React.ReactNode }) {
   return (
-    <section id={id} className="scroll-mt-32 px-5 py-14 sm:px-6 sm:py-20" style={alt ? { backgroundColor: 'var(--site-bg-alt)' } : undefined}>
+    <section id={id} className="ohp-town-section scroll-mt-32 px-5 py-14 sm:px-6 sm:py-20" style={alt ? { backgroundColor: 'var(--site-bg-alt)' } : undefined}>
       <div className="mx-auto max-w-6xl">{children}</div>
     </section>
   )
@@ -2424,7 +2433,7 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
       )}
 
       {hasAround && (
-        <section id="around" className="scroll-mt-32 px-5 py-14 sm:px-6 sm:py-20" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
+        <section id="around" className="ohp-town-section scroll-mt-32 px-5 py-14 sm:px-6 sm:py-20" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
           {(aroundKeys.length > 0 || facts.commute?.destinations?.length > 0) && (
             <div className="mx-auto max-w-6xl">
               <TownHeading luxe={luxe} eyebrow="Getting around" title="Commute, transit & care" sub={`How people get to work from ${area.name}, and the hospitals and doctors close by.`} />
@@ -2725,7 +2734,7 @@ export default async function PublicSitePage({
     content = <CmaAliasPage siteId={resolved.site_id} shareSlug={path[1]} basePrefix={basePrefix} />
     exactExternalResource = true
   } else if ((path?.[0] === 'hub' || path?.[0] === 'agent-hub') && !path[1]) {
-    content = <AboutPage siteId={resolved.site_id} basePrefix={basePrefix} host={host} framed />
+    content = <AboutPage siteId={resolved.site_id} basePrefix={basePrefix} host={host} framed query={queryString(currentSearchParams)} />
     hideFooter = true
   } else if (path?.[0] === 'about' && !path[1]) {
     content = <AboutPage siteId={resolved.site_id} basePrefix={basePrefix} host={host} framed />

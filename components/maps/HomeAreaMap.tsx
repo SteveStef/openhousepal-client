@@ -196,7 +196,7 @@ export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', 
       {layers.length > 0 && (
         <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-2.5">
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className={`pointer-events-auto flex gap-1 rounded-full border p-1 shadow-lg backdrop-blur-sm ${dark ? 'border-white/10 bg-[#141416]/85' : 'border-black/[0.06] bg-white/90'}`}>
+            className={`pointer-events-auto flex gap-1 rounded-full border p-1 shadow-lg ${dark ? 'border-white/10 bg-[#141416]/95' : 'border-black/[0.06] bg-white/95'}`}>
             {layers.map(l => (
               <button key={l.id} type="button" onClick={() => setLayer(l.id)}
                 className={`relative inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black transition-colors ${active === l.id ? 'text-[#111827]' : dark ? 'text-gray-300' : 'text-gray-500'}`}>

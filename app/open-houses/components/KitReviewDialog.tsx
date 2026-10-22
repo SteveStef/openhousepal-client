@@ -7,6 +7,8 @@ import { ArrowLeft, ArrowRight, BarChart3, CalendarClock, Check, ClipboardList, 
 import type { PrintPref } from '@/lib/printPrefs'
 import { pdfFirstPageImage } from '@/lib/pdfImages'
 import api from '@/lib/api-service'
+import FlowDock from '@/components/ui/FlowDock'
+import { useKitFlowDock } from './KitFlowShell'
 
 // The last part of "Generate Kit", in two steps (user, 10/16):
 //   1. Your kit - every document with its settings on the same line as its name, and a live
@@ -26,7 +28,7 @@ const DOC_TITLE: Record<KitDocMode, string> = { flyer: 'Sign-In Flyer', recommen
 function Chip({ on, label, icon: Icon, hint, onClick }: { on: boolean; label: string; icon?: React.ComponentType<{ className?: string }>; hint: string; onClick: () => void }) {
   return (
     <button type="button" title={hint} onClick={e => { e.stopPropagation(); onClick() }}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest transition-all duration-300 active:scale-95 ${on
+      className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[10px] font-black uppercase tracking-widest transition-all duration-300 active:scale-95 sm:h-auto sm:px-2.5 sm:py-1 ${on
         ? 'border-emerald-500/40 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-500/10 dark:text-emerald-300'
         : 'border-gray-200 bg-white text-gray-400 hover:text-gray-600 dark:border-gray-700 dark:bg-[#0B0B0B] dark:hover:text-gray-300'}`}>
       {on
@@ -38,11 +40,11 @@ function Chip({ on, label, icon: Icon, hint, onClick }: { on: boolean; label: st
 }
 
 function ThemeChoice({ dark, onChange }: { dark: boolean; onChange: (dark: boolean) => void }) {
-  const base = 'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest transition-colors'
+  const base = 'inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[10px] font-black uppercase tracking-widest transition-colors sm:h-auto sm:py-1'
   return (
     <div onClick={e => e.stopPropagation()} className="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 p-0.5 dark:border-gray-700 dark:bg-[#0B0B0B]" title="Theme of the sign-in screen guests see when they scan the QR code or use the kiosk. Doesn't change the printed flyer.">
-      <button type="button" onClick={() => onChange(false)} className={`${base} ${!dark ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200' : 'text-gray-400 hover:text-gray-600'}`}><Sun className={`h-3 w-3 ${!dark ? 'text-amber-500' : ''}`} strokeWidth={3} />Light</button>
-      <button type="button" onClick={() => onChange(true)} className={`${base} ${dark ? 'bg-[#111111] text-white shadow-sm ring-1 ring-white/10' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}><Moon className="h-3 w-3" strokeWidth={3} />Dark</button>
+      <button type="button" onClick={() => onChange(false)} className={`${base} ${!dark ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200' : 'text-gray-400 hover:text-gray-600'}`}><Sun className={`h-3 w-3 ${!dark ? 'text-amber-500' : ''}`} strokeWidth={3} />Ivory</button>
+      <button type="button" onClick={() => onChange(true)} className={`${base} ${dark ? 'bg-[#111111] text-white shadow-sm ring-1 ring-white/10' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}><Moon className="h-3 w-3" strokeWidth={3} />Midnight</button>
     </div>
   )
 }
@@ -58,14 +60,16 @@ function DocRow({ mode, icon: Icon, active, onSelect, onPreview, children, index
       className={`group relative cursor-pointer rounded-2xl border p-3 transition-all duration-300 ${active
         ? 'border-[#C9A24D] bg-white shadow-[0_18px_40px_-28px_rgba(139,115,85,.9)] ring-4 ring-[#C9A24D]/10 dark:bg-[#1a1a1c]'
         : 'border-gray-100 bg-[#faf9f7] hover:border-[#C9A24D]/50 dark:border-gray-800 dark:bg-[#141416]'}`}>
+      {/* Phones: name + PDF on the first line, this document's options on their own line under the
+          name (they used to land in odd spots). Wider screens: everything on one line, as before. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors duration-300 ${active ? 'bg-gradient-to-br from-[#e8c97a] to-[#b8913f] text-[#111827]' : 'bg-[#C9A24D]/15 text-[#8b7355] dark:bg-[#C9A24D]/15 dark:text-[#e8c97a]'}`}><Icon className="h-4 w-4" /></span>
-        <span className="min-w-0">
-          <span className="flex items-center gap-1.5 text-sm font-black text-[#111827] dark:text-white"><Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3.5} />{DOC_TITLE[mode]}</span>
+        <span className="min-w-0 max-sm:flex-1">
+          <span className="flex items-center gap-1.5 text-sm font-black text-[#111827] dark:text-white"><Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" strokeWidth={3.5} /><span className="truncate">{DOC_TITLE[mode]}</span></span>
         </span>
-        <span className="flex flex-1 flex-wrap items-center gap-1.5">{children}</span>
+        {children && <span className="order-last flex basis-full flex-wrap items-center gap-1.5 pl-12 sm:order-none sm:flex-1 sm:basis-auto sm:pl-0">{children}</span>}
         <button type="button" onClick={e => { e.stopPropagation(); onPreview() }} title="Open the full PDF preview"
-          className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-black text-[#8b7355] transition hover:bg-[#C9A24D]/10 dark:text-[#e8c97a]">
+          className="ml-auto inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-2.5 text-[11px] font-black text-[#8b7355] transition hover:bg-[#C9A24D]/10 dark:text-[#e8c97a] sm:h-auto sm:px-2 sm:py-1">
           <Eye className="h-3.5 w-3.5" /> PDF
         </button>
       </div>
@@ -261,7 +265,14 @@ export default function KitReviewDialog({
 }) {
   const [step, setStep] = useState<1 | 2>(1)
   useEffect(() => { onStepChange?.(step) }, [step, onStepChange])
+  const kitDock = useKitFlowDock()
   const [focus, setFocus] = useState<KitDocMode>('flyer')
+  // Phones and tablets show the live preview under the list - tapping a document glides down to it.
+  const previewRef = useRef<HTMLDivElement>(null)
+  const pick = (m: KitDocMode) => {
+    setFocus(m)
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches) requestAnimationFrame(() => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
   const [saving, setSaving] = useState(false)
   const [note, setNote] = useState<string>('')
   // Every plan gets step 2 now: the follow-ups switch for this open house is on it (user, 10/17).
@@ -299,14 +310,14 @@ export default function KitReviewDialog({
                 <div className="mb-3 flex items-end justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#8b7355] dark:text-[#e8c97a]">Your kit includes</p>
-                    <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">Tap a document to see it on the right. Your choices are remembered for next time.</p>
+                    <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">Tap a document to see it <span className="lg:hidden">below</span><span className="max-lg:hidden">on the right</span>. Your choices are remembered for next time.</p>
                   </div>
                   <span className="shrink-0 rounded-full bg-[#C9A24D]/15 px-2.5 py-1 text-[10px] font-black text-[#8b6a2b] dark:text-[#e8c97a]">{docs.length} {docs.length === 1 ? 'page' : 'pages'}</span>
                 </div>
                 <div className="space-y-2.5">
-                  <DocRow index={0} mode="flyer" icon={ClipboardList} active={focus === 'flyer'} onSelect={() => setFocus('flyer')} onPreview={() => onPreview('flyer')}>
+                  <DocRow index={0} mode="flyer" icon={ClipboardList} active={focus === 'flyer'} onSelect={() => pick('flyer')} onPreview={() => onPreview('flyer')}>
                     <Chip on={kitPrefs.flyerBrand} label="Brand" hint="Your photo, name and brokerage across the top of the printed flyer's photo." onClick={() => change('flyer', 'flyerBrand', !kitPrefs.flyerBrand, !kitPrefs.flyerBrand ? 'Brand on - your pill is back on the flyer.' : 'Brand off - the pill comes off the flyer.')} />
-                    <ThemeChoice dark={kitPrefs.qrDark} onChange={d => change('flyer', 'qrDark', d, d ? "Guests' sign-in screen is now dark." : "Guests' sign-in screen is now light.")} />
+                    <ThemeChoice dark={kitPrefs.qrDark} onChange={d => change('flyer', 'qrDark', d, d ? "Guests' sign-in screen is now Midnight." : "Guests' sign-in screen is now Ivory.")} />
                   </DocRow>
                   {similarAvailable && !hasRecommendations && (
                     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14, duration: 0.45 }}
@@ -317,18 +328,18 @@ export default function KitReviewDialog({
                     </motion.div>
                   )}
                   {hasRecommendations && (
-                    <DocRow index={1} mode="recommendations" icon={Layers} active={focus === 'recommendations'} onSelect={() => setFocus('recommendations')} onPreview={() => onPreview('recommendations')}>
+                    <DocRow index={1} mode="recommendations" icon={Layers} active={focus === 'recommendations'} onSelect={() => pick('recommendations')} onPreview={() => onPreview('recommendations')}>
                       <Chip on={kitPrefs.matchScore} icon={Percent} label="Match" hint="The % Match badge on each home, best match first." onClick={() => change('recommendations', 'matchScore', !kitPrefs.matchScore, !kitPrefs.matchScore ? 'Match % on - badges added to each home.' : 'Match % off - badges removed from each home.')} />
                       {similarAvailable && <Chip on label="Include" hint="Included. Tap to leave Similar Homes out - guests stay focused on this home." onClick={() => onSimilarChange(false)} />}
                     </DocRow>
                   )}
                   {hasBragSheet && (
-                    <DocRow index={2} mode="bragSheet" icon={Trophy} active={focus === 'bragSheet'} onSelect={() => setFocus('bragSheet')} onPreview={() => onPreview('bragSheet')}>
+                    <DocRow index={2} mode="bragSheet" icon={Trophy} active={focus === 'bragSheet'} onSelect={() => pick('bragSheet')} onPreview={() => onPreview('bragSheet')}>
                       <Chip on={kitPrefs.bragStats} icon={BarChart3} label="Sold Stats" hint="Your homes sold, total volume and average price across the top." onClick={() => change('bragSheet', 'bragStats', !kitPrefs.bragStats, !kitPrefs.bragStats ? 'Sold Stats on.' : 'Sold Stats off.')} />
                     </DocRow>
                   )}
                   {hasCheatSheet && (
-                    <DocRow index={3} mode="cheatSheet" icon={FileText} active={focus === 'cheatSheet'} onSelect={() => setFocus('cheatSheet')} onPreview={() => onPreview('cheatSheet')}>
+                    <DocRow index={3} mode="cheatSheet" icon={FileText} active={focus === 'cheatSheet'} onSelect={() => pick('cheatSheet')} onPreview={() => onPreview('cheatSheet')}>
                       <Chip on={kitPrefs.recap} icon={Sparkles} label="Recap" hint="Replaces the long MLS description with a short AI 'Highlights of' paragraph (3 lines max)." onClick={() => change('cheatSheet', 'recap', !kitPrefs.recap, !kitPrefs.recap ? 'Recap on - written when the kit is made.' : 'Recap off - the full description prints.')} />
                     </DocRow>
                   )}
@@ -336,7 +347,7 @@ export default function KitReviewDialog({
               </div>
 
               {/* live preview */}
-              <div className="min-w-0 lg:sticky lg:top-4 lg:self-start">
+              <div ref={previewRef} className="min-w-0 scroll-mt-3 lg:sticky lg:top-4 lg:self-start">
                 <div className="rounded-3xl border border-gray-200/80 bg-gradient-to-b from-[#f1efe9] to-[#e9e5dc] p-4 shadow-inner dark:border-white/10 dark:from-[#0f0f11] dark:to-[#0B0B0B]">
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">
@@ -351,7 +362,7 @@ export default function KitReviewDialog({
                       <motion.div key={String(kitPrefs.qrDark)} initial={{ scale: 0.92, opacity: 0.6 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                         className="hidden shrink-0 sm:block" title="What guests see on screen when they scan the QR code or use the kiosk">
                         <SignInPhone dark={kitPrefs.qrDark} photo={photo} street={street} />
-                        <p className="mt-1.5 text-center text-[9px] font-black uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Guest screen<br />{kitPrefs.qrDark ? 'Dark' : 'Light'}</p>
+                        <p className="mt-1.5 text-center text-[9px] font-black uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">Guest screen<br />{kitPrefs.qrDark ? 'Midnight' : 'Ivory'}</p>
                       </motion.div>
                     )}
                   </div>
@@ -384,16 +395,16 @@ export default function KitReviewDialog({
                   )}
                   {afterSigninAvailable && (
                     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4 }}
-                      className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-700 dark:bg-[#1a1a1c]">
+                      className="flex flex-wrap items-start gap-3 rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-700 dark:bg-[#1a1a1c] sm:flex-nowrap">
                       <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#111827] text-[#e8c97a] dark:bg-white/10"><MonitorPlay className="h-4 w-4" /></span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-black text-gray-800 dark:text-gray-100">After sign-in, open</p>
                         <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Your Agent Hub (once it&apos;s set up), or just the thank-you screen. Never on a Kiosk tablet.</p>
                       </div>
-                      <div className="inline-flex shrink-0 rounded-full border border-gray-200 bg-white p-0.5 dark:border-gray-700 dark:bg-[#0B0B0B]">
+                      <div className="inline-flex shrink-0 rounded-full border border-gray-200 bg-white p-0.5 dark:border-gray-700 dark:bg-[#0B0B0B] max-sm:ml-12">
                         {(['hub', 'none'] as const).map(v => (
                           <button key={v} type="button" onClick={() => onGuestPrefChange('afterSignin', v)}
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide transition ${guestPrefs.afterSignin === v ? 'bg-[#C9A24D] text-[#111827]' : 'text-gray-400 hover:text-gray-600'}`}>
+                            className={`h-8 rounded-full px-3 text-[10px] font-black uppercase tracking-wide transition sm:h-auto sm:px-2.5 sm:py-1 ${guestPrefs.afterSignin === v ? 'bg-[#C9A24D] text-[#111827]' : 'text-gray-400 hover:text-gray-600'}`}>
                             {v === 'hub' ? 'Agent Hub' : 'Nothing'}
                           </button>
                         ))}
@@ -413,8 +424,18 @@ export default function KitReviewDialog({
           )}
         </AnimatePresence>
 
+        {/* Phones, inside the kit window: the flow bar replaces the footer below - the same Back,
+            "Looks good - next" and Save & Finish handlers. */}
+        {kitDock && (
+          <FlowDock step={kitDock.step} total={kitDock.total} backDisabled={saving}
+            onBack={() => (step === 2 ? setStep(1) : onCancel())}
+            {...(step === 1 && hasGuestStep
+              ? { onContinue: () => setStep(2), continueLabel: 'Next' }
+              : { onContinue: save, continueLabel: saving ? 'Saving…' : 'Finish', busy: saving, icon: <Check strokeWidth={3} /> })} />
+        )}
+
         {/* footer */}
-        <div className="flex flex-col gap-3 border-t border-gray-200/60 px-5 py-4 sm:flex-row sm:px-8 dark:border-gray-800">
+        <div className={`${kitDock ? 'hidden sm:flex' : 'flex'} flex-col gap-3 border-t border-gray-200/60 px-5 py-4 sm:flex-row sm:px-8 dark:border-gray-800`}>
           <button type="button" onClick={() => (step === 2 ? setStep(1) : onCancel())} disabled={saving}
             className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-3.5 font-bold text-[#111827] transition-all duration-200 hover:bg-gray-50 active:scale-95 disabled:opacity-50 dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white dark:hover:bg-[#151515]">
             <ArrowLeft className="h-4 w-4" /> Back

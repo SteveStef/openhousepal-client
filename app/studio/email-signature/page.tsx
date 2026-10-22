@@ -3,6 +3,7 @@
 import { OhpWordmark } from '@/components/brand/OhpBrand'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ACCENT_SWATCHES } from '@/lib/accentSwatches'
+import { brandColorName, brandSignaturePatch, luxeAllowedFor, modeLabel, useBrandKit } from '@/lib/brandKit'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import AuthGuard from '@/components/AuthGuard'
@@ -261,6 +262,13 @@ export default function EmailSignaturePage() {
       return next
     })
   }
+  // "My Brand Kit" (default for a new signature) or "Choose my own" - lib/brandKit. Any look pick
+  // below (color, Luxe, finish, Ivory / Midnight) makes it the signature's own.
+  const brandKit = useBrandKit()
+  const sigLuxeAllowed = luxeAllowedFor(user)
+  const followsBrand = config.lookSource === 'brand'
+  const applyBrandLook = () => update(current => ({ ...current, ...brandSignaturePatch(brandKit.look, sigLuxeAllowed) }))
+  const updateLook = (updater: (current: SignatureConfig) => SignatureConfig) => update(current => ({ ...updater(current), lookSource: 'own' }))
 
   const fmtMoney = (value?: number) => (value ? `$${Math.round(value).toLocaleString()}` : '')
 
@@ -734,6 +742,23 @@ export default function EmailSignaturePage() {
 
                     {activeSection === 'customize' && (
                       <div className="space-y-5">
+                        <div>
+                          <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-gray-400">Look</p>
+                          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Where the look comes from">
+                            {([['brand', 'My Brand Kit', `${brandKit.look.theme === 'luxe' && sigLuxeAllowed ? `Luxe · ${LUXE_METALS[brandKit.look.metal].label}` : `Classic · ${brandColorName(brandKit.look.accent) || 'Custom color'}`} · ${modeLabel(brandKit.look.dark)}`], ['own', 'Choose my own', 'Pick a color, Luxe and Ivory or Midnight below.']] as const).map(([id, name, blurb]) => {
+                              const on = (id === 'brand') === followsBrand
+                              return (
+                                <button key={id} type="button" role="radio" aria-checked={on} data-testid={`sig-look-${id}`}
+                                  onClick={() => (id === 'brand' ? applyBrandLook() : !followsBrand ? undefined : update(current => ({ ...current, lookSource: 'own' })))}
+                                  className={`rounded-xl border-2 px-3 py-2.5 text-left transition ${on ? 'border-[#C9A24D] bg-[#C9A24D]/[0.06]' : 'border-gray-200 hover:border-[#C9A24D]/60 dark:border-gray-700'}`}>
+                                  <span className="flex items-center gap-1.5 text-sm font-black text-[#111827] dark:text-white">{id === 'brand' ? <Sparkles className="h-3.5 w-3.5 text-[#C9A24D]" /> : <Palette className="h-3.5 w-3.5 text-gray-400" />}{name}{on && <Check className="ml-auto h-4 w-4 text-[#C9A24D]" />}</span>
+                                  <span className="mt-0.5 block text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400">{blurb}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                          {followsBrand && <p className="mt-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Follows your <Link href="/studio/brand-kit" className="font-black text-[#8b7355] underline-offset-2 hover:underline dark:text-[#e8c97a]">Brand Kit</Link> - change it there and this changes too. Picking anything below makes it this signature&apos;s own.</p>}
+                        </div>
                         <AnimatePresence mode="wait" initial={false}>
                         {config.luxe ? (
                           <motion.div key="metal" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }}>
@@ -745,7 +770,7 @@ export default function EmailSignaturePage() {
                                 const mp = LUXE_METALS[m]
                                 const on = config.luxeMetal === m
                                 return (
-                                  <motion.button key={m} type="button" whileTap={{ scale: 0.95 }} onClick={() => update(current => ({ ...current, luxeMetal: m }))}
+                                  <motion.button key={m} type="button" whileTap={{ scale: 0.95 }} onClick={() => updateLook(current => ({ ...current, luxeMetal: m }))}
                                     className={`group relative flex items-center gap-2 overflow-hidden rounded-xl border px-3 py-2 text-left transition hover:-translate-y-0.5 ${on ? 'shadow-[0_10px_24px_-14px_rgba(0,0,0,.45)]' : 'border-gray-200 dark:border-gray-700'}`}
                                     style={on ? { borderColor: mp.base } : undefined}>
                                     <span className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full ring-1 ring-black/10" style={{ background: `linear-gradient(135deg, ${mp.deep}, ${mp.base} 40%, ${mp.pale} 55%, ${mp.light} 70%, ${mp.deep})` }}>
@@ -770,7 +795,7 @@ export default function EmailSignaturePage() {
                                 ) : (
                                   <button
                                     key={swatch.color}
-                                    onClick={() => update(current => ({ ...current, accentColor: swatch.color }))}
+                                    onClick={() => updateLook(current => ({ ...current, accentColor: swatch.color }))}
                                     className={`h-8 w-8 shrink-0 rounded-full border-2 ring-1 ring-inset ring-black/10 transition hover:-translate-y-0.5 hover:scale-110 active:scale-95 ${config.accentColor === swatch.color ? 'border-gray-900 dark:border-white' : 'border-transparent'}`}
                                     style={{ backgroundColor: swatch.color }}
                                     title={swatch.label}
@@ -807,18 +832,18 @@ export default function EmailSignaturePage() {
                             <div className="flex flex-1 flex-col items-center gap-2 text-center">
                               <div className="flex flex-wrap items-center justify-center gap-2 xl:flex-nowrap">
                                 <ThemeSwatchButton
-                                  label={config.luxe ? 'Ivory' : 'Light'}
+                                  label="Ivory"
                                   icon={Sun}
                                   active={!config.darkMode}
-                                  onClick={() => update(current => ({ ...current, darkMode: false }))}
+                                  onClick={() => updateLook(current => ({ ...current, darkMode: false }))}
                                   preview={config.luxe ? 'linear-gradient(135deg, #fffdf8 0%, #f4ead7 100%)' : 'linear-gradient(135deg, #fffdfa 0%, #f6f2eb 100%)'}
                                   previewText="#171817"
                                 />
                                 <ThemeSwatchButton
-                                  label={config.luxe ? 'Midnight' : 'Dark'}
+                                  label="Midnight"
                                   icon={Moon}
                                   active={config.darkMode}
-                                  onClick={() => update(current => ({ ...current, darkMode: true }))}
+                                  onClick={() => updateLook(current => ({ ...current, darkMode: true }))}
                                   preview={config.luxe ? 'linear-gradient(135deg, #111827 0%, #2a2218 100%)' : 'linear-gradient(135deg, #1B1D22 0%, #0D0E11 100%)'}
                                   previewText="#F4F2EC"
                                 />
@@ -829,7 +854,7 @@ export default function EmailSignaturePage() {
                             {/* OpenHousePal Luxe premade theme - compact, beside Light/Dark. */}
                             <button
                               type="button"
-                              onClick={() => update(current => ({ ...current, luxe: !current.luxe }))}
+                              onClick={() => updateLook(current => ({ ...current, luxe: !current.luxe }))}
                               aria-pressed={config.luxe}
                               title="Gold, serif and the Spotlight's light - ivory or midnight. Turn off to style it yourself."
                               className={`group relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1.5 self-stretch overflow-hidden rounded-xl border px-2.5 py-2 text-center transition-all duration-300 active:scale-[0.97] ${config.luxe ? 'border-[#C9A24D] shadow-[0_12px_28px_-18px_rgba(201,162,77,.95)]' : 'border-[#C9A24D]/35 hover:border-[#C9A24D]/70'}`}

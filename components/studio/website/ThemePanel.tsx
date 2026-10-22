@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Check, Crown, Loader2, Moon, Sparkles, Sun, Trash2, Upload, Wand2 } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { SiteTheme } from '@/types'
@@ -9,6 +9,8 @@ import { CLASSIC_ACCENTS, CLASSIC_DEFAULT_ACCENT, siteLuxeMetal, siteThemeVars }
 import { LUXE_METALS, LUXE_METAL_ORDER, type LuxeMetal } from '@/lib/luxeMetals'
 import { useToast } from '@/contexts/ToastContext'
 import OhpSwitch from '@/components/ui/OhpSwitch'
+import { brandColorName, brandLookOf, modeLabel, siteThemeWithBrand } from '@/lib/brandKit'
+import { isLightColor } from '@/lib/siteTheme'
 
 // The Design tab. Everything here is "one click, whole site": the look (Classic / Luxe), the
 // accent color (the same swatches as the Email Signature), light or dark by default (visitors
@@ -106,29 +108,52 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
     else showToast(res.error || 'Could not upload that file.', 'error')
   }
 
+  // "My Brand Kit": colors, fonts, logo - and the look once one is saved in the Brand Kit - follow
+  // it live (backend content_adapters.resolve_theme; lib/brandKit siteThemeWithBrand here).
+  const following = theme.follow_brand_kit !== false
+  const [brandSummary, setBrandSummary] = useState<string>('')
   const matchBrandKit = async () => {
     setResetting(true)
     const res = await api.studio.getBrandKit()
     setResetting(false)
     if (!res.success || !res.data) { showToast('Could not read your Brand Kit.', 'error'); return }
-    const bk = res.data
-    onChange({
-      ...theme,
-      primary_color: bk.primary_color || theme.primary_color,
-      secondary_color: bk.secondary_color || theme.secondary_color,
-      heading_font: bk.heading_font || theme.heading_font,
-      body_font: bk.body_font || theme.body_font,
-      logo_url: bk.personal_logo_url || bk.team_logo_url || bk.brokerage_logo_url || theme.logo_url,
-      follow_brand_kit: true,
-    })
-    showToast('Colors, fonts and logo now match your Brand Kit.', 'success')
+    onChange(siteThemeWithBrand({ ...theme, follow_brand_kit: true }, res.data))
+    showToast('Your site now follows your Brand Kit.', 'success')
   }
+  useEffect(() => {
+    api.studio.getBrandKit().then(res => {
+      if (!res.success || !res.data) return
+      const l = brandLookOf(res.data)
+      setBrandSummary(l.saved
+        ? `${l.theme === 'luxe' ? `Luxe · ${LUXE_METALS[l.metal].label}` : `Classic · ${brandColorName(l.accent) || 'Custom color'}`} · ${modeLabel(l.dark)}`
+        : 'Your colors, fonts and logo')
+    })
+  }, [])
 
   const label = 'text-[10px] font-black uppercase tracking-wide text-gray-400'
   const input = 'mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white'
 
   return (
     <div className="space-y-5">
+      {/* 0. Where it comes from - the Brand Kit (default) or this site's own */}
+      <div>
+        <p className={label}>Look comes from</p>
+        <div className="mt-1.5 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Where the look comes from">
+          {([['brand', 'My Brand Kit', brandSummary || 'Your Brand Kit'], ['own', 'Choose my own', 'Pick a look just for this site below.']] as const).map(([id, name, blurb]) => {
+            const on = (id === 'brand') === following
+            return (
+              <button key={id} type="button" role="radio" aria-checked={on} data-testid={`site-look-${id}`} disabled={id === 'brand' && resetting}
+                onClick={() => (id === 'brand' ? (!following && matchBrandKit()) : following && onChange({ ...theme, follow_brand_kit: false }))}
+                className={`rounded-xl border-2 px-3 py-2.5 text-left transition ${on ? 'border-[#C9A24D] bg-[#C9A24D]/5' : 'border-gray-200 hover:border-[#C9A24D]/50 dark:border-gray-800'}`}>
+                <span className="flex items-center gap-1.5 text-xs font-black text-[#111827] dark:text-white">{id === 'brand' ? (resetting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 text-[#C9A24D]" />) : <Sparkles className="h-3.5 w-3.5 text-gray-400" />}{name}{on && <Check className="ml-auto h-3.5 w-3.5 text-[#C9A24D]" />}</span>
+                <span className="mt-0.5 block text-[10px] font-semibold leading-snug text-gray-400">{blurb}</span>
+              </button>
+            )
+          })}
+        </div>
+        {following && <p className="mt-1.5 text-[10px] font-semibold text-gray-400">Change your Brand Kit (Studio → Brand Kit) and your site changes too. Picking anything below gives the site its own look.</p>}
+      </div>
+
       {/* 1. The look */}
       <div>
         <p className={label}>The look</p>
@@ -188,7 +213,7 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
                 className={`relative h-8 w-8 rounded-full ring-offset-2 ring-offset-white transition hover:scale-110 active:scale-95 dark:ring-offset-[#141416] ${on ? 'ring-2 ring-[#111827] dark:ring-white' : 'ring-1 ring-black/10'}`}
                 style={{ background: s.color }}
               >
-                {on && <Check className="absolute inset-0 m-auto h-3.5 w-3.5" style={{ color: s.color === '#F1746B' ? '#111827' : '#fff' }} />}
+                {on && <Check className="absolute inset-0 m-auto h-3.5 w-3.5" style={{ color: isLightColor(s.color) || s.color === '#F1746B' ? '#111827' : '#fff' }} />}
               </button>
             )
           })}
@@ -215,11 +240,11 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
       </div>
       )}
 
-      {/* 3. Light / dark */}
+      {/* 3. Ivory / Midnight (light / dark) */}
       <div>
-        <p className={label}>Light or dark</p>
+        <p className={label}>Ivory or Midnight</p>
         <div className="mt-1.5 grid grid-cols-2 gap-2">
-          {([['light', 'Light', Sun, 'Bright pages, dark text.'], ['dark', 'Dark', Moon, 'Deep pages, light text - your accent glows.']] as const).map(([id, name, Icon, blurb]) => {
+          {([['light', 'Ivory', Sun, 'Bright pages, dark text.'], ['dark', 'Midnight', Moon, 'Deep pages, light text - your accent glows.']] as const).map(([id, name, Icon, blurb]) => {
             const on = mode === id
             return (
               <button key={id} type="button" onClick={() => set({ mode: id })} className={`flex items-center gap-2.5 rounded-xl border-2 px-3 py-2.5 text-left transition ${on ? 'border-[#C9A24D] bg-[#C9A24D]/5' : 'border-gray-200 hover:border-[#C9A24D]/50 dark:border-gray-800'}`}>
@@ -305,9 +330,6 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
         <OhpSwitch on={theme.footer_signature === true} onChange={v => set({ footer_signature: v })} testId="site-footer-signature-switch" />
       </label>
 
-      <button type="button" onClick={matchBrandKit} disabled={resetting} className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-[#8b7355] hover:underline disabled:opacity-50 dark:text-[#C9A24D]">
-        {resetting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />} Match my Brand Kit (Studio → Design)
-      </button>
     </div>
   )
 }

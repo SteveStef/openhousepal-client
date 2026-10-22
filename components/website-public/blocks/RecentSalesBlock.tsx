@@ -37,10 +37,13 @@ export default function RecentSalesBlock({ data, theme, siteId, basePrefix = '' 
         <h2 className={`text-3xl font-black sm:text-4xl ${fontClass(theme.heading_font, 'font-serif')}`} style={{ color: 'var(--site-heading)' }}>
           {data.headline || 'Recently Sold'}
         </h2>
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-6 text-sm">
-          <span className="font-bold text-gray-500">{sales.length} {sales.length === 1 ? 'Home' : 'Homes'} Sold</span>
-          {totalVolume > 0 && <span className="font-bold text-gray-500">{formatVolume(totalVolume)} in Volume</span>}
-        </div>
+        {/* Hidden when the agent turned off "Show my sold stats" (setup Sales step). */}
+        {data.show_stats !== false && (
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-6 text-sm">
+            <span className="font-bold text-gray-500">{sales.length} {sales.length === 1 ? 'Home' : 'Homes'} Sold</span>
+            {totalVolume > 0 && <span className="font-bold text-gray-500">{formatVolume(totalVolume)} in Volume</span>}
+          </div>
+        )}
       </div>
       <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
         {sales.map(sale => {

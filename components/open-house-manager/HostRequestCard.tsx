@@ -3,10 +3,9 @@
 import { useState } from 'react'
 import { todayLocal } from '@/lib/relativeDays'
 import { Calendar, Clock, Check, X, Loader2, Home, CalendarClock, History, ChevronDown } from 'lucide-react'
+import OfferTimeFlow from './OfferTimeFlow'
 import { HostRequest, HostRequestEvent } from '@/types'
 import api from '@/lib/api-service'
-import { TIME_SLOT_OPTIONS, endTimeOptionsFor } from './formatters'
-import TimeSelect from './TimeSelect'
 
 const ACTION_LABEL: Record<HostRequestEvent['action'], string> = {
   requested: 'Requested',
@@ -79,8 +78,6 @@ function formatTime(timeStr: string) {
   return `${hour12}:${String(m).padStart(2, '0')} ${period}`
 }
 
-const fieldLabelClass = "text-[9px] font-black uppercase tracking-widest text-gray-400"
-const fieldInputClass = "mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-2 py-1.5 text-xs font-semibold outline-none focus:border-[#C9A24D] dark:text-white"
 
 export default function HostRequestCard({
   request,
@@ -118,31 +115,8 @@ export default function HostRequestCard({
   const [isCountering, setIsCountering] = useState(false)
   const [confirmWithdraw, setConfirmWithdraw] = useState(false)
   const [isCounteringBack, setIsCounteringBack] = useState(false)
-  // Times come back from the API as "HH:MM:SS" - the time <select>s only ever hold "HH:MM"
-  // values, so these need trimming or they'd start out matching no option at all.
-  const [counterDate, setCounterDate] = useState(request.requested_date)
-  const [counterStart, setCounterStart] = useState(request.requested_start_time.slice(0, 5))
-  const [counterEnd, setCounterEnd] = useState(request.requested_end_time.slice(0, 5))
-  const [counterMessage, setCounterMessage] = useState('')
-  const [backDate, setBackDate] = useState(request.counter_date || request.requested_date)
-  const [backStart, setBackStart] = useState((request.counter_start_time || request.requested_start_time).slice(0, 5))
-  const [backEnd, setBackEnd] = useState((request.counter_end_time || request.requested_end_time).slice(0, 5))
-  const [backNote, setBackNote] = useState('')
   const isPending = request.status === 'pending'
   const isCountered = request.status === 'countered'
-
-  const handleSendCounterBack = async () => {
-    if (!onCounterBack || busy || !backDate || !backStart || !backEnd) return
-    setBusy('counter-back')
-    await onCounterBack(request.id, backDate, backStart, backEnd, backNote.trim())
-    setBusy(null)
-    setIsCounteringBack(false)
-  }
-
-  const handleCounterStartChange = (value: string) => {
-    setCounterStart(value)
-    if (!endTimeOptionsFor(value).some(opt => opt.value === counterEnd)) setCounterEnd('')
-  }
 
   const handleApprove = async () => {
     if (!onApprove || busy) return
@@ -156,14 +130,6 @@ export default function HostRequestCard({
     setBusy('decline')
     await onDecline(request.id)
     setBusy(null)
-  }
-
-  const handleSendCounter = async () => {
-    if (!onCounter || busy || !counterDate || !counterStart || !counterEnd) return
-    setBusy('counter')
-    await onCounter(request.id, counterDate, counterStart, counterEnd, counterMessage.trim())
-    setBusy(null)
-    setIsCountering(false)
   }
 
   const handleAcceptCounter = async () => {
@@ -283,7 +249,7 @@ export default function HostRequestCard({
           </button>
           {onCounter && !request.listing_agent_suggested_time && (
             <button
-              onClick={() => setIsCountering(v => !v)}
+              onClick={() => setIsCountering(true)}
               disabled={busy !== null}
               className="flex shrink-0 items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 p-2.5 text-gray-500 dark:text-gray-400 transition hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
               aria-label="Suggest a different time"
@@ -299,47 +265,6 @@ export default function HostRequestCard({
         <p className="mt-2 text-[11px] font-semibold text-gray-400">You already suggested another time once, so now it&apos;s a yes or no.</p>
       )}
 
-      {isPending && isCountering && onCounter && !request.listing_agent_suggested_time && (
-        <div className="mt-3 space-y-3 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Suggest a different time</p>
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              <label className="block">
-                <span className={fieldLabelClass}>Date</span>
-                <input
-                  type="date"
-                  value={counterDate}
-                  onChange={e => setCounterDate(e.target.value)}
-                  className={fieldInputClass}
-                />
-              </label>
-              <label className="block">
-                <span className={fieldLabelClass}>Start</span>
-                <TimeSelect value={counterStart} onChange={handleCounterStartChange} options={TIME_SLOT_OPTIONS} placeholder="Start" className={fieldInputClass} />
-              </label>
-              <label className="block">
-                <span className={fieldLabelClass}>End</span>
-                <TimeSelect value={counterEnd} onChange={setCounterEnd} options={endTimeOptionsFor(counterStart)} placeholder="End" disabled={!counterStart} className={`${fieldInputClass} disabled:opacity-50`} />
-              </label>
-            </div>
-          </div>
-
-          <textarea
-            value={counterMessage}
-            onChange={e => setCounterMessage(e.target.value)}
-            rows={2}
-            placeholder="Add a note (optional)..."
-            className="w-full resize-none rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-2 py-1.5 text-xs font-medium outline-none focus:border-[#C9A24D] dark:text-white"
-          />
-          <button
-            onClick={handleSendCounter}
-            disabled={busy !== null}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#111827] dark:bg-white px-3 py-2 text-xs font-black text-white dark:text-[#111827] transition hover:bg-black dark:hover:bg-gray-200 disabled:opacity-50"
-          >
-            {busy === 'counter' ? <Loader2 size={13} className="animate-spin" /> : <CalendarClock size={13} />} Send Proposed Time
-          </button>
-        </div>
-      )}
 
       {isCountered && (onAcceptCounter || onDeclineCounter) && (
         <div className="mt-3 flex items-center gap-2">
@@ -363,7 +288,7 @@ export default function HostRequestCard({
           )}
           {onCounterBack && !request.host_suggested_time && (
             <button
-              onClick={() => setIsCounteringBack(v => !v)}
+              onClick={() => setIsCounteringBack(true)}
               disabled={busy !== null}
               className="flex shrink-0 items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 p-2.5 text-gray-500 dark:text-gray-400 transition hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
               aria-label="Propose a different time"
@@ -379,44 +304,21 @@ export default function HostRequestCard({
         <p className="mt-2 text-[11px] font-semibold text-gray-400">You already suggested another time once, so now it&apos;s a yes or no.</p>
       )}
 
-      {isCountered && isCounteringBack && onCounterBack && !request.host_suggested_time && (
-        <div className="mt-3 space-y-3 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Propose a different time</p>
-          <div className="grid grid-cols-3 gap-2">
-            <label className="block">
-              <span className={fieldLabelClass}>Date</span>
-              <input type="date" value={backDate} onChange={e => setBackDate(e.target.value)} className={fieldInputClass} />
-            </label>
-            <label className="block">
-              <span className={fieldLabelClass}>Start</span>
-              <TimeSelect
-                value={backStart}
-                onChange={value => { setBackStart(value); if (!endTimeOptionsFor(value).some(opt => opt.value === backEnd)) setBackEnd('') }}
-                options={TIME_SLOT_OPTIONS}
-                placeholder="Start"
-                className={fieldInputClass}
-              />
-            </label>
-            <label className="block">
-              <span className={fieldLabelClass}>End</span>
-              <TimeSelect value={backEnd} onChange={setBackEnd} options={endTimeOptionsFor(backStart)} placeholder="End" disabled={!backStart} className={`${fieldInputClass} disabled:opacity-50`} />
-            </label>
-          </div>
-          <textarea
-            value={backNote}
-            onChange={e => setBackNote(e.target.value)}
-            rows={2}
-            placeholder="Add a note (optional)..."
-            className="w-full resize-none rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#151517] px-2 py-1.5 text-xs font-medium outline-none focus:border-[#C9A24D] dark:text-white"
-          />
-          <button
-            onClick={handleSendCounterBack}
-            disabled={busy !== null}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#111827] dark:bg-white px-3 py-2 text-xs font-black text-white dark:text-[#111827] transition hover:bg-black dark:hover:bg-gray-200 disabled:opacity-50"
-          >
-            {busy === 'counter-back' ? <Loader2 size={13} className="animate-spin" /> : <CalendarClock size={13} />} Send Proposed Time
-          </button>
-        </div>
+
+      {/* "Other time" opens the step-by-step window (user, 10/22) instead of small date boxes here. */}
+      {onCounter && (
+        <OfferTimeFlow open={isCountering} onClose={() => setIsCountering(false)}
+          street={(request.property_address || 'This listing').split(',')[0]} photo={request.property_image}
+          theirDate={request.requested_date} theirStart={request.requested_start_time} theirEnd={request.requested_end_time}
+          theirLabel={`${(request.requesting_agent_name || 'They').split(' ')[0]} asked for`} toName={request.requesting_agent_name || undefined}
+          onSend={async (date, start, end, note) => { await onCounter(request.id, date, start, end, note) }} />
+      )}
+      {onCounterBack && (
+        <OfferTimeFlow open={isCounteringBack} onClose={() => setIsCounteringBack(false)}
+          street={(request.property_address || 'This listing').split(',')[0]} photo={request.property_image}
+          theirDate={request.counter_date || request.requested_date} theirStart={request.counter_start_time || request.requested_start_time} theirEnd={request.counter_end_time || request.requested_end_time}
+          theirLabel="They offered" toName={request.listing_agent_name || undefined}
+          onSend={async (date, start, end, note) => { await onCounterBack(request.id, date, start, end, note) }} />
       )}
 
       {onWithdraw && (isPending || isCountered || (request.status === 'approved' && String(request.requested_date) >= todayLocal())) && (

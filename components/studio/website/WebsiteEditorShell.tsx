@@ -16,6 +16,7 @@ import { SiteHeader, SiteFooter } from '@/components/website-public/SiteChrome'
 import { DEFAULT_SITE_THEME } from '@/components/website-public/types'
 import { siteFontVariables } from '@/lib/site-fonts'
 import { normalizeSiteTheme, siteLuxeMetal, siteMode, siteTemplate, siteThemeVars } from '@/lib/siteTheme'
+import { siteThemeWithBrand } from '@/lib/brandKit'
 import { LUXE_METALS } from '@/lib/luxeMetals'
 import { accentLabel } from '@/lib/accentSwatches'
 import SiteLoader from '@/components/website-public/SiteLoader'
@@ -45,7 +46,7 @@ export type EditorTab = 'content' | 'design' | 'featured' | 'media' | 'reviews' 
 
 export const TABS: { id: EditorTab; label: string; icon: typeof Layers; title: string; blurb: string }[] = [
   { id: 'content', label: 'Sections', icon: Layers, title: 'Build Your Home Page', blurb: 'Drag sections into any order, switch them on or off, open one to edit it. Add more from the catalogue - each arrives complete and working.' },
-  { id: 'design', label: 'Design', icon: Palette, title: 'Look & Feel', blurb: 'Classic or Luxe, your accent color, light or dark by default - one click changes the whole site.' },
+  { id: 'design', label: 'Design', icon: Palette, title: 'Look & Feel', blurb: 'Classic or Luxe, your accent color, Ivory or Midnight by default - one click changes the whole site.' },
   { id: 'featured', label: 'Featured', icon: Star, title: 'Featured Homes', blurb: 'The newest homes in your header, and what your Featured page shows.' },
   { id: 'media', label: 'Media', icon: PlaySquare, title: 'Videos & Tours', blurb: 'Show listing videos and 3D tours on your site.' },
   { id: 'reviews', label: 'Reviews', icon: MessageSquareQuote, title: 'Client Reviews', blurb: 'Show or hide your Reviews page - your rating and what clients say, with a menu link.' },
@@ -145,7 +146,14 @@ export default function WebsiteEditorShell({ onActionsChange, onBarEndChange, ta
 
         const draftTheme = res.data.draft_data?.theme
         if (draftTheme) {
-          setTheme(draftTheme)
+          // Following the Brand Kit (the default): show what visitors see - the kit's colors,
+          // fonts, logo and (once saved) look, not the copy saved with the draft (lib/brandKit).
+          if (draftTheme.follow_brand_kit !== false) {
+            const bkRes = await api.studio.getBrandKit()
+            setTheme(bkRes.success && bkRes.data ? siteThemeWithBrand(draftTheme, bkRes.data) : draftTheme)
+          } else {
+            setTheme(draftTheme)
+          }
         } else {
           // Brand new site, no theme saved yet - start from the agent's real Brand Kit (Studio >
           // Design) instead of a generic default, so colors/fonts/logo are right the first time
@@ -516,7 +524,7 @@ export default function WebsiteEditorShell({ onActionsChange, onBarEndChange, ta
     if (siteTemplate(next) === 'luxe' && siteLuxeMetal(prev) !== siteLuxeMetal(next)) return { kind: 'change', find: firstBlock, label: `${LUXE_METALS[siteLuxeMetal(next)].label} finish · buttons, lines & highlights` }
     if ((prev.secondary_color || '').toLowerCase() !== (next.secondary_color || '').toLowerCase()) return { kind: 'change', find: firstBlock, label: `${accentLabel(next.secondary_color) || 'New'} accent · buttons & highlights everywhere` }
     if ((prev.primary_color || '').toLowerCase() !== (next.primary_color || '').toLowerCase()) return { kind: 'change', find: firstBlock, label: 'New color · dark panels & buttons' }
-    if (siteMode(prev) !== siteMode(next)) return { kind: 'change', find: firstBlock, label: siteMode(next) === 'dark' ? 'Dark pages by default' : 'Light pages by default' }
+    if (siteMode(prev) !== siteMode(next)) return { kind: 'change', find: firstBlock, label: siteMode(next) === 'dark' ? 'Midnight pages by default' : 'Ivory pages by default' }
     if (prev.heading_font !== next.heading_font) return { kind: 'change', find: either(inPreview('[data-ohp-block] h1'), inPreview('[data-ohp-block] h2')), label: `Headings · ${FONT_NAMES[next.heading_font] || 'new font'}` }
     if (prev.body_font !== next.body_font) return { kind: 'change', find: inPreview('[data-ohp-block] p'), label: `Body text · ${FONT_NAMES[next.body_font] || 'new font'}` }
     return null
@@ -702,6 +710,13 @@ Your website is built from your Agent Hub, so these parts will show up blank. Pu
     setPublishing(false)
   }
 
+  // The Save/Publish buttons below are built once per site/saving change and handed up to the page
+  // header, so they must call the CURRENT handlers - calling the ones from that render saved a stale
+  // copy of the edits (a price picked on the Featured tab never reached the server - 10/22).
+  const saveRef = useRef(handleSaveDraft)
+  saveRef.current = handleSaveDraft
+  const publishRef = useRef(handlePublish)
+  publishRef.current = handlePublish
   const copyUrl = () => {
     copyText(siteUrl)
     setCopied(true)
@@ -735,14 +750,14 @@ Your website is built from your Agent Hub, so these parts will show up blank. Pu
           </div>
           <div className="mt-3 flex gap-2">
             <button
-              onClick={handleSaveDraft}
+              onClick={() => saveRef.current()}
               disabled={saving || publishing}
               className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-black text-[#111827] transition hover:border-[#C9A24D] disabled:opacity-50 dark:border-white/15 dark:bg-white/5 dark:text-white"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save draft
             </button>
             <button
-              onClick={handlePublish}
+              onClick={() => publishRef.current()}
               disabled={saving || publishing}
               className="lx-shine relative inline-flex flex-1 items-center justify-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-4 py-2.5 text-sm font-black text-[#111827] shadow-lg shadow-[#C9A24D]/30 transition hover:-translate-y-0.5 disabled:opacity-60"
             >

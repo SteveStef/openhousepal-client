@@ -11,6 +11,7 @@ import SearchableSelect from '@/components/forms/SearchableSelect'
 import api from '@/lib/api-service'
 import { formatNumberWithCommas, sanitizeNumericInput, stripCommas } from '@/lib/utils'
 import { FORM_LOOK_CSS, formLookClass, formLookVars, formPaint, type FormLook } from '@/lib/formLook'
+import WhenPicker, { WhenField, WhenSheet, emptyWhen } from '@/components/ui/WhenPicker'
 
 export interface FormRunnerBranding {
   title: string
@@ -919,14 +920,16 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
                 {field.label}
                 {field.required && <span style={{ color: accent }}> *</span>}
               </label>
-{isHomeQuestion(field) ? (
+{field.type === 'date' || field.type === 'time' ? (
+                <div className="mt-1.5"><WhenAnswerField mode={field.type} value={fieldValue} onChange={next => setAnswer(field.id, next)} accent={accent} label={field.label} /></div>
+              ) : isHomeQuestion(field) ? (
                 <HomeQuestionInput id={`ff-${field.id}`} value={fieldValue} onChange={next => setAnswer(field.id, next)} accent={accent} className="mt-1.5 w-full border-b-2 border-gray-200 bg-transparent px-1 py-2.5 text-lg font-bold text-[#0B0B0B] outline-none transition-all focus:border-current dark:border-gray-700 dark:text-white" />
               ) : (
               <input
                 id={`ff-${field.id}`}
                 // Lets the phone fill name / email / phone from the visitor's own contact card.
                 autoComplete={fieldAutoComplete(field)}
-                type={field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : 'text'}
+                type={field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'}
                 value={formatAsNumericText ? formatNumericTextWithCommas(fieldValue) : fieldValue}
                 onChange={event => setAnswer(field.id, formatAsNumericText ? stripCommasFromNumericText(event.target.value) : event.target.value)}
                 placeholder="Type your answer..."
@@ -1021,27 +1024,26 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
     )
   }
 
+  // Date / time questions (user, 10/22): big day tiles + "Pick your own day" calendar, and
+  // Morning / Afternoon / Evening -> times - easier than the phone's tiny native wheels. The answer
+  // is stored exactly as before: YYYY-MM-DD / HH:MM.
   if (question.type === 'date') {
     return (
-      <input
-        autoFocus
-        type="date"
-        value={textValue}
-        onChange={event => setAnswer(question.id, event.target.value)}
-        className="w-full border-b-2 border-gray-200 bg-transparent px-1 py-3 text-xl font-bold text-[#0B0B0B] outline-none transition-all focus:border-current dark:border-gray-700 dark:text-white"
-      />
+      <div className="text-left">
+        <WhenPicker key={question.id} mode="date" minDate={null} accent={accent}
+          value={{ ...emptyWhen, date: /^\d{4}-\d{2}-\d{2}$/.test(textValue) ? textValue : null }}
+          onChange={v => setAnswer(question.id, v.date || '')} />
+      </div>
     )
   }
 
   if (question.type === 'time') {
     return (
-      <input
-        autoFocus
-        type="time"
-        value={textValue}
-        onChange={event => setAnswer(question.id, event.target.value)}
-        className="w-full border-b-2 border-gray-200 bg-transparent px-1 py-3 text-xl font-bold text-[#0B0B0B] outline-none transition-all focus:border-current dark:border-gray-700 dark:text-white"
-      />
+      <div className="text-left">
+        <WhenPicker key={question.id} mode="time" accent={accent}
+          value={{ ...emptyWhen, time: /^\d{2}:\d{2}$/.test(textValue) ? textValue : null }}
+          onChange={v => setAnswer(question.id, v.time || '')} />
+      </div>
     )
   }
 
@@ -1117,6 +1119,19 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
 const FormIdContext = createContext<string | undefined>(undefined)
 // Schedule a Showing's "What property are you interested in seeing?" - gets MLS address suggestions.
 const isHomeQuestion = (q: { id: string }) => q.id === 'property_of_interest'
+
+// A date / time field inside a group of questions: one big tap field that opens the picker.
+function WhenAnswerField({ mode, value, onChange, accent, label }: { mode: 'date' | 'time'; value: string; onChange: (v: string) => void; accent: string; label: string }) {
+  const [open, setOpen] = useState(false)
+  const when = { ...emptyWhen, date: mode === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null, time: mode === 'time' && /^\d{2}:\d{2}$/.test(value) ? value : null }
+  return (
+    <>
+      <WhenField mode={mode} value={when} accent={accent} placeholder={mode === 'date' ? 'Pick a day' : 'Pick a time'} onOpen={() => setOpen(true)} onClear={() => onChange('')} />
+      <WhenSheet open={open} onClose={() => setOpen(false)} mode={mode} minDate={null} value={when} accent={accent} title={label || (mode === 'date' ? 'Pick a day' : 'Pick a time')} kicker={mode === 'date' ? 'Pick a day' : 'Pick a time'}
+        onDone={v => { onChange((mode === 'date' ? v.date : v.time) || ''); setOpen(false) }} />
+    </>
+  )
+}
 function HomeQuestionInput(props: { id?: string; value: string; onChange: (v: string) => void; accent: string; className: string }) {
   const formId = useContext(FormIdContext)
   return <ListingAddressInput {...props} formId={formId} />

@@ -11,6 +11,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { smartBack } from '@/lib/navHistory'
 import { AnimatePresence, Reorder, motion, useDragControls, type Variants } from 'framer-motion'
 import { LuxeSurface } from '@/components/ui/LuxeSurface'
+import { WhenSheet, addDays, nextWeekday, whenText, ymd } from '@/components/ui/WhenPicker'
 import BlogThemeLivePreview from '@/components/studio/blogs/BlogThemeLivePreview'
 import AreaSpotlightSection, { type AreaCard } from '@/components/studio/blogs/AreaSpotlightSection'
 import { MapPin as MapPinIcon, Lock } from 'lucide-react'
@@ -628,19 +629,20 @@ function BlogEditorPageInner() {
     const steps = [['gathering', 'Gathering what we know'], ['research', 'Researching what is missing'], ['write', 'Writing in your voice'], ['fact_check', 'Fact-checking every claim'], ['finishing', 'Fixing and finishing']]
     const at = Math.max(0, steps.findIndex(([k]) => k === blog.ai_review?.stage))
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f7f5f1] px-6 dark:bg-[#0B0B0B]">
-        <LuxeSurface className="w-full max-w-md rounded-3xl p-7 text-white">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#e8c97a]">AI Blog Writer</p>
-          <p className="mt-2 font-serif text-2xl font-black leading-tight">Still writing “{blog.title}”</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#f7f5f1] px-4 dark:bg-[#0B0B0B] sm:px-6">
+        {/* LuxeSurface is cream in light mode, so the words are dark there (white-on-cream was unreadable). */}
+        <LuxeSurface className="w-full max-w-md rounded-3xl border border-[#C9A24D]/30 p-6 text-[#111827] shadow-[0_24px_50px_-34px_rgba(139,115,85,.55)] dark:border-white/[0.07] dark:text-white sm:p-7">
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#8b7355] dark:text-[#e8c97a]">AI Blog Writer</p>
+          <p className="mt-2 line-clamp-4 font-serif text-2xl font-black leading-tight">Still writing “{blog.title}”</p>
           <div className="mt-5 space-y-2.5">
             {steps.map(([k, label], i) => (
-              <p key={k} className={`flex items-center gap-2.5 text-sm font-bold ${i <= at ? 'text-white' : 'text-white/35'}`}>
-                {i < at ? <Check className="h-4 w-4 text-emerald-400" /> : i === at ? <Loader2 className="h-4 w-4 animate-spin text-[#e8c97a]" /> : <span className="h-4 w-4 rounded-full border-2 border-white/20" />}
+              <p key={k} className={`flex items-center gap-2.5 text-sm font-bold transition-colors duration-500 ${i <= at ? 'text-[#111827] dark:text-white' : 'text-[#111827]/35 dark:text-white/35'}`}>
+                {i < at ? <Check className="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" /> : i === at ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#C9A24D] dark:text-[#e8c97a]" /> : <span className="h-4 w-4 shrink-0 rounded-full border-2 border-[#111827]/15 dark:border-white/20" />}
                 {label}
               </p>
             ))}
           </div>
-          <p className="mt-5 text-[11px] font-semibold text-white/55">It opens here on its own when it's done - usually a few minutes. You can leave: your bell lights up when it's ready.</p>
+          <p className="mt-5 text-[11px] font-semibold text-gray-500 dark:text-white/55">It opens here on its own when it's done - usually a few minutes. You can leave: your bell lights up when it's ready.</p>
         </LuxeSurface>
       </div>
     )
@@ -665,13 +667,14 @@ function BlogEditorPageInner() {
       )}
       <div className={showPublish ? 'hidden' : undefined}>
       {/* Top bar */}
-      <div className="sticky top-0 z-30 border-b border-gray-200 bg-[#fbfaf7]/90 dark:border-gray-800 dark:bg-[#0B0B0B]/90">
+      {/* Solid (not see-through): the article scrolling under a 90% bar showed through it. */}
+      <div className="sticky top-0 z-30 border-b border-gray-200 bg-[#fbfaf7] dark:border-gray-800 dark:bg-[#0B0B0B]">
       <div className="flex items-center justify-between gap-2 px-3 py-3 sm:gap-3 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
-          <button onClick={() => smartBack(router, '/studio/blogs')} className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white">
+          <button onClick={() => smartBack(router, '/studio/blogs')} aria-label="Back to Blogs" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-[#111827] active:scale-95 dark:hover:bg-gray-800 dark:hover:text-white sm:h-auto sm:w-auto sm:rounded-lg sm:p-2">
             <ArrowLeft className="h-4 w-4" />
           </button>
-          <p className="truncate text-sm font-black text-gray-400">{blog.title || 'Untitled Article'}</p>
+          <p className="min-w-0 truncate text-sm font-black text-gray-500 dark:text-gray-400 sm:text-gray-400">{blog.title || 'Untitled Article'}</p>
           <span className="hidden sm:inline-flex"><StatusBadge status={blog.status} /></span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -705,15 +708,16 @@ function BlogEditorPageInner() {
           )}
           <button
             onClick={() => { setShowPublish(true); window.scrollTo({ top: 0 }) }}
-            className="lx-shine relative inline-flex items-center gap-2 overflow-hidden rounded-xl bg-[#111827] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-black active:scale-95 dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827]"
+            className="lx-shine relative hidden items-center gap-2 overflow-hidden rounded-xl bg-[#111827] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-black active:scale-95 dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827] sm:inline-flex"
           >
             {blog.status === 'PUBLISHED' ? <Check className="h-4 w-4" /> : <Newspaper className="h-4 w-4" />}
-            {blog.status === 'PUBLISHED' ? 'Published' : blog.status === 'SCHEDULED' ? 'Scheduled' : <><span className="sm:hidden">Publish</span><span className="hidden sm:inline">Review and Publish</span></>}
+            {blog.status === 'PUBLISHED' ? 'Published' : blog.status === 'SCHEDULED' ? 'Scheduled' : 'Review and Publish'}
           </button>
         </div>
       </div>
-      {/* Tabs */}
-      <div className="mx-auto flex max-w-4xl gap-1 overflow-x-auto px-3 pb-2 [scrollbar-width:none] sm:px-6">
+      {/* Tabs - on phones the Publish button sits at the end of this row, so the title above keeps its room. */}
+      <div className="mx-auto flex max-w-4xl items-center gap-2 px-3 pb-2 sm:px-6">
+      <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none]">
         {([
           ...(blog.ai_review?.status === 'done' ? [{ id: 'finish', label: 'Fact-check & finish', short: 'Finish', icon: ShieldCheck, dot: !blog.ai_review.finished && !finishDismissed }] : []),
           { id: 'look', label: 'Look & cover', short: 'Look', icon: Palette, dot: !blog.cover_image_url },
@@ -723,7 +727,7 @@ function BlogEditorPageInner() {
           const Icon = t.icon
           return (
             <button key={t.id} type="button" onClick={() => { setTab(t.id as 'finish' | 'look' | 'write'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-              className={`relative inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-black transition-colors ${on ? 'text-white dark:text-[#111827]' : 'text-gray-500 hover:bg-gray-100 hover:text-[#111827] dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white'}`}>
+              className={`relative inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition-colors sm:min-h-0 sm:px-3.5 ${on ? 'text-white dark:text-[#111827]' : 'text-gray-500 hover:bg-gray-100 hover:text-[#111827] dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white'}`}>
               {on && <motion.span layoutId="blog-editor-tab" transition={{ type: 'spring', stiffness: 420, damping: 34 }} className="absolute inset-0 rounded-xl bg-[#111827] dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a]" />}
               <Icon className={`relative h-3.5 w-3.5 ${on ? 'text-[#e8c97a] dark:text-[#111827]' : ''}`} />
               <span className="relative sm:hidden">{t.short}</span>
@@ -733,10 +737,18 @@ function BlogEditorPageInner() {
           )
         })}
       </div>
+        <button
+          onClick={() => { setShowPublish(true); window.scrollTo({ top: 0 }) }}
+          className="lx-shine relative inline-flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden rounded-xl bg-[#111827] px-3.5 text-[13px] font-black text-white shadow-sm transition active:scale-95 dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827] sm:hidden"
+        >
+          {blog.status === 'PUBLISHED' ? <Check className="h-4 w-4" /> : <Newspaper className="h-4 w-4" />}
+          {blog.status === 'PUBLISHED' ? 'Live' : blog.status === 'SCHEDULED' ? 'Scheduled' : 'Publish'}
+        </button>
+      </div>
       </div>
 
       {/* Document - one tab at a time */}
-      <div className="mx-auto max-w-4xl px-4 pb-32 pt-8 sm:px-8">
+      <div className="mx-auto max-w-4xl px-4 pb-32 pt-6 sm:px-8 sm:pt-8">
         {refineError && <p className="mb-4 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600 dark:bg-red-900/20 dark:text-red-400">{refineError}</p>}
         <AnimatePresence mode="wait" initial={false}>
         <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}>
@@ -822,7 +834,7 @@ function BlogEditorPageInner() {
               const on = classicAccent(blog.accent_color).toLowerCase() === c.color.toLowerCase()
               return (
                 <button key={c.color} type="button" role="radio" aria-checked={on} title={c.label} aria-label={c.label} onClick={() => persist({ ...blog, accent_color: c.color })}
-                  className={`h-6 w-6 rounded-full ring-offset-2 transition hover:scale-110 dark:ring-offset-[#0b0b0c] ${on ? 'ring-2 ring-[#111827] dark:ring-white' : 'ring-1 ring-black/10 dark:ring-white/15'}`}
+                  className={`h-7 w-7 rounded-full ring-offset-2 transition hover:scale-110 active:scale-95 sm:h-6 sm:w-6 dark:ring-offset-[#0b0b0c] ${on ? 'ring-2 ring-[#111827] dark:ring-white' : 'ring-1 ring-black/10 dark:ring-white/15'}`}
                   style={{ background: c.color }} />
               )
             })}
@@ -852,7 +864,7 @@ function BlogEditorPageInner() {
         {/* Sections at a glance - tap to keep or remove a whole section */}
         {sections.headings.length > 1 && (
           <div className="rounded-2xl border border-gray-200 bg-white/70 p-3 dark:border-gray-800 dark:bg-white/[0.02]">
-            <p className="mb-2 flex items-center gap-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
+            <p className="mb-2 flex flex-wrap items-baseline gap-x-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
               Sections <span className="font-semibold normal-case tracking-normal text-gray-400">- tap one to remove it from the article or add it back</span>
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -883,19 +895,19 @@ function BlogEditorPageInner() {
           value={blog.title}
           onChange={title => persist({ ...blog, title })}
           placeholder="Untitled Article"
-          className="font-serif text-4xl font-black leading-[1.1] text-[#111827] dark:text-white sm:text-5xl"
+          className="font-serif text-[2rem] font-black leading-[1.12] text-[#111827] dark:text-white sm:text-5xl sm:leading-[1.1]"
         />
         <AutoGrowTextarea
           value={blog.subtitle || ''}
           onChange={subtitle => persist({ ...blog, subtitle })}
           placeholder="Add a subtitle..."
-          className="mt-3 text-lg font-semibold leading-relaxed text-gray-500 dark:text-gray-400"
+          className="mt-3 text-[17px] font-semibold leading-relaxed text-gray-500 dark:text-gray-400 sm:text-lg"
         />
 
         {/* Sections at a glance - tap to keep or remove a whole section */}
         {sections.headings.length > 1 && (
           <div className="mt-8 rounded-2xl border border-gray-200 bg-white/70 p-3 dark:border-gray-800 dark:bg-white/[0.02]">
-            <p className="mb-2 flex items-center gap-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
+            <p className="mb-2 flex flex-wrap items-baseline gap-x-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
               Sections <span className="font-semibold normal-case tracking-normal text-gray-400">- tap one to remove it from the article or add it back</span>
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -989,8 +1001,10 @@ function BlogEditorPageInner() {
         cancelText="Keep my article"
       />
 
+      <AnimatePresence>
       {showAiDraft && (
         <BlogAiWriter
+          key="ai-draft"
           blogId={blog.id}
           initialTopic={blog.title && blog.title !== 'Untitled Article' ? blog.title : ''}
           initialCategory={blog.category || undefined}
@@ -1006,6 +1020,7 @@ function BlogEditorPageInner() {
           }}
         />
       )}
+      </AnimatePresence>
 
       {showPreview && (
         // Exactly how it will look on the Agent Hub, in its theme.
@@ -1160,7 +1175,7 @@ function SortableBlock({ block, children, onDelete, onInsertAfter, refine, secti
           </motion.button>
         </div>
       )}
-      <div className="absolute -left-9 top-0.5 flex flex-col items-center gap-1 opacity-0 transition group-hover:opacity-100">
+      <div className="absolute -left-9 top-0.5 hidden flex-col items-center gap-1 opacity-0 transition group-hover:opacity-100 sm:flex">
         <button onPointerDown={event => controls.start(event)} className="cursor-grab rounded p-1 text-gray-300 hover:bg-gray-100 hover:text-gray-500 dark:hover:bg-gray-800">
           <GripVertical className="h-4 w-4" />
         </button>
@@ -1260,10 +1275,17 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
   const [slugInput, setSlugInput] = useState(blog.slug)
   const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'saved' | 'confirm'>('idle')
   const [tagInput, setTagInput] = useState('')
-  const [scheduleValue, setScheduleValue] = useState('')
+  const [scheduleValue, setScheduleValue] = useState('') // YYYY-MM-DDTHH:MM, local - as the old date-time box gave
+  const [scheduleSheet, setScheduleSheet] = useState(false)
+  // Quick picks; "This Saturday 9 AM" on a Saturday after 9 rolls to next Saturday.
+  const scheduleQuickPicks = [
+    { label: 'Tomorrow 8 AM', date: addDays(1), time: '08:00' },
+    { label: 'This Saturday 9 AM', date: new Date(`${nextWeekday(6, true)}T09:00`).getTime() > Date.now() ? nextWeekday(6, true) : nextWeekday(6), time: '09:00' },
+    { label: 'Next Monday 8 AM', date: nextWeekday(1), time: '08:00' },
+  ]
   const [uploadingSocial, setUploadingSocial] = useState(false)
   const socialInputRef = useRef<HTMLInputElement>(null)
-  const inputClass = 'mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#C9A24D] focus:shadow-[0_0_0_4px_rgba(201,162,77,.14)] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white'
+  const inputClass = 'mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base font-semibold sm:text-sm outline-none transition focus:border-[#C9A24D] focus:shadow-[0_0_0_4px_rgba(201,162,77,.14)] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white'
   const labelClass = 'flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/50'
 
   // A published article's link change asks first, right here (user, 10/17 - not a browser pop-up).
@@ -1309,26 +1331,26 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-[#f7f5f1] dark:bg-[#0B0B0B]">
-      <div className="sticky top-0 z-10 border-b border-[#C9A24D]/25 bg-[#fbfaf7]/90 dark:border-white/10 dark:bg-[#0B0B0B]/90">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-3">
-          <motion.button whileTap={{ scale: 0.95 }} onClick={onClose} className="group inline-flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm font-black text-gray-500 transition hover:bg-gray-100 hover:text-[#111827] dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white">
+      <div className="sticky top-0 z-10 border-b border-[#C9A24D]/25 bg-[#fbfaf7] dark:border-white/10 dark:bg-[#0B0B0B]">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-3 py-2.5 sm:px-5 sm:py-3">
+          <motion.button whileTap={{ scale: 0.95 }} onClick={onClose} className="group inline-flex min-h-[40px] items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm font-black sm:min-h-0 text-gray-500 transition hover:bg-gray-100 hover:text-[#111827] dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white">
             <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" /> Back to writing
           </motion.button>
           <p className="hidden font-serif text-lg font-black text-[#111827] dark:text-white sm:block">Review <em className="font-light text-[#a8803a] dark:text-[#e8c97a]">&amp; Publish</em></p>
           {blog.status === 'PUBLISHED' && liveLink ? (
-            <a href={liveLink} target="_blank" rel="noopener" className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-3.5 py-2 text-xs font-black text-white transition hover:-translate-y-0.5 dark:bg-white dark:text-[#111827]">
+            <a href={liveLink} target="_blank" rel="noopener" className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#111827] px-3.5 py-2 text-xs font-black sm:min-h-0 text-white transition hover:-translate-y-0.5 dark:bg-white dark:text-[#111827]">
               <ExternalLink className="h-3.5 w-3.5" /> View live
             </a>
           ) : (
-            <motion.button whileTap={{ scale: 0.95 }} onClick={onPreview} className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-black text-[#111827] transition hover:-translate-y-0.5 hover:border-[#C9A24D] dark:border-gray-700 dark:bg-transparent dark:text-white">
+            <motion.button whileTap={{ scale: 0.95 }} onClick={onPreview} className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-black sm:min-h-0 text-[#111827] transition hover:-translate-y-0.5 hover:border-[#C9A24D] dark:border-gray-700 dark:bg-transparent dark:text-white">
               <Eye className="h-3.5 w-3.5" /> Full preview
             </motion.button>
           )}
         </div>
       </div>
 
-      <motion.div initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.06 } } }} className="mx-auto grid max-w-6xl gap-6 px-5 py-8 lg:grid-cols-[1fr_380px]">
-        <div className="space-y-5">
+      <motion.div initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.06 } } }} className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-5 px-4 py-5 sm:gap-6 sm:px-5 sm:py-8 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="space-y-4 sm:space-y-5">
           {/* Publish */}
           <motion.section variants={pubRise}>
             <LuxeSurface icon={Newspaper} className="rounded-3xl border border-[#C9A24D]/30 p-5 text-[#111827] shadow-[0_24px_50px_-34px_rgba(139,115,85,.55)] dark:border-white/[0.07] dark:text-white sm:p-6">
@@ -1349,14 +1371,52 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
                   <Save className="h-4 w-4" /> Save as draft
                 </motion.button>
               </div>
-              <div className="mt-3 flex items-center gap-2 rounded-xl border border-[#C9A24D]/25 bg-white/70 p-2 pl-3 dark:border-white/10 dark:bg-white/[0.04]">
-                <Calendar className="h-4 w-4 shrink-0 text-[#C9A24D]" />
-                <input type="datetime-local" value={scheduleValue} onChange={e => setScheduleValue(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm font-bold text-[#111827] outline-none dark:text-white [color-scheme:light] dark:[color-scheme:dark]" />
-                <motion.button whileTap={{ scale: 0.95 }} onClick={() => { if (scheduleValue) onStatusChange('SCHEDULED', new Date(scheduleValue).toISOString()) }} disabled={!scheduleValue || busy}
-                  className="shrink-0 rounded-lg bg-[#111827] px-3.5 py-2 text-[11px] font-black uppercase tracking-wide text-white transition hover:-translate-y-0.5 disabled:opacity-40 dark:bg-white dark:text-[#111827]">
-                  Schedule
-                </motion.button>
+              {/* Schedule it (user, 10/22): quick picks, or the step-by-step day + time picker, and a
+                  plain "Goes live ..." line. Same value as the old date-time box (local time). */}
+              <div className="mt-3 rounded-2xl border border-[#C9A24D]/25 bg-white/70 p-3 dark:border-white/10 dark:bg-white/[0.04]">
+                <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]"><Calendar className="h-3.5 w-3.5" /> Or schedule it</p>
+                {blog.status === 'SCHEDULED' && blog.scheduled_at && !scheduleValue && (
+                  <p className="mt-1.5 text-[13px] font-bold text-[#111827] dark:text-white">Scheduled - goes live {whenText({ date: ymd(new Date(blog.scheduled_at)), time: `${String(new Date(blog.scheduled_at).getHours()).padStart(2, '0')}:${String(new Date(blog.scheduled_at).getMinutes()).padStart(2, '0')}` }, 'datetime')}</p>
+                )}
+                {/* Phones: one tidy full-width list (ragged pills of different widths looked unfinished). */}
+                <div className="mt-2 grid grid-cols-1 gap-1.5 sm:flex sm:flex-wrap">
+                  {scheduleQuickPicks.map(q => {
+                    const v = `${q.date}T${q.time}`
+                    const on = scheduleValue === v
+                    return (
+                      <motion.button key={q.label} type="button" whileTap={{ scale: 0.95 }} onClick={() => setScheduleValue(on ? '' : v)}
+                        className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border px-3.5 text-[13px] font-black transition ${on ? 'border-[#111827] bg-[#111827] text-white dark:border-white dark:bg-white dark:text-[#111827]' : 'border-gray-200 bg-white text-[#111827] hover:border-[#C9A24D] dark:border-white/10 dark:bg-transparent dark:text-white'}`}>
+                        {on ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : <Sparkles className="h-3.5 w-3.5 text-[#C9A24D]" />} {q.label}
+                      </motion.button>
+                    )
+                  })}
+                  <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={() => setScheduleSheet(true)}
+                    className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-dashed px-3.5 text-[13px] font-black transition ${scheduleValue && !scheduleQuickPicks.some(q => `${q.date}T${q.time}` === scheduleValue) ? 'border-[#111827] bg-[#111827] text-white dark:border-white dark:bg-white dark:text-[#111827]' : 'border-gray-300 text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/15 dark:text-gray-400'}`}>
+                    <Calendar className="h-3.5 w-3.5" /> Pick a day &amp; time…
+                  </motion.button>
+                </div>
+                <AnimatePresence initial={false}>
+                  {scheduleValue && (
+                    <motion.div key="golive" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <p className="flex min-h-[44px] flex-1 items-center gap-2 rounded-xl bg-[#C9A24D]/10 px-3 text-[14px] font-black text-[#7a5f22] dark:text-[#e8c97a]">
+                          <Calendar className="h-4 w-4 shrink-0" /> Goes live {whenText({ date: scheduleValue.slice(0, 10), time: scheduleValue.slice(11, 16) }, 'datetime')}
+                        </p>
+                        <motion.button whileTap={{ scale: 0.95 }} onClick={() => { if (scheduleValue) onStatusChange('SCHEDULED', new Date(scheduleValue).toISOString()) }} disabled={!scheduleValue || busy}
+                          className="inline-flex min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#111827] px-5 text-[12px] font-black uppercase tracking-wide text-white transition hover:-translate-y-0.5 disabled:opacity-40 dark:bg-white dark:text-[#111827]">
+                          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" strokeWidth={3} />} Schedule
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
+              <WhenSheet open={scheduleSheet} onClose={() => setScheduleSheet(false)} mode="datetime"
+                title="When should it go live?" kicker="Schedule your article" summaryPrefix="Goes live"
+                photo={blog.cover_image_url ? resolveMediaUrl(blog.cover_image_url) : null} context={blog.title || null} contextSub={blog.category || null}
+                value={scheduleValue ? { date: scheduleValue.slice(0, 10), time: scheduleValue.slice(11, 16) } : null}
+                suggestions={scheduleQuickPicks.map(q => ({ label: q.label, date: q.date, time: q.time }))}
+                onDone={v => { if (v.date && v.time) setScheduleValue(`${v.date}T${v.time}`); setScheduleSheet(false) }} />
               <div className="mt-2 flex items-center gap-1">
                 {blog.status === 'PUBLISHED' && (
                   <button onClick={() => onStatusChange('UNPUBLISHED')} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-black text-gray-500 transition hover:bg-white/70 hover:text-[#111827] dark:hover:bg-white/10 dark:hover:text-white">
@@ -1378,7 +1438,7 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
                 const on = blog.category === category
                 return (
                   <motion.button key={category} whileTap={{ scale: 0.94 }} onClick={() => onChange({ ...blog, category })}
-                    className={`relative rounded-full px-3 py-1.5 text-[11px] font-black transition ${on ? 'text-[#111827]' : 'border border-gray-200 text-gray-500 hover:border-[#C9A24D]/60 hover:text-[#111827] dark:border-gray-700 dark:text-gray-400 dark:hover:text-white'}`}>
+                    className={`relative rounded-full px-3.5 py-2 text-[12px] font-black transition sm:px-3 sm:py-1.5 sm:text-[11px] ${on ? 'text-[#111827]' : 'border border-gray-200 text-gray-500 hover:border-[#C9A24D]/60 hover:text-[#111827] dark:border-gray-700 dark:text-gray-400 dark:hover:text-white'}`}>
                     {on && <motion.span layoutId="pub-cat" className="absolute inset-0 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a]" transition={{ type: 'spring', stiffness: 420, damping: 32 }} />}
                     <span className="relative">{category}</span>
                   </motion.button>
@@ -1394,7 +1454,7 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
                   </motion.span>
                 ))}
               </AnimatePresence>
-              <input value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag() } }} onBlur={addTag} placeholder="Add a tag, press Enter" className="min-w-[140px] flex-1 bg-transparent px-1 py-1 text-sm font-semibold outline-none dark:text-white" />
+              <input value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag() } }} onBlur={addTag} placeholder="Add a tag, press Enter" className="min-w-[140px] flex-1 bg-transparent px-1 py-1 text-base font-semibold sm:text-sm outline-none dark:text-white" />
             </div>
             <PubToggle className="mt-4" label="Featured on Agent Hub" hint="Pins it to the front of your Hub's articles." on={!!blog.agent_hub_featured}
               onToggle={async () => { const r = await api.blogs.updateHubVisibility(blog.id, { agent_hub_featured: !blog.agent_hub_featured }); if (r.success && r.data) onChange(r.data) }} />
@@ -1404,7 +1464,7 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
           <PubSection icon={Link2} title="Article link" hint="The last part of the address - keep it short and readable.">
             <div className="mt-1 flex items-center overflow-hidden rounded-xl border border-gray-200 transition focus-within:border-[#C9A24D] focus-within:shadow-[0_0_0_4px_rgba(201,162,77,.14)] dark:border-gray-700">
               <span className="shrink-0 border-r border-gray-200 bg-gray-50 px-3 py-3 text-xs font-bold text-gray-400 dark:border-gray-700 dark:bg-white/[0.03]">/blogs/</span>
-              <input value={slugInput} onChange={e => { setSlugInput(e.target.value); setSlugStatus('idle') }} onBlur={() => handleSlugSave()} className="min-w-0 flex-1 bg-white px-3 py-3 text-sm font-semibold outline-none dark:bg-[#0B0B0B] dark:text-white" />
+              <input value={slugInput} onChange={e => { setSlugInput(e.target.value); setSlugStatus('idle') }} onBlur={() => handleSlugSave()} className="min-w-0 flex-1 bg-white px-3 py-3 text-base font-semibold sm:text-sm outline-none dark:bg-[#0B0B0B] dark:text-white" />
             </div>
             <AnimatePresence mode="wait">
               {slugStatus === 'confirm' && (
@@ -1429,7 +1489,7 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
               <input value={blog.seo_title || ''} onChange={e => onChange({ ...blog, seo_title: e.target.value })} placeholder={blog.title} className={inputClass} />
             </label>
             <label className="mt-4 block"><span className={labelClass}>Search description <Counter n={(blog.meta_description || '').length} max={160} /></span>
-              <textarea rows={2} value={blog.meta_description || ''} onChange={e => onChange({ ...blog, meta_description: e.target.value })} placeholder="One or two sentences on what readers will learn." className={`${inputClass} resize-none`} />
+              <textarea rows={2} value={blog.meta_description || ''} onChange={e => onChange({ ...blog, meta_description: e.target.value })} placeholder="One or two sentences on what readers will learn." className={`${inputClass} min-h-[8.5rem] resize-none sm:min-h-0`} />
             </label>
             <PubToggle className="mt-4" label="Let Google find this article" hint="Off keeps it out of search results - it still works by link." on={!!blog.is_indexed} onToggle={() => onChange({ ...blog, is_indexed: !blog.is_indexed })} />
           </PubSection>
@@ -1455,7 +1515,7 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
               <input value={blog.social_title || ''} onChange={e => onChange({ ...blog, social_title: e.target.value })} placeholder={blog.title} className={inputClass} />
             </label>
             <label className="mt-4 block"><span className={labelClass}>Share description</span>
-              <textarea rows={2} value={blog.social_description || ''} onChange={e => onChange({ ...blog, social_description: e.target.value })} placeholder={metaDesc} className={`${inputClass} resize-none`} />
+              <textarea rows={2} value={blog.social_description || ''} onChange={e => onChange({ ...blog, social_description: e.target.value })} placeholder={metaDesc} className={`${inputClass} min-h-[8.5rem] resize-none sm:min-h-0`} />
             </label>
           </PubSection>
 
@@ -1492,7 +1552,7 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
         </div>
 
         {/* Right rail: readiness + live previews */}
-        <div className="space-y-5 lg:sticky lg:top-20 lg:self-start">
+        <div className="space-y-4 sm:space-y-5 lg:sticky lg:top-20 lg:self-start">
           <motion.div variants={pubRise} className="rounded-3xl border border-[#C9A24D]/30 bg-gradient-to-br from-[#fffaf0] to-[#f6ead2] p-5 dark:border-white/10 dark:from-[#C9A24D]/10 dark:to-transparent">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#8b7355] dark:text-[#e8c97a]">Ready to publish</p>

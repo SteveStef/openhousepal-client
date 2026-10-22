@@ -323,6 +323,11 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
         {!loading && domains.length === 0 && (
           <p className="mb-2.5 text-[12px] font-semibold leading-snug text-gray-500 dark:text-white/55">Have a domain like <span className="font-mono font-bold text-[#111827] dark:text-white">janesmithhomes.com</span>? Connect it and your site lives there.</p>
         )}
+        {/* Any number of domains can open the same website (owner, 10/22) - the one marked Primary
+            is the address Google and your links use; the others open the same site. */}
+        {!loading && domains.length > 0 && (
+          <p className="mb-2.5 text-[12px] font-semibold leading-snug text-gray-500 dark:text-white/55"><span className="font-black text-[#111827] dark:text-white">Have another domain?</span> Connect it too - every domain you add opens this same website. The one marked Primary is the address we share.</p>
+        )}
         <form onSubmit={e => { e.preventDefault(); handleAdd() }} className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">
             <Globe2 className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#C9A24D]" />

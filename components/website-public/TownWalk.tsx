@@ -40,8 +40,8 @@ export default function TownWalk({ data, town, luxe }: { data?: WalkData | null;
                 <span className="shrink-0 text-lg font-black tabular-nums" style={{ color: 'var(--site-heading)' }}>{r.pct}%</span>
               </div>
               <div className="ml-[42px] mt-2 h-2 overflow-hidden rounded-full" style={{ backgroundColor: 'var(--site-line)' }}>
-                <motion.div className="h-full rounded-full" style={{ backgroundColor: 'var(--site-accent)' }}
-                  initial={{ width: 0 }} whileInView={{ width: `${r.pct}%` }} viewport={{ once: true }} transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.08 + i * 0.1 }} />
+                <motion.div className="h-full origin-left rounded-full" style={{ backgroundColor: 'var(--site-accent)', width: `${r.pct}%` }}
+                  initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.08 + i * 0.1 }} />
               </div>
             </div>
           )

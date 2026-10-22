@@ -1,15 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, X, Loader2, Calendar, Users, UserX, CalendarCheck, ChevronDown, ChevronUp, Home, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { motion } from 'framer-motion'
+import { AlertTriangle, BellRing, Calendar, CalendarCheck, Clock, Loader2, User, Users, UserX } from 'lucide-react'
 import api from '@/lib/api-service'
 import { ListingDetail, ScheduledOpen } from '@/types'
 import EmptyState from './EmptyState'
 import GuestDetailsToggle from './GuestDetailsToggle'
-import SummaryMetricCard from './SummaryMetricCard'
 import WeekendCalendarCards from './WeekendCalendarCards'
+import OhSheet, { FourPager, Unfold } from './OhSheet'
 import { formatEventDate, formatTime, formatDuration } from './formatters'
+
+// Insights for one of your listings: the numbers first, then what's coming up and what already
+// happened - four at a time with a switcher, each past open unfolding on its own (user, 10/22: two
+// opens from one reusable kit share an id, so opening one used to open both). A sheet on phones.
 
 export default function OpenHouseInsightsModal({
   listingKey,
@@ -21,232 +25,162 @@ export default function OpenHouseInsightsModal({
   const [detail, setDetail] = useState<ListingDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-  // History can run long over time - paginate instead of one long scrolling list.
-  const HISTORY_PAGE_SIZE = 4
-  const [historyPage, setHistoryPage] = useState(1)
 
   useEffect(() => {
     if (!listingKey) return
-    const load = async () => {
-      setIsLoading(true)
-      setLoadError('')
-      const { success, data, error } = await api.openHouseManager.getListingDetail(listingKey)
+    let alive = true
+    setIsLoading(true)
+    setLoadError('')
+    api.openHouseManager.getListingDetail(listingKey).then(({ success, data, error }) => {
+      if (!alive) return
       if (success && data) setDetail(data)
       else setLoadError(error || 'Unable to load insights for this listing right now.')
       setIsLoading(false)
-    }
-    load()
-    setHistoryPage(1)
+    })
+    return () => { alive = false }
   }, [listingKey])
 
   const allOpens: ScheduledOpen[] = detail ? [...detail.scheduled_opens, ...detail.confirmed_pending_kit] : []
   // A reusable kit whose own date got cleared back to "evergreen" (see cancel_approved_open) isn't
-  // scheduled for anything specific, so it doesn't belong in a list titled "Scheduled Opens."
-  const datedOpens = allOpens.filter(o => o.scheduled_date)
+  // scheduled for anything specific, so it doesn't belong in a list of upcoming dates.
+  const datedOpens = allOpens.filter(o => o.scheduled_date).sort((a, b) => (a.scheduled_date || '').localeCompare(b.scheduled_date || ''))
+  // Most recent first - the open you're most likely checking on is the last one.
+  const history = useMemo(() => [...(detail?.history || [])].sort((a, b) => String(b.event_date).localeCompare(String(a.event_date))), [detail])
+  const m = detail?.key_metrics
 
   return (
-    <AnimatePresence>
-      {listingKey && (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 12 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.97, y: 8 }}
-        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-        className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white dark:bg-[#0B0B0B] shadow-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center gap-3 border-b border-gray-100 dark:border-gray-800 p-5">
-          <button onClick={onClose} className="shrink-0 rounded-full p-2 text-gray-400 transition hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Back">
-            <ArrowLeft size={18} />
-          </button>
-          <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800">
-            {detail?.image ? (
-              <img src={detail.image} alt={detail.address || ''} className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-gray-300 dark:text-gray-700"><Home size={18} /></div>
-            )}
+    <OhSheet open={!!listingKey} onClose={onClose} title="Open House Insights" subtitle={detail?.address || 'Loading…'} image={detail?.image ?? null} width="max-w-2xl">
+      {isLoading ? (
+        <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
+      ) : loadError ? (
+        <EmptyState icon={AlertTriangle} title="Couldn't load insights" description={loadError} />
+      ) : detail && m ? (
+        <div className="space-y-7">
+          {/* the numbers */}
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {([
+              { icon: CalendarCheck, label: 'Opens hosted', value: m.total_opens_hosted, tone: 'from-emerald-50 text-emerald-600 dark:from-emerald-500/10 dark:text-emerald-300' },
+              { icon: Users, label: 'Guests', value: m.total_guests, tone: 'from-sky-50 text-sky-600 dark:from-sky-500/10 dark:text-sky-300' },
+              { icon: UserX, label: 'No agent yet', value: m.unrepresented_guests, tone: 'from-rose-50 text-rose-600 dark:from-rose-500/10 dark:text-rose-300' },
+              { icon: BellRing, label: 'Want similar homes', value: m.requested_updates ?? 0, tone: 'from-[#fbf3df] text-[#8b7355] dark:from-[#C9A24D]/10 dark:text-[#e8c97a]' },
+            ] as const).map((t, i) => (
+              <motion.div key={t.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05, type: 'spring', stiffness: 380, damping: 30 }}
+                className={`rounded-2xl bg-gradient-to-br to-white p-3.5 ring-1 ring-black/[0.05] dark:to-transparent dark:ring-white/[0.07] ${t.tone}`}>
+                <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider opacity-90"><t.icon className="h-3.5 w-3.5" />{t.label}</p>
+                <p className="mt-1 font-serif text-3xl font-black leading-none text-[#111827] tabular-nums dark:text-white">{t.value}</p>
+              </motion.div>
+            ))}
           </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-base font-black text-[#111827] dark:text-white">Open House Insights</h2>
-            <p className="truncate text-xs font-semibold text-gray-500 dark:text-gray-400">{detail?.address || 'Loading...'}</p>
-          </div>
-          <button onClick={onClose} className="shrink-0 rounded-full p-2 text-gray-400 transition hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Close">
-            <X size={18} />
-          </button>
-        </div>
+          {m.total_guests > 0 && (
+            <p className="-mt-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">
+              About <b className="text-[#111827] dark:text-white">{Math.round((m.total_guests / Math.max(1, m.total_opens_hosted)) * 10) / 10}</b> guests per open
+              {m.total_guests > 0 && <> · <b className="text-[#111827] dark:text-white">{Math.round((m.unrepresented_guests / m.total_guests) * 100)}%</b> had no agent</>}
+            </p>
+          )}
 
-        <div className="flex-1 overflow-y-auto p-5">
-          {isLoading ? (
-            <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
-          ) : loadError ? (
-            <EmptyState icon={AlertTriangle} title="Couldn't load insights" description={loadError} />
-          ) : detail ? (
-            <div className="space-y-8">
-              <section>
-                <div className="mb-3 flex items-center gap-2">
-                  <Calendar size={15} className="text-[#C9A24D]" />
-                  <h3 className="text-sm font-black uppercase tracking-widest text-[#111827] dark:text-white">Scheduled Opens</h3>
-                  <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[10px] font-black text-gray-500 dark:text-gray-400">
-                    {datedOpens.length} Events
-                  </span>
-                </div>
-                <p className="mb-2 text-[9px] font-black uppercase tracking-widest text-gray-400">This weekend / Next weekend</p>
-                <WeekendCalendarCards opens={allOpens} />
-
-                {datedOpens.length === 0 ? (
-                  <div className="mt-3"><EmptyState icon={CalendarCheck} title="No opens scheduled" description="Once a host is confirmed for a date, it'll show up here." /></div>
-                ) : (
-                  <div className="mt-3 space-y-2">
-                    {datedOpens
-                      .sort((a, b) => (a.scheduled_date || '').localeCompare(b.scheduled_date || ''))
-                      .map(open => {
-                        const duration = formatDuration(open.scheduled_start_time, open.scheduled_end_time)
-                        const startTime = formatTime(open.scheduled_start_time)
-                        const endTime = formatTime(open.scheduled_end_time)
-                        return (
-                          <div key={open.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#C9A24D]/30 bg-[#C9A24D]/5 p-3">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#C9A24D]/15 text-[#C9A24D]"><Calendar size={15} /></div>
-                              <div>
-                                <p className="text-sm font-black text-[#111827] dark:text-white">{formatEventDate(open.scheduled_date)}</p>
-                                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Hosted by {open.hosting_agent_name}</p>
-                              </div>
-                            </div>
-                            <div className="flex shrink-0 flex-col items-end gap-1">
-                              {startTime && endTime && (
-                                <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{startTime} - {endTime}</span>
-                              )}
-                              {duration && <span className="text-[10px] font-semibold text-gray-400">{duration}</span>}
-                              {!open.kit_built && (
-                                <span className="rounded-full bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">
-                                  Kit Not Built Yet
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                  </div>
-                )}
-              </section>
-
-              <section>
-                <h3 className="mb-3 text-sm font-black uppercase tracking-widest text-[#111827] dark:text-white">Key Metrics</h3>
-                <div className="grid grid-cols-3 gap-3">
-                  <SummaryMetricCard accent="blue" icon={Users} label="Total Guests" value={detail.key_metrics.total_guests} />
-                  <SummaryMetricCard accent="red" icon={UserX} label="Unrepresented Guests" value={detail.key_metrics.unrepresented_guests} />
-                  <SummaryMetricCard accent="green" icon={CalendarCheck} label="Total Opens Hosted" value={detail.key_metrics.total_opens_hosted} highlight />
-                </div>
-              </section>
-
-              <section>
-                <h3 className="mb-3 text-sm font-black uppercase tracking-widest text-[#111827] dark:text-white">Breakdown &amp; History</h3>
-                {detail.history.length === 0 ? (
-                  <EmptyState icon={Users} title="No completed opens yet" description="Once open houses here wrap up, their guest breakdown will show here." />
-                ) : (
-                  <div className="space-y-2">
-                    {detail.history.slice((historyPage - 1) * HISTORY_PAGE_SIZE, historyPage * HISTORY_PAGE_SIZE).map(row => {
-                      const isExpanded = expandedId === row.id
-                      const duration = formatDuration(row.start_time, row.end_time)
-                      return (
-                        <div key={`${row.id}-${row.event_date}`} className="overflow-hidden rounded-xl border border-gray-100 dark:border-gray-800">
-                          <button
-                            onClick={() => setExpandedId(isExpanded ? null : row.id)}
-                            className="flex w-full items-center justify-between gap-3 p-3 text-left"
-                          >
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-black text-[#111827] dark:text-white">{formatEventDate(row.event_date)}</p>
-                              <p className="truncate text-xs font-semibold text-gray-500 dark:text-gray-400">{row.hosting_agent_name}</p>
-                            </div>
-                            <div className="flex shrink-0 items-center gap-3 text-xs font-bold text-gray-500 dark:text-gray-400">
-                              <span>{row.total_guests} Guests</span>
-                              <span>{row.unrepresented_guests} Unrep</span>
-                              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                            </div>
-                          </button>
-                          {isExpanded && (
-                            <div className="grid grid-cols-2 gap-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-[#0F0F11] p-3 text-xs sm:grid-cols-4">
-                              <div>
-                                <p className="font-bold uppercase tracking-widest text-gray-400">Hosting Agent</p>
-                                <p className="mt-0.5 font-black text-[#111827] dark:text-white">{row.hosting_agent_name}</p>
-                                {row.hosting_agent_brokerage && <p className="text-gray-500 dark:text-gray-400">{row.hosting_agent_brokerage}</p>}
-                              </div>
-                              <div>
-                                <p className="font-bold uppercase tracking-widest text-gray-400">Duration</p>
-                                <p className="mt-0.5 font-black text-[#111827] dark:text-white">{duration || 'Unknown'}</p>
-                              </div>
-                              <div>
-                                <p className="font-bold uppercase tracking-widest text-gray-400">Total Guests</p>
-                                <p className="mt-0.5 font-black text-[#111827] dark:text-white">{row.total_guests}</p>
-                              </div>
-                              <div>
-                                <p className="font-bold uppercase tracking-widest text-gray-400">Unrepresented</p>
-                                <p className="mt-0.5 font-black text-[#111827] dark:text-white">{row.unrepresented_guests}</p>
-                              </div>
-                              <div className="col-span-2 sm:col-span-4">
-                                {row.share_guests_enabled ? (
-                                  <GuestDetailsToggle eventId={row.id} windowDate={row.event_date} />
-                                ) : (
-                                  <p className="text-[10px] font-medium text-gray-400">Guest details are private unless {row.hosting_agent_name} chooses to share them.</p>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-                {detail.history.length > HISTORY_PAGE_SIZE && (() => {
-                  const totalPages = Math.ceil(detail.history.length / HISTORY_PAGE_SIZE)
+          {/* coming up */}
+          <section>
+            <SectionHead icon={Calendar} title="Coming up" count={datedOpens.length} />
+            <WeekendCalendarCards opens={allOpens} />
+            <div className="mt-3">
+              <FourPager resetKey={listingKey} items={datedOpens}
+                empty={<EmptyState compact icon={CalendarCheck} title="No opens scheduled" description="Once a host is confirmed for a date, it shows up here." />}
+                render={open => {
+                  const start = formatTime(open.scheduled_start_time), end = formatTime(open.scheduled_end_time)
                   return (
-                    <div className="mt-3 flex items-center justify-center gap-1">
-                      <button
-                        onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
-                        disabled={historyPage === 1}
-                        className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30"
-                        aria-label="Previous page"
-                      >
-                        <ChevronLeft size={15} />
-                      </button>
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-                        <button
-                          key={n}
-                          onClick={() => setHistoryPage(n)}
-                          className={`h-7 min-w-[1.75rem] rounded-lg px-1.5 text-xs font-black transition ${
-                            n === historyPage ? 'bg-[#C9A24D] text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                          }`}
-                        >
-                          {n}
-                        </button>
-                      ))}
-                      <button
-                        onClick={() => setHistoryPage(p => Math.min(totalPages, p + 1))}
-                        disabled={historyPage === totalPages}
-                        className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30"
-                        aria-label="Next page"
-                      >
-                        <ChevronRight size={15} />
-                      </button>
+                    <div className="flex items-center gap-3 rounded-2xl border border-[#C9A24D]/25 bg-white p-3 dark:bg-[#141416]">
+                      <DateTile date={open.scheduled_date} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-black text-[#111827] dark:text-white">{formatEventDate(open.scheduled_date)}</p>
+                        <p className="truncate text-xs font-semibold text-gray-500 dark:text-gray-400">{open.hosting_agent_id === 'BRIGHT-MLS' ? 'Posted in Bright MLS' : `Hosted by ${open.hosting_agent_name}`}</p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        {start && end && <span className="text-xs font-black text-[#111827] dark:text-white">{start} - {end}</span>}
+                        {!open.kit_built && open.hosting_agent_id !== 'BRIGHT-MLS' && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">Kit not built</span>}
+                      </div>
                     </div>
                   )
-                })()}
-              </section>
+                }} />
             </div>
-          ) : null}
+          </section>
+
+          {/* what happened */}
+          <section>
+            <SectionHead icon={Clock} title="Past opens" count={history.length} />
+            <FourPager resetKey={listingKey} items={history}
+              empty={<EmptyState compact icon={Users} title="No finished opens yet" description="When an open house here wraps up, its guests and results show up here." />}
+              render={row => {
+                const duration = formatDuration(row.start_time, row.end_time)
+                return (
+                  <Unfold head={() => (
+                    <div className="flex items-center gap-3">
+                      <DateTile date={row.event_date} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-black text-[#111827] dark:text-white">{formatEventDate(row.event_date)}</p>
+                        <p className="truncate text-xs font-semibold text-gray-500 dark:text-gray-400">{row.hosting_agent_name}</p>
+                      </div>
+                      <div className="hidden shrink-0 items-center gap-1.5 sm:flex">
+                        <Chip>{row.total_guests} guest{row.total_guests === 1 ? '' : 's'}</Chip>
+                        {row.unrepresented_guests > 0 && <Chip tone="rose">{row.unrepresented_guests} no agent</Chip>}
+                      </div>
+                    </div>
+                  )}>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <Fact label="Host" value={row.hosting_agent_name} sub={row.hosting_agent_brokerage || undefined} />
+                      <Fact label="How long" value={duration || 'Not recorded'} sub={row.start_time && row.end_time ? `${formatTime(row.start_time)} - ${formatTime(row.end_time)}` : undefined} />
+                      <Fact label="Guests" value={String(row.total_guests)} />
+                      <Fact label="No agent yet" value={String(row.unrepresented_guests)} sub={row.requested_updates ? `${row.requested_updates} want similar homes` : undefined} />
+                    </div>
+                    <div className="mt-3">
+                      {row.share_guests_enabled ? (
+                        <GuestDetailsToggle eventId={row.id} windowDate={row.event_date} />
+                      ) : (
+                        <p className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400"><User className="h-3 w-3" /> Guest names are private unless {row.hosting_agent_name} chooses to share them.</p>
+                      )}
+                    </div>
+                  </Unfold>
+                )
+              }} />
+          </section>
         </div>
-      </motion.div>
-    </motion.div>
-      )}
-    </AnimatePresence>
+      ) : null}
+    </OhSheet>
+  )
+}
+
+function SectionHead({ icon: Icon, title, count }: { icon: React.ComponentType<{ className?: string }>; title: string; count: number }) {
+  return (
+    <div className="mb-3 flex items-center gap-2">
+      <Icon className="h-4 w-4 text-[#C9A24D]" />
+      <h3 className="text-[13px] font-black uppercase tracking-[0.16em] text-[#111827] dark:text-white">{title}</h3>
+      <span className="rounded-full bg-[#C9A24D]/12 px-2 py-0.5 text-[10px] font-black text-[#8b7355] tabular-nums dark:text-[#e8c97a]">{count}</span>
+      <span className="h-px flex-1 bg-gradient-to-r from-[#C9A24D]/30 to-transparent" />
+    </div>
+  )
+}
+
+export function DateTile({ date }: { date?: string | null }) {
+  const d = date ? new Date(`${date}T00:00:00`) : null
+  return (
+    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-b from-[#fbf3df] to-white text-center ring-1 ring-[#C9A24D]/25 dark:from-[#C9A24D]/15 dark:to-transparent">
+      <span className="leading-none">
+        <span className="block text-[9px] font-black uppercase text-[#8b7355] dark:text-[#e8c97a]">{d ? d.toLocaleDateString('en-US', { month: 'short' }) : '—'}</span>
+        <span className="block text-lg font-black text-[#111827] dark:text-white">{d ? d.getDate() : ''}</span>
+      </span>
+    </span>
+  )
+}
+
+function Chip({ children, tone = 'plain' }: { children: React.ReactNode; tone?: 'plain' | 'rose' }) {
+  return <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${tone === 'rose' ? 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300' : 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300'}`}>{children}</span>
+}
+
+export function Fact({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</p>
+      <p className="mt-0.5 truncate text-sm font-black text-[#111827] dark:text-white">{value}</p>
+      {sub && <p className="truncate text-[11px] font-semibold text-gray-500 dark:text-gray-400">{sub}</p>}
+    </div>
   )
 }

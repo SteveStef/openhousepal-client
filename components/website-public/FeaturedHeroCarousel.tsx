@@ -96,15 +96,18 @@ export default function FeaturedHeroCarousel({ listings, theme, basePrefix, onQu
       {canRotate && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
           <div className="min-w-0 lg:col-span-7">
-            <div className="mt-4 flex items-center justify-center gap-1.5">
+            {/* Each dot sits in a finger-sized button (the dot itself is only 6px). */}
+            <div className="mt-1 flex items-center justify-center">
               {listings.map((l, i) => (
                 <button
                   key={l.listing_key}
+                  type="button"
                   onClick={() => setCursor(i)}
                   aria-label={`Show property ${i + 1}`}
-                  className="h-1.5 rounded-full transition-all"
-                  style={{ width: i === cursor ? 28 : 6, backgroundColor: i === cursor ? theme.secondary_color : 'rgba(255,255,255,0.3)' }}
-                />
+                  className="flex h-9 items-center px-[3px]"
+                >
+                  <span className="block h-1.5 rounded-full transition-all" style={{ width: i === cursor ? 28 : 6, backgroundColor: i === cursor ? theme.secondary_color : 'rgba(255,255,255,0.3)' }} />
+                </button>
               ))}
             </div>
           </div>

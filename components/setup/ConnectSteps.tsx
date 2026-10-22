@@ -3,62 +3,112 @@
 // Alerts, calendar, CRM, and the IDX website steps - each a thin, friendly front on the feature's
 // own endpoints (notification prefs, follow-ups, calendar OAuth, CRM push, site areas/theme/publish).
 import { useCallback, useEffect, useState } from 'react'
-import { CalendarCheck, Check, Copy, ExternalLink, Globe, Loader2, Rocket } from 'lucide-react'
-import api from '@/lib/api-service'
+import { BellRing, CalendarCheck, Check, Copy, ExternalLink, Globe, Loader2, MapPin, Rocket } from 'lucide-react'
+import api, { type EmailSettings } from '@/lib/api-service'
 import { CONNECTED_EVENT, OUTLOOK_LIVE, openSignInTab } from '@/lib/providers'
 import { GoogleCalendarLogo, OutlookLogo } from '@/components/brand/ProviderLogos'
 import type { FeaturedSettings, IntegrationsInfo, NotificationPreferences, Site, SitePage, SiteTheme } from '@/types'
 import { useFollowupsEnabled } from '@/components/tasks/FollowupsSwitch'
-import TownPicker from './TownPicker'
+import TownPicker, { waitForTownSaves } from './TownPicker'
+import PricePicker, { priceLabel } from './PricePicker'
+import FeaturedPagePicker, { DEFAULT_FEATURED } from './FeaturedPagePicker'
 import SendAsPanel from '@/components/integrations/SendAsPanel'
 import { CLASSIC_ACCENTS, CLASSIC_DEFAULT_ACCENT, normalizeSiteTheme, siteLuxeMetal } from '@/lib/siteTheme'
 import { LUXE_METALS, LUXE_METAL_ORDER } from '@/lib/luxeMetals'
-import HeaderHomesPanel from '@/components/studio/website/HeaderHomesPanel'
-import FeaturedSettingsPanel from '@/components/studio/website/FeaturedSettingsPanel'
-import { BigToggle, ChoiceCard, Field, MoreOptions, SplitPreview, StepCtx, SubHead, Swatches, emailOk, useGate } from './SetupUi'
+import { BigToggle, ChoiceCard, Field, MiniFlow, MoreOptions, SplitPreview, StepCtx, SubHead, Swatches, emailOk, useGate, useMiniFlow } from './SetupUi'
 import { ohpHostUrl } from '@/lib/publicResourceLinks'
 import SiteMiniPreview from '@/components/studio/website/SiteMiniPreview'
 import { accentLabel } from '@/lib/accentSwatches'
 
 const Spinner = () => <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
 
-// ---------- Lead alerts + follow-ups ----------
+// ---------- Alerts + follow-ups ----------
+// Follow-ups (the agent_tasks auto follow-ups + calendar) is a big feature, so it's the first,
+// clearest choice here; then every email we can send them, grouped like Studio -> Email (the
+// same settings, read and saved through /api/v1/email-settings - nothing kept separately).
 export function AlertsStep({ ctx }: { ctx: StepCtx }) {
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null)
-  const { enabled, setEnabled } = useFollowupsEnabled()
-  useEffect(() => { api.notifications.getPreferences().then(r => { if (r.success && r.data) setPrefs(r.data) }) }, [])
+  const [es, setEs] = useState<EmailSettings | null>(null)
+  const [rules, setRules] = useState<string[] | null>(null)
+  const { enabled, saving, setEnabled } = useFollowupsEnabled()
+  useEffect(() => {
+    api.notifications.getPreferences().then(r => { if (r.success && r.data) setPrefs(r.data) })
+    api.emailSettings.get().then(r => { if (r.success && r.data) setEs(r.data) })
+    api.tasks.autoRules().then(r => setRules(r.success && r.data ? r.data.rules.map(x => x.label) : []))
+  }, [])
   useGate(ctx, { ok: true, onContinue: async () => { await api.setup.setState({ confirm: 'alerts' }) } }, [])
-  if (!prefs) return <Spinner />
-  const toggle = (cat: string, ch: 'email' | 'push', v: boolean) => {
-    const next = { ...prefs, preferences: { ...prefs.preferences, [cat]: { ...prefs.preferences[cat], [ch]: v } } }
+  // Three short pages instead of one long list of switches (owner, 10/22).
+  const flow = useMiniFlow(ctx, ['Follow-ups', 'New leads', 'Emails'])
+  if (!prefs || !es) return <Spinner />
+  const leadEmail = prefs.preferences.leads?.email !== false
+  const setEmail = (cat: string, on: boolean) => {
+    setEs({ ...es, receive: es.receive.map(t => ({ ...t, categories: t.categories.map(c => (c.id === cat ? { ...c, email: on } : c)) })) })
+    if (cat === 'leads') setPrefs({ ...prefs, preferences: { ...prefs.preferences, leads: { ...prefs.preferences.leads, email: on } } })
+    ctx.markSaving(api.emailSettings.update({ receive: { [cat]: on } }))
+  }
+  const setPush = (v: boolean) => {
+    const next = { ...prefs, preferences: { ...prefs.preferences, leads: { ...prefs.preferences.leads, push: v } } }
     setPrefs(next)
     ctx.markSaving(api.notifications.updatePreferences(next.preferences))
   }
-  const leads = prefs.preferences.leads
-  const others = prefs.categories.filter(c => c.id !== 'leads' && prefs.preferences[c.id])
+  const followOn = enabled !== false
   return (
-    <div className="space-y-8">
-      {leads && (
-        <div>
-          <SubHead sub="Someone signs in at an open house, fills in a form, or asks about a home.">When I get a new lead</SubHead>
-          <div className="space-y-3">
-            <BigToggle on={leads.email} onChange={v => toggle('leads', 'email', v)} title="Email me" blurb="Sent to your login email." />
-            <BigToggle on={leads.push} disabled={!prefs.push_available} onChange={v => toggle('leads', 'push', v)} title="Send a notification to my phone" blurb={prefs.push_available ? 'Instant pop-up on your phone.' : 'Coming soon.'} />
-          </div>
+    <MiniFlow flow={flow} pages={[
+      // Follow-ups - the big one
+      <div key="followups" className="overflow-hidden rounded-[26px] border-2 border-[#C9A24D]/45 bg-gradient-to-br from-[#fffaf0] via-white to-[#f8f1e2] dark:from-[#1d1912] dark:via-[#141416] dark:to-[#121214]">
+        <div className="px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
+          <p className="inline-flex items-center gap-1.5 rounded-full bg-[#111827] px-3 py-1 text-[10.5px] font-black uppercase tracking-[0.2em] text-[#e8c97a] dark:bg-[#C9A24D] dark:text-[#111827]"><BellRing className="h-3.5 w-3.5" /> Follow-ups</p>
+          <h3 className="mt-3 font-serif text-[23px] font-black leading-tight tracking-tight text-[#111827] dark:text-white">Never forget who to call back</h3>
+          <p className="mt-2 text-[15px] font-medium leading-relaxed text-gray-600 dark:text-gray-300">
+            When someone signs in at an open house, fills in a form or asks about a home, OpenHousePal makes a follow-up for you: <b className="text-[#111827] dark:text-white">who to contact, when, and a message ready to send</b> with one tap. They show on your Dash, in your daily email, and on your calendar.
+          </p>
+          {rules && rules.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {rules.slice(0, 6).map(r => <span key={r} className="rounded-full border border-[#C9A24D]/35 bg-white/80 px-2.5 py-1 text-[12px] font-bold text-[#111827] dark:bg-white/[0.05] dark:text-white">{r}</span>)}
+              {rules.length > 6 && <span className="rounded-full px-2 py-1 text-[12px] font-bold text-gray-500">+{rules.length - 6} more</span>}
+            </div>
+          )}
         </div>
-      )}
-      <div>
-        <SubHead sub="We make a reminder when someone needs a call, a text or a check-in.">Follow-up reminders</SubHead>
-        <BigToggle on={enabled !== false} disabled={enabled === null} onChange={v => setEnabled(v)} title="Remind me who to follow up with" blurb="Turn it off if your CRM already reminds you." />
-      </div>
-      {others.length > 0 && (
-        <MoreOptions label="Other emails we can send you">
-          {others.map(c => (
-            <BigToggle key={c.id} on={prefs.preferences[c.id].email} onChange={v => toggle(c.id, 'email', v)} title={c.label} blurb={c.help} />
-          ))}
-        </MoreOptions>
-      )}
-    </div>
+        <div className="grid gap-3 border-t border-[#C9A24D]/20 bg-white/60 p-4 dark:bg-black/10 sm:grid-cols-2 sm:p-5">
+          <ChoiceCard on={followOn} disabled={enabled === null || saving} onClick={() => setEnabled(true)} title="Yes, remind me" blurb="Recommended - we line up every follow-up for you."
+            badge={<span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">Best</span>} />
+          <ChoiceCard on={!followOn} disabled={enabled === null || saving} onClick={() => setEnabled(false)} title="No, my CRM does this" blurb="We stop making follow-ups and hide them everywhere. Turn it back on any time." />
+        </div>
+        {followOn && (
+          <p className="border-t border-[#C9A24D]/20 px-5 py-3 text-[13.5px] font-medium text-gray-600 dark:text-gray-300 sm:px-6">
+            Want to change the timing or the messages? <a href="/leads/tasks" target="_blank" rel="noreferrer" className="font-black text-[#8b6a2b] underline-offset-2 hover:underline dark:text-[#e8c97a]">Open Follow-up settings</a> - and connect your calendar in the next step so they pop up on your phone.
+          </p>
+        )}
+      </div>,
+
+      <div key="leads">
+        <SubHead sub="Someone signs in at an open house, fills in a form, or asks about a home.">When I get a new lead</SubHead>
+        <div className="space-y-3">
+          <BigToggle on={leadEmail} onChange={v => setEmail('leads', v)} title="Email me" blurb="Sent to your login email, the moment it happens." />
+          <BigToggle on={!!prefs.preferences.leads?.push} disabled={!prefs.push_available} onChange={setPush} title="Send a notification to my phone" blurb={prefs.push_available ? 'Instant pop-up on your phone.' : 'Coming soon.'} />
+        </div>
+      </div>,
+
+      <div key="emails" className="space-y-7">
+        {es.receive.map(t => {
+          const cats = t.categories.filter(c => c.id !== 'leads')
+          if (!cats.length) return null
+          return (
+            <div key={t.tier}>
+              <SubHead sub={t.tier === 3 ? 'Most agents leave these off.' : t.blurb}>{t.tier === 1 ? 'Other emails that need you' : t.title}</SubHead>
+              <div className="space-y-3">
+                {cats.map(c => <BigToggle key={c.id} on={c.email} onChange={v => setEmail(c.id, v)} title={c.label} blurb={c.help} />)}
+              </div>
+            </div>
+          )
+        })}
+        {es.always_on.length > 0 && (
+          <p className="rounded-2xl bg-[#f7f3ea] px-4 py-3 text-[13.5px] font-medium text-gray-600 dark:bg-white/[0.04] dark:text-gray-300">
+            <b className="text-[#111827] dark:text-white">Always sent, can&apos;t be turned off:</b> {es.always_on.join(' · ')}.
+          </p>
+        )}
+      </div>,
+    ]} />
   )
 }
 
@@ -212,16 +262,34 @@ export function CrmStep({ ctx }: { ctx: StepCtx }) {
   )
 }
 
-// ---------- Website areas ----------
+// ---------- Towns you serve ----------
 export function AreasStep({ ctx }: { ctx: StepCtx }) {
-  // No preview here - there's nothing to see until towns are picked (user, 10/15).
-  useGate(ctx, { ok: true }, [])
-  return <TownPicker />
+  // No preview here - there's nothing to see until towns are picked (user, 10/15). A tapped town
+  // shows as added at once; its save and research carry on in the background (TownPicker), and
+  // Continue waits a moment for any save still on its way so the step counts as done.
+  useGate(ctx, { ok: true, onContinue: async () => { await waitForTownSaves(6000) } }, [])
+  return <TownPicker idx={ctx.plan === 'IDX'} />
 }
 
+const HOME_TYPES = [
+  { value: '', label: 'Any type' },
+  { value: 'single_family', label: 'Single family' },
+  { value: 'town_house', label: 'Townhouse' },
+  { value: 'condo', label: 'Condo' },
+  { value: 'multi_family', label: 'Multi-family' },
+]
+
+/** Live website: the setup choices are saved to the draft like the editor's, so press Publish for
+ *  them on Continue - otherwise a live site would never show what they picked here. */
+const siteIsLive = (site: Site | null) => site?.status === 'PUBLISHED' && site?.is_enabled !== false
+
 // ---------- Website homes (header + Featured page) ----------
+// Reads and writes the website's own draft (the hero block's header_towns / photo_price_min/max /
+// photo_property_type / header_mine_first, and featured_settings) - exactly what the website
+// editor's Featured tab edits, so a change there shows here when this step opens, and back.
 export function HomesStep({ ctx }: { ctx: StepCtx }) {
   const [site, setSite] = useState<Site | null>(null)
+  const [towns, setTowns] = useState<string[] | null>(null)
   const [homesFocus, setHomesFocus] = useState<'hero' | 'featured_listings'>('hero')
   const [homesNote, setHomesNote] = useState<string | undefined>(undefined)
   useEffect(() => {
@@ -236,30 +304,96 @@ export function HomesStep({ ctx }: { ctx: StepCtx }) {
       }
       setSite(r.data)
     })
+    api.sites.getAreas(true).then(r => setTowns(r.success && r.data ? r.data.map(a => a.area?.name).filter(Boolean) as string[] : []))
   }, [])
-  useGate(ctx, { ok: true, onContinue: async () => { await api.setup.setState({ confirm: 'homes' }) } }, [])
+  const live = siteIsLive(site)
+  useGate(ctx, { ok: true, onContinue: async () => {
+    if (live) { const r = await api.sites.publish(); if (!r.success) return false }
+    await api.setup.setState({ confirm: 'homes' })
+  } }, [live])
+  // Two short pages beside the preview (owner, 10/22): the header's homes, then the Featured page.
+  const flow = useMiniFlow(ctx, ['Header', 'Featured'])
   if (!site) return <Spinner />
   const pages: SitePage[] = (site.draft_data?.pages || []) as SitePage[]
   const home = pages.find(p => p.is_home) || pages[0]
   const hero = home?.blocks?.find(b => b.type === 'hero') || null
   const save = (patch: { pages?: SitePage[]; featured_settings?: FeaturedSettings }) => {
-    setSite({ ...site, draft_data: { ...site.draft_data, ...patch } })
+    setSite(s => (s ? { ...s, draft_data: { ...s.draft_data, ...patch } } : s))
     ctx.markSaving(api.sites.updateDraft(patch).then(r => { if (r.success && r.data) setSite(r.data) }))
   }
-  const featured = (site.draft_data?.featured_settings || { mode: 'served_areas', towns: [], school_districts: [], sort: 'newest', prioritize_my_listings: true }) as FeaturedSettings
+  const featured = { ...DEFAULT_FEATURED, ...((site.draft_data?.featured_settings || { mode: 'served_areas' }) as FeaturedSettings) }
   const hasFeaturedSection = pages.some(p => p.is_home && p.blocks.some(b => b.type === 'featured_listings' && !b.hidden))
+  const data: Record<string, any> = hero?.data || {}
+  const setHero = (patch: Record<string, any>, note: string) => {
+    if (!home || !hero) return
+    setHomesFocus('hero')
+    setHomesNote(note)
+    save({ pages: pages.map(p => (p.id === home.id ? { ...p, blocks: p.blocks.map(b => (b.id === hero.id ? { ...b, data: { ...b.data, ...patch, _template_generated: false } } : b)) } : p)) })
+  }
+  const picked: string[] = Array.isArray(data.header_towns) ? data.header_towns : []
+  const mineFirst = data.header_mine_first !== false && data.header_mine_first !== 'false'
+  const chip = (on: boolean) => `inline-flex min-h-[44px] items-center gap-1.5 rounded-full border-2 px-4 py-2 text-[14px] font-black transition ${on ? 'border-[#111827] bg-[#111827] text-white dark:border-white dark:bg-white dark:text-[#111827]' : 'border-[#ece5d6] bg-white text-gray-700 hover:border-[#C9A24D] dark:border-white/10 dark:bg-[#141416] dark:text-gray-200'}`
+
   return (
     <SplitPreview preview={<SiteMiniPreview site={site} featured={featured} focus={homesFocus} note={homesNote} height="var(--setup-prev-h)" />}>
-      <div className="setup-embed space-y-5">
-        <HeaderHomesPanel data={hero ? hero.data : null}
-          onChange={patch => {
-            if (!home || !hero) return
-            setHomesFocus('hero')
-            setHomesNote('header_mine_first' in patch ? (patch.header_mine_first ? 'Your own listings lead' : 'Newest MLS homes lead') : 'header_towns' in patch ? 'Header homes · your towns' : 'Header homes · updated')
-            save({ pages: pages.map(p => (p.id === home.id ? { ...p, blocks: p.blocks.map(b => (b.id === hero.id ? { ...b, data: { ...b.data, ...patch, _template_generated: false } } : b)) } : p)) })
-          }} />
-        <FeaturedSettingsPanel value={featured} onChange={v => { setHomesFocus(hasFeaturedSection ? 'featured_listings' : 'hero'); setHomesNote('Featured homes · updated'); save({ featured_settings: v }) }} />
-      </div>
+      <MiniFlow flow={flow} pages={[
+      <div key="header">
+        <SubHead sub="It always shows the newest homes for sale that match - it refreshes itself on every visit.">The top of your home page</SubHead>
+        {!hero ? (
+          <p className="rounded-2xl border-2 border-dashed border-[#e7dfcf] p-4 text-[14px] font-semibold text-gray-500 dark:border-white/10">Your home page has no header section. Add &quot;Header&quot; in the website editor.</p>
+        ) : data.photo_source_mode === 'manual' ? (
+          <div className="rounded-2xl bg-[#C9A24D]/10 p-4">
+            <p className="text-[14.5px] font-semibold text-[#8b7355] dark:text-[#e8c97a]">Your header is showing one photo you uploaded instead of homes.</p>
+            <button type="button" onClick={() => setHero({ photo_source_mode: 'auto' }, 'Header homes · newest homes')} className="mt-3 inline-flex h-11 items-center rounded-2xl bg-[#111827] px-5 text-[14px] font-black text-white dark:bg-white dark:text-[#111827]">Show the newest homes instead</button>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div>
+              <p className="text-[15px] font-black text-[#111827] dark:text-white">Towns</p>
+              {towns === null ? <Loader2 className="mt-3 h-5 w-5 animate-spin text-[#C9A24D]" /> : towns.length === 0 ? (
+                <p className="mt-1 text-[13.5px] font-medium text-gray-500 dark:text-gray-400">Add your towns in the &quot;Towns you serve&quot; step - the header uses them.</p>
+              ) : (
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  <button type="button" aria-pressed={picked.length === 0} onClick={() => setHero({ header_towns: [] }, 'Header homes · all your towns')} className={chip(picked.length === 0)}>
+                    {picked.length === 0 && <Check className="h-4 w-4" strokeWidth={3} />}All my towns
+                  </button>
+                  {towns.map(t => {
+                    const on = picked.includes(t)
+                    return (
+                      <button key={t} type="button" aria-pressed={on} onClick={() => setHero({ header_towns: on ? picked.filter(x => x !== t) : [...picked, t] }, 'Header homes · your towns')} className={chip(on)}>
+                        {on ? <Check className="h-4 w-4" strokeWidth={3} /> : <MapPin className="h-4 w-4 text-[#C9A24D]" />}{t}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="mb-2.5 text-[15px] font-black text-[#111827] dark:text-white">Price</p>
+              <PricePicker min={Number(data.photo_price_min) || null} max={Number(data.photo_price_max) || null}
+                onChange={(min, max) => setHero({ photo_price_min: min ?? '', photo_price_max: max ?? '' }, `Header homes · ${priceLabel(min, max)}`)} />
+            </div>
+            <div>
+              <p className="text-[15px] font-black text-[#111827] dark:text-white">Home type</p>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {HOME_TYPES.map(t => {
+                  const on = (data.photo_property_type || '') === t.value
+                  return <button key={t.value || 'any'} type="button" aria-pressed={on} onClick={() => setHero({ photo_property_type: t.value }, `Header homes · ${t.label.toLowerCase()}`)} className={chip(on)}>{on && <Check className="h-4 w-4" strokeWidth={3} />}{t.label}</button>
+                })}
+              </div>
+            </div>
+            <BigToggle on={mineFirst} onChange={v => setHero({ header_mine_first: v }, v ? 'Your own listings lead' : 'Newest MLS homes lead')} title="My own listings first" blurb="Your matching listings lead, then the newest homes from the MLS." />
+          </div>
+        )}
+      </div>,
+      <div key="featured" className="space-y-8">
+        <div>
+          <SubHead sub='The "Featured" tab in your website menu.'>Your Featured page</SubHead>
+          <FeaturedPagePicker value={featured} onChange={v => { setHomesFocus(hasFeaturedSection ? 'featured_listings' : 'hero'); setHomesNote('Featured homes · updated'); save({ featured_settings: v }) }} />
+        </div>
+        {live && <p className="flex items-start gap-2 rounded-2xl bg-[#f7f3ea] px-4 py-3 text-[13.5px] font-semibold text-gray-600 dark:bg-white/[0.04] dark:text-gray-300"><Globe className="mt-0.5 h-4 w-4 shrink-0 text-[#a8803a]" /> Your website is live - these changes go live when you press Continue.</p>}
+      </div>,
+      ]} />
     </SplitPreview>
   )
 }
@@ -307,7 +441,7 @@ export function WebsiteStep({ ctx }: { ctx: StepCtx }) {
   const setTheme = (patch: Partial<SiteTheme>) => {
     if (!site) return
     const next = { ...theme, ...patch } as SiteTheme
-    setNote(patch.mode ? (patch.mode === 'dark' ? 'Dark pages' : 'Light pages')
+    setNote(patch.mode ? (patch.mode === 'dark' ? 'Midnight pages' : 'Ivory pages')
       : patch.template ? (patch.template === 'luxe' ? 'Luxe look' : 'Classic look')
       : patch.luxe_metal ? `${LUXE_METALS[patch.luxe_metal].label} finish`
       : patch.secondary_color ? `${accentLabel(patch.secondary_color) || 'New'} accent` : undefined)
@@ -323,12 +457,18 @@ export function WebsiteStep({ ctx }: { ctx: StepCtx }) {
     setErr(r.error || 'We couldn’t publish just now - please try again.')
     return false
   }
-  useGate(ctx, { ok: true, onContinue: async () => { if (!live) { const ok = await publish(); if (!ok) return false } await api.setup.setState({ confirm: 'website' }) } }, [live, site?.status])
+  // Always publish on Continue: a site that's already live gets the look picked here too (it
+  // used to stay in the draft until someone pressed Publish in the editor).
+  useGate(ctx, { ok: true, onContinue: async () => { const ok = await publish(); if (!ok) return false; await api.setup.setState({ confirm: 'website' }) } }, [live, site?.status])
+  // The look, then putting it live (owner, 10/22).
+  const flow = useMiniFlow(ctx, ['Look', 'Go live'])
   if (!site) return <Spinner />
   const template = theme.template === 'luxe' ? 'luxe' : 'default'
   const siteHost = (() => { try { return base ? new URL(base).host : '' } catch { return '' } })()
   return (
     <SplitPreview preview={<SiteMiniPreview site={site} theme={theme} note={note} hasReviews={showReviews && reviewCount > 0} height="var(--setup-prev-h)" />}>
+      <MiniFlow flow={flow} pages={[
+      <div key="look" className="space-y-8">
       <div>
         <SubHead>Style</SubHead>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -360,11 +500,13 @@ export function WebsiteStep({ ctx }: { ctx: StepCtx }) {
           <Swatches label="Accent color" colors={CLASSIC_ACCENTS} value={normalizeSiteTheme(theme).secondary_color || CLASSIC_DEFAULT_ACCENT} onChange={c => setTheme({ secondary_color: c, follow_brand_kit: false })} />
         </div>
       )}
-      <BigToggle on={showReviews} onChange={toggleReviews} title="Show my client reviews on the website" blurb="A Reviews page with your star rating, plus a link in your menu (only 4-5 stars if you chose that)." />
       <div className="grid grid-cols-2 gap-3">
-        <ChoiceCard on={theme.mode !== 'dark'} onClick={() => setTheme({ mode: 'light' })} title="Light" />
-        <ChoiceCard on={theme.mode === 'dark'} onClick={() => setTheme({ mode: 'dark' })} title="Dark" />
+        <ChoiceCard on={theme.mode !== 'dark'} onClick={() => setTheme({ mode: 'light' })} title="Ivory" blurb="Bright pages, dark text." />
+        <ChoiceCard on={theme.mode === 'dark'} onClick={() => setTheme({ mode: 'dark' })} title="Midnight" blurb="Deep pages, light text." />
       </div>
+      </div>,
+      <div key="live" className="space-y-8">
+      <BigToggle on={showReviews} onChange={toggleReviews} title="Show my client reviews on the website" blurb="A Reviews page with your star rating, plus a link in your menu (only 4-5 stars if you chose that)." />
       <div className={`rounded-[22px] border-2 p-5 ${live ? 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-500/40 dark:bg-emerald-500/10' : 'border-[#C9A24D]/40 bg-[#fbf6ea] dark:bg-[#1a1712]'}`}>
         <div className="flex flex-wrap items-center gap-4">
           <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${live ? 'bg-emerald-600 text-white' : 'bg-[#111827] text-[#e8c97a]'}`}>{live ? <Globe className="h-6 w-6" /> : <Rocket className="h-6 w-6" />}</span>
@@ -376,7 +518,7 @@ export function WebsiteStep({ ctx }: { ctx: StepCtx }) {
             ? <a href={ohpHostUrl(siteHost)} target="_blank" rel="noreferrer" className="inline-flex h-12 items-center gap-2 rounded-2xl bg-white px-5 text-[15px] font-black text-[#111827] shadow-sm dark:bg-black/30 dark:text-white">Visit <ExternalLink className="h-4 w-4" /></a>
             : <button type="button" onClick={publish} disabled={busy} className="inline-flex h-12 items-center gap-2 rounded-2xl bg-gradient-to-r from-[#a8803a] via-[#C9A24D] to-[#e8c97a] px-6 text-[15px] font-black text-[#111827] shadow-lg disabled:opacity-60">{busy && <Loader2 className="h-4 w-4 animate-spin" />} Put my website live</button>}
         </div>
-        {!live && <p className="mt-3 text-[13.5px] font-medium text-gray-600 dark:text-gray-300">Pressing Continue puts it live too. You can change anything later in the website editor.</p>}
+        <p className="mt-3 text-[13.5px] font-medium text-gray-600 dark:text-gray-300">{live ? 'The look you pick here goes live when you press Continue.' : 'Pressing Continue puts it live too.'} You can change anything later in the website editor.</p>
         <p className="mt-3 flex items-start gap-1.5 text-[13.5px] font-medium text-gray-600 dark:text-gray-300"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> Google is set up for you - every page, town and article gets its own search title and description automatically. Preview or reword any of them in the website editor&apos;s Google tab.</p>
         {err && <p className="mt-3 text-[14px] font-bold text-rose-600">{err}</p>}
       </div>
@@ -384,6 +526,8 @@ export function WebsiteStep({ ctx }: { ctx: StepCtx }) {
         <p className="text-[14px] font-medium text-gray-600 dark:text-gray-300">Connect it in the website editor's Domain tab - we walk you through it step by step, and your website keeps working the whole time.</p>
         <a href="/studio/website?tab=domains" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-4 py-2.5 text-[14px] font-black text-white dark:bg-white dark:text-[#111827]">Connect my domain <ExternalLink className="h-4 w-4" /></a>
       </MoreOptions>
+      </div>,
+      ]} />
     </SplitPreview>
   )
 }

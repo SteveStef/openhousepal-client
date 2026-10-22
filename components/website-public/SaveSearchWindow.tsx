@@ -8,6 +8,7 @@ import { formatCompactPrice } from './listingFormat'
 import { openHousePalPublicUrl } from '@/lib/publicResourceLinks'
 import SitePhoto from '@/components/website-public/SitePhoto'
 import { IMG, sizedBg } from '@/lib/siteImage'
+import { useIsPhone, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 
 // "Save this search" and the heart on a home, on the IDX website. Instead of the full Showcase
 // form (welcome page + a question per screen), a short window: (1) here's what we'll watch for -
@@ -154,6 +155,10 @@ export default function SaveSearchWindow({ siteId, criteria, onClose }: { siteId
   }
 
   const ease = [0.16, 1, 0.3, 1] as const
+  // Phones: slides up from the bottom; pull it down to close.
+  const isPhone = useIsPhone()
+  const sheetMotion = useSheetMotion()
+  const { sheetRef, y: sheetY } = useSwipeToClose(onClose, isPhone && !!criteria && !busy)
   const field = 'w-full rounded-xl border px-4 py-3 text-[15px] font-semibold outline-none transition focus:border-[color:var(--site-accent)]'
   const fieldStyle = { borderColor: 'var(--site-line-strong)', backgroundColor: 'var(--site-bg)', color: 'var(--site-ink)' }
   const primary = 'inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-black transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-50'
@@ -164,19 +169,20 @@ export default function SaveSearchWindow({ siteId, criteria, onClose }: { siteId
         <motion.div key="ss" className="fixed inset-0 z-[110] flex items-end justify-center bg-black/65 sm:items-center sm:p-6"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} onClick={onClose}>
           <motion.div role="dialog" aria-modal="true" aria-label={isHome ? 'Get homes like this' : 'Save this search'}
-            className="relative w-full max-w-md overflow-hidden rounded-t-[28px] shadow-2xl sm:rounded-[28px]"
-            style={{ backgroundColor: 'var(--site-surface)', color: 'var(--site-ink)' }}
-            initial={{ y: 40, opacity: 0, scale: 0.97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 30, opacity: 0 }}
-            transition={{ duration: 0.45, ease }} onClick={e => e.stopPropagation()}>
-            <button type="button" onClick={onClose} aria-label="Close" className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full transition hover:scale-105" style={{ backgroundColor: 'var(--site-bg-alt)', color: 'var(--site-muted)' }}><X className="h-4 w-4" /></button>
+            ref={sheetRef}
+            className="relative max-h-[92dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-[28px] pb-[env(safe-area-inset-bottom)] shadow-2xl sm:max-h-none sm:overflow-hidden sm:rounded-[28px] sm:pb-0"
+            style={{ backgroundColor: 'var(--site-surface)', color: 'var(--site-ink)', ...(isPhone ? { y: sheetY } : {}) }}
+            {...sheetMotion} onClick={e => e.stopPropagation()}>
+            {isPhone && <div aria-hidden className="flex h-5 items-end justify-center"><span className="h-1.5 w-10 rounded-full" style={{ backgroundColor: 'var(--site-line-strong)' }} /></div>}
+            <button type="button" onClick={onClose} aria-label="Close" className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full transition hover:scale-105 sm:right-4 sm:top-4 sm:h-9 sm:w-9" style={{ backgroundColor: 'var(--site-bg-alt)', color: 'var(--site-muted)' }}><X className="h-4 w-4" /></button>
 
             {/* progress */}
             {step !== 'done' && step !== 'represented' && (
-              <div className="flex gap-1.5 px-6 pt-6">
+              <div className="flex gap-1.5 pl-6 pr-16 pt-6">
                 {['review', 'contact'].map((s, i) => (
                   <span key={s} className="h-1 flex-1 overflow-hidden rounded-full" style={{ backgroundColor: 'var(--site-line)' }}>
-                    <motion.span className="block h-full rounded-full" style={{ backgroundColor: 'var(--site-accent)' }} initial={false}
-                      animate={{ width: step === 'contact' || i === 0 ? '100%' : '0%' }} transition={{ duration: 0.5, ease }} />
+                    <motion.span className="block h-full origin-left rounded-full" style={{ backgroundColor: 'var(--site-accent)' }} initial={false}
+                      animate={{ scaleX: step === 'contact' || i === 0 ? 1 : 0 }} transition={{ duration: 0.5, ease }} />
                   </span>
                 ))}
               </div>

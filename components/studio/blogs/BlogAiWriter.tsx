@@ -9,6 +9,8 @@
 // every figure it used is listed back, and any it can't trace to the brief is flagged to verify.
 
 import VerifiedPanel from './VerifiedPanel'
+import FlowDock from '@/components/ui/FlowDock'
+import { backdropMotion, useIsPhone, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 import AiCoverMaker from './AiCoverMaker'
 import BlogFinishStep, { applyFinish, emptyFinish, type FinishChoices } from './BlogFinishStep'
 import NeighborhoodLinksPicker, { articleTextOf } from './NeighborhoodLinksPicker'
@@ -25,7 +27,7 @@ import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertTriangle, ArrowLeft, ArrowRight, Check, Clapperboard, CloudCheck, Home, Link2, Loader2, MapPin, PenLine, Play, Plus,
-  RotateCcw, Search, ShieldCheck, Sparkles, Star, Target, Users, Wand2, X,
+  RotateCcw, Search, ShieldCheck, SkipForward, Sparkles, Star, Target, Users, Wand2, X,
 } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
@@ -119,7 +121,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-black transition duration-200 hover:-translate-y-0.5 active:scale-95 ${
+      className={`inline-flex max-w-full items-center gap-1 rounded-full border px-3 py-2 text-left text-xs font-black transition duration-200 hover:-translate-y-0.5 active:scale-95 sm:py-1.5 ${
         on ? 'border-[#C9A24D] bg-[#C9A24D] text-[#111827]' : 'border-gray-200 text-gray-600 hover:border-[#C9A24D]/60 dark:border-gray-700 dark:text-gray-300'
       }`}
     >
@@ -140,11 +142,14 @@ function Question({ icon: Icon, title, hint, children }: { icon: typeof Target; 
   )
 }
 
-const inputCls = 'w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-[#111827] outline-none placeholder:font-medium placeholder:text-gray-300 focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white dark:placeholder:text-gray-600'
+// text-base on phones: a smaller box makes iPhones zoom the whole page in when it's tapped.
+const inputCls = 'w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-base font-semibold sm:text-sm text-[#111827] outline-none placeholder:font-medium placeholder:text-gray-300 focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white dark:placeholder:text-gray-600'
 
 export default function BlogAiWriter({
-  blogId, initialTopic = '', initialCategory, initialTheme, titleBased = false, onClose, onDone, onLeave, resume,
+  blogId, initialTopic = '', initialCategory, initialTheme, titleBased = false, onClose, onDone, onLeave, resume, fromFlow = false,
 }: {
+  /** Opened from the new-article window: on a phone it takes that sheet's place without sliding up again. */
+  fromFlow?: boolean
   /** An unfinished AI draft being picked back up (its saved answers, the step, a failure). */
   resume?: BlogAiResume
   /** "Leave it writing" while the AI works - defaults to onClose. */
@@ -471,31 +476,43 @@ export default function BlogAiWriter({
     return { suggestedVideos: top, otherVideos: yt.filter(v => !top.includes(v)) }
   }, [ctx, topic, goal, keyPoints, areas])
 
+  // Phones (10/22, "as good as CMA"): one tall sheet - the same height on every step, slides up,
+  // pulls down to close (not while it's writing). Computers keep the centred window.
+  const isPhone = useIsPhone()
+  const sheetMotion = useSheetMotion()
+  const { sheetRef, y: sheetY } = useSwipeToClose(onClose, isPhone && phase !== 'writing' && !finishing)
+  const phoneTitle = phase === 'done' ? 'Your draft is ready' : phase === 'writing' ? 'Writing your article…' : phase === 'failed' ? "This one didn't finish" : blogId ? 'Rewrite with AI' : resume ? 'Finish with AI' : 'Write with AI'
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={phase === 'writing' ? undefined : onClose}>
+    <motion.div {...backdropMotion} className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:p-4" onClick={phase === 'writing' ? undefined : onClose}>
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
+        ref={sheetRef}
+        {...(isPhone
+          ? (fromFlow ? { initial: { opacity: 0 }, animate: { opacity: 1, transition: { duration: 0.2 } }, exit: sheetMotion.exit } : sheetMotion)
+          : { initial: { opacity: 0, scale: 0.96, y: 10 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.97, y: 8, transition: { duration: 0.16 } } })}
+        style={isPhone ? { y: sheetY } : undefined}
         onClick={e => e.stopPropagation()}
-        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-[#151517]"
+        className="flex h-[94dvh] w-full flex-col overflow-hidden rounded-t-[26px] border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-[#151517] sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl"
       >
         {/* Header */}
-        <div className="relative shrink-0 overflow-hidden border-b border-gray-100 bg-gradient-to-r from-[#111827] via-[#172033] to-[#4a3820] px-6 py-4 dark:border-gray-800">
-          <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-[#C9A24D]/30 blur-2xl" />
+        <div className="relative shrink-0 overflow-hidden border-b border-gray-100 bg-gradient-to-r from-[#111827] via-[#172033] to-[#4a3820] px-5 pb-4 pt-6 dark:border-gray-800 sm:px-6 sm:py-4">
+          <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-[#C9A24D]/30 blur-2xl" />
+          {/* Phones: the pull-down handle */}
+          <span aria-hidden className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-white/25 sm:hidden" />
           <div className="relative flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#C9A24D] text-[#111827] shadow-md"><Sparkles className="h-5 w-5" /></span>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#C9A24D]">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#C9A24D] text-[#111827] shadow-md sm:h-10 sm:w-10"><Sparkles className="h-5 w-5" /></span>
+              <div className="min-w-0">
+                <p className="truncate text-[10px] font-black uppercase tracking-widest text-[#C9A24D]">
                   AI Blog Writer{phase === 'interview' && !blocked && ctx ? ` · Step ${step + 1} of ${STEPS.length}` : ''}
                 </p>
-                <h2 className="font-serif text-xl font-black text-white">
-                  {phase === 'done' ? 'Your draft is ready' : phase === 'writing' ? 'Writing your article…' : phase === 'failed' ? "This one didn't finish" : blogId ? 'Rewrite this article with AI' : resume ? 'Finish your article with AI' : 'Write an article with AI'}
+                <h2 className="truncate font-serif text-lg font-black leading-tight text-white sm:text-xl">
+                  <span className="sm:hidden">{phoneTitle}</span>
+                  <span className="hidden sm:inline">{phase === 'done' ? 'Your draft is ready' : phase === 'writing' ? 'Writing your article…' : phase === 'failed' ? "This one didn't finish" : blogId ? 'Rewrite this article with AI' : resume ? 'Finish your article with AI' : 'Write an article with AI'}</span>
                 </h2>
               </div>
             </div>
             {phase !== 'writing' && (
-              <button onClick={onClose} className="rounded-full p-2 text-gray-300 hover:bg-white/10 hover:text-white"><X className="h-5 w-5" /></button>
+              <button onClick={onClose} aria-label="Close" className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-gray-300 transition hover:bg-white/10 hover:text-white active:scale-95 sm:h-9 sm:w-9"><X className="h-5 w-5" /></button>
             )}
           </div>
           {phase === 'done' && result && (
@@ -521,7 +538,7 @@ export default function BlogAiWriter({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto overscroll-contain p-6 [scrollbar-gutter:stable]">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-5 sm:p-6 sm:[scrollbar-gutter:stable]">
           {!ctx && !ctxError && <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>}
           {ctxError && <p className="py-10 text-center text-sm font-bold text-red-500">{ctxError}</p>}
 
@@ -556,7 +573,7 @@ export default function BlogAiWriter({
                           const on = topic === idea
                           return (
                             <motion.button key={idea} type="button" whileTap={{ scale: 0.95 }} onClick={() => setTopic(on && baseTitle ? baseTitle : idea)} title={idea}
-                              className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition hover:-translate-y-0.5 ${on ? 'bg-[#C9A24D] text-[#111827]' : 'bg-[#C9A24D]/10 text-[#8b7355] hover:bg-[#C9A24D]/20 dark:text-[#d7b974]'}`}>
+                              className={`max-w-full rounded-full px-3 py-1.5 text-left text-[12px] font-bold transition hover:-translate-y-0.5 sm:px-2.5 sm:py-1 sm:text-[11px] ${on ? 'bg-[#C9A24D] text-[#111827]' : 'bg-[#C9A24D]/10 text-[#8b7355] hover:bg-[#C9A24D]/20 dark:text-[#d7b974]'}`}>
                               {angle ? <>{on ? <Check className="mr-1 inline h-3 w-3" /> : '+ '}{angle.charAt(0).toUpperCase() + angle.slice(1)}</> : idea}
                             </motion.button>
                           )
@@ -589,7 +606,7 @@ export default function BlogAiWriter({
                       </AnimatePresence>
                       <div className="mt-2 flex gap-2">
                         <input value={areaDraft} onChange={e => setAreaDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addArea() } }} placeholder="Add a town or neighborhood" className={inputCls} />
-                        <button type="button" onClick={addArea} className="shrink-0 rounded-xl border border-gray-200 px-3 text-gray-500 hover:border-[#C9A24D] dark:border-gray-700"><Plus className="h-4 w-4" /></button>
+                        <button type="button" onClick={addArea} aria-label="Add this town" className="grid w-12 shrink-0 place-items-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-[#C9A24D] active:scale-95 dark:border-gray-700 sm:w-auto sm:px-3"><Plus className="h-4 w-4" /></button>
                       </div>
                       {(spotlightCards.length > 0 || researching.length > 0) && (
                         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-3 rounded-2xl border border-[#C9A24D]/30 bg-[#fffaf0] p-3 dark:bg-[#C9A24D]/[0.06]">
@@ -638,10 +655,10 @@ export default function BlogAiWriter({
                       <textarea value={keyPoints} onChange={e => setKeyPoints(e.target.value)} rows={3} placeholder={'- Why pre-approval comes first\n- What to ask at the inspection\n- How we decide on an offer price'} className={inputCls} />
                     </Question>
                     <Question icon={Sparkles} title="Your take, or a local story only you could tell" hint="This is what makes it yours instead of generic. The AI weaves it in, in your voice.">
-                      <textarea value={personalTake} onChange={e => setPersonalTake(e.target.value)} rows={3} placeholder="e.g. The buyers who win here are the ones who've seen enough homes to recognize a good one in the first ten minutes." className={inputCls} />
+                      <textarea value={personalTake} onChange={e => setPersonalTake(e.target.value)} rows={3} placeholder="e.g. The buyers who win here are the ones who've seen enough homes to recognize a good one in the first ten minutes." className={`${inputCls} min-h-[8.25rem] sm:min-h-0`} />
                     </Question>
                     <Question icon={ShieldCheck} title="Numbers you want cited" hint="Prices, days on market, inventory — only what you know is true. The AI never invents a statistic.">
-                      <textarea value={facts} onChange={e => setFacts(e.target.value)} rows={2} placeholder="e.g. Median sale price in Wayne last quarter: $X (source: Bright MLS)" className={inputCls} />
+                      <textarea value={facts} onChange={e => setFacts(e.target.value)} rows={2} placeholder="e.g. Median sale price in Wayne last quarter: $X (source: Bright MLS)" className={`${inputCls} min-h-[5.75rem] sm:min-h-0`} />
                     </Question>
                     {(ctx.recent_sales.length > 0 || ctx.listings.length > 0) && (
                       <Question icon={Home} title="Reference your real sales or listings?" hint="Real numbers from your account — optional.">
@@ -756,9 +773,9 @@ export default function BlogAiWriter({
                           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Where it goes</p>
                           <div className="mt-1.5 grid grid-cols-3 gap-1.5">
                             {([['section', 'Its own section', 'The AI writes about it'], ['after_intro', 'After the intro', 'First thing readers see'], ['before_end', 'Near the end', 'Right before you sign off']] as const).map(([id, label, hint]) => (
-                              <button key={id} type="button" onClick={() => setVideoPos(id)} className={`rounded-xl border-2 px-2 py-2 text-left transition ${videoPos === id ? 'border-[#C9A24D] bg-[#C9A24D]/10' : 'border-gray-200 hover:border-gray-300 dark:border-gray-700'}`}>
+                              <button key={id} type="button" onClick={() => setVideoPos(id)} className={`min-h-[48px] rounded-xl border-2 px-2 py-2 text-left transition ${videoPos === id ? 'border-[#C9A24D] bg-[#C9A24D]/10' : 'border-gray-200 hover:border-gray-300 dark:border-gray-700'}`}>
                                 <span className="block text-[11px] font-black text-[#111827] dark:text-white">{label}</span>
-                                <span className="block text-[10px] font-semibold leading-tight text-gray-400">{hint}</span>
+                                <span className="hidden text-[10px] font-semibold leading-tight text-gray-400 sm:block">{hint}</span>
                               </button>
                             ))}
                           </div>
@@ -774,19 +791,20 @@ export default function BlogAiWriter({
                     <Question icon={Wand2} title="Tone">
                       <div className="grid gap-2 sm:grid-cols-3">
                         {TONES.map(t => (
-                          <button key={t.id} type="button" onClick={() => setTone(t.id)} className={`rounded-xl border-2 p-3 text-left transition ${tone === t.id ? 'border-[#C9A24D] bg-[#C9A24D]/10' : 'border-gray-200 hover:border-gray-300 dark:border-gray-700'}`}>
-                            <p className="text-xs font-black text-[#111827] dark:text-white">{t.label}</p>
+                          <button key={t.id} type="button" onClick={() => setTone(t.id)} className={`rounded-xl border-2 px-3.5 py-2.5 text-left transition active:scale-[0.99] sm:p-3 ${tone === t.id ? 'border-[#C9A24D] bg-[#C9A24D]/10' : 'border-gray-200 hover:border-gray-300 dark:border-gray-700'}`}>
+                            <p className="text-sm font-black text-[#111827] dark:text-white sm:text-xs">{t.label}</p>
                             <p className="mt-0.5 text-[11px] font-semibold text-gray-400">{t.hint}</p>
                           </button>
                         ))}
                       </div>
                     </Question>
                     <Question icon={PenLine} title="Length">
-                      <div className="grid grid-cols-3 gap-2">
+                      {/* Phones: one row each (label left, words + minutes right) - three narrow columns broke "~1,000 words · 5 min" over four lines. */}
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                         {LENGTHS.map(l => (
-                          <button key={l.id} type="button" onClick={() => setLength(l.id)} className={`rounded-xl border-2 p-3 text-left transition ${length === l.id ? 'border-[#C9A24D] bg-[#C9A24D]/10' : 'border-gray-200 hover:border-gray-300 dark:border-gray-700'}`}>
-                            <p className="text-xs font-black text-[#111827] dark:text-white">{l.label}</p>
-                            <p className="mt-0.5 text-[11px] font-semibold text-gray-400">{l.hint}</p>
+                          <button key={l.id} type="button" onClick={() => setLength(l.id)} className={`flex min-h-[48px] items-center justify-between gap-3 rounded-xl border-2 px-3.5 py-2.5 text-left transition active:scale-[0.99] sm:block sm:p-3 ${length === l.id ? 'border-[#C9A24D] bg-[#C9A24D]/10' : 'border-gray-200 hover:border-gray-300 dark:border-gray-700'}`}>
+                            <p className="text-sm font-black text-[#111827] dark:text-white sm:text-xs">{l.label}</p>
+                            <p className="text-[11px] font-semibold text-gray-400 sm:mt-0.5">{l.hint}</p>
                           </button>
                         ))}
                       </div>
@@ -835,14 +853,14 @@ export default function BlogAiWriter({
                   </motion.div>
                 ))}
               </div>
-              <div className="mt-6 space-y-2 rounded-xl border border-gray-100 bg-[#fbfaf7] p-4 dark:border-gray-800 dark:bg-[#1A1A1C]">
+              <div className="mt-6 hidden space-y-2 rounded-xl border border-gray-100 bg-[#fbfaf7] p-4 dark:border-gray-800 dark:bg-[#1A1A1C] sm:block">
                 <div className="h-5 w-3/4 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
                 {[92, 100, 85, 97, 60].map((w, i) => <div key={i} className="h-2.5 animate-pulse rounded bg-gray-100 dark:bg-gray-800" style={{ width: `${w}%`, animationDelay: `${i * 120}ms` }} />)}
               </div>
               <p className="mt-3 text-center text-[11px] font-semibold text-gray-400">Usually 2-4 minutes - it researches and fact-checks before you see it. Uses your monthly AI usage.</p>
               <div className="mt-4 flex flex-col items-center gap-1.5">
-                <button type="button" onClick={leaveWriting} className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-black text-[#111827] transition hover:-translate-y-0.5 hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.04] dark:text-white">
-                  Keep working - let me know when it&apos;s done <ArrowRight className="h-3.5 w-3.5" />
+                <button type="button" onClick={leaveWriting} className="inline-flex min-h-[48px] w-full items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-black active:scale-[0.99] sm:min-h-0 sm:w-auto sm:text-xs text-[#111827] transition hover:-translate-y-0.5 hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.04] dark:text-white">
+                  <span className="sm:hidden">Keep working - tell me when it&apos;s done</span><span className="hidden sm:inline">Keep working - let me know when it&apos;s done</span> <ArrowRight className="h-3.5 w-3.5 shrink-0" />
                 </button>
                 <p className="text-center text-[11px] font-semibold text-gray-400">It keeps writing. Your bell lights up when it&apos;s ready, and it waits in your Blogs list.</p>
               </div>
@@ -970,9 +988,29 @@ export default function BlogAiWriter({
           )}
         </div>
 
+        {/* Phones: the flow bar (components/ui/FlowDock) in place of the footers below - the same
+            handlers. Interview: "Skip" (to the Style step) beside Back, "Saved" under the counter. */}
+        {ctx && !blocked && phase === 'interview' && (
+          <FlowDock inline step={step + 1} total={STEPS.length}
+            onBack={step > 0 ? () => setStep(step - 1) : undefined}
+            note={savedAt ? 'Saved' : undefined}
+            extra={step > 0 && step < STEPS.length - 1 ? { label: 'Skip', icon: <SkipForward />, onClick: () => setStep(STEPS.length - 1) } : undefined}
+            {...(step < STEPS.length - 1
+              ? { onContinue: () => setStep(step + 1), disabled: !canNext }
+              : { onContinue: generate, disabled: !topic.trim(), continueLabel: blogId ? 'Rewrite' : 'Write it', icon: <Sparkles /> })} />
+        )}
+        {phase === 'done' && result && (
+          <FlowDock inline step={doneStep + 1} total={3}
+            onBack={doneStep > 0 ? () => goDone(doneStep - 1) : undefined}
+            note={doneStep === 0 ? 'Saved as draft' : undefined}
+            {...(doneStep < 2
+              ? { onContinue: () => goDone(doneStep + 1), continueLabel: doneStep === 0 ? 'Its look' : 'Finish up' }
+              : { onContinue: finishAndOpen, busy: finishing, continueLabel: <><span className="min-[380px]:hidden">Editor</span><span className="hidden min-[380px]:inline">Open editor</span></> })} />
+        )}
+
         {/* Footer */}
         {ctx && !blocked && phase === 'interview' && (
-          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-gray-100 px-6 py-4 dark:border-gray-800">
+          <div className="hidden shrink-0 items-center justify-between gap-3 border-t border-gray-100 px-6 py-4 dark:border-gray-800 sm:flex">
             <button onClick={() => (step === 0 ? onClose() : setStep(step - 1))} className="inline-flex items-center gap-1.5 text-sm font-black text-gray-400 hover:text-[#111827] dark:hover:text-white">
               <ArrowLeft className="h-4 w-4" /> {step === 0 ? 'Cancel' : 'Back'}
             </button>
@@ -1008,7 +1046,7 @@ export default function BlogAiWriter({
           </div>
         )}
         {phase === 'done' && result && (
-          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-gray-100 px-6 py-4 dark:border-gray-800">
+          <div className="hidden shrink-0 items-center justify-between gap-3 border-t border-gray-100 px-6 py-4 dark:border-gray-800 sm:flex">
             {doneStep > 0 ? (
               <button onClick={() => goDone(doneStep - 1)} className="inline-flex items-center gap-1.5 text-sm font-black text-gray-400 hover:text-[#111827] dark:hover:text-white">
                 <ArrowLeft className="h-4 w-4" /> Back
@@ -1028,6 +1066,6 @@ export default function BlogAiWriter({
           </div>
         )}
       </motion.div>
-    </div>
+    </motion.div>
   )
 }

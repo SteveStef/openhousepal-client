@@ -6,7 +6,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowRight, ArrowUpDown, CalendarClock, Mail, MailCheck, MailOpen, MailX, MousePointerClick, Search, Send, Users, X } from 'lucide-react'
+import { ArrowRight, ArrowUpDown, CalendarClock, Mail, MailCheck, MailOpen, MailX, MousePointerClick, Search, Send, UserX, Users, X } from 'lucide-react'
 import api from '@/lib/api-service'
 import LuxeHero, { LuxeStats, LuxeTabs } from '@/components/ui/LuxeHero'
 import Pager from '@/components/ui/Pager'
@@ -18,7 +18,8 @@ import type { ClientEmailRow, EmailMode, EmailPerson } from '@/types'
 import type { LucideIcon } from 'lucide-react'
 
 type Tab = 'people' | 'sent'
-type ModeFilter = 'all' | EmailMode
+// not_lead = people you've emailed who aren't one of your leads (never were, or you deleted them).
+type ModeFilter = 'all' | EmailMode | 'not_lead'
 type PeopleSort = 'recent' | 'most' | 'least' | 'name'
 const PAGE = 25
 
@@ -65,7 +66,7 @@ function EmailsInner() {
 
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase()
-    let list = (people || []).filter(p => (mode === 'all' || p.mode === mode) &&
+    let list = (people || []).filter(p => (mode === 'all' || (mode === 'not_lead' ? !p.lead_id : p.mode === mode)) &&
       (!term || `${p.name || ''} ${p.email}`.toLowerCase().includes(term)))
     const rate = (p: EmailPerson) => (p.rate == null ? -1 : p.rate)
     if (sort === 'most') list = [...list].sort((a, b) => rate(b) - rate(a) || b.clicked - a.clicked)
@@ -74,6 +75,7 @@ function EmailsInner() {
     return list
   }, [people, mode, sort, q])
   const pages = Math.max(1, Math.ceil(shown.length / PAGE))
+  const notLeads = (people || []).filter(p => !p.lead_id).length
 
   const update = (next: EmailPerson) => {
     setPeople(prev => {
@@ -123,7 +125,7 @@ function EmailsInner() {
           <div className="mt-4 space-y-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="flex flex-wrap gap-1.5">
-                {([['all', `All ${totals.people}`, Users], ['daily', `On ${totals.daily}`, MailCheck], ['weekly', `Weekly ${totals.weekly}`, CalendarClock], ['off', `Off ${totals.off}`, MailX]] as const).map(([id, label, Icon]) => (
+                {([['all', `All ${totals.people}`, Users], ['daily', `On ${totals.daily}`, MailCheck], ['weekly', `Weekly ${totals.weekly}`, CalendarClock], ['off', `Off ${totals.off}`, MailX], ['not_lead', `Not in your leads ${notLeads}`, UserX]] as const).map(([id, label, Icon]) => (
                   <button key={id} type="button" onClick={() => setMode(id)} aria-pressed={mode === id}
                     className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-black transition ${mode === id
                       ? 'border-[#C9A24D] bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8c97a]'

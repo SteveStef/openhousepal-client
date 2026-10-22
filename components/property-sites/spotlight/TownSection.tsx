@@ -128,7 +128,7 @@ export default function TownSection({ name, facts, body, place, kicker, tone, ph
   ) })
 
   return (
-    <section ref={ref} id="town" className={`tw tw-${tone} relative scroll-mt-16 overflow-hidden px-5 py-20 sm:px-10 lg:py-16`}>
+    <section ref={ref} id="town" className={`tw tw-${tone} sp-loop relative scroll-mt-16 overflow-hidden px-5 py-20 sm:px-10 lg:py-16`}>
       <style>{TW_CSS}</style>
       <div className="tw-glow" aria-hidden />
       <div className="relative mx-auto grid max-w-[1440px] gap-10 lg:grid-cols-12 lg:gap-12">
@@ -160,6 +160,7 @@ export default function TownSection({ name, facts, body, place, kicker, tone, ph
           )}
           {photo?.url && (
             <figure className="tw-photo">
+              <div className="tw-photo-in">
               <img src={photo.url} alt={photo.caption || `${name}`} loading="lazy" />
               <figcaption>
                 {photo.caption && <span className={`${label} tw-photo-cap`}>{photo.caption}</span>}
@@ -167,6 +168,7 @@ export default function TownSection({ name, facts, body, place, kicker, tone, ph
                   ? <a href={photo.source_url} target="_blank" rel="noreferrer noopener" className="tw-photo-credit">{photo.credit}</a>
                   : <span className="tw-photo-credit">{photo.credit}</span>)}
               </figcaption>
+              </div>
             </figure>
           )}
         </div>
@@ -212,9 +214,10 @@ const TW_CSS = `
 .tw .tw-soft{color:color-mix(in srgb,currentColor 82%,transparent)}
 .tw .tw-muted{color:color-mix(in srgb,currentColor 58%,transparent)}
 .tw .tw-faint{color:color-mix(in srgb,currentColor 45%,transparent)}
-.tw-photo{position:relative;margin:1.75rem 0 0;overflow:hidden;aspect-ratio:16/9;clip-path:inset(10% 8% 10% 8%);transition:clip-path 1.6s cubic-bezier(.7,0,.2,1) .15s}
+.tw-photo{position:relative;margin:1.75rem 0 0;overflow:hidden;aspect-ratio:16/9;transform:scale(.84,.8);transition:transform 1.6s cubic-bezier(.7,0,.2,1) .15s}
+.tw-photo-in{position:absolute;inset:0;transform:scale(1.1905,1.25);transition:transform 1.6s cubic-bezier(.7,0,.2,1) .15s}
 @media(min-width:1024px){.tw-photo{aspect-ratio:16/8}}
-.tw.is-in .tw-photo{clip-path:inset(0)}
+.tw.is-in .tw-photo,.tw.is-in .tw-photo-in{transform:none}
 .tw-photo img{width:100%;height:100%;object-fit:cover;display:block;transform:scale(1.16);transition:transform 9s cubic-bezier(.2,.6,.2,1) .15s}
 .tw.is-in .tw-photo img{transform:scale(1.02)}
 .tw-photo figcaption{position:absolute;inset:auto 0 0 0;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:40px 18px 14px;background:linear-gradient(0deg,rgba(0,0,0,.6),transparent);color:#fff}
@@ -259,5 +262,5 @@ a.tw-photo-credit:hover{opacity:1;text-decoration:underline}
 .tw-live{position:relative;width:8px;height:8px;border-radius:999px;background:var(--tw-accent)}
 .tw-live:after{content:"";position:absolute;inset:-4px;border-radius:999px;border:1px solid var(--tw-accent);animation:twRing 2s ease-out infinite}
 .tw-explore{cursor:pointer;color:inherit}
-@media(prefers-reduced-motion:reduce){.tw-rise,.tw-pill,.tw-line,.tw-pin,.tw-stop{opacity:1;transform:none;animation:none!important}.tw-route line{clip-path:none;animation:none!important}.tw-pin i,.tw-live:after{animation:none!important}.tw-photo{clip-path:none;transition:none}.tw-photo img{transform:none;transition:none}}
+@media(prefers-reduced-motion:reduce){.tw-rise,.tw-pill,.tw-line,.tw-pin,.tw-stop{opacity:1;transform:none;animation:none!important}.tw-route line{clip-path:none;animation:none!important}.tw-pin i,.tw-live:after{animation:none!important}.tw-photo,.tw-photo-in{transform:none;transition:none}.tw-photo img{transform:none;transition:none}}
 `

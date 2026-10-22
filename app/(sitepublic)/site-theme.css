@@ -161,7 +161,10 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: ohp-text-shimmer-kf 44s ease-in-out infinite;
+  /* Still metal, no longer moving (10/22 speed pass): the 44-second drift was too slow to see, but
+     a background-position animation repaints the text - and re-layers the whole page - every frame,
+     which was most of the site's idle CPU on a phone. The highlight rests on the right third. */
+  background-position: 30% center;
 }
 .ohp-site[data-template="default"] .ohp-text-shimmer {
   background: none;
@@ -170,10 +173,9 @@
   color: var(--site-accent-light);
   animation: none;
 }
-@keyframes ohp-text-shimmer-kf {
-  0% { background-position: 200% center; }
-  100% { background-position: -200% center; }
-}
+/* Map boundary lines (components/maps/BoundaryCanvas) stay dashed but still on the site: on a long
+   town page every frame of their "marching" re-layered the whole page - most of its scroll lag. */
+.ohp-site .ohp-ants { animation: none; }
 
 /* Luxe's hero backdrop extras: fine grid, drifting aurora, slow sparks. */
 .ohp-lx-grid {
@@ -194,12 +196,33 @@
   animation: ohp-lx-spark 5.5s ease-in-out infinite;
 }
 @keyframes ohp-lx-spark { 0%, 100% { opacity: 0; transform: scale(0.4); } 45% { opacity: 0.9; transform: scale(1); } 60% { opacity: 0; transform: scale(0.6); } }
-.ohp-lx-edge {
-  background: linear-gradient(90deg, transparent 20%, var(--site-accent-light) 50%, transparent 80%);
-  background-size: 200% 100%;
-  animation: ohp-lx-edge 7s ease-in-out infinite;
+/* Light gliding along a thin metal line (Luxe card edges, the header's top edge, the footer's).
+   Moved with transform on a pseudo-element - the compositor slides it, nothing repaints - instead of
+   animating background-position, which repainted every frame (10/22 speed pass). The line itself
+   clips the glint (overflow: hidden), so it never grows the page's layers. */
+.ohp-lx-edge, .ohp-head-sweep, .ohp-site .ohp-foot-sweep, .ohp-site .pp-panel-edge {
+  overflow: hidden;
+  background: none !important;
+  animation: none !important;
 }
-@keyframes ohp-lx-edge { 0% { background-position: 150% 0; } 100% { background-position: -50% 0; } }
+.ohp-lx-edge::after, .ohp-head-sweep::after, .ohp-site .ohp-foot-sweep::after, .ohp-site .pp-panel-edge::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, var(--ohp-glide, var(--site-accent-light)), transparent);
+  transform: translateX(-100%);
+  animation: ohp-line-glide 7s ease-in-out infinite;
+}
+.ohp-head-sweep::after { animation-duration: 9s; }
+.ohp-site .ohp-foot-sweep { --ohp-glide: var(--site-accent); }
+.ohp-site .ohp-foot-sweep::after { animation-duration: 7s; }
+.ohp-site .pp-panel-edge { --ohp-glide: var(--pp-gold, var(--site-accent)); }
+.ohp-site .pp-panel-edge::after { animation-duration: 6s; }
+@keyframes ohp-line-glide { from { transform: translateX(-100%); } to { transform: translateX(323%); } }
+@media (prefers-reduced-motion: reduce) {
+  .ohp-lx-edge::after, .ohp-head-sweep::after, .ohp-site .ohp-foot-sweep::after, .ohp-site .pp-panel-edge::after { animation: none; display: none; }
+}
 /* A 1px metallic frame around a card (Luxe). */
 .ohp-lx-frame {
   background: linear-gradient(135deg, var(--site-accent-light), rgba(var(--site-accent-rgb), 0.35) 40%, var(--site-accent-deep));
@@ -337,14 +360,8 @@
 }
 
 /* ------------------------------------------------------------------ header metal line (Luxe) */
-.ohp-head-sweep {
-  background: linear-gradient(90deg, transparent 30%, var(--site-accent-light) 50%, transparent 70%);
-  background-size: 220% 100%;
-  animation: ohp-head-sweep-kf 9s ease-in-out infinite;
-  opacity: .8;
-}
-@keyframes ohp-head-sweep-kf { 0% { background-position: 160% 0; } 100% { background-position: -60% 0; } }
-@media (prefers-reduced-motion: reduce) { .ohp-head-sweep { animation: none; } }
+/* (the glint itself: .ohp-head-sweep::after with the other metal lines above) */
+.ohp-head-sweep { opacity: .8; }
 
 /* ------------------------------------------------------------------ hero motion */
 .ohp-hero-rise { animation: ohp-hero-rise-kf 1s cubic-bezier(.16,1,.3,1) both; }
@@ -443,6 +460,14 @@
 @keyframes ohpTownPill { from { opacity: 0; transform: translateY(10px) scale(.96) } to { opacity: 1; transform: none } }
 @media (prefers-reduced-motion: reduce) { .ohp-town-pill { animation: none } }
 
+/* Town page sections (a town guide runs 20+ phone screens): the browser skips drawing the ones
+   that are off screen, so scrolling only ever works on what's near the screen - it re-processed
+   the whole guide on every frame before (10/22 speed pass). `auto` keeps each one's real height
+   once it has been seen. The section menu turns this off for a moment while it jumps
+   (TownSectionNav), so it lands exactly. */
+.ohp-town-section { content-visibility: auto; contain-intrinsic-size: auto 1100px; }
+html.ohp-cv-off .ohp-town-section { content-visibility: visible; }
+
 /* Town page: a section reached from the section menu settles in with a soft rise. */
 .ohp-town-arrive > * { animation: ohpTownArrive .7s cubic-bezier(.16,1,.3,1) .25s both }
 @keyframes ohpTownArrive { from { opacity: .35; transform: translateY(14px) } to { opacity: 1; transform: none } }
@@ -450,12 +475,17 @@
 
 /* Page changes (components/website-public/SiteNavProgress.tsx): an accent line glides across the
    top until the next page arrives; the new page's content fades up into place. */
-.ohp-nav-progress { width: 0; background: linear-gradient(90deg, var(--site-accent-deep), var(--site-accent), var(--site-accent-light)); box-shadow: 0 0 12px rgba(var(--site-accent-rgb), .7);
+/* scaleX, not width: a width animation re-laid-out the page every frame of the click - exactly
+   while the next page was trying to load (10/22 speed pass). */
+.ohp-nav-progress { width: 100%; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, var(--site-accent-deep), var(--site-accent), var(--site-accent-light)); box-shadow: 0 0 12px rgba(var(--site-accent-rgb), .7);
   animation: ohpNavProgress 6s cubic-bezier(.08,.82,.17,1) forwards }
-.ohp-nav-progress.is-done { width: 100% !important; opacity: 0; transition: opacity .35s .1s; animation: none }
-@keyframes ohpNavProgress { 0% { width: 0 } 15% { width: 38% } 60% { width: 78% } 100% { width: 92% } }
-.ohp-site > main, .ohp-site main[data-testid] { animation: ohpPageIn .55s cubic-bezier(.16,1,.3,1) both }
-@keyframes ohpPageIn { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+.ohp-nav-progress.is-done { transform: scaleX(1) !important; opacity: 0; transition: opacity .35s .1s; animation: none }
+@keyframes ohpNavProgress { 0% { transform: scaleX(0) } 15% { transform: scaleX(.38) } 60% { transform: scaleX(.78) } 100% { transform: scaleX(.92) } }
+/* The new page shows at once and settles in with a quick fade - it used to start fully invisible and
+   slide for over half a second, so every page looked like it loaded late, and the slide made the
+   whole page one moving layer (10/22 speed pass). */
+.ohp-site > main, .ohp-site main[data-testid] { animation: ohpPageIn .3s ease-out both }
+@keyframes ohpPageIn { from { opacity: .4 } to { opacity: 1 } }
 @media (prefers-reduced-motion: reduce) { .ohp-site > main, .ohp-site main[data-testid] { animation: none } }
 
 /* Google Maps draws its own white controls / info windows - dark mode's light page ink must not

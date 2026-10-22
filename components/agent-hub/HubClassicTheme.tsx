@@ -16,7 +16,14 @@ export const HUB_CLASSIC_ACCENTS: { color: string; label: string }[] = [
 
 export function hubAccentOf(value: unknown): string {
   const v = typeof value === 'string' ? value.trim() : ''
-  return HUB_CLASSIC_ACCENTS.some(a => a.color.toLowerCase() === v.toLowerCase()) ? v : HUB_CLASSIC_DEFAULT_ACCENT
+  if (HUB_CLASSIC_ACCENTS.some(a => a.color.toLowerCase() === v.toLowerCase())) return v
+  // A Brand Kit color outside the swatches (the hub follows the Brand Kit by default - lib/brandKit)
+  // is fine too, unless it's so light it would vanish on the buttons.
+  if (/^#[0-9a-f]{6}$/i.test(v)) {
+    const [r, g, b] = rgbOf(v)
+    if ((0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 <= 0.85) return v
+  }
+  return HUB_CLASSIC_DEFAULT_ACCENT
 }
 
 function rgbOf(hex: string): [number, number, number] {

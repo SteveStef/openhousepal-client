@@ -14,10 +14,14 @@ import { useToast } from '@/contexts/ToastContext'
 import { toJpeg } from '@/components/setup/SetupUi'
 import api, { API_BASE_URL, resolveMediaUrl } from '@/lib/api-service'
 import FormResultsModal from '@/components/forms/FormResultsModal'
+import InvitesPanel from '@/components/invites/InvitesPanel'
+import { FormsInvitesSwitch, PLAYFUL_FORM_CARD, PlayfulFormCard } from '@/components/invites/FormsInvitesChrome'
+import { GoldLastWord } from '@/components/ui/LuxeSurface'
 import FormStatsModal from '@/components/forms/FormStatsModal'
 import FormBuilderModal from '@/components/forms/FormBuilderModal'
 import FormLookPicker from '@/components/forms/FormLookPicker'
 import { formLookOf, type FormLookFields } from '@/lib/formLook'
+import { brandFormLook, brandHubPatch, brandColorName, modeLabel, useBrandKit } from '@/lib/brandKit'
 import FormQrCode from '@/components/forms/FormQrCode'
 import FormTypeArt, { hasFormTypeArt } from '@/components/forms/FormTypeArt'
 import InboxWindow, { InboxButton } from '@/components/ui/InboxWindow'
@@ -1412,16 +1416,47 @@ function AgentHubContent() {
   const [luxePeek, setLuxePeek] = useState(false)
   const [hubIntroNonce, setHubIntroNonce] = useState(0)
   const shownHubTheme: HubThemeId = luxePeek ? 'luxe' : hubTheme === 'luxe' && !hubLuxeAllowed ? 'classic' : hubTheme
+  // "My Brand Kit" (the default) or "Choose my own" (lib/brandKit, backend brand_look_service).
+  // While on the Brand Kit, GET /agent-hub/me hands back the brand look in the config with
+  // lookSource 'brand'; any pick below makes the hub's look its own.
+  const brandKit = useBrandKit()
+  const [hubLookSource, setHubLookSource] = useState<'brand' | 'own'>('own')
+  const handleHubUseBrandKit = async () => {
+    const look = brandKit.look
+    const prev = { hubLookSource, hubTheme, hubAccent, hubLuxeMetal, visitorDarkMode }
+    setHubLookSource('brand')
+    setHubTheme(look.theme)
+    setHubAccent(hubAccentOf(look.accent))
+    setHubLuxeMetal(look.metal)
+    setVisitorDarkMode(look.dark)
+    setLuxePeek(false)
+    const latest = await api.agentHub.getMine()
+    const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
+    const res = await api.agentHub.saveConfig({ ...config, ...brandHubPatch(look) } as any)
+    if (!res.success) {
+      setHubLookSource(prev.hubLookSource); setHubTheme(prev.hubTheme); setHubAccent(prev.hubAccent); setHubLuxeMetal(prev.hubLuxeMetal); setVisitorDarkMode(prev.visitorDarkMode)
+    }
+  }
+  const handleHubChooseOwn = async () => {
+    if (hubLookSource === 'own') return
+    setHubLookSource('own')
+    const latest = await api.agentHub.getMine()
+    const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
+    // Starts from the look it has now (the Brand Kit's), so nothing changes until they pick.
+    const res = await api.agentHub.saveConfig({ ...config, lookSource: 'own' } as any)
+    if (!res.success) setHubLookSource('brand')
+  }
   const handleHubTheme = async (next: HubThemeId) => {
     if (next === 'luxe') setHubIntroNonce(n => n + 1)
     if (next === 'luxe' && !hubLuxeAllowed) { setLuxePeek(true); return }
     setLuxePeek(false)
-    if (next === shownHubTheme && next === hubTheme) return
+    if (next === shownHubTheme && next === hubTheme && hubLookSource === 'own') return
     const prev = hubTheme
     setHubTheme(next)
+    setHubLookSource('own')
     const latest = await api.agentHub.getMine()
     const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
-    const res = await api.agentHub.saveConfig({ ...config, hubTheme: next } as any)
+    const res = await api.agentHub.saveConfig({ ...config, hubTheme: next, lookSource: 'own' } as any)
     if (!res.success) setHubTheme(prev)
   }
   // Luxe finish - gold (default), silver or bronze. Same Luxe look, the metal swapped everywhere.
@@ -1430,21 +1465,25 @@ function AgentHubContent() {
     const prev = hubLuxeMetal
     setHubLuxeMetal(next)
     if (!hubLuxeAllowed) return
+    setHubLookSource('own')
     const latest = await api.agentHub.getMine()
     const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
-    const res = await api.agentHub.saveConfig({ ...config, hubLuxeMetal: next } as any)
+    const res = await api.agentHub.saveConfig({ ...config, hubLuxeMetal: next, lookSource: 'own' } as any)
     if (!res.success) setHubLuxeMetal(prev)
   }
   // Classic accent colour - every plan (the Luxe metals are Luxe's own).
   const [hubAccent, setHubAccent] = useState<string>(HUB_CLASSIC_DEFAULT_ACCENT)
   // What a form that matches the Agent Hub wears (lib/formLook) - follows the hub choices above live.
   const formHubLook = formLookOf({ theme: hubTheme === 'luxe' && hubLuxeAllowed ? 'luxe' : 'classic', accent: hubAccent, metal: hubLuxeMetal, dark: visitorDarkMode })
+  // What a form on "My Brand Kit" wears (the default for forms).
+  const formBrandLook = brandFormLook(brandKit.look, hubLuxeAllowed)
   const handleHubAccent = async (next: string) => {
     const prev = hubAccent
     setHubAccent(next)
+    setHubLookSource('own')
     const latest = await api.agentHub.getMine()
     const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
-    const res = await api.agentHub.saveConfig({ ...config, hubAccent: next } as any)
+    const res = await api.agentHub.saveConfig({ ...config, hubAccent: next, lookSource: 'own' } as any)
     if (!res.success) setHubAccent(prev)
   }
   // Visitor dark mode - saved the moment it's switched, like the theme (it used to wait for Save,
@@ -1452,10 +1491,11 @@ function AgentHubContent() {
   const handleVisitorDarkMode = async (next: boolean) => {
     const prev = visitorDarkMode
     setVisitorDarkMode(next)
+    setHubLookSource('own')
     try { localStorage.setItem('agentHubVisitorDarkMode', JSON.stringify(next)) } catch { /* private mode */ }
     const latest = await api.agentHub.getMine()
     const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
-    const res = await api.agentHub.saveConfig({ ...config, visitorDarkMode: next } as any)
+    const res = await api.agentHub.saveConfig({ ...config, visitorDarkMode: next, lookSource: 'own' } as any)
     if (!res.success) {
       setVisitorDarkMode(prev)
       try { localStorage.setItem('agentHubVisitorDarkMode', JSON.stringify(prev)) } catch { /* private mode */ }
@@ -1502,6 +1542,7 @@ function AgentHubContent() {
     setHubTheme(parsed.hubTheme === 'luxe' ? 'luxe' : 'classic')
     setHubLuxeMetal(metalOf(parsed.hubLuxeMetal))
     setHubAccent(hubAccentOf(parsed.hubAccent))
+    setHubLookSource(parsed.lookSource === 'brand' ? 'brand' : 'own')
     setMobileHeader(parsed.mobileHeader === 'split' ? 'split' : 'centered')
     setVideoSyncedAt(typeof parsed.videoSyncedAt === 'string' ? parsed.videoSyncedAt : null)
     if (parsed.profile || parsed.contact) {
@@ -1813,6 +1854,16 @@ function AgentHubContent() {
   const agentHubPublicUrl = openHousePalPublicUrl(agentHubPublicPath)
   const agentHubWebsiteUrl = websitePublicUrl(idxSite, idxDomains, '/hub')
   const isFormsTabGroup = ['My Forms', 'Share Forms', 'Forms Results'].includes(activeTab)
+  // Forms & Invites: the page's two halves (?view=invites opens Invites - the bell and a lead's
+  // "View RSVP" link there). Switching only rewrites the address bar, the page doesn't reload.
+  const [formsView, setFormsView] = useState<'forms' | 'invites'>(() => (searchParams.get('view') === 'invites' ? 'invites' : 'forms'))
+  useEffect(() => { if (searchParams.get('view') === 'invites') setFormsView('invites') }, [searchParams])
+  const switchFormsView = (next: 'forms' | 'invites') => {
+    setFormsView(next)
+    const q = new URLSearchParams(window.location.search)
+    if (next === 'invites') q.set('view', 'invites'); else { q.delete('view'); q.delete('invite') }
+    window.history.replaceState(null, '', `${pathname}${q.toString() ? `?${q.toString()}` : ''}`)
+  }
   // The Agent Hub editor's categories - each tab opens straight to its own panels.
   const AGENT_HUB_SUBTABS = ['Profile', 'Contact', 'Listings & Sales', 'Media', 'Layout', 'Link']
   const AGENT_HUB_TAB_ICON: Record<string, LucideIcon> = {
@@ -1885,13 +1936,13 @@ function AgentHubContent() {
       return (
         <div
           key={form.id}
-          className="group relative flex h-full flex-col overflow-hidden rounded-[22px] border border-[#C9A24D]/20 bg-gradient-to-b from-white to-[#fdfbf6] shadow-[0_18px_40px_-30px_rgba(139,115,85,.9)] transition duration-300 hover:-translate-y-1 hover:border-[#C9A24D]/55 hover:shadow-[0_28px_50px_-28px_rgba(139,115,85,1)] dark:border-white/[0.08] dark:from-[#17171a] dark:to-[#121214]"
+          className={PLAYFUL_FORM_CARD}
         >
           <div
             className="absolute inset-x-0 top-0 h-[3px] [background:linear-gradient(90deg,transparent,var(--form-accent),transparent)] dark:[background:linear-gradient(90deg,transparent,var(--form-accent-dark),transparent)]"
             style={{ '--form-accent': form.accent_color || '#816937', '--form-accent-dark': form.accent_color || '#d7b974' } as React.CSSProperties}
           />
-          <span aria-hidden className="pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full bg-[#C9A24D]/10 opacity-60 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
+          <PlayfulFormCard seed={form.title.length + form.questions.length} />
           {pendingSubmissions > 0 && (
             <span className="absolute right-3 top-3 z-10 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white shadow-sm">
               {pendingSubmissions > 9 ? '9+' : pendingSubmissions}
@@ -1901,7 +1952,7 @@ function AgentHubContent() {
             {formMedia}
             <button onClick={() => setThemeEditFormId(form.id)} className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left">
               <div className="min-w-0">
-                <p className="truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white">{form.title}</p>
+                <p className="truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white"><GoldLastWord text={form.title} /></p>
                 <p className={`mt-1 text-xs font-medium leading-snug text-gray-500 dark:text-gray-400 ${big ? '' : 'line-clamp-2'}`}>{form.description || meta.description}</p>
                 {/* question count and Showcase badge: one row, the same pill size */}
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -2006,13 +2057,13 @@ function AgentHubContent() {
       return (
         <div
           key={form.id}
-          className="group relative flex h-full flex-col overflow-hidden rounded-[22px] border border-[#C9A24D]/20 bg-gradient-to-b from-white to-[#fdfbf6] shadow-[0_18px_40px_-30px_rgba(139,115,85,.9)] transition duration-300 hover:-translate-y-1 hover:border-[#C9A24D]/55 hover:shadow-[0_28px_50px_-28px_rgba(139,115,85,1)] dark:border-white/[0.08] dark:from-[#17171a] dark:to-[#121214]"
+          className={PLAYFUL_FORM_CARD}
         >
           <div
             className="absolute inset-x-0 top-0 h-[3px] [background:linear-gradient(90deg,transparent,var(--form-accent),transparent)] dark:[background:linear-gradient(90deg,transparent,var(--form-accent-dark),transparent)]"
             style={{ '--form-accent': form.accent_color || '#816937', '--form-accent-dark': form.accent_color || '#d7b974' } as React.CSSProperties}
           />
-          <span aria-hidden className="pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full bg-[#C9A24D]/10 opacity-60 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
+          <PlayfulFormCard seed={form.title.length + form.questions.length} />
           <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
             {form.form_type === 'custom' && (
               <button onClick={() => setDeleteFormTarget(form)} className="rounded-lg bg-white/90 p-1.5 text-gray-400 shadow-sm hover:bg-red-50 hover:text-red-600 dark:bg-[#151517]/90" aria-label="Delete form">
@@ -2029,7 +2080,7 @@ function AgentHubContent() {
             {formMedia}
             <button onClick={openEditor} className="flex min-w-0 flex-1 items-center gap-3 pr-7 text-left">
               <div className="min-w-0">
-                <p className="truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white">{form.title}</p>
+                <p className="truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white"><GoldLastWord text={form.title} /></p>
                 <p className={`mt-1 text-xs font-medium leading-snug text-gray-500 dark:text-gray-400 ${big ? '' : 'line-clamp-2'}`}>{form.description || meta.description}</p>
                 {/* question count and Showcase badge: one row, the same pill size */}
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -2182,7 +2233,7 @@ function AgentHubContent() {
     return (
       <div
         key={form.id}
-        className="group relative flex h-full flex-col overflow-hidden rounded-[22px] border border-[#C9A24D]/20 bg-gradient-to-b from-white to-[#fdfbf6] shadow-[0_18px_40px_-30px_rgba(139,115,85,.9)] transition duration-300 hover:-translate-y-1 hover:border-[#C9A24D]/55 hover:shadow-[0_28px_50px_-28px_rgba(139,115,85,1)] dark:border-white/[0.08] dark:from-[#17171a] dark:to-[#121214]"
+        className={PLAYFUL_FORM_CARD}
       >
         {/* Dedicated strip (not a border) so its color isn't in a specificity contest with the
             border-gray-200/dark:border-gray-800 classes above - a plain background-color always wins. */}
@@ -2190,7 +2241,7 @@ function AgentHubContent() {
           className="absolute inset-x-0 top-0 h-[3px] [background:linear-gradient(90deg,transparent,var(--form-accent),transparent)] dark:[background:linear-gradient(90deg,transparent,var(--form-accent-dark),transparent)]"
           style={{ '--form-accent': form.accent_color || '#816937', '--form-accent-dark': form.accent_color || '#d7b974' } as React.CSSProperties}
         />
-        <span aria-hidden className="pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full bg-[#C9A24D]/10 opacity-60 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
+        <PlayfulFormCard seed={form.title.length + form.questions.length} />
         {pendingSubmissions > 0 && (
           <span className="absolute right-3 top-3 z-10 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white shadow-sm">
             {pendingSubmissions > 9 ? '9+' : pendingSubmissions}
@@ -2203,7 +2254,7 @@ function AgentHubContent() {
         <button onClick={() => setCampaignsModalFormId(form.id)} className={`flex flex-1 items-center gap-3 text-left ${big ? 'p-5' : 'p-4'}`}>
           {formMedia}
           <div className="min-w-0 flex-1">
-            <p className="truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white">{form.title}</p>
+            <p className="truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white"><GoldLastWord text={form.title} /></p>
             <p className={`mt-1 text-xs font-medium leading-snug text-gray-500 dark:text-gray-400 ${big ? '' : 'line-clamp-2'}`}>{form.description || meta.description}</p>
             {/* question count and Showcase badge: one row, the same pill size */}
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -2689,7 +2740,7 @@ function AgentHubContent() {
     const form = agentForms.find(item => item.id === formId)
     if (!form) return false
     const res = await api.forms.updateAllLook({
-      look_mode: form.look_mode === 'custom' ? 'custom' : 'hub',
+      look_mode: form.look_mode === 'custom' ? 'custom' : form.look_mode === 'brand' ? 'brand' : 'hub',
       look_theme: form.look_theme || 'classic', accent_color: form.accent_color || undefined, luxe_metal: form.luxe_metal || 'gold', dark_mode: !!form.dark_mode,
     })
     if (!res.success || !res.data) return false
@@ -2996,14 +3047,16 @@ function AgentHubContent() {
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
               <PageHeader
                 icon={FileText}
-                kicker="Forms"
-                title={<>Capture every lead, <em>your way.</em></>}
-                subtitle="Create and share lead-capture forms, then track responses and open house requests right here."
+                kicker="Forms & Invites"
+                title={formsView === 'invites' ? <>Invite them in, <em>in style.</em></> : <>Capture every lead, <em>your way.</em></>}
+                subtitle={formsView === 'invites'
+                  ? 'Beautiful invitations for open houses, broker’s opens and client dinners - one link, every RSVP in one place.'
+                  : 'Create and share lead-capture forms, then track responses and open house requests right here.'}
                 subtitleClassName="xl:max-w-none xl:whitespace-nowrap"
                 backHref="/studio"
                 backLabel="Tools"
                 asideClassName="w-full lg:w-auto lg:-mt-5"
-                tabs={
+                tabs={formsView === 'invites' ? undefined : (
                   // New results, as one-tap shortcuts: a form's chip opens its responses; the
                   // Cheat Sheet one jumps to the Open House Requests section.
                   <div className="flex min-h-[36px] items-center gap-2 overflow-x-auto px-1 [scrollbar-width:none]">
@@ -3041,8 +3094,8 @@ function AgentHubContent() {
                       <span className="text-xs font-semibold text-gray-500 dark:text-white/50">All caught up - new form leads and Cheat Sheet requests show up here.</span>
                     )}
                   </div>
-                }
-                actions={
+                )}
+                actions={formsView === 'invites' ? undefined :
                   <div className="flex w-full items-stretch gap-2">
                     {statSummary && (
                       <div className="grid flex-1 grid-cols-3 gap-2 sm:min-w-[340px] lg:min-w-[400px]">
@@ -3058,7 +3111,15 @@ function AgentHubContent() {
               />
             </motion.div>
 
+            <FormsInvitesSwitch view={formsView} onChange={switchFormsView} formBadge={newResultPeople.length + openHouseRequestActionCount} />
+
             <AnimatePresence mode="popLayout">
+            {formsView === 'invites' ? (
+              <motion.section key="invites" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }}
+                transition={{ type: 'spring', stiffness: 380, damping: 36 }} className="mt-6">
+                <InvitesPanel />
+              </motion.section>
+            ) : (
             <motion.section
               key="forms"
               layout
@@ -3221,6 +3282,7 @@ function AgentHubContent() {
               )
             })()}
             </motion.section>
+            )}
             </AnimatePresence>
           </>
         ) : (
@@ -3268,6 +3330,19 @@ function AgentHubContent() {
 <div className={hubCardClass(open)}>
                   <HubPanelHead icon={Sparkles} kicker="Look" title="Agent Hub theme" subtitle="Same layout and sections - pick how it's dressed. Changes go live right away." open={open} onToggle={toggle} />
 <HubCollapse open={open}>
+                  <div className="grid grid-cols-2 gap-2 px-5 pt-5" role="radiogroup" aria-label="Where the look comes from">
+                    {([['brand', 'My Brand Kit', `${brandKit.look.theme === 'luxe' && hubLuxeAllowed ? `Luxe · ${LUXE_METALS[brandKit.look.metal].label}` : `Classic · ${brandColorName(brandKit.look.accent) || 'Custom color'}`} · ${modeLabel(brandKit.look.dark)}`], ['own', 'Choose my own', 'Pick a look just for your hub below.']] as const).map(([id, name, blurb]) => {
+                      const on = hubLookSource === id
+                      return (
+                        <button key={id} type="button" role="radio" aria-checked={on} data-testid={`hub-look-${id}`} onClick={() => (id === 'brand' ? handleHubUseBrandKit() : handleHubChooseOwn())}
+                          className={`rounded-2xl border-2 px-3 py-2.5 text-left transition ${on ? 'border-[#C9A24D] bg-[#C9A24D]/[0.06]' : 'border-gray-200 hover:border-[#C9A24D]/60 dark:border-white/10'}`}>
+                          <span className="flex items-center gap-1.5 text-sm font-black text-[#111827] dark:text-white">{id === 'brand' ? <Sparkles className="h-3.5 w-3.5 text-[#C9A24D]" /> : <Palette className="h-3.5 w-3.5 text-gray-400" />}{name}{on && <Check className="ml-auto h-4 w-4 text-[#C9A24D]" />}</span>
+                          <span className="mt-0.5 block text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400">{blurb}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {hubLookSource === 'brand' && <p className="px-5 pt-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Your hub follows your <Link href="/studio/brand-kit" className="font-black text-[#8b7355] underline-offset-2 hover:underline dark:text-[#e8c97a]">Brand Kit</Link> - change it there and your hub changes too. Picking anything below gives your hub its own look.</p>}
                   <div className="grid gap-3 p-5 sm:grid-cols-2">
                     {HUB_THEMES.map(t => {
                       const on = shownHubTheme === t.id
@@ -3367,7 +3442,7 @@ function AgentHubContent() {
 )}</HubFold>
                 <HubFold id="layout-dark">{(open, toggle) => (
 <div className={hubCardClass(open)}>
-                  <HubPanelHead icon={visitorDarkMode ? Moon : Sun} kicker="Look" title="Light or dark" subtitle="What visitors see on your Agent Hub and Sales page. Changes go live right away." open={open} onToggle={toggle} />
+                  <HubPanelHead icon={visitorDarkMode ? Moon : Sun} kicker="Look" title="Ivory or Midnight" subtitle="What visitors see on your Agent Hub and Sales page. Changes go live right away." open={open} onToggle={toggle} />
 <HubCollapse open={open}>
                   <div className="grid grid-cols-2 gap-3 p-5">
                     {([false, true] as const).map(dark => {
@@ -3393,7 +3468,7 @@ function AgentHubContent() {
                           </div>
                           <div className="mt-2.5 flex items-center gap-2 px-1">
                             {dark ? <Moon className="h-4 w-4 text-gray-500" /> : <Sun className="h-4 w-4 text-gray-500" />}
-                            <p className="font-serif text-base font-black text-[#111827] dark:text-white">{dark ? 'Dark' : 'Light'}</p>
+                            <p className="font-serif text-base font-black text-[#111827] dark:text-white">{dark ? 'Midnight' : 'Ivory'}</p>
                             {on && <Check className="ml-auto h-4 w-4 text-[#C9A24D]" />}
                           </div>
                         </button>
@@ -3999,6 +4074,7 @@ function AgentHubContent() {
         onToggleBranding={() => toggleFormBranding(formEditorOpenId)}
         onToggleDarkMode={() => toggleFormDarkMode(formEditorOpenId)}
         hubLook={formHubLook}
+        brandLook={formBrandLook}
         luxeAllowed={hubLuxeAllowed}
         onUpdateLook={(patch) => updateFormLook(formEditorOpenId, patch)}
         onApplyLookToAll={() => applyFormLookToAll(formEditorOpenId)}
@@ -4054,7 +4130,7 @@ function AgentHubContent() {
             </label>
 
             <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-[#fbfaf7] p-4 dark:border-gray-700 dark:bg-[#0B0B0B]">
-              <p className="text-sm font-black text-[#111827] dark:text-white">Dark mode</p>
+              <p className="text-sm font-black text-[#111827] dark:text-white">Midnight</p>
               <button
                 type="button"
                 onClick={() => setOpenHouseRequestTheme(current => ({ ...current, darkMode: !current.darkMode }))}
@@ -4096,7 +4172,7 @@ function AgentHubContent() {
 
               <div className="mt-5">
                 <p className="mb-3 text-xs font-black uppercase tracking-widest text-gray-400">Look</p>
-                <FormLookPicker value={themeEditForm} hubLook={formHubLook} luxeAllowed={hubLuxeAllowed}
+                <FormLookPicker value={themeEditForm} hubLook={formHubLook} brandLook={formBrandLook} luxeAllowed={hubLuxeAllowed}
                   onChange={(patch) => updateFormLook(themeEditFormId, patch)} onApplyAll={() => applyFormLookToAll(themeEditFormId)} />
               </div>
 

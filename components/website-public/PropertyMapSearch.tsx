@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Bath, BedDouble, Bell, Check, ChevronDown, Grid3x3, Heart, List, Loader2, Map as MapIcon, Pencil, Ruler, Search, SlidersHorizontal, X } from 'lucide-react'
 import { googleMapsLoader } from '@/lib/googleMapsLoader'
+import { backdropMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 import { cleanStreet, formatCompactPrice, formatStatus, listedAgo, statusBadgeColor } from './listingFormat'
 import OpenHouseChip from '@/components/OpenHouseChip'
 import type { MlsOpenHouse } from '@/lib/mlsOpenHouses'
@@ -70,27 +72,73 @@ const short = (n?: string | number | null) => (n ? formatCompactPrice(Number(n))
 function Pop({ label, active, children, align = 'left' }: { label: ReactNode; active: boolean; children: (close: () => void) => ReactNode; align?: 'left' | 'right' }) {
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
+  // Phones (below lg - the filter row scrolls sideways there and would clip a dropdown): a bottom
+  // sheet that slides up over a dimmed page and can be pulled down to close (components/ui/
+  // windowMotion). Computers: a dropdown under the button.
+  const [sheet, setSheet] = useState(false)
   useEffect(() => {
-    if (!open) return
+    const mq = window.matchMedia('(max-width: 1023px)')
+    const on = () => setSheet(mq.matches)
+    on()
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  const close = useCallback(() => setOpen(false), [])
+  const { sheetRef, y } = useSwipeToClose(close, sheet && open)
+  useEffect(() => {
+    if (!open || sheet) return
     const onDown = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [open])
+    window.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDown); window.removeEventListener('keydown', onKey) }
+  }, [open, sheet])
+  const [host, setHost] = useState<HTMLElement | null>(null)
+  useEffect(() => { setHost(document.body) }, [])
+  const button = (
+    <button type="button" onClick={() => setOpen(v => !v)} aria-expanded={open}
+      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-4 py-2.5 text-[13px] font-bold transition"
+      style={active ? { backgroundColor: 'var(--site-heading)', color: 'var(--site-bg)', borderColor: 'transparent' } : { backgroundColor: 'var(--site-surface)', color: 'var(--site-heading)', borderColor: 'var(--site-line-strong)' }}>
+      {label}<ChevronDown className={`h-3.5 w-3.5 transition ${open ? 'rotate-180' : ''}`} />
+    </button>
+  )
+  if (sheet) {
+    return (
+      <div ref={box} className="relative shrink-0">
+        {button}
+        {host && createPortal(
+          // Inside the site's root so the sheet keeps the site's colours (light/dark, accent).
+          <AnimatePresence>
+            {open && (
+              <motion.div key="pop" {...backdropMotion} className="fixed inset-0 z-[90] flex items-end bg-black/55" onClick={close}>
+                <motion.div ref={sheetRef} initial={{ y: '100%' }} animate={{ y: 0, transition: { type: 'spring', stiffness: 380, damping: 38, mass: 0.9 } }} exit={{ y: '100%', transition: { duration: 0.24, ease: [0.32, 0, 0.67, 0] } }}
+                  style={{ y, backgroundColor: 'var(--site-surface)', color: 'var(--site-ink)' }} onClick={e => e.stopPropagation()}
+                  role="dialog" aria-modal="true"
+                  className="max-h-[85dvh] w-full overflow-y-auto overscroll-contain rounded-t-[26px] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2 shadow-2xl">
+                  <div className="flex h-7 items-center justify-center" aria-hidden><span className="h-1.5 w-10 rounded-full" style={{ backgroundColor: 'var(--site-line-strong)' }} /></div>
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-base font-black" style={{ color: 'var(--site-heading)' }}>{label}</span>
+                    <button type="button" onClick={close} aria-label="Close" className="grid h-10 w-10 place-items-center rounded-full" style={{ backgroundColor: 'var(--site-bg-alt)', color: 'var(--site-muted)' }}><X className="h-4 w-4" /></button>
+                  </div>
+                  {children(close)}
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.getElementById('ohp-site-shell') || host,
+        )}
+      </div>
+    )
+  }
   return (
     <div ref={box} className="relative shrink-0">
-      <button type="button" onClick={() => setOpen(v => !v)}
-        className="inline-flex items-center gap-1.5 rounded-full border px-4 py-2.5 text-[13px] font-bold transition"
-        style={active ? { backgroundColor: 'var(--site-heading)', color: 'var(--site-bg)', borderColor: 'transparent' } : { backgroundColor: 'var(--site-surface)', color: 'var(--site-heading)', borderColor: 'var(--site-line-strong)' }}>
-        {label}<ChevronDown className={`h-3.5 w-3.5 transition ${open ? 'rotate-180' : ''}`} />
-      </button>
+      {button}
       <AnimatePresence>
         {open && (
           <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.16 }}
-            // Phones: a sheet at the bottom of the screen (the filter row scrolls sideways and would
-            // clip a dropdown); computers: a dropdown under the button.
-            className={`fixed inset-x-3 bottom-24 z-50 rounded-2xl border p-4 shadow-2xl lg:absolute lg:inset-x-auto lg:bottom-auto lg:top-full lg:mt-2 lg:w-[300px] ${align === 'right' ? 'lg:right-0' : 'lg:left-0'}`}
+            className={`absolute top-full z-50 mt-2 w-[300px] rounded-2xl border p-4 shadow-2xl ${align === 'right' ? 'right-0' : 'left-0'}`}
             style={{ backgroundColor: 'var(--site-surface)', borderColor: 'var(--site-line)' }}>
-            {children(() => setOpen(false))}
+            {children(close)}
           </motion.div>
         )}
       </AnimatePresence>

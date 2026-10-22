@@ -12,7 +12,7 @@ import ListingFeatureCard from '@/components/agent-hub/ListingFeatureCard'
 import HubHomeGridCard from '@/components/agent-hub/HubHomeGridCard'
 import useHubColorMode, { useHubLookChanged } from '@/components/agent-hub/useHubColorMode'
 import Pager from '@/components/Pager'
-import { AgentSale, isEligibleListing, isEligibleSale } from '@/lib/agentSales'
+import { AgentSale, applySalesDisplay, isEligibleListing, isEligibleSale, salesSortOf, type SalesSort } from '@/lib/agentSales'
 import { type MlsOpenHouse } from '@/lib/mlsOpenHouses'
 import { PublicFormSummary } from '@/types'
 import { OhpWordmark } from '@/components/brand/OhpBrand'
@@ -65,6 +65,8 @@ export default function AgentHubSalesPage() {
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
   const [listings, setListings] = useState<HubListing[]>([])
   const [sales, setSales] = useState<AgentSale[]>([])
+  // The agent's sales choices (setup flow's Sales step / Agent Hub): min price, order, sold stats.
+  const [salesRules, setSalesRules] = useState<{ minPrice: number; sort: SalesSort; showStats: boolean }>({ minPrice: 0, sort: 'newest', showStats: true })
   const [visitorDarkMode, setVisitorDarkMode] = useState(false)
   const [luxe, setLuxe] = useState(false)
   const [luxeMetal, setLuxeMetal] = useState('gold')
@@ -87,6 +89,7 @@ export default function AgentHubSalesPage() {
         if (isHubPhotoSet(config.profilePhotoUrl)) setProfilePhotoUrl(config.profilePhotoUrl)
         if (Array.isArray(config.myListings)) setListings(config.myListings)
         if (Array.isArray(config.recentSales)) setSales(config.recentSales)
+        setSalesRules({ minPrice: Number(config.salesMinPrice) > 0 ? Number(config.salesMinPrice) : 0, sort: salesSortOf(config.salesSort), showStats: config.showSalesStats !== false })
         if (typeof config.visitorDarkMode === 'boolean') setVisitorDarkMode(config.visitorDarkMode)
         setLuxe(config.hubTheme === 'luxe')
         if (typeof config.hubLuxeMetal === 'string') setLuxeMetal(config.hubLuxeMetal)
@@ -105,8 +108,8 @@ export default function AgentHubSalesPage() {
 
   const visibleListings = useMemo(() => listings.filter(listing => listing.visible !== false && isEligibleListing(listing)), [listings])
   const visibleSales = useMemo(
-    () => sales.filter(sale => sale.visible !== false && isEligibleSale(sale)).sort((a, b) => String(b.sold_date || '').localeCompare(String(a.sold_date || ''))),
-    [sales],
+    () => applySalesDisplay(sales.filter(sale => sale.visible !== false && isEligibleSale(sale)), salesRules.minPrice, salesRules.sort),
+    [sales, salesRules],
   )
   const eligibleSales = useMemo(() => sales.filter(sale => isEligibleSale(sale)), [sales])
   const totalVolume = eligibleSales.reduce((sum, sale) => sum + (sale.price || 0), 0)
@@ -186,7 +189,7 @@ export default function AgentHubSalesPage() {
               <p className="mt-2 text-sm font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#d7b974]">{profile.title}</p>
               {profile.market && <p className="mt-3 flex items-center justify-center gap-1 text-sm font-semibold text-[#778093] dark:text-gray-300 lg:justify-start"><MapPin className="h-4 w-4 text-[#d0ad65]" /> {profile.market}</p>}
             </div>
-            {eligibleSales.length > 0 && <div className="grid w-full max-w-[24rem] grid-cols-3 gap-2 text-center lg:w-[27rem] lg:max-w-none">
+            {salesRules.showStats && eligibleSales.length > 0 && <div className="grid w-full max-w-[24rem] grid-cols-3 gap-2 text-center lg:w-[27rem] lg:max-w-none">
               {([['Sold', String(eligibleSales.length)], ['Volume', formatCompactMoney(totalVolume)], ['Avg', formatCompactMoney(eligibleSales.length ? Math.round(totalVolume / eligibleSales.length) : 0)]] as const).map(([label, value]) => (
                 <div key={label} className="min-w-0 rounded-2xl border border-gray-200 bg-white px-2 py-2.5 shadow-sm dark:border-gray-700 dark:bg-[#0f0f0f] md:px-3 md:py-3 lg:px-4 lg:py-4">
                   <p className="truncate text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974] md:text-[11px]">{label}</p>

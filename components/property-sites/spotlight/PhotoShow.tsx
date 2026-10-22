@@ -62,7 +62,7 @@ export default function PhotoShow({ photos, alt, onOpen, tone, fontClass = '' }:
   const dark = tone === 'dark'
   const nextIndex = (index + 1) % shown.length
   return (
-    <div ref={rootRef} className={`ps ${dark ? 'ps-dark' : 'ps-light'}`}>
+    <div ref={rootRef} className={`ps ${dark ? 'ps-dark' : 'ps-light'} ${inView ? '' : 'is-off'}`}>
       <style>{PS_CSS}</style>
       <div className="ps-stage">
         {shown.map((src, i) => {
@@ -129,7 +129,12 @@ const PS_CSS = `
 @media(min-width:768px){.ps-stage{aspect-ratio:16/9}}
 .ps-light .ps-stage{background:#d8cdb9}
 .ps-slide{position:absolute;inset:0;display:block;width:100%;height:100%;padding:0;border:0;cursor:zoom-in;opacity:0;z-index:0;transition:opacity .9s ease}
-.ps-slide img{width:100%;height:100%;object-fit:cover;display:block;user-select:none;transform-origin:50% 55%;will-change:transform}
+/* Speed pass 10/22: only the two photos actually on screen (the active one and the one fading out
+   under it) get their own GPU layer - "will-change" on all 14 kept 14 full-size photos in graphics
+   memory, which is what made phones stutter here. Off screen, the slow drift pauses. */
+.ps-slide img{width:100%;height:100%;object-fit:cover;display:block;user-select:none;transform-origin:50% 55%}
+.ps-slide.is-prev img,.ps-slide.is-active img{will-change:transform}
+.ps.is-off .ps-slide img{animation-play-state:paused!important}
 .ps-slide.is-prev{opacity:1;z-index:1;transition:none}
 .ps-slide.is-active{opacity:1;z-index:2;transition:opacity 1.6s cubic-bezier(.4,0,.2,1)}
 @keyframes psZoomOut{from{transform:scale(1.2)}to{transform:scale(1)}}

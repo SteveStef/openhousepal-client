@@ -27,6 +27,7 @@ import {
   scrollToId, type PropertySiteChapter, type PropertySiteResolveResponse, type SpotlightModel,
 } from './spotlight/model'
 import { onAccent, usableAccent } from './spotlight/tone'
+import { SP_MOTION_CSS, useOffscreenPause, usePresence } from './spotlight/motion'
 import NearbyMap from '@/components/maps/NearbyMap'
 
 const playfair = Playfair_Display({ subsets: ['latin'], weight: ['400', '500'], style: ['normal', 'italic'], variable: '--font-ee-display' })
@@ -80,6 +81,7 @@ export default function EditorialEstateTemplate({ data, publicUrl }: { data: Pro
   const allowTour = !m.status || m.status.forSale
 
   useEditorialMotion(rootRef)
+  useOffscreenPause(rootRef)
 
   const navItems: NavItem[] = [
     { id: 'overview', label: 'Cover', show: true },
@@ -103,7 +105,7 @@ export default function EditorialEstateTemplate({ data, publicUrl }: { data: Pro
       className={`ee ${playfair.variable} ${dmMono.variable} ${manrope.variable}`}
       style={{ ['--sp-accent' as string]: accent, ['--sp-on-accent' as string]: onAccent(accent) }}
     >
-      <style>{EE_CSS}</style>
+      <style>{EE_CSS + SP_MOTION_CSS}</style>
       <SpotlightViewBeacon siteId={data.site_id} />
       <SpotlightJsonLd m={m} url={publicUrl} />
       <div className="ee-progress" aria-hidden />
@@ -170,20 +172,33 @@ function useEditorialMotion(rootRef: React.RefObject<HTMLDivElement | null>) {
     }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' })
     root.querySelectorAll('.ee-reveal, .ee-aperture').forEach(el => (reduced ? el.classList.add('is-visible') : io.observe(el)))
 
+    // Speed pass 10/22: the reading line and the cover's drift are moved directly. They used to be
+    // CSS variables set on the page root, which made the browser restyle every element on the page
+    // on every scroll frame. The page height is measured only when it changes.
+    const bar = root.querySelector<HTMLElement>('.ee-progress')
+    let max = 1
+    let lastCover = -1
+    const measure = () => { max = document.documentElement.scrollHeight - window.innerHeight }
     let frame = 0
-    const onScroll = () => {
-      if (frame) return
-      frame = requestAnimationFrame(() => {
-        frame = 0
-        const y = window.scrollY
-        const max = document.documentElement.scrollHeight - window.innerHeight
-        root.style.setProperty('--ee-progress', String(max > 0 ? Math.min(1, y / max) : 0))
-        if (!reduced) root.style.setProperty('--ee-cover', String(Math.min(1, y / window.innerHeight)))
-      })
+    const paint = () => {
+      frame = 0
+      const y = window.scrollY
+      if (bar) bar.style.transform = `scaleX(${max > 0 ? Math.min(1, y / max) : 0})`
+      if (reduced) return
+      const k = Math.min(1, y / window.innerHeight)
+      if (k === lastCover) return // past the cover - nothing left to move
+      lastCover = k
+      const hm = root.querySelector<HTMLElement>('.ee-cover-media > .hm')
+      if (hm) hm.style.transform = `scale(${1 + k * 0.08}) translateY(${k * 6}%)`
     }
-    onScroll()
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(paint) }
+    measure()
+    paint()
+    const ro = new ResizeObserver(() => { measure(); onScroll() })
+    ro.observe(document.body)
+    window.addEventListener('resize', measure)
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => { io.disconnect(); window.removeEventListener('scroll', onScroll); cancelAnimationFrame(frame) }
+    return () => { io.disconnect(); ro.disconnect(); window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', measure); cancelAnimationFrame(frame) }
   }, [rootRef])
 }
 
@@ -192,6 +207,7 @@ function useEditorialMotion(rootRef: React.RefObject<HTMLDivElement | null>) {
 function Masthead({ items, m, onShare, allowTour }: { items: NavItem[]; m: SpotlightModel; onShare: () => void; allowTour: boolean }) {
   const [solid, setSolid] = useState(false)
   const [menu, setMenu] = useState(false)
+  const menuP = usePresence(menu, 220)
   const [active, setActive] = useState('overview')
   const visible = items.filter(i => i.show)
   const key = visible.map(i => i.id).join('|')
@@ -244,15 +260,15 @@ function Masthead({ items, m, onShare, allowTour }: { items: NavItem[]; m: Spotl
           </div>
         </div>
       </header>
-      {menu && (
-        <div className="ee-menu fixed inset-0 z-[150] flex flex-col px-6 pb-8 pt-5" role="dialog" aria-modal="true" aria-label="Contents">
+      {menuP.show && (
+        <div className={`ee-menu fixed inset-0 z-[150] flex flex-col px-6 pb-8 pt-5 ${menuP.closing ? 'is-closing pointer-events-none' : ''}`} role="dialog" aria-modal="true" aria-label="Contents">
           <div className="flex items-center justify-between">
             <span className="sp-mono text-[10px] uppercase tracking-[0.2em] opacity-70">Contents</span>
             <button onClick={() => setMenu(false)} className="ee-iconbtn inline-flex" aria-label="Close menu"><X className="h-4 w-4" /></button>
           </div>
-          <ol className="mt-10 flex-1 space-y-1 overflow-y-auto">
+          <ol className="ee-menu-list mt-10 flex-1 space-y-1 overflow-y-auto">
             {visible.map((i, n) => (
-              <li key={i.id}>
+              <li key={i.id} style={{ ['--i' as string]: n }}>
                 <button onClick={() => go(i.id)} className="flex w-full items-baseline gap-5 border-b border-[#f3efe6]/15 py-3 text-left">
                   <span className="sp-mono w-6 text-[10px] opacity-60">{String(n + 1).padStart(2, '0')}</span>
                   <span className={`sp-display text-3xl ${active === i.id ? 'italic text-[color:var(--ee-gold)]' : ''}`}>{i.label}</span>
@@ -286,7 +302,7 @@ function Cover({ m, onPhotos, allowTour }: { m: SpotlightModel; onPhotos: () => 
   const oh = m.nextOpenHouse
   const hasPhoto = !!m.heroImage
   return (
-    <section id="overview" className={`ee-cover ${hasPhoto ? 'has-photo' : 'no-photo'}`}>
+    <section id="overview" className={`ee-cover sp-loop ${hasPhoto ? 'has-photo' : 'no-photo'}`}>
       {hasPhoto && (
         <div className="ee-cover-media" aria-hidden={false}>
           <HeroMedia hero={m.heroImage} photos={m.photos} mode={m.header.mode} motion={m.header.motion} videoUrl={m.header.videoUrl} videoPoster={m.header.videoPoster} frame={m.header.frame} alt={m.fullAddress} />
@@ -475,7 +491,7 @@ function Aperture({ m }: { m: SpotlightModel }) {
             {line ? <i className="text-[clamp(1.8rem,3.4vw,3rem)] leading-[1.15]">&ldquo;{line}&rdquo;</i> : <>Small frame.<br /><i>Infinite room.</i></>}
           </p>
         </div>
-        <div className="ee-aperture-window"><img src={src} alt={`${m.p.address}`} loading="lazy" /></div>
+        <div className="ee-aperture-window"><div className="ee-aperture-in"><img src={src} alt={`${m.p.address}`} loading="lazy" /></div></div>
       </div>
     </section>
   )
@@ -600,7 +616,7 @@ function FilmAndTour({ m, n, videoUrl }: { m: SpotlightModel; n: string; videoUr
         </div>
       </div>
       {tourOpen && (
-        <div className="fixed inset-0 z-[200] flex flex-col bg-[#091513]" role="dialog" aria-modal="true" aria-label="3D tour">
+        <div className="ee-fadein fixed inset-0 z-[200] flex flex-col bg-[#091513]" role="dialog" aria-modal="true" aria-label="3D tour">
           <div className="flex items-center justify-between px-4 py-3 text-[#f3efe6]">
             <a href={m.tourUrl} target="_blank" rel="noreferrer" className="sp-mono text-[10px] uppercase tracking-[0.2em] underline underline-offset-4">Open in new tab</a>
             <button onClick={closeTour} autoFocus className="rounded-full bg-white/10 p-2.5 hover:bg-white/20" aria-label="Close tour"><X className="h-4 w-4" /></button>
@@ -887,7 +903,7 @@ function Visit({ m, siteId, url, onShare, allowTour }: { m: SpotlightModel; site
         </Reveal>
         <Reveal className="bg-[#f7f3ea] p-6 shadow-[0_40px_80px_-50px_rgba(16,32,30,.5)] sm:p-12">
           <p className="sp-mono mb-8 text-[10px] uppercase tracking-[0.2em] opacity-60">{allowTour ? 'Request a viewing or information' : 'Request information'}</p>
-          <LeadForm siteId={siteId} address={m.p.address} tone="light" agent={m.agent} openHouses={m.has.openHouses ? m.openHouses : []} allowTour={allowTour} />
+          <LeadForm siteId={siteId} address={m.p.address} photo={m.heroImage} place={[m.p.city, [m.p.state, m.p.zipcode].filter(Boolean).join(" ")].filter(Boolean).join(", ")} beds={m.p.beds} baths={m.p.baths} sqft={m.p.sqft} tone="light" agent={m.agent} openHouses={m.has.openHouses ? m.openHouses : []} allowTour={allowTour} />
         </Reveal>
       </div>
     </section>
@@ -935,7 +951,7 @@ const EE_CSS = `
 .ee-paper{background:var(--paper);color:var(--ink)}
 .ee-sand{background:var(--sand);color:var(--ink)}
 .ee-deep{background:var(--deep);color:var(--paper)}
-.ee-progress{position:fixed;z-index:120;top:0;left:0;height:2px;width:100%;background:var(--sp-accent);transform-origin:0 50%;transform:scaleX(var(--ee-progress,0))}
+.ee-progress{position:fixed;z-index:120;top:0;left:0;height:2px;width:100%;background:var(--sp-accent);transform-origin:0 50%;transform:scaleX(0)}
 .ee-masthead{position:fixed;inset:0 0 auto 0;z-index:90;color:var(--paper);transition:background .45s ease,color .45s ease,border-color .45s ease;border-bottom:1px solid rgba(243,239,230,.18);background:linear-gradient(180deg,rgba(9,21,19,.55),transparent)}
 .ee-masthead.is-solid{background:rgba(243,239,230,.92);color:var(--ink);border-bottom-color:rgba(23,37,34,.14);}
 .ee-navlink{position:relative;padding:6px 0;opacity:.72;transition:opacity .25s}.ee-navlink:hover,.ee-navlink.is-active{opacity:1}
@@ -946,14 +962,19 @@ const EE_CSS = `
 .ee-masthead .ee-cta{background:var(--paper);color:var(--ink)}.ee-masthead.is-solid .ee-cta{background:var(--ink);color:var(--paper)}
 .ee-menu{background:var(--deep);color:var(--paper);animation:eeFade .3s ease both}
 @keyframes eeFade{from{opacity:0}to{opacity:1}}
+.ee-fadein{animation:eeFade .3s ease both}
+.ee-menu.is-closing{animation:eeFadeOut .22s ease both}
+@keyframes eeFadeOut{to{opacity:0}}
+.ee-menu-list>li{animation:eeMenuItem .5s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i,0) * 40ms + 80ms)}
+@keyframes eeMenuItem{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 .ee-cover{position:relative;height:100svh;min-height:660px;overflow:hidden}
 .ee-cover.has-photo{background:#091513;color:var(--paper)}
 .ee-cover.no-photo{background:var(--sand);color:var(--ink)}
 .ee-cover.no-photo .ee-cover-title{font-size:clamp(3.4rem,11vw,11rem)}
 .ee-cover-media{position:absolute;inset:0;overflow:hidden}
-.ee-cover-media .hm{transform:scale(calc(1 + var(--ee-cover,0) * .08)) translateY(calc(var(--ee-cover,0) * 6%));filter:saturate(.85) contrast(1.04);will-change:transform}
-@keyframes eeCoverIn{from{opacity:0;filter:saturate(.85) contrast(1.04) blur(6px)}to{opacity:1}}
-.ee-cover.has-photo:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(9,21,19,.55) 0%,rgba(9,21,19,0) 30%,rgba(9,21,19,.2) 55%,rgba(9,21,19,.88) 100%);pointer-events:none}
+/* Speed pass 10/22: the muted magazine look used to be a saturate/contrast filter on the whole moving cover photo (re-filtered every frame of its slow zoom). A faint deep-green wash in the overlay below gives the same quieter colour for free. */
+.ee-cover-media .hm{will-change:transform}
+.ee-cover.has-photo:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(9,21,19,.55) 0%,rgba(9,21,19,0) 30%,rgba(9,21,19,.2) 55%,rgba(9,21,19,.88) 100%),linear-gradient(rgba(60,72,66,.12),rgba(60,72,66,.12));pointer-events:none}
 .ee-cover-inner{position:relative;z-index:2}
 .ee-cover-title{font-size:clamp(3.2rem,9.5vw,9.8rem);line-height:.9;letter-spacing:-.035em;animation:eeTitleIn 1.2s .2s cubic-bezier(.2,.7,.2,1) both}
 @keyframes eeTitleIn{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
@@ -993,11 +1014,12 @@ const EE_CSS = `
 .ee-inv-group li{break-inside:avoid;border-bottom:1px solid rgba(23,37,34,.12);padding:.6rem 0;font-size:14.5px;line-height:1.35;color:rgba(23,37,34,.8)}
 .ee-town-lede:first-letter{font-family:var(--font-ee-display),serif;float:left;font-size:4.6em;line-height:.8;padding:.06em .12em 0 0;color:var(--ee-gold)}
 .ee-on-deep{color:var(--paper)}
-.ee-aperture-window{position:relative;aspect-ratio:4/3;overflow:hidden;clip-path:inset(16% 22% 16% 22%);transform:scale(.9) rotate(-2deg);transition:clip-path 1.4s cubic-bezier(.16,.78,.18,1),transform 1.4s cubic-bezier(.16,.78,.18,1)}
-.ee-aperture.is-visible .ee-aperture-window{clip-path:inset(0);transform:none}
+.ee-aperture-window{position:relative;aspect-ratio:4/3;overflow:hidden;transform:scale(.9) rotate(-2deg) scale(.56,.68);transition:transform 1.4s cubic-bezier(.16,.78,.18,1)}
+.ee-aperture-in{position:absolute;inset:0;overflow:hidden;transform:scale(1.7857,1.4706);transition:transform 1.4s cubic-bezier(.16,.78,.18,1)}
+.ee-aperture.is-visible .ee-aperture-window,.ee-aperture.is-visible .ee-aperture-in{transform:none}
 .ee-aperture-window img{width:100%;height:100%;object-fit:cover;transform:scale(1.18);transition:transform 1.8s cubic-bezier(.16,.78,.18,1)}
 .ee-aperture.is-visible .ee-aperture-window img{transform:scale(1)}
 .ee-reveal{opacity:0;transform:translateY(28px);transition:opacity .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1)}
 .ee-reveal.is-visible{opacity:1;transform:none}
-@media(prefers-reduced-motion:reduce){.ee-reveal{opacity:1;transform:none;transition:none}.ee-cover-title,.ee-menu{animation:none}.ee-aperture-window{clip-path:none;transform:none}.ee-aperture-window img{transform:none}}
+@media(prefers-reduced-motion:reduce){.ee-reveal{opacity:1;transform:none;transition:none}.ee-cover-title,.ee-menu,.ee-menu.is-closing,.ee-menu-list>li,.ee-fadein{animation:none}.ee-aperture-window,.ee-aperture-in{transform:none;transition:none}.ee-aperture-window img{transform:none}}
 `

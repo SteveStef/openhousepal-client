@@ -197,7 +197,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
     setDeleting(true)
     const r = await api.leads.delete(lead.id)
     setDeleting(false)
-    if (r.success) { onChanged?.(); onBack() } else showToast(r.error || "Couldn't delete this lead", 'error')
+    if (r.success) { showToast(r.data?.message || `${lead.name || 'Lead'} deleted`, 'success'); onChanged?.(); onBack() } else showToast(r.error || "Couldn't delete this lead", 'error')
   }
 
   const copy = (text: string, what: string) => {
@@ -584,6 +584,9 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
           <h3 className="text-lg font-black text-[#111827] dark:text-white">Delete {lead.name || 'this lead'}?</h3>
           <p className="mt-1.5 text-sm font-medium text-gray-500 dark:text-gray-400">
             This permanently removes them, their activity and their notes. To just get them off your lists, use <b>Hide</b> instead - you can bring them back any time.
+          </p>
+          <p className="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+            Automatic emails to them stop, and their Showcase is turned off (not deleted - you can turn it back on in Showcases).
           </p>
           <div className="mt-5 flex gap-2">
             <button onClick={() => setConfirmDelete(false)} className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-bold dark:border-white/10 dark:text-white">Keep</button>

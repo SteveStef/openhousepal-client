@@ -43,8 +43,8 @@ export default function TownCommute({ data, town, luxe }: { data?: CommuteData |
                   <div key={solid ? 'd' : 't'} className="flex items-center gap-3">
                     <I className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--site-muted)' }} />
                     <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ backgroundColor: 'var(--site-line)' }}>
-                      <motion.div className="h-full rounded-full" style={{ backgroundColor: solid ? 'var(--site-accent)' : 'rgba(var(--site-accent-rgb),.45)' }}
-                        initial={{ width: 0 }} whileInView={{ width: `${(m / max) * 100}%` }} viewport={{ once: true }} transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.1 + i * 0.12 }} />
+                      <motion.div className="h-full origin-left rounded-full" style={{ backgroundColor: solid ? 'var(--site-accent)' : 'rgba(var(--site-accent-rgb),.45)', width: `${(m / max) * 100}%` }}
+                        initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.1 + i * 0.12 }} />
                     </div>
                     <span className="w-16 shrink-0 text-right text-sm font-black" style={{ color: 'var(--site-heading)' }}>{m} min</span>
                   </div>

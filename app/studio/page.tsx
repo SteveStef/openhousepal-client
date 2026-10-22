@@ -68,7 +68,7 @@ export default function StudioHomePage() {
               accent="from-[#C9A24D]/15 to-transparent"
               preview={(active) => <SitePreview active={active} name={[user?.first_name, user?.last_name].filter(Boolean).join(' ')} title={user?.professional_title} photoUrl={user?.photo_url} />}
               previewShort
-              eyebrowMarginClass="mr-28"
+              eyebrowMarginClass="sm:mr-28"
               lockedLabel="Agent Hub"
             />
           </motion.div>
@@ -87,7 +87,7 @@ export default function StudioHomePage() {
               preview={(active) => <FormPreview active={active} />}
               badge={formsActionCount}
               previewShort
-              eyebrowMarginClass="mr-28"
+              eyebrowMarginClass="sm:mr-28"
             />
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 16, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", stiffness: 260, damping: 24, delay: 0.15 }}>
@@ -404,6 +404,13 @@ function ProductCard({ href, icon: Icon, iconClass, eyebrow, title, description,
   // for the second row ("remove enter from 2nd row tool card buttons so the shortcuts really
   // show"): those names got longer/renamed, crowding out the shortcut chip beside the button.
   hideEnterWord?: boolean
+  // Phone layout (owner, 10/22: "rearrange for mobile without making them larger"): EVERY card is
+  // the same two columns - icon + eyebrow on one row, title and description in a narrower left
+  // column (identical positions on every card - owner: the wide-graphic cards must not push the
+  // title/description lower), the graphic grown to fill a tall right column. The short-and-wide
+  // graphics (CMA, Blogs, Signature) switch to a taller, narrower phone shape of their own (max-sm:
+  // classes inside each preview) so they fill that column too. Buttons always sit on their own
+  // bottom row, so nothing ever covers the graphic. sm+ is unchanged.
 }) {
   const [hovered, setHovered] = useState(false)
   const primaryAction = actions[0]
@@ -430,7 +437,7 @@ function ProductCard({ href, icon: Icon, iconClass, eyebrow, title, description,
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onMouseMove={trackGlow}
-      className={`lx-hero group/lx group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#fffdf8_0%,#fbf6ec_60%,#f6eddb_100%)] dark:bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#0b0f0e_0%,#111827_60%,#1d1810_100%)] p-5 shadow-[0_20px_44px_-32px_rgba(139,115,85,.6)] transition duration-300 dark:border-white/[0.08] ${
+      className={`lx-hero group/lx group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#fffdf8_0%,#fbf6ec_60%,#f6eddb_100%)] dark:bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#0b0f0e_0%,#111827_60%,#1d1810_100%)] p-4 shadow-[0_20px_44px_-32px_rgba(139,115,85,.6)] transition duration-300 sm:p-5 dark:border-white/[0.08] ${
         comingSoon ? 'grayscale opacity-60 pointer-events-none' : locked ? '' : 'hover:-translate-y-1 hover:border-[#C9A24D]/60 hover:shadow-[0_28px_56px_-30px_rgba(201,162,77,.75)]'
       }`}
     >
@@ -438,21 +445,23 @@ function ProductCard({ href, icon: Icon, iconClass, eyebrow, title, description,
       <div aria-hidden className="ohp-tool-grid pointer-events-none absolute inset-0" />
       {!comingSoon && <CardAlive seed={eyebrow.length + title.length} />}
       {/* The tool's own symbol, big and drifting behind the card (user, 10/17: it was too small - the
-          card looked plain). */}
+          card looked plain). Bottom-right on every size (owner, 10/22: keep it on the right). */}
       <Icon aria-hidden className="lx-mark pointer-events-none absolute -bottom-14 -right-12 h-60 w-60 text-[#C9A24D]/[0.13] sm:-bottom-12 sm:-right-10 sm:h-52 sm:w-52 dark:text-[#e8c97a]/[0.09]" />
       <div aria-hidden className="ohp-tool-edge pointer-events-none absolute inset-x-0 top-0 h-[2px] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
       <div aria-hidden className="pointer-events-none absolute -bottom-20 -left-16 h-48 w-48 rounded-full bg-[#C9A24D]/0 blur-3xl transition-colors duration-700 group-hover:bg-[#C9A24D]/20" />
       {comingSoon && (
-        <span className="absolute right-3 top-3 z-10 rounded-full bg-gray-200 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+        <span className="absolute bottom-6 right-4 z-10 rounded-full bg-gray-200 px-2 py-0.5 sm:bottom-auto sm:right-3 sm:top-3 text-[9px] font-black uppercase tracking-widest text-gray-500 dark:bg-gray-700 dark:text-gray-400">
           Coming Soon
         </span>
       )}
       {/* Top-center, not top-right - that corner belongs to the preview graphic. Locked cards
           still get their normal graphic in full color (only this badge and the Unlock button
           below read as muted/disabled) - a colorful, working-looking preview is still the best
-          pitch for what unlocking gets you, so the card can't compete with it for the same spot. */}
+          pitch for what unlocking gets you, so the card can't compete with it for the same spot.
+          Phones: bottom-right instead, beside the Unlock button (a locked card has no shortcut chip
+          there) - top-center would land on the graphic/text seam of the two-column layout. */}
       {locked && !comingSoon && (
-        <span className="absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full bg-gray-200 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+        <span className="absolute bottom-6 right-4 z-10 flex items-center sm:bottom-auto sm:left-1/2 sm:right-auto sm:top-3 sm:-translate-x-1/2 gap-1 rounded-full bg-gray-200 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-gray-500 dark:bg-gray-700 dark:text-gray-400">
           <Lock className="h-2.5 w-2.5" /> Locked
         </span>
       )}
@@ -460,38 +469,54 @@ function ProductCard({ href, icon: Icon, iconClass, eyebrow, title, description,
           as far top-right as it can sit, but not shrunk to get there. Locked cards keep it in full
           color (only the Unlock button and the top-center Locked badge read as "muted/disabled") -
           it's still the best pitch for what unlocking gets you. */}
-      {preview && (
-        <div className={`absolute right-4 top-4 z-[1] ${locked ? 'pointer-events-none' : ''}`}>
-          <div className="relative">
-            {preview(hovered || (noHover && inView))}
-          </div>
-        </div>
-      )}
       <div className="relative flex flex-1 flex-col">
-        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-md ring-1 ring-[#C9A24D]/30 transition-transform duration-300 group-hover:scale-110 group-hover:shadow-[0_4px_16px_-2px_rgba(201,162,77,0.5)] dark:from-[#e8c97a] dark:to-[#C9A24D] dark:text-[#111827]">
-          <Icon className={`ohp-icon-draw ${iconClass || ''} h-[18px] w-[18px]`} />
-          {!locked && !!badge && badge > 0 && (
-            <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-white dark:ring-[#151517]">
-              {badge > 9 ? '9+' : badge}
-            </span>
-          )}
-        </div>
-        {/* Every graphic is now sized to clear vertically above the title before text even
-            starts, the same way CMA's short-wide one always has - so only the eyebrow line
-            (still within the graphic's vertical band) needs to give it room. Title and
-            description both run the card's full width underneath it, not squeezed to half the
-            card for their whole height. */}
-        <div>
-          <p className={`mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974] ${previewShort ? (eyebrowMarginClass || 'mr-48') : preview ? 'mr-28' : ''}`}>{eyebrow}</p>
-          {/* Title keeps the same margin as the eyebrow for the square/phone graphics (unlike
-              CMA's short-wide one, they don't fully clear above the title - they're absolutely
-              positioned, so text doesn't wrap around them, it just renders underneath and gets
-              visually painted over at narrower card widths without this) - so it never runs
-              under the graphic, even once cards get narrow enough that the title needs the width
-              the graphic would otherwise sit in. */}
-          <h2 className={`mt-1 font-serif text-lg font-black text-[#111827] dark:text-white ${preview && !previewShort ? 'mr-28' : ''}`}><GoldLastWord text={title} /></h2>
-          <p className="mt-1.5 text-xs font-semibold leading-relaxed text-gray-500 dark:text-gray-400">{description}</p>
-        </div>
+        {/* sm+: exactly the old layout - the graphic pinned top-right (absolute; this wrapper sits
+            inside the card's 20px padding, hence -right-1/-top-1 = the old right-4/top-4), icon,
+            eyebrow, title and description stacked full-width under it.
+            Phones: the graphic is an in-flow right column beside the text (see the props note). */}
+        {(() => {
+          const iconTile = (
+            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-md ring-1 ring-[#C9A24D]/30 transition-transform duration-300 group-hover:scale-110 group-hover:shadow-[0_4px_16px_-2px_rgba(201,162,77,0.5)] dark:from-[#e8c97a] dark:to-[#C9A24D] dark:text-[#111827]">
+              <Icon className={`ohp-icon-draw ${iconClass || ''} h-[18px] w-[18px]`} />
+              {!locked && !!badge && badge > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-white dark:ring-[#151517]">
+                  {badge > 9 ? '9+' : badge}
+                </span>
+              )}
+            </div>
+          )
+          // Desktop: the eyebrow keeps clear of the graphic's band (the title too, for the square
+          // graphics) - unchanged. Phones lay the graphic out in flow, so no margins are needed.
+          const eyebrowClass = `text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974] sm:mt-3 ${previewShort ? (eyebrowMarginClass || 'sm:mr-48') : preview ? 'sm:mr-28' : ''}`
+          const previewBox = preview && (
+            <div
+              className={`z-[1] h-[150px] w-[42%] shrink-0 sm:absolute sm:-right-1 sm:-top-1 sm:h-auto sm:w-auto ${locked ? 'pointer-events-none' : ''}`}
+            >
+              <FitBox>
+                {preview(hovered || (noHover && inView))}
+              </FitBox>
+            </div>
+          )
+          const titleEl = (
+            <h2 className={`mt-2.5 font-serif text-lg font-black text-[#111827] dark:text-white sm:mt-1 ${preview && !previewShort ? 'sm:mr-28' : ''}`}><GoldLastWord text={title} /></h2>
+          )
+          const descEl = (
+            <p className="mt-1 text-xs font-semibold leading-snug text-gray-500 dark:text-gray-400 sm:mt-1.5 sm:leading-relaxed">{description}</p>
+          )
+          return (
+            <div className="flex items-stretch gap-3 sm:block">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2.5 sm:block">
+                  {iconTile}
+                  <p className={eyebrowClass}>{eyebrow}</p>
+                </div>
+                {titleEl}
+                {descEl}
+              </div>
+              {previewBox}
+            </div>
+          )
+        })()}
 
         {locked ? (
           <Link
@@ -530,6 +555,46 @@ function ProductCard({ href, icon: Icon, iconClass, eyebrow, title, description,
   )
 }
 
+// Phone-only: grows a card's preview graphic to fill the room it's been given (measured, so every
+// preview - phone bezels, squares, the wide strips - scales by its own natural size), via a static
+// transform: the graphic's own animations run untouched inside it. sm+ (two-up and wider grids)
+// stays at the original 1x, exactly as before.
+const PHONE_MQ = '(max-width: 639px)'
+function FitBox({ children, align = 'center', max = 1.7 }: { children: React.ReactNode; align?: 'center' | 'right'; max?: number }) {
+  const boxRef = useRef<HTMLDivElement>(null)
+  const innerRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+  useEffect(() => {
+    const box = boxRef.current, inner = innerRef.current
+    if (!box || !inner) return
+    const mq = window.matchMedia(PHONE_MQ)
+    const measure = () => {
+      if (!mq.matches) { setScale(1); return }
+      const cw = inner.offsetWidth, ch = inner.offsetHeight
+      if (!cw || !ch) return
+      const s = Math.min(box.clientWidth / cw, box.clientHeight / ch, max)
+      // Never below 0.8 - a column narrower than the graphic (360px phones) only trims it slightly.
+      setScale(Math.max(0.8, Math.round(s * 100) / 100))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(box); ro.observe(inner)
+    mq.addEventListener('change', measure)
+    return () => { ro.disconnect(); mq.removeEventListener('change', measure) }
+  }, [max])
+  return (
+    <div ref={boxRef} className={`flex h-full w-full items-center ${align === 'right' ? 'justify-end' : 'justify-center'}`}>
+      <div
+        ref={innerRef}
+        className="relative shrink-0"
+        style={scale === 1 ? undefined : { transform: `scale(${scale})`, transformOrigin: align === 'right' ? 'right center' : 'center' }}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
 // Shared iPhone bezel for the two mobile-first previews (Agent Hub, Forms) - same dark-frame +
 // notch + white-screen recipe as the homepage demos' phone frames, at card-badge scale. Sized to
 // clear above the title (like CMA/Blogs) instead of reaching down past it - Agent Hub and Forms
@@ -540,7 +605,9 @@ function ProductCard({ href, icon: Icon, iconClass, eyebrow, title, description,
 // not just a blown-up version of the same few elements.
 function MiniPhone({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-24 w-24 items-center justify-center">
+    // Phones: the 96px square spacer drops away so FitBox scales the bezel itself (60x94) to fill
+    // the card's tall preview column, not an empty square around it.
+    <div className="flex items-center justify-center sm:h-24 sm:w-24">
       <div className="relative h-[94px] w-[60px] rounded-xl border-2 border-[#111827] bg-[#111827] shadow-lg dark:border-white/90 dark:bg-white/90">
         <div className="absolute left-1/2 top-0 z-10 h-2.5 w-6 -translate-x-1/2 rounded-b-sm bg-[#111827] dark:bg-white/90" />
         <div className="relative h-full w-full overflow-hidden rounded-[0.7rem] bg-[#fbfaf7]">{children}</div>
@@ -555,7 +622,7 @@ function MiniPhone({ children }: { children: React.ReactNode }) {
 // this runs inside the app for every agent rather than showing one marketing page's real form.
 const FORM_QUESTIONS = [
   { q: 'Are you buying or selling?', options: ['Buying', 'Selling'], picked: 0 },
-  { q: 'What is your timeline?', options: ['0-3 months', '3-6 months'], picked: 1 },
+  { q: 'What is your timeline?', options: ['0-3 mo', '3-6 mo'], picked: 1 },
 ]
 function FormPreview({ active }: { active: boolean }) {
   const [qi, setQi] = useState(0)
@@ -583,18 +650,18 @@ function FormPreview({ active }: { active: boolean }) {
   const isPressed = active && pressed
   return (
     <MiniPhone>
-      <div className="flex h-full flex-col px-2.5 pt-5">
+      <div className="flex h-full flex-col px-2 pt-5">
         <div className="flex gap-0.5">
           {FORM_QUESTIONS.map((_, i) => (
             <div key={i} className={`h-0.5 flex-1 rounded-full transition-colors duration-500 ${i <= (active ? qi : restIndex) ? 'bg-[#C9A24D]' : 'bg-[#111827]/10'}`} />
           ))}
         </div>
-        <p key={`q-${qi}`} className={`mt-2.5 font-serif text-[7px] font-black leading-tight text-[#111827] ${active ? 'animate-fadeIn' : ''}`}>{question.q}</p>
-        <div key={`opts-${qi}`} className={`mt-2.5 flex flex-col gap-2 ${active ? 'animate-fadeIn' : ''}`}>
+        <p key={`q-${qi}`} className={`mt-2 font-serif text-[7px] font-black leading-tight text-[#111827] ${active ? 'animate-fadeIn' : ''}`}>{question.q}</p>
+        <div key={`opts-${qi}`} className={`mt-2 flex flex-col gap-1.5 ${active ? 'animate-fadeIn' : ''}`}>
           {question.options.map((opt, i) => (
             <div
               key={opt}
-              className={`flex items-center justify-between rounded-sm border px-1.5 py-1 text-[6px] font-bold transition-all duration-300 ${
+              className={`flex items-center justify-between rounded-sm border px-1 py-1 text-[6px] whitespace-nowrap font-bold transition-all duration-300 ${
                 isPicked && i === question.picked ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#111827] scale-[1.03]' : 'border-[#111827]/10 text-gray-400'
               }`}
             >
@@ -674,8 +741,10 @@ function BlogPreview({ active }: { active: boolean }) {
     // Same footprint as CMA's preview (h-16 w-44) so it clears above the title the same way,
     // letting "Publish Articles" run full-width on one line - a left "featured image" swatch
     // (the textured gradient + watermark) instead of a full-width top band.
-    <div className="flex h-14 w-44 items-stretch gap-2 rounded-lg border border-[#816937]/25 bg-[#fbfaf3] p-2 dark:border-white/10 dark:bg-[#1A1A1C]">
-      <div className="relative w-10 shrink-0 overflow-hidden rounded-md bg-gradient-to-br from-[#816937] to-[#C9A24D]">
+    // Phones (max-sm): stands up as a little blog-post card - the featured-image swatch becomes a
+    // full-width band on top with the headline under it - to fill the Studio card's right column.
+    <div className="flex h-14 w-44 items-stretch gap-2 rounded-lg border border-[#816937]/25 bg-[#fbfaf3] p-2 max-sm:h-[110px] max-sm:w-[100px] max-sm:flex-col dark:border-white/10 dark:bg-[#1A1A1C]">
+      <div className="relative w-10 shrink-0 overflow-hidden rounded-md bg-gradient-to-br from-[#816937] to-[#C9A24D] max-sm:h-11 max-sm:w-full">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.45),transparent_60%)]" />
         <div
           className="absolute inset-0 opacity-25"
@@ -767,19 +836,21 @@ function CmaPreview({ active }: { active: boolean }) {
     return () => { timers.forEach(clearTimeout); clearTimeout(settle) }
   }, [active])
   return (
-    <div className="flex h-14 w-44 flex-col gap-1 rounded-lg border border-[#816937]/25 bg-[#fbfaf3] px-3 py-2 leading-none dark:border-white/10 dark:bg-[#1A1A1C]">
+    // Phones (max-sm): a taller, narrower card so it fills the Studio card's right column like the
+    // square graphics do - each comp's label + score sit on one line with its bar full-width under.
+    <div className="flex h-14 w-44 flex-col gap-1 rounded-lg border border-[#816937]/25 bg-[#fbfaf3] px-3 py-2 leading-none max-sm:h-[110px] max-sm:w-[104px] max-sm:gap-1.5 max-sm:px-2.5 max-sm:py-2.5 dark:border-white/10 dark:bg-[#1A1A1C]">
       <p className="truncate text-[6.5px] font-black uppercase tracking-widest text-gray-400">Comp Match</p>
-      <div className="flex flex-1 flex-col justify-center gap-[3px]">
+      <div className="flex flex-1 flex-col justify-center gap-[3px] max-sm:justify-between max-sm:gap-0">
         {comps.map((c, i) => {
           const goingUp = i % 2 === 0 ? wave === 1 : wave === 0
           const display = active && !settled ? Math.max(12, Math.min(97, c.score + (goingUp ? 14 : -14))) : c.score
           return (
-            <div key={c.label} className="flex items-center gap-1.5">
+            <div key={c.label} className="flex items-center gap-1.5 max-sm:flex-wrap max-sm:gap-y-1">
               <span className="w-3.5 shrink-0 text-[6.5px] font-black uppercase tracking-wide text-gray-400">{c.label}</span>
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#111827]/10 dark:bg-white/10">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#111827]/10 max-sm:order-last max-sm:h-2 max-sm:basis-full dark:bg-white/10">
                 <div className={`h-full rounded-full ${c.tone} transition-all duration-[850ms] ease-in-out`} style={{ width: `${display}%` }} />
               </div>
-              <span className="w-5 shrink-0 text-right text-[6.5px] font-black text-[#111827] dark:text-white">{Math.round(display)}%</span>
+              <span className="w-5 shrink-0 text-right text-[6.5px] font-black text-[#111827] max-sm:ml-auto dark:text-white">{Math.round(display)}%</span>
             </div>
           )
         })}
@@ -914,8 +985,10 @@ function SignaturePreview({ active, name, photoUrl }: { active: boolean; name?: 
     // w-40, not w-44 - trimmed off the right edge (explicit ask: "too long"). The gold rail is NOT
     // part of the step() fade-in: at rest it used to sit at 60% opacity, so the card's left column
     // looked unfilled until hovered - it's always solid now; only the content beside it animates.
-    <div className="flex h-16 w-40 items-stretch overflow-hidden rounded-lg border border-[#C9A24D]/30 bg-white shadow-sm dark:border-white/10 dark:bg-[#1A1A1C]">
-      <div className="flex w-4 shrink-0 flex-col items-center justify-center gap-1 bg-[#C9A24D]">
+    // Phones (max-sm): taller and narrower (the gold rail runs across the top instead of down the
+    // side) so it fills the Studio card's right column like the square graphics.
+    <div className="flex h-16 w-40 items-stretch overflow-hidden rounded-lg border border-[#C9A24D]/30 bg-white shadow-sm max-sm:h-[96px] max-sm:w-[108px] max-sm:flex-col dark:border-white/10 dark:bg-[#1A1A1C]">
+      <div className="flex w-4 shrink-0 flex-col items-center justify-center gap-1 bg-[#C9A24D] max-sm:h-4 max-sm:w-full max-sm:flex-row">
         {[0, 1, 2].map(i => (
           <span
             key={i}
@@ -924,7 +997,7 @@ function SignaturePreview({ active, name, photoUrl }: { active: boolean; name?: 
           />
         ))}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 p-2">
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 p-2 max-sm:gap-2">
         <div style={step(1)} className="flex items-center gap-1.5">
           <span className={`relative h-4 w-4 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-[#C9A24D] to-[#8b7355] transition-shadow duration-500 ${active ? 'shadow-[0_0_0_3px_rgba(201,162,77,0.25)]' : ''}`}>
             {photoUrl && <Image src={resolveMediaUrl(photoUrl)} alt="" fill className="object-cover" unoptimized />}

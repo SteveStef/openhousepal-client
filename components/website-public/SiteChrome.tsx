@@ -118,17 +118,16 @@ function MineTab({ href, label, active, onDark, classic }: { href: string; label
 
 export const MINE_TAB_CSS = `
 .ohp-mine-tab{isolation:isolate;background:var(--mine-fill,rgba(var(--site-accent-rgb),.12));box-shadow:0 0 0 1px rgba(var(--site-accent-rgb),.35),0 6px 22px -8px rgba(var(--site-accent-rgb),.75)}
-.ohp-mine-tab::before{content:"";position:absolute;inset:-1.5px;z-index:-1;border-radius:9999px;padding:1.5px;background:conic-gradient(from var(--mine-a,0deg),var(--site-accent),transparent 30%,var(--site-accent) 55%,transparent 80%,var(--site-accent));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:ohpMineSpin 4s linear infinite}
-@property --mine-a{syntax:"<angle>";inherits:false;initial-value:0deg}
-@keyframes ohpMineSpin{to{--mine-a:360deg}}
+.ohp-mine-tab::before{content:"";position:absolute;inset:-1.5px;z-index:-1;border-radius:9999px;padding:1.5px;background:conic-gradient(from 0deg,var(--site-accent),transparent 30%,var(--site-accent) 55%,transparent 80%,var(--site-accent));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:ohpMineGlow 2.4s ease-in-out infinite alternate}
+@keyframes ohpMineGlow{from{opacity:.45}to{opacity:1}}
 .ohp-mine-spark{animation:ohpMineTwinkle 2.4s ease-in-out infinite}
 @keyframes ohpMineTwinkle{50%{transform:scale(1.25) rotate(18deg);opacity:.75}}
-.ohp-mine-dot{box-shadow:0 0 0 0 rgba(var(--site-accent-rgb),.6);animation:ohpMinePulse 2.4s ease-out infinite}
-@keyframes ohpMinePulse{0%{box-shadow:0 0 0 0 rgba(var(--site-accent-rgb),.55)}100%{box-shadow:0 0 0 12px rgba(var(--site-accent-rgb),0)}}
+.ohp-mine-dot::after{content:"";position:absolute;inset:0;border-radius:inherit;background:rgba(var(--site-accent-rgb),.55);z-index:-1;animation:ohpMinePulse 2.4s ease-out infinite}
+@keyframes ohpMinePulse{0%{transform:scale(1);opacity:1}100%{transform:scale(1.6);opacity:0}}
 .ohp-mine-card{box-shadow:0 18px 36px -18px rgba(var(--site-accent-rgb),.95)}
 .ohp-mine-card::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);transform:translateX(-120%);animation:ohpMineShine 3.4s ease-in-out 1s infinite}
 @keyframes ohpMineShine{60%,100%{transform:translateX(120%)}}
-@media (prefers-reduced-motion:reduce){.ohp-mine-tab::before,.ohp-mine-spark,.ohp-mine-dot,.ohp-mine-card::after{animation:none}}
+@media (prefers-reduced-motion:reduce){.ohp-mine-tab::before,.ohp-mine-spark,.ohp-mine-dot::after,.ohp-mine-card::after{animation:none}}
 `
 
 // Global header/footer for every public site page - built from the site's own pages + the
@@ -516,8 +515,8 @@ export function SiteFooter({
         <FooterLink href={`${basePrefix}/contact`}>Contact</FooterLink>
       </FooterColumn>
       <FooterColumn title="Get in touch" classic={classic} delay={0.18}>
-        {profile?.phone && <li><a href={`tel:${tel}`} className="inline-flex items-center gap-2 transition-colors hover:text-white"><Phone className="h-3.5 w-3.5" style={{ color: 'var(--site-accent)' }} />{profile.phone}</a></li>}
-        {profile?.email && <li><a href={`mailto:${profile.email}`} title={profile.email} className="inline-flex max-w-full items-center gap-2 whitespace-nowrap text-[13px] transition-colors hover:text-white"><Mail className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--site-accent)' }} /><span className="truncate">{profile.email}</span></a></li>}
+        {profile?.phone && <li><a href={`tel:${tel}`} className="inline-flex min-h-[40px] items-center gap-2 transition-colors hover:text-white"><Phone className="h-3.5 w-3.5" style={{ color: 'var(--site-accent)' }} />{profile.phone}</a></li>}
+        {profile?.email && <li><a href={`mailto:${profile.email}`} title={profile.email} className="inline-flex min-h-[40px] max-w-full items-center gap-2 whitespace-nowrap text-[13px] transition-colors hover:text-white"><Mail className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--site-accent)' }} /><span className="truncate">{profile.email}</span></a></li>}
         {socials.length > 0 && (
           <li className="flex flex-wrap gap-2 pt-1">
             {socials.map(link => {
@@ -538,11 +537,10 @@ export function SiteFooter({
   return (
     <footer className={`ohp-site-footer relative overflow-hidden ${classic ? 'ohp-classic-foot border-t' : 'ohp-dark-band text-white'}`} style={classic ? { backgroundColor: 'var(--site-bg-alt)', color: 'var(--site-ink)', borderColor: 'var(--site-line)' } : { backgroundColor: theme.primary_color }}>
       <style>{`.ohp-classic-foot-links{color:var(--site-muted)}.ohp-classic-foot-links a:hover{color:var(--site-heading)}
-.ohp-foot-sweep{background:linear-gradient(90deg,transparent 30%,var(--site-accent) 50%,transparent 70%);background-size:220% 100%;animation:ohpSiteFootSweep 7s ease-in-out infinite}
-@keyframes ohpSiteFootSweep{0%{background-position:160% 0}100%{background-position:-60% 0}}
 .ohp-foot-glow{animation:ohpFootGlow 14s ease-in-out infinite alternate}
 @keyframes ohpFootGlow{from{transform:translate(0,0) scale(1)}to{transform:translate(60px,-30px) scale(1.15)}}
-@media (prefers-reduced-motion:reduce){.ohp-foot-sweep,.ohp-foot-glow{animation:none}}`}</style>
+@media (prefers-reduced-motion:reduce){.ohp-foot-glow{animation:none}}`}</style>
+      {/* .ohp-foot-sweep (the metal line on top) glides via transform - app/(sitepublic)/site-theme.css */}
       {!classic ? (<>
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--site-accent), transparent)' }} />
         <div className="ohp-foot-sweep pointer-events-none absolute inset-x-0 top-0 h-px" />

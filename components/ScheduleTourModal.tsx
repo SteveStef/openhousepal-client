@@ -109,13 +109,14 @@ function ScheduleTourWindow({
   // The next 8 days (today only while there's still a time left in it) - one row, no scrolling.
   const openDays = useMemo(() => Array.from({ length: 9 }, (_, i) => ymd(new Date(Date.now() + i * 86400000)))
     .filter(d => TIMES.some(t => !isPast(d, t))).slice(0, 8), [])
-  const [day, setDay] = useState(openDays[0])
-  const firstOpen = (d: string) => (PERIODS.find(p => p.times.some(t => !isPast(d, t))) || PERIODS[0]).id
-  const [period, setPeriod] = useState<(typeof PERIODS)[number]['id']>(() => firstOpen(openDays[0]))
-  // Today late in the day: jump past the parts of it that are over.
-  useEffect(() => {
-    if (!PERIODS.find(p => p.id === period)!.times.some(t => !isPast(day, t))) setPeriod(firstOpen(day))
-  }, [day]) // eslint-disable-line react-hooks/exhaustive-deps
+  // One thing at a time (user, 10/22): nothing is picked when the window opens - (1) tap a day,
+  // then (2) morning / afternoon / evening unlocks, then (3) its times appear. Tapping another day
+  // starts again at (2), so adding a backup time reads the same way.
+  const [day, setDay] = useState<string | null>(null)
+  type PeriodId = (typeof PERIODS)[number]['id']
+  const [period, setPeriod] = useState<PeriodId | null>(null)
+  const pickDay = (d: string) => { setDay(d); setPeriod(null) }
+  const stage = !day ? 1 : !period ? 2 : 3
   const [picks, setPicks] = useState<Pick[]>([])
   const [step, setStep] = useState<Step>('when')
   const [dir, setDir] = useState(1)
@@ -139,6 +140,7 @@ function ScheduleTourWindow({
 
   const go = (s: Step) => { setDir(s === 'when' ? -1 : 1); setStep(s); setError('') }
   const toggle = (time: string) => {
+    if (!day) return
     setPicks(cur => {
       const at = cur.findIndex(p => p.date === day && p.time === time)
       if (at > -1) return cur.filter((_, i) => i !== at)
@@ -218,6 +220,8 @@ function ScheduleTourWindow({
           {photo && <img src={photo} alt="" className="tour-ken absolute inset-0 -z-20 h-full w-full object-cover" />}
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(120%_90%_at_100%_0%,rgba(201,162,77,.45),transparent_55%),linear-gradient(180deg,rgba(11,11,12,.35),rgba(11,11,12,.92))]" />
           <span aria-hidden className="tour-edge pointer-events-none absolute inset-x-0 top-0 h-px" />
+          {/* Phones: a grab handle - the sheet can be pulled down to close. */}
+          <span aria-hidden className="pointer-events-none absolute left-1/2 top-2 z-10 h-1.5 w-10 -translate-x-1/2 rounded-full bg-white/35 sm:hidden" />
           {[['14%', '22%', 0], ['80%', '16%', 1.4], ['70%', '64%', 2.6], ['30%', '80%', 1.9]].map(([l, t, d], k) => (
             <span key={k} aria-hidden className="tour-spark pointer-events-none absolute" style={{ left: l as string, top: t as string, animationDelay: `${d}s` }} />
           ))}
@@ -269,15 +273,16 @@ function ScheduleTourWindow({
             <AnimatePresence mode="wait" custom={dir} initial={false}>
               {step === 'when' && (
                 <motion.div key="when" custom={dir} variants={slide} initial="initial" animate="animate" exit="exit" className="flex h-full flex-col px-5 pt-3 sm:px-8">
-                  {/* days */}
+                  {/* 1. the day */}
+                  <StageLabel n={1} active={stage === 1} done={stage > 1} text="Pick a day" />
                   <div className="grid grid-cols-8 gap-1 pb-2 pt-1 sm:gap-1.5">
                     {openDays.map(d => {
                       const on = d === day
                       const dt = parseYmd(d)
                       const count = picks.filter(p => p.date === d).length
                       return (
-                        <motion.button key={d} type="button" whileTap={{ scale: 0.94 }} onClick={() => setDay(d)}
-                          className={`relative isolate flex min-w-0 flex-col items-center rounded-2xl py-2 transition-colors ${on ? 'text-[#111827]' : 'bg-gray-50 text-gray-600 hover:bg-[#C9A24D]/10 dark:bg-white/[0.04] dark:text-gray-300 dark:hover:bg-white/[0.08]'}`}>
+                        <motion.button key={d} type="button" whileTap={{ scale: 0.94 }} onClick={() => pickDay(d)}
+                          className={`relative isolate flex min-w-0 flex-col items-center rounded-2xl py-2 transition-colors ${on ? 'text-[#111827]' : `bg-gray-50 text-gray-600 hover:bg-[#C9A24D]/10 dark:bg-white/[0.04] dark:text-gray-300 dark:hover:bg-white/[0.08] ${stage === 1 ? 'ring-1 ring-[#C9A24D]/35' : ''}`}`}>
                           {on && <motion.span layoutId="tour-day" className="absolute inset-0 -z-10 rounded-2xl bg-gradient-to-b from-[#d9b864] to-[#C9A24D] shadow-[0_12px_22px_-8px_rgba(201,162,77,.75)]" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
                           <span className="relative text-[8px] font-black uppercase tracking-wider opacity-75 sm:text-[9px]">{d === ymd(new Date()) ? 'Today' : dt.toLocaleDateString('en-US', { weekday: 'short' })}</span>
                           <span className="relative text-lg font-black leading-tight sm:text-xl">{dt.getDate()}</span>
@@ -288,13 +293,14 @@ function ScheduleTourWindow({
                     })}
                   </div>
 
-                  {/* part of the day */}
-                  <div className="mt-4 flex gap-1 rounded-2xl bg-gray-100 p-1 dark:bg-white/[0.06]">
+                  {/* 2. part of the day - locked until a day is picked */}
+                  <StageLabel n={2} active={stage === 2} done={stage > 2} locked={stage < 2} text="Morning, afternoon or evening" />
+                  <div className={`flex gap-1 rounded-2xl bg-gray-100 p-1 transition-opacity duration-300 dark:bg-white/[0.06] ${stage < 2 ? 'opacity-40' : ''} ${stage === 2 ? 'ring-2 ring-[#C9A24D]/45' : ''}`}>
                     {PERIODS.map(p => {
-                      const open = p.times.some(t => !isPast(day, t))
+                      const open = !!day && p.times.some(t => !isPast(day, t))
                       return (
                         <button key={p.id} type="button" disabled={!open} onClick={() => setPeriod(p.id)}
-                          className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-[11px] font-black uppercase tracking-wider transition-colors disabled:opacity-35 ${period === p.id ? 'text-[#111827] dark:text-white' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
+                          className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[11px] font-black uppercase tracking-wider transition-colors disabled:cursor-not-allowed ${day && !open ? 'disabled:opacity-35' : ''} ${period === p.id ? 'text-[#111827] dark:text-white' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
                           {period === p.id && <motion.span layoutId="tour-period" className="absolute inset-0 rounded-xl bg-white shadow-sm dark:bg-white/10" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
                           <p.icon className="relative h-3.5 w-3.5" /><span className="relative">{p.label}</span>
                         </button>
@@ -302,26 +308,41 @@ function ScheduleTourWindow({
                     })}
                   </div>
 
-                  {/* times */}
+                  {/* 3. the time - shown once a part of the day is picked */}
+                  <StageLabel n={3} active={stage === 3} locked={stage < 3} text="Pick a time" />
                   <AnimatePresence mode="wait" initial={false}>
-                    <motion.div key={`${day}-${period}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.16 }}
-                      className="mt-3 grid grid-cols-4 gap-1.5 sm:grid-cols-5">
-                      {PERIODS.find(p => p.id === period)!.times.map((t, i) => {
-                        const at = picks.findIndex(p => p.date === day && p.time === t)
-                        const past = isPast(day, t)
-                        const taken = !past && isBusy(day, t)
-                        return (
-                          <motion.button key={t} type="button" disabled={past || taken} onClick={() => toggle(t)} title={taken ? 'Your agent is busy then' : undefined}
-                            initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.015 }}
-                            whileTap={{ scale: 0.92 }}
-                            className={`relative rounded-xl border py-2.5 text-[12px] font-black transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${at > -1 ? 'border-[#111827] bg-[#111827] text-white dark:border-white dark:bg-white dark:text-[#111827]' : 'border-gray-200 text-[#111827] hover:border-[#C9A24D] dark:border-white/10 dark:text-white'}`}>
-                            <span className={taken ? 'line-through decoration-2 decoration-rose-400/70' : ''}>{timeLabel(t)}</span>
-                            {at > -1 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-[#C9A24D] text-[9px] font-black text-[#111827]">{at + 1}</motion.span>}
-                          </motion.button>
-                        )
-                      })}
-                    </motion.div>
+                    {day && period ? (
+                      <motion.div key={`${day}-${period}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.16 }}
+                        className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
+                        {PERIODS.find(p => p.id === period)!.times.map((t, i) => {
+                          const at = picks.findIndex(p => p.date === day && p.time === t)
+                          const past = isPast(day, t)
+                          const taken = !past && isBusy(day, t)
+                          return (
+                            <motion.button key={t} type="button" disabled={past || taken} onClick={() => toggle(t)} title={taken ? 'Your agent is busy then' : undefined}
+                              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.015 }}
+                              whileTap={{ scale: 0.92 }}
+                              className={`relative rounded-xl border py-2.5 text-[12px] font-black transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${at > -1 ? 'border-[#111827] bg-[#111827] text-white dark:border-white dark:bg-white dark:text-[#111827]' : 'border-gray-200 text-[#111827] hover:border-[#C9A24D] dark:border-white/10 dark:text-white'}`}>
+                              <span className={taken ? 'line-through decoration-2 decoration-rose-400/70' : ''}>{timeLabel(t)}</span>
+                              {at > -1 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-[#C9A24D] text-[9px] font-black text-[#111827]">{at + 1}</motion.span>}
+                            </motion.button>
+                          )
+                        })}
+                      </motion.div>
+                    ) : (
+                      <motion.div key="locked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }}
+                        className="grid grid-cols-4 gap-1.5 opacity-40 sm:grid-cols-5" aria-hidden>
+                        {['1:00 PM', '1:30 PM', '2:00 PM', '2:30 PM', '3:00 PM'].map((t, i) => (
+                          <span key={t} className={`rounded-xl border border-dashed border-gray-300 py-2.5 text-center text-[12px] font-black text-gray-400 dark:border-white/15 ${i === 4 ? 'hidden sm:block' : ''}`}>{t}</span>
+                        ))}
+                      </motion.div>
+                    )}
                   </AnimatePresence>
+                  {picks.length > 0 && picks.length < maxPicks && stage === 3 && (
+                    <motion.p initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="mt-3 text-[12px] font-semibold text-gray-500 dark:text-gray-400">
+                      Nice. Want a backup? Tap another day above and pick another time.
+                    </motion.p>
+                  )}
 
                   {/* the chosen times */}
                   <div className="pb-2 pt-5">
@@ -439,6 +460,19 @@ function ScheduleTourWindow({
   )
 }
 
+// "1 Pick a day" over each part of the window: gold while it's the one to do, a check once done,
+// grey while it's still locked (user, 10/22 - make the order obvious).
+function StageLabel({ n, text, active, done, locked }: { n: number; text: string; active?: boolean; done?: boolean; locked?: boolean }) {
+  return (
+    <p className={`mb-1.5 mt-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] transition-colors duration-300 first:mt-0 ${active ? 'text-[#a8843a] dark:text-[#e8c97a]' : done ? 'text-gray-500 dark:text-gray-400' : 'text-gray-300 dark:text-gray-600'}`}>
+      <span className={`grid h-5 w-5 place-items-center rounded-full text-[9px] transition-all duration-300 ${done ? 'bg-[#C9A24D] text-[#111827]' : active ? 'bg-[#111827] text-white shadow-[0_0_0_3px_rgba(201,162,77,.3)] dark:bg-white dark:text-[#111827]' : 'bg-gray-100 text-gray-400 dark:bg-white/10'}`}>
+        {done ? '\u2713' : n}
+      </span>
+      {text}{locked && <span className="hidden sm:inline">&nbsp;- pick the step above first</span>}
+    </p>
+  )
+}
+
 // (555) 123-4567 as they type.
 const formatPhone = (v: string) => {
   const d = v.replace(/\D/g, '').replace(/^1(?=\d{10})/, '').slice(0, 10)
@@ -462,8 +496,8 @@ function Field({ label, value, onChange, placeholder, type = 'text', autoComplet
 const TOUR_CSS = `
 .tour-ken{animation:tourKen 16s ease-out both}
 @keyframes tourKen{from{transform:scale(1.15)}to{transform:scale(1.02)}}
-.tour-edge{background:linear-gradient(90deg,transparent 10%,#e8c97a 50%,transparent 90%);background-size:200% 100%;animation:tourEdge 6s ease-in-out infinite}
-@keyframes tourEdge{0%{background-position:150% 0}100%{background-position:-50% 0}}
+.tour-edge{background:linear-gradient(90deg,transparent 10%,#e8c97a 50%,transparent 90%);transform:translateX(-100%);animation:tourEdge 6s ease-in-out infinite;will-change:transform}
+@keyframes tourEdge{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
 .tour-spark{width:4px;height:4px;border-radius:999px;background:#e8c97a;box-shadow:0 0 10px 2px #e8c97a;opacity:0;animation:tourSpark 7s ease-in-out infinite}
 @keyframes tourSpark{0%{opacity:0;transform:translateY(0) scale(.5)}30%{opacity:.9;transform:translateY(-16px) scale(1)}100%{opacity:0;transform:translateY(-60px) scale(.5)}}
 .tour-shine:after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.45) 50%,transparent 65%);transform:translateX(-100%);animation:tourShine 3.4s ease-in-out infinite}

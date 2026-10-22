@@ -58,42 +58,71 @@ function Label({ children }: { children: React.ReactNode }) {
   return <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-gray-400">{children}</p>
 }
 
-export default function FormLookPicker({ value, hubLook, luxeAllowed, onChange, onApplyAll, applyAllLabel = 'Use this look on all my forms' }: {
+const sameLook = (a: FormLook, b: FormLook) => a.theme === b.theme && a.dark === b.dark && (a.theme === 'luxe' ? a.metal === b.metal : a.accent.toLowerCase() === b.accent.toLowerCase())
+
+export default function FormLookPicker({ value, hubLook, brandLook, luxeAllowed, onChange, onApplyAll, applyAllLabel = 'Use this look on all my forms' }: {
   value: FormLookFields
   hubLook: FormLook
+  /** Given = the two choices "My Brand Kit" (default) / "Choose my own" (forms' own pages). Without
+   *  it (the setup flow, until it moves over) the older "Match my Agent Hub" / "Its own look". */
+  brandLook?: FormLook
   luxeAllowed: boolean
   onChange: (patch: FormLookFields) => void
   /** Copies this look to every form. */
   onApplyAll?: () => Promise<boolean>
   applyAllLabel?: string
 }) {
-  const own = value.look_mode === 'custom'
-  const shown = resolveFormLook(value, hubLook, luxeAllowed)
-  const theme = own ? (value.look_theme === 'luxe' && luxeAllowed ? 'luxe' : 'classic') : hubLook.theme
+  // Brand mode: a legacy "match my hub" form reads as "My Brand Kit" when the hub wears the Brand
+  // Kit (same look), else as its own look (the hub's) - so what visitors see never changes.
+  const legacyHub = !!brandLook && value.look_mode !== 'custom' && value.look_mode !== 'brand'
+  const legacyOwn = legacyHub && !sameLook(resolveFormLook({ look_mode: 'hub' }, hubLook, luxeAllowed), resolveFormLook({ look_mode: 'brand' }, hubLook, luxeAllowed, brandLook))
+  const own = value.look_mode === 'custom' || legacyOwn
+  const base = brandLook || hubLook
+  const shown = resolveFormLook(value, hubLook, luxeAllowed, brandLook)
+  const theme = value.look_mode === 'custom' ? (value.look_theme === 'luxe' && luxeAllowed ? 'luxe' : 'classic') : shown.theme
   const [applied, setApplied] = useState<'idle' | 'busy' | 'done' | 'error'>('idle')
   useEffect(() => { setApplied('idle') }, [JSON.stringify(value)]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Its own look starts from the hub's, so the first tap changes nothing until they pick.
+  // Its own look starts from the one it wears now, so the first tap changes nothing until they pick.
   const goOwn = () => {
-    if (own) return
+    if (value.look_mode === 'custom') return
+    if (brandLook) {
+      onChange({ look_mode: 'custom', look_theme: shown.theme, accent_color: shown.accent, luxe_metal: shown.metal, dark_mode: shown.dark })
+      return
+    }
     const accentKnown = !!colorName(value.accent_color || '')
     onChange({ look_mode: 'custom', look_theme: hubLook.theme, accent_color: accentKnown ? value.accent_color : hubLook.accent, luxe_metal: hubLook.metal, dark_mode: hubLook.dark })
   }
-  const metal = (value.luxe_metal as LuxeMetal) || 'gold'
-  const accent = (value.accent_color || hubLook.accent).toLowerCase()
+  // A picked control on a legacy own (hub) look pins it as the form's own first.
+  const pick = (patch: FormLookFields) => {
+    if (value.look_mode !== 'custom') onChange({ look_mode: 'custom', look_theme: shown.theme, accent_color: shown.accent, luxe_metal: shown.metal, dark_mode: shown.dark, ...patch })
+    else onChange(patch)
+  }
+  const metal = (value.look_mode === 'custom' ? value.luxe_metal as LuxeMetal : shown.metal) || 'gold'
+  const accent = (value.look_mode === 'custom' ? value.accent_color || base.accent : shown.accent).toLowerCase()
+  const brandShown = brandLook ? resolveFormLook({ look_mode: 'brand' }, hubLook, luxeAllowed, brandLook) : null
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3">
-        <Tile on={!own} onClick={() => onChange({ look_mode: 'hub' })} title="Match my Agent Hub" blurb={formLookName(resolveFormLook({ look_mode: 'hub' }, hubLook, luxeAllowed))}>
-          <div className="relative">
-            <FormLookThumb look={resolveFormLook({ look_mode: 'hub' }, hubLook, luxeAllowed)} className="h-24" />
-            <span className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-[#8b6a2b] shadow-sm dark:bg-black/60 dark:text-[#e8c97a]"><Layers className="h-3.5 w-3.5" /></span>
-          </div>
-        </Tile>
-        <Tile on={own} onClick={goOwn} title="Its own look" blurb={own ? formLookName(shown) : 'Pick a style, color and light or dark.'}>
-          <div className="relative">
-            <FormLookThumb look={own ? shown : { ...hubLook, theme: 'classic', accent: '#2563EB' }} className="h-24" />
+        {brandShown ? (
+          <Tile on={!own} onClick={() => onChange({ look_mode: 'brand' })} title="My Brand Kit" blurb={formLookName(brandShown)}>
+            <div className="relative" data-testid="form-look-brand">
+              <FormLookThumb look={brandShown} className="h-24" />
+              <span className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-[#8b6a2b] shadow-sm dark:bg-black/60 dark:text-[#e8c97a]"><Layers className="h-3.5 w-3.5" /></span>
+            </div>
+          </Tile>
+        ) : (
+          <Tile on={!own} onClick={() => onChange({ look_mode: 'hub' })} title="Match my Agent Hub" blurb={formLookName(resolveFormLook({ look_mode: 'hub' }, hubLook, luxeAllowed))}>
+            <div className="relative">
+              <FormLookThumb look={resolveFormLook({ look_mode: 'hub' }, hubLook, luxeAllowed)} className="h-24" />
+              <span className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-[#8b6a2b] shadow-sm dark:bg-black/60 dark:text-[#e8c97a]"><Layers className="h-3.5 w-3.5" /></span>
+            </div>
+          </Tile>
+        )}
+        <Tile on={own} onClick={goOwn} title={brandShown ? 'Choose my own' : 'Its own look'} blurb={own ? formLookName(shown) : 'Pick a style, color and Ivory or Midnight.'}>
+          <div className="relative" data-testid="form-look-own">
+            <FormLookThumb look={own ? shown : { ...base, theme: 'classic', accent: '#2563EB' }} className="h-24" />
             <span className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-[#8b6a2b] shadow-sm dark:bg-black/60 dark:text-[#e8c97a]"><Sparkles className="h-3.5 w-3.5" /></span>
           </div>
         </Tile>
@@ -105,10 +134,10 @@ export default function FormLookPicker({ value, hubLook, luxeAllowed, onChange, 
             <div>
               <Label>Style</Label>
               <div className="grid grid-cols-2 gap-3">
-                <Tile on={theme === 'classic'} onClick={() => onChange({ look_theme: 'classic' })} title="Classic" blurb="Clean, in your color.">
+                <Tile on={theme === 'classic'} onClick={() => pick({ look_theme: 'classic' })} title="Classic" blurb="Clean, in your color.">
                   <FormLookThumb look={{ ...shown, theme: 'classic' }} className="h-20" />
                 </Tile>
-                <Tile on={theme === 'luxe'} disabled={!luxeAllowed} onClick={() => onChange({ look_theme: 'luxe' })} title="Luxe"
+                <Tile on={theme === 'luxe'} disabled={!luxeAllowed} onClick={() => pick({ look_theme: 'luxe' })} title="Luxe"
                   blurb={luxeAllowed ? 'Metal shine and a serif title.' : 'Included with the IDX plan.'}
                   badge={!luxeAllowed ? <span className="rounded-full bg-[#111827] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#e8c97a]">IDX</span> : undefined}>
                   <FormLookThumb look={{ ...shown, theme: 'luxe' }} className="h-20" />
@@ -124,7 +153,7 @@ export default function FormLookPicker({ value, hubLook, luxeAllowed, onChange, 
                     const on = metal === m
                     const c = LUXE_METALS[m]
                     return (
-                      <button key={m} type="button" role="radio" aria-checked={on} onClick={() => onChange({ luxe_metal: m })}
+                      <button key={m} type="button" role="radio" aria-checked={on} onClick={() => pick({ luxe_metal: m })}
                         className={`flex items-center gap-2 rounded-full border-2 py-1 pl-1 pr-3.5 text-[13px] font-black transition ${on ? 'border-[#111827] dark:border-white' : 'border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.05]'} text-[#111827] dark:text-white`}>
                         <span className="h-7 w-7 rounded-full" style={{ background: `conic-gradient(from 210deg, ${c.deep}, ${c.light}, ${c.pale}, ${c.base}, ${c.deep})`, boxShadow: `inset 0 0 0 1px rgba(0,0,0,.08)` }} />
                         {c.label}
@@ -134,7 +163,7 @@ export default function FormLookPicker({ value, hubLook, luxeAllowed, onChange, 
                   : HUB_CLASSIC_ACCENTS.map(a => {
                     const on = accent === a.color.toLowerCase()
                     return (
-                      <button key={a.color} type="button" role="radio" aria-checked={on} title={a.label} aria-label={a.label} onClick={() => onChange({ accent_color: a.color })}
+                      <button key={a.color} type="button" role="radio" aria-checked={on} title={a.label} aria-label={a.label} onClick={() => pick({ accent_color: a.color })}
                         className={`relative grid h-10 w-10 place-items-center rounded-full transition hover:scale-105 ${on ? 'ring-2 ring-[#111827] ring-offset-2 ring-offset-white dark:ring-white dark:ring-offset-[#141416]' : ''}`}
                         style={{ background: a.color, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.08)' }}>
                         {on && <Check className="h-4 w-4" strokeWidth={3.5} style={{ color: formPaint({ ...shown, theme: 'classic', accent: a.color, dark: false }).ink }} />}
@@ -146,15 +175,15 @@ export default function FormLookPicker({ value, hubLook, luxeAllowed, onChange, 
             </div>
 
             <div>
-              <Label>Light or dark</Label>
+              <Label>Ivory or Midnight</Label>
               <div className="grid grid-cols-2 gap-2 rounded-2xl bg-black/[0.04] p-1 dark:bg-white/[0.05]">
                 {[false, true].map(d => {
-                  const on = !!value.dark_mode === d
+                  const on = (value.look_mode === 'custom' ? !!value.dark_mode : shown.dark) === d
                   return (
-                    <button key={String(d)} type="button" onClick={() => onChange({ dark_mode: d })} aria-pressed={on}
+                    <button key={String(d)} type="button" onClick={() => pick({ dark_mode: d })} aria-pressed={on}
                       className={`relative flex items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-black transition ${on ? 'text-[#111827] dark:text-white' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
                       {on && <motion.span layoutId="form-look-mode" className="absolute inset-0 rounded-xl bg-white shadow-sm dark:bg-[#26262a]" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
-                      <span className="relative flex items-center gap-2">{d ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}{d ? 'Dark' : 'Light'}</span>
+                      <span className="relative flex items-center gap-2">{d ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}{d ? 'Midnight' : 'Ivory'}</span>
                     </button>
                   )
                 })}

@@ -14,20 +14,22 @@ import { useAuth } from '@/contexts/AuthContext'
 import { stepCopy } from '@/lib/setupFlow'
 import { OhpWordmark } from '@/components/brand/OhpBrand'
 import OhpLoader from '@/components/brand/OhpLoader'
-import type { Gate, StepCtx } from '@/components/setup/SetupUi'
+import type { Gate, Mini, StepCtx } from '@/components/setup/SetupUi'
 import { AboutStep, ContactStep, LicenseStep, PhotoStep, SocialsStep, StoryStep } from '@/components/setup/InfoSteps'
 import { BrandStep, FormsStep, HubStep, ReviewsStep, SalesStep, SignatureStep } from '@/components/setup/FeatureSteps'
 import { AlertsStep, AreasStep, CalendarStep, CrmStep, HomesStep, MailboxStep, WebsiteStep } from '@/components/setup/ConnectSteps'
 import { DomainStep } from '@/components/setup/DomainStep'
+import { OpenHouseStep } from '@/components/setup/OpenHouseStep'
 
 const STEP_VIEWS: Record<SetupStepId, (p: { ctx: StepCtx }) => React.ReactElement> = {
   about: AboutStep, contact: ContactStep, license: LicenseStep, photo: PhotoStep, story: StoryStep, socials: SocialsStep,
   sales: SalesStep, reviews: ReviewsStep, brand: BrandStep, hub: HubStep, forms: FormsStep, signature: SignatureStep,
-  alerts: AlertsStep, calendar: CalendarStep, mailbox: MailboxStep, crm: CrmStep, areas: AreasStep, homes: HomesStep, website: WebsiteStep, domain: DomainStep,
+  openhouse: OpenHouseStep, alerts: AlertsStep, calendar: CalendarStep, mailbox: MailboxStep, crm: CrmStep, areas: AreasStep, homes: HomesStep, website: WebsiteStep, domain: DomainStep,
 }
 const GROUPS: { title: string; ids: SetupStepId[] }[] = [
   { title: 'About you', ids: ['about', 'contact', 'license', 'photo', 'story', 'socials'] },
   { title: 'Your pages', ids: ['sales', 'reviews', 'brand', 'hub', 'forms', 'signature'] },
+  { title: 'Your open houses', ids: ['openhouse'] },
   { title: 'Staying in touch', ids: ['alerts', 'calendar', 'mailbox', 'crm'] },
   { title: 'Your website', ids: ['areas', 'homes', 'website', 'domain'] },
 ]
@@ -64,6 +66,10 @@ function SetupFlow() {
   const [notice, setNotice] = useState<{ text: string; step: SetupStepId } | null>(null)
   const [newIds, setNewIds] = useState<string[]>([])
   const gate = useRef<Gate>({ ok: true })
+  // A step split into pages (Agent Hub, Brand, Signature...): where it is, for the bottom bar.
+  const [mini, setMiniState] = useState<Mini | null>(null)
+  // Only a Back press opens a step on its last page; any other way in starts at page 1.
+  const enteredFromEnd = useRef<SetupStepId | null>(null)
   const pending = useRef<SetupInfoPatch | null>(null)
   const timer = useRef<number | undefined>(undefined)
   const inflight = useRef<Promise<unknown> | null>(null)
@@ -149,6 +155,8 @@ function SetupFlow() {
   const goTo = useCallback((id: SetupStepId | 'done') => {
     setGateMsg('')
     gate.current = { ok: true }
+    enteredFromEnd.current = null
+    setMiniState(null)
     setCurrent(id)
     setSheetOpen(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -163,6 +171,8 @@ function SetupFlow() {
   }
   const onContinue = async () => {
     if (!current || current === 'done' || advancing) return
+    // the step's own pages first - each one saves as it's changed, so nothing to wait for
+    if (mini && mini.part < mini.count - 1) { setGateMsg(''); mini.go(mini.part + 1); return }
     setAdvancing(true)
     try {
       await flush()
@@ -188,13 +198,16 @@ function SetupFlow() {
   }
   const onBack = () => {
     if (!current) return
+    if (mini && mini.part > 0) { setGateMsg(''); mini.go(mini.part - 1); return }
     const i = current === 'done' ? ids.length : ids.indexOf(current)
-    if (i > 0) goTo(ids[i - 1] as SetupStepId)
+    if (i > 0) { goTo(ids[i - 1] as SetupStepId); enteredFromEnd.current = ids[i - 1] }
   }
 
   const ctx: StepCtx | null = data ? {
     data, setData, saveInfo, markSaving, plan: data.plan,
     setGate: (g: Gate) => { gate.current = g; if (g.ok) setGateMsg('') },
+    setMini: setMiniState,
+    enteredFromEnd: enteredFromEnd.current === current,
   } : null
 
   if (isLoading || (!data && !loadError) || !current) return <OhpLoader />
@@ -211,6 +224,7 @@ function SetupFlow() {
   const View = step ? STEP_VIEWS[step.id] : null
   const firstName = (data.info.name || user?.first_name || '').split(' ')[0]
   const wide = !!step && WIDE_STEPS.includes(step.id)
+  const headFolded = !!mini && mini.part > 0
   const frame = `mx-auto transition-[max-width] duration-500 ${wide ? 'max-w-[1760px]' : 'max-w-[1220px]'}`
 
   const stepList = (
@@ -220,7 +234,7 @@ function SetupFlow() {
         if (!items.length) return null
         return (
           <div key={g.title}>
-            <p className="mb-2 px-3 text-[10px] font-black uppercase tracking-[0.26em] text-[#8b7355] dark:text-[#d7b974]">{g.title}</p>
+            <p className="mb-2 px-3 text-[10px] font-black uppercase tracking-[0.26em] text-[#8b7355] dark:text-[#d7b974]">{g.title === 'Your website' && data.plan !== 'IDX' ? 'Your towns' : g.title}</p>
             <ul className="space-y-1">
               {items.map(s => {
                 const c = stepCopy(s.id, data.plan, data.has_mls)
@@ -265,7 +279,7 @@ function SetupFlow() {
         </div>
       </header>
 
-      <div className={`relative ${frame} px-4 pb-40 pt-6 sm:px-6 lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:pt-10 ${wide ? 'lg:gap-8' : 'lg:gap-10'}`}>
+      <div className={`relative isolate z-0 ${frame} px-4 pb-32 pt-6 sm:px-6 lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:pt-10 ${wide ? 'lg:gap-8' : 'lg:gap-10'}`}>
         {/* step list - desktop */}
         <aside className="hidden lg:block">
           <div className="sticky top-24 rounded-[28px] border border-[#C9A24D]/20 bg-white/60 p-4 shadow-[0_30px_60px_-46px_rgba(139,106,43,.8)] dark:border-white/[0.07] dark:bg-white/[0.03]">
@@ -316,29 +330,46 @@ function SetupFlow() {
                 <div className="relative overflow-hidden border-b border-[#C9A24D]/15 bg-gradient-to-br from-[#fffaf0] via-white to-[#f8f1e2] px-6 pb-7 pt-7 dark:border-white/[0.06] dark:from-[#1a1712] dark:via-[#141416] dark:to-[#121214] sm:px-10 sm:pt-9">
                   <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[#e8c97a]/30 blur-3xl dark:bg-[#C9A24D]/15" />
                   <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/70 to-transparent" />
+                  {/* Phones: the icon sits small on the "Step x of y" line and the title gets the full
+                      width (it used to push all the words right, leaving a gap under it - owner 10/22). */}
                   <div className="relative flex items-start gap-5">
-                    <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-[0_18px_34px_-16px_rgba(17,24,39,.9)] ring-1 ring-[#C9A24D]/40 max-sm:h-12 max-sm:w-12 max-sm:rounded-2xl">
-                      <copy.icon className="h-7 w-7 max-sm:h-6 max-sm:w-6" />
+                    <span className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-[0_18px_34px_-16px_rgba(17,24,39,.9)] ring-1 ring-[#C9A24D]/40 sm:flex">
+                      <copy.icon className="h-7 w-7" />
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-[0.26em] text-[#8b7355] dark:text-[#d7b974]">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] ring-1 ring-[#C9A24D]/40 sm:hidden"><copy.icon className="h-[18px] w-[18px]" /></span>
                         Step {stepIndex + 1} of {total}
                         {step.required ? <span className="rounded-full bg-[#111827] px-2 py-0.5 text-[9px] tracking-wider text-[#e8c97a] dark:bg-[#C9A24D] dark:text-[#111827]">Needed</span> : <span className="rounded-full border border-[#C9A24D]/40 px-2 py-0.5 text-[9px] tracking-wider">Can skip</span>}
                         {newIds.includes(step.id) && <span className="rounded-full bg-[#C9A24D] px-2 py-0.5 text-[9px] tracking-wider text-white">New for your plan</span>}
                         {step.status === 'done' && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] tracking-wider text-white"><Check className="h-3 w-3" /> Done</span>}
                       </p>
-                      <h1 className="mt-2 font-serif text-[30px] font-black leading-[1.05] tracking-tight sm:text-[40px]">
-                        {copy.title[0]}<em className="bg-gradient-to-r from-[#a8803a] via-[#C9A24D] to-[#d9b867] bg-clip-text font-black italic text-transparent">{copy.title[1]}</em>
+                      {/* The gold italic word is painted through its own box (bg-clip-text), so a slanted
+                          last letter (the "s" of "sales") was cut off - the box gets a little room on
+                          the right and below for the overhang (owner, 10/22). */}
+                      <h1 className="mt-2 font-serif text-[29px] font-black leading-[1.12] tracking-tight [overflow-wrap:anywhere] sm:text-[40px] sm:leading-[1.08]">
+                        {copy.title[0]}<em className="-mr-[0.14em] bg-gradient-to-r from-[#a8803a] via-[#C9A24D] to-[#d9b867] bg-clip-text pb-[0.12em] pr-[0.14em] font-black italic text-transparent [box-decoration-break:clone]">{copy.title[1]}</em>
                       </h1>
-                      <p className="mt-3 max-w-2xl text-[16.5px] font-medium leading-relaxed text-gray-600 dark:text-gray-300">{copy.intro}</p>
+                      {/* Past a step's first page the intro folds away, so each page's questions sit
+                          right under the title (owner, 10/22). */}
+                      <AnimatePresence initial={false}>
+                        {!headFolded && (
+                          <motion.p key="intro" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                            className="max-w-2xl overflow-hidden text-[16.5px] font-medium leading-relaxed text-gray-600 dark:text-gray-300"><span className="block pt-3">{copy.intro}</span></motion.p>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </div>
-                  {copy.powers.length > 0 && (
-                    <div className="relative mt-6 flex flex-wrap items-center gap-2">
-                      <span className="mr-1 text-[12px] font-black text-gray-500 dark:text-gray-400">Shows up on:</span>
-                      {copy.powers.map(p => <span key={p} className="inline-flex items-center gap-1.5 rounded-full border border-[#C9A24D]/35 bg-white/90 px-3 py-1.5 text-[12.5px] font-bold text-[#111827] dark:border-white/10 dark:bg-white/[0.05] dark:text-white"><Check className="h-3.5 w-3.5 text-[#C9A24D]" />{p}</span>)}
-                    </div>
-                  )}
+                  <AnimatePresence initial={false}>
+                    {copy.powers.length > 0 && !headFolded && (
+                      <motion.div key="powers" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} className="relative overflow-hidden">
+                        <div className="flex flex-wrap items-center gap-2 pt-6">
+                          <span className="mr-1 text-[12px] font-black text-gray-500 dark:text-gray-400">Shows up on:</span>
+                          {copy.powers.map(p => <span key={p} className="inline-flex items-center gap-1.5 rounded-full border border-[#C9A24D]/35 bg-white/90 px-3 py-1.5 text-[12.5px] font-bold text-[#111827] dark:border-white/10 dark:bg-white/[0.05] dark:text-white"><Check className="h-3.5 w-3.5 text-[#C9A24D]" />{p}</span>)}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* step body */}
@@ -361,23 +392,26 @@ function SetupFlow() {
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#C9A24D]/20 bg-[#fbf8f2] pb-[env(safe-area-inset-bottom)] dark:border-white/[0.07] dark:bg-[#0c0c0d]">
           <AnimatePresence>
             {gateMsg && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`${frame} px-4 pt-3 sm:px-6 ${wide ? 'lg:pl-[318px]' : 'lg:pl-[326px]'}`}>
-                <motion.p key={shake} animate={{ x: [0, -8, 8, -5, 5, 0] }} transition={{ duration: 0.4 }} className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-4 py-2 text-[14px] font-bold text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"><CircleAlert className="h-4 w-4" /> {gateMsg}</motion.p>
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`${frame} px-3 pt-2 sm:px-6 sm:pt-3 ${wide ? 'lg:pl-[318px]' : 'lg:pl-[326px]'}`}>
+                <motion.p key={shake} animate={{ x: [0, -8, 8, -5, 5, 0] }} transition={{ duration: 0.4 }} className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-3.5 py-1.5 text-[13.5px] font-bold text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"><CircleAlert className="h-4 w-4" /> {gateMsg}</motion.p>
               </motion.div>
             )}
           </AnimatePresence>
-          <div className={`${frame} flex items-center gap-2 px-4 py-3 sm:gap-3 sm:px-6 ${wide ? 'lg:pl-[318px]' : 'lg:pl-[326px]'}`}>
-            <button type="button" onClick={onBack} disabled={stepIndex === 0} className="inline-flex h-14 items-center gap-2 rounded-2xl px-3 text-[15px] font-black text-gray-600 transition hover:bg-black/5 disabled:opacity-30 dark:text-gray-300 dark:hover:bg-white/5 sm:px-5">
+          {/* Slim on phones (owner, 10/22): 44px buttons - still easy to tap - in a 60px bar. */}
+          <div className={`${frame} flex items-center gap-2 px-3 py-2 sm:gap-3 sm:px-6 sm:py-2.5 ${wide ? 'lg:pl-[318px]' : 'lg:pl-[326px]'}`}>
+            <button type="button" onClick={onBack} disabled={stepIndex === 0 && !(mini && mini.part > 0)} aria-label="Back" className="inline-flex h-11 min-w-[44px] items-center justify-center gap-2 rounded-xl px-2.5 text-[15px] font-black text-gray-600 transition hover:bg-black/5 disabled:opacity-30 dark:text-gray-300 dark:hover:bg-white/5 sm:h-12 sm:rounded-2xl sm:px-5">
               <ArrowLeft className="h-5 w-5" /> <span className="max-sm:sr-only">Back</span>
             </button>
             <div className="flex-1" />
             {!step.required && step.status !== 'done' && (
-              <button type="button" onClick={onSkip} className="h-14 rounded-2xl px-4 text-[15px] font-black text-gray-500 underline-offset-4 transition hover:text-[#111827] hover:underline dark:text-gray-400 dark:hover:text-white sm:px-5">Skip for now</button>
+              <button type="button" onClick={onSkip} className="h-11 rounded-xl px-3 text-[14px] font-black text-gray-500 underline-offset-4 transition hover:text-[#111827] hover:underline dark:text-gray-400 dark:hover:text-white sm:h-12 sm:rounded-2xl sm:px-5 sm:text-[15px]">Skip for now</button>
             )}
-            <button type="button" onClick={onContinue} disabled={advancing} className="group inline-flex h-14 items-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#111827] to-[#2a2218] px-7 text-[17px] font-black text-white shadow-[0_18px_34px_-16px_rgba(17,24,39,.9)] ring-1 ring-[#C9A24D]/40 transition hover:-translate-y-0.5 disabled:opacity-70 dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827] sm:px-9">
-              {advancing ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-              {stepIndex === total - 1 ? 'Finish' : 'Continue'}
-              {!advancing && <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />}
+            <button type="button" onClick={onContinue} disabled={advancing} className="group inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-[#111827] to-[#2a2218] px-5 text-[15px] font-black text-white shadow-[0_14px_28px_-16px_rgba(17,24,39,.9)] ring-1 ring-[#C9A24D]/40 transition hover:-translate-y-0.5 disabled:opacity-70 dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827] sm:h-12 sm:rounded-2xl sm:px-8 sm:text-[16px]">
+              {advancing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {mini && mini.part < mini.count - 1
+                ? <span>Next<span className="max-sm:hidden">: {mini.labels[mini.part + 1]}</span></span>
+                : stepIndex === total - 1 ? 'Finish' : 'Continue'}
+              {!advancing && <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 sm:h-5 sm:w-5" />}
             </button>
           </div>
         </div>
@@ -450,7 +484,7 @@ function Finale({ data, firstName, onGo }: { data: SetupData; firstName: string;
   const hubUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/${data.slug}`
   const [copied, setCopied] = useState(false)
   const links: { label: string; href: string; ext?: boolean }[] = []
-  if (hub) links.push({ label: 'Open my Agent Hub', href: `/${data.slug}`, ext: true })
+  if (hub) links.push({ label: 'Open my Agent Hub', href: `/${data.slug}?intro=0`, ext: true })
   if (data.plan === 'IDX' || data.plan === 'PRO_NO_MLS') links.push({ label: 'My email signature', href: '/studio/email-signature' })
   if (data.plan === 'IDX') links.push({ label: 'My website', href: '/studio/website' })
   return (
@@ -463,7 +497,7 @@ function Finale({ data, firstName, onGo }: { data: SetupData; firstName: string;
         <Sparkles className="h-9 w-9" />
       </motion.div>
       <h1 className="relative mt-6 font-serif text-[34px] font-black leading-tight tracking-tight sm:text-[46px]">
-        {todo.length ? <>Almost <em className="bg-gradient-to-r from-[#a8803a] via-[#C9A24D] to-[#d9b867] bg-clip-text italic text-transparent">there</em>{firstName ? `, ${firstName}` : ''}</> : <>You&apos;re all <em className="bg-gradient-to-r from-[#a8803a] via-[#C9A24D] to-[#d9b867] bg-clip-text italic text-transparent">set</em>{firstName ? `, ${firstName}` : ''}!</>}
+        {todo.length ? <>Almost <em className="bg-gradient-to-r from-[#a8803a] via-[#C9A24D] to-[#d9b867] bg-clip-text pb-[0.1em] pr-[0.12em] italic text-transparent [box-decoration-break:clone]">there</em>{firstName ? `, ${firstName}` : ''}</> : <>You&apos;re all <em className="bg-gradient-to-r from-[#a8803a] via-[#C9A24D] to-[#d9b867] bg-clip-text pb-[0.1em] pr-[0.12em] italic text-transparent [box-decoration-break:clone]">set</em>{firstName ? `, ${firstName}` : ''}!</>}
       </h1>
       <p className="relative mx-auto mt-3 max-w-xl text-[16.5px] font-medium leading-relaxed text-gray-600 dark:text-gray-300">
         {!data.approved
@@ -492,6 +526,7 @@ function Finale({ data, firstName, onGo }: { data: SetupData; firstName: string;
           : data.approved
             ? <Link href="/checkout" className="inline-flex h-14 items-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#111827] to-[#2a2218] px-9 text-[17px] font-black text-white ring-1 ring-[#C9A24D]/40">Pick my plan <ArrowRight className="h-5 w-5" /></Link>
             : <Link href="/broker-authorization" className="inline-flex h-14 items-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#111827] to-[#2a2218] px-9 text-[17px] font-black text-white ring-1 ring-[#C9A24D]/40">Done for now <ArrowRight className="h-5 w-5" /></Link>}
+        {data.steps.length > 0 && <p className="mt-5"><button type="button" onClick={() => onGo(data.steps[0].id)} className="text-[14px] font-black text-[#8b6a2b] underline-offset-4 hover:underline dark:text-[#e8c97a]">Go through every step again</button></p>}
       </div>
     </div>
   )

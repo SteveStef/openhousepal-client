@@ -4,11 +4,15 @@
 // a website form before: large type, one plain label per box, a short hint under it, and choices
 // as tappable cards instead of dropdowns.
 import { useEffect, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 import { Check, ChevronDown, Lock } from 'lucide-react'
 import type { SetupData, SetupInfoPatch } from '@/lib/api-service'
 import OhpSwitch from '@/components/ui/OhpSwitch'
 
 export type Gate = { ok: boolean; message?: string; onContinue?: () => Promise<boolean | void> }
+/** A long step split into a few short pages (owner, 10/22: "mini flows within them"). The bottom
+ *  bar's Continue / Back walk the pages first, then move between steps. */
+export type Mini = { part: number; count: number; labels: string[]; go: (i: number) => void }
 export type StepCtx = {
   data: SetupData
   setData: (d: SetupData) => void
@@ -18,6 +22,10 @@ export type StepCtx = {
   markSaving: (p: Promise<unknown>) => void
   setGate: (g: Gate) => void
   plan: string | null
+  /** a step with pages tells the bottom bar where it is */
+  setMini: (m: Mini | null) => void
+  /** they came Back into this step from the next one - open it on its last page */
+  enteredFromEnd: boolean
 }
 
 /** Register this step's Continue rule; re-registers whenever deps change. */
@@ -30,7 +38,77 @@ export function useGate(ctx: StepCtx, gate: Gate, deps: unknown[]) {
   }, deps)
 }
 
-export const inputCls = 'block w-full rounded-2xl border-2 border-[#e7dfcf] bg-white px-5 py-4 text-[17px] font-semibold text-[#111827] shadow-[inset_0_1px_2px_rgba(17,24,39,.04)] outline-none transition placeholder:font-medium placeholder:text-gray-400 focus:border-[#C9A24D] focus:shadow-[0_0_0_5px_rgba(201,162,77,.16)] dark:border-white/10 dark:bg-[#0e0e10] dark:text-white dark:placeholder:text-gray-500 dark:focus:border-[#C9A24D]'
+/** Split a long step into short pages. `labels` are one word each - they sit side by side in the
+ *  strip on a phone. Pages that only exist sometimes: leave them out of both lists. */
+export function useMiniFlow(ctx: StepCtx, labels: string[]) {
+  const count = labels.length
+  const [raw, setPart] = useState(() => (ctx.enteredFromEnd ? count - 1 : 0))
+  const part = Math.max(0, Math.min(raw, count - 1))
+  const partRef = useRef(part)
+  partRef.current = part
+  const go = useRef((i: number) => {})
+  go.current = (i: number) => {
+    const n = Math.max(0, Math.min(count - 1, i))
+    if (n === partRef.current) return
+    setPart(n)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+  const key = labels.join('|')
+  useEffect(() => { ctx.setMini({ part, count, labels, go: i => go.current(i) }) }, [part, key]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => ctx.setMini(null), []) // eslint-disable-line react-hooks/exhaustive-deps
+  return { part, labels, go: (i: number) => go.current(i) }
+}
+export type MiniFlowState = ReturnType<typeof useMiniFlow>
+
+/** The strip of pages (tap one to jump there) and the page itself, sliding in from the side it's on.
+ *  Every page stays mounted (just hidden), so what's typed, loaded or mid-save on one page is still
+ *  there when they come back - nothing reloads or flashes old values. */
+export function MiniFlow({ flow, pages }: { flow: MiniFlowState; pages: React.ReactNode[] }) {
+  const { part, labels, go } = flow
+  return (
+    <div className="min-w-0">
+      <MiniSteps labels={labels} part={part} onPick={go} />
+      {/* a hidden page waits on the side it will come from: later pages to the right, earlier left */}
+      {pages.map((p, i) => (
+        <motion.div key={i} hidden={i !== part} data-mini-page={i} initial={false}
+          variants={{ away: { opacity: 0, x: i > part ? 26 : -26, transition: { duration: 0 } }, here: { opacity: 1, x: 0 } }}
+          animate={i === part ? 'here' : 'away'}
+          transition={{ x: { type: 'spring', stiffness: 340, damping: 32 }, opacity: { duration: 0.2 } }}>
+          {p}
+        </motion.div>
+      ))}
+    </div>
+  )
+}
+
+function MiniSteps({ labels, part, onPick }: { labels: string[]; part: number; onPick: (i: number) => void }) {
+  if (labels.length < 2) return null
+  return (
+    <div className="mb-7" data-mini-steps>
+      {/* Phones: only the page you're on shows its name (its pill grows to fit it); the rest are a
+          number, or a check once passed - names never get cut off. Wider screens show every name. */}
+      <div className="flex gap-1 rounded-2xl bg-[#f4efe4] p-1 dark:bg-white/[0.05]">
+        {labels.map((l, i) => {
+          const on = i === part
+          const done = i < part
+          return (
+            <button key={l} type="button" onClick={() => onPick(i)} aria-current={on ? 'step' : undefined} aria-label={`${i + 1}. ${l}`}
+              style={{ flexGrow: on ? 2.6 : 1 }}
+              className={`relative flex h-11 min-w-0 basis-0 items-center justify-center gap-1.5 rounded-xl px-1.5 text-[13.5px] font-black transition-[flex-grow,color] duration-300 ease-out sm:gap-2 sm:text-[14px] sm:!grow ${on ? 'text-white dark:text-[#111827]' : done ? 'text-[#8b6a2b] dark:text-[#e8c97a]' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
+              {on && <motion.span layoutId="setup-mini-pill" className="absolute inset-0 rounded-xl bg-gradient-to-r from-[#111827] to-[#2a2218] shadow-[0_10px_22px_-14px_rgba(17,24,39,.9)] ring-1 ring-[#C9A24D]/40 dark:from-[#C9A24D] dark:to-[#e8c97a]" transition={{ type: 'spring', stiffness: 420, damping: 36 }} />}
+              <span className={`relative grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10.5px] font-black transition-colors ${on ? 'bg-[#e8c97a] text-[#111827] dark:bg-[#111827] dark:text-[#e8c97a]' : done ? 'bg-[#C9A24D] text-white' : 'bg-black/[0.06] dark:bg-white/10'}`}>
+                {done ? <Check className="h-3 w-3" strokeWidth={3.5} /> : i + 1}
+              </span>
+              <span className={`relative truncate ${on ? '' : 'max-sm:hidden'}`}>{l}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export const inputCls ='block w-full rounded-2xl border-2 border-[#e7dfcf] bg-white px-5 py-4 text-[17px] font-semibold text-[#111827] shadow-[inset_0_1px_2px_rgba(17,24,39,.04)] outline-none transition placeholder:font-medium placeholder:text-gray-400 focus:border-[#C9A24D] focus:shadow-[0_0_0_5px_rgba(201,162,77,.16)] dark:border-white/10 dark:bg-[#0e0e10] dark:text-white dark:placeholder:text-gray-500 dark:focus:border-[#C9A24D]'
 
 export function Field({ label, hint, required, value, onChange, placeholder, type = 'text', inputMode, autoComplete, onBlur, invalid, maxLength, children }: {
   label: string; hint?: string; required?: boolean; value: string; onChange: (v: string) => void; placeholder?: string
@@ -153,7 +231,7 @@ export function BigToggle({ on, onChange, title, blurb, disabled }: { on: boolea
  *  screen size, or (`desktopOnly`) only where there's room for it to stay. */
 export function PinnedPreview({ children, desktopOnly = false }: { children: React.ReactNode; desktopOnly?: boolean }) {
   return (
-    <div className={`${desktopOnly ? 'lg:sticky' : 'sticky'} top-[67px] z-20 -mx-6 -mt-8 border-b border-[#C9A24D]/15 bg-white/95 px-6 pb-5 pt-5 shadow-[0_18px_30px_-28px_rgba(17,24,39,.5)] dark:border-white/[0.06] dark:bg-[#121214]/95 sm:-mx-10 sm:-mt-10 sm:px-10`}>
+    <div className={`${desktopOnly ? 'lg:sticky' : 'sticky'} top-[67px] isolate z-20 -mx-6 -mt-8 border-b border-[#C9A24D]/15 bg-white/95 px-6 pb-5 pt-5 shadow-[0_18px_30px_-28px_rgba(17,24,39,.5)] dark:border-white/[0.06] dark:bg-[#121214]/95 sm:-mx-10 sm:-mt-10 sm:px-10`}>
       {children}
     </div>
   )
@@ -166,7 +244,7 @@ export function SplitPreview({ preview, children }: { preview: React.ReactNode; 
   return (
     <div className="[--setup-prev-h:420px] lg:grid lg:grid-cols-[minmax(300px,340px)_minmax(0,1fr)] lg:gap-6 lg:[--setup-prev-h:max(480px,calc(100vh_-_236px))] xl:grid-cols-[minmax(330px,370px)_minmax(0,1fr)] xl:gap-8 2xl:grid-cols-[minmax(380px,460px)_minmax(0,1fr)] 2xl:gap-10">
       <div className="mb-8 lg:order-2 lg:mb-0">
-        <div className="lg:sticky lg:top-[92px]">{preview}</div>
+        <div className="relative isolate z-0 lg:sticky lg:top-[92px]">{preview}</div>
       </div>
       <div className="min-w-0 space-y-8 lg:order-1">{children}</div>
     </div>

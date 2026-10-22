@@ -93,6 +93,24 @@ export const pickRotatingSales = (sales: AgentSale[], minPrice = 0, count = 2) =
   return Array.from({ length: count }, (_, i) => pool[(start + i) % pool.length])
 }
 
+// The agent's display choices for their sales (Agent Hub config, set in the setup flow's Sales
+// step or the Recent Sales editor): `salesMinPrice` hides sales under that price, `salesSort` is
+// the order they're listed in. Followed by the Agent Hub, its Sales page and the IDX website
+// (backend content_adapters.apply_sales_rules); the email signature rotates its newest sales.
+export type SalesSort = 'newest' | 'price-high' | 'price-low'
+export const SALES_SORTS: { id: SalesSort; label: string }[] = [
+  { id: 'newest', label: 'Newest first' },
+  { id: 'price-high', label: 'Highest price first' },
+  { id: 'price-low', label: 'Lowest price first' },
+]
+export const salesSortOf = (v: unknown): SalesSort => (v === 'price-high' || v === 'price-low' ? v : 'newest')
+export const applySalesDisplay = <T extends { price?: number; sold_date?: string }>(sales: T[], minPrice = 0, sort: SalesSort = 'newest'): T[] => {
+  const kept = sales.filter(sale => !minPrice || (sale.price || 0) >= minPrice)
+  if (sort === 'price-high') return [...kept].sort((a, b) => (b.price || 0) - (a.price || 0))
+  if (sort === 'price-low') return [...kept].sort((a, b) => (a.price || 0) - (b.price || 0))
+  return [...kept].sort((a, b) => String(b.sold_date || '').localeCompare(String(a.sold_date || '')))
+}
+
 export const getSaleSummary = (sales: AgentSale[]) => {
   const eligibleSales = getEligibleSales(sales)
   const totalSold = eligibleSales.length

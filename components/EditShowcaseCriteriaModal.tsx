@@ -535,7 +535,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
   // ---------------------------------------------------------------- shared bits
 
   const saveBar = (label: string, extra?: ReactNode) => (
-    <div className="flex shrink-0 items-center gap-3 border-t border-gray-100 bg-white/95 px-5 py-4 dark:border-white/[0.07] dark:bg-[#141416]/95 sm:px-7">
+    <div className="flex shrink-0 items-center gap-3 border-t border-gray-100 bg-white/95 px-5 py-4 dark:border-white/[0.07] dark:bg-[#141416]/95 sm:px-7" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
       <motion.button type="button" onClick={onClose} whileHover={{ y: -1 }} whileTap={{ scale: 0.96 }}
         className="h-12 rounded-2xl border-2 border-gray-300 bg-white px-5 text-[11px] font-black uppercase tracking-widest text-[#111827] transition-colors hover:border-[#111827] dark:border-white/25 dark:bg-transparent dark:text-white dark:hover:border-white">Cancel</motion.button>
       {/* The live "● 2 homes" count sits right beside Cancel; Undo + Save are on the right. */}
@@ -744,6 +744,8 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
           <div className="absolute inset-0 -z-10 bg-[linear-gradient(135deg,#0b0b0c,#141821_60%,#1d1810)]" />
           <div aria-hidden className="rf-aurora pointer-events-none" />
           <span aria-hidden className="rf-edge pointer-events-none absolute inset-x-0 bottom-0 h-px" />
+          {/* Phones: a grab handle - the sheet can be pulled down to close. */}
+          <span aria-hidden className="pointer-events-none absolute left-1/2 top-2 z-10 h-1.5 w-10 -translate-x-1/2 rounded-full bg-white/35 sm:hidden" />
           {[['70%', '30%', 0], ['88%', '70%', 1.6], ['55%', '75%', 3], ['30%', '85%', 4.2]].map(([l, t, dl], k) => (
             <span key={k} aria-hidden className="rf-spark pointer-events-none absolute" style={{ left: l as string, top: t as string, animationDelay: `${dl}s` }} />
           ))}
@@ -786,7 +788,8 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
             </motion.div>
           )}
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">{opts.children}</div>
+        {/* No footer bar: the content itself keeps clear of the iPhone home indicator. */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" style={opts.footer ? undefined : { paddingBottom: 'env(safe-area-inset-bottom)' }}>{opts.children}</div>
         {opts.footer}
       </motion.div>
     </motion.div>
@@ -915,7 +918,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
   ) : null
 
   const doneBar = (
-    <div className="flex shrink-0 border-t border-gray-100 bg-white/95 px-5 py-4 dark:border-white/[0.07] dark:bg-[#141416]/95 sm:px-7">
+    <div className="flex shrink-0 border-t border-gray-100 bg-white/95 px-5 py-4 dark:border-white/[0.07] dark:bg-[#141416]/95 sm:px-7" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
       <motion.button type="button" onClick={onClose} whileHover={{ y: -1 }} whileTap={{ scale: 0.97 }}
         className="h-12 w-full rounded-2xl bg-[#111827] text-xs font-black uppercase tracking-widest text-white dark:bg-white dark:text-[#111827]">Got it</motion.button>
     </div>
@@ -1186,7 +1189,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
     const priceLabel = `${formData.min_price ? kFmt(formData.min_price) : 'Any'} – ${formData.max_price == null ? 'No max' : kFmt(formData.max_price)}`
     const manualBtn = (
       <button type="button" onClick={() => setCustomPrice(o => !o)}
-        className={`rounded-full border px-3 py-1 text-[11px] font-black transition-colors ${customPrice ? 'border-[#111827] bg-[#111827] text-white dark:border-white dark:bg-white dark:text-[#111827]' : 'border-gray-200 text-gray-600 hover:border-[#C9A24D] dark:border-white/15 dark:text-gray-300'}`}>
+        className={`relative rounded-full border px-3 py-1 text-[11px] before:absolute before:-inset-y-2 before:inset-x-0 before:content-[''] font-black transition-colors ${customPrice ? 'border-[#111827] bg-[#111827] text-white dark:border-white dark:bg-white dark:text-[#111827]' : 'border-gray-200 text-gray-600 hover:border-[#C9A24D] dark:border-white/15 dark:text-gray-300'}`}>
         Manual
       </button>
     )
@@ -1401,7 +1404,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
       </div>
     )
     const back = (to: () => void) => (
-      <button type="button" onClick={to} className="inline-flex items-center gap-1.5 text-[12px] font-black text-gray-500 hover:text-[#111827] dark:hover:text-white">
+      <button type="button" onClick={to} className="relative inline-flex items-center gap-1.5 text-[12px] font-black text-gray-500 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:text-[#111827] dark:hover:text-white">
         <ArrowRight className="h-3.5 w-3.5 rotate-180" /> Back
       </button>
     )
@@ -1434,7 +1437,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
               {asking ? (
         <div className="space-y-4 px-5 py-5 sm:px-7">
           {!askSent && (
-            <button type="button" onClick={() => setMode('edit')} className="inline-flex items-center gap-1.5 text-[12px] font-black text-gray-500 hover:text-[#111827] dark:hover:text-white">
+            <button type="button" onClick={() => setMode('edit')} className="relative inline-flex items-center gap-1.5 text-[12px] font-black text-gray-500 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:text-[#111827] dark:hover:text-white">
               <ArrowRight className="h-3.5 w-3.5 rotate-180" /> Back
             </button>
           )}

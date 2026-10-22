@@ -40,9 +40,12 @@ export default function TownInsights({ data, town, luxe }: { data?: TownInsights
           {pos != null && (
             <div className="mt-5">
               <div className="relative h-2.5 rounded-full" style={{ background: 'linear-gradient(90deg, var(--site-accent) 0%, var(--site-accent) 33%, rgba(var(--site-accent-rgb),.45) 33%, rgba(var(--site-accent-rgb),.45) 66%, var(--site-line-strong) 66%)' }}>
-                <motion.span className="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] shadow-md"
-                  style={{ borderColor: 'var(--site-surface)', backgroundColor: 'var(--site-heading)' }}
-                  initial={{ left: '0%' }} whileInView={{ left: `${pos}%` }} viewport={{ once: true }} transition={{ duration: 1.2, ease, delay: 0.2 }} />
+                {/* Slides in with transform (a full-width track moving under the marker), not `left`,
+                    which re-laid-out the page every frame. */}
+                <motion.span aria-hidden className="pointer-events-none absolute inset-0" initial={{ x: `-${pos}%` }} whileInView={{ x: '0%' }} viewport={{ once: true }} transition={{ duration: 1.2, ease, delay: 0.2 }}>
+                  <span className="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] shadow-md"
+                    style={{ left: `${pos}%`, borderColor: 'var(--site-surface)', backgroundColor: 'var(--site-heading)' }} />
+                </motion.span>
               </div>
               <div className="mt-2 flex justify-between text-[10px] font-black uppercase tracking-wider" style={{ color: 'var(--site-faint)' }}>
                 <span>Seller&apos;s</span><span>Balanced</span><span>Buyer&apos;s</span>
@@ -84,7 +87,7 @@ export default function TownInsights({ data, town, luxe }: { data?: TownInsights
                       <span className="shrink-0 font-black" style={{ color: 'var(--site-heading)' }}>${d.per_sqft.toFixed(2)}</span>
                     </div>
                     <div className="mt-1.5 h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: 'var(--site-line)' }}>
-                      <motion.div className="h-full rounded-full" style={{ backgroundColor: 'var(--site-accent)' }} initial={{ width: 0 }} whileInView={{ width: `${(d.per_sqft / max) * 100}%` }} viewport={{ once: true }} transition={{ duration: 1, ease, delay: 0.2 + i * 0.1 }} />
+                      <motion.div className="h-full origin-left rounded-full" style={{ backgroundColor: 'var(--site-accent)', width: `${(d.per_sqft / max) * 100}%` }} initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 1, ease, delay: 0.2 + i * 0.1 }} />
                     </div>
                   </div>
                 ))

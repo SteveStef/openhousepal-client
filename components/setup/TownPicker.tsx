@@ -19,11 +19,19 @@ const RESEARCH_STEPS = ['Finding the schools', 'Pulling home prices', 'Mapping p
 
 type Row = { key: string; linkId?: string; name: string; state: string; status: string; neighborhood?: boolean; parent?: string | null }
 
+// Saves still on their way to the server. A tap shows the town as added at once (owner, 10/22) -
+// the save runs in the background and keeps going if they move on; Continue waits briefly for it.
+const pendingSaves = new Set<Promise<unknown>>()
+export async function waitForTownSaves(ms: number) {
+  if (!pendingSaves.size) return
+  await Promise.race([Promise.allSettled(Array.from(pendingSaves)), new Promise(r => window.setTimeout(r, ms))])
+}
+
 const title = (s: string) => s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 const keyOf = (name: string, state: string) => `${name.trim().toLowerCase()}|${state.trim().toUpperCase()}`
 const splitCity = (raw: string) => { const [c, s] = raw.split(',').map(x => x.trim()); return { name: title(c || ''), state: (s || '').toUpperCase() } }
 
-export default function TownPicker() {
+export default function TownPicker({ idx = true }: { idx?: boolean }) {
   const [areas, setAreas] = useState<AgentMarketArea[] | null>(null)
   const [adding, setAdding] = useState<Row[]>([])
   const [sales, setSales] = useState<AgentSale[]>([])
@@ -105,10 +113,15 @@ export default function TownPicker() {
     if (!name.trim() || state.trim().length !== 2) { setError('Type the name and the 2-letter state (like PA).'); return }
     setAdding(a => [{ key: k, name, state, status: 'ADDING', neighborhood: kind === 'neighborhood' }, ...a])
     setQ(''); setSuggestions([]); setOpen(false)
-    const r = await api.sites.addArea(name.trim(), state.trim().toUpperCase(), kind)
-    if (r.success) await load()
-    else setError(r.error || `We couldn't add ${name} - please try again.`)
-    setAdding(a => a.filter(x => x.key !== k))
+    // Not awaited by the tap: the town is already shown as added; the save (and the town's research
+    // on the server) carries on even if they leave this step.
+    const save = api.sites.addArea(name.trim(), state.trim().toUpperCase(), kind).then(async r => {
+      if (r.success) await load()
+      else setError(r.error || `We couldn't add ${name} - please try again.`)
+      setAdding(a => a.filter(x => x.key !== k))
+    })
+    pendingSaves.add(save)
+    save.finally(() => pendingSaves.delete(save))
   }
 
   const remove = async (row: Row) => {
@@ -132,6 +145,12 @@ export default function TownPicker() {
 
   return (
     <div className="space-y-7">
+      {idx && (
+        <p className="flex items-start gap-2.5 rounded-2xl bg-[#f7f3ea] px-4 py-3 text-[14px] font-semibold text-gray-600 dark:bg-white/[0.04] dark:text-gray-300">
+          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#C9A24D]" />
+          <span><b className="text-[#111827] dark:text-white">Tap a town and it&apos;s on your website.</b> You&apos;ll also find them in your website editor&apos;s Areas tab.</span>
+        </p>
+      )}
       {/* how many - big and obvious */}
       <div className="rounded-[22px] border-2 border-[#C9A24D]/35 bg-gradient-to-br from-[#fffaf0] to-white p-5 dark:from-[#1d1912] dark:to-[#141416]">
         <div className="flex flex-wrap items-end justify-between gap-2">
@@ -235,45 +254,45 @@ export default function TownPicker() {
             <AnimatePresence initial={false}>
               {rows.map(r => (
                 <motion.li key={r.key} layout initial={{ opacity: 0, scale: 0.94, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94 }} transition={{ type: 'spring', stiffness: 320, damping: 28 }}>
-                  <TownCard row={r} confirming={confirmId === r.key} onAskRemove={() => setConfirmId(r.key)} onKeep={() => setConfirmId(null)} onRemove={() => remove(r)} />
+                  <TownCard idx={idx} row={r} confirming={confirmId === r.key} onAskRemove={() => setConfirmId(r.key)} onKeep={() => setConfirmId(null)} onRemove={() => remove(r)} />
                 </motion.li>
               ))}
             </AnimatePresence>
           </ul>
         )}
         {researching && (
-          <p className="mt-3 flex items-center gap-2 text-[13.5px] font-medium text-gray-500 dark:text-gray-400"><Sparkles className="h-4 w-4 text-[#C9A24D]" /> Each new town gets its own page on your website. You can keep going - research finishes by itself.</p>
+          <p className="mt-3 flex items-center gap-2 text-[13.5px] font-medium text-gray-500 dark:text-gray-400"><Sparkles className="h-4 w-4 shrink-0 text-[#C9A24D]" /> {idx ? 'We’re gathering each new town’s schools, prices and places for its page. ' : 'We’re gathering each new town’s details. '}You can keep going or leave - it finishes by itself.</p>
         )}
       </div>
     </div>
   )
 }
 
-function TownCard({ row, confirming, onAskRemove, onKeep, onRemove }: { row: Row; confirming: boolean; onAskRemove: () => void; onKeep: () => void; onRemove: () => void }) {
-  const busy = row.status === 'ADDING' || row.status === 'PENDING' || row.status === 'RESEARCHING'
+function TownCard({ idx, row, confirming, onAskRemove, onKeep, onRemove }: { idx: boolean; row: Row; confirming: boolean; onAskRemove: () => void; onKeep: () => void; onRemove: () => void }) {
+  const busy = row.status === 'PENDING' || row.status === 'RESEARCHING'
+  const justAdded = row.status === 'ADDING'
   const ready = row.status === 'ENRICHED' || row.status === 'PARTIAL'
   const failed = row.status === 'FAILED'
   const [stepIx, setStepIx] = useState(0)
   useEffect(() => {
-    if (!busy || row.status === 'ADDING') return
+    if (!busy) return
     const t = window.setInterval(() => setStepIx(i => (i + 1) % RESEARCH_STEPS.length), 2200)
     return () => window.clearInterval(t)
   }, [busy, row.status])
   return (
     <div className={`relative overflow-hidden rounded-2xl border-2 px-4 py-3.5 transition ${ready ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-500/25 dark:bg-emerald-500/[0.07]' : failed ? 'border-rose-200 bg-rose-50/50 dark:border-rose-500/25 dark:bg-rose-500/[0.07]' : 'border-[#C9A24D]/40 bg-[#fffaf0] dark:bg-[#1a1712]'}`}>
-      {busy && <span aria-hidden className="ohp-town-sweep pointer-events-none absolute inset-0" />}
+      {(busy || justAdded) && <span aria-hidden className="ohp-town-sweep pointer-events-none absolute inset-0" />}
       <div className="relative flex items-center gap-3">
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${ready ? 'bg-emerald-600 text-white' : failed ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/15' : 'bg-[#111827] text-[#e8c97a]'}`}>
-          {ready ? <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 420, damping: 16 }}><Check className="h-5 w-5" strokeWidth={3} /></motion.span>
-            : busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <MapPin className="h-5 w-5" />}
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${ready ? 'bg-emerald-600 text-white' : failed ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/15' : 'bg-[#C9A24D] text-[#111827]'}`}>
+          {failed ? <MapPin className="h-5 w-5" /> : <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 420, damping: 16 }}><Check className="h-5 w-5" strokeWidth={3} /></motion.span>}
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[16px] font-black text-[#111827] dark:text-white">{row.name}{row.parent ? <span className="font-bold text-gray-400">, {row.parent}</span> : null}<span className="font-bold text-gray-400">, {row.state}</span></p>
           <div className="relative h-[18px] overflow-hidden text-[12.5px] font-bold">
             <AnimatePresence mode="wait" initial={false}>
-              <motion.p key={row.status === 'ADDING' ? 'adding' : busy ? `r${stepIx}` : row.status} initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -12, opacity: 0 }} transition={{ duration: 0.25 }}
+              <motion.p key={justAdded ? 'adding' : busy ? `r${stepIx}` : row.status} initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -12, opacity: 0 }} transition={{ duration: 0.25 }}
                 className={ready ? 'text-emerald-700 dark:text-emerald-300' : failed ? 'text-rose-600' : 'text-[#8b6a2b] dark:text-[#e8c97a]'}>
-                {row.status === 'ADDING' ? 'Adding…' : busy ? `${RESEARCH_STEPS[stepIx]}…` : ready ? `Ready - town page made${row.neighborhood ? ' · neighborhood' : ''}` : failed ? 'We couldn’t research this one - it still shows on your site' : 'Added'}
+                {justAdded ? 'Added - getting its details…' : busy ? `Added · ${RESEARCH_STEPS[stepIx].toLowerCase()}…` : ready ? `Ready${idx ? ' - town page made' : ''}${row.neighborhood ? ' · neighborhood' : ''}` : failed ? (idx ? 'We couldn’t research this one - it still shows on your site' : 'Added - we couldn’t get its details') : 'Added'}
               </motion.p>
             </AnimatePresence>
           </div>
@@ -288,7 +307,7 @@ function TownCard({ row, confirming, onAskRemove, onKeep, onRemove }: { row: Row
         {confirming && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="relative overflow-hidden">
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-black/5 pt-3 dark:border-white/10">
-              <span className="flex-1 text-[13px] font-bold text-gray-600 dark:text-gray-300">Take {row.name} off your website?</span>
+              <span className="flex-1 text-[13px] font-bold text-gray-600 dark:text-gray-300">{idx ? `Take ${row.name} off your website?` : `Remove ${row.name}?`}</span>
               <button type="button" onClick={onKeep} className="rounded-full px-3 py-1.5 text-[13px] font-black text-gray-600 hover:bg-black/5 dark:text-gray-300 dark:hover:bg-white/5">Keep it</button>
               <button type="button" onClick={onRemove} className="rounded-full bg-rose-600 px-3.5 py-1.5 text-[13px] font-black text-white hover:bg-rose-700">Yes, remove</button>
             </div>

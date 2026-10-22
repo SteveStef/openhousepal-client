@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { hubOwnDomainTarget } from './lib/hubOwnDomainRedirect'
 
 // Any hostname NOT in this set gets rewritten to the (sitepublic) route group - see
 // app/(sitepublic)/ohp-site-render/[host]/[[...path]]/page.tsx. Nested under a literal
@@ -37,13 +38,22 @@ const RESERVED_APP_SEGMENTS = new Set([
 
 // Next.js 16 renamed Middleware to Proxy (filename proxy.ts, same functionality/API) - this
 // used to be middleware.ts/export function middleware.
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const rawHost = (request.headers.get('x-forwarded-host') || request.headers.get('host') || '').toLowerCase()
   const hostWithoutPort = rawHost.split(':')[0]
 
   if (!rawHost || APP_HOSTNAMES.has(rawHost) || APP_HOSTNAMES.has(hostWithoutPort)) {
     const firstSegment = request.nextUrl.pathname.split('/').filter(Boolean)[0]?.toLowerCase()
     if (firstSegment && !RESERVED_APP_SEGMENTS.has(firstSegment)) {
+      // openhousepal.com/<slug>/... -> the agent's own connected domain, only while it fully works
+      // (lib/hubOwnDomainRedirect - never for frames/previews; any doubt = no redirect). 307 + no-store:
+      // switching the domain off stops it within a minute, nothing sticks in browsers.
+      const ownDomainUrl = await hubOwnDomainTarget(request)
+      if (ownDomainUrl) {
+        const res = NextResponse.redirect(ownDomainUrl, 307)
+        res.headers.set('Cache-Control', 'no-store')
+        return res
+      }
       // A /[slug]/... Agent Hub request on the app's own hostname - same "hide dashboard
       // chrome" signal as the custom-domain rewrite below, just without a URL rewrite.
       const requestHeaders = new Headers(request.headers)
@@ -57,6 +67,14 @@ export function proxy(request: NextRequest) {
   // the same on every host - rewriting them into the site page returned HTML, which is why Explore
   // Nearby never loaded on IDX sites or Spotlights (user, 10/18).
   if (request.nextUrl.pathname.startsWith('/api/')) return NextResponse.next()
+
+  // Invites (/i/<code>, and its link-preview image) open on an agent's own domain too - served by
+  // app/i/[code] itself, which checks the domain belongs to the invite's agent.
+  if (request.nextUrl.pathname.startsWith('/i/')) {
+    const inviteHeaders = new Headers(request.headers)
+    inviteHeaders.set('x-ohp-public-site', '1')
+    return NextResponse.next({ request: { headers: inviteHeaders } })
+  }
 
   const url = request.nextUrl.clone()
   url.pathname = `/ohp-site-render/${encodeURIComponent(rawHost)}${url.pathname}`

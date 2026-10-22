@@ -14,10 +14,12 @@ import { cheatSheetSqft } from '@/lib/cheatSheetContent'
 import { hasMlsAccess, hasShowcaseAccess } from '@/lib/navAccess'
 import { useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
 import { computeMatchScore, isSameSchoolDistrict } from '@/lib/matchScore'
-import { roundedPriceRange } from '@/lib/utils'
+import { formatPropertyFeature, normalizeImageUrl, roundedPriceRange } from '@/lib/utils'
+import { useIsPhone } from '@/components/ui/windowMotion'
 import { readPrintPref, writePrintPref, type PrintPref } from '@/lib/printPrefs'
 import KitReviewDialog, { type KitDocMode } from './KitReviewDialog'
-import KitFlowShell, { useKitFlowScrollTop, type KitFlowStepId } from './KitFlowShell'
+import KitFlowShell, { useKitFlowDock, useKitFlowScrollTop, type KitFlowStepId } from './KitFlowShell'
+import FlowDock from '@/components/ui/FlowDock'
 import {
   OpenHouse,
   PropertyImage,
@@ -26,7 +28,7 @@ import {
   User,
   PropertyDetailResponse
 } from '@/types'
-import { Bed, Bath, BoxSelect, Building2, DollarSign, DoorOpen, LandPlot, Layout, QrCode, Sparkles, MapPin, Search, Layers, ArrowRight, Upload, Loader2, ImageOff, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Bed, Bath, BoxSelect, Building2, Check, DollarSign, DoorOpen, Eye, LandPlot, Layout, QrCode, Sparkles, MapPin, Search, Layers, ArrowRight, Upload, Loader2, ImageOff, ChevronLeft, ChevronRight } from 'lucide-react'
 import LuxeHero from '@/components/ui/LuxeHero'
 import { useQrDataUrl } from '@/lib/qr'
 
@@ -990,6 +992,8 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
   const [prefs, setPrefs] = useState<SearchPreferences>(initialPreferences)
   const rootRef = useRef<HTMLDivElement>(null)
   const scrollFlowTop = useKitFlowScrollTop()
+  const kitDock = useKitFlowDock()
+  const isPhone = useIsPhone()
 
   // "View details" for a similar-property card - fetches the full listing (these cards only carry
   // lightweight search-result data) and reuses the same PropertyDetailsModal every other property
@@ -1120,7 +1124,7 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
           </div>
           <div className="grid gap-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
             <div className="min-w-0">
-              <h2 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white sm:text-4xl">Refine Your Search</h2>
+              <h2 className="text-2xl font-black tracking-tight text-gray-900 dark:text-white sm:text-4xl">Refine Your Search</h2>
               <p className="mt-1 truncate text-sm font-semibold text-gray-500 dark:text-gray-400">
                 Similar to <span className="font-black text-gray-900 dark:text-white">{formatSubjectAddress(subjectAddress)}</span>
               </p>
@@ -1147,30 +1151,30 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
               <div className="grid grid-cols-2 gap-3">
               <div>
                   <label className="mb-1 ml-1 block text-[9px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Min Price</label>
-                  <input type="text" inputMode="numeric" name="minPrice" value={formatPriceForDisplay(prefs.minPrice)} onChange={handleChange} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white" placeholder="0" />
+                  <input type="text" inputMode="numeric" name="minPrice" value={formatPriceForDisplay(prefs.minPrice)} onChange={handleChange} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-base text-gray-900 transition-all sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white" placeholder="0" />
               </div>
               <div>
                   <label className="mb-1 ml-1 block text-[9px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Max Price</label>
-                  <input type="text" inputMode="numeric" name="maxPrice" value={formatPriceForDisplay(prefs.maxPrice)} onChange={handleChange} className={`w-full rounded-xl border ${priceBackwards ? 'border-red-300 dark:border-red-500/50' : 'border-gray-200'} bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white`} placeholder="No Max" />
+                  <input type="text" inputMode="numeric" name="maxPrice" value={formatPriceForDisplay(prefs.maxPrice)} onChange={handleChange} className={`w-full rounded-xl border ${priceBackwards ? 'border-red-300 dark:border-red-500/50' : 'border-gray-200'} bg-white px-3 py-2 text-base text-gray-900 transition-all sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white`} placeholder="No Max" />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="mb-1 ml-1 block text-[9px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Min Beds</label>
-                  <select name="minBeds" value={prefs.minBeds} onChange={handleChange} className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
+                  <select name="minBeds" value={prefs.minBeds} onChange={handleChange} className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-base text-gray-900 transition-all sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
                     {[0, 1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}+ Beds</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="mb-1 ml-1 block text-[9px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Min Acres</label>
-                  <select name="minAcres" value={prefs.minAcres || 0} onChange={handleChange} className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
+                  <select name="minAcres" value={prefs.minAcres || 0} onChange={handleChange} className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-base text-gray-900 transition-all sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
                     {[0, 0.1, 0.25, 0.5, 0.75, 1].map(n => <option key={n} value={n}>{n === 0 ? 'Any' : `${n}+`}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="mb-1 ml-1 block text-[9px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Min Baths</label>
-                  <select name="minBaths" value={prefs.minBaths} onChange={handleChange} className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
+                  <select name="minBaths" value={prefs.minBaths} onChange={handleChange} className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-base text-gray-900 transition-all sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
                     {[0, 1, 1.5, 2, 2.5, 3, 3.5, 4].map(n => <option key={n} value={n}>{n}+ Baths</option>)}
                   </select>
                 </div>
@@ -1185,33 +1189,35 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-[#f1f3f5] p-4 shadow-inner dark:border-gray-800 dark:bg-transparent sm:p-5">
+        {/* Phones: no box-in-a-box - the homes run edge to edge under a slim sticky count bar. */}
+        <div className="sm:rounded-2xl sm:border sm:border-gray-200 sm:bg-[#f1f3f5] sm:p-5 sm:shadow-inner sm:dark:border-gray-800 sm:dark:bg-transparent">
           {/* Sticky so the Continue button (and the result counts) stay on screen while only the
               property cards below scroll under it - the whole panel is one scroll region, and
               before this the header scrolled away with everything else. Negative margins bleed the
               bar to the container edges and cover its rounded top corners; the parent scroll
               container's top padding was moved onto its children so top-0 pins flush. */}
-          <div className="sticky top-0 z-20 -mx-4 -mt-4 mb-4 flex flex-col gap-3 rounded-t-2xl border-b border-gray-200 bg-[#f1f3f5] px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-[#151517] sm:-mx-5 sm:-mt-5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:pt-5">
-            <div>
-              <h3 className="text-lg font-black text-gray-900 dark:text-white">Property Selection</h3>
-              <p className="text-xs font-semibold text-gray-400">Results update automatically as you refine filters.</p>
+          <div className="sticky top-0 z-20 -mx-4 mb-3 flex items-center justify-between gap-3 border-b border-gray-200/70 bg-[#FAFAF7] px-4 py-2.5 dark:border-gray-800 dark:bg-[#151517] sm:-mx-5 sm:-mt-5 sm:mb-4 sm:flex-row sm:rounded-t-2xl sm:bg-[#f1f3f5] sm:px-5 sm:pb-3 sm:pt-5">
+            <div className="min-w-0">
+              <h3 className="text-base font-black text-gray-900 dark:text-white sm:text-lg">Property Selection</h3>
+              <p className="text-xs font-semibold text-gray-400 max-sm:hidden">Results update automatically as you refine filters.</p>
+              <p className="text-[11.5px] font-semibold text-gray-400 sm:hidden">Tap homes to add them</p>
             </div>
-            <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
-              <button onClick={onBack} className="inline-flex items-center justify-center self-stretch rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm font-black sm:self-start sm:px-4 text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-[#0B0B0B] dark:text-gray-400 dark:hover:bg-gray-800">Back</button>
-              <div className="inline-flex items-center justify-center self-stretch rounded-2xl border border-gray-200 bg-white px-3 py-2 sm:self-start sm:px-4 dark:border-gray-800 dark:bg-[#0B0B0B]">
-                <span className="mr-2 text-[10px] font-black uppercase tracking-wide text-gray-400">Results</span>
-                <span className="inline-flex min-w-[1.5rem] items-center justify-center text-lg font-black text-[#111827] dark:text-white">{isLoading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#C9A24D] border-t-transparent" /> : properties.length}</span>
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+              <button onClick={onBack} className={`${kitDock ? 'max-sm:hidden ' : ''}inline-flex items-center justify-center self-stretch rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm font-black sm:self-start sm:px-4 text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-[#0B0B0B] dark:text-gray-400 dark:hover:bg-gray-800`}>Back</button>
+              <div className="inline-flex items-center justify-center self-stretch rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 sm:self-start sm:rounded-2xl sm:px-4 sm:py-2 dark:border-gray-800 dark:bg-[#0B0B0B]">
+                <span className="mr-1.5 text-[9px] sm:mr-2 sm:text-[10px] font-black uppercase tracking-wide text-gray-400">Results</span>
+                <span className="inline-flex min-w-[1.5rem] items-center justify-center text-base font-black sm:text-lg text-[#111827] dark:text-white">{isLoading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#C9A24D] border-t-transparent" /> : properties.length}</span>
               </div>
-              <div className="inline-flex items-center justify-center self-stretch rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 sm:self-start sm:px-4 dark:border-emerald-900/30 dark:bg-emerald-900/10">
-                <span className="mr-2 text-[10px] font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Selected</span>
-                <span className="text-lg font-black text-emerald-700 dark:text-emerald-300">{selectedIds.length}</span>
+              <div className="inline-flex items-center justify-center self-stretch rounded-xl border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 sm:self-start sm:rounded-2xl sm:px-4 sm:py-2 dark:border-emerald-900/30 dark:bg-emerald-900/10">
+                <span className="mr-1.5 text-[9px] sm:mr-2 sm:text-[10px] font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Selected</span>
+                <motion.span key={selectedIds.length} initial={{ scale: 1.5, opacity: 0.4 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 500, damping: 22 }} className="inline-block text-base font-black text-emerald-700 dark:text-emerald-300 sm:text-lg">{selectedIds.length}</motion.span>
               </div>
               {keepHiddenSelections && hiddenPicks > 0 && (
-                <div className="col-span-3 inline-flex items-center justify-center self-start rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-black text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300" title="Homes you picked that these filters hide - they stay in your kit.">
+                <div className="inline-flex items-center justify-center self-start rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-black text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300" title="Homes you picked that these filters hide - they stay in your kit.">
                   {hiddenPicks} picked {hiddenPicks === 1 ? 'home' : 'homes'} not shown
                 </div>
               )}
-              <button onClick={onNext} disabled={selectedIds.length === 0} className="col-span-3 inline-flex items-center justify-center self-start rounded-2xl border border-transparent bg-[#111827] dark:bg-white px-5 py-2 text-sm font-black uppercase tracking-widest text-white dark:text-[#111827] shadow-lg transition-all duration-200 hover:bg-[#8b7355] hover:text-white dark:hover:bg-[#C9A24D] disabled:cursor-not-allowed disabled:opacity-50">Continue ({selectedIds.length})</button>
+              <button onClick={onNext} disabled={selectedIds.length === 0} className={`${kitDock ? 'max-sm:hidden ' : ''}max-sm:w-full inline-flex items-center justify-center self-start rounded-2xl border border-transparent bg-[#111827] dark:bg-white px-5 py-2 text-sm font-black uppercase tracking-widest text-white dark:text-[#111827] shadow-lg transition-all duration-200 hover:bg-[#8b7355] hover:text-white dark:hover:bg-[#C9A24D] disabled:cursor-not-allowed disabled:opacity-50`}>Continue ({selectedIds.length})</button>
             </div>
           </div>
 
@@ -1233,13 +1239,17 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 select-none">
+              <div className="grid grid-cols-1 gap-2.5 select-none sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
                 {pagedProperties.map((property) => {
                   const propertyId = String(property.ListingKey || property.listingKey || property.id)
                   const isSelected = selectedIdStrings.includes(propertyId)
                   return (
                     <motion.div key={propertyId} onClick={() => toggleProperty(propertyId)} className="relative cursor-pointer"
                       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(pagedProperties.indexOf(property), 8) * 0.035, ease: [0.22, 0.61, 0.36, 1] }}>
+                      {isPhone ? (
+                        <KitHomeRow property={property} selected={isSelected} matchScore={getMatchScore(property)} sameSchool={isSameSchool(property)}
+                          acres={getPropertyAcres(property)} onViewDetails={() => handleViewDetails(property)} />
+                      ) : (
                       <PropertyRecommendationCard
                         image={property.ListPictureURL || property.imageUrl || property.imgSrc || property.image || "/placeholder.svg"}
                         streetAddress={property.FullStreetAddress || property.address}
@@ -1265,6 +1275,7 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
                         elevated
                         onViewDetails={() => handleViewDetails(property)}
                       />
+                      )}
                     </motion.div>
                   )
                 })}
@@ -1319,6 +1330,14 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
         </>)}
       </div>
 
+      {/* Phones, inside the kit window: the flow bar - the same onBack / onNext as the buttons above
+          (Continue needs a picked home unless Similar Homes is switched off). */}
+      {kitDock && (
+        <FlowDock step={kitDock.step} total={kitDock.total} onBack={kitDock.step > 1 ? onBack : undefined}
+          onContinue={onNext} disabled={include && selectedIds.length === 0}
+          note={include ? `${selectedIds.length} picked` : 'Sheet off'} />
+      )}
+
       {/* zIndex above EditSimilarPropertiesModal's z-[110] wrapper (harmless when reached from the
           plain wizard step instead, which has no competing high z-index). */}
       <PropertyDetailsModal
@@ -1331,6 +1350,61 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
     </div>
   )
 })
+
+// Phones: a home in the Similar Homes picker as one slim row - photo left, the facts right, a green
+// check when it's in - so a page of results is a quick scan, not a long scroll of full-width photos
+// (owner, 10/22). Computers keep the big cards.
+function KitHomeRow({ property, selected, matchScore, sameSchool, acres, onViewDetails }: {
+  property: any; selected: boolean; matchScore?: number; sameSchool?: boolean; acres?: number; onViewDetails: () => void
+}) {
+  const street = String(property.FullStreetAddress || property.address || 'Address not available').split(',')[0].trim()
+    .toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase())
+  const town = String(property.City || property.city || '').toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase())
+  const state = property.StateOrProvince || property.state || ''
+  const price = Number(property.ListPrice || property.price) || 0
+  const beds = property.BedroomsTotal ?? property.bedrooms ?? property.beds
+  const baths = property.BathroomsTotal ?? property.bathrooms ?? property.baths
+  const sqft = Number(property.LivingArea || property.sqft) || 0
+  const img = normalizeImageUrl(property.ListPictureURL || property.imageUrl || property.imgSrc || property.image) || '/placeholder.svg'
+  const facts = [
+    beds ? `${formatPropertyFeature(beds)} bd` : null,
+    baths ? `${formatPropertyFeature(baths)} ba` : null,
+    sqft ? `${sqft.toLocaleString()} sqft` : null,
+    acres ? `${acres.toLocaleString(undefined, { maximumFractionDigits: 2 })} ac` : null,
+  ].filter(Boolean).join(' · ')
+  return (
+    <div className={`relative flex items-stretch gap-3 rounded-2xl border-2 p-1.5 pr-11 transition-all duration-300 ${selected
+      ? 'border-emerald-500 bg-emerald-50/70 shadow-[0_14px_26px_-18px_rgba(5,150,105,.9)] dark:bg-emerald-500/10'
+      : 'border-transparent bg-white shadow-[0_8px_22px_-18px_rgba(17,24,39,.55)] ring-1 ring-black/[0.06] dark:bg-[#0B0B0B] dark:ring-white/10'}`}>
+      <div className="relative h-[92px] w-[108px] shrink-0 overflow-hidden rounded-xl bg-gray-200 dark:bg-gray-800">
+        <img src={img} alt="" draggable={false} loading="lazy" className={`h-full w-full object-cover transition duration-300 ${selected ? 'brightness-90' : ''}`} />
+        {typeof matchScore === 'number' && (
+          <span className="absolute left-1.5 top-1.5 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-black text-white shadow">{matchScore}%</span>
+        )}
+        <AnimatePresence>
+          {selected && (
+            <motion.span key="on" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 grid place-items-center bg-emerald-600/25">
+              <motion.span initial={{ scale: 0.4 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+                className="grid h-8 w-8 place-items-center rounded-full bg-emerald-600 text-white shadow-lg"><Check className="h-4 w-4" strokeWidth={3.5} /></motion.span>
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col justify-center py-1">
+        <p className="truncate text-[15px] font-black leading-tight text-[#111827] dark:text-white">{street}</p>
+        <p className="mt-0.5 truncate text-[12px] font-semibold text-gray-500 dark:text-gray-400">
+          {[town, state].filter(Boolean).join(', ')}{sameSchool && <span className="font-black text-[#8b7355] dark:text-[#e8c97a]"> · Same school</span>}
+        </p>
+        <p className="mt-1.5 text-[15px] font-black leading-none text-[#8b7355] dark:text-[#e8c97a]">{price ? `$${price.toLocaleString()}` : 'Price N/A'}</p>
+        {facts && <p className="mt-1 truncate text-[11.5px] font-bold text-gray-500 dark:text-gray-400">{facts}</p>}
+      </div>
+      <button type="button" onClick={e => { e.stopPropagation(); onViewDetails() }} aria-label="View details"
+        className="absolute right-1.5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full text-gray-400 transition active:bg-black/5 dark:active:bg-white/10">
+        <Eye className="h-[18px] w-[18px]" />
+      </button>
+    </div>
+  )
+}
 
 // The Similar Homes step's switch: include a Similar Homes sheet (+ similar homes on the Guest
 // Pass) or not. Starts off when it's your own listing - the bar says why.
@@ -1539,6 +1613,7 @@ const ImageSelectionView = memo(function ImageSelectionView({ propertyData, addr
   // position can be dragged into place first, mirrored live in the preview pane on the right.
   // Coming back to this step keeps the photo (and crop) picked before.
   const [pending, setPending] = useState<{ url: string; x: number; y: number } | null>(initial ? { url: initial.url, x: initial.x ?? 50, y: initial.y ?? 50 } : null)
+  const kitDock = useKitFlowDock()
 
   const updatePendingPosition = (_: number, position: { x: number; y: number }) => {
     setPending(current => current ? { ...current, ...position } : current)
@@ -1546,32 +1621,38 @@ const ImageSelectionView = memo(function ImageSelectionView({ propertyData, addr
 
   return (
     <div className={bare ? 'px-4 pb-6 sm:px-8 sm:pb-8' : 'bg-white dark:bg-[#151517] rounded-2xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-6 transition-colors animate-fadeIn'}>
-      <div className={`flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${bare ? 'sticky top-0 z-20 -mx-4 mb-5 border-b border-gray-200/60 bg-[#FAFAF7] px-4 py-3 sm:-mx-8 sm:px-8 dark:border-gray-800 dark:bg-[#151517]' : 'mb-6'}`}>
+      <div className={`flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${bare ? `${kitDock ? 'max-sm:hidden ' : ''}sticky top-0 z-20 -mx-4 mb-5 border-b border-gray-200/60 bg-[#FAFAF7] px-4 py-3 sm:-mx-8 sm:px-8 dark:border-gray-800 dark:bg-[#151517]` : 'mb-6'}`}>
         <div>
           {!bare && <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Select Cover Image for Sign-in Sheet</h2>}
           <p className={`text-sm ${bare ? 'font-bold text-gray-700 dark:text-gray-200' : 'mt-1 text-gray-600 dark:text-gray-400'}`}>{bare ? (pending ? 'Drag the photo on the right to frame it, then continue.' : 'Pick the photo for the top of your Sign-In Sheet.') : <>{address}{pending ? ' · Drag the preview photo to adjust the crop.' : ' · Choose a photo below to preview the Sign-In Sheet.'}</>}</p>
         </div>
         <div className="flex w-full gap-2 sm:w-auto sm:shrink-0">
-          <button onClick={onBack} className="flex flex-1 items-center justify-center rounded-xl border border-gray-200 bg-gray-100 px-4 py-2.5 text-sm font-bold text-gray-700 transition-colors duration-200 hover:bg-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 sm:flex-none"><svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>Back</button>
+          <button onClick={onBack} className={`${kitDock ? 'max-sm:hidden ' : ''}flex flex-1 items-center justify-center rounded-xl border border-gray-200 bg-gray-100 px-4 py-2.5 text-sm font-bold text-gray-700 transition-colors duration-200 hover:bg-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 sm:flex-none`}><svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>Back</button>
           <button
             onClick={() => pending && onImageSelect({ url: pending.url, width: 400, height: 300, x: pending.x, y: pending.y })}
             disabled={!pending}
-            className="flex flex-1 items-center justify-center rounded-xl bg-[#111827] px-5 py-2.5 text-sm font-black text-white shadow-lg transition-all duration-300 hover:bg-[#8b7355] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D] sm:flex-none"
+            className={`${kitDock ? 'max-sm:hidden ' : ''}flex flex-1 items-center justify-center rounded-xl bg-[#111827] px-5 py-2.5 text-sm font-black text-white shadow-lg transition-all duration-300 hover:bg-[#8b7355] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D] sm:flex-none`}
           >
             Continue
           </button>
         </div>
       </div>
+      {kitDock && (
+        <PhoneFramer label="Sign-In Sheet photo" hint={pending ? 'Drag to frame it' : 'Tap a photo below'}>
+          <DraggablePreviewPhoto photo={pending} slotIndex={0} aspectRatio="612 / 330" onPhotoPositionChange={updatePendingPosition} />
+        </PhoneFramer>
+      )}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className={`grid auto-rows-min grid-cols-2 items-start gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 ${bare ? '' : 'max-h-[560px] overflow-y-auto pr-1'}`}>
+        <div className={`grid auto-rows-min grid-cols-3 items-start gap-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 ${bare ? '' : 'max-h-[560px] overflow-y-auto pr-1'}`}>
           {availableImages.map((imageUrl: string, index: number) => (
             <motion.div
               key={index}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(index, 11) * 0.03 }}
-              className={`relative aspect-square bg-gray-100 dark:bg-[#0B0B0B] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 group ${pending?.url === imageUrl ? 'ring-[3px] ring-[#C9A24D] shadow-[0_14px_30px_-14px_rgba(139,115,85,.9)]' : 'hover:-translate-y-0.5 hover:shadow-lg hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-600'}`}
+              className={`relative aspect-square bg-gray-100 dark:bg-[#0B0B0B] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 group ${pending?.url === imageUrl ? 'shadow-[0_14px_30px_-14px_rgba(139,115,85,.9)]' : 'hover:-translate-y-0.5 hover:shadow-lg hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-600'}`}
               onClick={() => setPending({ url: imageUrl, x: 50, y: 50 })}
             >
-              <Image src={imageUrl} alt={`Property view ${index + 1}`} fill sizes="(max-width: 768px) 50vw, (max-width: 1280px) 25vw, 320px" quality={88} className="object-cover" />
+              <Image src={imageUrl} alt={`Property view ${index + 1}`} fill sizes="(max-width: 768px) 34vw, (max-width: 1280px) 25vw, 320px" quality={88} className="object-cover" />
+              {pending?.url === imageUrl && <span aria-hidden className="pointer-events-none absolute inset-0 z-[1] rounded-xl ring-[3px] ring-inset ring-[#C9A24D]" />}
               <div className={`absolute inset-0 transition-colors duration-200 flex items-center justify-center ${pending?.url === imageUrl ? 'bg-black/10' : 'bg-black/0 group-hover:bg-black/10'}`}>
                 <div className={`rounded-full p-2 transition-all duration-300 ${pending?.url === imageUrl ? 'scale-100 bg-[#C9A24D] text-[#111827] opacity-100' : 'scale-75 bg-white/90 text-[#8b7355] opacity-0 group-hover:scale-100 group-hover:opacity-100 dark:bg-[#151517]/90 dark:text-[#C9A24D]'}`}>
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
@@ -1580,8 +1661,16 @@ const ImageSelectionView = memo(function ImageSelectionView({ propertyData, addr
             </motion.div>
           ))}
         </div>
-        <SignInSheetLivePreview propertyData={propertyData} address={address} pending={pending} onPhotoPositionChange={updatePendingPosition} />
+        <div className={kitDock ? 'max-sm:hidden' : ''}>
+          <SignInSheetLivePreview propertyData={propertyData} address={address} pending={pending} onPhotoPositionChange={updatePendingPosition} />
+        </div>
       </div>
+      {/* Phones, inside the kit window: the flow bar - same onBack / Continue as the buttons above. */}
+      {kitDock && (
+        <FlowDock step={kitDock.step} total={kitDock.total} onBack={kitDock.step > 1 ? onBack : undefined}
+          onContinue={() => { if (pending) onImageSelect({ url: pending.url, width: 400, height: 300, x: pending.x, y: pending.y }) }}
+          disabled={!pending} />
+      )}
     </div>
   )
 })
@@ -1677,6 +1766,7 @@ export const CheatSheetPhotoSelectionView = memo(function CheatSheetPhotoSelecti
           : `Continue: AI Recap - about ${Math.round(recapPct)}% of your monthly AI`
   const availableImages: string[] = (propertyData?.photos && propertyData.photos.length > 0 ? propertyData.photos : [propertyData?.ListPictureURL]).filter(isRealPhotoUrl)
   const [selected, setSelected] = useState<any[]>(initialSelected && initialSelected.length > 0 ? initialSelected.map(normalizeCheatSheetPhoto) : availableImages.slice(0, 1).map(normalizeCheatSheetPhoto))
+  const kitDock = useKitFlowDock()
   // The live preview's agent block needs the same Agent Hub-backed data (name/title/brokerage/
   // phone/photo) the real Cheat Sheet PDF uses - that data lives in the agent's Agent Hub config,
   // not on the raw currentUser object, so it has to be fetched rather than read off currentUser directly.
@@ -1701,16 +1791,16 @@ export const CheatSheetPhotoSelectionView = memo(function CheatSheetPhotoSelecti
 
   return (
     <div className={bare ? 'px-4 pb-6 sm:px-8 sm:pb-8' : 'bg-white dark:bg-[#151517] rounded-2xl shadow-xl border border-gray-200/60 dark:border-gray-800 p-6 transition-colors animate-fadeIn'}>
-      <div className={`flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between ${bare ? 'sticky top-0 z-20 -mx-4 mb-5 border-b border-gray-200/60 bg-[#FAFAF7] px-4 py-3 sm:-mx-8 sm:px-8 dark:border-gray-800 dark:bg-[#151517]' : 'mb-6'}`}>
+      <div className={`flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between ${bare ? `${kitDock ? 'max-sm:static max-sm:mb-0 max-sm:border-b-0 max-sm:pb-1 ' : ''}sticky top-0 z-20 -mx-4 mb-5 border-b border-gray-200/60 bg-[#FAFAF7] px-4 py-3 sm:-mx-8 sm:px-8 dark:border-gray-800 dark:bg-[#151517]` : 'mb-6'}`}>
         <div>
           {!bare && <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Select Photos for the Open House Cheat Sheet</h2>}
-          <p className={`text-sm ${bare ? 'font-bold text-gray-700 dark:text-gray-200' : 'mt-1 text-gray-600 dark:text-gray-400'}`}>{bare ? `Pick up to ${MAX_CHEAT_SHEET_PHOTOS} photos in the order they should print - drag each one on the right to frame it.` : <>{address} &middot; Choose up to {MAX_CHEAT_SHEET_PHOTOS} photos, in the order you'd like them to appear.</>}</p>
+          <p className={`text-sm ${bare ? 'font-bold text-gray-700 dark:text-gray-200' : 'mt-1 text-gray-600 dark:text-gray-400'}`}>{bare ? <>Pick up to {MAX_CHEAT_SHEET_PHOTOS} photos in the order they should print - drag each one <span className={kitDock ? 'max-sm:hidden' : ''}>on the right</span>{kitDock && <span className="sm:hidden">in the strip above the photos</span>} to frame it.</> : <>{address} &middot; Choose up to {MAX_CHEAT_SHEET_PHOTOS} photos, in the order you'd like them to appear.</>}</p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:shrink-0">
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
             <MonthlyAiUsageMeter variant="inline" compact className="w-full sm:w-auto" />
-            <button onClick={onBack} className="flex flex-1 items-center justify-center rounded-xl border border-gray-200 bg-gray-100 px-4 py-2.5 text-sm font-bold text-gray-700 transition-colors duration-200 hover:bg-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 sm:flex-none"><svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>Back</button>
-            <button onClick={() => onNext(selected)} disabled={selected.length === 0} className="flex flex-1 items-center justify-center rounded-xl bg-[#111827] px-5 py-2.5 text-sm font-black text-white shadow-lg transition-all duration-300 hover:bg-[#8b7355] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D] sm:flex-none">Continue</button>
+            <button onClick={onBack} className={`${kitDock ? 'max-sm:hidden ' : ''}flex flex-1 items-center justify-center rounded-xl border border-gray-200 bg-gray-100 px-4 py-2.5 text-sm font-bold text-gray-700 transition-colors duration-200 hover:bg-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 sm:flex-none`}><svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>Back</button>
+            <button onClick={() => onNext(selected)} disabled={selected.length === 0} className={`${kitDock ? 'max-sm:hidden ' : ''}flex flex-1 items-center justify-center rounded-xl bg-[#111827] px-5 py-2.5 text-sm font-black text-white shadow-lg transition-all duration-300 hover:bg-[#8b7355] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D] sm:flex-none`}>Continue</button>
           </div>
           <p className="text-center text-xs font-bold text-gray-500 dark:text-gray-400 sm:text-right">
             <span className="uppercase tracking-widest">{selected.length} of {MAX_CHEAT_SHEET_PHOTOS} selected</span>
@@ -1719,8 +1809,15 @@ export const CheatSheetPhotoSelectionView = memo(function CheatSheetPhotoSelecti
           </p>
         </div>
       </div>
+      {kitDock && (
+        <PhoneFramer label="As they'll print" hint={selected.length ? 'Drag a photo to frame it' : 'Tap photos below'}>
+          <div className="grid grid-cols-[1.5fr_1fr_1fr] gap-1.5">
+            {[0, 1, 2].map(i => <DraggablePreviewPhoto key={i} photo={selected[i]} slotIndex={i} heightClass="h-[84px]" onPhotoPositionChange={updatePhotoPosition} />)}
+          </div>
+        </PhoneFramer>
+      )}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className={`grid auto-rows-min grid-cols-2 items-start gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 ${bare ? '' : 'max-h-[560px] overflow-y-auto pr-1'}`}>
+        <div className={`grid auto-rows-min grid-cols-3 items-start gap-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 ${bare ? '' : 'max-h-[560px] overflow-y-auto pr-1'}`}>
           {availableImages.map((imageUrl: string, index: number) => {
             const selectedIndex = selected.findIndex(photo => photo.url === imageUrl)
             const isSelected = selectedIndex !== -1
@@ -1729,12 +1826,14 @@ export const CheatSheetPhotoSelectionView = memo(function CheatSheetPhotoSelecti
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(index, 11) * 0.03 }}
-                className={`relative aspect-square bg-gray-100 dark:bg-[#0B0B0B] rounded-xl overflow-hidden transition-all duration-300 group ${full ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} ${isSelected ? 'ring-[3px] ring-[#C9A24D] shadow-[0_14px_30px_-14px_rgba(139,115,85,.9)]' : full ? '' : 'hover:-translate-y-0.5 hover:shadow-lg hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-600'}`}
+                className={`relative aspect-square bg-gray-100 dark:bg-[#0B0B0B] rounded-xl overflow-hidden transition-all duration-300 group ${full ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} ${isSelected ? 'shadow-[0_14px_30px_-14px_rgba(139,115,85,.9)]' : full ? '' : 'hover:-translate-y-0.5 hover:shadow-lg hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-600'}`}
                 onClick={() => toggleImage(imageUrl)}
                 title={full ? `Up to ${MAX_CHEAT_SHEET_PHOTOS} photos - tap a picked one to swap it out` : undefined}
               >
-                <Image src={imageUrl} alt={`Property view ${index + 1}`} fill sizes="(max-width: 768px) 50vw, (max-width: 1280px) 25vw, 320px" quality={88} className="object-cover" />
+                <Image src={imageUrl} alt={`Property view ${index + 1}`} fill sizes="(max-width: 768px) 34vw, (max-width: 1280px) 25vw, 320px" quality={88} className="object-cover" />
                 <div className={`absolute inset-0 transition-colors duration-200 ${isSelected ? 'bg-black/10' : 'bg-black/0 group-hover:bg-black/10'}`} />
+                {/* the picked border sits INSIDE the tile, so it can never be cut off at the screen edge */}
+                {isSelected && <span aria-hidden className="pointer-events-none absolute inset-0 rounded-xl ring-[3px] ring-inset ring-[#C9A24D]" />}
                 <AnimatePresence>
                   {isSelected && (
                     <motion.div key={selectedIndex} initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.4, opacity: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 24 }}
@@ -1747,8 +1846,16 @@ export const CheatSheetPhotoSelectionView = memo(function CheatSheetPhotoSelecti
             )
           })}
         </div>
-        <CheatSheetLivePreview propertyData={propertyData} address={address} agent={agentData} selectedPhotos={selected} onPhotoPositionChange={updatePhotoPosition} />
+        <div className={kitDock ? 'max-sm:hidden' : ''}>
+          <CheatSheetLivePreview propertyData={propertyData} address={address} agent={agentData} selectedPhotos={selected} onPhotoPositionChange={updatePhotoPosition} />
+        </div>
       </div>
+      {/* Phones, inside the kit window: the flow bar - same onBack / onNext(selected) as above. */}
+      {kitDock && (
+        <FlowDock step={kitDock.step} total={kitDock.total} onBack={kitDock.step > 1 ? onBack : undefined}
+          onContinue={() => onNext(selected)} disabled={selected.length === 0}
+          note={`${selected.length} of ${MAX_CHEAT_SHEET_PHOTOS} picked`} />
+      )}
     </div>
   )
 })
@@ -1811,6 +1918,24 @@ const CheatSheetLivePreview = memo(function CheatSheetLivePreview({ address, age
     </aside>
   )
 })
+
+// Phones, in the kit window: a slim viewfinder pinned to the top of the photo steps - the picked
+// photo(s) exactly as they'll print, dragged right there to frame - so a photo picked far down the
+// grid never means scrolling back up to a preview at the bottom (owner, 10/22).
+function PhoneFramer({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
+  return (
+    <div className="sticky top-0 z-20 -mx-4 mb-3 border-b border-gray-200/70 bg-[#FAFAF7] px-4 pb-3 pt-2.5 shadow-[0_16px_24px_-24px_rgba(17,24,39,.7)] dark:border-gray-800 dark:bg-[#151517] sm:hidden">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]">{label}</p>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.p key={hint} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.18 }}
+            className="text-[11px] font-bold text-gray-400">{hint}</motion.p>
+        </AnimatePresence>
+      </div>
+      {children}
+    </div>
+  )
+}
 
 const DraggablePreviewPhoto = memo(function DraggablePreviewPhoto({ photo, slotIndex, heightClass, aspectRatio, onPhotoPositionChange }: any) {
   const dragStart = useRef<{ pointerId: number; startX: number; startY: number; x: number; y: number } | null>(null)

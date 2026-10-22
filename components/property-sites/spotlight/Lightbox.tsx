@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Grid3x3, X } from 'lucide-react'
+import { usePresence } from './motion'
 
 // Full-screen photo viewer shared by both Spotlight templates: arrow keys / swipe to move, Esc to
 // close, a thumbnail rail to jump, and an "all photos" grid view - the way every serious listing
 // portal presents a home's photos. Always dark regardless of template (photos read best on black).
 export default function Lightbox({
-  photos, index, onClose, onIndex, title,
+  photos: photosIn, index: indexIn, onClose, onIndex, title,
 }: {
   photos: string[]
   index: number | null
@@ -19,7 +20,14 @@ export default function Lightbox({
   const closeRef = useRef<HTMLButtonElement>(null)
   const railRef = useRef<HTMLDivElement>(null)
   const touch = useRef<{ x: number; y: number } | null>(null)
-  const open = index !== null
+  const open = indexIn !== null
+  // The page clears the photos the moment it closes - keep the last set on screen while the
+  // viewer fades away.
+  const last = useRef<{ photos: string[]; index: number } | null>(null)
+  if (open && photosIn.length) last.current = { photos: photosIn, index: indexIn }
+  const { show, closing } = usePresence(open, 220)
+  const photos = open ? photosIn : last.current?.photos || []
+  const index = open ? indexIn : show ? last.current?.index ?? null : null
   const count = photos.length
 
   const go = useCallback((delta: number) => {
@@ -48,10 +56,10 @@ export default function Lightbox({
     el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
   }, [index])
 
-  if (!open || index === null || !photos[index]) return null
+  if (!show || index === null || !photos[index]) return null
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col bg-black/[0.97] text-white" role="dialog" aria-modal="true" aria-label={`${title} photos`}>
+    <div className={`sp-lb fixed inset-0 z-[200] flex flex-col bg-black/[0.97] text-white ${closing ? 'is-closing pointer-events-none' : ''}`} role="dialog" aria-modal="true" aria-label={`${title} photos`}>
       <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <p className="min-w-0 truncate text-xs font-medium tracking-wide text-white/60">
           <span className="font-semibold text-white">{index + 1}</span> / {count}
@@ -73,10 +81,11 @@ export default function Lightbox({
 
       {grid ? (
         <div className="flex-1 overflow-y-auto px-3 pb-8 sm:px-6">
-          <div className="mx-auto grid max-w-6xl grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="sp-lb-grid mx-auto grid max-w-6xl grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {photos.map((src, i) => (
               <button
                 key={src + i}
+                style={{ ['--i' as string]: i }}
                 onClick={() => { onIndex(i); setGrid(false) }}
                 className={`group relative aspect-[4/3] overflow-hidden rounded-lg ${i === index ? 'ring-2 ring-white' : ''}`}
                 aria-label={`Open photo ${i + 1}`}
@@ -146,8 +155,13 @@ export default function Lightbox({
       )}
       <style>{`
         @keyframes spLightboxIn { from { opacity: 0; transform: scale(.985) } to { opacity: 1; transform: none } }
+        @keyframes spLbFade { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes spLbOut { to { opacity: 0; transform: scale(.985) } }
+        .sp-lb { animation: spLbFade .25s ease both }
+        .sp-lb.is-closing { animation: spLbOut .22s cubic-bezier(.4,0,1,1) both }
         .sp-lightbox-img { animation: spLightboxIn .35s cubic-bezier(.2,.7,.2,1) both }
-        @media (prefers-reduced-motion: reduce) { .sp-lightbox-img { animation: none } }
+        .sp-lb-grid > * { animation: spLightboxIn .4s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(min(var(--i, 0), 12) * 25ms) }
+        @media (prefers-reduced-motion: reduce) { .sp-lightbox-img, .sp-lb, .sp-lb-grid > * { animation: none } }
       `}</style>
     </div>
   )

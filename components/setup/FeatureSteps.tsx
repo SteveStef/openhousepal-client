@@ -1,12 +1,12 @@
 'use client'
 
-// The plan-feature steps: sales, reviews, brand, Agent Hub look, email signature. Each reads and
+// The plan-feature steps: sales, reviews, brand, Agent Hub, forms, email signature. Each reads and
 // writes the feature's own saved settings (the same ones its full editor uses), so whatever the
 // agent sets here is exactly what they find later in that feature, and the other way round.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, Copy, ExternalLink, Facebook, Globe, ImageIcon, Instagram, Loader2, Lock, Moon, Music2, Sun, Trash2, Youtube } from 'lucide-react'
-import api from '@/lib/api-service'
+import { Check, Copy, ExternalLink, Facebook, Globe, ImageIcon, Instagram, Layers, Loader2, Moon, MoveRight, Music2, Sparkles, Sun, Trash2, UserRound, Youtube } from 'lucide-react'
+import api, { type SetupFormDefaults } from '@/lib/api-service'
 import type { AgentFormConfig, BrandKit } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { buildDesignPreviewHtml } from '@/lib/signaturePreview'
@@ -17,66 +17,45 @@ import {
 } from '@/lib/signatureConfig'
 import { socialUrlsFrom } from '@/lib/signatureSiteData'
 import SignatureDualPreview from '@/components/studio/signature/SignatureDualPreview'
-import RecentSalesPanel from '@/components/agent-hub/RecentSalesPanel'
-import { HubPanelsOpen } from '@/components/agent-hub/HubPanelChrome'
-import type { AgentSale } from '@/lib/agentSales'
 import { HUB_CLASSIC_ACCENTS, hubAccentOf } from '@/components/agent-hub/HubClassicTheme'
 import { HUB_MOBILE_HEADERS } from '@/components/agent-hub/HubLuxeTheme'
 import { LUXE_METALS, LUXE_METAL_ORDER, metalOf, type LuxeMetal } from '@/lib/luxeMetals'
 import { ACCENT_COLORS } from '@/lib/accentSwatches'
-import { BRAND_ACCENT_COLORS, BRAND_MAIN_COLORS } from '@/lib/brandSwatches'
-import { BigToggle, ChoiceCard, Field, isLight, StepCtx, SubHead, Swatches, toJpeg, useGate } from './SetupUi'
+import { BRAND_MAIN_COLORS, brandFormLook, brandSignaturePatch, modeLabel, useBrandKit, type BrandLook } from '@/lib/brandKit'
+import { BigToggle, ChoiceCard, Field, isLight, MiniFlow, StepCtx, SubHead, Swatches, toJpeg, useGate, useMiniFlow } from './SetupUi'
 import ZillowLinkHelp, { ZILLOW_REVIEW_PLACEHOLDER } from '@/components/reviews/ZillowLinkHelp'
 import QrBrandPicker from '@/components/settings/QrBrandPicker'
 import FormLookPicker, { FormPhonePreview } from '@/components/forms/FormLookPicker'
 import { formLookOf, resolveFormLook, type FormLookFields } from '@/lib/formLook'
+import BrandStepLook from './BrandStepLook'
+import SignatureFormButtons from './SignatureFormButtons'
+import { HubContentPicker, HubFormButtons, HubLinkNote, OpenHubButton } from './HubExtras'
+import { Note, QuestionCard } from './FeatureUi'
+
+export { SalesStep } from './SalesStep'
 
 const METAL_SWATCHES = LUXE_METAL_ORDER.map(m => ({ color: LUXE_METALS[m].base, label: m[0].toUpperCase() + m.slice(1) }))
 
-/** Read-modify-write of the hub config (PUT replaces the whole thing). */
-async function patchHubConfig(patch: Record<string, unknown>) {
-  const latest = await api.agentHub.getMine()
-  const base = latest.success && latest.data?.config ? latest.data.config : {}
-  return api.agentHub.saveConfig({ ...base, ...patch })
-}
-
-// ---------- Sales ----------
-export function SalesStep({ ctx }: { ctx: StepCtx }) {
-  const [ready, setReady] = useState(false)
-  const [sales, setSales] = useState<AgentSale[]>([])
-  const [showStats, setShowStats] = useState(true)
-  const [carousel, setCarousel] = useState(true)
-  const [autoScroll, setAutoScroll] = useState(false)
-  const [minPrice, setMinPrice] = useState(0)
-  useEffect(() => {
-    api.agentHub.getMine().then(r => {
-      const c = (r.success && r.data?.config) || {}
-      if (Array.isArray(c.recentSales)) setSales(c.recentSales)
-      if (typeof c.showSalesStats === 'boolean') setShowStats(c.showSalesStats)
-      if (typeof c.salesCarousel === 'boolean') setCarousel(c.salesCarousel)
-      if (typeof c.salesAutoScroll === 'boolean') setAutoScroll(c.salesAutoScroll)
-      if (typeof c.salesMinPrice === 'number') setMinPrice(c.salesMinPrice)
-      setReady(true)
-    })
-  }, [])
-  useGate(ctx, { ok: true, onContinue: async () => { await api.setup.setState({ confirm: 'sales' }) } }, [])
-  const save = async (o?: { recentSales?: AgentSale[]; showSalesStats?: boolean; salesCarousel?: boolean; salesAutoScroll?: boolean; salesMinPrice?: number }) => {
-    const p = patchHubConfig({
-      recentSales: o?.recentSales ?? sales, showSalesStats: o?.showSalesStats ?? showStats,
-      salesCarousel: o?.salesCarousel ?? carousel, salesAutoScroll: o?.salesAutoScroll ?? autoScroll, salesMinPrice: o?.salesMinPrice ?? minPrice,
-    })
-    ctx.markSaving(p)
-    await p
-  }
-  if (!ready) return <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
+/** A tiny tile painted in a look - the "My Brand Kit" / "Choose my own" cards. */
+function LookTile({ luxe, metal, accent, dark, className = 'h-20' }: { luxe: boolean; metal: LuxeMetal; accent: string; dark: boolean; className?: string }) {
+  const m = LUXE_METALS[metal]
+  const bg = luxe
+    ? dark ? `radial-gradient(120% 80% at 85% -10%, rgba(${m.rgb},.32), transparent 60%), linear-gradient(135deg,#0c0c0e,#1b1a17)` : `radial-gradient(120% 80% at 85% -10%, rgba(${m.rgb},.28), transparent 60%), linear-gradient(135deg,#fffdf8,#f4ead7)`
+    : dark ? '#0B0B0B' : '#f7f5f1'
+  const fill = luxe ? `linear-gradient(135deg, ${m.deep}, ${m.base} 45%, ${m.light} 70%, ${m.deep})` : accent
   return (
-    <HubPanelsOpen.Provider value>
-      <div className="setup-embed">
-        <RecentSalesPanel reLicenseNumber={ctx.data.info.licenseNumber} agentSales={sales} setAgentSales={setSales} showStats={showStats} setShowStats={setShowStats} carousel={carousel} setCarousel={setCarousel} autoScroll={autoScroll} setAutoScroll={setAutoScroll} minPrice={minPrice} setMinPrice={setMinPrice} onChange={() => {}} onSave={save} plain ready />
-      </div>
-    </HubPanelsOpen.Provider>
+    <div className={`flex items-center justify-center gap-2.5 rounded-2xl ring-1 ring-black/5 ${className}`} style={{ background: bg }}>
+      <span className="h-9 w-9 rounded-full" style={{ background: luxe ? `conic-gradient(${m.deep}, ${m.light}, ${m.base}, ${m.deep})` : '#d1d5db' }} />
+      <span className="space-y-1.5">
+        <span className={`block h-2 w-16 rounded ${dark ? 'bg-white' : 'bg-[#111827]'}`} />
+        <span className="block h-3 w-20 rounded-full" style={{ background: fill }} />
+      </span>
+    </div>
   )
 }
+const lookName = (luxe: boolean, metal: LuxeMetal, accentLabel: string | null, dark: boolean) =>
+  `${luxe ? `Luxe, ${LUXE_METALS[metal].label.toLowerCase()}` : `Classic${accentLabel ? `, ${accentLabel.toLowerCase()}` : ''}`}, ${modeLabel(dark)}`
+const colorLabel = (hex: string) => [...HUB_CLASSIC_ACCENTS, ...ACCENT_COLORS].find(c => c.color.toLowerCase() === hex.toLowerCase())?.label || null
 
 // ---------- Reviews ----------
 export function ReviewsStep({ ctx }: { ctx: StepCtx }) {
@@ -113,31 +92,32 @@ export function ReviewsStep({ ctx }: { ctx: StepCtx }) {
 }
 
 // ---------- Brand ----------
-const BRAND_COLORS = BRAND_MAIN_COLORS
-const ACCENTS = BRAND_ACCENT_COLORS
+// Logos, then the Brand Kit's look (the very same picker as Studio -> Brand Kit: Classic / Luxe, the
+// full color palette or Luxe's finish, Ivory / Midnight) - whatever's picked here IS the Brand Kit,
+// which the Agent Hub, website, forms and signature wear on "My Brand Kit".
 export function BrandStep({ ctx }: { ctx: StepCtx }) {
-  const [kit, setKit] = useState<BrandKit | null>(null)
+  const { kit, setLocal, save } = useBrandKit()
   const [busy, setBusy] = useState<string | null>(null)
-  useEffect(() => { api.studio.getBrandKit().then(r => { if (r.success && r.data) setKit(r.data) }) }, [])
   useGate(ctx, { ok: true, onContinue: async () => { await api.setup.setState({ confirm: 'brand' }) } }, [])
+  const flow = useMiniFlow(ctx, ['Logos', 'Look', 'Color', 'QR'])
   if (!kit) return <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
   const upload = async (slot: 'personal' | 'team' | 'brokerage', file?: File) => {
     if (!file) return
     setBusy(slot)
     const f = file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'image/svg+xml' || file.type === 'image/webp' ? file : await toJpeg(file)
     const r = await api.studio.uploadBrandLogo(slot, f)
-    if (r.success && r.data) setKit(r.data)
+    if (r.success && r.data) setLocal(r.data)
     setBusy(null)
   }
   const remove = async (slot: 'personal' | 'team' | 'brokerage') => {
     setBusy(slot)
     const r = await api.studio.deleteBrandLogo(slot)
-    if (r.success && r.data) setKit(r.data)
+    if (r.success && r.data) setLocal(r.data)
     setBusy(null)
   }
-  const setColor = (k: 'primary_color' | 'secondary_color', c: string) => {
-    setKit({ ...kit, [k]: c })
-    ctx.markSaving(api.studio.updateBrandKit({ [k]: c }))
+  const setMain = (c: string) => {
+    setLocal({ ...kit, primary_color: c } as BrandKit)
+    ctx.markSaving(save({ primary_color: c }))
   }
   const slots: { slot: 'personal' | 'team' | 'brokerage'; label: string; url?: string | null }[] = [
     { slot: 'brokerage', label: 'Brokerage logo', url: kit.brokerage_logo_url },
@@ -145,55 +125,55 @@ export function BrandStep({ ctx }: { ctx: StepCtx }) {
     { slot: 'team', label: 'Team logo', url: kit.team_logo_url },
   ]
   return (
-    <div className="space-y-8">
-      <div>
+    <MiniFlow flow={flow} pages={[
+      <div key="logos">
         <SubHead sub="Add any you have - PNG with a clear background looks best.">Logos</SubHead>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {slots.map(s => (
-            <div key={s.slot} className="rounded-[22px] border-2 border-[#ece5d6] bg-white p-3 dark:border-white/10 dark:bg-[#141416]">
-              <label className="flex h-28 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-[repeating-conic-gradient(#f4efe5_0%_25%,#fff_0%_50%)] bg-[length:16px_16px] dark:bg-[repeating-conic-gradient(#1c1c1f_0%_25%,#141416_0%_50%)]">
-                {busy === s.slot ? <Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /> : s.url ? <img src={s.url} alt={s.label} className="max-h-24 max-w-[85%] object-contain" /> : <span className="flex flex-col items-center gap-1 text-[#8b6a2b] dark:text-[#e8c97a]"><ImageIcon className="h-7 w-7" /><span className="text-[12px] font-black">Add</span></span>}
+            <div key={s.slot} className="rounded-[18px] border-2 border-[#ece5d6] bg-white p-2 dark:border-white/10 dark:bg-[#141416] sm:rounded-[22px] sm:p-3">
+              <label className="flex h-20 cursor-pointer items-center justify-center overflow-hidden rounded-2xl sm:h-28 bg-[repeating-conic-gradient(#f4efe5_0%_25%,#fff_0%_50%)] bg-[length:16px_16px] dark:bg-[repeating-conic-gradient(#1c1c1f_0%_25%,#141416_0%_50%)]">
+                {busy === s.slot ? <Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /> : s.url ? <img src={s.url} alt={s.label} className="max-h-[85%] max-w-[85%] object-contain" /> : <span className="flex flex-col items-center gap-1 text-[#8b6a2b] dark:text-[#e8c97a]"><ImageIcon className="h-6 w-6 sm:h-7 sm:w-7" /><span className="text-[12px] font-black">Add</span></span>}
                 <input type="file" accept="image/*" className="sr-only" onChange={e => { upload(s.slot, e.target.files?.[0]); e.target.value = '' }} />
               </label>
               <div className="mt-2 flex items-center justify-between gap-2 px-1">
-                <span className="text-[14px] font-black text-[#111827] dark:text-white">{s.label}</span>
+                <span className="text-[12px] font-black leading-tight text-[#111827] dark:text-white sm:text-[14px]">{s.label}</span>
                 {s.url && <button type="button" onClick={() => remove(s.slot)} aria-label={`Remove ${s.label}`} className="rounded-lg p-1.5 text-gray-400 hover:text-rose-500"><Trash2 className="h-4 w-4" /></button>}
               </div>
             </div>
           ))}
         </div>
-      </div>
-      <div>
-        <SubHead sub="The color for headers and backgrounds.">Main color</SubHead>
-        <Swatches label="Main color" colors={BRAND_COLORS} value={kit.primary_color} onChange={c => setColor('primary_color', c)} />
-      </div>
-      <div>
-        <SubHead sub="The highlight color for buttons and accents.">Accent color</SubHead>
-        <Swatches label="Accent color" colors={ACCENTS} value={kit.secondary_color} onChange={c => setColor('secondary_color', c)} />
-      </div>
-      <div className="overflow-hidden rounded-[22px] border-2 border-[#ece5d6] dark:border-white/10">
-        <div className="flex items-center gap-4 px-5 py-5" style={{ background: kit.primary_color }}>
-          {(kit.brokerage_logo_url || kit.personal_logo_url) && <img src={kit.personal_logo_url || kit.brokerage_logo_url || ''} alt="" className="h-10 max-w-[120px] object-contain" />}
-          <div className="min-w-0">
-            <p className="font-serif text-[20px] font-black" style={{ color: isLight(kit.primary_color) ? '#111827' : '#ffffff' }}>{ctx.data.info.name || 'Your name'}</p>
-            <p className="text-[12px] font-black uppercase tracking-[0.2em]" style={{ color: kit.secondary_color }}>{ctx.data.info.brokerage || 'Your brokerage'}</p>
+      </div>,
+      <div key="look">
+        <SubHead sub="Your Agent Hub, website, forms and email signature all wear this look - each one can still choose its own later.">Your look</SubHead>
+        <BrandStepLook />
+      </div>,
+      <div key="color">
+        <SubHead sub="The color for headers and backgrounds on your reports, net sheets and designs.">Main color</SubHead>
+        <Swatches label="Main color" colors={BRAND_MAIN_COLORS} value={kit.primary_color || '#111827'} onChange={setMain} />
+        <div className="mt-4 overflow-hidden rounded-[22px] border-2 border-[#ece5d6] dark:border-white/10">
+          <div className="flex flex-wrap items-center gap-4 px-5 py-5" style={{ background: kit.primary_color }}>
+            {(kit.brokerage_logo_url || kit.personal_logo_url) && <img src={kit.personal_logo_url || kit.brokerage_logo_url || ''} alt="" className="h-10 max-w-[120px] object-contain" />}
+            <div className="min-w-0">
+              <p className="font-serif text-[20px] font-black" style={{ color: isLight(kit.primary_color) ? '#111827' : '#ffffff' }}>{ctx.data.info.name || 'Your name'}</p>
+              <p className="text-[12px] font-black uppercase tracking-[0.2em]" style={{ color: kit.secondary_color }}>{ctx.data.info.brokerage || 'Your brokerage'}</p>
+            </div>
+            <span className="ml-auto rounded-full px-4 py-2 text-[13px] font-black" style={{ background: kit.secondary_color, color: isLight(kit.secondary_color) ? '#111827' : '#ffffff' }}>Contact me</span>
           </div>
-          <span className="ml-auto rounded-full px-4 py-2 text-[13px] font-black" style={{ background: kit.secondary_color, color: '#111827' }}>Contact me</span>
+          <p className="bg-white px-5 py-2.5 text-[12px] font-bold text-gray-500 dark:bg-[#141416]">A quick look at your colors together</p>
         </div>
-        <p className="bg-white px-5 py-2.5 text-[12px] font-bold text-gray-500 dark:bg-[#141416]">A quick look at your colors together</p>
-      </div>
-      <div>
+      </div>,
+      <div key="qr">
         <SubHead sub="What sits in the middle of every QR code you print or share. Codes you already printed keep working.">Your QR codes</SubHead>
         <QrBrandPicker compact key={kit.personal_logo_url || 'none'} />
-      </div>
-    </div>
+      </div>,
+    ]} />
   )
 }
 
-// ---------- Agent Hub look ----------
+// ---------- Agent Hub ----------
 // The real public page in a phone frame. Each look change is handed straight to the page inside
 // (it listens in ?preview=1 mode - see app/[slug]/page.tsx), so the phone changes the instant a
-// choice is tapped; the save happens alongside. A gold ring pulses so the eye catches it.
+// choice is tapped; the save happens alongside. Content changes (sections, buttons) reload it.
 type HubLook = { hubTheme: string; hubAccent: string; hubLuxeMetal: string; visitorDarkMode: boolean; mobileHeader: string }
 function HubPhonePreview({ src, look, label, width = 260 }: { src: string; look: HubLook; label: string; width?: number }) {
   const frame = useRef<HTMLIFrameElement>(null)
@@ -253,9 +233,16 @@ function HubPhonePreview({ src, look, label, width = 260 }: { src: string; look:
   )
 }
 
+/** The hub keys for the Brand Kit's look (Luxe stays IDX-only). */
+const brandHubLook = (b: BrandLook, isIdx: boolean) => ({ hubTheme: b.theme === 'luxe' && isIdx ? 'luxe' : 'classic', hubAccent: b.accent, hubLuxeMetal: b.metal, visitorDarkMode: b.dark })
+
 export function HubStep({ ctx }: { ctx: StepCtx }) {
   const look = ctx.data.look || {}
   const isIdx = ctx.plan === 'IDX'
+  const { look: brand } = useBrandKit()
+  // "My Brand Kit" unless the hub chose its own (legacy hubs with a saved look keep it - brand_look_service).
+  const legacyOwn = !!(look.hubTheme || look.hubAccent || look.hubLuxeMetal || look.visitorDarkMode === true)
+  const [source, setSource] = useState<'brand' | 'own'>(look.lookSource === 'brand' ? 'brand' : look.lookSource === 'own' || legacyOwn ? 'own' : 'brand')
   const [theme, setTheme] = useState<string>(isIdx && look.hubTheme === 'luxe' ? 'luxe' : 'classic')
   const [accent, setAccent] = useState<string>(hubAccentOf(look.hubAccent))
   const [metal, setMetal] = useState<LuxeMetal>(metalOf(look.hubLuxeMetal))
@@ -263,8 +250,11 @@ export function HubStep({ ctx }: { ctx: StepCtx }) {
   const [header, setHeader] = useState<string>(typeof look.mobileHeader === 'string' ? look.mobileHeader : 'centered')
   const [slug, setSlug] = useState(ctx.data.slug)
   const [slugState, setSlugState] = useState<'idle' | 'checking' | 'ok' | 'taken' | 'saved' | 'error'>('idle')
+  const [reload, setReload] = useState(0)
   const saveLook = (patch: Record<string, string | boolean>) => ctx.saveInfo({ look: patch })
-  const phoneLook: HubLook = { hubTheme: theme, hubAccent: accent, hubLuxeMetal: metal, visitorDarkMode: dark, mobileHeader: header }
+  const own = { hubTheme: theme, hubAccent: accent, hubLuxeMetal: metal, visitorDarkMode: dark }
+  const shownLook = source === 'brand' ? brandHubLook(brand, isIdx) : own
+  const phoneLook: HubLook = { ...shownLook, mobileHeader: header }
   useGate(ctx, {
     ok: slugState !== 'taken' && slugState !== 'checking',
     message: slugState === 'taken' ? 'That link is taken - try another.' : undefined,
@@ -289,42 +279,72 @@ export function HubStep({ ctx }: { ctx: StepCtx }) {
       setSlugState(r.success && r.data?.available ? 'ok' : 'taken')
     }, 450)
   }
+  const pickBrand = () => { setSource('brand'); saveLook({ ...brandHubLook(brand, isIdx), lookSource: 'brand' }) }
+  // "Choose my own" starts from the look it wears now, so nothing changes until they pick.
+  const pickOwn = () => {
+    if (source === 'own') return
+    const from = brandHubLook(brand, isIdx)
+    setTheme(from.hubTheme); setAccent(hubAccentOf(from.hubAccent)); setMetal(metalOf(from.hubLuxeMetal)); setDark(from.visitorDarkMode)
+    setSource('own'); saveLook({ ...from, lookSource: 'own' })
+  }
   const shownSlug = ctx.data.slug
-  return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_260px]">
-      <div className="min-w-0 space-y-8">
+  const src = `/${shownSlug}?preview=1${reload ? `&r=${reload}` : ''}`
+  const bump = () => setReload(n => n + 1)
+  // Four short pages instead of one long list (owner, 10/22). The phone preview stays put beside
+  // (or, on a phone, under) whichever page is showing, so it never reloads between pages.
+  const flow = useMiniFlow(ctx, ['Look', 'Layout', 'Buttons', 'Link'])
+  const lookPage = (
+    <div className="space-y-9">
         <div>
-          <SubHead>Style</SubHead>
+          <SubHead sub="Wear your Brand Kit, or give your hub a look of its own.">Look</SubHead>
           <div className="grid gap-3 sm:grid-cols-2">
-            <ChoiceCard on={theme === 'classic'} onClick={() => { setTheme('classic'); saveLook({ hubTheme: 'classic' }) }} title="Classic" blurb="Clean and bright.">
-              <div className="flex h-24 items-center justify-center rounded-2xl bg-[#f7f5f1]"><div className="h-16 w-24 rounded-xl border border-gray-200 bg-white p-2 shadow-sm"><div className="mx-auto h-4 w-4 rounded-full bg-gray-300" /><div className="mx-auto mt-1.5 h-1.5 w-12 rounded bg-[#111827]" /><div className="mt-1.5 h-2.5 rounded" style={{ background: accent }} /></div></div>
+            <ChoiceCard on={source === 'brand'} onClick={pickBrand} title="My Brand Kit" blurb={lookName(brand.theme === 'luxe' && isIdx, brand.metal, colorLabel(brand.accent), brand.dark)}>
+              <div className="relative"><LookTile luxe={brand.theme === 'luxe' && isIdx} metal={brand.metal} accent={brand.accent} dark={brand.dark} /><span className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-[#8b6a2b] shadow-sm dark:bg-black/60 dark:text-[#e8c97a]"><Layers className="h-3.5 w-3.5" /></span></div>
             </ChoiceCard>
-            <ChoiceCard on={theme === 'luxe'} disabled={!isIdx} onClick={() => { setTheme('luxe'); saveLook({ hubTheme: 'luxe' }) }} title="Luxe" blurb={isIdx ? 'Gold light and a cinematic entrance.' : 'Included with the IDX plan.'} badge={!isIdx ? <span className="rounded-full bg-[#111827] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#e8c97a]">IDX</span> : undefined}>
-              <div className="flex h-24 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0b0f0e] via-[#111827] to-[#2a2218]"><div className="h-16 w-24 rounded-xl border border-[#C9A24D]/50 bg-[#151517] p-2"><div className="mx-auto h-4 w-4 rounded-full" style={{ background: `conic-gradient(${LUXE_METALS[metal].deep}, ${LUXE_METALS[metal].light}, ${LUXE_METALS[metal].base})` }} /><div className="mx-auto mt-1.5 h-1.5 w-12 rounded bg-white" /><div className="mt-1.5 h-2.5 rounded" style={{ background: `linear-gradient(90deg, ${LUXE_METALS[metal].deep}, ${LUXE_METALS[metal].light})` }} /></div></div>
+            <ChoiceCard on={source === 'own'} onClick={pickOwn} title="Choose my own" blurb={source === 'own' ? lookName(theme === 'luxe', metal, colorLabel(accent), dark) : 'Pick a style, color and Ivory or Midnight.'}>
+              <div className="relative"><LookTile luxe={source === 'own' && theme === 'luxe'} metal={metal} accent={source === 'own' ? accent : '#2563EB'} dark={source === 'own' && dark} /><span className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-[#8b6a2b] shadow-sm dark:bg-black/60 dark:text-[#e8c97a]"><Sparkles className="h-3.5 w-3.5" /></span></div>
             </ChoiceCard>
           </div>
         </div>
+        <AnimatePresence initial={false}>
+          {source === 'own' && (
+            <motion.div key="own" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} className="space-y-8 overflow-hidden">
+              <div>
+                <SubHead>Style</SubHead>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <ChoiceCard on={theme === 'classic'} onClick={() => { setTheme('classic'); saveLook({ hubTheme: 'classic' }) }} title="Classic" blurb="Clean and bright.">
+                    <div className="flex h-24 items-center justify-center rounded-2xl bg-[#f7f5f1]"><div className="h-16 w-24 rounded-xl border border-gray-200 bg-white p-2 shadow-sm"><div className="mx-auto h-4 w-4 rounded-full bg-gray-300" /><div className="mx-auto mt-1.5 h-1.5 w-12 rounded bg-[#111827]" /><div className="mt-1.5 h-2.5 rounded" style={{ background: accent }} /></div></div>
+                  </ChoiceCard>
+                  <ChoiceCard on={theme === 'luxe'} disabled={!isIdx} onClick={() => { setTheme('luxe'); saveLook({ hubTheme: 'luxe' }) }} title="Luxe" blurb={isIdx ? 'Gold light and a cinematic entrance.' : 'Included with the IDX plan.'} badge={!isIdx ? <span className="rounded-full bg-[#111827] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#e8c97a]">IDX</span> : undefined}>
+                    <div className="flex h-24 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0b0f0e] via-[#111827] to-[#2a2218]"><div className="h-16 w-24 rounded-xl border border-[#C9A24D]/50 bg-[#151517] p-2"><div className="mx-auto h-4 w-4 rounded-full" style={{ background: `conic-gradient(${LUXE_METALS[metal].deep}, ${LUXE_METALS[metal].light}, ${LUXE_METALS[metal].base})` }} /><div className="mx-auto mt-1.5 h-1.5 w-12 rounded bg-white" /><div className="mt-1.5 h-2.5 rounded" style={{ background: `linear-gradient(90deg, ${LUXE_METALS[metal].deep}, ${LUXE_METALS[metal].light})` }} /></div></div>
+                  </ChoiceCard>
+                </div>
+              </div>
+              <div>
+                <SubHead>{theme === 'luxe' ? 'Finish' : 'Color'}</SubHead>
+                {theme === 'luxe'
+                  ? <Swatches label="Finish" colors={METAL_SWATCHES} value={LUXE_METALS[metal].base} onChange={c => { const m = LUXE_METAL_ORDER.find(x => LUXE_METALS[x].base === c) || 'gold'; setMetal(m); saveLook({ hubLuxeMetal: m }) }} />
+                  : <Swatches label="Color" colors={HUB_CLASSIC_ACCENTS} value={accent} onChange={c => { setAccent(c); saveLook({ hubAccent: c }) }} />}
+              </div>
+              <div>
+                <SubHead>Ivory or Midnight</SubHead>
+                <div className="grid grid-cols-2 gap-3">
+                  {[false, true].map(d => (
+                    <ChoiceCard key={String(d)} on={dark === d} onClick={() => { setDark(d); saveLook({ visitorDarkMode: d }) }} title={modeLabel(d)} blurb={d ? 'Deep pages, light text.' : 'Bright pages, dark text.'}>
+                      <div className={`flex h-16 items-center justify-center rounded-2xl ${d ? 'bg-[#0B0B0B]' : 'bg-[#f7f5f1]'}`}>{d ? <Moon className="h-7 w-7 text-[#e8c97a]" /> : <Sun className="h-7 w-7 text-[#C9A24D]" />}</div>
+                    </ChoiceCard>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+    </div>
+  )
+  const layoutPage = (
+    <div className="space-y-9">
         <div>
-          <SubHead>{theme === 'luxe' ? 'Finish' : 'Color'}</SubHead>
-          {theme === 'luxe'
-            ? <Swatches label="Finish" colors={METAL_SWATCHES} value={LUXE_METALS[metal].base} onChange={c => { const m = LUXE_METAL_ORDER.find(x => LUXE_METALS[x].base === c) || 'gold'; setMetal(m); saveLook({ hubLuxeMetal: m }) }} />
-            : <Swatches label="Color" colors={HUB_CLASSIC_ACCENTS} value={accent} onChange={c => { setAccent(c); saveLook({ hubAccent: c }) }} />}
-        </div>
-        <div>
-          <SubHead>Light or dark</SubHead>
-          <div className="grid grid-cols-2 gap-3">
-            {[false, true].map(d => (
-              <ChoiceCard key={String(d)} on={dark === d} onClick={() => { setDark(d); saveLook({ visitorDarkMode: d }) }} title={d ? 'Dark' : 'Light'}>
-                <div className={`flex h-16 items-center justify-center rounded-2xl ${d ? 'bg-[#0B0B0B]' : 'bg-[#f7f5f1]'}`}>{d ? <Moon className="h-7 w-7 text-[#e8c97a]" /> : <Sun className="h-7 w-7 text-[#C9A24D]" />}</div>
-              </ChoiceCard>
-            ))}
-          </div>
-        </div>
-        <div className="lg:hidden">
-          <HubPhonePreview src={`/${shownSlug}?preview=1`} look={phoneLook} label="Your Agent Hub" width={230} />
-        </div>
-        <div>
-          <SubHead>Top of the page</SubHead>
+          <SubHead sub="How your name and photo sit at the top on a phone.">Top of the page</SubHead>
           <div className="grid gap-3 sm:grid-cols-2">
             {HUB_MOBILE_HEADERS.map(h => (
               <ChoiceCard key={h.id} on={header === h.id} onClick={() => { setHeader(h.id); saveLook({ mobileHeader: h.id }) }} title={h.label} blurb={h.blurb}>
@@ -338,41 +358,67 @@ export function HubStep({ ctx }: { ctx: StepCtx }) {
           </div>
         </div>
         <div>
+          <SubHead sub="Switch on what you want people to see. Anything with nothing in it yet stays hidden until it has something.">What’s on your Agent Hub</SubHead>
+          <HubContentPicker ctx={ctx} onSaved={bump} />
+        </div>
+    </div>
+  )
+  const buttonsPage = (
+        <div>
+          <SubHead sub="The big buttons under your name. Each one opens that form.">Form buttons on your Agent Hub</SubHead>
+          <HubFormButtons ctx={ctx} onSaved={bump} />
+        </div>
+  )
+  const linkPage = (
+        <div>
           <SubHead sub="The address you share. Short and simple is best.">Your link</SubHead>
           <div className="flex overflow-hidden rounded-2xl border-2 border-[#e7dfcf] bg-white focus-within:border-[#C9A24D] dark:border-white/10 dark:bg-[#0e0e10]">
-            <span className="flex items-center border-r-2 border-[#e7dfcf] bg-[#fbf6ea] px-4 text-[15px] font-black text-gray-500 dark:border-white/10 dark:bg-[#1a1712]">openhousepal.com/</span>
-            <input value={slug} onChange={e => onSlug(e.target.value)} aria-label="Your Agent Hub link" className="min-w-0 flex-1 bg-transparent px-4 py-4 text-[17px] font-bold text-[#111827] outline-none dark:text-white" />
+            <span className="flex items-center border-r-2 border-[#e7dfcf] bg-[#fbf6ea] px-3 text-[14px] font-black text-gray-500 dark:border-white/10 dark:bg-[#1a1712] sm:px-4 sm:text-[15px]">openhousepal.com/</span>
+            <input value={slug} onChange={e => onSlug(e.target.value)} aria-label="Your Agent Hub link" className="min-w-0 flex-1 bg-transparent px-3 py-4 text-[17px] font-bold text-[#111827] outline-none dark:text-white sm:px-4" />
           </div>
           <p className={`mt-2 text-[13.5px] font-bold ${slugState === 'taken' || slugState === 'error' ? 'text-rose-600' : slugState === 'ok' ? 'text-emerald-600' : 'text-gray-400'}`}>
             {slugState === 'checking' ? 'Checking...' : slugState === 'ok' ? 'Available - it switches over when you continue. Your old link keeps working.' : slugState === 'taken' ? 'That one is taken - try adding your town or a middle initial.' : slugState === 'error' ? 'We couldn’t save that link - please try another.' : 'This is your link today.'}
           </p>
+          <OpenHubButton slug={shownSlug} className="mt-4 w-full sm:w-auto" />
+          <HubLinkNote ctx={ctx} slug={shownSlug} />
         </div>
+  )
+  return (
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_260px]">
+      <MiniFlow flow={flow} pages={[lookPage, layoutPage, buttonsPage, linkPage]} />
+      <div className="lg:hidden">
+        <HubPhonePreview src={src} look={phoneLook} label="Your Agent Hub" width={230} />
       </div>
-      <a href={`/${shownSlug}`} target="_blank" rel="noreferrer" className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border-2 border-[#C9A24D]/40 bg-white text-[15px] font-black text-[#111827] lg:hidden dark:bg-white/5 dark:text-white">Open my Agent Hub <ExternalLink className="h-4 w-4" /></a>
       <div className="hidden lg:block">
-        <div className="sticky top-28"><HubPhonePreview src={`/${shownSlug}?preview=1`} look={phoneLook} label="Your Agent Hub" /></div>
+        <div className="sticky top-28"><HubPhonePreview src={src} look={phoneLook} label="Your Agent Hub" /></div>
       </div>
     </div>
   )
 }
 
-// ---------- How your forms look ----------
-// Every form at once (user, 10/18 - "in setup flow make this a part"): match the Agent Hub (the
-// default) or one look of their own from the hub's choices. Saved to every form as it's tapped;
-// the phone is the real What's My Home Worth page repainting live (?preview=1).
+// ---------- Forms ----------
+// The look ("My Brand Kit" first, or one look of their own - saved to every form as it's tapped),
+// then three defaults for every form now and every form made later (POST /setup/form-defaults).
+// The phone is the real What's My Home Worth page repainting live (?preview=1).
 export function FormsStep({ ctx }: { ctx: StepCtx }) {
   const look = ctx.data.look || {}
   const luxeAllowed = ctx.plan === 'IDX'
+  const { kit } = useBrandKit()
   const hubLook = formLookOf({ theme: look.hubTheme === 'luxe' && luxeAllowed ? 'luxe' : 'classic', accent: hubAccentOf(look.hubAccent), metal: look.hubLuxeMetal, dark: look.visitorDarkMode === true })
+  const brandLook = brandFormLook(kit, luxeAllowed)
   const [forms, setForms] = useState<AgentFormConfig[] | null>(null)
-  const [value, setValue] = useState<FormLookFields>({ look_mode: 'hub' })
+  const [value, setValue] = useState<FormLookFields>({ look_mode: 'brand' })
+  const [defaults, setDefaults] = useState<SetupFormDefaults | null>(null)
+  const [reload, setReload] = useState(0)
   useEffect(() => {
     api.forms.getMine().then(r => {
       const list = r.success && r.data ? r.data : []
       setForms(list)
       const own = list.find(f => f.look_mode === 'custom')
       if (own) setValue({ look_mode: 'custom', look_theme: own.look_theme || 'classic', accent_color: own.accent_color, luxe_metal: own.luxe_metal || 'gold', dark_mode: own.dark_mode })
+      else setValue({ look_mode: list.length && list.every(f => f.look_mode === 'brand') ? 'brand' : list.some(f => f.look_mode === 'brand') ? 'brand' : 'hub' })
     })
+    api.setup.formDefaults().then(r => { if (r.success && r.data) setDefaults(r.data) })
   }, [])
   const timer = useRef<number | undefined>(undefined)
   const change = (patch: FormLookFields) => {
@@ -381,37 +427,65 @@ export function FormsStep({ ctx }: { ctx: StepCtx }) {
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(() => {
       ctx.markSaving(api.forms.updateAllLook({
-        look_mode: next.look_mode === 'custom' ? 'custom' : 'hub',
+        look_mode: next.look_mode === 'custom' ? 'custom' : next.look_mode === 'brand' ? 'brand' : 'hub',
         look_theme: next.look_theme || 'classic', accent_color: next.accent_color || undefined, luxe_metal: next.luxe_metal || 'gold', dark_mode: !!next.dark_mode,
       }))
     }, 350)
   }
+  const setDefault = (key: 'animated' | 'show_branding' | 'redirect_to_agent_hub', v: boolean) => {
+    setDefaults(d => (d ? { ...d, [key]: { ...d[key], value: v, mixed: false } } : d))
+    const p = api.setup.setFormDefaults({ [key]: v }).then(r => { if (r.success && r.data) setDefaults(r.data); setReload(n => n + 1); return r })
+    ctx.markSaving(p)
+  }
   useGate(ctx, { ok: true, onContinue: async () => { await api.setup.setState({ confirm: 'forms' }) } }, [])
-  const shown = resolveFormLook(value, hubLook, luxeAllowed)
+  const shown = resolveFormLook(value, hubLook, luxeAllowed, brandLook)
   const sample = forms ? forms.find(f => f.form_type === 'home_value' && f.is_enabled) || forms.find(f => f.is_enabled && f.form_type !== 'showing') || forms[0] : null
-  const src = sample ? `/${ctx.data.slug}/${sample.slug}?preview=1` : null
+  const src = sample ? `/${ctx.data.slug}/${sample.slug}?preview=1${reload ? `&r=${reload}` : ''}` : null
   const enabled = (forms || []).filter(f => f.is_enabled)
+  const redirect = defaults?.redirect_to_agent_hub
+  const flow = useMiniFlow(ctx, ['Look', 'Settings'])
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_260px]">
-      <div className="min-w-0 space-y-8">
-        <div>
-          <SubHead sub="One look for every form you share - What's My Home Worth, I'm Buying, I'm Selling and the rest.">Your forms</SubHead>
-          <FormLookPicker value={value} hubLook={hubLook} luxeAllowed={luxeAllowed} onChange={change} />
-        </div>
+      <MiniFlow flow={flow} pages={[
+        <div key="look">
+          <SubHead sub="One look for every form you share - What's My Home Worth, I'm Buying, I'm Selling and the rest.">Your forms’ look</SubHead>
+          <FormLookPicker value={value} hubLook={hubLook} brandLook={brandLook} luxeAllowed={luxeAllowed} onChange={change} />
+        </div>,
+        <div key="settings" className="space-y-8">
+        {defaults ? (
+          <div className="space-y-4">
+            <SubHead sub="For every form you have now - and any form you make later.">Every form</SubHead>
+            <QuestionCard icon={Sparkles} testId="forms-animated" on={defaults.animated.value} onChange={v => setDefault('animated', v)} title="Make my forms animated"
+              blurb="A soft moving background and the welcome words gliding in. Off: calm and still." />
+            <QuestionCard icon={UserRound} testId="forms-branding" on={defaults.show_branding.value} onChange={v => setDefault('show_branding', v)} title="Show my agent branding on my forms"
+              blurb="Your photo, name and brokerage on the first screen, so people know who they’re talking to." />
+            {redirect && (
+              <QuestionCard icon={MoveRight} testId="forms-redirect" on={redirect.value} onChange={v => setDefault('redirect_to_agent_hub', v)} title="After someone sends a form, take them to my Agent Hub"
+                blurb={redirect.value ? 'They see your thank-you message, then your Agent Hub opens.' : 'They stay on your thank-you message.'}>
+                <div className="space-y-2 text-[13px] font-medium leading-snug text-gray-500 dark:text-gray-400">
+                  {redirect.mixed && redirect.differs.length > 0 && <Note tone="gold">Right now {redirect.differs.join(', ')} {redirect.differs.length === 1 ? 'goes' : 'go'} somewhere else - this switch sets them all the same.</Note>}
+                  {redirect.locked.length > 0 && <p>“{redirect.locked.join('”, “')}” always opens the visitor’s new Showcase instead.</p>}
+                  <p>A campaign link with its own after-submit choice keeps it. Your open house sign-in (Guest Pass) isn’t affected.</p>
+                </div>
+              </QuestionCard>
+            )}
+          </div>
+        ) : <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>}
         {enabled.length > 0 && (
           <div>
             <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-gray-400">Used on all {enabled.length} of your forms</p>
             <div className="flex flex-wrap gap-1.5">
               {enabled.map(f => <span key={f.id} className="rounded-full bg-black/[0.04] px-3 py-1.5 text-[12.5px] font-bold text-gray-600 dark:bg-white/[0.06] dark:text-gray-300">{f.title}</span>)}
             </div>
-            <p className="mt-3 text-[13px] font-medium text-gray-500 dark:text-gray-400">You can give any one form its own look later, in that form&apos;s Settings.</p>
+            <p className="mt-3 text-[13px] font-medium text-gray-500 dark:text-gray-400">You can still change any one form later, in that form&apos;s Settings.</p>
           </div>
         )}
-        {src && <div className="lg:hidden"><FormPhonePreview src={src} look={shown} label="Your form" width={230} /></div>}
-      </div>
+        </div>,
+      ]} />
+      {src && <div className="lg:hidden"><FormPhonePreview key={src} src={src} look={shown} label="Your form" width={230} /></div>}
       {src && (
         <div className="hidden lg:block">
-          <div className="sticky top-28"><FormPhonePreview src={src} look={shown} label="Your form" /></div>
+          <div className="sticky top-28"><FormPhonePreview key={src} src={src} look={shown} label="Your form" /></div>
         </div>
       )}
     </div>
@@ -441,25 +515,16 @@ const SIG_SOCIALS = [
   { id: 'tiktok', label: 'TikTok', icon: Music2 },
 ] as const
 
-// "Match my Agent Hub" (the default, like the forms step - user, 10/20): the hub's Classic/Luxe
-// style, its color or metal, and light/dark, copied onto the signature. Luxe hubs are IDX-only.
-function hubSignatureLook(look: Record<string, any>, plan: string | null) {
-  const luxe = look.hubTheme === 'luxe' && plan === 'IDX'
-  return { luxe, luxeMetal: metalOf(look.hubLuxeMetal), accentColor: hubAccentOf(look.hubAccent), darkMode: look.visitorDarkMode === true }
-}
-const matchesHub = (c: SignatureConfig, h: ReturnType<typeof hubSignatureLook>) =>
-  c.luxe === h.luxe && c.darkMode === h.darkMode && (h.luxe ? c.luxeMetal === h.luxeMetal : c.accentColor.toLowerCase() === h.accentColor.toLowerCase())
-
 export function SignatureStep({ ctx }: { ctx: StepCtx }) {
   const { user } = useAuth()
+  const { look: brand } = useBrandKit()
+  const luxeAllowed = ctx.plan === 'IDX'
   const [cfg, setCfg] = useState<SignatureConfig | null>(null)
   const [hub, setHub] = useState<{ config: any; slug: string }>({ config: {}, slug: '' })
   const [forms, setForms] = useState<AgentFormConfig[]>([])
   const [emailVersion, setEmailVersion] = useState(0)
   const [copied, setCopied] = useState<'' | 'ok' | 'err'>('')
   const [client, setClient] = useState<'gmail' | 'outlook' | 'apple'>('gmail')
-  const [colorMode, setColorMode] = useState<'hub' | 'own'>('hub')
-  const hubLook = hubSignatureLook(ctx.data.look || {}, ctx.plan)
   const saveTimer = useRef<number | undefined>(undefined)
   const pending = useRef<SignatureConfig | null>(null)
 
@@ -474,6 +539,8 @@ export function SignatureStep({ ctx }: { ctx: StepCtx }) {
       setHub({ config: hubConfig, slug: (h.success && h.data?.slug) || ctx.data.slug || '' })
       const myForms: AgentFormConfig[] = f.success && f.data ? f.data : []
       setForms(myForms)
+      // GET /me already writes the Brand Kit's look in (lookSource 'brand') for a signature that
+      // follows it - including one that was never styled (brand_look_service).
       let c = mergeSignatureConfig(s.success ? s.data?.config : null)
       let changed = false
       // the editor's own first-visit rules: two starting buttons, and nothing left switched on
@@ -484,13 +551,6 @@ export function SignatureStep({ ctx }: { ctx: StepCtx }) {
       // every social they added in "Your socials" goes on, like the Agent Hub (once - see seedSignatureSocials)
       const seeded = seedSignatureSocials(c, hubConfig)
       if (seeded) { c = seeded; changed = true }
-      // Never styled yet (no color/Luxe/dark saved, step not done): start on the Agent Hub's look.
-      // Someone who already picked their own colors keeps them and lands on "Pick my own".
-      const saved = s.success ? s.data?.config : null
-      const sigDone = ctx.data.steps.some(x => x.id === 'signature' && x.status === 'done')
-      const fresh = !sigDone && !saved?.accentColor && !saved?.luxe && !saved?.darkMode
-      if (fresh && !matchesHub(c, hubLook)) { c = { ...c, ...hubLook }; changed = true }
-      setColorMode(fresh || matchesHub(c, hubLook) ? 'hub' : 'own')
       setCfg(c)
       if (changed) persist(c)
     })
@@ -513,6 +573,8 @@ export function SignatureStep({ ctx }: { ctx: StepCtx }) {
       return next
     })
   }
+  // A look control picked while on "Choose my own" keeps it the signature's own.
+  const updateOwn = (fn: (c: SignatureConfig) => SignatureConfig) => update(c => ({ ...fn(c), lookSource: 'own' }))
   useEffect(() => () => { window.clearTimeout(saveTimer.current); if (pending.current) api.emailSignature.saveConfig(pending.current) }, [])
 
   // The Site Version, built in the browser from exactly what the editor's live preview uses.
@@ -541,14 +603,17 @@ export function SignatureStep({ ctx }: { ctx: StepCtx }) {
     }
   }
 
+  const available = FORM_BUTTON_ORDER.map(t => forms.find(f => f.form_type === t)).filter((f): f is AgentFormConfig => Boolean(f))
+  // Short pages under the preview (owner, 10/22); "Buttons" only when they have forms to put there.
+  const flow = useMiniFlow(ctx, available.length ? ['Look', 'Buttons', 'Extras', 'Install'] : ['Look', 'Extras', 'Install'])
   if (!cfg) return <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
+  const fromBrand = cfg.lookSource === 'brand'
+  const brandSig = brandSignaturePatch(brand, luxeAllowed)
   const luxe = cfg.luxe
   const metal = cfg.luxeMetal
   const colors = ACCENT_COLORS.some(c => c.color.toLowerCase() === cfg.accentColor.toLowerCase())
     ? ACCENT_COLORS
     : [{ color: cfg.accentColor, label: cfg.accentColor.toLowerCase() === DEFAULT_ACCENT.toLowerCase() ? 'Copper' : 'Yours' }, ...ACCENT_COLORS]
-  const chosen = cfg.ctaButtons
-  const available = FORM_BUTTON_ORDER.map(t => forms.find(f => f.form_type === t)).filter((f): f is AgentFormConfig => Boolean(f))
   const toggleButton = (f: AgentFormConfig) => update(c => {
     if (c.ctaButtons.some(b => b.formType === f.form_type)) return { ...c, ctaButtons: c.ctaButtons.filter(b => b.formType !== f.form_type) }
     if (c.ctaButtons.length >= MAX_CTA_BUTTONS) return c
@@ -556,44 +621,54 @@ export function SignatureStep({ ctx }: { ctx: StepCtx }) {
   })
   const listings = (hub.config.myListings || []).length > 0
   const sales = (hub.config.recentSales || []).length > 0
-  const full2 = chosen.length >= MAX_CTA_BUTTONS
   const socialUrls = socialUrlsFrom(hub.config)
   const socialNets = SIG_SOCIALS.filter(s => socialUrls[s.id])
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-9">
       {/* the preview sits in its own place - it doesn't follow them down the page (user, 10/20) */}
       <SignatureDualPreview siteHtml={siteHtml} emailVersion={emailVersion} />
 
+      <MiniFlow flow={flow} pages={[
+      <div key="look" className="space-y-9">
       <div>
-        <SubHead sub="Start from your Agent Hub, or choose a look just for your signature.">Colors</SubHead>
+        <SubHead sub="Wear your Brand Kit, or choose a look just for your signature.">Look</SubHead>
         <div className="grid gap-3 sm:grid-cols-2">
-          <ChoiceCard on={colorMode === 'hub'} onClick={() => { setColorMode('hub'); update(c => ({ ...c, ...hubLook })) }} title="Match my Agent Hub"
-            blurb={`${hubLook.luxe ? `Luxe, ${LUXE_METALS[hubLook.luxeMetal].label.toLowerCase()}` : 'Classic, your hub color'}, ${hubLook.darkMode ? 'dark' : 'light'} - the same as your Agent Hub.`}>
-            <div className="flex h-16 items-center justify-center gap-2 rounded-2xl ring-1 ring-black/5" style={{ background: SIG_THEME_LOOK[hubLook.darkMode ? 'dark' : 'light'][hubLook.luxe ? 'luxe' : 'classic'] }}>
-              <span className="h-9 w-9 rounded-xl" style={{ background: hubLook.luxe ? `linear-gradient(135deg, ${LUXE_METALS[hubLook.luxeMetal].deep}, ${LUXE_METALS[hubLook.luxeMetal].base} 45%, ${LUXE_METALS[hubLook.luxeMetal].light} 70%, ${LUXE_METALS[hubLook.luxeMetal].deep})` : hubLook.accentColor }} />
-              <span className="h-3 w-20 rounded-full" style={{ background: hubLook.luxe ? LUXE_METALS[hubLook.luxeMetal].base : hubLook.accentColor }} />
+          <ChoiceCard on={fromBrand} onClick={() => update(c => ({ ...c, ...brandSig }))} title="My Brand Kit"
+            blurb={lookName(brandSig.luxe, brand.metal, colorLabel(brand.accent), brand.dark)}>
+            <div className="relative">
+              <div className="flex h-16 items-center justify-center gap-2 rounded-2xl ring-1 ring-black/5" style={{ background: SIG_THEME_LOOK[brand.dark ? 'dark' : 'light'][brandSig.luxe ? 'luxe' : 'classic'] }}>
+                <span className="h-9 w-9 rounded-xl" style={{ background: brandSig.luxe ? `linear-gradient(135deg, ${LUXE_METALS[brand.metal].deep}, ${LUXE_METALS[brand.metal].base} 45%, ${LUXE_METALS[brand.metal].light} 70%, ${LUXE_METALS[brand.metal].deep})` : brand.accent }} />
+                <span className="h-3 w-20 rounded-full" style={{ background: brandSig.luxe ? LUXE_METALS[brand.metal].base : brand.accent }} />
+              </div>
+              <span className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-[#8b6a2b] shadow-sm dark:bg-black/60 dark:text-[#e8c97a]"><Layers className="h-3.5 w-3.5" /></span>
             </div>
           </ChoiceCard>
-          <ChoiceCard on={colorMode === 'own'} onClick={() => setColorMode('own')} title="Pick my own" blurb="Choose a style, color and font just for your signature.">
-            <div className="flex h-16 items-center justify-center gap-1.5 rounded-2xl bg-[#fbfaf7] dark:bg-white/[0.04]">
-              {ACCENT_COLORS.slice(0, 5).map(a => <span key={a.color} className="h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#141416]" style={{ background: a.color }} />)}
+          <ChoiceCard on={!fromBrand} onClick={() => { if (fromBrand) update(c => ({ ...c, lookSource: 'own' })) }} title="Choose my own"
+            blurb={!fromBrand ? lookName(luxe, metal, colorLabel(cfg.accentColor), cfg.darkMode) : 'A style, color and font just for your signature.'}>
+            <div className="relative">
+              <div className="flex h-16 items-center justify-center gap-1.5 rounded-2xl bg-[#fbfaf7] dark:bg-white/[0.04]">
+                {ACCENT_COLORS.slice(0, 5).map(a => <span key={a.color} className="h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#141416]" style={{ background: a.color }} />)}
+              </div>
+              <span className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-[#8b6a2b] shadow-sm dark:bg-black/60 dark:text-[#e8c97a]"><Sparkles className="h-3.5 w-3.5" /></span>
             </div>
           </ChoiceCard>
         </div>
       </div>
 
-      {colorMode === 'own' && <>
+      <AnimatePresence initial={false}>
+      {!fromBrand && (
+      <motion.div key="own" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} className="space-y-8 overflow-hidden">
       <div>
         <SubHead sub="Classic takes your color and font. Luxe is our premade look: serif type and a metal finish.">Style</SubHead>
         <div className="grid gap-3 sm:grid-cols-2">
-          <ChoiceCard on={!luxe} onClick={() => update(c => ({ ...c, luxe: false }))} title="Classic" blurb="Your color, clean layout.">
+          <ChoiceCard on={!luxe} onClick={() => updateOwn(c => ({ ...c, luxe: false }))} title="Classic" blurb="Your color, clean layout.">
             <div className="flex h-20 items-center gap-3 rounded-2xl bg-[#fbfaf7] px-4 dark:bg-white/[0.04]">
               <span className="h-11 w-11 shrink-0 rounded-xl" style={{ background: cfg.accentColor }} />
               <span className="flex-1 space-y-1.5"><span className="block h-2 w-24 rounded bg-[#111827] dark:bg-white" /><span className="block h-1.5 w-16 rounded bg-gray-300" /><span className="block h-3 w-20 rounded-full" style={{ background: cfg.accentColor }} /></span>
             </div>
           </ChoiceCard>
-          <ChoiceCard on={luxe} onClick={() => update(c => ({ ...c, luxe: true }))} title="Luxe" blurb="Serif type and a metal finish.">
+          <ChoiceCard on={luxe} onClick={() => updateOwn(c => ({ ...c, luxe: true }))} title="Luxe" blurb="Serif type and a metal finish.">
             <div className="flex h-20 items-center gap-3 rounded-2xl px-4" style={{ background: 'linear-gradient(135deg,#111827 0%,#1b1a17 55%,#2a2218 100%)' }}>
               <span className="h-11 w-11 shrink-0 rounded-xl" style={{ background: `linear-gradient(135deg, ${LUXE_METALS[metal].deep}, ${LUXE_METALS[metal].base} 40%, ${LUXE_METALS[metal].pale} 55%, ${LUXE_METALS[metal].light} 70%, ${LUXE_METALS[metal].deep})` }} />
               <span className="flex-1 space-y-1.5"><span className="block font-serif text-[15px] italic leading-none text-white">{(ctx.data.info.name || 'Your name').split(' ')[0]}</span><span className="block h-1.5 w-16 rounded bg-white/30" /><span className="block h-3 w-20 rounded-full" style={{ background: LUXE_METALS[metal].base }} /></span>
@@ -605,16 +680,16 @@ export function SignatureStep({ ctx }: { ctx: StepCtx }) {
       <div>
         {luxe
           ? <><SubHead sub="The same gold, silver and bronze as your website and Agent Hub.">Finish</SubHead>
-              <Swatches label="Finish" colors={METAL_SWATCHES} value={LUXE_METALS[metal].base} onChange={c => update(x => ({ ...x, luxeMetal: LUXE_METAL_ORDER.find(m => LUXE_METALS[m].base === c) || 'gold' }))} /></>
+              <Swatches label="Finish" colors={METAL_SWATCHES} value={LUXE_METALS[metal].base} onChange={c => updateOwn(x => ({ ...x, luxeMetal: LUXE_METAL_ORDER.find(m => LUXE_METALS[m].base === c) || 'gold' }))} /></>
           : <><SubHead sub="Your buttons, icons and lines.">Color</SubHead>
-              <Swatches label="Color" colors={colors} value={cfg.accentColor} onChange={c => update(x => ({ ...x, accentColor: c }))} /></>}
+              <Swatches label="Color" colors={colors} value={cfg.accentColor} onChange={c => updateOwn(x => ({ ...x, accentColor: c }))} /></>}
       </div>
 
       <div>
-        <SubHead sub="Changes in an already-pasted signature too - nothing to re-copy.">Light or dark</SubHead>
+        <SubHead sub="Changes in an already-pasted signature too - nothing to re-copy.">Ivory or Midnight</SubHead>
         <div className="grid grid-cols-2 gap-3">
           {([false, true] as const).map(d => (
-            <ChoiceCard key={String(d)} on={cfg.darkMode === d} onClick={() => update(c => ({ ...c, darkMode: d }))} title={luxe ? (d ? 'Midnight' : 'Ivory') : (d ? 'Dark' : 'Light')}>
+            <ChoiceCard key={String(d)} on={cfg.darkMode === d} onClick={() => updateOwn(c => ({ ...c, darkMode: d }))} title={modeLabel(d)}>
               <div className="flex h-16 items-center justify-center rounded-2xl ring-1 ring-black/5" style={{ background: SIG_THEME_LOOK[d ? 'dark' : 'light'][luxe ? 'luxe' : 'classic'] }}>
                 {d ? <Moon className="h-7 w-7 text-[#e8c97a]" /> : <Sun className="h-7 w-7 text-[#C9A24D]" />}
               </div>
@@ -630,7 +705,7 @@ export function SignatureStep({ ctx }: { ctx: StepCtx }) {
             {FONT_OPTIONS.map(f => {
               const on = cfg.fontFamily === f.id
               return (
-                <button key={f.id} type="button" onClick={() => update(c => ({ ...c, fontFamily: f.id }))} aria-pressed={on}
+                <button key={f.id} type="button" onClick={() => updateOwn(c => ({ ...c, fontFamily: f.id }))} aria-pressed={on}
                   className={`rounded-[18px] border-2 px-3 py-3 text-center transition ${on ? 'border-[#C9A24D] bg-gradient-to-b from-[#fffaf0] to-white shadow-[0_14px_30px_-22px_rgba(139,106,43,.85)] dark:from-[#1d1912] dark:to-[#141416]' : 'border-[#ece5d6] bg-white hover:border-[#C9A24D]/60 dark:border-white/10 dark:bg-[#141416]'}`}>
                   <span className="block text-[26px] leading-none text-[#111827] dark:text-white" style={{ fontFamily: f.stack }}>Aa</span>
                   <span className="mt-1.5 block text-[12.5px] font-black text-gray-600 dark:text-gray-300">{f.label}</span>
@@ -640,29 +715,19 @@ export function SignatureStep({ ctx }: { ctx: StepCtx }) {
           </div>
         </div>
       )}
-
-      </>}
-
-      {available.length > 0 && (
-        <div>
-          <SubHead sub={`"My Agent Hub" always comes first. Pick up to ${MAX_CTA_BUTTONS} more - each opens that form.`}>Buttons</SubHead>
-          <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full border-2 border-[#111827] bg-[#111827] px-4 py-2.5 text-[14px] font-black text-white dark:border-white dark:bg-white dark:text-[#111827]"><Lock className="h-3.5 w-3.5 opacity-70" /> My Agent Hub</span>
-            {available.map(f => {
-              const on = chosen.some(b => b.formType === f.form_type)
-              const blocked = !on && full2
-              return (
-                <button key={f.id} type="button" onClick={() => toggleButton(f)} aria-pressed={on} disabled={blocked} title={blocked ? `You have ${MAX_CTA_BUTTONS} - tap one to remove it first` : undefined}
-                  className={`inline-flex items-center gap-2 rounded-full border-2 px-4 py-2.5 text-[14px] font-black transition ${on ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#111827] dark:text-white' : blocked ? 'cursor-not-allowed border-dashed border-[#ece5d6] text-gray-400 dark:border-white/10' : 'border-[#ece5d6] text-gray-600 hover:border-[#C9A24D]/60 dark:border-white/10 dark:text-gray-300'}`}>
-                  {on && <Check className="h-4 w-4 text-[#C9A24D]" />}{FORM_BUTTON_DEFAULTS[f.form_type] || f.title}
-                </button>
-              )
-            })}
-          </div>
-          {full2 && <p className="mt-2 text-[13px] font-semibold text-gray-500 dark:text-gray-400">That&apos;s the most that fit on one line - tap one to swap it.</p>}
-        </div>
+      </motion.div>
       )}
+      </AnimatePresence>
+      </div>,
 
+      ...(available.length > 0 ? [
+        <div key="buttons">
+          <SubHead sub={`Buttons people tap inside your emails to reach you. "My Agent Hub" always comes first - pick up to ${MAX_CTA_BUTTONS} of your forms to go beside it.`}>The form buttons on your signature</SubHead>
+          <SignatureFormButtons cfg={cfg} available={available} onToggle={toggleButton} name={ctx.data.info.name} title={[ctx.data.info.title, ctx.data.info.brokerage].filter(Boolean).join(' · ')} photoUrl={ctx.data.info.photoUrl} />
+        </div>,
+      ] : []),
+
+      <div key="extras" className="space-y-9">
       <div>
         <SubHead sub="Each one taps through to that page. They come from “Your socials” - change a link there and it changes here too.">Social icons</SubHead>
         {socialNets.length ? (
@@ -683,14 +748,16 @@ export function SignatureStep({ ctx }: { ctx: StepCtx }) {
         )}
       </div>
 
-      {/* Two separate switches: stats work with the listings & sales card off (they become a slim strip). */}
+      {/* Two separate switches: stats work with the listings & sales card off (they become a slim strip).
+          Which sales show and the stats are also asked in the Sales step - same settings. */}
       <div className="space-y-3">
         <SubHead sub="Both update themselves - nothing to re-copy when you sell a home.">Your listings, sales & stats</SubHead>
         <BigToggle on={cfg.blockVisibility.banner} onChange={v => update(c => ({ ...c, blockVisibility: { banner: v } }))} title="Show my listings & recent sales" blurb={listings || sales ? 'Your newest listing - or your recent sales - under your name, with a photo.' : 'Add a listing or recent sale first - then this shows them.'} />
-        <BigToggle on={cfg.banner.showStats} onChange={v => update(c => ({ ...c, banner: { ...c.banner, showStats: v } }))} title="Show my sales stats" blurb={sales ? 'Homes sold, total volume and average price.' : 'Add your recent sales first - then your numbers show here.'} />
+        <BigToggle on={cfg.banner.showStats} onChange={v => update(c => ({ ...c, banner: { ...c.banner, showStats: v } }))} title="Show my sold stats" blurb={sales ? 'Homes sold, total volume and average price.' : 'Add your recent sales first - then your numbers show here.'} />
       </div>
+      </div>,
 
-      <div className="rounded-[22px] border-2 border-[#C9A24D]/40 bg-[#fbf6ea] p-5 dark:bg-[#1a1712]">
+      <div key="install" className="rounded-[22px] border-2 border-[#C9A24D]/40 bg-[#fbf6ea] p-5 dark:bg-[#1a1712]">
         <SubHead sub="Copy it, then paste it into your email app - it takes a minute.">Put it in your email</SubHead>
         <div className="flex flex-wrap gap-2">
           {(['gmail', 'outlook', 'apple'] as const).map(c => <button key={c} type="button" onClick={() => setClient(c)} className={`rounded-full px-4 py-2 text-[14px] font-black transition ${client === c ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'bg-white text-gray-600 dark:bg-black/30 dark:text-gray-300'}`}>{c === 'gmail' ? 'Gmail' : c === 'outlook' ? 'Outlook' : 'Apple Mail'}</button>)}
@@ -704,7 +771,8 @@ export function SignatureStep({ ctx }: { ctx: StepCtx }) {
         {copied === 'err' && <p className="mt-3 text-[14px] font-bold text-rose-600">Copying didn&apos;t work in this browser - open the full signature page to copy it there.</p>}
         <p className="mt-4 text-[13px] font-semibold text-gray-500 dark:text-gray-400">Your headshot crop, which details show and the verified badge are in the full editor.</p>
         <a href="/studio/email-signature" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-[14px] font-black text-[#8b6a2b] underline-offset-4 hover:underline dark:text-[#e8c97a]">Open the full signature editor <ExternalLink className="h-4 w-4" /></a>
-      </div>
+      </div>,
+      ]} />
     </div>
   )
 }

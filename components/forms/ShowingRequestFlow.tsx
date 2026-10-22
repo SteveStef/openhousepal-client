@@ -105,7 +105,6 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
   const [status, setStatus] = useState<ShowingStatus | null>(null)
   const [statusOpen, setStatusOpen] = useState(false)
   const sentId = useRef<string | null>(null)
-  const autoPick = useRef<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const agentFirst = (form.agentName || '').trim().split(' ')[0]
@@ -127,6 +126,10 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
     onProgress?.(0, null, false, {})
     const [latest] = readIds(form.formId)
     if (latest) loadStatus(latest, true)
+    // A home that's already known (the form is tied to a listing, or a home's own Tour / Showing
+    // button opened it) skips "find the home" altogether: the times window opens straight away
+    // over that home (user, 10/18 + 10/22). Their earlier request's status shows first instead.
+    const startTimes = () => { if (!latest) window.setTimeout(() => setTourOpen(true), 380) }
     if (form.linkedProperty?.address) {
       const lp = form.linkedProperty
       setHome({
@@ -135,11 +138,19 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
         photo: lp.image_url ? resolveMediaUrl(lp.image_url) || lp.image_url : null, listingKey: lp.listing_key || null,
         price: lp.price, beds: lp.beds, baths: lp.baths, sqft: lp.sqft,
       })
-    } else if (prefillAddress) {
-      // Opened from a home's own Tour / Showing button: that home is picked for them - they never
-      // type an address OpenHousePal already knows (user, 10/18).
-      autoPick.current = prefillAddress.trim()
-      setQuery(prefillAddress)
+      startTimes()
+    } else if (prefillAddress?.trim()) {
+      const typed = prefillAddress.trim()
+      setHome(homeFromTyped(typed))
+      onProgress?.(1, 'property_of_interest', false, { property_of_interest: typed })
+      startTimes()
+      // Then fill in its photo, price and listing from our listings while the window is up.
+      api.properties.addressesPublic(typed, form.formId).then(r => {
+        const found = r.success && r.data ? r.data.results : []
+        const street = (typed.split(',')[0] || '').trim().toLowerCase()
+        const match = found.find(x => (x.street || x.address.split(',')[0] || '').trim().toLowerCase() === street) || (found.length === 1 ? found[0] : null)
+        if (match) setHome(homeFromSuggestion(match))
+      }).catch(() => {})
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -153,14 +164,6 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
       const r = await api.properties.addressesPublic(q, form.formId)
       if (cancelled) return
       const found = r.success && r.data ? r.data.results : []
-      if (autoPick.current && autoPick.current === q) {
-        autoPick.current = null
-        const street = (q.split(',')[0] || '').trim().toLowerCase()
-        const match = found.find(x => (x.street || x.address.split(',')[0] || '').trim().toLowerCase() === street) || (found.length === 1 ? found[0] : null)
-        setSearching(false)
-        choose(match ? homeFromSuggestion(match) : homeFromTyped(q))
-        return
-      }
       setResults(found)
       setSearched(q)
       setSearching(false)

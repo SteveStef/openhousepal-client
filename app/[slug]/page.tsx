@@ -8,6 +8,7 @@ import BlogCoverArt from '@/components/BlogCoverArt'
 import { HubLuxeDecor, HubLuxeIntro, HubLuxeStyles, HubSplitHeader, HubAgentPhoto, isHubPhotoSet, LUXE_BLOG_CARD, LUXE_HOME_CARD, LUXE_VIDEO_CARD, LuxeBlogCardBody, LuxeHomeCardBody, LuxeVideoCardBody, hubLuxeMetalClass } from '@/components/agent-hub/HubLuxeTheme'
 import { HUB_CLASSIC_DEFAULT_ACCENT, HubClassicStyles, hubAccentOf, hubAccentStyle, hubClassicClass } from '@/components/agent-hub/HubClassicTheme'
 import { pinnedFirst } from '@/lib/hubPins'
+import { applySalesDisplay, salesSortOf, type SalesSort } from '@/lib/agentSales'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Children, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react'
@@ -240,6 +241,11 @@ export default function PublicAgentHubPage() {
   const [recentSales, setRecentSales] = useState<AgentSale[]>([])
   const [myListings, setMyListings] = useState<AgentSale[]>([])
   const [showSalesStats, setShowSalesStats] = useState(true)
+  // The agent's sales choices (setup flow's Sales step): hide sales under a price, and their order.
+  const [salesMinPrice, setSalesMinPrice] = useState(0)
+  const [salesSort, setSalesSort] = useState<SalesSort>('newest')
+  // Which form buttons show (setup flow's Agent Hub step) - null = all four.
+  const [hubFormButtons, setHubFormButtons] = useState<string[] | null>(null)
   const [salesCarousel, setSalesCarousel] = useState(true)
   const [listingsCarousel, setListingsCarousel] = useState(true)
   const [videosCarousel, setVideosCarousel] = useState(false)
@@ -260,7 +266,8 @@ export default function PublicAgentHubPage() {
   const [mobileHeader, setMobileHeader] = useState<'centered' | 'split'>('centered')
   // Luxe's entry plays once per page load, then the sections cascade in.
   // The setup flow's preview frame (?preview=1) skips the entry so each change shows at once.
-  const [luxeIntro, setLuxeIntro] = useState(() => searchParams.get('preview') !== '1')
+  // ?intro=0 = the agent opening their own hub from setup - straight to the page, no entrance.
+  const [luxeIntro, setLuxeIntro] = useState(() => searchParams.get('preview') !== '1' && searchParams.get('intro') !== '0')
   const [hubLuxeMetal, setHubLuxeMetal] = useState<string>('gold')
   const [hubAccent, setHubAccent] = useState<string>(HUB_CLASSIC_DEFAULT_ACCENT)
   const luxe = hubTheme === 'luxe'
@@ -327,6 +334,9 @@ export default function PublicAgentHubPage() {
     if (Array.isArray(parsed.recentSales)) setRecentSales(getEligibleSales(parsed.recentSales))
     if (Array.isArray(parsed.myListings)) setMyListings(getEligibleListings(parsed.myListings))
     if (typeof parsed.showSalesStats === 'boolean') setShowSalesStats(parsed.showSalesStats)
+    setSalesMinPrice(Number(parsed.salesMinPrice) > 0 ? Number(parsed.salesMinPrice) : 0)
+    setSalesSort(salesSortOf(parsed.salesSort))
+    setHubFormButtons(Array.isArray(parsed.hubFormButtons) ? parsed.hubFormButtons.filter((t: unknown) => typeof t === 'string') : null)
     if (typeof parsed.salesCarousel === 'boolean') setSalesCarousel(parsed.salesCarousel)
     if (typeof parsed.listingsCarousel === 'boolean') setListingsCarousel(parsed.listingsCarousel)
     if (typeof parsed.videosCarousel === 'boolean') setVideosCarousel(parsed.videosCarousel)
@@ -443,6 +453,10 @@ export default function PublicAgentHubPage() {
     ? visiblePublicBlogs.map(b => ({ id: b.slug, title: b.title, description: b.category || 'Blog', image: b.coverImageUrl || '', link: `${blogsPath}/${b.slug}` }))
     : blogCards
   const isVisible = (id: string) => visibleSectionIds.includes(id)
+  // The sales visitors see: shown ones, over the agent's minimum price, in their chosen order (the
+  // Sold / Volume / Avg stats still count every sale).
+  const displayedSales = applySalesDisplay(getEligibleSales(recentSales).filter(sale => sale.visible), salesMinPrice, salesSort)
+  const showFormButton = (formType: string) => !hubFormButtons || hubFormButtons.includes(formType)
   // Reviews: on whenever the agent shows reviews on the hub and has at least one. On a computer
   // they live under About Me in the side column instead (ReviewsSideCard), so the main column skips them.
   const hubReviews = useHubReviews(agentSlug)
@@ -459,7 +473,7 @@ export default function PublicAgentHubPage() {
     : profileReviewBtn
   const visibleOrderedSections = layoutSections.filter(section => section.id === 'reviews'
     ? reviewsOn
-    : section.visible && isVisible(section.id) && sectionHasContent(section.id, recentSales, videoLinks, houseTourLinks, houseTourUrl, effectiveBlogCards, myListings))
+    : section.visible && isVisible(section.id) && sectionHasContent(section.id, displayedSales, videoLinks, houseTourLinks, houseTourUrl, effectiveBlogCards, myListings))
 
   // Sections eligible to take a turn auto-scrolling, in the same top-to-bottom order they're
   // actually laid out on the page. Carousel is mobile-only; desktop still renders shelves and
@@ -467,7 +481,7 @@ export default function PublicAgentHubPage() {
   const autoScrollSequence = visibleOrderedSections
     .map(section => section.id)
     .filter(id => {
-      if (id === 'sales') return salesMotion && !(salesCarousel && isMobileViewport) && getEligibleSales(recentSales).filter(s => s.visible).length >= 2
+      if (id === 'sales') return salesMotion && !(salesCarousel && isMobileViewport) && displayedSales.length >= 2
       if (id === 'listings') return listingsAutoScroll && !(listingsCarousel && isMobileViewport) && getEligibleListings(myListings).filter(l => l.visible).length >= 2
       if (id === 'videos') return videosAutoScroll && !(videosCarousel && isMobileViewport) && videoLinks.filter(item => item.link?.trim()).length >= 2
       if (id === 'tours') return toursAutoScroll && !(toursCarousel && isMobileViewport) && houseTourLinks.filter(item => item.link?.trim()).length >= 2
@@ -559,7 +573,7 @@ export default function PublicAgentHubPage() {
 
   const renderSection = (id: string) => {
     if (id === 'sales') {
-      const eligibleSales = getEligibleSales(recentSales).filter(sale => sale.visible)
+      const eligibleSales = displayedSales
       if (salesCarousel && isMobileViewport && eligibleSales.length !== 1) {
         return (
           <section key={id} className="mt-4">
@@ -912,36 +926,36 @@ export default function PublicAgentHubPage() {
         </a>
 
         <div className="hub-enter mt-4 lg:mt-6" style={{ animationDelay: '.28s' }}>
-          <section className="grid grid-cols-2 gap-2.5 lg:gap-3">
-            <Link
+          {(showFormButton('buying') || showFormButton('selling')) && <section className={`grid ${showFormButton('buying') && showFormButton('selling') ? 'grid-cols-2' : 'grid-cols-1'} gap-2.5 lg:gap-3`}>
+            {showFormButton('buying') && <Link
               href={buyingForm ? `${agentHubBasePath}/${buyingForm.slug}${idxLightSuffix}` : '#'}
               onClick={() => recordAgentHubEvent({ type: 'form', label: buyingForm?.title || "I'm Buying" })}
               className={`hub-btn-buy flex h-11 items-center justify-center gap-2 rounded-[14px] border border-gray-200 bg-white text-sm font-black text-[#111827] shadow-sm dark:border-gray-700 dark:bg-[#151517] dark:text-white lg:h-12 lg:text-base ${buyingForm ? '' : 'pointer-events-none opacity-50'}`}
             >
               <Home className="h-4 w-4 lg:h-5 lg:w-5" /> {buyingForm?.title || "I'm Buying"}
-            </Link>
-            <Link
+            </Link>}
+            {showFormButton('selling') && <Link
               href={sellingForm ? `${agentHubBasePath}/${sellingForm.slug}${idxLightSuffix}` : '#'}
               onClick={() => recordAgentHubEvent({ type: 'form', label: sellingForm?.title || "I'm Selling" })}
               className={`hub-btn-sell flex h-11 items-center justify-center gap-2 rounded-[14px] border border-gray-200 bg-white text-sm font-black text-[#111827] shadow-sm dark:border-gray-700 dark:bg-[#151517] dark:text-white lg:h-12 lg:text-base ${sellingForm ? '' : 'pointer-events-none opacity-50'}`}
             >
               <TrendingUp className="h-4 w-4 lg:h-5 lg:w-5" /> {sellingForm?.title || "I'm Selling"}
-            </Link>
-          </section>
-          <Link
+            </Link>}
+          </section>}
+          {showFormButton('home_value') && <Link
             href={homeValueForm ? `${agentHubBasePath}/${homeValueForm.slug}${idxLightSuffix}` : '#'}
             onClick={() => recordAgentHubEvent({ type: 'form', label: homeValueForm?.title || "What's My Home Worth?" })}
             className={`hub-btn-worth mt-3 flex min-h-[48px] items-center justify-center gap-3 rounded-[14px] border border-[#d7b974] bg-white px-4 py-2.5 text-center text-sm font-black leading-tight text-[#111827] shadow-sm dark:border-[#d7b974]/60 dark:bg-[#151517] dark:text-white lg:mt-4 lg:min-h-[56px] lg:py-3 lg:text-base ${homeValueForm ? '' : 'pointer-events-none opacity-50'}`}
           >
             <DollarSign className="h-4 w-4 shrink-0 text-[#caa65e] lg:h-5 lg:w-5" /> <span>{homeValueForm?.title || "What's My Home Worth?"}</span> <span className="shrink-0 text-[#9aa2af]">&rsaquo;</span>
-          </Link>
-          <Link
+          </Link>}
+          {showFormButton('showing') && <Link
             href={showingForm ? `${agentHubBasePath}/${showingForm.slug}${idxLightSuffix}` : '#'}
             onClick={() => recordAgentHubEvent({ type: 'form', label: showingForm?.title || 'Schedule a Showing' })}
             className={`hub-btn-show mt-3 flex h-[46px] items-center justify-center gap-2 rounded-[14px] bg-[#d2b16f] text-sm font-black text-[#111827] shadow-lg shadow-[#d2b16f]/30 dark:bg-[#caa65e] dark:text-white lg:mt-4 lg:h-[52px] lg:text-base ${showingForm ? '' : 'pointer-events-none opacity-50'}`}
           >
             <span className="hub-show-tile inline-flex"><Calendar className="h-4 w-4 lg:h-5 lg:w-5" /></span> <span className="hub-show-label">{showingForm?.title || 'Schedule a Showing'}</span><span aria-hidden className="hub-show-go hidden">&rarr;</span>
-          </Link>
+          </Link>}
           {/* Computers: one short reviews card right under Schedule a Showing. */}
           {reviewsOn && hubReviews && (
             <ReviewsDeskCard data={hubReviews} reviews={reviewsList} luxe={luxe} reviewHref={reviewHref} className="mt-4 hidden lg:block" />

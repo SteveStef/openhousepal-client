@@ -1919,11 +1919,35 @@ export default function OpenHouseDiscovery() {
                       </div>
                     </motion.div>
                   ) : (
-                    <div className="text-center py-20">
-                      <Home size={40} className="mx-auto text-gray-300 mb-4 opacity-50" />
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No listings found</h3>
-                      <p className="text-gray-500 max-w-xs mx-auto">Try adjusting your search criteria or broadening your location.</p>
-                    </div>
+                    // Empty: one calm card that says what to do next (user, 10/22 - the old two
+                    // grey lines looked broken), not just "no results".
+                    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 240, damping: 26 }}
+                      className="relative mx-auto flex max-w-lg flex-col items-center overflow-hidden rounded-[2rem] border border-[#C9A24D]/25 bg-white px-6 py-12 text-center shadow-[0_30px_70px_-50px_rgba(17,24,39,.6)] dark:bg-[#111113] sm:py-14">
+                      <span aria-hidden className="pointer-events-none absolute -top-24 left-1/2 h-56 w-[420px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.22),transparent)]" />
+                      <div className="relative grid h-20 w-20 place-items-center">
+                        {[0, 1].map(i => (
+                          <motion.span key={i} aria-hidden className="absolute inset-0 rounded-full border border-[#C9A24D]/40"
+                            animate={{ scale: [1, 1.6], opacity: [0.7, 0] }} transition={{ duration: 2.6, repeat: Infinity, delay: i * 1.3, ease: 'easeOut' }} />
+                        ))}
+                        <span className="relative grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-lg">
+                          <Home size={26} />
+                        </span>
+                      </div>
+                      <h3 className="relative mt-6 font-serif text-2xl font-black text-[#111827] dark:text-white">No homes to show yet</h3>
+                      <p className="relative mt-2 max-w-sm text-sm font-medium leading-relaxed text-gray-500 dark:text-gray-400">
+                        Nothing matches your area and filters right now. Try a bigger distance, type a town or address above, or clear your filters.
+                      </p>
+                      <div className="relative mt-6 flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                        <button type="button" onClick={resetAllFiltersMobile}
+                          className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#111827] px-6 text-[11px] font-black uppercase tracking-widest text-white transition hover:-translate-y-0.5 dark:bg-white dark:text-[#111827]">
+                          <Filter size={14} /> Clear my filters
+                        </button>
+                        <button type="button" onClick={() => setIsMyRequestsOpen(true)}
+                          className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-gray-200 px-6 text-[11px] font-black uppercase tracking-widest text-gray-600 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/10 dark:text-gray-300">
+                          <Inbox size={14} /> My requests
+                        </button>
+                      </div>
+                    </motion.div>
                   )}
                 </div>
               </div>
@@ -1937,6 +1961,7 @@ export default function OpenHouseDiscovery() {
               property={selectedPropertyForRequest}
               initialDate={requestPrefillDate || undefined}
               scheduledOpens={listingStatuses[selectedPropertyForRequest.ListingKey]?.scheduled_opens || []}
+              requestedDates={myRequests.filter((r: any) => r.listing_key === selectedPropertyForRequest.ListingKey && (r.status === 'pending' || r.status === 'countered')).map((r: any) => String(r.requested_date))}
               teamBroadcasts={incomingBroadcasts.filter(b => b.listing_key === selectedPropertyForRequest.ListingKey)}
               onBroadcastHandled={refreshIncomingBroadcasts}
               onClose={() => { setSelectedPropertyForRequest(null); setRequestPrefillDate(null) }}

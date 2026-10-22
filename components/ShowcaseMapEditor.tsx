@@ -12,6 +12,7 @@ import MultiSelectDatabaseInput from './MultiSelectDatabaseInput'
 import { PropertyRecommendationCard } from './PropertyRecommendationCard'
 import PropertySearchPicker from './PropertySearchPicker'
 import OhpLoader from './brand/OhpLoader'
+import FlowDock from './ui/FlowDock'
 import BoundaryCanvas, { CanvasBadge, CanvasShape } from './maps/BoundaryCanvas'
 import { formatNumberWithCommas, stripCommas, normalizeImageUrl } from '@/lib/utils'
 import { STATE_CENTERS, US_FALLBACK_CENTER } from '@/lib/usStateCenters'
@@ -1533,6 +1534,13 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
           </div>
         </div>
       </div>
+      {/* Phones, creating a new showcase: the flow bar - 3 / 3 (Client, About them, Search area),
+          Back to About them and Create - the same handlers as the header buttons. */}
+      {create && (
+        <FlowDock inline step={3} total={3} onBack={() => create.onBack(formData)} backDisabled={isSubmitting}
+          onContinue={handleSave} busy={isSubmitting} continueLabel={isSubmitting ? 'Creating…' : 'Create'} icon={<Sparkles />}
+          note={isLoadingPreview ? 'Updating…' : geoMode === 'none' ? undefined : `${previewCount} ${previewCount === 1 ? 'home' : 'homes'}`} />
+      )}
       </motion.div>
 
       {/* Saving would drop homes the client engaged with - they stay; tell the agent first. */}

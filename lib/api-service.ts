@@ -1118,7 +1118,7 @@ class ApiService {
     // no-store: this feeds the Brag/Cheat Sheet's live bio + contact fields (bragSheetData.ts) -
     // every open/refresh of those PDFs must show what's actually saved in Settings/Agent Hub right
     // now, never a browser-cached response from an earlier visit to this page.
-    getMine: () => this.request<{ id: string; slug: string; status: string; config?: Record<string, any> } | null>('/agent-hub/me', { cache: 'no-store' }),
+    getMine: () => this.request<{ id: string; slug: string; status: string; config?: Record<string, any>; brand_look?: import('@/types').BrandKitLook } | null>('/agent-hub/me', { cache: 'no-store' }),
     // What deserves marketing now (synced MLS data): listings without a Spotlight, newest listing, latest sale.
     marketingMoments: () => this.request<MarketingMoments>('/agent-hub/me/marketing-moments', { cache: 'no-store' }),
     // Studio's recommendation for this listing/sale is handled (design made, or dismissed) - for good.
@@ -1326,7 +1326,7 @@ class ApiService {
       }),
 
     /** One look on every form (setup flow / "Use on all my forms"). */
-    updateAllLook: (data: { look_mode: 'hub' | 'custom'; look_theme?: 'classic' | 'luxe'; accent_color?: string; luxe_metal?: string; dark_mode?: boolean }) =>
+    updateAllLook: (data: { look_mode: 'brand' | 'hub' | 'custom'; look_theme?: 'classic' | 'luxe'; accent_color?: string; luxe_metal?: string; dark_mode?: boolean }) =>
       this.request<AgentFormConfig[]>('/agent-hub/forms/look', { method: 'PATCH', body: JSON.stringify(data) }),
 
     checkSlug: (formId: string, slug: string) =>
@@ -1381,7 +1381,7 @@ class ApiService {
     saveListingBlurb: (p: { listing_key?: string | null; address?: string | null; city?: string | null; text: string }) =>
       this.request<{ text: string; source: string }>('/studio/listing-blurb', { method: 'PUT', body: JSON.stringify(p) }),
 
-    updateBrandKit: (data: Partial<Pick<BrandKit, 'primary_color' | 'secondary_color' | 'accent_color' | 'heading_font' | 'body_font' | 'disclaimer_text'>>) =>
+    updateBrandKit: (data: Partial<Pick<BrandKit, 'primary_color' | 'secondary_color' | 'accent_color' | 'heading_font' | 'body_font' | 'disclaimer_text'>> & { look?: { theme?: 'classic' | 'luxe'; metal?: 'gold' | 'silver' | 'bronze'; dark?: boolean } }) =>
       this.request<BrandKit>('/studio/brand-kit', { method: 'PUT', body: JSON.stringify(data) }),
 
     uploadBrandLogo: (slot: 'personal' | 'team' | 'brokerage', file: File) => {
@@ -1842,7 +1842,8 @@ class ApiService {
       }),
 
     delete: (leadId: string) =>
-      this.request<{ success: boolean }>(`/leads/${leadId}`, { method: 'DELETE' }),
+      // message: "Emails to Jane stopped and their Showcase was turned off." (backend lead_cleanup_service)
+      this.request<{ success: boolean; message?: string; emails_cancelled?: number; showcases_off?: number }>(`/leads/${leadId}`, { method: 'DELETE' }),
 
     getOpenHouseHistory: async (search?: string) => {
       const response = await this.request<LeadOpenHouse[]>(`/leads/open-houses/history${search ? `?search=${encodeURIComponent(search)}` : ''}`)
@@ -2481,6 +2482,13 @@ class ApiService {
       formData.append('file', file)
       return this.request<SetupData>('/setup/photo', { method: 'POST', body: formData })
     },
+    // The plan-feature steps' extras - each one reads/writes the feature's own saved settings.
+    hubLink: () => this.request<SetupHubLink>('/setup/hub-link', { cache: 'no-store' }),
+    websiteSales: () => this.request<SetupWebsiteSales>('/setup/website-sales', { cache: 'no-store' }),
+    setWebsiteSales: (on: boolean) => this.request<SetupWebsiteSales>('/setup/website-sales', { method: 'PUT', body: JSON.stringify({ on }) }),
+    formDefaults: () => this.request<SetupFormDefaults>('/setup/form-defaults', { cache: 'no-store' }),
+    setFormDefaults: (patch: Partial<Record<'animated' | 'show_branding' | 'redirect_to_agent_hub', boolean>>) =>
+      this.request<SetupFormDefaults>('/setup/form-defaults', { method: 'PUT', body: JSON.stringify(patch) }),
   };
 
   /**
@@ -2517,7 +2525,7 @@ class ApiService {
   };
 }
 
-export type SetupStepId = 'about' | 'contact' | 'license' | 'photo' | 'story' | 'socials' | 'sales' | 'reviews' | 'brand' | 'hub' | 'forms' | 'signature' | 'alerts' | 'calendar' | 'mailbox' | 'crm' | 'areas' | 'homes' | 'website' | 'domain'
+export type SetupStepId = 'about' | 'contact' | 'license' | 'photo' | 'story' | 'socials' | 'sales' | 'reviews' | 'brand' | 'hub' | 'forms' | 'signature' | 'openhouse' | 'alerts' | 'calendar' | 'mailbox' | 'crm' | 'areas' | 'homes' | 'website' | 'domain'
 export interface MailboxInfo {
   connected: boolean
   provider: 'google' | 'microsoft' | null
@@ -2549,6 +2557,27 @@ export interface SetupData {
   social_links: { id: string; label?: string; url: string; enabled: boolean }[]
   look: Record<string, string | boolean>
   reviews: Record<string, any>
+}
+/** GET /setup/hub-link - the address the agent's links use (their own domain once connected). */
+export interface SetupHubLink {
+  is_idx: boolean
+  platform_url: string
+  hub_url: string
+  routes_to_domain: boolean
+  domain: string | null
+  pending_domain: string | null
+  blocked_reason: 'links_off' | 'site_off' | 'site_unpublished' | 'dns' | null
+}
+/** GET /setup/website-sales - the IDX website's Recently Sold sections. */
+export interface SetupWebsiteSales { available: boolean; on: boolean | null; sections: number; has_site: boolean }
+type SetupFormSwitch = { value: boolean; mixed: boolean; on: number; of: number }
+/** GET /setup/form-defaults - animated / agent branding / after-submit across every form. */
+export interface SetupFormDefaults {
+  animated: SetupFormSwitch
+  show_branding: SetupFormSwitch
+  redirect_to_agent_hub: SetupFormSwitch & { differs: string[]; locked: string[] }
+  saved: Partial<Record<'animated' | 'show_branding' | 'redirect_to_agent_hub', boolean>>
+  count: number
 }
 export interface SetupInfoPatch {
   profile?: Partial<Record<'name' | 'title' | 'brokerage' | 'team' | 'market' | 'about' | 'licenseNumber' | 'brokeragePhone', string>>

@@ -3097,7 +3097,7 @@ function CmaCompetitionPage({ report, agent }: { report: CmaReport; agent: CmaPd
                 <Text style={{ fontSize: 6.6, color: COLORS.subtext }}>{[h.match_score != null ? `${h.match_score}% match` : null, h.distance_miles != null ? `${h.distance_miles} mi` : null].filter(Boolean).join('  ·  ')}</Text>
               </View>
               <Text style={{ fontSize: 12, fontWeight: 900, color: COLORS.text, marginTop: 2 }}>
-                {formatMoney(h.list_price)}{h.price_per_sqft ? `  ·  ${h.price_per_sqft}/sq ft` : ''}
+                {formatMoney(h.list_price)}{h.price_per_sqft ? `  ·  $${h.price_per_sqft}/sq ft` : ''}
               </Text>
               <Text style={{ fontSize: 8, fontWeight: 700, color: COLORS.text, marginTop: 1 }}>{h.street_address}</Text>
               <Text style={{ fontSize: 7, color: COLORS.subtext, marginTop: 1 }}>

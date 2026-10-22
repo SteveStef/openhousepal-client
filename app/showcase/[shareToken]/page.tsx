@@ -1090,6 +1090,9 @@ function ShowcaseContent() {
 
   return (
     <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col transition-colors" style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}>
+      {/* iPhones zoom the whole page in when you tap a text box smaller than 16px (and stay zoomed
+          after) - every box in the Showcase and its windows is 16px on a phone so typing never zooms. */}
+      <style>{`@media (max-width: 639px){input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=button]):not([type=submit]),textarea,select{font-size:16px!important}}`}</style>
       {ownerViewing && (
         <div className="sticky top-0 z-40 border-b border-[#C9A24D]/30 bg-[#111827] text-white">
           <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2 sm:px-6">
@@ -1175,7 +1178,8 @@ function ShowcaseContent() {
                         }
                       }}
                       disabled={showcase.customer?.is_blacklisted}
-                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent shadow-inner transition-colors duration-200 ease-in-out focus:outline-none ${
+                      role="switch" aria-checked={!!showcase.notifyVisitor && !showcase.customer?.is_blacklisted} aria-label="Property update emails"
+                      className={`relative inline-flex h-5 w-9 flex-shrink-0 before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] cursor-pointer rounded-full border-2 border-transparent shadow-inner transition-colors duration-200 ease-in-out focus:outline-none ${
                         showcase.customer?.is_blacklisted
                           ? 'bg-gray-200 dark:bg-gray-800 cursor-not-allowed'
                           : (showcase.notifyVisitor ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-gray-700')

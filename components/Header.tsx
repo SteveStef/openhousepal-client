@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import { useState, useEffect, type ComponentType, type CSSProperties } from 'react'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { Home, Moon, Sun, Menu, X, LogOut, Settings, Layout, ShieldCheck, Palette, LayoutDashboard, Users, AlertCircle, ChevronDown, Globe, Link2, ClipboardList, Newspaper, Search, Building2, Calculator, Lock, HelpCircle, Clapperboard, Mail, ToolCase, CalendarClock, Activity as ActivityIcon, Plug, Send, Star, ListChecks, FileClock } from 'lucide-react'
+import { Home, Moon, Sun, Menu, X, LogOut, Settings, Layout, ShieldCheck, Palette, LayoutDashboard, Users, AlertCircle, ChevronDown, Globe, Link2, ClipboardList, Newspaper, Search, Building2, Calculator, Lock, HelpCircle, Clapperboard, Mail, ToolCase, CalendarClock, Activity as ActivityIcon, Plug, Send, Star, ListChecks, FileClock, ClipboardCheck } from 'lucide-react'
 import api from '@/lib/api-service'
 import { hasValidSubscription } from '@/lib/auth-helpers'
 import { useAuth } from '@/contexts/AuthContext'
@@ -168,7 +168,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
   ]
   const studioSubNav: { href: string; label: string; icon: ComponentType<{ className?: string }>; feature?: NavFeatureKey; iconClass?: string }[] = [
     { href: '/studio/site', label: 'Agent Hub', icon: Link2, feature: 'agent_hub' },
-    { href: '/studio/forms', label: 'Forms', icon: ClipboardList, iconClass: 'ohp-icon-assemble-forms' },
+    { href: '/studio/forms', label: 'Forms & Invites', icon: ClipboardList, iconClass: 'ohp-icon-assemble-forms' },
     { href: '/studio/cma', label: 'CMA', icon: Calculator, feature: 'cma' },
     { href: '/studio/blogs', label: 'Blogs', icon: Newspaper, iconClass: 'ohp-icon-assemble-blog', feature: 'blogs' },
     { href: '/studio/design', label: 'Studio', icon: Palette, feature: 'design_studio' },
@@ -540,6 +540,19 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                       a support ticket to themself - so both are hidden entirely rather than left
                       inert. */}
                   <div className="flex items-center space-x-1 px-2 border-l border-gray-100 dark:border-gray-800 ml-2">
+                    {/* Account setup - the step-by-step setup flow, reopened at the first unfinished step
+                        (or wherever they pick) any time (owner, 10/22). */}
+                    {!user?.is_admin && (
+                    <Link
+                        href="/setup"
+                        title="Account setup"
+                        aria-label="Account setup"
+                        className="relative p-2 rounded-lg transition-all duration-200 flex items-center group text-gray-500 dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                      >
+                        <ClipboardCheck className="w-4 h-4 ohp-icon-draw" />
+                      </Link>
+                    )}
+
                     {!user?.is_admin && (
                     <Link
                         href="/settings/help"
@@ -863,6 +876,16 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                 {settingsIncomplete && (
                   <span className="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-white">Action needed</span>
                 )}
+              </Link>
+              )}
+
+              {!user?.is_admin && (
+              <Link
+                href="/setup"
+                className="flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                <ClipboardCheck className="w-5 h-5" />
+                <span>Account setup</span>
               </Link>
               )}
 

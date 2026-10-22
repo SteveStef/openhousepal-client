@@ -11,6 +11,7 @@ import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import ListingPhotoSearch, { type PhotoSearchTab } from '@/components/studio/media/ListingPhotoSearch'
 import RemoveAreaPainter from '@/components/studio/media/RemoveAreaPainter'
+import FlowDock from '@/components/ui/FlowDock'
 import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import { hasMlsAccess } from '@/lib/navAccess'
@@ -304,7 +305,7 @@ function CreateMediaPage() {
           </div>
         </div>
       )}
-      <div className="mx-auto max-w-5xl px-4 py-4 sm:py-6">
+      <div className="mx-auto max-w-5xl px-4 pb-28 pt-4 sm:py-6">
         <div className="sticky top-0 z-10 relative -mx-4 mb-4 overflow-hidden border-b border-gray-200 bg-white/95 dark:border-gray-800 dark:bg-[#151517]/95 sm:-mx-0 sm:rounded-2xl sm:border">
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#C9A24D] to-[#e0b85f]" />
           <div className="flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3.5 sm:px-5">
@@ -619,6 +620,19 @@ function CreateMediaPage() {
           </Section>
         )}
       </div>
+      {/* Phones: the flow bar (components/ui/FlowDock). Steps 1-2 move on by picking (a photo
+          source, then Photo / Video), so only step 3 has the main action - the same generate() and
+          the same can't-press rules as the Create / Generate button on the page. Back = the
+          StepBar's own jumps (change the photos, change what to make). */}
+      <FlowDock step={step} total={3}
+        onBack={step === 2 ? changeSource : step === 3 ? startOver : undefined} backDisabled={busy}
+        {...(step === 3 ? {
+          onContinue: generate,
+          busy,
+          disabled: videoReview ? (softCapped || storageFull) : (!optionsValid || (!isVideo && !photo) || softCapped || storageFull),
+          continueLabel: busy ? 'Working…' : isVideo ? 'Create' : 'Generate',
+          icon: <Sparkles />,
+        } : {})} />
     </div>
   )
 }

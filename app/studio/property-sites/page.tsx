@@ -228,13 +228,13 @@ function PropertySitesPage() {
                     </div>
                     <div className="flex items-center justify-between gap-2 px-3.5 py-2.5">
                       {live ? (
-                        <a href={`${propertyWebsitePublicUrl(site.slug)}?ohp_owner=1`} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-[#C9A24D]/30 bg-[#C9A24D]/[0.08] px-2.5 py-1 text-[11px] font-bold text-[#8b6a2b] transition hover:border-[#C9A24D] dark:text-[#e8c97a]">
+                        <a href={`${propertyWebsitePublicUrl(site.slug)}?ohp_owner=1`} target="_blank" rel="noreferrer" className="inline-flex min-h-[40px] min-w-0 items-center gap-1.5 rounded-full border border-[#C9A24D]/30 bg-[#C9A24D]/[0.08] px-3 py-1 text-[12px] font-bold sm:min-h-0 sm:px-2.5 sm:text-[11px] text-[#8b6a2b] transition hover:border-[#C9A24D] dark:text-[#e8c97a]">
                           <Globe className="h-3 w-3 shrink-0" /> <span className="truncate">{site.slug}.openhousepal.com</span> <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
                         </a>
                       ) : (
                         <span className="text-[11px] font-semibold text-gray-400">Not published yet</span>
                       )}
-                      <button onClick={() => setPendingDelete(site)} className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20" aria-label="Delete page">
+                      <button onClick={() => setPendingDelete(site)} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-gray-400 hover:bg-red-50 active:bg-red-50 sm:block sm:h-auto sm:w-auto sm:p-1.5 hover:text-red-600 dark:hover:bg-red-900/20" aria-label="Delete page">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>

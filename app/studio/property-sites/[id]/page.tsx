@@ -6,7 +6,8 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { smartBackClick } from '@/lib/navHistory'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
+import { WhenSheet, clockText, dayText, parseYmd, rangeText, ymd, type WhenValue } from '@/components/ui/WhenPicker'
 import {
   ArrowLeft, CalendarDays, Check, ChevronLeft, ChevronRight, ChevronUp, Clapperboard, Copy, Download, ExternalLink, Eye, EyeOff, Globe, Home,
   Image as ImageIcon, Images, Loader2, Pencil, Plus, RefreshCw, Save, Sparkles, Trash2, Upload, Video, Wand2, X,
@@ -29,6 +30,9 @@ import { notify } from '@/contexts/ToastContext'
 import { propertyWebsitePublicUrl } from '@/lib/publicResourceLinks'
 import type { PropertyWebsite, PropertyWebsiteAgent, PropertyWebsiteChapter, PropertyWebsiteDocument, PropertyWebsiteFloorPlan, PropertyWebsiteOpenHouse, PropertyWebsiteTemplateId, StudioMediaAsset, SiteDomain } from '@/types'
 import { copyText } from '@/lib/copyText'
+import FlowDock from '@/components/ui/FlowDock'
+import PhonePagePreview from '@/components/property-sites/editor/PhonePagePreview'
+import { backdropMotion, panelMotion } from '@/components/ui/windowMotion'
 
 // Every toggle here maps 1:1 to a section_visibility key both public templates read (see
 // components/property-sites/spotlight/model.ts buildSpotlight). A section with no content hides
@@ -57,16 +61,17 @@ const TEMPLATE_OPTIONS: { id: PropertyWebsiteTemplateId; name: string; blurb: st
 const TEMPLATE_NAMES: Record<string, string> = Object.fromEntries(TEMPLATE_OPTIONS.map(t => [t.id, t.name]))
 
 // The guided flow, like Studio's: one thing at a time, Back / Next, jump to any step.
+// `short` is the name a phone shows on the step rail, so the lit pill never runs off the screen.
 const STEPS = [
-  { key: 'design', label: 'Design' },
-  { key: 'header', label: 'Header' },
-  { key: 'story', label: 'Story' },
-  { key: 'standouts', label: 'Stand-outs' },
-  { key: 'town', label: 'The town' },
-  { key: 'rooms', label: 'Rooms' },
-  { key: 'extras', label: 'Extras' },
-  { key: 'sections', label: 'Sections' },
-  { key: 'review', label: 'Review & publish' },
+  { key: 'design', label: 'Design', short: 'Design' },
+  { key: 'header', label: 'Header', short: 'Header' },
+  { key: 'story', label: 'Story', short: 'Story' },
+  { key: 'standouts', label: 'Stand-outs', short: 'Stand-outs' },
+  { key: 'town', label: 'The town', short: 'Town' },
+  { key: 'rooms', label: 'Rooms', short: 'Rooms' },
+  { key: 'extras', label: 'Extras', short: 'Extras' },
+  { key: 'sections', label: 'Sections', short: 'Sections' },
+  { key: 'review', label: 'Review & publish', short: 'Review' },
 ] as const
 type StepKey = typeof STEPS[number]['key']
 
@@ -161,6 +166,7 @@ function PropertySiteEditorPage() {
   // Only the agent-typed dates - Open House Manager / MLS open houses are read live on the
   // public page, never copied into the draft.
   const [openHouses, setOpenHouses] = useState<PropertyWebsiteOpenHouse[]>([])
+  const [liveOhDays, setLiveOhDays] = useState<string[]>([])
   const [savedKey, setSavedKey] = useState('')
   const { user } = useAuth()
   // The agent's Website-Builder custom domains, if any - a published Spotlight is also served at
@@ -277,6 +283,19 @@ function PropertySiteEditorPage() {
     })
   }, [videos, site])
   const [previewVideo, setPreviewVideo] = useState<StudioMediaAsset | null>(null)
+  // Phones: "Preview my page" opens the page right here in a full-screen sheet (PhonePagePreview).
+  const [phonePreview, setPhonePreview] = useState(false)
+  // The step rail: on a phone it may be a little wider than the screen - it scrolls inside its own
+  // row, fades at whichever edge has more, and keeps the lit step in the middle.
+  const railRef = useRef<HTMLElement>(null)
+  const [railFade, setRailFade] = useState({ l: false, r: false })
+  const readRail = useCallback(() => {
+    const el = railRef.current
+    if (!el) return
+    const l = el.scrollLeft > 2
+    const r = el.scrollLeft + el.clientWidth < el.scrollWidth - 2
+    setRailFade(f => (f.l === l && f.r === r ? f : { l, r }))
+  }, [])
 
   // Every feature tag, big-ticket items first (a pool before a railing).
   const allFeatureTags = useMemo(() => {
@@ -652,6 +671,22 @@ function PropertySiteEditorPage() {
     setStep(key)
   }
 
+  // Keep the lit step centred in the rail when it can't all fit (phones) - glides there.
+  useEffect(() => {
+    const el = railRef.current
+    if (!el) return
+    const btn = el.querySelector<HTMLElement>('[aria-current="step"]')
+    if (btn && el.scrollWidth > el.clientWidth + 2) {
+      const nr = el.getBoundingClientRect()
+      const br = btn.getBoundingClientRect()
+      const left = el.scrollLeft + (br.left - nr.left) - (nr.width - br.width) / 2
+      el.scrollTo({ left: Math.max(0, left), behavior: 'smooth' })
+    }
+    const t = window.setTimeout(readRail, 450)
+    readRail()
+    return () => window.clearTimeout(t)
+  }, [step, loading, readRail])
+
   // Once a page is live, every saved change goes live by itself - nothing to remember to press.
   const liveNow = site?.status === 'PUBLISHED'
   const outOfDate = !!site && liveNow && JSON.stringify(site.draft_data) !== JSON.stringify(site.published_snapshot)
@@ -752,7 +787,8 @@ function PropertySiteEditorPage() {
             </div>
             <div>
               <p className="mb-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Tap any photo to make it your header.</p>
-              <div className="grid max-h-[300px] auto-rows-max grid-cols-4 gap-1.5 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin]">
+              {/* p-1: room for the gold ring on the chosen photo, which the scroll box used to cut off. */}
+              <div className="-m-1 grid max-h-[300px] auto-rows-max grid-cols-4 gap-1.5 overflow-y-auto overscroll-contain p-1 pr-2 [scrollbar-width:thin]">
                 {(p.photos || []).map(url => (
                   <button key={url} onClick={() => { if (url !== heroImage) setHeader(h => ({ ...h, frame: null })); setHeroImage(url) }} className={`relative aspect-[4/3] overflow-hidden rounded-lg transition ${heroImage === url ? 'ring-[3px] ring-[#C9A24D] ring-offset-2 ring-offset-white dark:ring-offset-[#151517]' : 'opacity-80 hover:opacity-100'}`}>
                     <img src={url} alt="" className="h-full w-full object-cover" />
@@ -770,8 +806,8 @@ function PropertySiteEditorPage() {
           )}
 
           {headerChoice !== 'video' ? (
-            <div className="mt-7 grid items-start gap-6 md:grid-cols-[minmax(240px,1fr)_2fr]">
-              <div>
+            <div className="mt-7 grid grid-cols-[minmax(0,1fr)] items-start gap-6 md:grid-cols-[minmax(240px,1fr)_2fr]">
+              <div className="min-w-0">
                 <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-gray-400">How it moves</p>
                 {modeCards(true)}
                 <div className="mt-5">
@@ -779,7 +815,7 @@ function PropertySiteEditorPage() {
                   <div className="space-y-1.5">
                     {MOTIONS.map(mo => (
                       <button key={mo.id} onClick={() => setHeader(h => ({ ...h, motion: mo.id }))}
-                        className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs font-black transition ${header.motion === mo.id ? 'border-[#C9A24D] bg-[#C9A24D]/5 text-[#111827] dark:text-white' : 'border-gray-200 text-gray-500 hover:border-[#C9A24D]/50 dark:border-gray-800 dark:text-gray-400'}`}>
+                        className={`flex min-h-[44px] w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-[13px] font-black transition sm:min-h-0 sm:text-xs ${header.motion === mo.id ? 'border-[#C9A24D] bg-[#C9A24D]/5 text-[#111827] dark:text-white' : 'border-gray-200 text-gray-500 hover:border-[#C9A24D]/50 dark:border-gray-800 dark:text-gray-400'}`}>
                         {mo.label}{header.motion === mo.id && <Check className="h-3.5 w-3.5 text-[#C9A24D]" />}
                       </button>
                     ))}
@@ -787,7 +823,7 @@ function PropertySiteEditorPage() {
                   {headerChoice === 'cycle' && <p className="mt-2 text-[10px] font-semibold text-gray-400">Starts with your main photo, then the next photos in your listing order - about 6 seconds each.</p>}
                 </div>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-gray-400">Your page, live</p>
                 <ScaledPreview
                   src={`/spotlight-preview/${templateId}?site=${site.id}&embed=1&mode=${headerChoice}&motion=${header.motion}${heroImage ? `&hero=${encodeURIComponent(heroImage)}` : ''}${header.frame ? `&fx=${header.frame.x}&fy=${header.frame.y}&fz=${header.frame.zoom}${header.frame.px != null ? `&fpx=${header.frame.px}&fpy=${header.frame.py ?? 50}` : ''}` : ''}`}
@@ -900,16 +936,18 @@ function PropertySiteEditorPage() {
   return (
     <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]">
       {/* Top bar: what this is, whether it's live, and the one button that matters. */}
-      <div className="sticky top-0 z-40 border-b border-gray-200/80 bg-white/90 dark:border-white/10 dark:bg-[#111113]/90">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
-          <Link href="/studio/property-sites" onClick={smartBackClick(router)} className="rounded-xl p-2 text-gray-400 transition hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-white/10 dark:hover:text-white" aria-label="All property websites">
+      <div className="sticky top-0 z-40 border-b border-gray-200/80 bg-white dark:border-white/10 dark:bg-[#111113] sm:bg-white/90 sm:dark:bg-[#111113]/90">
+        <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-4 py-2.5 sm:gap-3 sm:py-3">
+          <Link href="/studio/property-sites" onClick={smartBackClick(router)} className="-ml-2 grid h-11 w-11 shrink-0 place-items-center rounded-xl text-gray-400 transition hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-white/10 dark:hover:text-white sm:ml-0 sm:block sm:h-auto sm:w-auto sm:p-2" aria-label="All property websites">
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div className="h-10 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-white/5">
+          <div className="h-10 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-white/5 sm:w-14">
             {heroImage && <img src={heroImage} alt="" className="h-full w-full object-cover" />}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-serif text-[15px] font-black text-[#111827] dark:text-white sm:text-base">{p.address}</p>
+            {/* Phones: the whole street on up to two lines instead of "26 OLD GULP…" */}
+            <p className="line-clamp-2 break-words font-serif text-[14px] font-black leading-tight text-[#111827] dark:text-white sm:hidden">{p.address}</p>
+            <p className="hidden truncate font-serif text-[15px] font-black text-[#111827] dark:text-white sm:block sm:text-base">{p.address}</p>
             <p className="flex items-center gap-2 whitespace-nowrap text-[11px] font-bold text-gray-400">
               <span className={`inline-flex min-w-0 items-center gap-1.5 ${live ? (liveOutOfDate ? 'text-amber-600' : 'text-emerald-600') : 'text-gray-400'}`}>
                 <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${live ? (liveOutOfDate ? 'bg-amber-500' : 'bg-emerald-500') : 'bg-gray-300'}`} />
@@ -934,7 +972,9 @@ function PropertySiteEditorPage() {
           <button
             onClick={() => publish()}
             disabled={publishing || live}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black shadow-sm transition disabled:cursor-default ${
+            // Phones, last step: the page's own "Publish my page" and the bar's Publish are right
+            // there - a third one up here was a double (owner wants no duplicate buttons, 10/22).
+            className={`${stepIndex === STEPS.length - 1 && !live ? 'max-sm:hidden ' : ''}inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-[13px] font-black shadow-sm transition disabled:cursor-default sm:min-h-0 sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm ${
               live
                 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
                 : 'bg-gradient-to-r from-[#C9A24D] to-[#e0b85f] text-[#111827] shadow-[#C9A24D]/30 hover:-translate-y-0.5 hover:shadow-lg'
@@ -958,7 +998,7 @@ function PropertySiteEditorPage() {
             <p className="flex items-center gap-2 font-serif text-lg font-black text-[#111827] dark:text-white">
               <Sparkles className="h-4 w-4 text-[#C9A24D]" /> {setupRunning ? 'Setting up your site…' : 'Your site is set up'}
             </p>
-            <p className="mt-0.5 truncate text-xs font-semibold text-gray-500 dark:text-gray-400">{setupRunning ? 'A few seconds - everything stays editable.' : 'Look it over, change anything, then publish.'}</p>
+            <p className="mt-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400 sm:truncate">{setupRunning ? 'A few seconds - everything stays editable.' : 'Look it over, change anything, then publish.'}</p>
             <ul className="mt-4 grid gap-2 sm:grid-cols-2">
               {shownSetup.map(s => {
                 const working = s.state === 'run' || s.state === 'wait'
@@ -979,7 +1019,10 @@ function PropertySiteEditorPage() {
 
         {/* The flow: every step, jump anywhere - a centered glass rail, a gold progress line
             behind the steps, and the current step lifted on a dark pill that glides between them. */}
-        <nav className="-mx-4 mb-6 overflow-x-auto px-4 py-1 [scrollbar-width:none]" aria-label="Steps">
+        {/* Room under the rail for its soft shadow (the scroll row clips it otherwise - it showed as
+            a hard grey edge on phones), and a fade on whichever side has more steps to scroll to. */}
+        <nav ref={railRef} onScroll={readRail} className="-mx-4 mb-2 overflow-x-auto px-4 pb-5 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Steps"
+          style={railFade.l || railFade.r ? { WebkitMaskImage: `linear-gradient(to right, ${railFade.l ? 'transparent, black 36px' : 'black'}, ${railFade.r ? 'black calc(100% - 36px), transparent' : 'black'})`, maskImage: `linear-gradient(to right, ${railFade.l ? 'transparent, black 36px' : 'black'}, ${railFade.r ? 'black calc(100% - 36px), transparent' : 'black'})` } : undefined}>
           <ol className="relative mx-auto flex w-max items-center gap-0.5 rounded-full border border-[#C9A24D]/25 bg-gradient-to-br from-white/90 via-[#fffdf8]/90 to-[#fbf3df]/90 p-1.5 shadow-[0_14px_34px_-22px_rgba(139,115,85,.8)] dark:border-white/10 dark:from-white/[0.05] dark:via-white/[0.03] dark:to-[#C9A24D]/[0.06]">
             <span aria-hidden className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-[#e8c97a] to-transparent" />
             {STEPS.map((x, i) => {
@@ -989,11 +1032,13 @@ function PropertySiteEditorPage() {
               return (
                 <li key={x.key} className="relative flex items-center">
                   {i > 0 && <span aria-hidden className={`hidden h-px w-3 sm:block ${i <= stepIndex ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-white/10'}`} />}
-                  <button onClick={() => goStep(x.key)} aria-label={x.label} className={`relative flex items-center gap-1.5 rounded-full py-1.5 text-[11px] font-black ${on ? 'px-3' : 'px-1 sm:px-3'} transition-colors duration-300 ${on ? (liveDone ? 'text-white' : 'text-white dark:text-[#111827]') : liveDone ? 'text-emerald-700 dark:text-emerald-300' : done ? 'text-[#8b6a2b] hover:text-[#111827] dark:text-[#e8c97a] dark:hover:text-white' : 'text-gray-400 hover:text-[#111827] dark:hover:text-white'}`}>
+                  <button onClick={() => goStep(x.key)} aria-label={x.label} aria-current={on ? 'step' : undefined} className={`relative flex min-h-[40px] min-w-[32px] items-center justify-center gap-1.5 rounded-full py-1.5 text-[11px] font-black sm:min-h-0 sm:min-w-0 ${on ? 'px-3' : 'px-1.5 sm:px-3'} transition-colors duration-300 ${on ? (liveDone ? 'text-white' : 'text-white dark:text-[#111827]') : liveDone ? 'text-emerald-700 dark:text-emerald-300' : done ? 'text-[#8b6a2b] hover:text-[#111827] dark:text-[#e8c97a] dark:hover:text-white' : 'text-gray-400 hover:text-[#111827] dark:hover:text-white'}`}>
                     {on && <motion.span layoutId="spStepPill" transition={{ type: 'spring', stiffness: 420, damping: 34 }} className={`absolute inset-0 rounded-full shadow-[0_8px_20px_-10px_rgba(17,24,39,.8)] ${liveDone ? 'bg-emerald-600' : 'bg-gradient-to-br from-[#111827] to-[#2a2218] ring-1 ring-[#C9A24D]/50 dark:from-white dark:to-[#fbf3df]'}`} />}
                     <span className={`relative flex h-5 w-5 items-center justify-center rounded-full text-[10px] transition-colors duration-300 ${liveDone ? 'bg-emerald-500 text-white' : on ? 'bg-gradient-to-br from-[#e8c97a] to-[#C9A24D] text-[#111827] shadow-[0_0_10px_rgba(201,162,77,.6)]' : done ? 'bg-[#C9A24D]/15 text-[#8b6a2b] dark:text-[#e8c97a]' : 'bg-gray-100 dark:bg-white/10'}`}>{done || liveDone ? <Check className="h-3 w-3" /> : i + 1}</span>
                     {/* Phones: only the current step is named, so the whole rail fits the screen (user, 10/17). */}
-                    <span className={`relative whitespace-nowrap ${on ? '' : 'hidden sm:inline'}`}>{liveDone ? 'Live - done' : x.label}</span>
+                    <span className={`relative whitespace-nowrap ${on ? '' : 'hidden sm:inline'}`}>
+                      {liveDone ? 'Live - done' : <><span className="sm:hidden">{x.short}</span><span className="hidden sm:inline">{x.label}</span></>}
+                    </span>
                   </button>
                 </li>
               )
@@ -1016,10 +1061,12 @@ function PropertySiteEditorPage() {
                     <div className="flex items-center gap-2">
                       <p className="min-w-0 flex-1 font-serif text-base font-black leading-tight text-[#111827] sm:truncate sm:text-lg dark:text-white">{t.id === 'cinematic_luxury' ? <span className="inline-flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-[#C9A24D]" /><em className="bg-gradient-to-r from-[#8b6a2b] via-[#C9A24D] to-[#e8c97a] bg-clip-text font-light italic text-transparent">{t.name}</em></span> : t.name}</p>
                       <button onClick={() => setTemplateId(t.id)} aria-pressed={on}
-                        className={`inline-flex min-w-[104px] shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-black transition ${on ? 'bg-[#C9A24D] text-white shadow-sm' : 'bg-[#111827] text-white hover:-translate-y-0.5 dark:bg-white dark:text-[#111827]'}`}>
+                        className={`inline-flex min-h-[44px] min-w-[112px] shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-[13px] font-black transition sm:min-h-0 sm:min-w-[104px] sm:text-xs ${on ? 'bg-[#C9A24D] text-white shadow-sm' : 'bg-[#111827] text-white hover:-translate-y-0.5 dark:bg-white dark:text-[#111827]'}`}>
                         {on ? <><Check className="h-3.5 w-3.5" /> Selected</> : 'Select'}
                       </button>
-                      <a href={`/spotlight-preview/${t.id}?site=${site.id}`} target="_blank" rel="noreferrer" title="Preview" className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-xs font-black text-[#111827] transition hover:border-[#C9A24D] dark:border-gray-700 dark:text-white">
+                      {/* Computers only - on a phone the live preview above already is the page, and an
+                          icon that opens a new tab read as unclear (owner, 10/22). */}
+                      <a href={`/spotlight-preview/${t.id}?site=${site.id}`} target="_blank" rel="noreferrer" title="Preview" className="hidden shrink-0 items-center gap-1.5 sm:inline-flex rounded-xl border border-gray-200 px-3 py-2 text-xs font-black text-[#111827] transition hover:border-[#C9A24D] dark:border-gray-700 dark:text-white">
                         <ExternalLink className="h-3.5 w-3.5" /><span className="hidden sm:inline">Preview</span>
                       </a>
                     </div>
@@ -1049,11 +1096,13 @@ function PropertySiteEditorPage() {
             <ToggleRow icon={Calculator} title="Monthly payment calculator" body="Buyers see an estimated monthly payment and can play with the numbers." on={visibility.payment !== false} onChange={() => toggleSection('payment')} />
             <ToggleRow icon={FileText} title="Follow this home & fact sheet" body="Guests can get price / open house emails and print the key facts." on={visibility.guest_tools !== false} onChange={() => toggleSection('guest_tools')} />
           </div>
-          <div className="mb-3 inline-flex rounded-xl bg-gray-100 p-1 dark:bg-white/5">
+          {/* Phones: a full-width two-way switch with a gliding light - a short pill strip read as cramped. */}
+          <div className="mb-3 grid grid-cols-2 rounded-xl bg-gray-100 p-1 dark:bg-white/5 sm:inline-flex">
             {([['short', 'Short & polished'], ['original', 'Original description']] as const).map(([mode, label]) => (
               <button key={mode} onClick={() => chooseStory(mode)} disabled={storyBusy}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-black transition ${storyMode === mode ? 'bg-white text-[#111827] shadow-sm dark:bg-white/15 dark:text-white' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400'}`}>
-                {mode === 'short' && (storyBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-[#C9A24D]" />)} {label}
+                className={`relative inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[12.5px] font-black transition-colors sm:min-h-0 sm:px-3.5 sm:text-xs ${storyMode === mode ? 'text-[#111827] dark:text-white' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400'}`}>
+                {storyMode === mode && <motion.span layoutId="spStoryMode" transition={{ type: 'spring', stiffness: 480, damping: 38 }} className="absolute inset-0 rounded-lg bg-white shadow-sm dark:bg-white/15" />}
+                <span className="relative inline-flex items-center gap-1.5">{mode === 'short' && (storyBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-[#C9A24D]" />)} {label}</span>
               </button>
             ))}
           </div>
@@ -1063,11 +1112,11 @@ function PropertySiteEditorPage() {
           />
           <p className="mt-1.5 flex items-center justify-between text-[11px] font-semibold text-gray-400">
             <span>{description.trim().split(/\s+/).filter(Boolean).length} words</span>
-            {storyMode === 'short' && <button onClick={regenerateStory} disabled={storyBusy} className="inline-flex items-center gap-1 font-black text-[#8b7355] hover:underline disabled:opacity-50 dark:text-[#d7b974]"><RefreshCw className="h-3 w-3" /> Write it again</button>}
+            {storyMode === 'short' && <button onClick={regenerateStory} disabled={storyBusy} className="-my-2 -mr-2 inline-flex min-h-[40px] items-center gap-1 px-2 font-black text-[#8b7355] hover:underline sm:my-0 sm:mr-0 sm:min-h-0 sm:px-0 disabled:opacity-50 dark:text-[#d7b974]"><RefreshCw className="h-3 w-3" /> Write it again</button>}
           </p>
           <p className="mb-2 mt-6 text-[11px] font-black uppercase tracking-[0.16em] text-gray-400">Photo beside the story</p>
-          <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-gray-50/60 p-3 dark:border-gray-800 dark:bg-white/[0.03]">
-            <div className="relative h-24 w-36 shrink-0 overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-800">
+          <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50/60 p-3 dark:border-gray-800 dark:bg-white/[0.03] sm:flex-row sm:items-center sm:gap-4">
+            <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-800 sm:aspect-auto sm:h-24 sm:w-36">
               {storyPick === 'busy'
                 ? <div className="flex h-full w-full items-center justify-center animate-pulse bg-gray-200 dark:bg-gray-800"><Loader2 className="h-5 w-5 animate-spin text-[#C9A24D]" /></div>
                 : (storyPhoto || (p.photos || [])[2]) && <img src={storyPhoto || (p.photos || [])[2]} alt="" className="h-full w-full object-cover" />}
@@ -1079,24 +1128,29 @@ function PropertySiteEditorPage() {
               <p className="mt-0.5 text-[11px] font-semibold leading-relaxed text-gray-500 dark:text-gray-400">
                 {storyPick === 'ai' ? 'It looked at every photo and chose the one that sets the scene best next to your words.' : 'Shown next to these words on your page.'}
               </p>
-              <button onClick={() => setStoryPickerOpen(o => !o)} disabled={storyPick === 'busy'} className="mt-1.5 text-[11px] font-black text-[#8b7355] hover:underline disabled:opacity-50 dark:text-[#d7b974]">
+              <button onClick={() => setStoryPickerOpen(o => !o)} disabled={storyPick === 'busy'} className="mt-2.5 inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-[#C9A24D]/40 bg-white px-3 text-[13px] font-black text-[#8b7355] transition disabled:opacity-50 dark:bg-white/[0.04] dark:text-[#d7b974] sm:mt-1.5 sm:min-h-0 sm:w-auto sm:justify-start sm:rounded-none sm:border-0 sm:bg-transparent sm:px-0 sm:text-[11px] sm:hover:underline sm:dark:bg-transparent">
                 {storyPickerOpen ? 'Done' : 'Choose a different photo'}
               </button>
             </div>
           </div>
-          {storyPickerOpen && (
-            <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
-              {(p.photos || []).slice(0, 24).map(url => {
-                const chosen = (storyPhoto || (p.photos || [])[2]) === url
-                return (
-                  <button key={url} onClick={() => { setStoryPhoto(url); setStoryPick('mine') }} className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-lg transition ${chosen ? 'ring-[3px] ring-[#C9A24D] ring-offset-2 ring-offset-white dark:ring-offset-[#151517]' : 'opacity-75 hover:opacity-100'}`}>
-                    <img src={url} alt="" className="h-full w-full object-cover" />
-                    {chosen && <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#C9A24D] text-white"><Check className="h-2.5 w-2.5" /></span>}
-                  </button>
-                )
-              })}
-            </div>
-          )}
+          <AnimatePresence initial={false}>
+            {storyPickerOpen && (
+              <motion.div key="sp-picker" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }} className="overflow-hidden">
+                {/* p: room for the gold ring on the chosen photo (the scroll row clipped it). */}
+                <div className="-mx-1 mt-1 flex snap-x gap-2 overflow-x-auto px-1 pb-2 pt-2 [mask-image:linear-gradient(to_right,black_86%,transparent)] [scrollbar-width:thin] sm:[mask-image:none]">
+                  {(p.photos || []).slice(0, 24).map(url => {
+                    const chosen = (storyPhoto || (p.photos || [])[2]) === url
+                    return (
+                      <button key={url} onClick={() => { setStoryPhoto(url); setStoryPick('mine') }} className={`relative h-20 w-28 shrink-0 snap-start overflow-hidden rounded-lg transition sm:h-16 sm:w-24 ${chosen ? 'ring-[3px] ring-[#C9A24D] ring-offset-2 ring-offset-white dark:ring-offset-[#151517]' : 'opacity-75 hover:opacity-100'}`}>
+                        <img src={url} alt="" className="h-full w-full object-cover" />
+                        {chosen && <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#C9A24D] text-white"><Check className="h-2.5 w-2.5" /></span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </EditorCard>
         </>)}
 
@@ -1111,7 +1165,7 @@ function PropertySiteEditorPage() {
               return (
                 <button
                   key={r.label} onClick={() => toggleFeatured(r.label)}
-                  className={`inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-[11px] font-bold transition ${on ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#d7b974]' : 'border-gray-200 text-gray-500 hover:border-[#C9A24D]/40 dark:border-gray-800 dark:text-gray-400'}`}
+                  className={`inline-flex min-h-[40px] max-w-full items-center gap-1.5 rounded-full border-2 px-3.5 py-1.5 text-left text-[12px] font-bold transition active:scale-[.97] sm:min-h-0 sm:px-3 sm:text-[11px] ${on ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#d7b974]' : 'border-gray-200 text-gray-500 hover:border-[#C9A24D]/40 dark:border-gray-800 dark:text-gray-400'}`}
                 >
                   {r.score >= 44 && <Icon className="h-3 w-3" />}{r.display}{on && <Check className="h-3 w-3" />}
                 </button>
@@ -1141,23 +1195,25 @@ function PropertySiteEditorPage() {
               {town.facts?.tagline && <p className="mt-2 max-w-xl font-serif text-base italic text-white/85">{town.facts.tagline}</p>}
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {town.photo?.caption && <span className="rounded-full bg-black/40 px-2.5 py-1 text-[10px] font-bold">{town.photo.caption}</span>}
-                <button onClick={() => setTownPickerOpen(o => !o)} className="rounded-full bg-white/90 px-3 py-1 text-[10px] font-black text-[#111827] hover:bg-white">{town.photo ? 'Change photo' : 'Pick a photo'}</button>
+                <button onClick={() => setTownPickerOpen(o => !o)} className="min-h-[36px] rounded-full bg-white/90 px-3.5 py-1.5 text-[12px] font-black text-[#111827] transition hover:bg-white active:scale-95 sm:min-h-0 sm:px-3 sm:py-1 sm:text-[10px]">{town.photo ? (townPickerOpen ? 'Done' : 'Change photo') : 'Pick a photo'}</button>
               </div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <input value={town.name} onChange={e => setTown(t => ({ ...t, name: e.target.value }))} placeholder="Town name" className="w-48 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-bold outline-none focus:border-[#C9A24D] dark:border-gray-800 dark:bg-[#1A1A1C] dark:text-white" />
-            <button onClick={regenerateTown} disabled={townBusy || !town.name.trim()} className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[#C9A24D]/50 px-3 py-2 text-[11px] font-black text-[#8b7355] hover:bg-[#C9A24D]/5 disabled:opacity-50 dark:text-[#d7b974]">
+            <input value={town.name} onChange={e => setTown(t => ({ ...t, name: e.target.value }))} placeholder="Town name" className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[15px] font-bold outline-none focus:border-[#C9A24D] dark:border-gray-800 dark:bg-[#1A1A1C] dark:text-white sm:h-auto sm:w-48 sm:text-sm" />
+            <button onClick={regenerateTown} disabled={townBusy || !town.name.trim()} className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-dashed border-[#C9A24D]/50 px-3 py-2 text-[12px] font-black text-[#8b7355] hover:bg-[#C9A24D]/5 disabled:opacity-50 dark:text-[#d7b974] sm:min-h-0 sm:text-[11px]">
               {townBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />} {town.facts || town.body ? 'Write it again' : 'Write it for me'}
             </button>
-            <button onClick={() => setTown(t => ({ ...t, hidden: !t.hidden }))} className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-black text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5">
+            <button onClick={() => setTown(t => ({ ...t, hidden: !t.hidden }))} className="ml-auto inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-black text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 sm:min-h-0 sm:text-[11px]">
               {town.hidden ? <><EyeOff className="h-3.5 w-3.5" /> Hidden on the page</> : <><Eye className="h-3.5 w-3.5 text-[#C9A24D]" /> Shown on the page</>}
             </button>
           </div>
           <div className="mt-5">
             {!town.photo && <p className="text-[11px] font-semibold text-gray-400">No town photo yet - pick one below, or the section shows without one.</p>}
+            <AnimatePresence initial={false}>
             {(townPickerOpen || !town.photo) && (
-              <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
+              <motion.div key="town-picker" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }} className="-mx-1.5 overflow-hidden px-1.5">
+              <div className="mt-1 grid grid-cols-3 gap-2 py-1.5 sm:grid-cols-5">
                 {townPhotos === null && <div className="col-span-3 flex items-center gap-2 py-3 text-xs font-semibold text-gray-400 sm:col-span-5"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Finding photos of {cityLabel}…</div>}
                 {(townPhotos || []).map(ph => (
                   <button key={ph.url} onClick={() => { setTown(t => ({ ...t, photo: { url: ph.url, credit: ph.credit, caption: ph.caption, source_url: ph.source_url }, photo_off: false })); setTownPickerOpen(false) }}
@@ -1176,7 +1232,9 @@ function PropertySiteEditorPage() {
                   </button>
                 )}
               </div>
+              </motion.div>
             )}
+            </AnimatePresence>
             {townPhotos && townPhotos.length > 0 && <p className="mt-2 text-[10px] font-semibold text-gray-400">Free photos from Wikimedia Commons - the photographer is credited under the photo on your page.</p>}
           </div>
           {town.facts ? (
@@ -1203,7 +1261,7 @@ function PropertySiteEditorPage() {
         {step === 'extras' && (<>
         <EditorCard step={7} title="Video, Tour & Files" subtitle="All optional - anything left empty simply doesn't show.">
           <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-gray-400">AI video tour</p>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-3">
             <button onClick={() => setVideoAssetId(null)} className={`flex items-center gap-2 rounded-xl border-2 p-2.5 text-left ${!videoAssetId ? 'border-[#C9A24D] bg-[#C9A24D]/5' : 'border-gray-200 dark:border-gray-800'}`}>
               <div className="flex h-10 w-14 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-400 dark:bg-gray-800"><Video className="h-4 w-4" /></div>
               <span className="text-xs font-black text-[#111827] dark:text-white">None</span>
@@ -1218,14 +1276,15 @@ function PropertySiteEditorPage() {
               </div>
             )}
             {matchingVideos.map(v => (
-              <div key={v.id} className={`group relative flex items-center gap-2 rounded-xl border-2 p-2.5 text-left ${videoAssetId === v.id ? 'border-[#C9A24D] bg-[#C9A24D]/5' : 'border-gray-200 dark:border-gray-800'}`}>
+              <div key={v.id} className={`group relative flex items-center gap-2 rounded-xl border-2 p-2.5 pr-14 text-left transition-colors sm:pr-2.5 ${videoAssetId === v.id ? 'border-[#C9A24D] bg-[#C9A24D]/5' : 'border-gray-200 dark:border-gray-800'}`}>
                 <button onClick={() => setVideoAssetId(v.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
                   <div className="relative h-10 w-14 shrink-0 overflow-hidden rounded-lg bg-black"><video src={v.result_url || undefined} className="h-full w-full object-cover" muted /></div>
                   <span className="truncate text-xs font-black text-[#111827] dark:text-white">{v.options?.custom_name || `Video · ${new Date(v.created_at).toLocaleDateString()}`}</span>
                 </button>
                 <button type="button" onClick={(e) => { e.stopPropagation(); setPreviewVideo(v) }} title="Preview this video" aria-label="Preview this video"
-                  className="absolute right-1.5 top-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition group-hover:opacity-100 hover:bg-black/80">
-                  <Eye className="h-3.5 w-3.5" />
+                  className="absolute right-2 top-1/2 flex h-10 w-10 shrink-0 -translate-y-1/2 items-center justify-center rounded-full bg-[#111827] text-white transition hover:bg-black/80 active:scale-95 dark:bg-white/15 sm:right-1.5 sm:top-1.5 sm:h-6 sm:w-6 sm:translate-y-0 sm:bg-black/60 sm:opacity-0 sm:group-hover:opacity-100 sm:dark:bg-black/60">
+                  {/* Phones have no hover, so the play button is always there. */}
+                  <Eye className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                 </button>
               </div>
             ))}
@@ -1273,20 +1332,20 @@ function PropertySiteEditorPage() {
           </div>
         </EditorCard>
         <EditorCard step={7} title="Open Houses" subtitle="Pulled live from your Open House Manager and the MLS - a new one shows up on its own, and each drops off once it's over.">
-          <LiveOpenHouses siteId={site.id} refreshKey={openHouses.length} />
+          <LiveOpenHouses siteId={site.id} refreshKey={openHouses.length} onRows={rows => setLiveOhDays(rows.filter(o => o.source !== 'manual').map(o => o.date))} />
           <p className="mb-2 mt-4 text-[11px] font-black uppercase tracking-[0.16em] text-gray-400">Add a date yourself</p>
-          <OpenHousesEditor rows={openHouses} onChange={setOpenHouses} />
+          <OpenHousesEditor rows={openHouses} onChange={setOpenHouses} taken={liveOhDays} photo={heroImage} street={site.property_snapshot.address || null} />
         </EditorCard>
         </>)}
 
         {step === 'sections' && (<>
-        <EditorCard step={8} title="Show or Hide Sections" subtitle="Flip a switch and watch your page change on the right.">
-          <div className="grid items-start gap-5 lg:grid-cols-[1fr_1.15fr]">
+        <EditorCard step={8} title="Show or Hide Sections" subtitle={<><span className="lg:hidden">Flip a switch and watch your page change in the preview below.</span><span className="hidden lg:inline">Flip a switch and watch your page change on the right.</span></>}>
+          <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[1fr_1.15fr]">
             <div ref={sectionsList} className="scroll-mt-28 space-y-1.5">
               {Object.entries(SECTION_LABELS).map(([key, label]) => {
                 const on = sectionOn(visibility, key)
                 return (
-                  <button key={key} onClick={() => toggleSectionLive(key)} className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-left transition ${on ? 'border-gray-200 bg-white dark:border-gray-800 dark:bg-[#1A1A1C]' : 'border-dashed border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-transparent'}`}>
+                  <button key={key} onClick={() => toggleSectionLive(key)} className={`flex min-h-[48px] w-full items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-left transition sm:min-h-0 ${on ? 'border-gray-200 bg-white dark:border-gray-800 dark:bg-[#1A1A1C]' : 'border-dashed border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-transparent'}`}>
                     <span className={`text-xs font-black ${on ? 'text-[#111827] dark:text-white' : 'text-gray-400 line-through'}`}>{label}</span>
                     <span className={`relative h-5 w-9 shrink-0 rounded-full transition ${on ? 'bg-[#C9A24D]' : 'bg-gray-300 dark:bg-gray-700'}`}><span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${on ? 'left-[18px]' : 'left-0.5'}`} /></span>
                   </button>
@@ -1307,7 +1366,7 @@ function PropertySiteEditorPage() {
                 }} />
               <p className="mt-2 text-center text-[10px] font-semibold text-gray-400">Live preview - sections with nothing in them never show.</p>
               <button type="button" onClick={() => sectionsList.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                className="mx-auto mt-3 flex items-center gap-1.5 rounded-full border border-gray-200 px-4 py-2 text-[11px] font-black text-gray-600 transition hover:border-[#C9A24D] dark:border-gray-700 dark:text-gray-300 lg:hidden">
+                className="mx-auto mt-3 flex min-h-[44px] items-center gap-1.5 rounded-full border border-gray-200 px-5 py-2 text-[12px] font-black text-gray-600 transition hover:border-[#C9A24D] dark:border-gray-700 dark:text-gray-300 lg:hidden">
                 <ChevronUp className="h-3.5 w-3.5" /> Back to the switches
               </button>
             </div>
@@ -1389,20 +1448,26 @@ function PropertySiteEditorPage() {
                         <div className="mt-4 flex gap-1.5" aria-hidden>
                           {STEPS.map((x, i) => <span key={x.key} className={`rv-seg h-1.5 flex-1 rounded-full ${i < doneCount ? 'bg-gradient-to-r from-[#C9A24D] to-[#e8c97a]' : 'bg-white/15'}`} style={{ ['--i' as string]: i }} />)}
                         </div>
-                        <div className="mt-6 flex flex-wrap gap-2">
+                        {/* Phones: one big button per line (side by side, "Publish my page" broke onto two lines). */}
+                        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                           {!live && (
                             <button onClick={() => publish()} disabled={publishing}
-                              className="rv-shine inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-6 py-3.5 text-sm font-black text-[#111827] shadow-xl shadow-[#C9A24D]/30 transition hover:-translate-y-0.5 disabled:opacity-70">
+                              // phones publish from the flow bar right below - one Publish, not two
+                              className="rv-shine max-sm:hidden inline-flex min-h-[52px] items-center justify-center gap-2 whitespace-nowrap rounded-2xl sm:min-h-0 sm:flex-1 bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-6 py-3.5 text-sm font-black text-[#111827] shadow-xl shadow-[#C9A24D]/30 transition hover:-translate-y-0.5 disabled:opacity-70">
                               {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />} {publishing ? 'Publishing…' : 'Publish my page'}
                             </button>
                           )}
-                          <button onClick={async () => { const url = `/spotlight-preview/${templateId}?site=${site.id}`; const w = window.open('about:blank', '_blank'); if (dirty) await save(); if (w) w.location.href = url; else window.open(url, '_blank') }}
-                            className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-2xl border border-white/20 bg-white/5 px-4 py-3.5 text-sm font-black text-white transition hover:border-[#e8c97a] hover:bg-white/10 ${live ? 'flex-1' : ''}`}>
+                          {/* Computers: a new tab, as before. Phones: the page slides up right here (PhonePagePreview). */}
+                          <button onClick={async () => {
+                            if (window.matchMedia('(max-width: 639px)').matches) { if (dirty) await save(); setPhonePreview(true); return }
+                            const url = `/spotlight-preview/${templateId}?site=${site.id}`; const w = window.open('about:blank', '_blank'); if (dirty) await save(); if (w) w.location.href = url; else window.open(url, '_blank')
+                          }}
+                            className={`inline-flex min-h-[52px] items-center justify-center gap-1.5 whitespace-nowrap rounded-2xl border border-white/20 bg-white/5 px-4 py-3.5 text-sm font-black text-white transition hover:border-[#e8c97a] hover:bg-white/10 active:scale-[.98] sm:min-h-0 ${live ? 'sm:flex-1' : ''}`}>
                             <Eye className="h-4 w-4" /> Preview my page
                           </button>
                           {live && (
                             <button onClick={unpublish} disabled={publishing}
-                              className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-white/15 px-5 py-3.5 text-sm font-black text-white/70 transition hover:border-red-400/70 hover:bg-red-500/10 hover:text-red-200 disabled:opacity-60">
+                              className="inline-flex min-h-[52px] items-center justify-center gap-1.5 rounded-2xl sm:min-h-0 border border-white/15 px-5 py-3.5 text-sm font-black text-white/70 transition hover:border-red-400/70 hover:bg-red-500/10 hover:text-red-200 disabled:opacity-60">
                               <EyeOff className="h-4 w-4" /> Take offline
                             </button>
                           )}
@@ -1413,12 +1478,12 @@ function PropertySiteEditorPage() {
                             <div className="min-w-0 flex-1">
                               <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300"><PartyPopper className="h-3 w-3" /> Live · share it</p>
                               <p className="truncate font-mono text-[11px] text-white/80">{publicUrl.replace(/^https?:\/\//, '')}</p>
-                              <div className="mt-1.5 flex flex-wrap gap-1">
-                                <button onClick={copyLink} className="inline-flex items-center gap-1 rounded-lg bg-[#C9A24D] px-2.5 py-1.5 text-[10px] font-black text-[#111827] transition hover:brightness-110">{copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />} {copied ? 'Copied' : 'Copy'}</button>
-                                <button onClick={() => downloadQr?.()} className="inline-flex items-center gap-1 rounded-lg border border-white/20 px-2.5 py-1.5 text-[10px] font-black text-white transition hover:bg-white/10"><Download className="h-3 w-3" /> QR</button>
-                                <a href={`sms:?&body=${encodeURIComponent(publicUrl)}`} className="inline-flex items-center gap-1 rounded-lg border border-white/20 px-2.5 py-1.5 text-[10px] font-black text-white transition hover:bg-white/10"><MessageSquare className="h-3 w-3" /> Text</a>
-                                <a href={`mailto:?subject=${encodeURIComponent(p.address)}&body=${encodeURIComponent(publicUrl)}`} className="inline-flex items-center gap-1 rounded-lg border border-white/20 px-2.5 py-1.5 text-[10px] font-black text-white transition hover:bg-white/10"><Mail className="h-3 w-3" /> Email</a>
-                                <a href={`${publicUrl}?ohp_owner=1`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-white/20 px-2.5 py-1.5 text-[10px] font-black text-white transition hover:bg-white/10"><ExternalLink className="h-3 w-3" /> Open</a>
+                              <div className="mt-2 flex flex-wrap gap-1.5 sm:mt-1.5 sm:gap-1">
+                                <button onClick={copyLink} className="inline-flex items-center gap-1 rounded-lg bg-[#C9A24D] min-h-[38px] px-3 py-1.5 text-[11px] sm:min-h-0 sm:px-2.5 sm:text-[10px] font-black text-[#111827] transition hover:brightness-110">{copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />} {copied ? 'Copied' : 'Copy'}</button>
+                                <button onClick={() => downloadQr?.()} className="inline-flex items-center gap-1 rounded-lg border border-white/20 min-h-[38px] px-3 py-1.5 text-[11px] sm:min-h-0 sm:px-2.5 sm:text-[10px] font-black text-white transition hover:bg-white/10"><Download className="h-3 w-3" /> QR</button>
+                                <a href={`sms:?&body=${encodeURIComponent(publicUrl)}`} className="inline-flex items-center gap-1 rounded-lg border border-white/20 min-h-[38px] px-3 py-1.5 text-[11px] sm:min-h-0 sm:px-2.5 sm:text-[10px] font-black text-white transition hover:bg-white/10"><MessageSquare className="h-3 w-3" /> Text</a>
+                                <a href={`mailto:?subject=${encodeURIComponent(p.address)}&body=${encodeURIComponent(publicUrl)}`} className="inline-flex items-center gap-1 rounded-lg border border-white/20 min-h-[38px] px-3 py-1.5 text-[11px] sm:min-h-0 sm:px-2.5 sm:text-[10px] font-black text-white transition hover:bg-white/10"><Mail className="h-3 w-3" /> Email</a>
+                                <a href={`${publicUrl}?ohp_owner=1`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-white/20 min-h-[38px] px-3 py-1.5 text-[11px] sm:min-h-0 sm:px-2.5 sm:text-[10px] font-black text-white transition hover:bg-white/10"><ExternalLink className="h-3 w-3" /> Open</a>
                               </div>
                             </div>
                           </div>
@@ -1426,19 +1491,26 @@ function PropertySiteEditorPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="grid gap-2.5 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
+                  {/* Phones: one calm row per step (icon, what it is, a tick and an arrow) instead of
+                      eight tall cards; computers keep the card grid. */}
+                  <div className="grid gap-2 p-3 sm:grid-cols-2 sm:gap-2.5 sm:p-5 lg:grid-cols-4">
                     {rows.map(([key, label, value, Icon], i) => (
                       <button key={key} onClick={() => goStep(key)} style={{ ['--i' as string]: i }}
-                        className="ohp-rise group relative overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-[#fbf8f2] p-3.5 text-left transition duration-300 hover:-translate-y-1 hover:border-[#C9A24D] hover:shadow-[0_16px_30px_-18px_rgba(201,162,77,.8)] dark:border-gray-800 dark:from-[#1a1a1c] dark:to-[#17150f]">
-                        <div className="flex items-center justify-between">
+                        className="ohp-rise group relative flex min-h-[64px] items-center gap-3 overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-[#fbf8f2] p-3 text-left transition duration-300 active:scale-[.99] hover:border-[#C9A24D] dark:border-gray-800 dark:from-[#1a1a1c] dark:to-[#17150f] sm:block sm:min-h-0 sm:p-3.5 sm:hover:-translate-y-1 sm:hover:shadow-[0_16px_30px_-18px_rgba(201,162,77,.8)]">
+                        <div className="flex shrink-0 items-center justify-between">
                           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#111827] text-[#e8c97a] transition group-hover:scale-110 dark:bg-white/10"><Icon className="h-4 w-4" /></span>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                          <span className="hidden items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300 sm:inline-flex">
                             <Check className="h-2.5 w-2.5" /> Done
                           </span>
                         </div>
-                        <p className="mt-3 text-[10px] font-black uppercase tracking-[0.16em] text-gray-400">{label}</p>
-                        <p className="mt-0.5 truncate text-sm font-black text-[#111827] dark:text-white">{value}</p>
-                        <span className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-black text-[#8b7355] opacity-0 transition group-hover:opacity-100 dark:text-[#d7b974]"><Pencil className="h-3 w-3" /> Edit</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-gray-400 sm:mt-3">{label}</p>
+                          <p className="mt-0.5 line-clamp-2 text-[13.5px] font-black leading-snug text-[#111827] dark:text-white sm:hidden">{value}</p>
+                          <p className="mt-0.5 hidden truncate text-sm font-black text-[#111827] dark:text-white sm:block">{value}</p>
+                          <span className="mt-1.5 hidden items-center gap-1 text-[10px] font-black text-[#8b7355] opacity-0 transition group-hover:opacity-100 dark:text-[#d7b974] sm:inline-flex"><Pencil className="h-3 w-3" /> Edit</span>
+                        </div>
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300 sm:hidden" aria-label="Done"><Check className="h-3.5 w-3.5" strokeWidth={3} /></span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600 sm:hidden" />
                       </button>
                     ))}
                   </div>
@@ -1449,8 +1521,21 @@ function PropertySiteEditorPage() {
           </>
         )}
 
-        {/* Back / Next */}
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200/80 bg-white/90 dark:border-white/10 dark:bg-[#111113]/90">
+        {/* Phones: the flow bar (components/ui/FlowDock) - Back, "3 / 9" with the save state under
+            it, the next step on the right (Publish / Close on the last one). No Preview button here -
+            on a phone it only opened a new tab, which read as unclear (owner, 10/22). Same goStep /
+            publish as the bar below. */}
+        <FlowDock step={stepIndex + 1} total={STEPS.length}
+          onBack={stepIndex > 0 ? () => goStep(STEPS[stepIndex - 1].key) : undefined}
+          note={live ? (autoPublishing ? 'Updating…' : 'Live') : saving ? 'Saving…' : dirty ? 'Unsaved' : 'Saved'}
+          {...(stepIndex < STEPS.length - 1
+            ? { onContinue: () => goStep(STEPS[stepIndex + 1].key), continueLabel: STEPS[stepIndex + 1].key === 'review' ? 'Review' : STEPS[stepIndex + 1].label, icon: <ChevronRight /> }
+            : live
+              ? { onContinue: () => router.push('/studio/property-sites'), continueLabel: 'Close', disabled: autoPublishing || saving, icon: <X /> }
+              : { onContinue: () => publish(), continueLabel: 'Publish', busy: publishing, icon: <Globe /> })} />
+
+        {/* Back / Next (computers; phones use the flow bar above) */}
+        <div className="fixed inset-x-0 bottom-0 z-30 hidden border-t border-gray-200/80 bg-white/90 dark:border-white/10 dark:bg-[#111113]/90 sm:block">
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
             <button onClick={() => goStep(STEPS[Math.max(0, stepIndex - 1)].key)} disabled={stepIndex === 0} className="inline-flex items-center gap-1 rounded-xl px-3 py-2.5 text-sm font-black text-gray-500 transition hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-white/5">
               <ChevronLeft className="h-4 w-4" /> Back
@@ -1491,17 +1576,22 @@ function PropertySiteEditorPage() {
 
       <style>{`.hvd-shimmer{background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.28) 50%,transparent 70%);background-size:220% 100%;animation:hvdShim 1.3s linear infinite}@keyframes hvdShim{from{background-position:120% 0}to{background-position:-120% 0}}`}</style>
 
-      {previewVideo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setPreviewVideo(null)}>
-          <div className="w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-black text-white">{previewVideo.options?.custom_name || `Video · ${new Date(previewVideo.created_at).toLocaleDateString()}`}</p>
-              <button onClick={() => setPreviewVideo(null)} className="rounded-full bg-white/10 p-1.5 text-white hover:bg-white/20"><X className="h-4 w-4" /></button>
-            </div>
-            <video src={previewVideo.result_url || undefined} controls autoPlay className="max-h-[75vh] w-full rounded-xl bg-black" />
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {previewVideo && (
+          <motion.div key="pv" className="fixed inset-0 z-50 flex items-center justify-center p-4" data-scroll-lock="off">
+            <motion.div {...backdropMotion} className="absolute inset-0 bg-black/80" onClick={() => setPreviewVideo(null)} />
+            <motion.div {...panelMotion} className="relative w-full max-w-2xl">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="min-w-0 truncate text-sm font-black text-white">{previewVideo.options?.custom_name || `Video · ${new Date(previewVideo.created_at).toLocaleDateString()}`}</p>
+                <button onClick={() => setPreviewVideo(null)} aria-label="Close" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20 sm:h-auto sm:w-auto sm:p-1.5"><X className="h-4 w-4" /></button>
+              </div>
+              <video src={previewVideo.result_url || undefined} controls autoPlay playsInline className="max-h-[75vh] w-full rounded-xl bg-black" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <PhonePagePreview open={phonePreview} onClose={() => setPhonePreview(false)} src={`/spotlight-preview/${templateId}?site=${site.id}`} label={`${site.slug}.openhousepal.com`} />
     </div>
   )
 }
@@ -1564,10 +1654,12 @@ function TownFactsEditor({ facts, onChange }: { facts: TownFacts; onChange: (f: 
       <Group tone="bg-sky-50 text-sky-900 dark:bg-sky-500/10 dark:text-sky-200" title="Getting around">
         <div className="space-y-2">
           {around.map((g, i) => (
-            <div key={i} className="flex gap-2">
-              <input value={g.label} onChange={e => onChange({ ...facts, getting_around: around.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} className={input} placeholder="Destination or line" />
-              <input value={g.detail || ''} onChange={e => onChange({ ...facts, getting_around: around.map((x, j) => (j === i ? { ...x, detail: e.target.value } : x)) })} className={input} placeholder="about 40 min" />
-              <button onClick={() => onChange({ ...facts, getting_around: around.filter((_, j) => j !== i) })} className="shrink-0 rounded-lg p-2 opacity-60 hover:bg-white hover:text-red-600 hover:opacity-100" aria-label="Remove"><Trash2 className="h-3.5 w-3.5" /></button>
+            // Phones: the place gets the whole line, the time and the bin sit under it (two narrow
+            // boxes side by side cut both off - "Center City Ph").
+            <div key={i} className="flex flex-wrap gap-2 rounded-xl bg-white/40 p-1.5 dark:bg-black/10 sm:flex-nowrap sm:rounded-none sm:bg-transparent sm:p-0 sm:dark:bg-transparent">
+              <input value={g.label} onChange={e => onChange({ ...facts, getting_around: around.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} className={`${input} basis-full sm:basis-auto`} placeholder="Destination or line" />
+              <input value={g.detail || ''} onChange={e => onChange({ ...facts, getting_around: around.map((x, j) => (j === i ? { ...x, detail: e.target.value } : x)) })} className={`${input} min-w-0 flex-1 sm:flex-initial`} placeholder="about 40 min" />
+              <button onClick={() => onChange({ ...facts, getting_around: around.filter((_, j) => j !== i) })} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg opacity-60 hover:bg-white hover:text-red-600 hover:opacity-100 sm:block sm:h-auto sm:w-auto sm:p-2" aria-label="Remove"><Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" /></button>
             </div>
           ))}
           {around.length < 3 && (
@@ -1677,29 +1769,32 @@ function FileList({ icon: Icon, title, hint, accept, rows, onChange, onUpload }:
   }
   return (
     <div className="min-w-0 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-      <div className="flex items-center gap-2">
+      {/* Phones: title and hint get the whole line, Upload / Link sit under it at full width. */}
+      <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#111827] text-[#C9A24D] dark:bg-white/10"><Icon className="h-4 w-4" /></span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-black text-[#111827] dark:text-white">{title}{rows.length > 0 && <span className="ml-1.5 rounded-full bg-[#C9A24D]/15 px-1.5 py-0.5 text-[10px] text-[#8b7355]">{rows.length}</span>}</p>
-          <p className="line-clamp-2 text-[10px] font-semibold leading-snug text-gray-400 sm:truncate">{hint}</p>
+          <p className="text-[13px] font-black text-[#111827] dark:text-white sm:text-xs">{title}{rows.length > 0 && <span className="ml-1.5 rounded-full bg-[#C9A24D]/15 px-1.5 py-0.5 text-[10px] text-[#8b7355]">{rows.length}</span>}</p>
+          <p className="text-[11px] font-semibold leading-snug text-gray-400 sm:truncate sm:text-[10px]">{hint}</p>
         </div>
-        <label className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-[#C9A24D] px-3 py-2 text-[11px] font-black text-[#111827] transition hover:brightness-110">
-          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Upload
-          <input type="file" accept={accept} className="hidden" onChange={e => { const f = e.target.files?.[0]; e.currentTarget.value = ''; if (f) void add(f) }} />
-        </label>
-        <button onClick={() => onChange([...rows, { label: '', url: '' }])} className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-2 text-[11px] font-black text-gray-500 hover:border-[#C9A24D] dark:border-gray-700" title="Add a link instead">
-          <Plus className="h-3.5 w-3.5" /> Link
-        </button>
+        <div className="mt-1 grid w-full grid-cols-[1fr_auto] gap-2 sm:mt-0 sm:flex sm:w-auto">
+          <label className="inline-flex min-h-[44px] shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-[#C9A24D] px-3 py-2 text-[13px] font-black text-[#111827] transition hover:brightness-110 active:scale-[.98] sm:min-h-0 sm:text-[11px]">
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Upload
+            <input type="file" accept={accept} className="hidden" onChange={e => { const f = e.target.files?.[0]; e.currentTarget.value = ''; if (f) void add(f) }} />
+          </label>
+          <button onClick={() => onChange([...rows, { label: '', url: '' }])} className="inline-flex min-h-[44px] shrink-0 items-center justify-center gap-1 rounded-lg border border-gray-200 px-4 py-2 text-[13px] font-black text-gray-500 hover:border-[#C9A24D] dark:border-gray-700 sm:min-h-0 sm:px-2.5 sm:text-[11px]" title="Add a link instead">
+            <Plus className="h-3.5 w-3.5" /> Link
+          </button>
+        </div>
       </div>
       {rows.length > 0 && (
         <ul className="mt-3 space-y-1.5">
           {rows.map((r, i) => (
-            <li key={i} className="flex items-center gap-2 rounded-lg bg-gray-50 p-1.5 dark:bg-white/5">
+            <motion.li key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }} className="flex items-center gap-2 rounded-lg bg-gray-50 p-1.5 dark:bg-white/5">
               {/\.(jpe?g|png|webp)(\?|$)/i.test(r.url) ? <img src={r.url} alt="" className="h-8 w-10 shrink-0 rounded object-cover" /> : <span className="flex h-8 w-10 shrink-0 items-center justify-center rounded bg-white text-gray-400 dark:bg-black/30"><FileText className="h-4 w-4" /></span>}
-              <input value={r.label} onChange={e => onChange(rows.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} placeholder="Name" className="min-w-0 flex-1 bg-transparent text-xs font-bold text-[#111827] outline-none dark:text-white" />
-              {!r.url && <input value={r.url} onChange={e => onChange(rows.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))} placeholder="https://…" className="min-w-0 flex-1 rounded border border-gray-200 bg-white px-2 py-1 text-[11px] outline-none dark:border-gray-700 dark:bg-black/20 dark:text-white" />}
-              <button onClick={() => onChange(rows.filter((_, j) => j !== i))} className="shrink-0 rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" aria-label="Remove"><Trash2 className="h-3.5 w-3.5" /></button>
-            </li>
+              <input value={r.label} onChange={e => onChange(rows.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} placeholder="Name" className="min-w-0 flex-1 bg-transparent text-[14px] font-bold text-[#111827] outline-none dark:text-white sm:text-xs" />
+              {!r.url && <input value={r.url} onChange={e => onChange(rows.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))} placeholder="https://…" className="min-w-0 flex-1 rounded border border-gray-200 bg-white px-2 py-1.5 text-[13px] outline-none dark:border-gray-700 dark:bg-black/20 dark:text-white sm:py-1 sm:text-[11px]" />}
+              <button onClick={() => onChange(rows.filter((_, j) => j !== i))} className="grid h-10 w-10 shrink-0 place-items-center rounded text-gray-400 hover:bg-red-50 hover:text-red-600 sm:block sm:h-auto sm:w-auto sm:p-1.5" aria-label="Remove"><Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" /></button>
+            </motion.li>
           ))}
         </ul>
       )}
@@ -1708,9 +1803,9 @@ function FileList({ icon: Icon, title, hint, accept, rows, onChange, onUpload }:
   )
 }
 
-function EditorCard({ step, title, subtitle, badge, children }: { step?: number; title: string; subtitle: string; badge?: string; children: React.ReactNode }) {
+function EditorCard({ step, title, subtitle, badge, children }: { step?: number; title: string; subtitle: React.ReactNode; badge?: string; children: React.ReactNode }) {
   return (
-    <section className="ohp-rise mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
+    <section className="ohp-rise mt-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
       <div className="mb-4 flex items-start gap-3">
         {step != null && <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#111827] text-xs font-black text-[#C9A24D] dark:bg-white/10">{step}</span>}
         <div className="min-w-0">
@@ -1747,14 +1842,18 @@ function StringListEditor({
     <div>
       {items.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-2">
-          {items.map((item, i) => (
-            <span key={i} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-[#fbfaf7] px-3 py-1.5 text-xs font-bold text-[#111827] dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-white">
-              {item}
-              <button onClick={() => onChange(items.filter((_, j) => j !== i))} className="text-gray-400 hover:text-red-500" aria-label={`Remove ${item}`}>
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
+          {/* Chips glide in and out; the remove x has a finger-sized target on phones. */}
+          <AnimatePresence initial={false}>
+            {items.map((item, i) => (
+              <motion.span key={`${item}::${items.slice(0, i).filter(x => x === item).length}`} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.15 } }} transition={{ type: 'spring', stiffness: 520, damping: 36 }}
+                className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full border border-gray-200 bg-[#fbfaf7] py-1 pl-3 pr-1 text-xs font-bold text-[#111827] dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-white sm:gap-1.5 sm:py-1.5 sm:pr-3">
+                <span className="min-w-0 break-words">{item}</span>
+                <button onClick={() => onChange(items.filter((_, j) => j !== i))} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-gray-400 transition hover:text-red-500 active:bg-red-50 dark:active:bg-red-500/10 sm:h-auto sm:w-auto" aria-label={`Remove ${item}`}>
+                  <X className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
+                </button>
+              </motion.span>
+            ))}
+          </AnimatePresence>
         </div>
       )}
       {items.length < max && (
@@ -1764,15 +1863,15 @@ function StringListEditor({
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
             placeholder={placeholder}
-            className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-800 dark:bg-[#1A1A1C] dark:text-white"
+            className="h-11 min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[14px] font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-800 dark:bg-[#1A1A1C] dark:text-white sm:h-auto sm:text-xs"
           />
-          <button onClick={add} className="shrink-0 rounded-lg border border-dashed border-gray-300 p-2 text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700" aria-label="Add">
-            <Plus className="h-3.5 w-3.5" />
+          <button onClick={add} className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 sm:block sm:h-auto sm:w-auto sm:p-2" aria-label="Add">
+            <Plus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
           </button>
           {onSuggest && (
             <button
               onClick={onSuggest} disabled={suggesting}
-              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-dashed border-[#C9A24D]/50 px-3 py-2 text-[11px] font-black text-[#8b7355] hover:bg-[#C9A24D]/5 disabled:opacity-50 dark:text-[#d7b974]"
+              className="inline-flex min-h-[44px] shrink-0 items-center gap-1 rounded-lg border border-dashed border-[#C9A24D]/50 px-3 py-2 text-[12px] font-black text-[#8b7355] hover:bg-[#C9A24D]/5 disabled:opacity-50 dark:text-[#d7b974] sm:min-h-0 sm:text-[11px]"
             >
               {suggesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />} Suggest
             </button>
@@ -1881,11 +1980,13 @@ function AgentsEditor({ agents, onChange, self }: { agents: PropertyWebsiteAgent
 
 // What the page shows right now - re-read every 30s while the editor is open, so an open house
 // scheduled (or cancelled) in the Open House Manager appears here without a reload.
-function LiveOpenHouses({ siteId, refreshKey }: { siteId: string; refreshKey: number }) {
+function LiveOpenHouses({ siteId, refreshKey, onRows }: { siteId: string; refreshKey: number; onRows?: (rows: { date: string; source: string }[]) => void }) {
   const [rows, setRows] = useState<{ id: string; date: string; start_time: string | null; end_time: string | null; source: string }[] | null>(null)
+  const onRowsRef = useRef(onRows)
+  onRowsRef.current = onRows
   useEffect(() => {
     let alive = true
-    const load = () => api.propertySites.openHouses(siteId).then(r => { if (alive && r.success && r.data) setRows(r.data.open_houses) })
+    const load = () => api.propertySites.openHouses(siteId).then(r => { if (alive && r.success && r.data) { setRows(r.data.open_houses); onRowsRef.current?.(r.data.open_houses) } })
     load()
     const t = window.setInterval(load, 30000)
     return () => { alive = false; window.clearInterval(t) }
@@ -1923,32 +2024,79 @@ function LiveOpenHouses({ siteId, refreshKey }: { siteId: string; refreshKey: nu
   )
 }
 
-function OpenHousesEditor({ rows, onChange }: { rows: PropertyWebsiteOpenHouse[]; onChange: (rows: PropertyWebsiteOpenHouse[]) => void }) {
-  const today = new Date()
-  const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-  const set = (i: number, patch: Partial<PropertyWebsiteOpenHouse>) => onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)))
-  const input = "rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-[#111827] outline-none focus:border-[#C9A24D] dark:border-gray-800 dark:bg-[#1A1A1C] dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+// "Add an open house" (user, 10/22): day -> time range (popular blocks, or their own start + length)
+// in the step-by-step picker, then it sits here as a card with Edit / Remove. Days that already
+// have an open house are crossed out. Saved exactly as before: { date, start_time, end_time, manual }.
+function OpenHousesEditor({ rows, onChange, taken = [], photo, street }: { rows: PropertyWebsiteOpenHouse[]; onChange: (rows: PropertyWebsiteOpenHouse[]) => void; taken?: string[]; photo?: string | null; street?: string | null }) {
+  const todayIso = ymd(new Date())
+  const [editing, setEditing] = useState<number | 'new' | null>(null)
+  const [flash, setFlash] = useState<string | null>(null)
+  const current = typeof editing === 'number' ? rows[editing] : null
+  const otherDays = new Set([...taken, ...rows.filter((_, j) => j !== editing).map(r => r.date || '')].filter(Boolean))
+  const done = (v: WhenValue) => {
+    if (!v.date) return
+    const patch = { date: v.date, start_time: v.anytime ? '' : v.time || '', end_time: v.anytime ? '' : v.end || '' }
+    if (editing === 'new') {
+      const id = `manual-${Date.now()}`
+      onChange([...rows, { id, ...patch, manual: true }])
+      setFlash(id)
+    } else if (typeof editing === 'number') {
+      onChange(rows.map((r, j) => (j === editing ? { ...r, ...patch } : r)))
+      setFlash(rows[editing].id || null)
+    }
+    setEditing(null)
+  }
+  useEffect(() => {
+    if (!flash) return
+    const t = window.setTimeout(() => setFlash(null), 1800)
+    return () => window.clearTimeout(t)
+  }, [flash])
   return (
     <div className="space-y-2">
-      {rows.map((r, i) => (
-        <div key={r.id || i} className="flex flex-wrap items-center gap-2">
-          <CalendarDays className="h-4 w-4 shrink-0 text-[#C9A24D]" />
-          <input type="date" min={todayIso} value={r.date || ''} onChange={e => set(i, { date: e.target.value })} className={input} aria-label="Open house date" />
-          <input type="time" value={(r.start_time || '').slice(0, 5)} onChange={e => set(i, { start_time: e.target.value })} className={input} aria-label="Start time" />
-          <span className="text-xs font-bold text-gray-400">to</span>
-          <input type="time" value={(r.end_time || '').slice(0, 5)} onChange={e => set(i, { end_time: e.target.value })} className={input} aria-label="End time" />
-          <button onClick={() => onChange(rows.filter((_, j) => j !== i))} className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20" aria-label="Remove date">
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-          {r.date && r.date < todayIso && <span className="text-[10px] font-bold text-amber-600">Past - hidden on the page</span>}
-        </div>
-      ))}
-      <button
-        onClick={() => onChange([...rows, { id: `manual-${Date.now()}`, date: '', start_time: '13:00', end_time: '15:00', manual: true }])}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-1.5 text-[11px] font-black text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700"
-      >
-        <Plus className="h-3.5 w-3.5" /> Add open house date
-      </button>
+      <AnimatePresence initial={false}>
+        {rows.map((r, i) => {
+          const d = r.date ? parseYmd(r.date) : null
+          const start = (r.start_time || '').slice(0, 5)
+          const end = (r.end_time || '').slice(0, 5)
+          const lit = flash && r.id === flash
+          return (
+            <motion.div key={r.id || i} layout initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, x: -30, transition: { duration: 0.18 } }}
+              className={`flex items-center gap-3 rounded-2xl border px-3 py-3 transition-colors duration-700 ${lit ? 'border-emerald-400 bg-emerald-50 dark:border-emerald-400/50 dark:bg-emerald-400/10' : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-[#1A1A1C]'}`}>
+              <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-[#111827] text-white shadow-sm dark:bg-white dark:text-[#111827]">
+                {d ? (<>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[#e8c97a] dark:text-[#a8843a]">{d.toLocaleDateString('en-US', { month: 'short' })}</span>
+                  <span className="font-serif text-xl font-black leading-none">{d.getDate()}</span>
+                </>) : <CalendarDays className="h-5 w-5 text-[#e8c97a]" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[15px] font-black leading-tight text-[#111827] dark:text-white">{r.date ? dayText(r.date) : 'No date yet'}</p>
+                <p className="truncate text-[13px] font-bold text-gray-500 dark:text-gray-400">{start && end ? rangeText(start, end) : start ? `From ${clockText(start)}` : r.date ? 'No time set' : 'Tap Edit to pick a day'}</p>
+                {lit && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400"><Check className="h-3 w-3" strokeWidth={3} /> On your list</motion.p>}
+                {r.date && r.date < todayIso && <p className="text-[10px] font-bold text-amber-600">Past - hidden on the page</p>}
+              </div>
+              <button type="button" onClick={() => setEditing(i)} className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl border border-gray-200 px-3 text-[11px] font-black uppercase tracking-widest text-[#111827] transition hover:border-[#C9A24D] dark:border-gray-700 dark:text-white" aria-label="Edit this open house">
+                <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Edit</span>
+              </button>
+              <button type="button" onClick={() => onChange(rows.filter((_, j) => j !== i))} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-gray-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20" aria-label="Remove this open house">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </motion.div>
+          )
+        })}
+      </AnimatePresence>
+      <motion.button type="button" whileTap={{ scale: 0.98 }} onClick={() => setEditing('new')}
+        className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-300 text-[12px] font-black uppercase tracking-widest text-gray-500 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-400">
+        <Plus className="h-4 w-4" /> Add an open house
+      </motion.button>
+      <WhenSheet open={editing !== null} onClose={() => setEditing(null)} mode="range" weekendsOnly days={8}
+        title={editing === 'new' ? 'Add an open house' : 'Change this open house'} kicker="Open house"
+        photo={photo || null} context={street ? street.split(',')[0] : null} contextSub="Shows on your Listing Spotlight"
+        value={current ? { date: current.date || null, time: (current.start_time || '').slice(0, 5) || null, end: (current.end_time || '').slice(0, 5) || null } : null}
+        dayOff={day => (otherDays.has(day) ? 'Already has an open house' : null)}
+        offNote="Weekends in gold · crossed-out days already have an open house"
+        rangeBlocksLabel="Popular open-house times"
+        doneLabel={editing === 'new' ? 'Add it' : 'Save'}
+        onDone={done} />
     </div>
   )
 }

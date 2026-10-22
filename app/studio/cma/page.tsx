@@ -504,7 +504,7 @@ function CmaDashboardInner() {
                       5-per-row on desktop leaves cards about as narrow as the 2-per-row mobile layout. */}
                   <button
                     onClick={event => handleToggleTheme(report, event)}
-                    title={`Visitor default theme: ${report.default_theme === 'light' ? 'Light' : 'Dark'} - click to switch`}
+                    title={`Visitor default theme: ${report.default_theme === 'light' ? 'Ivory' : 'Midnight'} - click to switch`}
                     aria-label="Toggle visitor default theme"
                     aria-pressed={report.default_theme !== 'light'}
                     className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full p-0.5 transition-colors ${

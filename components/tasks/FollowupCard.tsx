@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import type { AgentTask, PropertyTour, TaskKind } from '@/types'
 import api from '@/lib/api-service'
+import { WhenSheet, addDays, clockText, nextWeekday, ymd } from '@/components/ui/WhenPicker'
 import ViewToursModal from '@/components/ViewToursModal'
 import { copyText } from '@/lib/copyText'
 import { isPhoneDevice, mailHref, smsHref } from '@/lib/smsLink'
@@ -284,6 +285,7 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
   const [showAllTold, setShowAllTold] = useState(false)
   const [photoOk, setPhotoOk] = useState(true)
   const [menu, setMenu] = useState(false)
+  const [pickOpen, setPickOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const popRef = useRef<HTMLDivElement>(null)
   // The menu floats over the page (portal) - inside the card, the next card or the "Automatic
@@ -378,13 +380,11 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
                     </button>
                   ))}
                   {onPickDay && (
-                    // A real date picker - any day, not just the three quick ones.
-                    <label className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[12px] font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10">
+                    // Any day, not just the three quick ones - the big step-by-step day picker (10/22).
+                    <button type="button" onClick={() => { setMenu(false); setPickOpen(true) }}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[12px] font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10">
                       <CalendarDays className="h-3.5 w-3.5 text-gray-400" /> Pick a day…
-                      <input type="date" aria-label="Pick a day" min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)}
-                        className="sr-only" onClick={e => { try { (e.currentTarget as HTMLInputElement).showPicker?.() } catch { /* older browsers open on focus */ } }}
-                        onChange={e => { if (e.target.value) { setMenu(false); onPickDay(e.target.value) } }} />
-                    </label>
+                    </button>
                   )}
                   <div className="my-1 h-px bg-gray-100 dark:bg-white/10" />
                   <button type="button" onClick={() => { setMenu(false); onDelete?.() }}
@@ -393,6 +393,22 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
                   </button>
                 </div>,
                 document.body,
+              )}
+              {onPickDay && (
+                <WhenSheet open={pickOpen} onClose={() => setPickOpen(false)} mode="date"
+                  title="Move it to which day?" kicker="Snooze"
+                  photo={t.property?.photo || null} context={t.title} contextSub={client || t.property?.address || null}
+                  intro={t.due_at && !t.all_day ? `It keeps its time - ${clockText(`${String(new Date(t.due_at).getHours()).padStart(2, '0')}:${String(new Date(t.due_at).getMinutes()).padStart(2, '0')}`)}.` : 'It keeps its time of day.'}
+                  value={t.due_at && ymd(new Date(t.due_at)) >= ymd(new Date()) ? { date: ymd(new Date(t.due_at)), time: null } : null}
+                  suggestions={[
+                    { label: 'Tomorrow', date: addDays(1) },
+                    { label: 'In 3 days', date: addDays(3) },
+                    { label: 'Next week', date: addDays(7) },
+                    { label: 'Next Monday', date: nextWeekday(1) },
+                  ]}
+                  summaryPrefix="Moves to"
+                  doneLabel="Move it"
+                  onDone={v => { setPickOpen(false); if (v.date) onPickDay(v.date) }} />
               )}
             </div>
           )}

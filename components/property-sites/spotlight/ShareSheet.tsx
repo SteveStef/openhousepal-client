@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, Download, Facebook, Link2, Linkedin, Mail, MessageCircle, Share2, X } from 'lucide-react'
 import FormQrCode from '@/components/forms/FormQrCode'
 import { TONE, type Tone } from './tone'
+import { usePresence } from './motion'
 
 // "Send this home to someone" - copy link, the phone's native share sheet when it has one, the
 // usual social/email/text targets, and a scannable (downloadable) QR code for print pieces.
@@ -22,6 +23,7 @@ export default function ShareSheet({
   const [downloadQr, setDownloadQr] = useState<(() => void) | null>(null)
   const handleQrReady = useCallback((fn: () => void) => setDownloadQr(() => fn), [])
   const closeRef = useRef<HTMLButtonElement>(null)
+  const { show, closing } = usePresence(open, 220)
 
   // `navigator` doesn't exist during SSR - decided after hydration so the first client render
   // matches the server's.
@@ -37,7 +39,7 @@ export default function ShareSheet({
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
   }, [open, onClose])
 
-  if (!open) return null
+  if (!show) return null
 
   const copy = () => {
     const done = () => { setCopied(true); setTimeout(() => setCopied(false), 1800) }
@@ -58,7 +60,7 @@ export default function ShareSheet({
   ]
 
   return (
-    <div className="fixed inset-0 z-[190] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6" onClick={onClose} role="presentation">
+    <div className={`sp-sheet-bg fixed inset-0 z-[190] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6 ${closing ? 'is-closing pointer-events-none' : ''}`} onClick={onClose} role="presentation">
       <div
         role="dialog" aria-modal="true" aria-label="Share this home" onClick={e => e.stopPropagation()}
         className={`sp-sheet relative w-full max-w-lg p-6 sm:p-8 ${t.modal} rounded-b-none sm:rounded-b-[inherit]`}
@@ -110,8 +112,20 @@ export default function ShareSheet({
       </div>
       <style>{`
         @keyframes spSheetIn { from { opacity: 0; transform: translateY(24px) } to { opacity: 1; transform: none } }
+        @keyframes spSheetBg { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes spSheetBgOut { to { opacity: 0 } }
+        @keyframes spSheetOut { to { opacity: 0; transform: translateY(24px) } }
+        .sp-sheet-bg { animation: spSheetBg .22s ease both }
+        .sp-sheet-bg.is-closing { animation: spSheetBgOut .22s ease .02s both }
         .sp-sheet { animation: spSheetIn .35s cubic-bezier(.2,.8,.2,1) both }
-        @media (prefers-reduced-motion: reduce) { .sp-sheet { animation: none } }
+        .is-closing > .sp-sheet { animation: spSheetOut .2s cubic-bezier(.4,0,1,1) both }
+        @media (max-width: 639px) {
+          @keyframes spSheetUp { from { transform: translateY(100%) } to { transform: none } }
+          @keyframes spSheetDown { to { transform: translateY(100%) } }
+          .sp-sheet { animation: spSheetUp .42s cubic-bezier(.2,.8,.2,1) both }
+          .is-closing > .sp-sheet { animation: spSheetDown .24s cubic-bezier(.4,0,1,1) both }
+        }
+        @media (prefers-reduced-motion: reduce) { .sp-sheet, .sp-sheet-bg, .is-closing > .sp-sheet { animation: none } }
       `}</style>
     </div>
   )

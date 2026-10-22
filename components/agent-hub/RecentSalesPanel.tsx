@@ -172,7 +172,11 @@ export function SettingToggleRow({ label, hint, checked, onChange, accent = 'gol
   )
 }
 
-export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgentSales, showStats, setShowStats, carousel, setCarousel, autoScroll, setAutoScroll, minPrice, setMinPrice, onChange, onSave, plain = false, ready = true, incomplete }: {
+export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgentSales, showStats, setShowStats, carousel, setCarousel, autoScroll, setAutoScroll, minPrice, setMinPrice, onChange, onSave, plain = false, ready = true, incomplete, compact = false, sortOverride }: {
+  // The setup flow's Sales step asks the display questions itself (big, one at a time) - compact
+  // shows only the list, Manually Add and Refresh, in the order the step picked (sortOverride).
+  compact?: boolean
+  sortOverride?: 'recent' | 'price-high' | 'price-low'
   agentSales: AgentSale[]
   reLicenseNumber: string
   setAgentSales: React.Dispatch<React.SetStateAction<AgentSale[]>>
@@ -206,6 +210,17 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
   const [isLoading, setIsLoading] = useState(false)
   const [isOpen, setIsOpen] = useHubPanelOpen('sales')
   const [sortMode, setSortMode] = useState<'recent' | 'price-high' | 'price-low'>('recent')
+  // The order here is the order visitors see (Agent Hub config salesSort - also set in the setup
+  // flow's Sales step), so it loads from and saves to that one setting.
+  useEffect(() => {
+    api.agentHub.getMine().then(r => { const s = r.success ? r.data?.config?.salesSort : null; if (s === 'price-high' || s === 'price-low') setSortMode(s) })
+  }, [])
+  const saveSortMode = async (next: 'recent' | 'price-high' | 'price-low') => {
+    setSortMode(next)
+    const latest = await api.agentHub.getMine()
+    const base = latest.success && latest.data?.config ? latest.data.config : null
+    if (base) api.agentHub.saveConfig({ ...base, salesSort: next === 'recent' ? 'newest' : next })
+  }
   const [page, setPage] = useState(1)
   const [manualAddOpen, setManualAddOpen] = useState(false)
   const [editingSaleId, setEditingSaleId] = useState<string | null>(null)
@@ -225,10 +240,11 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
   const eligibleAgentSales = getEligibleSales(agentSales)
   const sortedSales = useMemo(() => {
     const sortable = [...eligibleAgentSales]
-    if (sortMode === 'price-high') return sortable.sort((a, b) => (b.price || 0) - (a.price || 0))
-    if (sortMode === 'price-low') return sortable.sort((a, b) => (a.price || 0) - (b.price || 0))
+    const order = sortOverride ?? sortMode
+    if (order === 'price-high') return sortable.sort((a, b) => (b.price || 0) - (a.price || 0))
+    if (order === 'price-low') return sortable.sort((a, b) => (a.price || 0) - (b.price || 0))
     return sortable.sort((a, b) => String(b.sold_date || '').localeCompare(String(a.sold_date || '')))
-  }, [eligibleAgentSales, sortMode])
+  }, [eligibleAgentSales, sortMode, sortOverride])
   const totalPages = Math.max(1, Math.ceil(sortedSales.length / pageSize))
   const visibleCount = eligibleAgentSales.filter(sale => sale.visible).length
   const pagedSales = sortedSales.slice((page - 1) * pageSize, page * pageSize)
@@ -428,7 +444,7 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
           <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <p className="text-sm font-semibold text-gray-500 dark:text-gray-300">Choose which sales appear on your public Agent Hub and rotate through your email signature.</p>
 
-            <div className="mt-3 space-y-2">
+            {!compact && <div className="mt-3 space-y-2">
               <SettingToggleRow
                 label="Sold-price stats"
                 hint="Shows your homes sold, total volume, and average price."
@@ -451,7 +467,7 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-black uppercase tracking-wide text-gray-700 dark:text-gray-200">Min price to display</p>
                   <p className="mt-0.5 text-[11px] font-semibold leading-snug text-gray-400">
-                    Hides any sale below this price, even if it's marked Shown - handy if you'd rather only show off your bigger sales. Your email signature rotates through your {SALES_ROTATION_POOL_SIZE} most recent sales that clear this price (or your active listing, if you have one).
+                    Hides any sale below this price on your Agent Hub, its Sales page and your website, even if it's marked Shown - handy if you'd rather only show off your bigger sales. Your sold stats still count every sale. Your email signature rotates through your {SALES_ROTATION_POOL_SIZE} most recent sales that clear this price (or your active listing, if you have one).
                   </p>
                 </div>
                 <select
@@ -469,14 +485,14 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
                   ))}
                 </select>
               </div>
-            </div>
+            </div>}
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <select value={sortMode} onChange={event => { setSortMode(event.target.value as 'recent' | 'price-high' | 'price-low'); setPage(1) }} className="ohp-select rounded-xl border bg-white px-4 py-2.5 text-sm font-black text-gray-800 shadow-sm dark:bg-[#0B0B0B] dark:text-white">
+              {!compact && <select value={sortMode} onChange={event => { saveSortMode(event.target.value as 'recent' | 'price-high' | 'price-low'); setPage(1) }} title="The order your sales show in on your Agent Hub and website" className="ohp-select rounded-xl border bg-white px-4 py-2.5 text-sm font-black text-gray-800 shadow-sm dark:bg-[#0B0B0B] dark:text-white">
                 <option value="recent">Newest</option>
                 <option value="price-high">Price High</option>
                 <option value="price-low">Price Low</option>
-              </select>
+              </select>}
               <button
                 onClick={() => {
                   if (manualAddOpen) {

@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, Loader2, Inbox, AlertTriangle, Bell } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Loader2, Inbox, AlertTriangle, Bell } from 'lucide-react'
+import OhSheet from './OhSheet'
 import api from '@/lib/api-service'
 import { useToast } from '@/contexts/ToastContext'
 import { HostRequest, Notification } from '@/types'
@@ -101,29 +103,12 @@ export default function HostRequestsPanel({
     }
   }
 
-  if (!isOpen) return null
-
+  // A sheet that slides up on a phone (you stay on the Manager), a panel from the right on a computer.
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 animate-in fade-in duration-200" onClick={onClose}>
-      <div className="flex h-full w-full max-w-md flex-col bg-white dark:bg-[#0B0B0B] shadow-2xl animate-in slide-in-from-right duration-200" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-800 p-5">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-black text-[#111827] dark:text-white">Host Requests</h2>
-              {requests.length > 0 && (
-                <span className="rounded-full bg-[#C9A24D]/15 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-[#C9A24D]">
-                  {requests.length} Pending
-                </span>
-              )}
-            </div>
-            <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">Agents requesting to host open houses at your listings</p>
-          </div>
-          <button onClick={onClose} className="shrink-0 rounded-full p-2 text-gray-400 transition hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Close">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-5">
+    <OhSheet open={isOpen} onClose={onClose} variant="side" title="Host Requests" icon={<Inbox className="h-5 w-5" />}
+      subtitle="Agents asking to host your listings"
+      badge={requests.length > 0 ? <span className="shrink-0 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black text-white">{requests.length}</span> : undefined}>
+        <div>
           {recentUpdates.length > 0 && (
             <div className="mb-5 space-y-2">
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Recent Updates</p>
@@ -152,13 +137,14 @@ export default function HostRequestsPanel({
             )
           ) : (
             <div className="space-y-3">
-              {requests.map(request => (
-                <HostRequestCard key={request.id} request={request} showAddress showHistory onApprove={handleApprove} onDecline={handleDecline} onCounter={handleCounter} />
+              {requests.map((request, i) => (
+                <motion.div key={request.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 6) * 0.05, type: 'spring', stiffness: 380, damping: 30 }}>
+                  <HostRequestCard request={request} showAddress showHistory onApprove={handleApprove} onDecline={handleDecline} onCounter={handleCounter} />
+                </motion.div>
               ))}
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </OhSheet>
   )
 }

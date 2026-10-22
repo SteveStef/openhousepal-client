@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Check, Home, Loader2, MapPin } from 'lucide-react'
 import api from '@/lib/api-service'
-import NumberInput from './NumberInput'
+import PricePicker from '@/components/setup/PricePicker'
 import OhpSwitch from '@/components/ui/OhpSwitch'
 
 // "Your header" (Featured tab): which homes fill the top of the home page. The header always shows
@@ -76,15 +76,11 @@ export default function HeaderHomesPanel({ data, onChange, onEditHero }: {
             )}
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-wide text-gray-400">Price from</label>
-              <NumberInput value={data.photo_price_min ? String(data.photo_price_min) : ''} onChange={v => onChange({ photo_price_min: v ? Number(v) : '' })} placeholder="Any" className={input} />
-            </div>
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-wide text-gray-400">Up to</label>
-              <NumberInput value={data.photo_price_max ? String(data.photo_price_max) : ''} onChange={v => onChange({ photo_price_max: v ? Number(v) : '' })} placeholder="Any" className={input} />
-            </div>
+          <div className="mt-4">
+            <p className="mb-1.5 text-[10px] font-black uppercase tracking-wide text-gray-400">Price</p>
+            {/* the same tap picker as the setup flow, on the same saved values */}
+            <PricePicker compact min={Number(data.photo_price_min) || null} max={Number(data.photo_price_max) || null}
+              onChange={(min, max) => onChange({ photo_price_min: min ?? '', photo_price_max: max ?? '' })} />
           </div>
           <div className="mt-2">
             <label className="text-[10px] font-black uppercase tracking-wide text-gray-400">Home type</label>

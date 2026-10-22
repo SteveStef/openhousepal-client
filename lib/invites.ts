@@ -1,0 +1,235 @@
+// Invites (Forms & Invites -> Invites) - shared types, the API calls, and small helpers used by the
+// creation flow, the agent's results and the guest's public invitation page (/i/<code>).
+// Backend: app/api/invites_routes.py + app/services/invites_service.py.
+import { API_BASE_URL } from '@/lib/api-service'
+import { getToken } from '@/lib/token'
+
+export type InviteType = 'open_house' | 'brokers_open' | 'client_event' | 'custom'
+export type InviteAudience = 'clients' | 'agents'
+export type InviteDesign = 'classic' | 'garden' | 'midnight' | 'modern'
+export type RsvpResponse = 'yes' | 'maybe' | 'no'
+
+/** The forms question shape (FormQuestion) plus `role` - what a pre-made question means. */
+export type InviteQuestion = {
+  id: string
+  type: 'short_text' | 'long_text' | 'select' | 'multi_select' | 'number' | 'phone' | 'email' | 'date'
+  label: string
+  options?: string[]
+  required?: boolean
+  placeholder?: string
+  helper_text?: string
+  role?: 'guests' | 'represented' | 'brokerage'
+}
+
+export type InviteProperty = {
+  listing_key?: string | null
+  address?: string | null
+  city?: string | null
+  state?: string | null
+  zipcode?: string | null
+  price?: number | null
+  beds?: number | null
+  baths?: number | null
+  sqft?: number | null
+  image?: string | null
+  photos?: string[] | null
+  /** The agent picked "No photo" (the home's photos still show lower on the page). */
+  no_cover?: boolean | null
+}
+
+export type InviteCounts = { yes: number; maybe: number; no: number; guests_yes: number; guests_maybe: number; unseen: number; last_rsvp_at: string | null }
+
+export type InviteDraft = {
+  invite_type: InviteType
+  audience?: InviteAudience
+  title: string
+  message?: string | null
+  event_date?: string | null
+  start_time?: string | null
+  end_time?: string | null
+  place_name?: string | null
+  address?: string | null
+  linked_property?: InviteProperty | null
+  cover_image_url?: string | null
+  design: InviteDesign
+  accent_color?: string | null
+  questions: InviteQuestion[]
+}
+
+export type Invite = InviteDraft & {
+  id: string
+  code: string
+  audience: InviteAudience
+  status: 'live' | 'closed'
+  view_count: number
+  when_label: string
+  is_past: boolean
+  share_url: string
+  platform_url: string
+  created_at: string | null
+  updated_at: string | null
+  counts: InviteCounts
+}
+
+export type InviteRsvp = {
+  id: string
+  response: RsvpResponse
+  name: string | null
+  email?: string | null
+  phone?: string | null
+  guest_count: number
+  answers: { questionId: string; label: string; type: string; value: string | string[] }[]
+  lead_id?: string | null
+  is_seen?: boolean
+  created_at: string | null
+  updated_at: string | null
+  token?: string
+  updated?: boolean
+}
+
+export type InviteDetail = Invite & { rsvps: InviteRsvp[]; recipients: { total: number; waiting: number } }
+
+export type InviteAgent = {
+  name: string; title: string; brokerage: string; photo_url?: string | null
+  phone: string; text_phone: string; email: string; hub_slug?: string | null; logo_url?: string | null
+}
+
+export type PublicInvite = Omit<Invite, 'counts' | 'view_count'> & { host_ok: boolean; agent: InviteAgent }
+
+export type InvitePreset = {
+  id: InviteType; label: string; blurb: string; audience: InviteAudience; design: InviteDesign
+  title: string; message: string; questions: InviteQuestion[]
+}
+
+export type InvitePresets = { presets: InvitePreset[]; brand: { accent_color: string; logo_url?: string | null }; share_base: string }
+
+type Res<T> = { success: true; data: T } | { success: false; error: string }
+
+async function call<T>(path: string, init: RequestInit = {}, auth = true): Promise<Res<T>> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(init.headers as Record<string, string> || {}) }
+  const token = auth ? getToken() : null
+  if (token) headers.Authorization = `Bearer ${token}`
+  try {
+    const r = await fetch(`${API_BASE_URL}${path}`, { ...init, headers })
+    const text = await r.text()
+    let data: any = null
+    try { data = text ? JSON.parse(text) : null } catch { data = null }
+    if (!r.ok) {
+      const detail = typeof data?.detail === 'string' ? data.detail : Array.isArray(data?.detail) ? data.detail.map((d: any) => d.msg).join(', ') : 'Something went wrong - please try again.'
+      return { success: false, error: detail }
+    }
+    return { success: true, data: data as T }
+  } catch {
+    return { success: false, error: 'Could not reach OpenHousePal - check your connection and try again.' }
+  }
+}
+
+export const invitesApi = {
+  presets: () => call<InvitePresets>('/invites/presets'),
+  list: () => call<Invite[]>('/invites'),
+  get: (id: string) => call<InviteDetail>(`/invites/${id}`),
+  create: (draft: InviteDraft) => call<Invite>('/invites', { method: 'POST', body: JSON.stringify(draft) }),
+  update: (id: string, draft: InviteDraft) => call<Invite>(`/invites/${id}`, { method: 'PUT', body: JSON.stringify(draft) }),
+  duplicate: (id: string) => call<Invite>(`/invites/${id}/duplicate`, { method: 'POST' }),
+  setStatus: (id: string, status: 'live' | 'closed') => call<Invite>(`/invites/${id}/status`, { method: 'POST', body: JSON.stringify({ status }) }),
+  markSeen: (id: string) => call<null>(`/invites/${id}/seen`, { method: 'POST' }),
+  remove: (id: string) => call<null>(`/invites/${id}`, { method: 'DELETE' }),
+  send: (id: string, recipients: { email: string; name?: string }[]) =>
+    call<{ sent: number; sent_to: string[]; skipped: { email: string; reason: string }[] }>(`/invites/${id}/send`, { method: 'POST', body: JSON.stringify({ recipients }) }),
+  resend: (id: string) => call<{ sent: number; sent_to: string[]; skipped: { email: string; reason: string }[] }>(`/invites/${id}/resend`, { method: 'POST' }),
+  // ---- the guest's side (no login)
+  publicGet: (code: string, host?: string) => call<PublicInvite>(`/invites/public/${encodeURIComponent(code)}${host ? `?host=${encodeURIComponent(host)}` : ''}`, {}, false),
+  publicView: (code: string) => call<null>(`/invites/public/${encodeURIComponent(code)}/view`, { method: 'POST' }, false),
+  publicMine: (code: string, token: string) => call<InviteRsvp>(`/invites/public/${encodeURIComponent(code)}/rsvp/${encodeURIComponent(token)}`, {}, false),
+  publicRsvp: (code: string, body: { response: RsvpResponse; name: string; email?: string; phone?: string; answers: { questionId: string; value: unknown }[]; token?: string }) =>
+    call<InviteRsvp>(`/invites/public/${encodeURIComponent(code)}/rsvp`, { method: 'POST', body: JSON.stringify(body) }, false),
+}
+
+export const icsUrl = (code: string) => `${API_BASE_URL}/invites/public/${encodeURIComponent(code)}/ics`
+
+// ---------------------------------------------------------------- helpers
+
+const pad = (n: number) => String(n).padStart(2, '0')
+export const isoDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+export const parseDay = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d) }
+export const clock = (v?: string | null) => {
+  if (!v) return ''
+  const [h, m] = v.split(':').map(Number)
+  return `${h % 12 || 12}${m ? `:${pad(m)}` : ''} ${h >= 12 ? 'PM' : 'AM'}`
+}
+export const clockRange = (a?: string | null, b?: string | null) => {
+  if (!a) return ''
+  if (!b) return clock(a)
+  const x = clock(a), y = clock(b)
+  return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} - ${y}` : `${x} - ${y}`
+}
+export const dayLong = (s?: string | null) => s ? parseDay(s).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : ''
+export const whenText = (d: Pick<InviteDraft, 'event_date' | 'start_time' | 'end_time'>) =>
+  [dayLong(d.event_date), clockRange(d.start_time, d.end_time)].filter(Boolean).join(' · ')
+
+export const placeText = (d: Pick<InviteDraft, 'place_name' | 'address'>) => [d.place_name, d.address].filter(Boolean).join(', ')
+
+export function mapsUrl(address?: string | null) {
+  return address ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}` : ''
+}
+
+/** "Add to Google Calendar" - times are Eastern wall clock, like the rest of the app. */
+export function googleCalendarUrl(inv: Pick<InviteDraft, 'title' | 'event_date' | 'start_time' | 'end_time' | 'message' | 'place_name' | 'address'>, link: string) {
+  if (!inv.event_date) return ''
+  const day = inv.event_date.replace(/-/g, '')
+  const t = (v: string) => v.replace(':', '') + '00'
+  const start = inv.start_time ? `${day}T${t(inv.start_time)}` : day
+  let end = inv.end_time ? `${day}T${t(inv.end_time)}` : ''
+  if (!end) {
+    if (inv.start_time) {
+      const [h, m] = inv.start_time.split(':').map(Number)
+      end = `${day}T${pad(Math.min(23, h + 2))}${pad(m)}00`
+    } else {
+      const d = parseDay(inv.event_date); d.setDate(d.getDate() + 1); end = isoDay(d).replace(/-/g, '')
+    }
+  }
+  const q = new URLSearchParams({ action: 'TEMPLATE', text: inv.title, dates: `${start}/${end}`, ctz: 'America/New_York', details: [inv.message, link].filter(Boolean).join('\n\n'), location: placeText(inv) })
+  return `https://calendar.google.com/calendar/render?${q.toString()}`
+}
+
+export function initialsOf(name?: string | null) {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean)
+  return ((parts[0]?.[0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() || 'OH'
+}
+
+// ---------------------------------------------------------------- colour
+
+const hex6 = (v?: string | null) => {
+  const h = (v || '').trim()
+  return /^#[0-9a-f]{6}$/i.test(h) ? h : '#C9A24D'
+}
+export function mix(a: string, b: string, t: number) {
+  const x = parseInt(hex6(a).slice(1), 16), y = parseInt(hex6(b).slice(1), 16)
+  const c = (s: number) => Math.round(((x >> s) & 255) * (1 - t) + ((y >> s) & 255) * t)
+  return `#${[16, 8, 0].map(s => c(s).toString(16).padStart(2, '0')).join('')}`
+}
+export function lum(hex: string) {
+  const n = parseInt(hex6(hex).slice(1), 16)
+  return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255
+}
+export const accentOf = (v?: string | null) => hex6(v)
+/** Text that reads on top of the accent colour. */
+export const onAccent = (v?: string | null) => (lum(hex6(v)) > 0.6 ? '#111827' : '#FFFFFF')
+
+export const INVITE_COLORS = ['#C9A24D', '#1F3A5F', '#4F6F52', '#B5654A', '#9C4F6B', '#5B4B8A', '#111827', '#2F6F73']
+
+export const DESIGNS: { id: InviteDesign; label: string; note: string }[] = [
+  { id: 'classic', label: 'Classic', note: 'Ivory card, fine border, timeless' },
+  { id: 'garden', label: 'Garden', note: 'Soft botanicals, warm and welcoming' },
+  { id: 'midnight', label: 'Midnight', note: 'Dark and dramatic, metallic accents' },
+  { id: 'modern', label: 'Modern', note: 'Big photo, bold type, clean' },
+]
+
+export const TYPE_META: Record<InviteType, { label: string; short: string; who: string }> = {
+  open_house: { label: 'Open House', short: 'Open House', who: 'Buyers, neighbors & clients' },
+  brokers_open: { label: "Broker's Open", short: "Broker's Open", who: 'Other agents' },
+  client_event: { label: 'Client Event / Dinner', short: 'Client Event', who: 'Your clients' },
+  custom: { label: 'Custom', short: 'Custom', who: 'Anyone you like' },
+}
+
+export const RSVP_WORD: Record<RsvpResponse, string> = { yes: 'Coming', maybe: 'Maybe', no: "Can't make it" }

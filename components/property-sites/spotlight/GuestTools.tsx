@@ -56,7 +56,7 @@ function FollowCard({ m, siteId, dark }: { m: SpotlightModel; siteId: string; da
     }
   }
   return (
-    <div className="gt-card gt-follow">
+    <div className="gt-card gt-follow sp-loop">
       <div className="gt-follow-glow" aria-hidden />
       <span className="gt-icon gt-bell"><BellRing className="h-5 w-5" strokeWidth={1.5} /></span>
       <h3 className="sp-display mt-5 text-[1.9rem] leading-tight">Follow this home</h3>

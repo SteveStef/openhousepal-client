@@ -13,6 +13,8 @@ export default function TownSectionNav({ sections, luxe }: { sections: { id: str
   const [active, setActive] = useState(sections[0]?.id)
   const rowRef = useRef<HTMLDivElement>(null)
   const lockUntil = useRef(0)
+  const cvTimer = useRef<number | undefined>(undefined)
+  useEffect(() => () => { window.clearTimeout(cvTimer.current); document.documentElement.classList.remove('ohp-cv-off') }, [])
 
   useEffect(() => {
     const els = sections.map(s => document.getElementById(s.id)).filter(Boolean) as HTMLElement[]
@@ -46,6 +48,12 @@ export default function TownSectionNav({ sections, luxe }: { sections: { id: str
     e.preventDefault()
     setActive(id)
     lockUntil.current = Date.now() + 900
+    // Off-screen sections aren't drawn (.ohp-town-section, site-theme.css) and only estimate their
+    // height - draw them all for the jump so it lands on the right spot, then let them rest again.
+    const html = document.documentElement
+    html.classList.add('ohp-cv-off')
+    window.clearTimeout(cvTimer.current)
+    cvTimer.current = window.setTimeout(() => html.classList.remove('ohp-cv-off'), 1400)
     const top = el.getBoundingClientRect().top + window.scrollY - 128
     window.scrollTo({ top, behavior: 'smooth' })
     history.replaceState(null, '', `#${id}`)

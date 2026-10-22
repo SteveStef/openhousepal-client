@@ -57,6 +57,8 @@ interface FormBuilderModalProps {
   onToggleDarkMode: () => void
   /** The form's look (lib/formLook): match the Agent Hub or its own. */
   hubLook: FormLook
+  /** What "My Brand Kit" wears (lib/brandKit brandFormLook). */
+  brandLook?: FormLook
   luxeAllowed: boolean
   onUpdateLook: (patch: FormLookFields) => void
   onApplyLookToAll: () => Promise<boolean>
@@ -79,7 +81,7 @@ interface FormBuilderModalProps {
 }
 
 export default function FormBuilderModal({
-  isOpen, form, onClose, onUpdateField, onToggleBranding, onToggleRedirectToAgentHub, hubLook, luxeAllowed, onUpdateLook, onApplyLookToAll, onTogglePropertyPhotoCarousel, onToggleBackgroundEffects, onToggleWelcomeTextEffects, onUpdateBrandingLayout, onUpdateLinkedProperty,
+  isOpen, form, onClose, onUpdateField, onToggleBranding, onToggleRedirectToAgentHub, hubLook, brandLook, luxeAllowed, onUpdateLook, onApplyLookToAll, onTogglePropertyPhotoCarousel, onToggleBackgroundEffects, onToggleWelcomeTextEffects, onUpdateBrandingLayout, onUpdateLinkedProperty,
   onUpdateQuestion, onAddQuestion, onRemoveQuestion, onReorderQuestions, onSave, onResetToDefault, saveStatus, showPropertyLink, branding, defaultDescription,
 }: FormBuilderModalProps) {
   const [selectedBlockId, setSelectedBlockId] = useState<BlockId>('welcome')
@@ -128,7 +130,7 @@ export default function FormBuilderModal({
   }
 
   const previewKey = `${form.id}-${form.questions.map(question => question.id).join(',')}`
-  const look = resolveFormLook(form, hubLook, luxeAllowed)
+  const look = resolveFormLook(form, hubLook, luxeAllowed, brandLook)
 
   return (
     <motion.div {...backdropMotion} className="fixed inset-0 z-50 flex flex-col bg-black/60 p-3 sm:p-6">
@@ -383,8 +385,8 @@ export default function FormBuilderModal({
 
                 <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-[#151517]">
                   <p className="text-sm font-black text-[#111827] dark:text-white">Look</p>
-                  <p className="mb-4 mt-0.5 text-xs text-gray-500 dark:text-gray-400">The same styles and colors as your Agent Hub.</p>
-                  <FormLookPicker value={form} hubLook={hubLook} luxeAllowed={luxeAllowed} onChange={onUpdateLook} onApplyAll={onApplyLookToAll} />
+                  <p className="mb-4 mt-0.5 text-xs text-gray-500 dark:text-gray-400">{brandLook ? "Your Brand Kit by default - or give this form a look of its own." : "The same styles and colors as your Agent Hub."}</p>
+                  <FormLookPicker value={form} hubLook={hubLook} brandLook={brandLook} luxeAllowed={luxeAllowed} onChange={onUpdateLook} onApplyAll={onApplyLookToAll} />
                 </div>
 
                 <label className="block">

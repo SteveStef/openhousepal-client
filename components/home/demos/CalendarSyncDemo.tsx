@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight, Bell, CalendarClock, Check, Inbox, KeyRound, Mail, RefreshCw, Send, UserRound } from 'lucide-react'
 import BrowserFrame from '@/components/home/BrowserFrame'
+import { GoogleCalendarLogo } from '@/components/brand/ProviderLogos'
 import TitleSlide from './TitleSlide'
 import DemoPointer from './DemoPointer'
 import { REAL_OPEN_HOUSE as OH, REAL_SPOTLIGHT } from './realData'
@@ -135,7 +136,7 @@ export default function CalendarSyncDemo() {
             <p className="mt-1 font-serif text-[24px] font-black leading-tight text-[#111827] dark:text-white">Your follow-ups, <em className="font-light text-[#a8853d] dark:text-[#e8c97a]">on your calendar.</em></p>
             <p className="mt-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Connect once. We fill it in.</p>
             <div className="mt-4 grid grid-cols-2 gap-3">
-              {[{ m: <GoogleMark size={26} />, n: 'Google Calendar', d: "Two-way - edit events right in Google, and we skip times you're already booked.", g: true }, { m: <MicrosoftMark size={24} />, n: 'Outlook Calendar', d: 'Two-way with Outlook / Microsoft 365 - events you can drag and edit.', g: false }].map(p => {
+              {[{ m: <span className="inline-block h-[26px] w-[26px]"><GoogleCalendarLogo /></span>, n: 'Google Calendar', d: "Two-way - edit events right in Google, and we skip times you're already booked.", g: true }, { m: <MicrosoftMark size={24} />, n: 'Outlook Calendar', d: 'Two-way with Outlook / Microsoft 365 - events you can drag and edit.', g: false }].map(p => {
                 const done = p.g && tick >= 12
                 return (
                   <div key={p.n} className={`rounded-2xl border-2 bg-white p-3.5 transition-all duration-500 dark:bg-[#151517] ${done ? 'border-emerald-400 shadow-[0_14px_30px_-18px_rgba(16,185,129,.8)]' : 'border-gray-200 dark:border-gray-800'}`}>
@@ -168,7 +169,7 @@ export default function CalendarSyncDemo() {
               {tick >= 9 && (
                 <div className="absolute right-2 top-2 w-[230px] animate-fadeIn rounded-2xl bg-white/95 p-2.5 shadow-2xl ring-1 ring-black/5 dark:bg-[#1f1f22]/95">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white shadow ring-1 ring-black/5"><GoogleMark size={14} /></span>
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white shadow ring-1 ring-black/5"><span className="inline-block h-[15px] w-[15px]"><GoogleCalendarLogo /></span></span>
                     <div className="min-w-0"><p className="text-[9px] font-black uppercase tracking-wide text-gray-400">Calendar · now</p><p className="truncate text-[11px] font-black text-[#111827] dark:text-white">[Reach Out] Sarah M. - today</p></div>
                   </div>
                   <p className="mt-1 text-[9.5px] font-semibold leading-snug text-gray-500 dark:text-gray-400">Signed in at {OH.address} · suggested text ready in Leads</p>

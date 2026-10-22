@@ -42,6 +42,7 @@ const ACTIVITY_LABELS: Record<LeadSourceType, string> = {
   property_page_inquiry: 'Listing Page Message',
   property_page_tour_request: 'Listing Page Tour Request',
   blog_inquiry: 'Blog Question',
+  invite_rsvp: 'Invite RSVP',
   website_google_signin: 'Website Sign-In',
   showcase_like: 'Liked a Home',
   showcase_dislike: 'Passed on a Home',

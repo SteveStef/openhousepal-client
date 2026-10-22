@@ -140,7 +140,7 @@ function IdxTab() {
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {([
             ['content', Layers, 'Pages & sections', 'Your home page, About, Contact'],
-            ['design', Palette, 'Look & colors', 'Classic or Luxe, light or dark'],
+            ['design', Palette, 'Look & colors', 'Classic or Luxe, Ivory or Midnight'],
             ['featured', Star, 'Featured homes', 'Header homes and your Featured page'],
             ['areas', MapPin, 'Towns you serve', 'Town pages and local data'],
             ['search', Search, 'Google', 'Search titles and descriptions'],
@@ -638,6 +638,9 @@ export default function SettingsPage() {
           }
         />
 
+        {/* Account setup on every tab, not just Profile (owner, 10/22) */}
+        <div className="mb-5"><SetupLink /></div>
+
         <div className="mt-2 flex flex-col gap-6 md:flex-row md:items-start">
           {/* Left rail — vertical on desktop, a horizontal scroll strip on mobile */}
           <nav className="md:sticky md:top-6 md:w-52 md:shrink-0">
@@ -680,7 +683,6 @@ export default function SettingsPage() {
             >
             {tab === 'profile' && (
               <div className="space-y-6">
-                <SetupLink />
                 {/* Identity + Contact + Social, split into their own cards side-by-side on wide
                     screens instead of one long stacked accordion - same fields, same autosave,
                     same Complete/Incomplete badges, just laid out so the "who you are" core

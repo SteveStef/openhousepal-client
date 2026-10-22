@@ -3,7 +3,7 @@
 // one sentence, what they go without. The backend (setup_flow_service.py) decides which steps a
 // plan gets and whether each is done; this file only says them nicely.
 import {
-  AtSign, BadgeCheck, Bell, BookOpen, CalendarDays, Camera, ClipboardList, Globe, Home, LayoutTemplate, Mail, MailCheck, MapPin,
+  AtSign, BadgeCheck, Bell, BookOpen, CalendarDays, Camera, ClipboardList, DoorOpen, Globe, Home, LayoutTemplate, Mail, MailCheck, MapPin,
   Palette, Phone, PlugZap, Star, UserRound, type LucideIcon,
 } from 'lucide-react'
 import type { SetupStepId } from '@/lib/api-service'
@@ -92,17 +92,17 @@ export function stepCopy(id: SetupStepId, plan: string | null, hasMls: boolean):
       }
     case 'hub':
       return {
-        icon: LayoutTemplate, label: 'Agent Hub look', title: ['How your ', 'Agent Hub looks'],
-        intro: 'Your Agent Hub is the one link that has everything about you. Pick a look you like - you can change it anytime.',
+        icon: LayoutTemplate, label: 'Agent Hub', title: ['Your ', 'Agent Hub'],
+        intro: 'Your Agent Hub is the one link that has everything about you. Pick its look and what’s on it - you can change it anytime.',
         powers: ['Your Agent Hub page', 'Your Sales page'],
-        skip: 'Your hub uses the Classic look in light mode.',
+        skip: 'Your hub wears your Brand Kit, with everything switched on.',
       }
     case 'forms':
       return {
-        icon: ClipboardList, label: 'Forms look', title: ['How your ', 'forms look'],
-        intro: 'Your forms are what people fill out when they want your help. Match your Agent Hub, or give them a look of their own.',
+        icon: ClipboardList, label: 'Your forms', title: ['Your ', 'forms'],
+        intro: 'Your forms are what people fill out when they want your help. Give them your Brand Kit or a look of their own, and choose how every form behaves.',
         powers: ["What's My Home Worth", "I'm Buying & I'm Selling", 'Every form you share'],
-        skip: 'Your forms match your Agent Hub.',
+        skip: 'Your forms wear your Brand Kit.',
       }
     case 'signature':
       return {
@@ -111,12 +111,21 @@ export function stepCopy(id: SetupStepId, plan: string | null, hasMls: boolean):
         powers: ['Every email you send', 'Updates itself when you list or sell'],
         skip: 'Your emails go out without your signature card.',
       }
+    case 'openhouse':
+      return {
+        icon: DoorOpen, label: 'Open house defaults', title: ['Your open house ', 'defaults'],
+        intro: hasShowcase(plan)
+          ? 'How every new open house kit starts, and what guests get after they sign in. You can still change any open house on its own.'
+          : 'How every new open house kit starts. You can still change any open house on its own.',
+        powers: where(['Every new open house kit'], [[hasShowcase(plan), 'Showcases for guests without an agent']]),
+        skip: hasShowcase(plan) ? 'Kits start with our standard choices, and guests without an agent get their Showcase about an hour after they sign in.' : 'Kits start with our standard choices.',
+      }
     case 'alerts':
       return {
-        icon: Bell, label: 'Lead alerts', title: ['How should we ', 'tell you?'],
-        intro: 'Choose how you hear about new leads, and whether we remind you to follow up.',
-        powers: ['New lead alerts', 'Follow-up reminders'],
-        skip: 'You get our standard alerts - every new lead by email.',
+        icon: Bell, label: 'Alerts & follow-ups', title: ['How should we ', 'tell you?'],
+        intro: 'Pick the emails you want from us, and whether OpenHousePal reminds you who to follow up with.',
+        powers: ['New lead alerts', 'Follow-ups', 'Daily briefing'],
+        skip: 'You get our standard emails, and Follow-ups stay on.',
       }
     case 'calendar':
       return {
@@ -140,16 +149,21 @@ export function stepCopy(id: SetupStepId, plan: string | null, hasMls: boolean):
         skip: 'New leads stay in OpenHousePal only.',
       }
     case 'areas':
-      return {
-        icon: MapPin, label: 'Website areas', title: ['The towns ', 'you serve'],
-        intro: 'Add the towns you work in. Each one gets its own page on your website with local market numbers.',
-        powers: ['Community pages', 'Area market trends'],
-        skip: 'Your website has no community pages.',
+      return idx ? {
+        icon: MapPin, label: 'Towns you serve', title: ['The towns ', 'you serve'],
+        intro: 'Add the towns you work in. These become the neighborhoods on your website - each one gets its own page with local market numbers. You can change them any time in your website editor.',
+        powers: ['Neighborhoods on your website', 'Town pages', 'Area market trends'],
+        skip: 'Your website has no neighborhood pages.',
+      } : {
+        icon: MapPin, label: 'Towns you serve', title: ['The towns ', 'you serve'],
+        intro: 'Add the towns you work in. We use them to suggest the right homes on your forms and match buyers to your towns' + (studio ? ', and for town cards in your blog articles.' : '.') + ' (With the IDX plan, these also become the neighborhoods on your website.)',
+        powers: where(['Your forms', 'Matching buyers to towns'], [[studio, 'Blog town cards']]),
+        skip: 'Forms suggest homes from anywhere in the MLS.',
       }
     case 'homes':
       return {
         icon: Home, label: 'Website homes', title: ['The homes your ', 'website shows'],
-        intro: 'The top of your website always shows the newest homes for sale in your towns. Pick the towns and price range - and what your Featured page shows.',
+        intro: 'The top of your website always shows the newest homes for sale in your towns. Tap the towns and price range - and choose what your Featured page shows.',
         powers: ['Your home page header', 'Your Featured page'],
         skip: 'Your website shows the newest homes in all your towns, any price.',
       }

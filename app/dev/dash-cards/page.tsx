@@ -9,6 +9,7 @@ import DashManagerCard from '@/components/dash/DashManagerCard'
 import DashDiscoveryCard from '@/components/dash/DashDiscoveryCard'
 import { getUpcomingWeekendCells } from '@/components/open-house-manager/WeekendCalendarCards'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
+import { ToastProvider } from '@/contexts/ToastContext'
 import type { HostRequest, MyListingItem, MyListingsResponse, ScheduledOpen } from '@/types'
 
 const IMG = ['018cb01a82ce', '082318e16259', '08bb2df67633', '0f3855c99ed8', '10714c16504c', '12c70ddbd9b7'].map(id => `/demos/media/${id}.jpg`)
@@ -72,5 +73,5 @@ function Sheet() {
 }
 
 export default function DashCardsProof() {
-  return <AuthProvider><Suspense><Sheet /></Suspense></AuthProvider>
+  return <AuthProvider><ToastProvider><Suspense><Sheet /></Suspense></ToastProvider></AuthProvider>
 }

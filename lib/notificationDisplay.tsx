@@ -21,6 +21,7 @@ export const NOTIFICATION_META: Record<string, { icon: React.ComponentType<{ cla
   // The 4:30 PM roll-up of every new match + price drop across the agent's Showcases (one a day).
   SHOWCASE_DIGEST: { icon: TrendingUp, label: "Today's Showcase Update", className: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800' },
   PROPERTY_SYNC_UPDATE: { icon: TrendingUp, label: 'Showcase Update', className: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800' },
+  INVITE_RSVP: { icon: FileText, label: 'Invite RSVP', className: 'bg-[#C9A24D]/15 dark:bg-[#C9A24D]/20 text-[#8b7355] dark:text-[#d7b974] border-[#C9A24D]/30' },
   FORM_SUBMISSION: { icon: FileText, label: 'Form Submission', className: 'bg-[#C9A24D]/15 dark:bg-[#C9A24D]/20 text-[#8b7355] dark:text-[#d7b974] border-[#C9A24D]/30' },
   OPEN_HOUSE_SECOND_VISIT: { icon: CalendarClock, label: 'Second Visit Request', className: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-800' },
   OPEN_HOUSE_DISCLOSURE: { icon: FileCheck, label: 'Disclosure Request', className: 'bg-[#C9A24D]/15 dark:bg-[#C9A24D]/20 text-[#8b7355] dark:text-[#d7b974] border-[#C9A24D]/30' },

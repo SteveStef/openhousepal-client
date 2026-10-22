@@ -257,7 +257,7 @@ export default function TownMap({ data, town, luxe }: { data?: TownBoundaries | 
                           <span className="shrink-0 text-xs font-black tabular-nums" style={{ color: 'var(--site-heading)' }}>{s.share}%</span>
                         </div>
                         <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: 'var(--site-line)' }}>
-                          <motion.div className="h-full rounded-full" style={{ backgroundColor: c }} initial={{ width: 0 }} animate={{ width: `${s.share}%` }} transition={{ duration: 0.9, delay: 0.1 + 0.06 * i, ease: [0.16, 1, 0.3, 1] }} />
+                          <motion.div className="h-full origin-left rounded-full" style={{ backgroundColor: c, width: `${s.share}%` }} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.9, delay: 0.1 + 0.06 * i, ease: [0.16, 1, 0.3, 1] }} />
                         </div>
                         <p className="mt-1 text-[11px] font-semibold" style={{ color: 'var(--site-muted)' }}>
                           {s.kind === 'elementary' ? 'Elementary district · ' : s.kind === 'secondary' ? 'High school district · ' : ''}of {town} homes

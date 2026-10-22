@@ -172,10 +172,11 @@ export default function BlogFinishStep({ ctx, blocks, areas, value, onChange, ca
       {/* Video (already placed when one was picked before writing) */}
       {videoInArticle ? (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-900/15">
-          <p className="flex items-center gap-2 text-xs font-bold text-emerald-800 dark:text-emerald-300"><Clapperboard className="h-4 w-4 shrink-0 text-emerald-600" /> Your video is in the article{spot ? <> - <span className="font-black">{spot.label}</span></> : null}.</p>
+          {/* One text run (the words used to split into three cramped flex columns on a phone). */}
+          <p className="flex items-start gap-2 text-xs font-bold leading-snug text-emerald-800 dark:text-emerald-300"><Clapperboard className="mt-px h-4 w-4 shrink-0 text-emerald-600" /><span className="min-w-0">Your video is in the article{spot ? <> - <span className="font-black">{spot.label}</span></> : null}.</span></p>
           <label className="mt-2 block">
             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700/70 dark:text-emerald-300/70">Where it goes</span>
-            <select value={value.moveVideo || (spot?.headingId ? `section:${spot.headingId}` : 'after_intro')} onChange={e => set({ moveVideo: e.target.value })} className="mt-1 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-bold text-[#111827] outline-none focus:border-[#C9A24D] dark:border-emerald-900/50 dark:bg-[#1A1A1C] dark:text-white">
+            <select value={value.moveVideo || (spot?.headingId ? `section:${spot.headingId}` : 'after_intro')} onChange={e => set({ moveVideo: e.target.value })} className="mt-1 w-full min-w-0 truncate rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-base font-bold sm:py-2 sm:text-sm text-[#111827] outline-none focus:border-[#C9A24D] dark:border-emerald-900/50 dark:bg-[#1A1A1C] dark:text-white">
               <option value="after_intro">Right after the intro</option>
               {heads.map(h => <option key={h.id} value={`section:${h.id}`}>In: {headingText(h).slice(0, 60)}</option>)}
               <option value="before_end">Just before the ending</option>
@@ -186,7 +187,7 @@ export default function BlogFinishStep({ ctx, blocks, areas, value, onChange, ca
       <Card icon={Clapperboard} title="Add a video" hint="A YouTube link, or one from your Agent Hub.">
         <div className="relative">
           <Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input value={videoUrl} onChange={e => setVideo(e.target.value.trim())} placeholder="Paste a YouTube link" className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm font-semibold text-[#111827] outline-none transition focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/15 dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-white" />
+          <input value={videoUrl} onChange={e => setVideo(e.target.value.trim())} placeholder="Paste a YouTube link" className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-base font-semibold sm:text-sm text-[#111827] outline-none transition focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/15 dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-white" />
         </div>
         {hubVideos.length > 0 && (
           <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
@@ -199,7 +200,7 @@ export default function BlogFinishStep({ ctx, blocks, areas, value, onChange, ca
           {value.video && (
             <motion.label initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-3 block overflow-hidden">
               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Where it goes</span>
-              <select value={value.video.position} onChange={e => set({ video: { ...value.video!, position: e.target.value } })} className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-[#111827] outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-white">
+              <select value={value.video.position} onChange={e => set({ video: { ...value.video!, position: e.target.value } })} className="mt-1 w-full min-w-0 truncate rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-base font-bold sm:text-sm text-[#111827] outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-white">
                 <option value="after_intro">Right after the intro</option>
                 {heads.map(h => <option key={h.id} value={`section:${h.id}`}>After: {headingText(h).slice(0, 60)}</option>)}
                 <option value="before_end">Just before the ending</option>
@@ -219,7 +220,7 @@ export default function BlogFinishStep({ ctx, blocks, areas, value, onChange, ca
             <div className="mt-2 flex flex-wrap gap-1.5">
               {BLOG_CTA_FORMS.map(f => (
                 <motion.button key={f.formType} type="button" whileTap={{ scale: 0.95 }} onClick={() => set({ cta: f.formType })}
-                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-black transition ${ctaForm === f.formType ? 'border-[#C9A24D] bg-[#C9A24D] text-[#111827]' : 'border-gray-200 bg-white text-gray-600 hover:border-[#C9A24D]/60 dark:border-gray-700 dark:bg-transparent dark:text-gray-300'}`}>
+                  className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[12px] font-black transition sm:px-2.5 sm:py-1 sm:text-[11px] ${ctaForm === f.formType ? 'border-[#C9A24D] bg-[#C9A24D] text-[#111827]' : 'border-gray-200 bg-white text-gray-600 hover:border-[#C9A24D]/60 dark:border-gray-700 dark:bg-transparent dark:text-gray-300'}`}>
                   {ctaForm === f.formType && <Check className="h-3 w-3" />}{f.label}
                 </motion.button>
               ))}

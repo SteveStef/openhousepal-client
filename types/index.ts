@@ -1084,7 +1084,8 @@ export interface AgentFormConfig {
   show_branding: boolean;
   dark_mode: boolean;
   /** 'hub' = matches the Agent Hub; 'custom' = look_theme + accent_color / luxe_metal + dark_mode. */
-  look_mode?: 'hub' | 'custom';
+  /** 'brand' = My Brand Kit (default), 'custom' = its own, 'hub' = legacy (wears the hub's look). */
+  look_mode?: 'brand' | 'hub' | 'custom';
   look_theme?: 'classic' | 'luxe' | null;
   luxe_metal?: 'gold' | 'silver' | 'bronze' | null;
   redirect_to_agent_hub: boolean;
@@ -1314,6 +1315,22 @@ export interface BrandKit {
   brokerage_logo_url?: string | null;
   disclaimer_text?: string | null;
   updated_at?: string | null;
+  /** The brand LOOK every feature on "My Brand Kit" wears (lib/brandKit.ts, backend brand_look_service). */
+  look?: BrandKitLook | null;
+}
+
+export interface BrandKitLook {
+  theme: 'classic' | 'luxe';
+  /** What features actually show (Luxe is IDX only). */
+  shown_theme?: 'classic' | 'luxe';
+  metal: 'gold' | 'silver' | 'bronze';
+  /** false = Ivory, true = Midnight */
+  dark: boolean;
+  /** The Classic color (= secondary_color, made safe for buttons). */
+  accent?: string;
+  primary?: string;
+  /** The agent picked a look (not just the defaults). */
+  saved?: boolean;
 }
 
 // ---- Design Studio ----
@@ -1736,7 +1753,14 @@ export interface FeaturedSettings {
   towns: string[];
   school_districts: string[];
   sort: 'newest' | 'price_desc' | 'price_asc';
+  // true = "my listings first, then the rest"; false = "mix them together"
   prioritize_my_listings: boolean;
+  // What the page is made of (10/22). Missing on older saves - read through lib/featuredSources.
+  show_mine?: boolean | null;
+  show_area_homes?: boolean | null;
+  show_custom?: boolean | null;
+  /** which of their towns the "homes in my towns" part uses (empty = all) */
+  area_towns?: string[];
 }
 
 export interface MediaSettings {
@@ -2121,7 +2145,7 @@ export interface PublicBlogDetail {
 
 export type LeadStatus = 'new' | 'contacted' | 'in_talks' | 'signed' | 'hidden' | 'qualified' | 'converted' | 'archived';
 export type LeadRepresented = 'yes' | 'no' | 'unknown';
-export type LeadSourceType = 'open_house_visitor' | 'form_submission' | 'property_tour' | 'property_comment' | 'collection_visitor' | 'open_house_second_visit' | 'open_house_disclosure' | 'property_website_inquiry' | 'property_website_tour_request' | 'portal_lead' | 'form_partial' | 'property_page_inquiry' | 'property_page_tour_request' | 'blog_inquiry' | 'website_google_signin'
+export type LeadSourceType = 'open_house_visitor' | 'form_submission' | 'property_tour' | 'property_comment' | 'collection_visitor' | 'open_house_second_visit' | 'open_house_disclosure' | 'property_website_inquiry' | 'property_website_tour_request' | 'portal_lead' | 'form_partial' | 'property_page_inquiry' | 'property_page_tour_request' | 'blog_inquiry' | 'website_google_signin' | 'invite_rsvp'
   // Done inside their Showcase / elsewhere (backend leads_service.log_activity) - keep in sync with schemas/leads.py.
   | 'showcase_like' | 'showcase_dislike' | 'showcase_view' | 'showcase_refine' | 'showcase_search_changed'
   | 'showcase_emails_off' | 'showcase_emails_on' | 'email_unsubscribed' | 'review_left'

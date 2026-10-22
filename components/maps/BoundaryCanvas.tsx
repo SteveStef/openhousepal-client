@@ -49,7 +49,9 @@ export interface CanvasBadge {
 
 // Lives with the component (it renders inside Google's panes, on the IDX site and in the app alike).
 const CANVAS_CSS = `
-.ohp-ants{animation:ohpAnts 1.6s linear infinite}
+/* A few laps as the lines appear, then they rest: a stroke-dashoffset animation repaints the map -
+   and re-layers the whole page around it - every frame while it runs (10/22 speed pass). */
+.ohp-ants{animation:ohpAnts 1.6s linear 5}
 @keyframes ohpAnts{to{stroke-dashoffset:-34}}
 .ohp-badge-ring::before{content:"";position:absolute;inset:0;border-radius:9999px;
   background:conic-gradient(from 0deg,var(--badge),transparent 30%,var(--badge) 55%,transparent 80%,var(--badge));

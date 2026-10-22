@@ -72,16 +72,18 @@ export default function TourStatusWindow({ tour, address, agentName, onClose, on
     <AnimatePresence>
       {tour && shown && (
         <motion.div {...backdropMotion} className="fixed inset-0 z-[120] flex items-end justify-center bg-[#0b0b0c]/60 sm:items-center sm:p-4" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-          <motion.div ref={sheetRef} {...sheetMotion} style={phone ? { y: sheetY } : undefined} className="w-full overflow-hidden rounded-t-[28px] bg-white shadow-[0_40px_100px_-30px_rgba(0,0,0,.7)] dark:bg-[#141416] sm:max-w-md sm:rounded-[28px]">
+          <motion.div ref={sheetRef} {...sheetMotion} style={phone ? { y: sheetY } : undefined} className="max-h-[92dvh] w-full overflow-y-auto overscroll-contain rounded-t-[28px] bg-white shadow-[0_40px_100px_-30px_rgba(0,0,0,.7)] dark:bg-[#141416] sm:max-h-[90vh] sm:max-w-md sm:rounded-[28px]">
             {/* status header */}
             <div className={`relative isolate overflow-hidden px-6 pb-6 pt-6 text-white ${state === 'confirmed' || state === 'done' ? 'bg-emerald-600' : 'bg-[#0b0b0c]'}`}>
+              {/* Phones: a grab handle - the sheet can be pulled down to close. */}
+              <span aria-hidden className="absolute left-1/2 top-2 h-1.5 w-10 -translate-x-1/2 rounded-full bg-white/30 sm:hidden" />
               <div className="absolute inset-0 -z-10" style={{ background: state === 'pending' ? 'radial-gradient(120% 120% at 100% 0%, rgba(245,158,11,.45), transparent 55%), linear-gradient(135deg,#0b0b0c,#18140c)' : 'radial-gradient(120% 120% at 100% 0%, rgba(255,255,255,.25), transparent 55%)' }} />
               <div className="flex items-start justify-between gap-3">
                 <motion.span initial={{ scale: 0.5, rotate: -12 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 420, damping: 15 }}
                   className={`grid h-12 w-12 place-items-center rounded-2xl shadow-lg ${state === 'pending' ? 'bg-amber-400 text-[#111827]' : 'bg-white text-emerald-600'}`}>
                   {state === 'pending' ? <Hourglass className="h-5 w-5" /> : <CalendarCheck className="h-5 w-5" />}
                 </motion.span>
-                <motion.button whileTap={{ scale: 0.9 }} onClick={onClose} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-full bg-white/15 transition hover:bg-white/25"><X className="h-4 w-4" /></motion.button>
+                <motion.button whileTap={{ scale: 0.9 }} onClick={onClose} aria-label="Close" className="grid h-10 w-10 place-items-center rounded-full bg-white/15 transition hover:bg-white/25"><X className="h-4 w-4" /></motion.button>
               </div>
               <p className="mt-4 text-[10px] font-black uppercase tracking-[0.26em] text-white/70">{state === 'pending' ? 'Pending approval' : state === 'done' ? 'Toured' : 'Confirmed'}</p>
               <h3 className="mt-1 font-serif text-2xl font-black leading-tight">
@@ -99,7 +101,7 @@ export default function TourStatusWindow({ tour, address, agentName, onClose, on
               )}
             </div>
 
-            <div className="space-y-4 px-6 py-5">
+            <div className="space-y-4 px-6 py-5" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
               {home && (
                 <div className="flex items-center gap-3 rounded-2xl border border-gray-100 p-2 dark:border-white/[0.07]">
                   <span className="h-14 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-white/[0.06]">

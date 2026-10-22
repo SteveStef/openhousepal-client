@@ -28,9 +28,11 @@ import ProfileGate from '@/components/studio/design/ProfileGate'
 import { PROPERTY_RULE_ATTEST, profileGaps, propertyRuleFor } from '@/lib/studio/designCompliance'
 import { hasMlsAccess } from '@/lib/navAccess'
 import OhpSwitch from '@/components/ui/OhpSwitch'
+import { WhenSheet } from '@/components/ui/WhenPicker'
 import { DesignPreview } from '@/components/studio/design/StyleThumbnail'
 import { DesignCanvasContext } from '@/components/studio/design/DesignCanvas'
 import { copyText } from '@/lib/copyText'
+import FlowDock from '@/components/ui/FlowDock'
 import CampaignRedirectPicker, { CampaignRedirect, DEFAULT_CAMPAIGN_REDIRECT, campaignRedirectError, campaignRedirectPayload } from '@/components/forms/CampaignRedirectPicker'
 
 // The Design Studio wizard - the same flow the homepage "Our Tools" Studio demo walks through:
@@ -187,6 +189,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
   const [ohDate, setOhDate] = useState('')
   const [ohStart, setOhStart] = useState('')
   const [ohEnd, setOhEnd] = useState('')
+  const [ohPickerOpen, setOhPickerOpen] = useState(false)
 
   const [name, setName] = useState('')
   const [creating, setCreating] = useState(false)
@@ -715,26 +718,71 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
                       {situationId === 'open_house' && (property || skipProperty) && (
                         <section>
                           <SectionLabel>Open house date & time</SectionLabel>
+                          {/* Their scheduled open houses as big tap cards first, then the step-by-step
+                              picker for any other date and hours (user, 10/22). Same values as the
+                              old Date / Starts / Ends boxes. */}
                           {scheduledOpenHouses.length > 0 && (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {scheduledOpenHouses.map(oh => (
-                                <button
-                                  key={oh.id}
-                                  type="button"
-                                  onClick={() => applyOpenHouse(oh)}
-                                  className={`rounded-full border px-3.5 py-1.5 text-xs font-black transition ${ohEventId === oh.openHouseEventId ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355]' : 'border-gray-200 text-gray-500 hover:border-gray-300 dark:border-white/10 dark:text-gray-300'}`}
-                                >
-                                  {oh.scheduledDate ? formatOpenHouseDate(oh.scheduledDate) : 'Unscheduled'}
-                                  {oh.scheduledStartTime && oh.scheduledEndTime ? ` · ${formatTimeOfDay(oh.scheduledStartTime)}–${formatTimeOfDay(oh.scheduledEndTime)}` : ''}
-                                </button>
-                              ))}
+                            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                              {scheduledOpenHouses.map((oh, i) => {
+                                const on = ohEventId === oh.openHouseEventId
+                                const d = oh.scheduledDate ? new Date(`${oh.scheduledDate}T00:00:00`) : null
+                                return (
+                                  <motion.button key={oh.id} type="button" onClick={() => applyOpenHouse(oh)}
+                                    initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} whileTap={{ scale: 0.97 }}
+                                    className={`relative flex min-h-[72px] items-center gap-3 rounded-2xl border p-3 text-left transition ${on ? 'border-[#C9A24D] bg-[#C9A24D]/10 shadow-[0_12px_26px_-16px_rgba(201,162,77,.9)]' : 'border-gray-200 bg-white hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.03]'}`}>
+                                    <div className={`flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl ${on ? 'bg-gradient-to-b from-[#e2c47a] to-[#C9A24D] text-[#111827]' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>
+                                      {d ? (<>
+                                        <span className={`text-[8px] font-black uppercase tracking-widest ${on ? '' : 'text-[#e8c97a] dark:text-[#a8843a]'}`}>{d.toLocaleDateString('en-US', { month: 'short' })}</span>
+                                        <span className="font-serif text-lg font-black leading-none">{d.getDate()}</span>
+                                      </>) : <CalendarClock className="h-5 w-5" />}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate text-[14px] font-black text-[#111827] dark:text-white">{oh.scheduledDate ? formatOpenHouseDate(oh.scheduledDate) : 'Unscheduled'}</p>
+                                      <p className="truncate text-[12px] font-bold text-gray-500 dark:text-gray-400">{oh.scheduledStartTime && oh.scheduledEndTime ? `${formatTimeOfDay(oh.scheduledStartTime)} – ${formatTimeOfDay(oh.scheduledEndTime)}` : 'No hours set'}</p>
+                                      <p className="text-[9px] font-black uppercase tracking-widest text-[#a8843a] dark:text-[#e8c97a]">Your scheduled open house</p>
+                                    </div>
+                                    {on && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#111827] text-white dark:bg-white dark:text-[#111827]"><Check className="h-3.5 w-3.5" strokeWidth={3} /></motion.span>}
+                                  </motion.button>
+                                )
+                              })}
                             </div>
                           )}
-                          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                            <Field label="Date"><input type="date" value={ohDate} onChange={e => { setOhDate(e.target.value); setOhEventId(null) }} className={inputClass} /></Field>
-                            <Field label="Starts"><input type="time" value={ohStart} onChange={e => setOhStart(e.target.value)} className={inputClass} /></Field>
-                            <Field label="Ends"><input type="time" value={ohEnd} onChange={e => setOhEnd(e.target.value)} className={inputClass} /></Field>
-                          </div>
+                          {ohDate && !ohEventId && (
+                            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                              className="mt-3 flex items-center gap-3 rounded-2xl border border-[#C9A24D] bg-[#C9A24D]/10 p-3">
+                              <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-gradient-to-b from-[#e2c47a] to-[#C9A24D] text-[#111827]">
+                                <span className="text-[8px] font-black uppercase tracking-widest">{new Date(`${ohDate}T00:00:00`).toLocaleDateString('en-US', { month: 'short' })}</span>
+                                <span className="font-serif text-lg font-black leading-none">{new Date(`${ohDate}T00:00:00`).getDate()}</span>
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-[14px] font-black text-[#111827] dark:text-white">{formatOpenHouseDate(ohDate)}</p>
+                                <p className="truncate text-[12px] font-bold text-gray-500 dark:text-gray-400">{ohStart && ohEnd ? `${formatTimeOfDay(ohStart)} – ${formatTimeOfDay(ohEnd)}` : ohStart ? `From ${formatTimeOfDay(ohStart)}` : 'No hours on the design'}</p>
+                              </div>
+                              <button type="button" onClick={() => setOhPickerOpen(true)} className="h-10 shrink-0 rounded-xl border border-gray-200 bg-white px-3 text-[11px] font-black uppercase tracking-widest text-[#111827] transition hover:border-[#C9A24D] dark:border-white/10 dark:bg-transparent dark:text-white">Change</button>
+                              <button type="button" onClick={() => { setOhDate(''); setOhStart(''); setOhEnd('') }} aria-label="Clear the date" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-white"><X className="h-4 w-4" /></button>
+                            </motion.div>
+                          )}
+                          {!(ohDate && !ohEventId) && (
+                            <motion.button type="button" whileTap={{ scale: 0.98 }} onClick={() => setOhPickerOpen(true)}
+                              className="mt-3 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-300 text-[12px] font-black uppercase tracking-widest text-gray-500 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/15 dark:text-gray-400">
+                              <CalendarClock className="h-4 w-4" /> {scheduledOpenHouses.length ? 'A different date & time' : 'Pick the date & time'}
+                            </motion.button>
+                          )}
+                          <WhenSheet open={ohPickerOpen} onClose={() => setOhPickerOpen(false)} mode="range" weekendsOnly days={8}
+                            title="When is the open house?" kicker="Open house"
+                            photo={heroPhoto || propertyPhotos(property)[0] || null} context={property?.address || null} contextSub={property?.city || null}
+                            value={ohDate ? { date: ohDate, time: ohStart || null, end: ohEnd || null, anytime: !ohStart && !ohEnd } : null}
+                            allowAnytime="Just the date"
+                            rangeBlocksLabel="Popular open-house times"
+                            offNote="Weekends in gold"
+                            onDone={v => {
+                              setOhPickerOpen(false)
+                              if (!v.date) return
+                              setOhEventId(null)
+                              setOhDate(v.date)
+                              setOhStart(v.anytime ? '' : v.time || '')
+                              setOhEnd(v.anytime ? '' : v.end || '')
+                            }} />
                           <p className="mt-2 text-[11px] font-semibold text-gray-400">Optional - leave blank and add it later in the editor.</p>
                         </section>
                       )}
@@ -965,7 +1013,8 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
             )}
           </div>
 
-          <footer className="flex items-center justify-between gap-3 border-t border-gray-100 px-5 py-4 dark:border-white/5 sm:px-8">
+          {/* Phones get the flow bar (components/ui/FlowDock) below instead - same Back / Continue. */}
+          <footer className="hidden items-center justify-between gap-3 border-t border-gray-100 px-5 py-4 dark:border-white/5 sm:flex sm:px-8">
             <button type="button" onClick={back} disabled={creating} className="inline-flex items-center gap-1.5 rounded-xl px-2 py-2 text-sm font-black text-gray-400 transition hover:text-[#111827] disabled:opacity-40 dark:hover:text-white">
               <ArrowLeft className="h-4 w-4" /> {stepIndex === 0 ? 'Cancel' : 'Back'}
             </button>
@@ -985,6 +1034,13 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
               </button>
             </div>
           </footer>
+          {/* Phones: the flow bar - Back on the left, "3 / 9" in the middle, Continue (Create on the
+              last step) on the right; the same next() / back() as the footer above. */}
+          <FlowDock inline step={stepIndex + 1} total={steps.length}
+            onBack={stepIndex > 0 ? back : undefined} backDisabled={creating}
+            onContinue={next} disabled={!canContinue[step] || creating} busy={creating}
+            continueLabel={step === 'review' ? (creating ? 'Creating…' : 'Create') : 'Continue'}
+            icon={step === 'review' ? <Check className="h-4 w-4" /> : undefined} />
           </>)}
         </div>
       </motion.div>

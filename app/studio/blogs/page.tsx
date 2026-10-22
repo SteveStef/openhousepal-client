@@ -122,7 +122,7 @@ function BlogsDashboardInner() {
 
   return (
     <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]">
-      <div className="mx-auto max-w-6xl px-5 py-10">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-5 sm:py-10">
         <StudioPageHeader
           icon={Newspaper}
           kicker="Blogs"
@@ -230,39 +230,45 @@ function BlogsDashboardInner() {
               </div>
             </Link>
               {/* Open it (live page once published, the preview while it's a draft) and share it. */}
-              <div className="flex items-center gap-2 border-t border-[#C9A24D]/15 px-4 py-2.5 dark:border-white/[0.06]">
+              <div className="flex items-center gap-2 border-t border-[#C9A24D]/15 px-4 py-3 dark:border-white/[0.06] sm:py-2.5">
                 {blog.ai_state && blog.ai_state !== 'running' ? (
                   <Link href={`/studio/blogs/${blog.id}`}
-                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#C9A24D] px-3 py-2 text-[11.5px] font-black text-[#111827] transition hover:-translate-y-0.5 active:scale-95">
+                    className="inline-flex min-h-[42px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#C9A24D] px-3 py-2 text-[12.5px] font-black text-[#111827] transition hover:-translate-y-0.5 active:scale-95 sm:min-h-0 sm:text-[11.5px]">
                     <Sparkles className="h-3.5 w-3.5" /> {blog.ai_state === 'failed' ? 'Try again' : 'Finish with AI'}
                   </Link>
                 ) : blog.status === 'PUBLISHED' ? (
                   <a href={liveUrl(blog) || '#'} target="_blank" rel="noopener" onClick={e => { if (!liveUrl(blog)) e.preventDefault() }}
-                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#111827] px-3 py-2 text-[11.5px] font-black text-white transition hover:-translate-y-0.5 active:scale-95 dark:bg-white dark:text-[#111827]">
+                    className="inline-flex min-h-[42px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#111827] px-3 py-2 text-[12.5px] font-black text-white transition hover:-translate-y-0.5 active:scale-95 dark:bg-white dark:text-[#111827] sm:min-h-0 sm:text-[11.5px]">
                     <ExternalLink className="h-3.5 w-3.5" /> View live
                   </a>
                 ) : (
                   <Link href={`/studio/blogs/${blog.id}?preview=1`}
-                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[11.5px] font-black text-[#111827] transition hover:-translate-y-0.5 hover:border-[#C9A24D] active:scale-95 dark:border-white/10 dark:bg-white/[0.04] dark:text-white">
+                    className="inline-flex min-h-[42px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12.5px] font-black text-[#111827] transition hover:-translate-y-0.5 hover:border-[#C9A24D] active:scale-95 dark:border-white/10 dark:bg-white/[0.04] dark:text-white sm:min-h-0 sm:text-[11.5px]">
                     <Eye className="h-3.5 w-3.5" /> Preview
                   </Link>
                 )}
                 {blog.status === 'PUBLISHED' && (
                   <motion.button type="button" whileTap={{ scale: 0.94 }} onClick={() => shareBlog(blog)} disabled={!liveUrl(blog)}
-                    className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-[11.5px] font-black transition hover:-translate-y-0.5 disabled:opacity-50 ${shared === blog.id ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-[#C9A24D]/40 bg-[#fffaf0] text-[#8b7355] hover:border-[#C9A24D] dark:bg-[#C9A24D]/10 dark:text-[#e8c97a]'}`}>
+                    className={`inline-flex min-h-[42px] flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-[12.5px] font-black transition hover:-translate-y-0.5 disabled:opacity-50 sm:min-h-0 sm:text-[11.5px] ${shared === blog.id ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-[#C9A24D]/40 bg-[#fffaf0] text-[#8b7355] hover:border-[#C9A24D] dark:bg-[#C9A24D]/10 dark:text-[#e8c97a]'}`}>
                     {shared === blog.id ? <><Check className="h-3.5 w-3.5" /> Link copied</> : <><Share2 className="h-3.5 w-3.5" /> Share</>}
                   </motion.button>
                 )}
+                {/* Phones: delete sits here, a full-size button - the switches row below has no room for it at 360px. */}
+                <motion.button type="button" onClick={() => setPendingDelete(blog)} whileTap={{ scale: 0.9 }}
+                  aria-label={`Delete ${blog.title}`}
+                  className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl border border-gray-200 text-gray-400 transition-colors active:bg-red-50 active:text-red-600 dark:border-white/10 dark:active:bg-red-500/10 sm:hidden">
+                  <Trash2 className="h-4 w-4" />
+                </motion.button>
               </div>
-              <div className="flex items-center gap-2 border-t border-[#C9A24D]/15 px-4 py-2.5 dark:border-white/[0.06]">
-                <span className="mr-auto whitespace-nowrap text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">Shows on</span>
+              <div className="flex items-center gap-2 border-t border-[#C9A24D]/15 px-4 py-3 dark:border-white/[0.06] sm:py-2.5">
+                <span className="mr-auto hidden whitespace-nowrap text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 min-[380px]:inline">Shows on</span>
                 <PlacementSwitch label="Agent Hub" icon={UserRound} on={blog.agent_hub_visible} onToggle={() => togglePlacement(blog, 'agent_hub_visible')} />
                 {hasIdx
                   ? <PlacementSwitch label="IDX Site" icon={Monitor} on={blog.idx_visible !== false} onToggle={() => togglePlacement(blog, 'idx_visible')} />
                   : idxAccess.visible && <Link href={idxAccess.upgradeHref} title="Upgrade to IDX to put your blogs on your own IDX site" className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-gray-200 bg-gray-50 py-1 pl-2 pr-2 text-[10px] font-black leading-none text-gray-400 transition hover:border-[#C9A24D]/60 hover:text-[#8b7355] dark:border-white/10 dark:bg-white/[0.03]"><Lock className="h-3 w-3" />IDX Site<span className="rounded-full bg-[#C9A24D]/15 px-1.5 py-0.5 text-[8px] uppercase tracking-wide text-[#8b7355] dark:text-[#e8c97a]">Upgrade</span></Link>}
                 <motion.button type="button" onClick={() => setPendingDelete(blog)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
                   title="Delete this article" aria-label={`Delete ${blog.title}`}
-                  className="-mr-1 grid h-7 w-7 shrink-0 place-items-center rounded-full text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10">
+                  className="-mr-1 hidden h-7 w-7 shrink-0 place-items-center rounded-full text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 sm:grid">
                   <Trash2 className="h-3.5 w-3.5" />
                 </motion.button>
               </div>
@@ -285,9 +291,11 @@ function BlogsDashboardInner() {
         confirmButtonClass="bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-red-500/30"
       />
 
-      {showCreate && (
-        <BlogCreateFlow onClose={() => { setShowCreate(false); router.replace('/studio/blogs') }} />
-      )}
+      <AnimatePresence>
+        {showCreate && (
+          <BlogCreateFlow key="create" onClose={() => { setShowCreate(false); router.replace('/studio/blogs') }} />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -300,7 +308,7 @@ function PlacementSwitch({ label, icon: Icon, on, onToggle }: { label: string; i
       aria-checked={on}
       onClick={onToggle}
       title={on ? `Showing on your ${label} - click to hide` : `Hidden from your ${label} - click to show`}
-      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border py-1 pl-2 pr-1 text-[10px] font-black leading-none transition ${on ? 'border-[#C9A24D]/50 bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#e8c97a]' : 'border-gray-200 bg-gray-50 text-gray-400 dark:border-white/10 dark:bg-white/[0.03]'}`}
+      className={`inline-flex min-h-[34px] flex-1 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border py-1 pl-2.5 pr-1.5 text-[11px] font-black leading-none transition min-[380px]:flex-none sm:min-h-0 sm:pl-2 sm:pr-1 sm:text-[10px] ${on ? 'border-[#C9A24D]/50 bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#e8c97a]' : 'border-gray-200 bg-gray-50 text-gray-400 dark:border-white/10 dark:bg-white/[0.03]'}`}
     >
       <Icon className="h-3 w-3" />
       {label}

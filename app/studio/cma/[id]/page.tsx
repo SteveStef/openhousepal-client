@@ -5,6 +5,7 @@ import OhpLoader, { OhpSpinner } from '@/components/brand/OhpLoader'
 import { hasEmailSignatureAccess } from '@/lib/navAccess'
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import FlowDock from '@/components/ui/FlowDock'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { smartBackClick } from '@/lib/navHistory'
@@ -441,7 +442,7 @@ function CmaWorkspacePageInner() {
 
   return (
     // cma-touch (globals.css): no zoom-in on phones when a box is tapped or the page double-tapped.
-    <div className="cma-touch min-h-screen overflow-x-clip bg-[#faf9f7] dark:bg-[#0B0B0B]">
+    <div className="cma-touch min-h-screen overflow-x-clip bg-[#faf9f7] pb-24 dark:bg-[#0B0B0B] sm:pb-0">
       {/* Nice arrival instead of the whole workspace just popping in - same entrance keyframe the
           step content below already reuses on every step change (see key={step} further down). */}
       <div className="mx-auto max-w-6xl animate-step-in px-4 py-4 sm:px-5 sm:py-8">
@@ -502,17 +503,17 @@ function CmaWorkspacePageInner() {
           className={`mt-4 sm:mt-6 ${step === 'analysis' || step === 'comps' ? 'hidden' : ''}`}
         >
           {step === 'subject' && <SubjectStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('comps')} />}
-          {step === 'pricing' && <PricingStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('summary')} />}
+          {step === 'pricing' && <PricingStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('summary')} onBack={() => setStep('analysis')} />}
           {step === 'summary' && <SummaryStep report={report} onSave={save} onReportUpdated={applyReport} onJump={setStep} onDeleted={() => router.push('/studio/cma')} />}
         </motion.div>
         {(compsMounted || step === 'comps') && (
           <div className={step === 'comps' ? 'mt-4 animate-step-in sm:mt-6' : 'hidden'}>
-            <CompsStep report={report} visible={step === 'comps'} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('analysis')} />
+            <CompsStep report={report} visible={step === 'comps'} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('analysis')} onBack={() => setStep('subject')} />
           </div>
         )}
         {(analysisMounted || step === 'analysis') && (
           <div className={step === 'analysis' ? 'mt-4 animate-step-in sm:mt-6' : 'hidden'}>
-            <AnalysisStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('pricing')} />
+            <AnalysisStep report={report} visible={step === 'analysis'} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('pricing')} onBack={() => setStep('comps')} />
           </div>
         )}
       </div>
@@ -991,11 +992,8 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
         >
           <SubjectFactsEditor reportId={report.id} subject={subject} setSubject={setSubject} area={area} />
         </SectionCard>
-        <div className="flex justify-end gap-2 sm:hidden">
-          <button onClick={handleContinue} className="cma-btn inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#111827] px-6 py-3 text-sm font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
-            Find Comparables <ArrowLeft className="h-4 w-4 rotate-180" />
-          </button>
-        </div>
+        {/* Phones: the flow bar (components/ui/FlowDock) - Find comps on the right, always in reach. */}
+        <FlowDock step={1} total={5} onContinue={handleContinue} continueLabel="Find comps" />
         </motion.div>
       )}
       </AnimatePresence>
@@ -1293,6 +1291,13 @@ function pairSpan(a?: string | number | null, b?: string | number | null): numbe
   return Math.max(v(a), v(b))
 }
 
+// Above-grade finished area, falling back to the total on record - the one size basis for every comp
+// card, comparison tile, $/sqft and size gap (grader, V2 Windham 10/21: the cards showed Jennifer Ln
+// at -636 sf and $201/sqft on total area, the report $260 above grade).
+function agSqft(d?: { above_grade_finished_area?: number | null, sqft?: number | null } | null): number | null {
+  return d?.above_grade_finished_area || d?.sqft || null
+}
+
 function sqftChipProps(totalSqft?: number | null) {
   return {
     label: 'Sqft',
@@ -1319,7 +1324,7 @@ function basementFactValue(
   return sqftLabel || basementText || null
 }
 
-function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext }: { report: CmaReport, visible?: boolean, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>, onReportUpdated: (r: CmaReport) => void, onNext: () => void }) {
+function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, onBack }: { report: CmaReport, visible?: boolean, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>, onReportUpdated: (r: CmaReport) => void, onNext: () => void, onBack?: () => void }) {
   const { showToast } = useToast()
   const [comparables, setComparables] = useState<CmaComparable[]>(report.comparables)
   const [statuses, setStatuses] = useState<CmaCompStatus[]>(['sold'])
@@ -1739,7 +1744,7 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext }: 
   const popupProps: PropertyPopupData | null = useMemo(() => {
     if (!popup) return null
     if (popup.type === 'subject') {
-      const subjectPsf = subject.list_price && subject.sqft ? pricePerSqft(subject.list_price, subject.sqft) : null
+      const subjectPsf = subject.list_price && agSqft(subject) ? pricePerSqft(subject.list_price, agSqft(subject)) : null
       const subjectBasement = basementFactValue(subject.basement, subject.below_grade_finished_area, subject.sqft, subject.above_grade_finished_area)
       return {
         photos: subjectPhotos,
@@ -1774,7 +1779,7 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext }: 
     }
     const c = popup.candidate
     const dp = compDisplayPrice(c as unknown as CmaComparable)
-    const psf = pricePerSqft(effectiveCompPrice(c as unknown as CmaComparable), c.sqft)
+    const psf = pricePerSqft(effectiveCompPrice(c as unknown as CmaComparable), agSqft(c))
     const compBasement = basementFactValue(c.basement, c.below_grade_finished_area, c.sqft, c.above_grade_finished_area)
     return {
       photos: c.photos && c.photos.length > 0 ? c.photos : (c.photo_url ? [c.photo_url] : []),
@@ -2031,33 +2036,11 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext }: 
         </div>
       </div>
 
-      {/* Phones: how many comps are picked + Continue, pinned to the bottom of the screen. */}
-      {/* Portaled to the page body: the step container animates in with a transform, which would
-          otherwise make this position: fixed bar sit against that container instead of the screen. */}
-      {!optimizing && typeof document !== 'undefined' && createPortal(
-        <div className="cma-dock cma-touch fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-4 pt-3 shadow-[0_-14px_30px_-18px_rgba(0,0,0,0.35)] dark:border-gray-800 dark:bg-[#151517]/95 sm:hidden">
-          <div className="mx-auto flex max-w-md items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline justify-between">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Comps picked</p>
-                <p className="text-xs font-black tabular-nums text-[#111827] dark:text-white">{comparables.length} of {MAX_COMPS}</p>
-              </div>
-              <div className="mt-1.5 flex items-center gap-1">
-                {Array.from({ length: MAX_COMPS }).map((_, i) => (
-                  <span key={i} className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${i < comparables.length ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 'bg-gray-200 dark:bg-gray-700'}`} />
-                ))}
-              </div>
-            </div>
-            <button
-              onClick={handleContinue}
-              disabled={comparables.length === 0}
-              className="cma-btn inline-flex shrink-0 items-center gap-2 rounded-2xl bg-[#111827] px-5 py-3 text-sm font-black text-white disabled:opacity-50 dark:bg-white dark:text-[#111827]"
-            >
-              Continue <ArrowLeft className="h-4 w-4 rotate-180" />
-            </button>
-          </div>
-        </div>
-      , document.body)}
+      {/* Phones: the flow bar - Back, "2 / 5" with how many comps are picked, Continue. */}
+      {visible && !optimizing && (
+        <FlowDock step={2} total={5} onBack={onBack} onContinue={handleContinue} disabled={comparables.length === 0}
+          note={`${comparables.length} of ${MAX_COMPS} comps`} />
+      )}
 
       {(() => {
         // Property-level prev/next for the detail popup, in the map/list order (sortedResults).
@@ -2371,7 +2354,7 @@ function CompCandidateCard({ candidate, subject, matchScore, matchDetails, added
   // sold data is backfilled, list price otherwise) - it's just an orientation number for
   // browsing candidates, not a valuation input.
   // A sale with no closing price on record shows its last asking price - never a $/sqft from it.
-  const psf = dp.unverified ? null : pricePerSqft(dp.value, candidate.sqft)
+  const psf = dp.unverified ? null : pricePerSqft(dp.value, agSqft(candidate))
   const candidateAcres = sqftToAcres(candidate.lot_size)
   const cityState = [candidate.city, candidate.state].filter(Boolean).join(', ')
   const photos = candidate.photos && candidate.photos.length > 0 ? candidate.photos : (candidate.photo_url ? [candidate.photo_url] : [])
@@ -2450,7 +2433,7 @@ function CompCandidateCard({ candidate, subject, matchScore, matchDetails, added
         <div className="mt-1.5 grid grid-cols-4 gap-1">
           <CmaFactChip icon={Bed} value={candidate.beds ?? '-'} label="Beds" />
           <CmaFactChip icon={Bath} value={candidate.baths ?? '-'} label="Baths" />
-          <CmaFactChip icon={Ruler} {...sqftChipProps(candidate.sqft)} />
+          <CmaFactChip icon={Ruler} {...sqftChipProps(agSqft(candidate))} label="Sqft above grade" />
           <CmaFactChip icon={LandPlot} value={candidateAcres > 0 ? candidateAcres.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '-'} label="Acres" />
         </div>
         <button
@@ -2471,8 +2454,8 @@ function CompCandidateCard({ candidate, subject, matchScore, matchDetails, added
 function compVsSubject(candidate: CmaCompCandidate, subject: CmaSubjectProperty, sameSchool: boolean): { text: string, tone: 'same' | 'diff' }[] {
   const vs: { text: string, tone: 'same' | 'diff' }[] = []
   if (candidate.school_district) vs.push(sameSchool ? { text: 'Same school', tone: 'same' } : { text: 'Other school', tone: 'diff' })
-  if (subject.sqft && candidate.sqft) {
-    const d = Math.round(candidate.sqft - subject.sqft)
+  if (agSqft(subject) && agSqft(candidate)) {
+    const d = Math.round((agSqft(candidate) as number) - (agSqft(subject) as number))
     vs.push(Math.abs(d) < 50 ? { text: 'Same size', tone: 'same' } : { text: `${d > 0 ? '+' : '−'}${Math.abs(d).toLocaleString()} sf`, tone: 'diff' })
   }
   if (subject.year_built && candidate.year_built && candidate.year_built !== subject.year_built) {
@@ -2495,7 +2478,7 @@ function CompCandidateRow({ candidate, subject, matchScore, added, sameSchool, o
   const facts = [
     candidate.beds != null && `${candidate.beds} bd`,
     candidate.baths != null && `${candidate.baths} ba`,
-    candidate.sqft && `${Math.round(candidate.sqft).toLocaleString()} sf`,
+    agSqft(candidate) && `${Math.round(agSqft(candidate) as number).toLocaleString()} sf`,
     acres > 0 && `${acres.toLocaleString(undefined, { maximumFractionDigits: 2 })} ac`,
   ].filter(Boolean).join(' · ')
   const vs = compVsSubject(candidate, subject, sameSchool)
@@ -3162,7 +3145,7 @@ function buildAnalysisPopupData(kind: 'subject' | 'comp', subject: CmaSubjectPro
       roadContext: subjectRoadContext ?? null,
     }
   }
-  const psf = comp.price_per_sqft ?? pricePerSqft(comp.sale_price ?? comp.list_price, comp.sqft)
+  const psf = pricePerSqft(comp.sale_price ?? comp.list_price, agSqft(comp))
   const compBasement = basementFactValue(comp.basement, comp.below_grade_finished_area, comp.sqft, comp.above_grade_finished_area)
   return {
     photos: comp.photos && comp.photos.length > 0 ? comp.photos : (comp.photo_url ? [comp.photo_url] : []),
@@ -3198,9 +3181,9 @@ function buildAnalysisPopupData(kind: 'subject' | 'comp', subject: CmaSubjectPro
   }
 }
 
-function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
-  report: CmaReport, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>,
-  onReportUpdated: (r: CmaReport) => void, onNext: () => void,
+function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext, onBack }: {
+  report: CmaReport, visible?: boolean, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>,
+  onReportUpdated: (r: CmaReport) => void, onNext: () => void, onBack?: () => void,
 }) {
   const { showToast } = useToast()
   const [comparables, setComparables] = useState<CmaComparable[]>(() => normalizeAnalysisComparables(report.comparables))
@@ -3595,6 +3578,7 @@ function AnalysisStep({ report, onSave, onReportUpdated, onNext }: {
 
   return (
     <div className="space-y-5">
+      {visible && <FlowDock step={3} total={5} onBack={onBack} onContinue={handleContinue} continueLabel="Pricing" />}
       {hasCompleteAi ? (
         // Explicit "used" state rather than just removing the banner - a banner that silently
         // vanishes reads the same as "nothing happened" if the agent glances back a moment later,
@@ -4188,16 +4172,16 @@ function PhoneCompare({ subject, comp, comps, index, total, showMaps, onSelectIn
 
   const subjectPrice = subject.list_price ?? null
   const compPrice = comp.sale_price ?? comp.list_price ?? null
-  const subjectPsf = subject.list_price && subject.sqft ? pricePerSqft(subject.list_price, subject.sqft) : null
+  const subjectPsf = subject.list_price && agSqft(subject) ? pricePerSqft(subject.list_price, agSqft(subject)) : null
   const acres = (v?: number | null) => (v ? sqftToAcres(v) : null)
   const garageN = (g?: string | null) => { const m = (g || '').match(/(\d+)/); return m ? Number(m[1]) : (/none|^no$/i.test(g || '') ? 0 : null) }
   const rowsFor = (comp: CmaComparable): FaceOffRow[] => {
   const compPrice = comp.sale_price ?? comp.list_price ?? null
-  const compPsf = comp.price_per_sqft ?? pricePerSqft(comp.sale_price ?? comp.list_price, comp.sqft)
+  const compPsf = pricePerSqft(comp.sale_price ?? comp.list_price, agSqft(comp))
   return [
     { label: 'Price', a: subjectPrice != null ? formatMoney(subjectPrice, { compact: true }) : '—', b: compPrice != null ? formatMoney(compPrice, { compact: true }) : '—', an: subjectPrice, bn: compPrice, money: true },
     { label: '$ / sq ft', a: subjectPsf ? `$${Math.round(subjectPsf)}` : '—', b: compPsf ? `$${Math.round(compPsf)}` : '—', an: subjectPsf, bn: compPsf, money: true },
-    { label: 'Sq ft', a: subject.sqft ? subject.sqft.toLocaleString() : '—', b: comp.sqft ? comp.sqft.toLocaleString() : '—', an: subject.sqft, bn: comp.sqft, unit: 'sq ft' },
+    { label: 'Sq ft above grade', a: agSqft(subject) ? (agSqft(subject) as number).toLocaleString() : '—', b: agSqft(comp) ? (agSqft(comp) as number).toLocaleString() : '—', an: agSqft(subject), bn: agSqft(comp), unit: 'sq ft' },
     { label: 'Beds', a: subject.beds ?? '—', b: comp.beds ?? '—', an: subject.beds, bn: comp.beds, decimals: 1 },
     { label: 'Baths', a: subject.baths ?? '—', b: comp.baths ?? '—', an: subject.baths, bn: comp.baths, decimals: 1 },
     { label: 'Acres', a: acres(subject.lot_size) ?? '—', b: acres(comp.lot_size) ?? '—', an: acres(subject.lot_size), bn: acres(comp.lot_size), unit: 'ac', decimals: 2 },
@@ -4321,8 +4305,8 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
   // cycling do NOT bump it, so those never yank the scroll position around.
   focusSignal?: number,
 }) {
-  const psf = comp.price_per_sqft ?? pricePerSqft(comp.sale_price ?? comp.list_price, comp.sqft)
-  const subjectPsf = subject.list_price && subject.sqft ? pricePerSqft(subject.list_price, subject.sqft) : null
+  const psf = pricePerSqft(comp.sale_price ?? comp.list_price, agSqft(comp))
+  const subjectPsf = subject.list_price && agSqft(subject) ? pricePerSqft(subject.list_price, agSqft(subject)) : null
   // Live "current / total" position, reported up from each carousel as the agent flips through
   // photos (see PropertyPhotoCarousel's onIndexChange) - not just a static photo count.
   const [subjectPhotoPos, setSubjectPhotoPos] = useState({ index: 0, total: 0 })
@@ -4370,9 +4354,6 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
           <p className="truncate text-base font-black text-[#111827] dark:text-white sm:text-lg">
             <span className="sm:hidden">Subject vs. Comp #{index + 1}</span><span className="hidden sm:inline">Comparing Subject vs. Comp #{index + 1}</span>
           </p>
-          <button onClick={onContinueClick} className="cma-btn inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#111827] px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827] sm:hidden">
-            Pricing <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
-          </button>
         </div>
         {/* Photos/Map in the middle, the comp arrows on the right (user, 10/21: swapped, and the
             arrows made to stand out - gold outline, bigger chevrons, a bolder count). */}
@@ -4429,7 +4410,7 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
           <div className="mt-auto grid grid-flow-row-dense grid-cols-6 gap-1 pt-3">
             <CmaFactChip compact icon={DollarSign} value={formatMoney(subject.list_price, { compact: true })} label="Price" />
             <CmaFactChip compact icon={Calculator} value={subjectPsf ? `$${Math.round(subjectPsf)}` : '—'} label="$/Sqft" />
-            <CmaFactChip compact span={pairSpan(subject.sqft, comp.sqft)} icon={Ruler} {...sqftChipProps(subject.sqft)} />
+            <CmaFactChip compact span={pairSpan(agSqft(subject), agSqft(comp))} icon={Ruler} {...sqftChipProps(agSqft(subject))} label="Sqft above grade" />
             <CmaFactChip compact icon={Bed} value={subject.beds ?? '—'} label="Beds" />
             <CmaFactChip compact icon={Bath} value={subject.baths ?? '—'} label="Baths" />
             <CmaFactChip compact icon={LandPlot} value={subject.lot_size ? sqftToAcres(subject.lot_size) : '—'} label="Acres" />
@@ -4456,7 +4437,7 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
           <div className="mt-auto grid grid-flow-row-dense grid-cols-6 gap-1 pt-3">
             <CmaFactChip compact icon={DollarSign} value={formatMoney(comp.sale_price ?? comp.list_price, { compact: true })} label="Price" vs={chipVs(subject.list_price, comp.sale_price ?? comp.list_price, { money: true })} />
             <CmaFactChip compact icon={Calculator} value={psf ? `$${Math.round(psf)}` : '—'} label="$/Sqft" vs={chipVs(subjectPsf, psf, { money: true })} />
-            <CmaFactChip compact span={pairSpan(subject.sqft, comp.sqft)} icon={Ruler} {...sqftChipProps(comp.sqft)} vs={chipVs(subject.sqft, comp.sqft, { unit: 'sf' })} />
+            <CmaFactChip compact span={pairSpan(agSqft(subject), agSqft(comp))} icon={Ruler} {...sqftChipProps(agSqft(comp))} label="Sqft above grade" vs={chipVs(agSqft(subject), agSqft(comp), { unit: 'sf' })} />
             <CmaFactChip compact icon={Bed} value={comp.beds ?? '—'} label="Beds" vs={chipVs(subject.beds, comp.beds, { decimals: 1 })} />
             <CmaFactChip compact icon={Bath} value={comp.baths ?? '—'} label="Baths" vs={chipVs(subject.baths, comp.baths, { decimals: 1 })} />
             <CmaFactChip compact icon={LandPlot} value={comp.lot_size ? sqftToAcres(comp.lot_size) : '—'} label="Acres" vs={chipVs(subject.lot_size ? sqftToAcres(subject.lot_size) : null, comp.lot_size ? sqftToAcres(comp.lot_size) : null, { unit: 'ac', decimals: 2 })} />
@@ -4701,7 +4682,7 @@ function formatUtilityValue(value?: string[] | string | null) {
 
 const COMPARISON_ROWS: { key: keyof CmaComparable | 'psf', label: string, format: (c: any) => string }[] = [
   { key: 'sale_price', label: 'Sale Price', format: v => formatMoney(v.sale_price ?? v.list_price) },
-  { key: 'psf', label: 'Price / Sq Ft', format: v => { const p = v.price_per_sqft ?? pricePerSqft(v.sale_price ?? v.list_price, v.sqft); return p ? `$${p}` : '—' } },
+  { key: 'psf', label: 'Price / Sq Ft (above grade)', format: v => { const p = pricePerSqft(v.sale_price ?? v.list_price, agSqft(v)); return p ? `${p}` : '—' } },
   { key: 'sqft', label: 'Square Footage', format: v => formatSqftCompact(v.sqft, v.above_grade_finished_area) },
   { key: 'lot_size', label: 'Lot Size', format: v => v.lot_size ? `${sqftToAcres(v.lot_size)} ac` : '—' },
   { key: 'beds', label: 'Beds', format: v => v.beds ?? '—' },
@@ -4772,7 +4753,7 @@ function PsfChart({ subject, comparables }: { subject: CmaSubjectProperty, compa
     label: `#${i + 1}`,
     value: pricePerSqft(effectiveCompPrice(c), c.sqft) ?? 0,
   }))
-  const subjectPsf = subject.list_price && subject.sqft ? pricePerSqft(subject.list_price, subject.sqft) : null
+  const subjectPsf = subject.list_price && agSqft(subject) ? pricePerSqft(subject.list_price, agSqft(subject)) : null
   const max = Math.max(...bars.map(b => b.value), subjectPsf || 0, 1)
   return (
     <div className="space-y-1 rounded-2xl border border-gray-100 p-3 dark:border-gray-800">
@@ -4879,7 +4860,7 @@ function AgentReviewBanner({ report }: { report: CmaReport }) {
   )
 }
 
-function PricingStep({ report, onSave, onReportUpdated, onNext }: { report: CmaReport, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>, onReportUpdated: (r: CmaReport) => void, onNext: () => void }) {
+function PricingStep({ report, onSave, onReportUpdated, onNext, onBack }: { report: CmaReport, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>, onReportUpdated: (r: CmaReport) => void, onNext: () => void, onBack?: () => void }) {
   // Mode is fixed at CMA creation (see the picker in studio/cma/page.tsx's CreateCmaModal) - no
   // in-wizard way to change it, so it's a plain derived read, not stateful. Letting it change here
   // used to leave stale/blank pricing fields behind (generated under one mode, then switched to
@@ -4936,6 +4917,7 @@ function PricingStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
 
   return (
     <div className="space-y-5">
+      <FlowDock step={4} total={5} onBack={onBack} onContinue={handleContinue} continueLabel="Review" />
       <AgentReviewBanner report={report} />
       {mode === 'listing' ? (
         <SectionCard title="Pricing Conclusion" subtitle="Auto-filled by AI once generated - your numbers always override it.">
@@ -5101,7 +5083,7 @@ function PricingStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
       {/* QA/Review is intentionally not shown to the agent - see CmaLookupPanel in the admin
           dashboard, which an admin uses to view this via the report's own support code. */}
 
-      <div className="flex justify-end gap-2">
+      <div className="hidden justify-end gap-2 sm:flex">
         <button onClick={handleContinue} className="cma-btn inline-flex items-center gap-2 rounded-xl bg-[#111827] px-6 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
           Continue to Summary <ArrowLeft className="h-4 w-4 rotate-180" />
         </button>
@@ -5265,6 +5247,7 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
 
   return (
     <div className="space-y-5">
+      <FlowDock step={5} total={5} onBack={() => onJump('pricing')} continueLabel="Send" onContinue={() => document.getElementById('cma-complete-send')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
       <AgentReviewBanner report={report} />
       <SectionCard title="Final Review" subtitle="Check the numbers, comps, and narrative before you mark the report ready.">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -5377,6 +5360,7 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
 
       </SectionCard>
 
+      <div id="cma-complete-send" className="scroll-mt-20" />
       <SectionCard title="Complete & Send" subtitle="Preview the PDF, copy the client link, or open the live CMA in a new tab.">
         {/* Rearranged 10/21 (user: "nicer animations and clicks, rearrange for mobile and
             desktop"). Mark Ready stays THE action (user, 10/17): a big gold button. Next to it on a
@@ -5441,6 +5425,14 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
           </div>
         </div>
 
+        {/* Once it's marked ready, a way out right here (user, 10/21: reopening a finished CMA meant
+            scrolling all the way back up to the back arrow to leave it). */}
+        {readyState === 'done' && (
+          <Link href="/studio/cma" className="cma-btn mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-black text-[#111827] shadow-sm transition hover:border-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
+            <ArrowLeft className="h-4 w-4" /> Done - back to my CMAs
+          </Link>
+        )}
+
         <div className="mt-4 flex flex-wrap items-center gap-2.5 border-t border-gray-100 pt-4 dark:border-gray-800">
 
           {/* Web version only: end the shared page with the agent's Email Signature card instead of
@@ -5471,7 +5463,7 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
             <button
               type="button"
               onClick={() => setDefaultTheme(presentation.default_theme === 'light' ? 'dark' : 'light')}
-              title={`Visitor default theme: ${presentation.default_theme === 'light' ? 'Light' : 'Dark'} - click to switch`}
+              title={`Visitor default theme: ${presentation.default_theme === 'light' ? 'Ivory' : 'Midnight'} - click to switch`}
               aria-pressed={presentation.default_theme !== 'light'}
               className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full p-1 transition-all duration-300 hover:shadow-md ${
                 presentation.default_theme === 'light' ? 'bg-gray-200 dark:bg-gray-700' : 'bg-[#111827]'

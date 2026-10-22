@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, memo, useState } from 'react'
+import { Fragment, memo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowLeft, ArrowRight, Check, Compass, Eye, Handshake, Home, Mail, Map as MapIcon, MapPin, MoreHorizontal,
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import LuxeHero from '@/components/ui/LuxeHero'
 import OhpSwitch from '@/components/ui/OhpSwitch'
+import FlowDock, { FlowDockHostContext } from '@/components/ui/FlowDock'
 
 // Who the showcase is for - steps 1 and 2 of creating one. Step 3 (the search itself) is the same
 // full-screen map + grid editor used to edit a showcase (ShowcaseMapEditor in create mode).
@@ -72,6 +73,11 @@ export const CreateCollectionModal = memo(function CreateCollectionModal({ isOpe
   })
 
   const goTo = (n: number) => { setDir(n > step ? 1 : -1); setStep(n) }
+  // Phones: the flow bar (components/ui/FlowDock) is drawn into this window, outside the card (its
+  // pop-in transform would trap a fixed bar). Its Continue submits the form, so the same required
+  // fields and submit() run as the Continue button at the bottom of the card.
+  const formRef = useRef<HTMLFormElement>(null)
+  const [dockHost, setDockHost] = useState<HTMLElement | null>(null)
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     if (step === 0) goTo(1)
@@ -89,7 +95,7 @@ export const CreateCollectionModal = memo(function CreateCollectionModal({ isOpe
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="fixed inset-0 z-50 flex overflow-y-auto bg-[#111827]/60 p-3 sm:p-6"
+          className="fixed inset-0 z-50 flex overflow-y-auto bg-[#111827]/60 p-3 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:p-6"
           onClick={onClose}
         >
           <motion.div
@@ -154,7 +160,7 @@ export const CreateCollectionModal = memo(function CreateCollectionModal({ isOpe
               }
             />
 
-            <form onSubmit={submit}>
+            <form ref={formRef} onSubmit={submit}>
               <div className="relative overflow-hidden">
                 <AnimatePresence mode="wait" custom={dir} initial={false}>
                   <motion.div
@@ -237,8 +243,13 @@ export const CreateCollectionModal = memo(function CreateCollectionModal({ isOpe
                   <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                 </button>
               </div>
+              <FlowDockHostContext.Provider value={dockHost}>
+                <FlowDock step={step + 1} total={STEPS.length} onBack={step > 0 ? () => goTo(0) : undefined}
+                  onContinue={() => formRef.current?.requestSubmit()} continueLabel={step === 0 ? 'Continue' : 'Search area'} />
+              </FlowDockHostContext.Provider>
             </form>
           </motion.div>
+          <div ref={setDockHost} />
         </motion.div>
       )}
     </AnimatePresence>

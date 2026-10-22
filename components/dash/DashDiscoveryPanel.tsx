@@ -2,8 +2,12 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Bath, Bed, CalendarCheck, Clock, Hand, Maximize, MessageSquareReply, Search, XCircle } from 'lucide-react'
+import { ArrowRight, Bath, Bed, CalendarCheck, CalendarPlus, Clock, Hand, Maximize, MessageSquareReply, Search, XCircle } from 'lucide-react'
+import api from '@/lib/api-service'
+import RequestToHostModal from '@/components/open-house-manager/RequestToHostModal'
+import { refreshOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
 import WeekendCalendarCards, { WeekendCalendarOpen, dayIsHostable, getUpcomingWeekendCells, hostingNote } from '@/components/open-house-manager/WeekendCalendarCards'
 import { useAuth } from '@/contexts/AuthContext'
 import type { HostRequest } from '@/types'
@@ -54,6 +58,18 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
   const router = useRouter()
   const { user } = useAuth()
   const today = todayIso()
+  // Request to Host opens right here (the same step-by-step window as Discovery) - no trip to
+  // Discovery just to ask (user, 10/22). Days asked for here read "Requested" straight away.
+  const [asking, setAsking] = useState<{ listing: DiscoveryListing; date?: string } | null>(null)
+  const [justAsked, setJustAsked] = useState<Record<string, string[]>>({})
+  const ask = (listing: DiscoveryListing, date?: string) => {
+    // A listing agent who isn't on OpenHousePal gets the email template - that lives on Discovery.
+    if ((listing as { AgentOnPlatform?: boolean }).AgentOnPlatform === false) {
+      router.push(`/discovery?listingKey=${encodeURIComponent(listing.ListingKey)}`)
+      return
+    }
+    setAsking({ listing, date })
+  }
 
   // Your hosting: counters first (they need you), then confirmed dates, then waiting, then a
   // recent "not this time" so a decline doesn't just vanish. Past dates drop off.
@@ -153,7 +169,7 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
           {topListings.map((listing, i) => {
             const opens = statuses[listing.ListingKey]?.scheduled_opens || []
             const myAsks = myRequests.filter(r => r.listing_key === listing.ListingKey)
-            const pendingDates = myAsks.filter(r => r.status === 'pending' || r.status === 'countered').map(r => String(r.requested_date))
+            const pendingDates = [...myAsks.filter(r => r.status === 'pending' || r.status === 'countered').map(r => String(r.requested_date)), ...(justAsked[listing.ListingKey] || [])]
             const hostingMine = opens.find(o => o.hosting_agent_id && o.hosting_agent_id === user?.id)
               || myAsks.find(r => r.status === 'approved' && String(r.requested_date) >= today)
             const taken = new Set(opens.map(o => o.scheduled_date).filter(Boolean) as string[])
@@ -203,7 +219,7 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
                 <div className="mt-2">
                   <WeekendCalendarCards
                     opens={opens}
-                    onCellClick={go}
+                    onCellClick={(cell, open) => (open ? go() : ask(listing, cell.date))}
                     size="sm"
                     filledClickable={false}
                     emptyCellTitle="Click to request hosting this date"
@@ -215,6 +231,12 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
                     hostingWindow={window}
                   />
                 </div>
+                {!hostingMine && openDays > 0 && (
+                  <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => ask(listing)}
+                    className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#111827] py-2.5 text-[11px] font-black uppercase tracking-widest text-white shadow-[0_10px_24px_-14px_rgba(17,24,39,.9)] transition hover:-translate-y-0.5 dark:bg-white dark:text-[#111827]">
+                    <CalendarPlus className="h-3.5 w-3.5" /> Request to host
+                  </motion.button>
+                )}
               </motion.div>
             )
           })}
@@ -224,6 +246,30 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
       <Link href="/discovery" className="group flex items-center justify-center gap-1.5 rounded-xl border border-[#C9A24D]/25 bg-[#C9A24D]/[0.05] py-2 text-[10.5px] font-black uppercase tracking-wide text-[#8b7355] transition hover:border-[#C9A24D] hover:bg-[#C9A24D] hover:text-white dark:text-[#d7b974] dark:hover:text-[#111827]">
         <Search className="h-3 w-3" /> Browse all of Discovery <ArrowRight className="h-3 w-3 transition group-hover:translate-x-0.5" />
       </Link>
+
+      {asking && (
+        <RequestToHostModal
+          key={asking.listing.ListingKey}
+          property={asking.listing}
+          initialDate={asking.date}
+          scheduledOpens={(statuses[asking.listing.ListingKey]?.scheduled_opens || []).map(o => ({
+            scheduled_date: o.scheduled_date ?? null, scheduled_start_time: o.scheduled_start_time ?? null,
+            scheduled_end_time: o.scheduled_end_time ?? null, hosting_agent_name: o.hosting_agent_name,
+          }))}
+          requestedDates={myRequests.filter(r => r.listing_key === asking.listing.ListingKey && (r.status === 'pending' || r.status === 'countered')).map(r => String(r.requested_date))}
+          onClose={() => setAsking(null)}
+          onSent={() => {
+            const key = asking.listing.ListingKey
+            setAsking(null)
+            refreshOpenHouseActionCounts()
+            // Whatever they picked reads "Requested" now; the next Dash load brings the real list.
+            api.openHouseManager.getMyRequests().then(({ success, data }) => {
+              if (success && data) setJustAsked(cur => ({ ...cur, [key]: data.filter(r => r.listing_key === key && r.status === 'pending').map(r => String(r.requested_date)) }))
+            })
+          }}
+          onFallbackToEmail={() => router.push(`/discovery?listingKey=${encodeURIComponent(asking.listing.ListingKey)}`)}
+        />
+      )}
     </div>
   )
 }

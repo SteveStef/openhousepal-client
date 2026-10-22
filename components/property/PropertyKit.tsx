@@ -646,7 +646,7 @@ function HeroPanel({ home, actions, split = 'lg' }: { home: HomeView; actions?: 
   return (
     <div className={`relative isolate z-10 flex min-w-0 flex-col overflow-hidden rounded-b-[22px] border border-t-0 border-[color:var(--pp-gold-line)] bg-[var(--pp-card)] px-5 pb-5 pt-4 shadow-[0_24px_50px_-30px_rgba(17,24,39,.5)] sm:rounded-b-[26px] sm:px-6 sm:pb-6 ${split === 'md' ? 'md:mt-0 md:h-full md:justify-between md:rounded-[26px] md:border-t md:pt-6 md:shadow-[0_-12px_40px_-24px_rgba(17,24,39,.5),0_24px_50px_-28px_rgba(17,24,39,.55)]' : 'lg:mt-0 lg:h-full lg:justify-between lg:rounded-[26px] lg:border-t lg:pt-6 lg:shadow-[0_-12px_40px_-24px_rgba(17,24,39,.5),0_24px_50px_-28px_rgba(17,24,39,.55)]'}`}>
       <span aria-hidden className="pp-panel-edge pointer-events-none absolute inset-x-0 top-0 h-px" />
-      <span aria-hidden className="pointer-events-none absolute -right-24 -top-24 -z-10 h-64 w-64 rounded-full opacity-70 blur-3xl" style={{ background: 'var(--pp-gold-wash)' }} />
+      <span aria-hidden className="pointer-events-none absolute -right-36 -top-36 -z-10 h-96 w-96 rounded-full opacity-70" style={{ background: 'radial-gradient(closest-side, var(--pp-gold-wash), transparent)' }} />
 
       <div className={`pp-rise flex-wrap items-center gap-2 hidden ${split === 'md' ? 'md:flex' : 'lg:flex'}`} style={rise(0)}>
         <span className={split === 'md' ? 'hidden md:inline-flex' : 'hidden lg:inline-flex'}><StatusPill status={home.status} small /></span>
@@ -1234,7 +1234,7 @@ export function AskForm({ id, title, sub, agentFirst, agent, initial, onSend, em
       ) : (
         <>
           <span aria-hidden className="pp-panel-edge pointer-events-none absolute inset-x-0 top-0 h-px" />
-          <span aria-hidden className="pointer-events-none absolute -right-16 -top-16 -z-10 h-48 w-48 rounded-full bg-[var(--pp-gold)] opacity-25 blur-3xl" />
+          <span aria-hidden className="pointer-events-none absolute -right-28 -top-28 -z-10 h-72 w-72 rounded-full opacity-25" style={{ background: 'radial-gradient(closest-side, var(--pp-gold), transparent)' }} />
         </>
       )}
       {embedded ? null : agent?.name ? (

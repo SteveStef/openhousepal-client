@@ -4,9 +4,8 @@ import { useVisitor } from '@/lib/visitor'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ArrowRight, CalendarDays, Mail, MessageSquare, Phone, Sparkles } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/api-service'
-import { openHousePalPublicUrl } from '@/lib/publicResourceLinks'
 import { visitSource } from '@/lib/visitSource'
-import FormWindow from '@/components/forms/FormWindow'
+import IdxTourRequest from './IdxTourRequest'
 import {
   AboutHome, AgentPanel, AskForm, ShowingPicker, BrightNotice, EveryDetail, LocationBlock, OpenHouseList,
   PhoneBar, PriceHistory, HERO_COLS, HeroShareActions, PropertyHero, PropertySurface, SectionDivider, SectionTitle, hasDetails, homeFromIdx, pp,
@@ -19,8 +18,8 @@ import type { SiteTheme } from './types'
 // The IDX site's property page, built from the shared property design (components/property/
 // PropertyKit) in the site's own theme. The photos and the address | price summary sit beside the
 // agent's card, so the price and "Request a tour" show without scrolling. Its own extras: the
-// breadcrumb, "Request a tour" opening the agent's showing form in a window with this address
-// filled in, Call/Text, the "get homes like this first" Showcase invite, the quick Ask-a-question
+// breadcrumb, "Request a tour" answering the agent's showing form right here (IdxTourRequest: the
+// animated times window with their calendar), Call/Text, the "get homes like this first" Showcase invite, the quick Ask-a-question
 // box (a lead + follow-up for the agent), the town's neighborhood guide, Explore Nearby and
 // Similar homes. The agent's own listing with a published Spotlight never lands here - the
 // server sends it to the Spotlight instead.
@@ -44,8 +43,8 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
   basePrefix: string
   siteId?: string
   agent?: { name?: string | null; title?: string | null; brokerage?: string | null; photo_url?: string | null; phone?: string | null; text_phone?: string | null; email?: string | null } | null
-  /** The agent's showing form on OpenHousePal ("/{hubSlug}/{formSlug}") - opens in a window. */
-  showing?: { path: string; questionId?: string } | null
+  /** The agent's showing form on OpenHousePal ("/{hubSlug}/{formSlug}") - answered right here (IdxTourRequest). */
+  showing?: { path: string; questionId?: string; hubSlug?: string; formSlug?: string; formId?: string | null } | null
   matchedArea?: { slug: string; name: string } | null
   nearby?: ReactNode
   similar?: ReactNode
@@ -58,8 +57,8 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
   const agentPhoto = agent?.photo_url ? resolveMediaUrl(agent.photo_url) : null
 
   const [tourOpen, setTourOpen] = useState(false)
-  const tourUrl = showing ? openHousePalPublicUrl(showing.path) : null
-  const requestTour = () => { if (tourUrl) setTourOpen(true); else window.location.assign(`${basePrefix}/contact`) }
+  const tourForm = showing ? { hub: showing.hubSlug || showing.path.split('/')[1], form: showing.formSlug || showing.path.split('/')[2] } : null
+  const requestTour = () => { if (tourForm?.hub && tourForm.form) setTourOpen(true); else window.location.assign(`${basePrefix}/contact`) }
 
   // Where they came from (Google, a shared link...) - sent with their question.
   const scope = `idx:${p.listing_key}`
@@ -217,7 +216,21 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
             : <button type="button" onClick={toAsk} className="rounded-xl border border-white/20 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-white">Ask</button>}
         </PhoneBar>
 
-        <FormWindow url={tourOpen ? tourUrl : null} title="Request a tour" prefill={showing?.questionId ? { [showing.questionId]: home.fullAddress } : { property_of_interest: home.fullAddress }} onClose={() => setTourOpen(false)} />
+        {tourForm?.hub && tourForm.form && (
+          <IdxTourRequest
+            open={tourOpen}
+            onClose={() => setTourOpen(false)}
+            hubSlug={tourForm.hub}
+            formSlug={tourForm.form}
+            formId={showing?.formId}
+            accent={theme.secondary_color}
+            agentName={agent?.name}
+            home={{
+              fullAddress: home.fullAddress, street: home.street, city: p.city, state: p.state, zip: p.zipcode,
+              photo: home.photos[0] || null, price: home.price, beds: home.beds, baths: home.baths, sqft: home.sqft, listingKey: p.listing_key,
+            }}
+          />
+        )}
       </main>
     </PropertySurface>
   )

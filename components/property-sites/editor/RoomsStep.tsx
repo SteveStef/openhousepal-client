@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Check, ChevronDown, Hand, Loader2, RefreshCw, ScanSearch, Sparkles, Trash2, Wand2 } from 'lucide-react'
 import api from '@/lib/api-service'
 import ChaptersEditor, { CHAPTER_TYPE_LABELS } from '@/components/property-sites/ChaptersEditor'
@@ -149,10 +150,10 @@ export default function RoomsStep({ siteId, photos, chapters, onChange, descript
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
               <div className="absolute inset-x-3 bottom-2.5 text-white">
                 <p className="font-serif text-[10px] text-[#C9A24D]">{String(i + 1).padStart(2, '0')}</p>
-                <p className="truncate font-serif text-base font-bold leading-tight">{ch.label}</p>
+                <p className="line-clamp-2 font-serif text-[15px] font-bold leading-tight sm:line-clamp-none sm:truncate sm:text-base">{ch.label}</p>
                 <p className="text-[10px] font-semibold text-white/60">{ch.photos.length} photo{ch.photos.length === 1 ? '' : 's'}{ch.copy ? ' · words written' : ''}</p>
               </div>
-              <button onClick={() => onChange(chapters.filter(c => c.id !== ch.id))} className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition group-hover:opacity-100 hover:bg-red-600" aria-label={`Remove ${ch.label}`}>
+              <button onClick={() => onChange(chapters.filter(c => c.id !== ch.id))} className="absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-red-600 active:scale-95 sm:right-2 sm:top-2 sm:h-7 sm:w-7 sm:opacity-0 sm:group-hover:opacity-100" aria-label={`Remove ${ch.label}`}>
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -160,16 +161,22 @@ export default function RoomsStep({ siteId, photos, chapters, onChange, descript
         </div>
       )}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button onClick={() => sortWithAi(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#C9A24D]/50 px-3 py-2 text-[11px] font-black text-[#8b7355] hover:bg-[#C9A24D]/10 dark:text-[#d7b974]">
+        <button onClick={() => sortWithAi(true)} className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-[#C9A24D]/50 px-3 py-2 text-[12px] font-black sm:min-h-0 sm:text-[11px] text-[#8b7355] hover:bg-[#C9A24D]/10 dark:text-[#d7b974]">
           <RefreshCw className="h-3.5 w-3.5" /> Pick again with AI
         </button>
         <span className="text-[10px] font-semibold text-gray-400">{costLine}</span>
-        <button onClick={() => setEditorOpen(o => !o)} className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-[11px] font-black text-[#111827] hover:border-[#C9A24D] dark:border-gray-700 dark:text-white">
+        <button onClick={() => setEditorOpen(o => !o)} className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-[12px] font-black sm:ml-auto sm:min-h-0 sm:w-auto sm:text-[11px] text-[#111827] hover:border-[#C9A24D] dark:border-gray-700 dark:text-white">
           <Sparkles className="h-3.5 w-3.5 text-[#C9A24D]" /> {editorOpen ? 'Done fine-tuning' : 'Fine-tune rooms & words'} <ChevronDown className={`h-3.5 w-3.5 transition ${editorOpen ? 'rotate-180' : ''}`} />
         </button>
       </div>
       {error && <p className="mt-2 text-xs font-bold text-red-600">{error}</p>}
-      {editorOpen && <div className="mt-4"><ChaptersEditor chapters={chapters} onChange={onChange} photos={photos} description={description} /></div>}
+      <AnimatePresence initial={false}>
+        {editorOpen && (
+          <motion.div key="rs-fine" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }} className="-mx-1 overflow-hidden px-1 pb-1">
+            <div className="pt-4"><ChaptersEditor chapters={chapters} onChange={onChange} photos={photos} description={description} /></div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

@@ -6,11 +6,16 @@ import { visitSource } from '@/lib/visitSource'
 import { LEAD_EVENT, fmtDay, fmtPhone, fmtTimeRange, type PropertySiteAgent, type PropertySiteOpenHouse } from './model'
 import { TONE, type Tone } from './tone'
 import { atTime, busyAt, type BusyBlock } from '@/lib/agentBusy'
+import ScheduleTourModal from '@/components/ScheduleTourModal'
+import type { Property, TourRequest } from '@/types'
 
 // The one lead-capture form for both Spotlight templates. "Request info" and "Schedule a tour"
 // post to the same-origin proxies (app/api/website-property-sites/[siteId]/...) which create a
 // real Lead + LeadEvent, notify the agent (bell + email), push to their CRM and schedule the
 // auto follow-up - see backend property_website_service.submit_inquiry / submit_tour_request.
+// "Schedule a tour" (the tab, or any Tour / Arrange a viewing button on the page) opens the same
+// animated window as the Schedule a Showing form - this home is already picked (user, 10/22). The
+// fields below stay as the fallback if they close it.
 
 const TIME_SLOTS = ['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM']
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
@@ -34,10 +39,16 @@ function nextDays(count: number) {
 }
 
 export default function LeadForm({
-  siteId, address, tone, agent, openHouses = [], allowTour = true, compact = false,
+  siteId, address, tone, agent, openHouses = [], allowTour = true, compact = false, photo, place, beds, baths, sqft,
 }: {
   siteId: string
   address: string
+  /** The home in the tour window's photo panel. */
+  photo?: string | null
+  place?: string
+  beds?: number | null
+  baths?: number | null
+  sqft?: number | null
   tone: Tone
   agent?: PropertySiteAgent
   openHouses?: PropertySiteOpenHouse[]
@@ -46,6 +57,8 @@ export default function LeadForm({
 }) {
   const t = TONE[tone]
   const [tab, setTab] = useState<'info' | 'tour'>('info')
+  const [tourOpen, setTourOpen] = useState(false)
+  const openTour = () => { setTab('tour'); if (siteId !== 'preview') setTourOpen(true) }
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [attempted, setAttempted] = useState(false)
   const [form, setForm] = useState({
@@ -79,7 +92,7 @@ export default function LeadForm({
   useEffect(() => {
     const onOpen = (e: Event) => {
       const detail = (e as CustomEvent).detail || {}
-      if (detail.tab === 'tour' && allowTour) setTab('tour')
+      if (detail.tab === 'tour' && allowTour) { setTab('tour'); if (siteId !== 'preview') setTourOpen(true) }
       else if (detail.tab === 'info') setTab('info')
       if (detail.date) setForm(f => ({ ...f, requested_date: detail.date }))
       if (detail.message) setForm(f => ({ ...f, message: f.message || detail.message }))
@@ -87,7 +100,41 @@ export default function LeadForm({
     }
     window.addEventListener(LEAD_EVENT, onOpen)
     return () => window.removeEventListener(LEAD_EVENT, onOpen)
-  }, [allowTour, status])
+  }, [allowTour, status, siteId])
+
+  // The tour window's request -> the same tour-request endpoint as the fields below. Backup
+  // times ride along in the notes (the endpoint takes one day and time).
+  const sendTour = async (d: TourRequest) => {
+    const label = (v?: string) => {
+      if (!v) return null
+      const [h, m] = v.split(':').map(Number)
+      return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
+    }
+    const backups = [[d.preferredDate2, d.preferredTime2], [d.preferredDate3, d.preferredTime3]]
+      .filter(([day]) => day).map(([day, time]) => `${fmtDay(day!)} ${label(time) || ''}`.trim())
+    const [first, ...rest] = (d.visitorName || '').trim().split(/\s+/)
+    const notes = [d.message?.trim(), backups.length ? `Other times that work: ${backups.join(', ')}` : ''].filter(Boolean).join('\n')
+    const res = await fetch(`/api/website-property-sites/${siteId}/tour-request`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        first_name: first || '', last_name: rest.join(' ') || '-', email: (d.visitorContact || '').trim(), phone: d.visitorPhone || null,
+        came_from: visitSource(`site:${siteId}`), tour_type: 'in_person', requested_date: d.preferredDate, preferred_time: label(d.preferredTime), notes: notes || null,
+      }),
+    }).catch(() => null)
+    if (!res || !res.ok) throw new Error('That didn’t go through - please try again.')
+    setForm(f => ({ ...f, requested_date: d.preferredDate, preferred_time: label(d.preferredTime) || '' }))
+  }
+  // The tour window "closes itself" after its sent moment; then this card says it went.
+  const closeTour = () => { setTourOpen(false); if (form.requested_date && tab === 'tour') setStatus('sent') }
+  const tourHome = {
+    id: siteId, FullStreetAddress: address.split(',')[0], City: (place || '').split(',')[0] || '', StateOrProvince: (place || '').split(',')[1]?.trim() || '',
+    ListPictureURL: photo || undefined, BedroomsTotal: beds || undefined, BathroomsTotal: baths || undefined, LivingArea: sqft || undefined,
+  } as unknown as Property
+  const tourWindow = allowTour && (
+    <ScheduleTourModal property={tourHome} isOpen={tourOpen} onClose={closeTour} onSubmit={sendTour} showContactFields contactStyle="full"
+      initialName={[form.first_name, form.last_name].filter(Boolean).join(' ')} initialContact={form.email}
+      loadBusy={() => fetch(`/api/website-property-sites/${siteId}/agent-busy`).then(r => r.json()).then(x => (Array.isArray(x?.busy) ? x.busy : []))} />
+  )
 
   const errors = useMemo(() => ({
     first_name: !form.first_name.trim() ? 'Required' : '',
@@ -125,6 +172,7 @@ export default function LeadForm({
   if (status === 'sent') {
     return (
       <div className={`${t.text}`} role="status" aria-live="polite">
+        {tourWindow}
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--sp-accent)] text-[color:var(--sp-on-accent)]">
           <Check className="h-5 w-5" />
         </span>
@@ -163,6 +211,7 @@ export default function LeadForm({
 
   return (
     <form onSubmit={submit} noValidate className={t.text}>
+      {tourWindow}
       {allowTour && (
         <div className={`mb-6 grid grid-cols-2 gap-2 ${compact ? '' : 'max-w-sm'}`} role="tablist">
           {([['info', 'Request info', MessageSquare], ['tour', 'Schedule a tour', CalendarDays]] as const).map(([key, label, Icon]) => (
@@ -171,7 +220,7 @@ export default function LeadForm({
               type="button"
               role="tab"
               aria-selected={tab === key}
-              onClick={() => setTab(key)}
+              onClick={() => (key === 'tour' ? openTour() : setTab(key))}
               className={`inline-flex items-center justify-center gap-2 px-3 py-3 text-xs font-semibold tracking-wide transition ${tab === key ? t.chipOn : t.chip}`}
             >
               <Icon className="h-3.5 w-3.5" /> {label}

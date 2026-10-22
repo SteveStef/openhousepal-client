@@ -91,6 +91,15 @@ export default function HeroMedia({ hero, photos, mode, motion, videoUrl, videoP
   useEffect(() => { setReduced(window.matchMedia('(prefers-reduced-motion: reduce)').matches) }, [])
   const wrap = useRef<HTMLDivElement>(null)
   const box = useBox(wrap)
+  // The slideshow only changes photos while the header is on screen.
+  const [onScreen, setOnScreen] = useState(true)
+  useEffect(() => {
+    const el = wrap.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver(([e]) => setOnScreen(e.isIntersecting))
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
   const f = { ...DEFAULT_FRAME, ...(frame || {}) }
 
   if (!hero) return null
@@ -101,7 +110,7 @@ export default function HeroMedia({ hero, photos, mode, motion, videoUrl, videoP
       {useVideo ? (
         <Placed kind="video" src={videoUrl!} poster={videoPoster || hero} box={box} frame={f} motionClass="hm-fade" alt={alt} onError={() => setVideoFailed(true)} />
       ) : mode === 'cycle' && !reduced && photos.length > 1 ? (
-        <HeroCycle photos={[hero, ...photos.filter(u => u !== hero)].slice(0, 8)} motion={motion} alt={alt} box={box} frame={f} />
+        <HeroCycle photos={[hero, ...photos.filter(u => u !== hero)].slice(0, 8)} motion={motion} alt={alt} box={box} frame={f} active={onScreen} />
       ) : (
         <Placed kind="img" src={hero} box={box} frame={f} motionClass={`hm-fade ${reduced ? '' : `hm-photo-${motion}`}`} alt={alt} priority />
       )}
@@ -155,12 +164,13 @@ function Placed({ kind, src, poster, box, frame, motionClass, style, alt, priori
   )
 }
 
-function HeroCycle({ photos, motion, alt, box, frame }: { photos: string[]; motion: HeaderMotion; alt: string; box: { W: number; H: number } | null; frame: HeroFrame }) {
+function HeroCycle({ photos, motion, alt, box, frame, active = true }: { photos: string[]; motion: HeaderMotion; alt: string; box: { W: number; H: number } | null; frame: HeroFrame; active?: boolean }) {
   const [index, setIndex] = useState(0)
   const [prev, setPrev] = useState<number | null>(null)
   const starts = useRef<Record<number, number>>({})
   const ms = 6500
   useEffect(() => {
+    if (!active) return
     const t = window.setTimeout(() => {
       const n = (index + 1) % photos.length
       starts.current[n] = (starts.current[n] || 0) + 1
@@ -168,7 +178,7 @@ function HeroCycle({ photos, motion, alt, box, frame }: { photos: string[]; moti
       setIndex(n)
     }, ms)
     return () => window.clearTimeout(t)
-  }, [index, photos.length])
+  }, [index, photos.length, active])
   // Warm the next photo so the dissolve never shows a half-loaded frame.
   useEffect(() => { const img = new Image(); img.src = photos[(index + 1) % photos.length] }, [index, photos])
   return (
@@ -205,8 +215,12 @@ const HM_CSS = `
 .hm-slide{opacity:0}
 .hm-slide.is-on{opacity:1;z-index:2;-webkit-mask-image:linear-gradient(105deg,#000 42%,transparent 58%);mask-image:linear-gradient(105deg,#000 42%,transparent 58%);-webkit-mask-size:260% 100%;mask-size:260% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
 .hm-slide.is-prev{opacity:1;z-index:1}
-@keyframes hmReveal{from{-webkit-mask-position:100% 0;mask-position:100% 0;filter:blur(8px) brightness(1.18)}60%{filter:blur(1px) brightness(1.05)}to{-webkit-mask-position:0 0;mask-position:0 0;filter:none}}
-@keyframes hmFade{from{opacity:0;filter:brightness(.45)}to{opacity:1;filter:none}}
+/* Speed pass 10/22: no filter in these. An animated blur / brightness on a full-screen photo made
+   the browser re-filter every pixel of it each frame (the header stuttered on phones). The wipe
+   alone carries the dissolve, and fading up from the dark header reads the same as the old
+   brightness ramp. */
+@keyframes hmReveal{from{-webkit-mask-position:100% 0;mask-position:100% 0}to{-webkit-mask-position:0 0;mask-position:0 0}}
+@keyframes hmFade{from{opacity:0}to{opacity:1}}
 @keyframes hmOut{from{transform:scale(var(--z,1.12))}to{transform:scale(1)}}
 @keyframes hmIn{from{transform:scale(1)}to{transform:scale(var(--z,1.12))}}
 @keyframes hmBoth{from{transform:scale(1)}to{transform:scale(var(--z,1.12))}}

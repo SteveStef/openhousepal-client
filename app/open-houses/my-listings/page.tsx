@@ -256,23 +256,23 @@ function MyListingsContent() {
               <button
                 onClick={handleRefreshListings}
                 disabled={isRefreshing}
-                className="flex items-center justify-center gap-2 py-3.5 text-[11px] sm:text-xs font-black uppercase tracking-widest text-[#111827] dark:text-white transition hover:bg-white/60 dark:hover:bg-white/[0.05] disabled:opacity-50"
+                className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-3 sm:py-3.5 text-[10.5px] sm:text-xs font-black uppercase tracking-[0.12em] sm:tracking-widest text-[#111827] dark:text-white transition hover:bg-white/60 dark:hover:bg-white/[0.05] disabled:opacity-50"
               >
-                {isRefreshing ? <Loader2 size={14} className="animate-spin text-[#C9A24D]" /> : <RefreshCw size={14} className="text-[#C9A24D]" />} Refresh Listings
+                {isRefreshing ? <Loader2 size={14} className="animate-spin text-[#C9A24D]" /> : <RefreshCw size={14} className="text-[#C9A24D]" />} <span>Refresh<span className="hidden sm:inline"> Listings</span></span>
               </button>
               <button
                 onClick={() => setIsTeamPanelOpen(true)}
-                className="flex items-center justify-center gap-2 py-3.5 text-[11px] sm:text-xs font-black uppercase tracking-widest text-[#111827] dark:text-white transition hover:bg-white/60 dark:hover:bg-white/[0.05]"
+                className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-3 sm:py-3.5 text-[10.5px] sm:text-xs font-black uppercase tracking-[0.12em] sm:tracking-widest text-[#111827] dark:text-white transition hover:bg-white/60 dark:hover:bg-white/[0.05]"
               >
                 <UsersRound size={14} className="text-[#C9A24D]" /> My Team
               </button>
               <button
                 onClick={() => setIsHostRequestsOpen(true)}
-                className="relative flex items-center justify-center gap-2 py-3.5 text-[11px] sm:text-xs font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8cf8a] bg-[#C9A24D]/10 transition hover:bg-[#C9A24D]/20 sm:rounded-br-3xl"
+                className="relative flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-3 sm:py-3.5 text-[10.5px] sm:text-xs font-black uppercase tracking-[0.12em] sm:tracking-widest text-[#8b7355] dark:text-[#e8cf8a] bg-[#C9A24D]/10 transition hover:bg-[#C9A24D]/20 sm:rounded-br-3xl"
               >
-                <Inbox size={14} /> Host Requests
+                <Inbox size={14} /> <span><span className="hidden sm:inline">Host </span>Requests</span>
                 {(totalPending + listingAgentUnseenUpdates) > 0 && (
-                  <span className="absolute right-3 top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-red-300 shadow-lg shadow-red-500/50 dark:ring-red-500/50">
+                  <span className="absolute right-2 top-1.5 sm:right-3 sm:top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-red-300 shadow-lg shadow-red-500/50 dark:ring-red-500/50">
                     {totalPending + listingAgentUnseenUpdates}
                   </span>
                 )}
@@ -284,27 +284,28 @@ function MyListingsContent() {
         <div className="mb-6 overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#151517] shadow-sm empty:hidden">
           {/* Search + Sort - only meaningful once there's something to search */}
           {data && data.listings.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-center gap-3 p-4 sm:p-5">
-              <div className="relative w-full flex-1 sm:max-w-md">
+            <div className="flex flex-row items-center gap-2 p-3 sm:gap-3 sm:p-5">
+              <div className="relative min-w-0 flex-1 sm:max-w-md">
                 <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="Search your listings..."
+                  placeholder={`Search ${data.listings.length === 1 ? 'your listing' : `your ${data.listings.length} listings`}...`}
                   className="w-full rounded-2xl border border-gray-100 dark:border-gray-800 bg-[#fafafb] dark:bg-[#0B0B0B] py-3 pl-10 pr-4 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:text-white"
                 />
               </div>
-              <div className="relative w-full sm:w-auto shrink-0 sm:ml-auto" ref={sortDropdownRef}>
+              <div className="relative shrink-0 sm:ml-auto" ref={sortDropdownRef}>
                 <button
                   onClick={() => setShowSortDropdown(v => !v)}
-                  className={`flex w-full sm:w-auto items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-xs font-black uppercase tracking-widest transition ${
+                  aria-label={`Sort: ${SORT_OPTIONS.find(opt => opt.value === sortBy)?.label}`}
+                  className={`flex h-[46px] w-[46px] sm:h-auto sm:w-auto items-center justify-center gap-2 rounded-2xl border sm:px-4 sm:py-3 text-xs font-black uppercase tracking-widest transition ${
                     showSortDropdown
                       ? 'border-[#C9A24D] bg-[#FCF9F1] dark:bg-[#C9A24D]/10 text-[#C9A24D]'
                       : 'border-gray-100 dark:border-gray-800 bg-[#fafafb] dark:bg-[#0B0B0B] text-[#111827] dark:text-white hover:border-[#C9A24D]/50'
                   }`}
                 >
-                  <SortDesc size={14} />
-                  {SORT_OPTIONS.find(opt => opt.value === sortBy)?.label}
+                  <SortDesc size={16} className="sm:h-3.5 sm:w-3.5" />
+                  <span className="hidden sm:inline">{SORT_OPTIONS.find(opt => opt.value === sortBy)?.label}</span>
                 </button>
                 {/* Portaled to body, not rendered inline - the header card this lives in clips
                     overflow (to keep the flat action-button grid's square corners from poking
@@ -336,7 +337,7 @@ function MyListingsContent() {
                 )}
               </div>
               {/* how many listings - right-most on the search row, the sort sits to its left */}
-              <span className="shrink-0 rounded-full border border-[#C9A24D]/30 bg-[#C9A24D]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]">
+              <span className="hidden sm:inline shrink-0 rounded-full border border-[#C9A24D]/30 bg-[#C9A24D]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]">
                 {data.listings.length} {data.listings.length === 1 ? 'Listing' : 'Listings'}
               </span>
             </div>

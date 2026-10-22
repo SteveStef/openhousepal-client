@@ -55,6 +55,9 @@ export type SignatureConfig = {
   luxeMetal: LuxeMetal
   /** The socials from Agent Hub were switched on once (seedSignatureSocials) - later choices stick. */
   socialsSeeded?: boolean
+  /** 'brand' = wears the Brand Kit's look (lib/brandKit; the backend writes it in), 'own' = the
+   *  accent / Luxe / Ivory-Midnight picked here. */
+  lookSource?: 'brand' | 'own'
 }
 
 // What Luxe locks in - the backend's resolve_signature_config applies the same two values.
@@ -127,6 +130,7 @@ export function mergeSignatureConfig(saved: any): SignatureConfig {
     luxe: Boolean(saved?.luxe),
     luxeMetal: metalOf(saved?.luxeMetal),
     socialsSeeded: Boolean(saved?.socialsSeeded),
+    ...(saved?.lookSource === 'brand' || saved?.lookSource === 'own' ? { lookSource: saved.lookSource } : {}),
   }
 }
 

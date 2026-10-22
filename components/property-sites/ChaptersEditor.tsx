@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Check, ChevronDown, GripVertical, Loader2, Plus, Sparkles, Trash2 } from 'lucide-react'
 import api from '@/lib/api-service'
 import type { PropertyWebsiteChapter } from '@/types'
@@ -116,7 +117,7 @@ export default function ChaptersEditor({
             className={`overflow-hidden rounded-xl border transition ${isOpen ? 'border-[#C9A24D]/60' : 'border-gray-200 dark:border-gray-800'} ${draggedId === chapter.id ? 'opacity-50' : ''} bg-white dark:bg-[#1A1A1C]`}
           >
             <div className="flex items-center gap-2 p-3">
-              <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-gray-300" />
+              <GripVertical className="hidden h-4 w-4 shrink-0 cursor-grab text-gray-300 sm:block" />
               <span className="shrink-0 font-serif text-xs text-gray-400">{String(index + 1).padStart(2, '0')}</span>
               <div className="min-w-0 flex-1">
                 <input
@@ -135,15 +136,17 @@ export default function ChaptersEditor({
               >
                 <span className={`absolute top-1 h-4 w-4 rounded-full transition ${chapter.enabled ? 'left-6 bg-white dark:bg-[#111827]' : 'left-1 bg-white'}`} />
               </button>
-              <button onClick={() => removeChapter(chapter.id)} className="shrink-0 rounded-lg p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20">
+              <button onClick={() => removeChapter(chapter.id)} aria-label="Remove this section" className="-mx-1 grid h-10 w-10 shrink-0 place-items-center rounded-lg text-gray-300 hover:bg-red-50 sm:mx-0 sm:block sm:h-auto sm:w-auto sm:p-1.5 hover:text-red-600 dark:hover:bg-red-900/20">
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
-              <button onClick={() => setOpenId(isOpen ? '' : chapter.id)} aria-label="Expand section" className="shrink-0 p-1">
+              <button onClick={() => setOpenId(isOpen ? '' : chapter.id)} aria-label="Expand section" className="-mr-1.5 grid h-10 w-10 shrink-0 place-items-center sm:mr-0 sm:block sm:h-auto sm:w-auto sm:p-1">
                 <ChevronDown className={`h-4 w-4 text-gray-400 transition ${isOpen ? 'rotate-180' : ''}`} />
               </button>
             </div>
 
+            <AnimatePresence initial={false}>
             {isOpen && (
+              <motion.div key="open" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }} className="overflow-hidden">
               <div className="space-y-3 border-t border-gray-100 p-3 dark:border-gray-800">
                 <div>
                   <p className="mb-1.5 text-[10px] font-black uppercase tracking-wide text-gray-400">Photos for this section</p>
@@ -190,7 +193,9 @@ export default function ChaptersEditor({
                   />
                 </div>
               </div>
+              </motion.div>
             )}
+            </AnimatePresence>
           </div>
         )
       })}
@@ -225,7 +230,7 @@ export default function ChaptersEditor({
       ) : (
         <button
           onClick={() => setShowAddPicker(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-1.5 text-[11px] font-black text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700"
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3.5 py-1.5 text-[12px] font-black text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 sm:min-h-0 sm:px-3 sm:text-[11px]"
         >
           <Plus className="h-3.5 w-3.5" /> Add a section
         </button>

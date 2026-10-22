@@ -3,14 +3,19 @@
 import OhpLoader from '@/components/brand/OhpLoader'
 
 import { useEffect, useRef, useState } from 'react'
-import { Building2, Check, Home, Loader2, Save, Trash2, Upload, User as UserIcon, Users, Wand2 } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowUpRight, Building2, Check, Home, Loader2, Save, Trash2, Upload, User as UserIcon, Users, Wand2 } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { BrandKit } from '@/types'
-import StudioPageHeader from '@/components/studio/StudioPageHeader'
+import LuxeHero from '@/components/ui/LuxeHero'
 import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
-import { BRAND_ACCENT_COLORS, BRAND_MAIN_COLORS, type BrandSwatch } from '@/lib/brandSwatches'
+import { BRAND_MAIN_COLORS, type BrandSwatch } from '@/lib/brandSwatches'
 import { isLight } from '@/components/setup/SetupUi'
+import { useAuth } from '@/contexts/AuthContext'
+import { brandLookOf, luxeAllowedFor, modeLabel, brandColorName, useBrandKit, type BrandKitPatch } from '@/lib/brandKit'
+import { LUXE_METALS } from '@/lib/luxeMetals'
+import BrandLookPicker, { BrandLookPreview } from '@/components/studio/BrandLookPicker'
 
 const FONT_OPTIONS = [
   { value: 'serif', label: 'Editorial Serif', className: 'font-serif' },
@@ -43,6 +48,10 @@ function BrandKitPageInner() {
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null)
   const [logoError, setLogoError] = useState('')
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { user } = useAuth()
+  const luxeAllowed = luxeAllowedFor(user)
+  // The shared copy (lib/brandKit) - a save here updates every open "My Brand Kit" preview too.
+  const shared = useBrandKit()
 
   useEffect(() => {
     api.studio.getBrandKit().then(response => {
@@ -50,6 +59,26 @@ function BrandKitPageInner() {
       setLoading(false)
     })
   }, [])
+
+  // The look (Classic / Luxe, finish, Ivory / Midnight) saves at once - every feature on
+  // "My Brand Kit" changes with it. A color tap from the look picker goes through scheduleSave.
+  const changeLook = async (patch: BrandKitPatch) => {
+    if (patch.secondary_color) { scheduleSave({ ...kit, secondary_color: patch.secondary_color }); return }
+    if (!patch.look) return
+    const prev = kit
+    const cur = brandLookOf(kit)
+    setKit({ ...kit, look: { ...cur, ...(kit.look || {}), ...patch.look, saved: true } })
+    setSaveStatus('saving')
+    const response = await shared.save({ look: patch.look })
+    if (response.success && response.data) {
+      setKit(k => ({ ...k, look: response.data!.look }))
+      setSaveStatus('saved')
+      setTimeout(() => setSaveStatus('idle'), 1500)
+    } else {
+      setKit(prev)
+      setSaveStatus('error')
+    }
+  }
 
   const scheduleSave = (next: BrandKit) => {
     setKit(next)
@@ -72,6 +101,10 @@ function BrandKitPageInner() {
         disclaimer_text: next.disclaimer_text,
       })
       setSaveStatus(response.success ? 'saved' : 'error')
+      if (response.success && response.data) {
+        shared.setLocal(response.data)
+        setKit(k => ({ ...k, look: response.data!.look }))
+      }
       if (response.success) setTimeout(() => setSaveStatus('idle'), 1500)
     }, 500)
   }
@@ -100,33 +133,63 @@ function BrandKitPageInner() {
     return <OhpLoader />
   }
 
+  const look = brandLookOf(kit)
+  const shownLook = { ...look, theme: look.theme === 'luxe' && luxeAllowed ? 'luxe' as const : 'classic' as const }
+  const lookName = `${shownLook.theme === 'luxe' ? 'Luxe' : 'Classic'} · ${shownLook.theme === 'luxe' ? LUXE_METALS[look.metal].label : brandColorName(kit.secondary_color) || 'Custom color'} · ${modeLabel(look.dark)}`
+  const statusChip = (
+    <div className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black ${
+      saveStatus === 'saved' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300' :
+      saveStatus === 'saving' ? 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' :
+      saveStatus === 'error' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300' : 'opacity-0'
+    }`}>
+      {saveStatus === 'saving' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+      {saveStatus === 'saved' && <Check className="h-3.5 w-3.5" />}
+      {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : saveStatus === 'error' ? 'Try again' : <Save className="h-3.5 w-3.5" />}
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]">
-      <div className="mx-auto max-w-6xl px-5 py-10">
-        <StudioPageHeader
-          icon={Wand2}
+      <div className="mx-auto max-w-6xl px-4 py-4 sm:py-6">
+        <LuxeHero
+          compact
+          backHref="/studio"
+          backLabel="Tools"
           kicker="Brand Kit"
+          icon={Wand2}
           title={<>Your brand, <em>set once.</em></>}
-          subtitle="Shared across Studio and Blogs, so you never re-enter your branding."
-          actions={
-            <div className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black ${
-              saveStatus === 'saved' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300' :
-              saveStatus === 'saving' ? 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' :
-              saveStatus === 'error' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300' : 'opacity-0'
-            }`}>
-              {saveStatus === 'saving' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {saveStatus === 'saved' && <Check className="h-3.5 w-3.5" />}
-              {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : saveStatus === 'error' ? 'Try again' : <Save className="h-3.5 w-3.5" />}
-            </div>
-          }
+          subtitle="Your look, colors, fonts and logos. Every feature uses them unless you choose otherwise in that feature."
+          asideClassName="lg:w-auto"
+          aside={<div className="flex lg:justify-end">{statusChip}</div>}
         />
 
-        <div className="mt-8 grid grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_340px]">
-          <div>
+        <div className="mt-5 grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_340px] lg:gap-8">
+          <div className="min-w-0">
+            {/* The look - the one every feature wears by default */}
+            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-[#151517]" data-testid="brand-look-section">
+              <h2 className="text-sm font-black uppercase tracking-widest text-gray-400">Your look</h2>
+              <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">The same looks and colors as your Agent Hub and IDX website. Now: <span className="font-black text-[#111827] dark:text-white" data-testid="brand-look-name">{lookName}</span></p>
+              <div className="mt-4">
+                <BrandLookPicker kit={kit} luxeAllowed={luxeAllowed} onChange={changeLook} />
+              </div>
+              <div className="mt-5 rounded-xl bg-[#fbfaf7] p-3 dark:bg-white/[0.04]">
+                <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">Uses your Brand Kit unless you change it there</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {[['Agent Hub', '/studio/site'], ['IDX Website', '/studio/website?tab=design'], ['Forms', '/studio/site?tab=forms'], ['Email Signature', '/studio/email-signature']].map(([label, href]) => (
+                    <Link key={label} href={href} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-black text-[#111827] transition hover:border-[#C9A24D] dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-white">
+                      {label} <ArrowUpRight className="h-3 w-3 text-gray-400" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </section>
+
             {/* Logos */}
-            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
+            <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-[#151517]">
               <h2 className="text-sm font-black uppercase tracking-widest text-gray-400">Logos</h2>
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">JPG or PNG. Used on your designs, Spotlight and signature.</p>
+              {/* Three small tiles in one row on every screen (they were three tall stacked boxes on phones). */}
+              <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-4">
                 <LogoSlot label="Personal" icon={UserIcon} url={kit.personal_logo_url} uploading={uploadingSlot === 'personal'} onUpload={file => handleLogoUpload('personal', file)} onDelete={() => handleLogoDelete('personal')} />
                 <LogoSlot label="Team" icon={Users} url={kit.team_logo_url} uploading={uploadingSlot === 'team'} onUpload={file => handleLogoUpload('team', file)} onDelete={() => handleLogoDelete('team')} />
                 <LogoSlot label="Brokerage" icon={Building2} url={kit.brokerage_logo_url} uploading={uploadingSlot === 'brokerage'} onUpload={file => handleLogoUpload('brokerage', file)} onDelete={() => handleLogoDelete('brokerage')} />
@@ -135,12 +198,14 @@ function BrandKitPageInner() {
             </section>
 
             {/* Colors */}
-            <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
-              <h2 className="text-sm font-black uppercase tracking-widest text-gray-400">Colors</h2>
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                <ColorField label="Primary" value={kit.primary_color} onChange={v => scheduleSave({ ...kit, primary_color: v })} swatches={BRAND_MAIN_COLORS} />
-                <ColorField label="Secondary" value={kit.secondary_color} onChange={v => scheduleSave({ ...kit, secondary_color: v })} swatches={BRAND_ACCENT_COLORS} />
-                <ColorField label="Accent" value={kit.accent_color} onChange={v => scheduleSave({ ...kit, accent_color: v })} />
+            {/* One color here (user, 10/22: "do we need 3?"): your brand color is already the one in
+                Your look above (it was shown again as "Secondary"), and "Accent" was barely used - so
+                only the print background is left. The stored values are untouched. */}
+            <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-[#151517]">
+              <h2 className="text-sm font-black uppercase tracking-widest text-gray-400">Print background</h2>
+              <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">The background color on your flyers, social posts, CMA and Spotlight. Your brand color comes from Your look above.</p>
+              <div className="mt-4 max-w-md">
+                <ColorField label="Background" value={kit.primary_color} onChange={v => scheduleSave({ ...kit, primary_color: v })} swatches={BRAND_MAIN_COLORS} />
               </div>
             </section>
 
@@ -198,10 +263,19 @@ function BrandKitPageInner() {
           </div>
 
           {/* Live preview */}
+          {/* Phones: the two previews side by side, half size, instead of two full-width posters. */}
           <div className="lg:sticky lg:top-6">
             <p className="mb-2 px-1 text-xs font-black uppercase tracking-widest text-gray-400">Live Preview</p>
-            <BrandKitPreview kit={kit} />
-            <p className="mt-2 px-1 text-[11px] font-semibold leading-relaxed text-gray-400">A sample listing card showing exactly how your logo, colors, and fonts will look across Studio and Blogs.</p>
+            <div className="grid grid-cols-2 gap-3 lg:block">
+              <div className="min-w-0">
+                <div data-testid="brand-hub-preview"><BrandLookPreview look={shownLook} /></div>
+                <p className="mt-2 px-1 text-[11px] font-semibold leading-snug text-gray-400 lg:mb-4">Your Agent Hub, forms, website and signature.</p>
+              </div>
+              <div className="min-w-0">
+                <BrandKitPreview kit={kit} />
+                <p className="mt-2 px-1 text-[11px] font-semibold leading-snug text-gray-400">Your flyers, posts and blogs.</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -294,8 +368,9 @@ function LogoSlot({ label, icon: Icon, url, uploading, onUpload, onDelete }: {
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   return (
-    <div className="rounded-xl border border-gray-200 bg-[#fbfaf7] p-4 text-center dark:border-gray-700 dark:bg-[#1A1A1C]">
-      <div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white dark:border-gray-700 dark:bg-[#111113]">
+    <div className="min-w-0 rounded-xl border border-gray-200 bg-[#fbfaf7] p-2.5 text-center dark:border-gray-700 dark:bg-[#1A1A1C] sm:p-4">
+      <button type="button" onClick={() => inputRef.current?.click()} aria-label={`${url ? 'Replace' : 'Upload'} ${label} logo`}
+        className="mx-auto flex aspect-square w-full max-w-[80px] items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white transition hover:border-[#C9A24D] dark:border-gray-700 dark:bg-[#111113]">
         {uploading ? (
           <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
         ) : url ? (
@@ -303,14 +378,14 @@ function LogoSlot({ label, icon: Icon, url, uploading, onUpload, onDelete }: {
         ) : (
           <Icon className="h-6 w-6 text-gray-300" />
         )}
-      </div>
-      <p className="mt-2 text-xs font-black text-[#111827] dark:text-white">{label}</p>
-      <div className="mt-2 flex items-center justify-center gap-1.5">
-        <button onClick={() => inputRef.current?.click()} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[10px] font-black uppercase text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700">
-          <Upload className="h-3 w-3" /> {url ? 'Replace' : 'Upload'}
+      </button>
+      <p className="mt-2 truncate text-xs font-black text-[#111827] dark:text-white">{label}</p>
+      <div className="mt-1.5 flex items-center justify-center gap-1">
+        <button onClick={() => inputRef.current?.click()} className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 px-2 text-[10px] font-black uppercase text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700">
+          <Upload className="h-3 w-3" /> <span className="max-sm:sr-only">{url ? 'Replace' : 'Upload'}</span>
         </button>
         {url && (
-          <button onClick={onDelete} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[10px] font-black uppercase text-gray-500 hover:border-red-300 hover:text-red-600 dark:border-gray-700">
+          <button onClick={onDelete} aria-label={`Remove ${label} logo`} className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 px-2 text-[10px] font-black uppercase text-gray-500 hover:border-red-300 hover:text-red-600 dark:border-gray-700">
             <Trash2 className="h-3 w-3" />
           </button>
         )}
