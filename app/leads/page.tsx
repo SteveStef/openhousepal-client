@@ -220,7 +220,7 @@ function LeadsPageInner() {
   }
   const since = periodStart(period)
   const newInPeriod = leads.filter(l => new Date(l.created_at).getTime() >= since).length
-  const emailsSlowed = leads.filter(l => l.email_engagement && l.email_engagement.mode !== 'daily' && l.email_engagement.code !== 'unsubscribed' && !l.unsubscribed).length
+  const emailsSlowed = leads.filter(l => l.email_engagement && l.email_engagement.mode !== 'daily' && !['unsubscribed', 'bounced', 'spam'].includes(l.email_engagement.code || '') && !l.unsubscribed).length
 
   // Row actions.
   const setStatus = async (lead: Lead, status: LeadStatus) => {
@@ -650,7 +650,12 @@ function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, a
                 <Pencil className="h-3 w-3" /> Here because you left a note
               </span>
             )}
-            {lead.unsubscribed && <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black text-gray-500 dark:bg-white/[0.06] dark:text-gray-400"><MailX className="h-3 w-3" /> No emails</span>}
+            {/* Bounced / marked as spam (Mailgun) say so - the agent has to act on a bounce. */}
+            {(lead.email_engagement?.code === 'bounced' || lead.email_engagement?.code === 'spam') ? (
+              <span title={lead.email_engagement.reason || undefined} className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700 ring-1 ring-inset ring-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-500/30">
+                <MailX className="h-3 w-3" /> {lead.email_engagement.code === 'bounced' ? 'Email bounced' : 'Marked you as spam'}
+              </span>
+            ) : lead.unsubscribed && <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black text-gray-500 dark:bg-white/[0.06] dark:text-gray-400"><MailX className="h-3 w-3" /> No emails</span>}
             {!lead.unsubscribed && lead.email_engagement && lead.email_engagement.mode !== 'daily' && (
               <span title={lead.email_engagement.reason || undefined}
                 className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${lead.email_engagement.mode === 'weekly' ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300'}`}>

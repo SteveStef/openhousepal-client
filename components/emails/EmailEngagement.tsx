@@ -51,8 +51,10 @@ export function rateTone(rate: number) {
 export function PersonSwitch({ p, onChanged, size = 'sm' }: { p: EmailPerson; onChanged: (next: EmailPerson) => void; size?: 'sm' | 'md' }) {
   const { showToast } = useToast()
   const [busy, setBusy] = useState(false)
-  if (p.code === 'unsubscribed') {
-    return <span className="text-[11px] font-semibold text-gray-400">Only they can turn emails back on</span>
+  // Blocked by them or their mailbox - a switch here couldn't do anything, so say what can.
+  if (p.code === 'unsubscribed' || p.code === 'bounced' || p.code === 'spam') {
+    return <span className="text-[11px] font-semibold text-gray-400">{p.code === 'bounced' ? 'Fix their email address to send again'
+      : p.code === 'spam' ? 'They marked you as spam - emails stay off' : 'Only they can turn emails back on'}</span>
   }
   const turnOn = p.mode !== 'daily'
   const go = async () => {
