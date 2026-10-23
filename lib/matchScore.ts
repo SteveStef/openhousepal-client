@@ -41,24 +41,34 @@ const getStr = (obj: any, keys: string[]): string => {
 }
 
 const normalize = (value?: string | null) => (value || '').trim().toLowerCase().replace(/[_-]/g, ' ')
-// 'The School District Of Philadelphia' and 'Philadelphia City' are one district, but 'Egg Harbor
-// City' and 'Egg Harbor Township' are not (same rule as the backend's _same_district).
-const DISTRICT_KIND: Record<string, string> = { city: 'city', township: 'township', twp: 'township', boro: 'borough', borough: 'borough', county: 'county' }
-const DISTRICT_FILLER = new Set(['the', 'school', 'schools', 'district', 'of', 'sd', 'area', 'public', 'unified', 'regional'])
-function districtParts(value?: string | null): [string, string | null] {
-  const text = normalize(value).split(/\s+/).filter(Boolean).join(' ')
+// Name matching for school district / township / city / neighborhood - same rule as the backend's
+// _same_name. 'The School District Of Philadelphia' = 'Philadelphia City', 'City of Gaithersburg' =
+// 'Gaithersburg', 'Mt. Airy' = 'Mt Airy'; but 'Egg Harbor City' != 'Egg Harbor Township'.
+const PLACE_KIND: Record<string, string> = { city: 'city', township: 'township', twp: 'township', boro: 'borough', borough: 'borough', county: 'county', town: 'town', village: 'village' }
+const PLACE_FILLER = new Set(['the', 'of'])
+const DISTRICT_FILLER = new Set(['the', 'of', 'school', 'schools', 'district', 'sd', 'area', 'public', 'unified', 'regional'])
+const PLACE_PLACEHOLDERS = new Set(['none available', 'none', 'n a', 'na', 'other', 'not applicable', 'unknown', 'no'])
+const PLACE_ABBREV: Record<string, string> = { mt: 'mount', st: 'saint', ft: 'fort' }
+const kindOf = (w: string | undefined) => (w && Object.prototype.hasOwnProperty.call(PLACE_KIND, w) ? PLACE_KIND[w] : null)
+function nameParts(value: string | null | undefined, filler: Set<string>): [string, string | null] {
+  const text = (value || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean).join(' ')
+  if (PLACE_PLACEHOLDERS.has(text)) return ['', null]
   if (text.includes('district of columbia')) return ['district of columbia', null]
-  const words = text.split(' ').filter(w => w && !DISTRICT_FILLER.has(w))
-  const kind = words.length > 1 ? DISTRICT_KIND[words[words.length - 1]] ?? null : null
-  return [(kind ? words.slice(0, -1) : words).join(' '), kind]
+  const words = text.split(' ').filter(w => w && !filler.has(w)).map(w => PLACE_ABBREV[w] ?? w)
+  let kind: string | null = null
+  if (words.length > 1 && kindOf(words[words.length - 1])) kind = kindOf(words.pop())
+  else if (words.length > 1 && kindOf(words[0])) kind = kindOf(words.shift())
+  return [words.join(' '), kind]
 }
 /** null when either name is blank. */
-export function sameDistrict(a?: string | null, b?: string | null): boolean | null {
-  const [ab, ak] = districtParts(a)
-  const [bb, bk] = districtParts(b)
+function sameName(a: string | null | undefined, b: string | null | undefined, filler: Set<string>): boolean | null {
+  const [ab, ak] = nameParts(a, filler)
+  const [bb, bk] = nameParts(b, filler)
   if (!ab || !bb) return null
   return ab === bb && (!ak || !bk || ak === bk)
 }
+export const sameDistrict = (a?: string | null, b?: string | null) => sameName(a, b, DISTRICT_FILLER)
+export const samePlace = (a?: string | null, b?: string | null) => sameName(a, b, PLACE_FILLER)
 const halfLifeDecay = (delta: number, halfLife: number) => halfLife > 0 ? Math.pow(0.5, Math.abs(delta) / halfLife) : 0
 
 const haversineMiles = (lat: number, lng: number, subjectLat: number, subjectLng: number) => {
@@ -254,8 +264,7 @@ function marketAreaScore(property: any, subject: any): number | null {
   const pieces = fields.flatMap(([keys, weight], i) => {
     const subjectValue = getStr(subject, keys)
     const propertyValue = getStr(property, keys)
-    const same = i === 0 ? sameDistrict(subjectValue, propertyValue)
-      : normalize(subjectValue) && normalize(propertyValue) ? normalize(subjectValue) === normalize(propertyValue) : null
+    const same = (i === 0 ? sameDistrict : samePlace)(subjectValue, propertyValue)
     return same == null ? [] : [{ score: same ? 1 : 0, weight }]
   })
   const denominator = pieces.reduce((sum, piece) => sum + piece.weight, 0)
