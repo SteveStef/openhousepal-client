@@ -593,7 +593,8 @@ function CreateMediaPage() {
               <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">{error}</p>
             )}
             {!videoReview && !busy && (
-              <div className="mt-3">
+              // Bigger screens only - on phones the flow bar's Generate is the one button.
+              <div className="mt-3 hidden sm:block">
                 <button
                   onClick={generate}
                   disabled={busy || !optionsValid || (!isVideo && !photo) || softCapped || storageFull}

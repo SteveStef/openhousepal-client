@@ -226,7 +226,8 @@ export const CreateCollectionModal = memo(function CreateCollectionModal({ isOpe
                 </AnimatePresence>
               </div>
 
-              <div className="flex items-center justify-between gap-3 border-t border-gray-100 bg-[#FAFAF7]/80 px-5 py-4 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-8">
+              {/* Bigger screens only - phones use the flow bar below (never two button rows at the bottom). */}
+              <div className="hidden items-center justify-between gap-3 border-t border-gray-100 bg-[#FAFAF7]/80 px-5 py-4 dark:border-white/[0.06] dark:bg-white/[0.02] sm:flex sm:px-8">
                 {step === 0 ? (
                   <button type="button" onClick={onClose} className="rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest text-gray-500 transition hover:bg-gray-100 hover:text-[#111827] dark:text-white/50 dark:hover:bg-white/[0.06] dark:hover:text-white">Cancel</button>
                 ) : (
