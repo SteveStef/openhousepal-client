@@ -41,10 +41,24 @@ const getStr = (obj: any, keys: string[]): string => {
 }
 
 const normalize = (value?: string | null) => (value || '').trim().toLowerCase().replace(/[_-]/g, ' ')
-// 'The School District Of Philadelphia' and 'Philadelphia City' are one district (same rule as the
-// backend's _district_key) - MLS feeds spell the same district several ways.
-export const districtKey = (value?: string | null) =>
-  normalize(value).replace(/\b(the|school|district|of|sd|area|city|public|schools?|unified|regional|township|twp|boro(ugh)?)\b/g, ' ').split(/\s+/).filter(Boolean).join(' ')
+// 'The School District Of Philadelphia' and 'Philadelphia City' are one district, but 'Egg Harbor
+// City' and 'Egg Harbor Township' are not (same rule as the backend's _same_district).
+const DISTRICT_KIND: Record<string, string> = { city: 'city', township: 'township', twp: 'township', boro: 'borough', borough: 'borough', county: 'county' }
+const DISTRICT_FILLER = new Set(['the', 'school', 'schools', 'district', 'of', 'sd', 'area', 'public', 'unified', 'regional'])
+function districtParts(value?: string | null): [string, string | null] {
+  const text = normalize(value).split(/\s+/).filter(Boolean).join(' ')
+  if (text.includes('district of columbia')) return ['district of columbia', null]
+  const words = text.split(' ').filter(w => w && !DISTRICT_FILLER.has(w))
+  const kind = words.length > 1 ? DISTRICT_KIND[words[words.length - 1]] ?? null : null
+  return [(kind ? words.slice(0, -1) : words).join(' '), kind]
+}
+/** null when either name is blank. */
+export function sameDistrict(a?: string | null, b?: string | null): boolean | null {
+  const [ab, ak] = districtParts(a)
+  const [bb, bk] = districtParts(b)
+  if (!ab || !bb) return null
+  return ab === bb && (!ak || !bk || ak === bk)
+}
 const halfLifeDecay = (delta: number, halfLife: number) => halfLife > 0 ? Math.pow(0.5, Math.abs(delta) / halfLife) : 0
 
 const haversineMiles = (lat: number, lng: number, subjectLat: number, subjectLng: number) => {
@@ -238,10 +252,11 @@ function marketAreaScore(property: any, subject: any): number | null {
     [['City', 'city'], 0.15],
   ]
   const pieces = fields.flatMap(([keys, weight], i) => {
-    const norm = i === 0 ? districtKey : normalize
-    const subjectValue = norm(getStr(subject, keys))
-    const propertyValue = norm(getStr(property, keys))
-    return subjectValue && propertyValue ? [{ score: subjectValue === propertyValue ? 1 : 0, weight }] : []
+    const subjectValue = getStr(subject, keys)
+    const propertyValue = getStr(property, keys)
+    const same = i === 0 ? sameDistrict(subjectValue, propertyValue)
+      : normalize(subjectValue) && normalize(propertyValue) ? normalize(subjectValue) === normalize(propertyValue) : null
+    return same == null ? [] : [{ score: same ? 1 : 0, weight }]
   })
   const denominator = pieces.reduce((sum, piece) => sum + piece.weight, 0)
   return denominator ? pieces.reduce((sum, piece) => sum + piece.score * piece.weight, 0) / denominator : null
@@ -389,9 +404,7 @@ export function computeMatchScore(property: any, subject: any, comparisonSet: an
 
 export function isSameSchoolDistrict(property: any, subject: any): boolean {
   const keys = ['SchoolDistrictName', 'schoolDistrictName', 'school_district_name', 'schoolDistrict', 'school_district']
-  const school = districtKey(getStr(property, keys))
-  const subjectSchool = districtKey(getStr(subject, keys))
-  return Boolean(school && subjectSchool && school === subjectSchool)
+  return sameDistrict(getStr(property, keys), getStr(subject, keys)) === true
 }
 
 export function getMatchScore(subject: any, candidate: any, comparisonSet: any[] = []): number {

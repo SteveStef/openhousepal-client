@@ -35,7 +35,7 @@ import {
   median, normalizeStrength, pricePerSqft, strongComps, sortComparables, splitCmaBuyerGuidance,
 } from '@/lib/cma'
 import { CmaPresentationDocument } from '@/lib/pdfs'
-import { acresToSqft, districtKey, MatchScoreDetails, sqftToAcres } from '@/lib/matchScore'
+import { acresToSqft, MatchScoreDetails, sameDistrict, sqftToAcres } from '@/lib/matchScore'
 import { normalizeImageUrl } from '@/lib/utils'
 import { useHoverPhotoCycle } from '@/lib/useHoverPhotoCycle'
 import CompsMapView from '@/components/CompsMapView'
@@ -1650,11 +1650,7 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
 
   // Same "Same School" badge as the Similar Properties sheet - district names normalised, so
   // 'Philadelphia City' and 'The School District Of Philadelphia' count as the same school.
-  const subjectSchool = districtKey(subject.school_district)
-  const isSameSchool = (candidate: CmaCompCandidate) => {
-    const school = districtKey(candidate.school_district)
-    return Boolean(school && subjectSchool && school === subjectSchool)
-  }
+  const isSameSchool = (candidate: CmaCompCandidate) => sameDistrict(candidate.school_district, subject.school_district) === true
 
   const toggleAdd = (candidate: CmaCompCandidate) => {
     if (addedKeys.has(candidate.listing_key)) {
