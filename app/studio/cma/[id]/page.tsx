@@ -1057,6 +1057,7 @@ function mapPropertyToSubject(p: any): CmaSubjectProperty {
     water_source: p.WaterSource ?? p.water_source ?? null,
     sewer: p.Sewer ?? p.sewer ?? null,
     public_remarks: p.PublicRemarks || null,
+    property_condition: p.PropertyCondition ?? null,
   }
 }
 
@@ -1115,6 +1116,7 @@ function candidateToComparable(c: CmaCompCandidate): CmaComparable {
     water_source: c.water_source,
     sewer: c.sewer,
     public_remarks: c.public_remarks,
+    property_condition: c.property_condition ?? null,
     property_type: c.property_type,
     home_type: c.property_type,
     match_score: c.match_score,

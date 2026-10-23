@@ -2716,6 +2716,7 @@ export interface CmaSubjectProperty {
   water_source?: string[] | string | null;
   sewer?: string[] | string | null;
   public_remarks?: string | null;
+  property_condition?: string[] | string | null;  // Bright PropertyCondition (Match % condition part)
   agent_notes?: string | null;
   // Typed in on the manual-entry path (a home not on the MLS yet). `baths` stays the total the
   // engine reads: full + 0.5 per half bath, the way Bright counts BathroomsTotal.
@@ -2825,6 +2826,7 @@ export interface CmaComparable {
   water_source?: string[] | string | null;
   sewer?: string[] | string | null;
   public_remarks?: string | null;
+  property_condition?: string[] | string | null;  // Bright PropertyCondition (Match % condition part)
   property_type?: string | null;
   home_type?: string | null;
   match_score?: number | null;
@@ -3452,6 +3454,7 @@ export interface CmaCompCandidate {
   water_source?: string[] | string | null;
   sewer?: string[] | string | null;
   public_remarks?: string | null;
+  property_condition?: string[] | string | null;  // Bright PropertyCondition (Match % condition part)
   annual_taxes?: number | null;
   property_type?: string | null;
   similarity_context?: CmaSimilarityDensityContext | null;
