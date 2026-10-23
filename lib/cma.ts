@@ -314,7 +314,9 @@ export function basementDisplay(p: { basement?: string | null; public_remarks?: 
 export function belowGradeDisplay(p: { below_grade_finished_area?: number | null; basement?: string | null; public_remarks?: string | null }): string {
   if (p.below_grade_finished_area && p.below_grade_finished_area > 0) return formatNumber(p.below_grade_finished_area)
   const raw = (p.basement || '').toLowerCase()
-  if (raw.replace('unfinished', '').includes('finished') || remarksBasementFinish(p)) return 'Not reported'
+  // Finished, size not on record - "Not reported" beside "Fully Finished" read as a contradiction
+  // (417 Dogwood Ln #2, 239 Windham Dr #2; the valuation estimates the size, marked est.).
+  if (raw.replace('unfinished', '').includes('finished') || remarksBasementFinish(p)) return 'Finished, size not reported'
   // Only a basement recorded as unfinished (or none) is a real 0. A basement described with no
   // finish at all ("Full, Outside Entrance, Poured Concrete") is valued as unfinished, so say that
   // rather than a dash next to the other comps' "Not reported" (417 Dogwood Ln v5, 10/20).
@@ -877,7 +879,14 @@ export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null
       callouts.push('This home is priced above most similar options - supports offering below asking.')
     }
     const fast = pendings.map(p => p.days_on_market).filter((d): d is number => d != null).sort((a, b) => a - b)
-    if (pendings.length >= 2 && fast.length && fast[Math.floor(fast.length / 2)] <= 14) {
+    const ourDom = report.subject?.days_on_market ?? null
+    const fastMid = fast.length ? fast[Math.floor(fast.length / 2)] : null
+    // This home sat while the others went fast: say both, never "be ready to move" beside an offer
+    // page that says it isn't drawing the same competition (417 Dogwood Ln V19, 10/23).
+    const passedOver = !!report.pricing?.ai_estimate?.valuation_trace?.asking_price_check?.passed_over
+    if (pendings.length >= 2 && fastMid != null && fastMid <= 14 && (passedOver || (ourDom != null && ourDom > Math.max(21, fastMid * 2)))) {
+      callouts.push('Similar homes are going under contract quickly, but this one has been listed longer - there may be room to negotiate.')
+    } else if (pendings.length >= 2 && fastMid != null && fastMid <= 14) {
       callouts.push('Similar homes are selling quickly - be ready to move.')
     }
   } else {

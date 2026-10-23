@@ -2174,10 +2174,13 @@ function PdfParagraphs({ text, style, spacing = 7 }: { text: string; style: Styl
 }
 
 function CmaGuidanceSections({ sections }: { sections: CmaGuidanceSection[] }) {
+  // Long lists (8 inspection items, 239 Windham Dr) a touch tighter so they hold one page.
+  const long = sections.reduce((n, sec) => n + (sec.title || '').length + (sec.body || '').length, 0) > 2600;
+  const body = { fontSize: long ? 9.2 : 10, lineHeight: long ? 1.45 : 1.55, color: COLORS.text };
   return (
     <View>
       {sections.map((section, index) => (
-        <View key={`${section.title}-${index}`} style={{ marginBottom: index === sections.length - 1 ? 0 : 11 }}>
+        <View key={`${section.title}-${index}`} style={{ marginBottom: index === sections.length - 1 ? 0 : (long ? 8 : 11) }}>
           {/* A heading and its first paragraph never split across pages - minPresenceAhead alone
               still left "LOT AND DRAINAGE" at the bottom of a page with its text on the next
               (417 Dogwood Ln v10, 10/21). Later paragraphs flow normally. */}
@@ -2187,9 +2190,13 @@ function CmaGuidanceSections({ sections }: { sections: CmaGuidanceSection[] }) {
                 {section.title}
               </Text>
             ) : null}
-            <PdfParagraphs text={pdfParas(section.body)[0] || ''} style={{ fontSize: 10, lineHeight: 1.55, color: COLORS.text }} />
+            <PdfParagraphs text={pdfParas(section.body)[0] || ''} style={body} />
           </View>
-          <PdfParagraphs text={pdfParas(section.body).slice(1).join('\n')} style={{ fontSize: 10, lineHeight: 1.55, color: COLORS.text, marginTop: 7 }} />
+          {/* only when there IS a second paragraph - the empty one's top margin spilled onto a blank
+              page after the last inspection item (239 Windham Dr page 13, 10/23) */}
+          {pdfParas(section.body).length > 1 && (
+            <PdfParagraphs text={pdfParas(section.body).slice(1).join('\n')} style={{ ...body, marginTop: 7 }} />
+          )}
         </View>
       ))}
     </View>
