@@ -41,6 +41,10 @@ const getStr = (obj: any, keys: string[]): string => {
 }
 
 const normalize = (value?: string | null) => (value || '').trim().toLowerCase().replace(/[_-]/g, ' ')
+// 'The School District Of Philadelphia' and 'Philadelphia City' are one district (same rule as the
+// backend's _district_key) - MLS feeds spell the same district several ways.
+export const districtKey = (value?: string | null) =>
+  normalize(value).replace(/\b(the|school|district|of|sd|area|city|public|schools?|unified|regional|township|twp|boro(ugh)?)\b/g, ' ').split(/\s+/).filter(Boolean).join(' ')
 const halfLifeDecay = (delta: number, halfLife: number) => halfLife > 0 ? Math.pow(0.5, Math.abs(delta) / halfLife) : 0
 
 const haversineMiles = (lat: number, lng: number, subjectLat: number, subjectLng: number) => {
@@ -233,9 +237,10 @@ function marketAreaScore(property: any, subject: any): number | null {
     [['subdivision_name', 'subdivisionName', 'SubdivisionName', 'neighborhood', 'neighborhood_name'], 0.25],
     [['City', 'city'], 0.15],
   ]
-  const pieces = fields.flatMap(([keys, weight]) => {
-    const subjectValue = normalize(getStr(subject, keys))
-    const propertyValue = normalize(getStr(property, keys))
+  const pieces = fields.flatMap(([keys, weight], i) => {
+    const norm = i === 0 ? districtKey : normalize
+    const subjectValue = norm(getStr(subject, keys))
+    const propertyValue = norm(getStr(property, keys))
     return subjectValue && propertyValue ? [{ score: subjectValue === propertyValue ? 1 : 0, weight }] : []
   })
   const denominator = pieces.reduce((sum, piece) => sum + piece.weight, 0)
@@ -384,8 +389,8 @@ export function computeMatchScore(property: any, subject: any, comparisonSet: an
 
 export function isSameSchoolDistrict(property: any, subject: any): boolean {
   const keys = ['SchoolDistrictName', 'schoolDistrictName', 'school_district_name', 'schoolDistrict', 'school_district']
-  const school = normalize(getStr(property, keys))
-  const subjectSchool = normalize(getStr(subject, keys))
+  const school = districtKey(getStr(property, keys))
+  const subjectSchool = districtKey(getStr(subject, keys))
   return Boolean(school && subjectSchool && school === subjectSchool)
 }
 

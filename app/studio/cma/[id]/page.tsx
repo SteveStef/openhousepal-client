@@ -35,7 +35,7 @@ import {
   median, normalizeStrength, pricePerSqft, strongComps, sortComparables, splitCmaBuyerGuidance,
 } from '@/lib/cma'
 import { CmaPresentationDocument } from '@/lib/pdfs'
-import { acresToSqft, MatchScoreDetails, sqftToAcres } from '@/lib/matchScore'
+import { acresToSqft, districtKey, MatchScoreDetails, sqftToAcres } from '@/lib/matchScore'
 import { normalizeImageUrl } from '@/lib/utils'
 import { useHoverPhotoCycle } from '@/lib/useHoverPhotoCycle'
 import CompsMapView from '@/components/CompsMapView'
@@ -1648,10 +1648,11 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
     setStatuses(prev => prev.includes(value) ? prev.filter(s => s !== value) : [...prev, value])
   }
 
-  // Same "Same School" badge as the Similar Properties sheet - case-insensitive district match.
-  const subjectSchool = (subject.school_district || '').trim().toLowerCase()
+  // Same "Same School" badge as the Similar Properties sheet - district names normalised, so
+  // 'Philadelphia City' and 'The School District Of Philadelphia' count as the same school.
+  const subjectSchool = districtKey(subject.school_district)
   const isSameSchool = (candidate: CmaCompCandidate) => {
-    const school = (candidate.school_district || '').trim().toLowerCase()
+    const school = districtKey(candidate.school_district)
     return Boolean(school && subjectSchool && school === subjectSchool)
   }
 

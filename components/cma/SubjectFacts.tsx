@@ -284,7 +284,7 @@ export function ManualAddressPicker({ onPick }: { onPick: (a: CmaLocatedAddress)
 function Labeled({ label, hint, children }: { label: string, hint?: string, children: React.ReactNode }) {
   return (
     <div>
-      <label className="mb-1 block text-[10px] font-black uppercase tracking-wide text-gray-400">{label}</label>
+      {label && <label className="mb-1 block text-[10px] font-black uppercase tracking-wide text-gray-400">{label}</label>}
       {children}
       {hint && <p className="mt-1 text-[10px] font-semibold leading-snug text-gray-400">{hint}</p>}
     </div>
@@ -308,14 +308,17 @@ function DateField({ value, onChange }: { value: string, onChange: (v: string) =
   return (
     <div className="relative flex min-w-0 items-center gap-2">
       <div className="relative min-w-0 flex-1">
+        {/* Empty: the native box is fully invisible (some browsers still drew mm/dd/yyyy and the
+            calendar icon under "Not set" - letters on top of each other, 10/23) but stays on top
+            so a tap still opens the picker; this look-alike box shows "Not set" underneath. */}
+        {!value && <div className={`${inputClass} pointer-events-none absolute inset-0 flex items-center text-sm font-semibold !text-gray-400`}>Not set</div>}
         <input
           ref={ref}
           type="date"
-          className={`${inputClass} block min-w-0 appearance-none ${value ? '' : 'text-transparent dark:text-transparent'}`}
+          className={`${inputClass} relative block min-w-0 appearance-none ${value ? '' : 'opacity-0'}`}
           value={value}
           onChange={e => onChange(e.target.value)}
         />
-        {!value && <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-semibold text-gray-400">Not set</span>}
       </div>
       {value && (
         <button type="button" onClick={() => onChange('')} className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-black uppercase tracking-wide text-gray-500 hover:text-[#8b7355] dark:text-gray-400">
@@ -688,7 +691,7 @@ export function SubjectFactsEditor({ reportId, subject, setSubject, area }: {
               updates from the description and the photos, so the agent isn't asked to type them. */}
           <p className={sectionLabelClass}>Description</p>
           <div>
-            <Labeled label="Description" hint="Describe the home the way a listing would - finishes, layout, lot, anything special. The analysis reads this.">
+            <Labeled label="" hint="Describe the home the way a listing would - finishes, layout, lot, anything special. The analysis reads this.">
               <textarea rows={4} className={`${inputClass} resize-y font-medium leading-relaxed`} value={subject.public_remarks || ''}
                 onChange={e => set({ public_remarks: e.target.value || null })} />
             </Labeled>
