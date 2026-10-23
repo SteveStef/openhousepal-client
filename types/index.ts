@@ -3258,6 +3258,7 @@ export interface CmaValuationTrace {
   ai_value_cross_check?: number | null;
   final_fmv?: number;
   asking_price_check?: { asking_price?: number; ratio_used?: number; expected_sale_price?: number; allowed_low_price?: number; allowed_high_price?: number; passed_over?: boolean } | null;
+  pending_competition?: { nudged_from?: number | null; nudge_pct?: number; pendings_used?: { street_address?: string }[] } | null;
   range_pct?: number;
   range_floor_pct?: number;
   confidence_seed?: 'low' | 'medium' | 'high';

@@ -371,7 +371,11 @@ export function buildAdjustmentGrid(estimate?: CmaAiEstimate | null): CmaAdjustm
   const otherAdjustments = Math.round(trace?.adjustment_total ?? 0)
   const preExposure = Math.round(trace?.fmv_pre_exposure ?? (anchorValue + otherAdjustments))
   const formulaValue = Math.round(trace?.v10_formula_fmv ?? preExposure)
-  const finalValue = trace?.final_fmv ?? estimate?.value ?? null
+  // The report's own value comes last: a nudge from homes now under contract runs after final_fmv
+  // (4913 Chancellor St, 10/23: panel said $400,000, report $392,000).
+  const finalValue = estimate?.value ?? trace?.final_fmv ?? null
+  const nudgedFrom = trace?.pending_competition?.nudged_from ?? null
+  const passValue = nudgedFrom ?? finalValue
   const steps: CmaAdjustmentGridStep[] = [
     { label: 'Weighted average of the adjusted sales', value: anchorValue },
   ]
@@ -384,16 +388,23 @@ export function buildAdjustmentGrid(estimate?: CmaAiEstimate | null): CmaAdjustm
     })
     steps.push({ label: 'Formula value', value: formulaValue })
   }
-  if (finalValue && Math.abs(finalValue - formulaValue) > 500) {
+  if (passValue && Math.abs(passValue - formulaValue) > 500) {
     const apc = trace?.asking_price_check
     steps.push({
       // Named for what it is when the home has sat longer than its comps (10/20 review: "show the
       // market-time discount as an explicit, labeled step").
       label: apc?.passed_over ? 'Market-time trim (listed longer than its comps took to sell)' : 'Final valuation pass',
-      amount: finalValue - formulaValue,
+      amount: passValue - formulaValue,
       note: apc?.asking_price && apc?.ratio_used
         ? `Weighs condition, location and how homes here sell against asking (about ${Math.round(apc.ratio_used * 100)}% of asking), kept within ${formatMoney(apc.allowed_low_price ?? null)}–${formatMoney(apc.allowed_high_price ?? null)} of what this home's ${formatMoney(apc.asking_price)} asking price implies.`
         : 'Weighs condition, location and market tempo beyond what the adjusted sales capture.',
+    })
+  }
+  if (nudgedFrom && finalValue && Math.abs(finalValue - nudgedFrom) > 500) {
+    const pendings = (trace?.pending_competition?.pendings_used || []).map(p => p.street_address).filter(Boolean)
+    steps.push({
+      label: 'Similar homes now under contract', amount: finalValue - nudgedFrom,
+      note: `Close matches that just went under contract${pendings.length ? ` (${pendings.join(', ')})` : ''} nudge the value a little, capped at 2.5%.`,
     })
   }
   steps.push({ label: 'Estimated fair market value', value: finalValue ?? formulaValue, bold: true })
@@ -769,6 +780,30 @@ export interface CmaCompetitionHome {
   distance_miles?: number | null
   match_score?: number | null
   price_cuts?: { count: number; total: number; first_price?: number | null; last_cut_at?: string | null } | null
+  // details sheet (10/23) - reports made before then have photo_url only
+  photos?: string[] | null
+  state?: string | null
+  zipcode?: string | null
+  year_built?: number | null
+  lot_size?: number | null
+  latitude?: number | null
+  longitude?: number | null
+  below_grade_finished_area?: number | null
+  garage?: string | null
+  basement?: string | null
+  water_source?: string | null
+  sewer?: string | null
+  school_district?: string | null
+  annual_taxes?: number | null
+  public_remarks?: string | null
+}
+
+/** A Similar Homes card in the shape the comp details sheets read - list price, no sale. */
+export function competitionHomeAsComparable(h: CmaCompetitionHome): CmaComparable {
+  return {
+    ...h, id: `competition-${h.listing_key}`, sale_price: null, sale_date: null,
+    photos: h.photos && h.photos.length ? h.photos : (h.photo_url ? [h.photo_url] : []),
+  } as unknown as CmaComparable
 }
 
 export interface CmaCompetitionCard extends CmaCompetitionHome {

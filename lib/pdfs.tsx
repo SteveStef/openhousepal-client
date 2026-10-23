@@ -3077,6 +3077,30 @@ function CmaCompetitionPage({ report, agent }: { report: CmaReport; agent: CmaPd
     <Page size="LETTER" style={cma.page}>
       <CmaPdfHeader label="Current Market" title={view.title} subtitle={view.subtitle} />
       <Text style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.6, color: COLORS.subtext, marginBottom: 6 }}>{view.note}</Text>
+      {/* the subject on top, same layout as the cards, so each one reads against it (10/23) */}
+      {(() => {
+        const s = report.subject;
+        if (!s) return null;
+        const photo = (s.photos && s.photos[0]) || s.photo_url;
+        const ag = s.above_grade_finished_area || s.sqft;
+        return (
+          <View wrap={false} style={{ flexDirection: 'row', borderWidth: 1.2, borderColor: '#C9A24D', borderRadius: 6, marginBottom: 8, overflow: 'hidden', backgroundColor: '#FBFAF7' }}>
+            {photo
+              ? <Image src={normalizeImageUrl(photo)} style={{ width: 120, height: 82, objectFit: 'cover' }} />
+              : <View style={{ width: 120, height: 82, backgroundColor: '#F3F4F6' }} />}
+            <View style={{ flex: 1, padding: 7 }}>
+              <Text style={{ fontSize: 6.2, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.5, color: '#8b7355' }}>This home</Text>
+              <Text style={{ fontSize: 12, fontWeight: 900, color: COLORS.text, marginTop: 2 }}>
+                {formatMoney(s.list_price ?? null)}{s.list_price && ag ? `  ·  $${Math.round(s.list_price / ag)}/sq ft` : ''}
+              </Text>
+              <Text style={{ fontSize: 8, fontWeight: 700, color: COLORS.text, marginTop: 1 }}>{s.street_address}</Text>
+              <Text style={{ fontSize: 7, color: COLORS.subtext, marginTop: 1 }}>
+                {[s.beds != null ? `${s.beds} bd` : null, s.baths != null ? `${s.baths} ba` : null, ag ? `${Math.round(ag).toLocaleString()} sq ft` : null, s.year_built ? `built ${s.year_built}` : null, s.days_on_market != null ? `${s.days_on_market} days on market` : null].filter(Boolean).join('  ·  ')}
+              </Text>
+            </View>
+          </View>
+        );
+      })()}
       {view.callouts.map(c => (
         <View key={c} style={{ backgroundColor: '#F7F1E3', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 7, marginBottom: 4 }}>
           <Text style={{ fontSize: 7.4, fontWeight: 700, color: '#8b7355' }}>{c}</Text>
@@ -3099,7 +3123,8 @@ function CmaCompetitionPage({ report, agent }: { report: CmaReport; agent: CmaPd
               <Text style={{ fontSize: 12, fontWeight: 900, color: COLORS.text, marginTop: 2 }}>
                 {formatMoney(h.list_price)}{h.price_per_sqft ? `  ·  $${h.price_per_sqft}/sq ft` : ''}
               </Text>
-              <Text style={{ fontSize: 8, fontWeight: 700, color: COLORS.text, marginTop: 1 }}>{h.street_address}</Text>
+              <Text style={{ fontSize: 8, fontWeight: 700, color: COLORS.text, marginTop: 1 }}>{[h.street_address, h.city].filter(Boolean).join(', ')}</Text>
+              {h.school_district && <Text style={{ fontSize: 6.6, color: COLORS.subtext, marginTop: 1 }}>{`School: ${h.school_district}`}</Text>}
               <Text style={{ fontSize: 7, color: COLORS.subtext, marginTop: 1 }}>
                 {[h.beds != null ? `${h.beds} bd` : null, h.baths != null ? `${h.baths} ba` : null, h.sqft ? `${Math.round(h.sqft).toLocaleString()} sq ft` : null, h.days_on_market != null ? `${h.days_on_market} days on market` : null].filter(Boolean).join('  ·  ')}
               </Text>

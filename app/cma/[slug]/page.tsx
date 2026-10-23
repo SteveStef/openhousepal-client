@@ -9,7 +9,7 @@ import { Bath, BedDouble, Building2, Calendar, Car, ChevronLeft, ChevronRight, D
 import api from '@/lib/api-service'
 import { CmaComparable, CmaPublicResponse } from '@/types'
 import {
-  buildCmaStaticMapUrl, buildCompLocationMapUrl, clientCompStrength, compDisplayPrice, resolveCmaMarketMetrics, effectiveCompPrice, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange,
+  buildCmaStaticMapUrl, buildCompLocationMapUrl, competitionHomeAsComparable, clientCompStrength, compDisplayPrice, resolveCmaMarketMetrics, effectiveCompPrice, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange,
   CmaGuidanceSection, cmaGuidanceSections, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, COMP_STATUS_BADGE_STYLE,
   AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_STYLES, STRENGTH_LABEL, STRENGTH_SCALE_STYLES, STRENGTH_STYLES,
   buyerOfferFigures, basementDisplay, materialIssuesText, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft,
@@ -404,7 +404,7 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
         })()}
 
         {/* Similar homes for sale / under contract now - list prices, never mixed into the sold comps above */}
-        {!hiddenSections.has('competition') && <div className="print:break-inside-avoid"><CurrentCompetition report={data as any} /></div>}
+        {!hiddenSections.has('competition') && <div className="print:break-inside-avoid"><CurrentCompetition report={data as any} onOpenHome={h => setOpenComp(competitionHomeAsComparable(h))} /></div>}
 
         {/* Agent Final Analysis */}
         {!hiddenSections.has('pricing') && (

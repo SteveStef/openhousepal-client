@@ -33,6 +33,7 @@ import {
   AGENT_QUALITY_TIER_STYLES, CMA_STATUS_STYLES, COMP_STATUS_BADGE_STYLE, COMP_STATUS_LABEL, QUALITY_LABELS, STRENGTH_LABEL,
   average, cmaSupportCode, compDisplayPrice, resolveCmaMarketMetrics, effectiveCompPrice, formatCompactNumber, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber,
   median, normalizeStrength, pricePerSqft, strongComps, sortComparables, splitCmaBuyerGuidance,
+  type CmaCompetitionHome, competitionHomeAsComparable,
 } from '@/lib/cma'
 import { CmaPresentationDocument } from '@/lib/pdfs'
 import { acresToSqft, MatchScoreDetails, sameDistrict, sqftToAcres } from '@/lib/matchScore'
@@ -3156,7 +3157,7 @@ function buildAnalysisPopupData(kind: 'subject' | 'comp', subject: CmaSubjectPro
     status: comp.status,
     matchScore: typeof comp.match_score === 'number' ? comp.match_score : null,
     distanceMiles: comp.distance_miles,
-    sameSchool: !!(comp.school_district && subject.school_district && comp.school_district === subject.school_district),
+    sameSchool: sameDistrict(comp.school_district, subject.school_district) === true,
     facts: [
       { icon: Bed, label: 'Beds', value: comp.beds ?? '-', fixedSpan: false },
       { icon: Bath, label: 'Baths', value: comp.baths ?? '-', fixedSpan: false },
@@ -5098,6 +5099,7 @@ function PricingStep({ report, onSave, onReportUpdated, onNext, onBack }: { repo
 function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
   report: CmaReport, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>, onReportUpdated: (r: CmaReport) => void, onJump: (s: StepId) => void, onDeleted: () => void,
 }) {
+  const [competitionHome, setCompetitionHome] = useState<CmaCompetitionHome | null>(null)
   const { showToast } = useToast()
   const router = useRouter()
   const { user } = useAuth()
@@ -5327,7 +5329,12 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
         ) : null)}
       </SectionCard>
 
-      {!presentation.hidden_sections.includes('competition') && <CurrentCompetition report={report} agentView />}
+      {!presentation.hidden_sections.includes('competition') && <CurrentCompetition report={report} agentView onOpenHome={setCompetitionHome} />}
+      <PropertyPopupModal
+        open={!!competitionHome}
+        onClose={() => setCompetitionHome(null)}
+        data={competitionHome ? buildAnalysisPopupData('comp', report.subject, competitionHomeAsComparable(competitionHome)) : null}
+      />
 
       {/* QA/Review is intentionally not shown to the agent - admin can view it via CmaLookupPanel
           using the report's own support code (see the Report Code block further down this page). */}
