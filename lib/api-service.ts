@@ -737,6 +737,9 @@ class ApiService {
     getStorageAgents: () => this.request<AdminStorageAgentSummary[]>('/admin/storage/agents'),
     /** Agent activity tracker - every agent's usage (counts only, never their clients' details). */
     getActivity: () => this.request<AdminActivityOverview>('/admin/activity'),
+
+    // Site-wide Insights pages (summary | signins | showcases | emails | tools | guests); days 0 = all time.
+    getInsights: <T = any>(page: string, days: number) => this.request<T>(`/admin/insights/${page === 'summary' ? 'overview' : page}?days=${days}`),
     /** Agents whose own domain isn't working right now. */
     getDomainIssues: () => this.request<{ issues: AdminDomainIssue[] }>('/admin/domain-issues'),
     getActivityAgent: (agentId: string) => this.request<AdminActivityAgentDetail>(`/admin/activity/agents/${agentId}`),
@@ -2211,7 +2214,12 @@ class ApiService {
       phone: string,
       has_agent: string,
       open_house_event_id: string,
-      interested_in_similar: boolean
+      interested_in_similar: boolean,
+      // How the sign-in went (admin Insights): the showing it came from + seconds from first tap.
+      signin_view_id?: string,
+      signin_seconds?: number,
+      signin_mode?: 'phone' | 'kiosk',
+      signin_device?: 'mobile' | 'tablet' | 'desktop',
     }) => this.request('/open-house/submit', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -2219,8 +2227,11 @@ class ApiService {
 
     // Fire-and-forget: records that the sign-in form was actually shown to someone, so the
     // "Completion %" stat has a denominator (started) to compare completed submissions against.
-    trackSignInView: (openHouseEventId: string) =>
-      this.request(`/open-house/${openHouseEventId}/track-view`, { method: 'POST' }, false),
+    // Returns the showing's id, sent back with the sign-in so it counts as finished.
+    trackSignInView: (openHouseEventId: string, mode?: 'phone' | 'kiosk', device?: string) =>
+      this.request<{ success: boolean; view_id?: string }>(
+        `/open-house/${openHouseEventId}/track-view?${new URLSearchParams({ ...(mode ? { mode } : {}), ...(device ? { device } : {}) })}`,
+        { method: 'POST' }, false),
 
     submitOpenHouseFormRequest: (openHouseEventId: string, data: {
       form_type: 'disclosure' | 'second_visit',

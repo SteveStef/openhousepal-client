@@ -18,6 +18,8 @@ import { useFormsActionCount } from '@/hooks/useFormsActionCount'
 import { useShowcasesActionCount } from '@/hooks/useShowcasesActionCount'
 import { useSettingsCompleteness } from '@/hooks/useSettingsCompleteness'
 import { useSupportUnreadCount } from '@/hooks/useSupportUnreadCount'
+import { useAdminUnread } from '@/hooks/useAdminUnread'
+import { ADMIN_SECTIONS, adminHref } from '@/lib/adminNav'
 import { getNavFeatureAccess, isMissingLadderFeatures, type NavFeatureKey } from '@/lib/navAccess'
 import { SpotlightIcon } from '@/components/icons/CustomIcons'
 import { todayLocal } from '@/lib/relativeDays'
@@ -136,6 +138,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
   const showcasesActionCount = useShowcasesActionCount()
   const { anyMissing: settingsIncomplete } = useSettingsCompleteness()
   const supportUnreadCount = useSupportUnreadCount()
+  const adminUnread = useAdminUnread()
 
   const isFullyExpired = !user?.is_admin && (user?.subscription_status === 'CANCELLED' || user?.subscription_status === 'EXPIRED') && !hasValidSubscription(user)
   const hasCoreAccess = (user?.is_admin || hasValidSubscription(user)) && !isFullyExpired
@@ -268,21 +271,48 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                 
                 {/* Desktop Menu */}
                 <div className="hidden md:flex items-center space-x-1 sm:space-x-3">
-                {/* Admin Tab */}
-                {user?.is_admin && (
-                  <Link
-                    href="/admin"
-                    className={`relative px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center group ${
-                      isActive('/admin') 
-                        ? 'text-[#C9A24D] bg-[#C9A24D]/5' 
-                        : 'text-[#6B7280] dark:text-gray-400 hover:text-[#C9A24D] hover:bg-[#C9A24D]/5'
-                    }`}
-                  >
-                    <ShieldCheck className="w-4 h-4 mr-2 ohp-icon-draw" />
-                    <span>Admin</span>
-                    <span className="ohp-grow-underline" style={{ '--ohp-grow-w': 'calc(100% - 1.5rem)' } as CSSProperties} />
-                  </Link>
-                )}
+                {/* Admin: each big area is its own tab, with its pages in a hover menu (lib/adminNav.ts). */}
+                {user?.is_admin && ADMIN_SECTIONS.map(sec => {
+                  const href = sec.key === 'overview' ? '/admin' : `/admin/${sec.key}`
+                  const on = sec.key === 'overview' ? pathname === '/admin' : pathname.startsWith(href)
+                  const badge = sec.key === 'inbox' ? adminUnread.support + adminUnread.questions : 0
+                  return (
+                    <div key={sec.key} className="relative group/adm">
+                      <Link
+                        href={href}
+                        className="relative px-2.5 lg:px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center group text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800"
+                      >
+                        <sec.icon className={`w-4 h-4 mr-2 ohp-icon-draw ${on ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
+                        <span>{sec.label}</span>
+                        {badge > 0 && (
+                          <span className="ml-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">{badge > 9 ? '9+' : badge}</span>
+                        )}
+                        {sec.tabs.length > 1 && <ChevronDown className="ml-1 w-3 h-3 text-gray-400 transition-transform duration-200 group-hover/adm:rotate-180" />}
+                        {on && <motion.div layoutId="headerNavUnderline" className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full" transition={{ type: 'spring', stiffness: 500, damping: 35 }} />}
+                        <span className="ohp-grow-underline" style={{ '--ohp-grow-w': 'calc(100% - 1.5rem)' } as CSSProperties} />
+                      </Link>
+                      {sec.tabs.length > 1 && (
+                        <div className="invisible absolute left-0 top-full z-[60] w-56 pt-2 opacity-0 transition-all duration-150 group-hover/adm:visible group-hover/adm:opacity-100">
+                          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151517] p-1.5 shadow-2xl">
+                            {sec.tabs.map(t => {
+                              const tHref = adminHref(t.key)
+                              const tOn = pathname === tHref
+                              const n = t.key === 'support' ? adminUnread.support : t.key === 'questions' ? adminUnread.questions : 0
+                              return (
+                                <Link key={t.key} href={tHref}
+                                  className={`group relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-bold transition-colors ${tOn ? 'text-[#C9A24D] bg-[#C9A24D]/10' : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                                  <t.icon className={`ohp-icon-draw w-4 h-4 ${tOn ? 'text-[#C9A24D]' : 'text-gray-400'}`} />
+                                  <span className="flex-1"><span className="ohp-underline-text">{t.label}</span></span>
+                                  {n > 0 && <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">{n > 9 ? '9+' : n}</span>}
+                                </Link>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
 
                 {!user?.is_admin && (
                 !user?.broker_authorized ? (
@@ -661,19 +691,34 @@ export default function Header({ mode = 'app' }: HeaderProps) {
           {/* Menu Card */}
           <div className="absolute right-4 top-20 left-4 bg-white dark:bg-[#151517] rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden transform transition-all">
             <div className="p-2 space-y-1">
-              {user?.is_admin && (
-                <Link
-                  href="/admin"
-                  className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
-                    isActive('/admin') 
-                      ? 'bg-[#C9A24D]/10 text-[#C9A24D]' 
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`}
-                >
-                  <ShieldCheck className="w-5 h-5" />
-                  <span>Admin Panel</span>
-                </Link>
-              )}
+              {user?.is_admin && ADMIN_SECTIONS.map(sec => (
+                <div key={sec.key} className="rounded-2xl">
+                  <Link
+                    href={sec.key === 'overview' ? '/admin' : `/admin/${sec.key}`}
+                    className={`flex items-center space-x-4 px-4 py-3 rounded-2xl font-bold transition-all ${
+                      (sec.key === 'overview' ? pathname === '/admin' : pathname.startsWith(`/admin/${sec.key}`))
+                        ? 'bg-[#C9A24D]/10 text-[#C9A24D]'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <sec.icon className="w-5 h-5" />
+                    <span className="flex-1">{sec.label}</span>
+                    {sec.key === 'inbox' && adminUnread.support + adminUnread.questions > 0 && (
+                      <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">{adminUnread.support + adminUnread.questions}</span>
+                    )}
+                  </Link>
+                  {sec.tabs.length > 1 && (
+                    <div className="ml-12 mb-1 flex flex-wrap gap-1.5">
+                      {sec.tabs.map(t => (
+                        <Link key={t.key} href={adminHref(t.key)}
+                          className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${pathname === adminHref(t.key) ? 'bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8c97a]' : 'bg-gray-50 text-gray-500 dark:bg-white/[0.05] dark:text-gray-400'}`}>
+                          {t.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
 
               {!user?.is_admin && (
               !user?.broker_authorized ? (

@@ -25,6 +25,8 @@ export default function IncompleteSettingsModal() {
   }, [])
 
   if (!isAuthenticated || !user || !loaded || !setup || setup.finished || dismissed) return null
+  // The admin account has no agent setup to finish.
+  if (user.is_admin) return null
   // One popup at a time: a new IDX agent answers "Do you want to use your IDX website?" first.
   if (user.plan_tier === 'IDX' && !user.idx_domain_migration_agreed_at) return null
   // Never over the flow itself or a working surface.

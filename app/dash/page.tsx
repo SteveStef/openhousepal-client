@@ -168,7 +168,7 @@ export default function DashPage() {
   const refreshFollowupCount = useCallback(() => {
     api.tasks.counts().then(r => { if (r.success && r.data) setFollowupOpenCount(r.data.overdue + r.data.today) })
   }, [])
-  useEffect(() => { refreshFollowupCount() }, [refreshFollowupCount])
+  useEffect(() => { if (!user?.is_admin) refreshFollowupCount() }, [refreshFollowupCount, user?.is_admin])
 
   const loadDashData = useCallback(async (isFirstLoad = false) => {
     const [statsRes, attentionLeadsRes, recentLeadsRes, activityNotificationsRes, hostRequestsRes, discoveryRes, myListingsRes] = await Promise.all([
@@ -252,10 +252,15 @@ export default function DashPage() {
     if (!isCheckingAuth && !isAuthenticated) {
       router.replace('/')
     }
-  }, [isCheckingAuth, isAuthenticated, router])
+    // The admin account has no agent dashboard - its home is the admin Overview.
+    if (!isCheckingAuth && user?.is_admin) {
+      router.replace('/admin')
+    }
+  }, [isCheckingAuth, isAuthenticated, user?.is_admin, router])
 
   useEffect(() => {
-    if (!isAuthenticated) return
+    // The admin is sent on to /admin (above) - no agent data to load for it.
+    if (!isAuthenticated || isCheckingAuth || user?.is_admin) return
 
     loadDashData(true)
 
@@ -279,7 +284,7 @@ export default function DashPage() {
       clearInterval(tick)
       document.removeEventListener('visibilitychange', handleVisible)
     }
-  }, [loadDashData, isAuthenticated])
+  }, [loadDashData, isAuthenticated, isCheckingAuth, user?.is_admin])
 
   const updatedAgo = (() => {
     if (!lastUpdated) return null

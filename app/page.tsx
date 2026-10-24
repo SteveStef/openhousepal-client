@@ -181,7 +181,7 @@ function HomePageContent() {
   // /dash below - every other way of landing on `/` (typing the URL, the post-login redirect,
   // etc.) has no such param and keeps defaulting to /dash exactly as before.
   const viewMarketingAnyway = searchParams.get('view') === 'marketing'
-  const { isAuthenticated, isLoading: isCheckingAuth } = useAuth()
+  const { user, isAuthenticated, isLoading: isCheckingAuth } = useAuth()
   const [isVisible, setIsVisible] = useState(false)
   const [pricingAudience, setPricingAudience] = useState<'bright' | 'no_mls'>('bright')
   // Mobile-only plan-select bar under the audience toggle: below `md` only the selected plan's
@@ -341,9 +341,9 @@ function HomePageContent() {
 
   useEffect(() => {
     if (!isCheckingAuth && isAuthenticated && !viewMarketingAnyway) {
-      router.replace('/dash')
+      router.replace(user?.is_admin ? '/admin' : '/dash')
     }
-  }, [isCheckingAuth, isAuthenticated, viewMarketingAnyway, router])
+  }, [isCheckingAuth, isAuthenticated, viewMarketingAnyway, user?.is_admin, router])
 
   // Footer links (Features / Pricing / FAQ) arrive as /?view=marketing#tools etc. The first paint
   // is a blank placeholder while sign-in resolves, so the browser's own jump to #tools finds

@@ -9,6 +9,7 @@ import OpenHouseSignInForm from '@/components/OpenHouseSignInForm'
 import { Property, SignInFormData } from '@/types'
 import api from '@/lib/api-service'
 import { enqueueSignIn, queueCount, startQueueFlusher } from '@/lib/kioskQueue'
+import { formVisitContext } from '@/lib/formTracking'
 import OhpLoader from '@/components/brand/OhpLoader'
 import { useQrDataUrl } from '@/lib/qr'
 import { MlsUpdatedText } from '@/components/MLSComplianceFooter'
@@ -620,13 +621,22 @@ export default function OpenHouseSignInPage() {
   // interactive Kiosk mode (formInstanceKey changes on every auto-reset). Deliberately excludes
   // the mode-chooser screen and Sign-In Sheet mode, since no one is looking at the form itself
   // on this device in either of those.
+  // Sign-in timing (admin Insights): from the guest's first tap or keystroke on the form to Sign in.
+  // Starting at first touch, not page load, so a Kiosk tablet waiting for the next guest doesn't count.
+  const viewIdRef = useRef<string | null>(null)
+  const firstTouchRef = useRef<number | null>(null)
+  const markFirstTouch = () => { if (firstTouchRef.current == null) firstTouchRef.current = Date.now() }
   const trackedInstanceRef = useRef<number | null>(null)
   useEffect(() => {
     if (!property || isLoading || error) return
     if (isKiosk && kioskMode !== 'interactive') return
     if (trackedInstanceRef.current === formInstanceKey) return
     trackedInstanceRef.current = formInstanceKey
-    api.public.trackSignInView(openHouseEventId).catch(() => {})
+    viewIdRef.current = null
+    firstTouchRef.current = null
+    api.public.trackSignInView(openHouseEventId, isKiosk ? 'kiosk' : 'phone', formVisitContext().device)
+      .then(r => { if (r.success && r.data?.view_id && trackedInstanceRef.current === formInstanceKey) viewIdRef.current = r.data.view_id })
+      .catch(() => {})
   }, [property, isLoading, error, isKiosk, kioskMode, formInstanceKey, openHouseEventId])
 
   useEffect(() => {
@@ -661,6 +671,10 @@ export default function OpenHouseSignInPage() {
       open_house_event_id: openHouseEventId,
       interested_in_similar: !!formData.interestedInSimilar,
       ...(wantsSimilar ? { intent: 'similar' } : {}),
+      ...(viewIdRef.current ? { signin_view_id: viewIdRef.current } : {}),
+      ...(firstTouchRef.current != null ? { signin_seconds: Math.round((Date.now() - firstTouchRef.current) / 100) / 10 } : {}),
+      signin_mode: (isKiosk ? 'kiosk' : 'phone') as 'kiosk' | 'phone',
+      signin_device: formVisitContext().device,
     }
     // Going straight on to the Guest Pass / Agent Hub - keep the button spinning until it opens.
     let leaving = false
@@ -977,6 +991,7 @@ export default function OpenHouseSignInPage() {
             >
               {/* Guaranteed non-null here: the (!success && !property) branch above already
                   returned when neither was true, so success===false means property is set. */}
+              <div onPointerDownCapture={markFirstTouch} onKeyDownCapture={markFirstTouch}>
               <OpenHouseSignInForm
                 key={formInstanceKey}
                 property={property!}
@@ -984,6 +999,7 @@ export default function OpenHouseSignInPage() {
                 isLoading={isSubmitting}
                 headline={wantsSimilar ? 'Start Your Showcase' : undefined}
               />
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
