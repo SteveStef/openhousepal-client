@@ -43,6 +43,9 @@ export function formatCompactNumber(value?: number | null): string {
 export function formatAcresFromSqft(value?: number | null, opts: { long?: boolean } = {}): string {
   if (value === null || value === undefined || Number.isNaN(value) || value <= 0) return '—'   // escaped: a literal dash here was once saved mis-encoded and printed "â€”" in the PDF
   const acres = value / 43560
+  // An MLS data-entry error, not a lot (523 Sherbrook Dr printed "431 ac", 10/23). The backend drops these
+  // on new searches (cma_fact_check.implausible_lot); this covers comps saved before that.
+  if (acres > 250) return '—'
   const formatted = acres.toLocaleString('en-US', {
     minimumFractionDigits: acres < 0.1 ? 2 : 0,
     maximumFractionDigits: acres < 1 ? 2 : 1,
@@ -410,7 +413,16 @@ export function buildAdjustmentGrid(estimate?: CmaAiEstimate | null): CmaAdjustm
     })
   }
   steps.push({ label: 'Estimated fair market value', value: finalValue ?? formulaValue, bold: true })
-  const fa0 = rows.find(c => c.feature_adjustments)?.feature_adjustments as { size_rate_psf?: number, below_grade_rate_psf?: number, market_psf?: number } | undefined
+  // The backend's value bridge (10/24) is the one source for these steps when present - the client PDF
+  // prints the same lines, so the agent panel and the report can't disagree.
+  const bridge = estimate?.value_bridge
+  if (bridge?.steps) {
+    steps.splice(0, steps.length,
+      { label: 'Weighted average of the adjusted sales', value: bridge.adjusted_sales_value },
+      ...bridge.steps.map(s => ({ label: s.label, amount: s.amount, note: s.basis })),
+      { label: 'Estimated fair market value', value: bridge.final_value, bold: true })
+  }
+  const fa0 =rows.find(c => c.feature_adjustments)?.feature_adjustments as { size_rate_psf?: number, below_grade_rate_psf?: number, market_psf?: number } | undefined
   return {
     comps, hasSewer: comps.some(c => c.sewer), marketPsf: fa0?.market_psf ?? null,
     rates: { size: fa0?.size_rate_psf ?? null, lowerLevel: fa0?.below_grade_rate_psf ?? null },
@@ -873,7 +885,13 @@ export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null
   const actives = cards.filter(c => c.status === 'active')
   const pendings = cards.filter(c => c.status === 'pending')
   const callouts: string[] = []
-  if (buyer) {
+  // Under contract already: the market just accepted its price - "priced above most options, offer below
+  // asking" contradicts that (102 Steeplewood Dr, under contract in 8 days - grader 10/23).
+  const underContract = /under contract|pending|contingent/i.test(String(report.subject?.mls_status || ''))
+  if (buyer && underContract) {
+    const d = report.subject?.days_on_market
+    callouts.push(`This home is already under contract${d != null ? ` after ${d} days on the market` : ''} - buyers accepted its price quickly, so a backup offer needs to be close to it.`)
+  } else if (buyer) {
     const pricier = ourPsf ? actives.filter(a => a.price_per_sqft && ourPsf > a.price_per_sqft).length : 0
     if (actives.length >= 2 && pricier > actives.length / 2) {
       callouts.push('This home is priced above most similar options - supports offering below asking.')

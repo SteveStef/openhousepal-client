@@ -2678,6 +2678,8 @@ export interface CmaSimilarityDetails {
   // closing price, or no finished square footage on record). Still shown in the grid; never
   // auto-picked, since it would only take a slot from a usable sale.
   valuation_eligible?: boolean;
+  // A sale outside the automatic price band: shown with the reason, never auto-picked (10/24).
+  outside_price_band?: { pct_vs_asking?: number | null; note?: string } | null;
   proposed_role?: 'strong' | 'supporting' | 'weak' | string;
 }
 
@@ -2932,11 +2934,46 @@ export interface CmaAiEstimate {
   insufficient_evidence?: boolean | null;
   /** Agent-only "Review before sending": the asking-price check moved the value 5%+ off the comps. */
   agent_review?: { comps_value: number; final_value: number; gap_pct: number; message: string } | null;
+  /** Agent-only: a buyer CMA made on the agent's own listing (10/24). */
+  audience_review?: { own_listing: boolean; mode: string; message: string } | null;
+  /** Every step from the adjusted comparable sales to the final value, adding up exactly (10/24). */
+  value_bridge?: CmaValueBridge | null;
+  /** HOA / condo fees and the home's earlier MLS listings and sales (10/24). */
+  property_record?: CmaPropertyRecord | null;
   // OpenStreetMap road/street classification for the SUBJECT (each comp carries its own on
   // comp.road_context).
   subject_road_context?: CmaRoadContext | null;
   model?: string;
   generated_at?: string;
+}
+
+export interface CmaValueBridgeStep {
+  key: 'listing' | 'judgment' | 'pending' | string;
+  label: string;
+  amount: number;
+  basis: string;
+  measured: boolean;
+}
+export interface CmaValueBridge {
+  version: string;
+  adjusted_sales_value: number;
+  steps: CmaValueBridgeStep[];
+  final_value: number;
+  asking_price?: number | null;
+  asking_implied_sale_price?: number | null;
+  range_min?: number | null;
+  range_max?: number | null;
+  confidence_cap?: string | null;
+  checks?: string[];
+}
+export interface CmaPropertyRecord {
+  fees?: { label: string; amount: number; frequency: string; monthly: number }[] | null;
+  fee_includes?: string[] | null;
+  history_lines?: string[] | null;
+  last_sale?: { date: string; price?: number | null } | null;
+  relisted?: boolean;
+  marketing_days_total?: number | null;
+  current_listing_days?: number | null;
 }
 
 export interface CmaOfferStrategyFields {

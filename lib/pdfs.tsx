@@ -32,7 +32,7 @@ function pdfImageUrl(url?: string | null): string {
   if (typeof window === 'undefined') return normalized;
   return `${window.location.origin}/api/pdf-image?url=${encodeURIComponent(normalized)}`;
 }
-import { cmaCompetitionView } from '@/lib/cma';
+import { cmaCompetitionView, buildAdjustmentGrid, formatSignedMoney, CmaAdjustmentGridComp } from '@/lib/cma';
 import { CmaGuidanceSection, buildCmaStaticMapUrl, clientCompStrength, cmaGuidanceSections, resolveCmaMarketMetrics, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, buyerOfferFigures, AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_HEX, STRENGTH_LABEL, STRENGTH_TIER_HEX, compDisplayPrice, effectiveCompPrice, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft, basementDisplay, materialIssuesText } from '@/lib/cma';
 import { qrPdfSrc } from '@/lib/qr';
 import { salesAreRecent, salesWords } from '@/lib/salesWording'
@@ -2738,10 +2738,19 @@ function CmaComparablePage({ comp, index, agent }: { comp: CmaComparable; index:
     label: (fact as { label: string }).label,
     value: String((fact as { value: string | number }).value),
   }));
-  // A fact long enough to wrap to two lines (e.g. "Tredyffrin- Easttown") makes its row taller -
-  // give that height back from the photo so the page never spills onto a blank extra page.
-  const tallFact = compFacts.some(f => f.value.length > 13) ? 16 : 0;
-  const compPhotoHeight = (isLongNote ? (hasQuality ? 185 : 205) : (hasQuality ? 225 : 245)) - tallFact;
+  // A fact long enough to wrap (e.g. "Tredyffrin- Easttown", "Finished, size not reported") makes its
+  // row taller - give that height back from the photo so the page never spills onto a blank extra
+  // page. Every wrapped ROW counts, not just the first (239 Windham Dr V4, 10/23: three wrapped rows
+  // pushed comp #2's footer onto an empty page 5), and so does a note running past its usual length.
+  const cols = hasQuality ? 3 : 4;
+  let tallFact = 0;
+  for (let i = 0; i < compFacts.length; i += cols) {
+    const lines = Math.max(...compFacts.slice(i, i + cols).map(f => Math.ceil(f.value.length / 13)), 1);
+    tallFact += (lines - 1) * 14;
+  }
+  const noteLines = Math.ceil((note || '').length / (isLongNote ? 125 : 112));
+  tallFact += Math.max(0, noteLines - (isLongNote ? 9 : 6)) * (isLongNote ? 11.5 : 13.5);
+  const compPhotoHeight = Math.max(110, (isLongNote ? (hasQuality ? 185 : 205) : (hasQuality ? 225 : 245)) - tallFact);
   return (
     <Page size="LETTER" style={cma.page}>
       <CmaPdfHeader
@@ -2962,6 +2971,104 @@ function CmaPricingPage({ report, comparables, agent }: { report: CmaReport; com
   );
 }
 
+// "How the value was reached" (grader 10/23: "make the valuation auditable instead of inventing a numerical
+// bridge"). Each verified sale with the dollar adjustments that move it toward this home and its share of the
+// value, then every step from the adjusted sales to the final value - the steps add up exactly (backend
+// _v10_value_bridge). Plus the record facts that change what a buyer pays: HOA / condo fees, earlier
+// listings and the last sale. Hidden with the rest of the pricing pages.
+function CmaValueBridgePage({ report, agent }: { report: CmaReport; agent: CmaPdfAgent }) {
+  const est = report.pricing.ai_estimate;
+  const grid = buildAdjustmentGrid(est);
+  const bridge = est?.value_bridge;
+  const record = est?.property_record;
+  if (!grid && !bridge && !record) return null;
+  const rows: { label: string; get: (c: CmaAdjustmentGridComp) => string; bold?: boolean }[] = grid ? [
+    { label: 'Sold price', get: c => formatMoney(c.sale) },
+    { label: 'Above-grade size', get: c => formatSignedMoney(c.size) },
+    { label: 'Finished lower level', get: c => formatSignedMoney(c.lowerLevel) },
+    { label: 'Bathrooms', get: c => formatSignedMoney(c.baths) },
+    { label: 'Garage / parking', get: c => formatSignedMoney(c.garage) },
+    ...(grid.hasSewer ? [{ label: 'Cesspool', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.sewer) }] : []),
+    ...(grid.comps.some(c => c.lot) ? [{ label: 'Lot size', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.lot) }] : []),
+    ...(grid.comps.some(c => c.age) ? [{ label: 'Age', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.age) }] : []),
+    ...(grid.comps.some(c => c.road) ? [{ label: 'Busier road', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.road) }] : []),
+    ...(grid.comps.some(c => c.location) ? [{ label: 'Location (block prices)', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.location) }] : []),
+    ...(grid.comps.some(c => c.condition) ? [{ label: 'Condition', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.condition) }] : []),
+    ...(grid.comps.some(c => c.time) ? [{ label: 'Market change since sale', get: (c: CmaAdjustmentGridComp) => formatSignedMoney(c.time) }] : []),
+    { label: 'Adjusted price', get: c => formatMoney(c.adjusted), bold: true },
+    { label: 'Share of value', get: c => `${c.weightPct}%` },
+  ] : [];
+  const cell = { flex: 1, fontSize: 6.8, textAlign: 'right' as const, paddingVertical: 2.4 };
+  const comps = grid?.comps || [];
+  return (
+    <Page size="LETTER" style={cma.page}>
+      <CmaPdfHeader label="How the Value Was Reached" title="Adjustments and Value Steps" subtitle="Every adjustment and every step, adding up to the final value" />
+      {grid && comps.length > 0 && (
+        <View wrap={false} style={{ backgroundColor: COLORS.white, borderRadius: 10, padding: 12, border: `1 solid ${COLORS.border}`, marginBottom: 10 }}>
+          <Text style={{ fontSize: 8.4, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1.1, color: COLORS.text, marginBottom: 6 }}>Each sale, adjusted toward this home</Text>
+          <View style={{ flexDirection: 'row', borderBottom: `1 solid ${COLORS.line}`, paddingBottom: 3 }}>
+            <Text style={{ width: 104, fontSize: 6.6, color: COLORS.subtext, fontWeight: 700 }} />
+            {comps.map(c => (
+              <Text key={c.label} style={{ ...cell, fontWeight: 900, color: COLORS.text }}>{`${c.label}\n${(c.address || '').slice(0, 18)}`}</Text>
+            ))}
+          </View>
+          {rows.map(r => (
+            <View key={r.label} style={{ flexDirection: 'row', borderBottom: `0.5 solid ${COLORS.line}` }}>
+              <Text style={{ width: 104, fontSize: 6.8, paddingVertical: 2.4, color: r.bold ? COLORS.text : COLORS.subtext, fontWeight: r.bold ? 900 : 700 }}>{r.label}</Text>
+              {comps.map(c => <Text key={c.label} style={{ ...cell, fontWeight: r.bold ? 900 : 400, color: COLORS.text }}>{r.get(c)}</Text>)}
+            </View>
+          ))}
+          <Text style={{ marginTop: 5, fontSize: 6, color: COLORS.subtext, lineHeight: 1.35 }}>
+            {`One market rate per feature, from this area's own sales${grid.rates.size ? ` (size ${formatMoney(grid.rates.size)}/sq ft above grade` : ''}${grid.rates.lowerLevel ? `, finished lower level ${formatMoney(grid.rates.lowerLevel)}/sq ft` : ''}${grid.rates.size ? ')' : ''}. The quality ratings on each comparable's page are weighed in the review, not added again here.`}
+          </Text>
+        </View>
+      )}
+      {bridge && (
+        <View wrap={false} style={{ backgroundColor: COLORS.white, borderRadius: 10, padding: 12, border: `1 solid ${COLORS.border}`, borderTop: '3 solid #C9A24D', marginBottom: 10 }}>
+          <Text style={{ fontSize: 8.4, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1.1, color: COLORS.text, marginBottom: 6 }}>From the adjusted sales to the final value</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 }}>
+            <Text style={{ fontSize: 8.4, fontWeight: 700, color: COLORS.text }}>Adjusted comparable sales (weighted)</Text>
+            <Text style={{ fontSize: 8.4, fontWeight: 900, color: COLORS.text }}>{formatMoney(bridge.adjusted_sales_value)}</Text>
+          </View>
+          {bridge.steps.map((s, i) => (
+            <View key={i} style={{ borderTop: `0.5 solid ${COLORS.line}`, paddingVertical: 4 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 8, fontWeight: 700, color: COLORS.text, flex: 1, paddingRight: 8 }}>{s.label}{s.measured ? '' : '  (not a measured adjustment)'}</Text>
+                <Text style={{ fontSize: 8, fontWeight: 900, color: COLORS.text }}>{formatSignedMoney(s.amount)}</Text>
+              </View>
+              <Text style={{ fontSize: 6.8, color: COLORS.subtext, lineHeight: 1.35, marginTop: 1.5 }}>{s.basis}</Text>
+            </View>
+          ))}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTop: `1 solid ${COLORS.text}`, paddingTop: 4, marginTop: 2 }}>
+            <Text style={{ fontSize: 9, fontWeight: 900, color: COLORS.text }}>Estimated fair market value</Text>
+            <Text style={{ fontSize: 9, fontWeight: 900, color: COLORS.text }}>{formatMoney(bridge.final_value)}</Text>
+          </View>
+          {bridge.steps.length === 0 && (
+            <Text style={{ fontSize: 6.8, color: COLORS.subtext, marginTop: 3 }}>The final value is the adjusted comparable sales figure - no further step.</Text>
+          )}
+        </View>
+      )}
+      {record && (record.fees?.length || record.history_lines?.length) ? (
+        <View wrap={false} style={{ backgroundColor: COLORS.white, borderRadius: 10, padding: 12, border: `1 solid ${COLORS.border}` }}>
+          <Text style={{ fontSize: 8.4, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1.1, color: COLORS.text, marginBottom: 5 }}>This home's record</Text>
+          {(record.fees || []).map((f, i) => (
+            <Text key={i} style={{ fontSize: 7.6, color: COLORS.text, marginBottom: 2 }}>
+              {`${f.label}: ${formatMoney(f.monthly)} per month${f.frequency !== 'monthly' ? ` (${formatMoney(f.amount)} ${f.frequency})` : ''}`}
+            </Text>
+          ))}
+          {record.fee_includes?.length ? (
+            <Text style={{ fontSize: 6.8, color: COLORS.subtext, marginBottom: 4, lineHeight: 1.35 }}>{`Includes: ${record.fee_includes.join(', ')}. Confirm the current fee and any special assessments with the association.`}</Text>
+          ) : null}
+          {(record.history_lines || []).map((ln, i) => (
+            <Text key={i} style={{ fontSize: 7, color: COLORS.text, marginBottom: 1.5, lineHeight: 1.35 }}>{`• ${ln}`}</Text>
+          ))}
+        </View>
+      ) : null}
+      <CmaPageFooter agent={agent} />
+    </Page>
+  );
+}
+
 function CmaOfferSuggestionPage({ report, agent }: { report: CmaReport; agent: CmaPdfAgent }) {
   const aiEstimate = report.pricing.ai_estimate;
   const offerFigures = buyerOfferFigures(report.pricing);
@@ -3165,6 +3272,7 @@ export const CmaPresentationDocument = ({ report, agent }: { report: CmaReport; 
       {!hidden.has('charts') && comparables.length > 0 && <CmaChartsPageV2 report={report} comparables={comparables} agent={agent} />}
       {!hidden.has('competition') && <CmaCompetitionPage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaPricingPage report={report} comparables={comparables} agent={agent} />}
+      {!hidden.has('pricing') && <CmaValueBridgePage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaInspectionConcernsPage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaOfferSuggestionPage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaPricingStrategyPage report={report} agent={agent} />}

@@ -1069,6 +1069,7 @@ function isAutoPickable(c: CmaCompCandidate): boolean {
   const d = c.similarity_details
   if (d?.property_type_incompatible) return false
   if (d?.valuation_eligible === false) return false
+  if (d?.outside_price_band) return false   // shown so nothing is dropped silently, never auto-picked (10/24)
   return true
 }
 
@@ -2453,6 +2454,14 @@ function CompCandidateCard({ candidate, subject, matchScore, matchDetails, added
 // then size and age. Shared by the phone rows and the desktop cards.
 function compVsSubject(candidate: CmaCompCandidate, subject: CmaSubjectProperty, sameSchool: boolean): { text: string, tone: 'same' | 'diff' }[] {
   const vs: { text: string, tone: 'same' | 'diff' }[] = []
+  // same street name + ZIP (612 / 660 Radnor Valley Dr, grader 10/23) and the price-band reason a sale wasn't auto-picked
+  const street = (a?: string | null) => (a || '').toLowerCase().replace(/^\s*[\d-]+\s+/, '').replace(/\s*(#|\bunit\b|\bapt\b).*$/, '').trim()
+  if (street(candidate.street_address) && street(candidate.street_address) === street(subject.street_address)
+      && (!subject.zipcode || !candidate.zipcode || String(candidate.zipcode).slice(0, 5) === String(subject.zipcode).slice(0, 5))) {
+    vs.push({ text: 'Same street', tone: 'same' })
+  }
+  const band = (candidate.similarity_details as { outside_price_band?: { pct_vs_asking?: number | null } } | undefined)?.outside_price_band
+  if (band) vs.push({ text: band.pct_vs_asking != null ? `${band.pct_vs_asking > 0 ? '+' : '−'}${Math.abs(band.pct_vs_asking)}% vs asking · not auto-picked` : 'Not auto-picked', tone: 'diff' })
   if (candidate.school_district) vs.push(sameSchool ? { text: 'Same school', tone: 'same' } : { text: 'Other school', tone: 'diff' })
   if (agSqft(subject) && agSqft(candidate)) {
     const d = Math.round((agSqft(candidate) as number) - (agSqft(subject) as number))
@@ -4834,6 +4843,24 @@ function MoneyField({ label, value, onChange }: { label: string, value?: number 
 // Agent-only (grader, 10/21): the asking-price check moved the value 5%+ away from what the comps say -
 // both numbers, so the agent decides before it goes out. Never in the PDF or the client link.
 function AgentReviewBanner({ report }: { report: CmaReport }) {
+  // A buyer CMA on the agent's own listing (10/24): lowball offer advice in a PDF meant for their seller
+  const audience = report.pricing?.ai_estimate?.audience_review
+  if (!audience?.message) return <AgentValueReviewBanner report={report} />
+  return (
+    <div className="space-y-2">
+      <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-sm dark:border-amber-900/40 dark:bg-amber-900/10">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-wide text-amber-800 dark:text-amber-300">Your own listing</p>
+          <p className="mt-0.5 text-xs font-semibold leading-relaxed text-amber-900 dark:text-amber-200">{audience.message.replace(/^Review before sending:\s*/, '')}</p>
+        </div>
+      </div>
+      <AgentValueReviewBanner report={report} />
+    </div>
+  )
+}
+
+function AgentValueReviewBanner({ report }: { report: CmaReport }) {
   const note = report.pricing?.ai_estimate?.agent_review
   const pendingNote = (report.pricing?.ai_estimate as { current_competition?: { review?: string | null } } | null)?.current_competition?.review
   if (!note?.message && pendingNote) {
