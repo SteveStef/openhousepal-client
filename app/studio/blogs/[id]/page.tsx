@@ -38,6 +38,7 @@ import VerifiedPanel from '@/components/studio/blogs/VerifiedPanel'
 import AiCoverMaker from '@/components/studio/blogs/AiCoverMaker'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import { PropertyShowcase, VideoShowcase } from '@/components/studio/blogs/ShowcaseBlocks'
+import { PaymentExample, SourcesList, type PaymentExampleData, type SourcesData } from '@/components/studio/blogs/ArticleDataBlocks'
 import BlogFinishStep, { applyFinish, emptyFinish, type FinishChoices } from '@/components/studio/blogs/BlogFinishStep'
 import { luxeBlogAllowed, luxeBlogUpgrade } from '@/lib/navAccess'
 import PropertySelector from '@/components/studio/PropertySelector'
@@ -1709,6 +1710,17 @@ function BlockContent({ block, onUpdate, onEnterAtEnd, onBackspaceAtStart, onSla
       )
     case 'area_spotlight':
       return <AreaSpotlightEditor area={data.area || null} onChange={area => setData('area', area)} />
+    case 'payment_example':
+      // Computed from real listings + Freddie Mac's rate when the article was written - shown as
+      // it will appear; the agent can remove it, not retype its math.
+      return (
+        <div>
+          <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">Payment example · calculated {data.as_of || ''}</p>
+          <div className="pointer-events-none"><PaymentExample data={data as PaymentExampleData} /></div>
+        </div>
+      )
+    case 'sources':
+      return <SourcesList data={data as SourcesData} />
     case 'property_showcase':
     case 'video_showcase': {
       // The closing pitch from the AI writer's Finish step: rename it, drop items, see it live.

@@ -14,6 +14,7 @@ export type AreaCard = {
   slug: string; name: string; state?: string; county?: string | null
   photo?: string | null; photos?: { url: string; credit?: string }[]
   summary?: string | null; median_price?: number | null; active_count?: number | null; min_price?: number | null; max_price?: number | null
+  under_contract_count?: number | null
   /** 'sold_2y' = the middle 90% of homes sold in the last two years (older snapshots: today's listings). */
   price_range_basis?: string | null
   school_districts?: ({ name?: string } | string)[]
@@ -30,7 +31,9 @@ export default function AreaSpotlightSection({ area, accent = '#C9A24D' }: { are
   const schools = (area.school_districts || []).map(d => (typeof d === 'string' ? d : d?.name || '')).filter(Boolean)
   const stats = [
     { icon: TrendingUp, label: 'Median list price', value: money(area.median_price) },
-    { icon: Home, label: 'Homes for sale now', value: area.active_count != null ? String(area.active_count) : null },
+    { icon: Home, label: 'Homes for sale', value: area.active_count != null ? String(area.active_count) : null },
+    // Newer cards count homes already under contract / pending separately (never as for sale).
+    { icon: Home, label: 'Under contract', value: area.under_contract_count ? String(area.under_contract_count) : null },
     // Older articles saved the min/max of whatever was listed (Radnor read $148K - $10M): those
     // only show when the spread is believable.
     { icon: TrendingUp, label: area.price_range_basis === 'sold_2y' ? 'Typical sales, 2 yrs' : 'Price range', value: area.min_price && area.max_price && area.min_price >= 50_000 && (area.price_range_basis === 'sold_2y' || area.max_price / area.min_price <= 20) ? `${money(area.min_price)} - ${money(area.max_price)}` : null },
@@ -71,7 +74,7 @@ export default function AreaSpotlightSection({ area, accent = '#C9A24D' }: { are
         {area.summary && <p className="text-[17px] leading-[1.8] text-[#1f2937] dark:text-gray-200">{area.summary}</p>}
 
         {stats.length > 0 && (
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div className={`mt-6 grid gap-3 ${stats.length > 3 ? 'grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'}`}>
             {stats.map((s, k) => (
               <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 + k * 0.08 }}
                 className="rounded-2xl border p-4 transition hover:-translate-y-0.5" style={{ borderColor: `${accent}55`, background: `linear-gradient(160deg, ${accent}14, transparent)` }}>

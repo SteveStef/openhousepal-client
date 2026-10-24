@@ -11,6 +11,7 @@ import FormWindow from '@/components/forms/FormWindow'
 import { escapeHtml, sanitizeInlineHtml } from '@/lib/studio/sanitizeHtml'
 import { BlogBlock, LinkedProperty } from '@/types'
 import AreaSpotlightSection from './AreaSpotlightSection'
+import { PaymentExample, SourcesList, type PaymentExampleData, type SourcesData } from './ArticleDataBlocks'
 import SignatureSiteCard from './SignatureSiteCard'
 import { PropertyShowcase, VideoShowcase } from './ShowcaseBlocks'
 import ClosingCta from './ClosingCta'
@@ -316,6 +317,10 @@ function Block({ block, agent, accentColor, onEvent, onLead, related, relatedHre
       )
     case 'area_spotlight':
       return data.area ? <AreaSpotlightSection area={data.area} accent={accentColor} /> : null
+    case 'payment_example':
+      return <PaymentExample data={data as PaymentExampleData} accent={accentColor} onAction={() => { onEvent?.('link_click', { label: 'Payment example' }); openForm(data.cta_form || 'buying', 'Get my numbers for a home') }} />
+    case 'sources':
+      return <SourcesList data={data as SourcesData} accent={accentColor} />
     case 'disclaimer':
       return <p className="border-t border-gray-200 pt-4 text-[11px] font-semibold leading-relaxed text-gray-400 dark:border-gray-800">{data.text}</p>
     default:
@@ -523,7 +528,7 @@ function NeighborhoodLinksRow({ links, accentColor, onOpen }: { links: Neighborh
             <span className="relative flex w-full items-end justify-between gap-3 p-4">
               <span className="min-w-0">
                 <span className="block truncate font-serif text-xl font-black">{l.name}</span>
-                <span className="block text-xs font-semibold text-white/75">{[l.active_count ? `${l.active_count} homes for sale` : '', l.median_price ? `${money(l.median_price)} median` : ''].filter(Boolean).join(' · ') || 'Neighborhood guide'}</span>
+                <span className="block text-xs font-semibold text-white/75">{[l.active_count ? `${l.active_count} homes for sale` : '', l.median_price ? `${money(l.median_price)} median list` : ''].filter(Boolean).join(' · ') || 'Neighborhood guide'}</span>
               </span>
               <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-black">Explore <ExternalLink className="h-3 w-3" /></span>
             </span>

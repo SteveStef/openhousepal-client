@@ -1995,7 +1995,7 @@ export type BlogStatus = 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'UNPUBLISHED' | '
 export type BlogBlockType =
   | 'heading' | 'subheading' | 'paragraph' | 'quote' | 'bulleted_list' | 'numbered_list'
   | 'divider' | 'callout' | 'button' | 'image' | 'gallery' | 'video' | 'youtube' | 'map'
-  | 'property_card' | 'agent_profile' | 'contact_form' | 'qr_code' | 'cta' | 'related_articles' | 'disclaimer' | 'lead_form' | 'area_spotlight' | 'property_showcase' | 'video_showcase';
+  | 'property_card' | 'agent_profile' | 'contact_form' | 'qr_code' | 'cta' | 'related_articles' | 'disclaimer' | 'lead_form' | 'area_spotlight' | 'property_showcase' | 'video_showcase' | 'payment_example' | 'sources';
 
 export interface BlogBlock {
   id: string;
