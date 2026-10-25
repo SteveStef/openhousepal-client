@@ -124,12 +124,11 @@ export function cmaGuidanceSections(text?: string | null): CmaGuidanceSection[] 
 }
 
 function isInspectionSection(section: CmaGuidanceSection): boolean {
-  const text = `${section.title} ${section.body}`.toLowerCase()
-  return [
-    'inspection', 'septic', 'well', 'utilities', 'water', 'sewer', 'roof', 'exterior',
-    'stucco', 'structural', 'foundation', 'mechanical', 'systems', 'plumbing',
-    'electrical', 'hvac', 'condition', 'infiltration', 'egress',
-  ].some(keyword => text.includes(keyword))
+  // Judged by the section's heading, whole words only - matching the body moved offer paragraphs
+  // ("as well", "inspection contingency", "condition") onto the inspection page (rule audit 10/24).
+  if (!section.title || section.title === 'Overview') return false
+  const text = section.title.toLowerCase()
+  return /\b(inspections?|septic|well|utilities|water|sewer|roof|exterior|stucco|structural|foundation|mechanical|systems|plumbing|electrical|hvac|infiltration|egress)\b/.test(text)
 }
 
 function sectionsToText(sections: CmaGuidanceSection[]): string {
@@ -894,7 +893,13 @@ export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null
   } else if (buyer) {
     const pricier = ourPsf ? actives.filter(a => a.price_per_sqft && ourPsf > a.price_per_sqft).length : 0
     if (actives.length >= 2 && pricier > actives.length / 2) {
-      callouts.push('This home is priced above most similar options - supports offering below asking.')
+      // Offer advice only when the report's own value agrees - 8084 Goshen Rd was "underpriced" on the
+      // offer page while this line said to offer below asking (rule audit 10/24).
+      const fmv = report.pricing?.ai_estimate?.value ?? null
+      const ask = report.subject?.list_price ?? null
+      callouts.push(fmv && ask && fmv < ask * 0.99
+        ? 'This home is priced above most similar options per square foot - supports offering below asking.'
+        : 'This home is priced above most similar options per square foot.')
     }
     const fast = pendings.map(p => p.days_on_market).filter((d): d is number => d != null).sort((a, b) => a - b)
     const ourDom = report.subject?.days_on_market ?? null
@@ -912,7 +917,7 @@ export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null
       callouts.push('Priced above all current competition - expect longer market time.')
     }
     if (actives.some(a => (a.days_on_market || 0) >= 60 || (a.price_cuts?.count || 0) > 0)) {
-      callouts.push('Overpriced homes are sitting - pricing right matters.')
+      callouts.push('Some similar homes have sat 60+ days or cut their price - pricing right matters.')
     }
     if (pendings.length) callouts.push('The homes under contract show what buyers are paying for right now.')
   }
