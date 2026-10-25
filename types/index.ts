@@ -549,7 +549,14 @@ export interface NearbyAmenitiesResponse {
   airports: NearbyPlace[];
   available: boolean;
   cached_at?: string | null;
+  // Version of the nearby-places rules that built this - see CHEAT_SHEET_NEARBY_VERSION.
+  schema_version?: number | null;
 }
+
+// The backend's current nearby-places rules version (AMENITIES_SCHEMA_VERSION in
+// nearby_amenities_service.py) - a saved Cheat Sheet below it gets its nearby section looked up
+// again the next time the agent opens that open house's Kit. Bump both together.
+export const CHEAT_SHEET_NEARBY_VERSION = 16;
 
 export interface ScheduledOpen {
   id: string;

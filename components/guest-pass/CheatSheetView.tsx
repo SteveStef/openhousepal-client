@@ -31,7 +31,7 @@ const NEARBY_LOOK: Record<string, { icon: any; color: string }> = {
   'Grocery Stores Nearby': { icon: ShoppingBasket, color: '#15803D' },
   'Parks Nearby': { icon: Trees, color: '#0F766E' },
   'Medical Care Nearby': { icon: Hospital, color: '#DC2626' },
-  'Major Airports Nearby': { icon: Plane, color: '#475569' },
+  'Airports Nearby': { icon: Plane, color: '#475569' },
   'Nearby Downtown Areas': { icon: Building2, color: '#7C3AED' },
 }
 
@@ -66,7 +66,7 @@ export default function CheatSheetView({ data, onRequest, sending, onBack }: {
     { title: 'Grocery Stores Nearby', places: amenities.grocery_stores, showCity: true },
     { title: 'Parks Nearby', places: amenities.parks, showCity: true },
     { title: 'Medical Care Nearby', places: amenities.medical_care },
-    { title: 'Major Airports Nearby', places: amenities.airports },
+    { title: 'Airports Nearby', places: amenities.airports },
     { title: 'Nearby Downtown Areas', places: amenities.downtown_areas },
   ].filter(n => (n.places?.length ?? 0) > 0) : []
   // Every property fact as one even grid of tiles (the short one-liners and the longer ones alike).

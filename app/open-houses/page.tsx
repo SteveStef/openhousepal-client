@@ -14,7 +14,7 @@ import { ViewPDFsModal } from '@/components/ViewPDFsModal'
 import { EditSimilarPropertiesModal } from '@/components/EditSimilarPropertiesModal'
 import { EditCheatSheetPhotosModal } from '@/components/EditCheatSheetPhotosModal'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
-import { GuestSettingsPatch, OpenHouse, StatSummary } from '@/types'
+import { CHEAT_SHEET_NEARBY_VERSION, GuestSettingsPatch, OpenHouse, StatSummary } from '@/types'
 import { buildBragSheetData, buildCheatSheetAgentData } from '@/lib/bragSheetData'
 import { cheatSheetSqft } from '@/lib/cheatSheetContent'
 import MissedShowcasesBanner from '@/components/MissedShowcasesBanner'
@@ -225,10 +225,29 @@ function OpenHouseContent() {
   }, [])
   refreshClosedVisitorCountRef.current = refreshClosedVisitorCount
 
+  // A Cheat Sheet saved under older nearby-places rules gets its "What's Nearby" section looked up
+  // again - only here, when the agent opens that open house's Kit (user, 10/25: never a platform-wide
+  // refresh; the paid Google lookup only for a Kit someone is actually using). The rest of the saved
+  // sheet stays as it is; the Guest Pass reads the same snapshot, so it picks up the new section too.
+  const nearbyRefreshTriedRef = useRef<Set<string>>(new Set())
+  const refreshStaleCheatSheetNearby = useCallback(async (openHouse: OpenHouse) => {
+    const snap: any = (openHouse as any).cheatSheetSnapshot
+    if (!snap?.property || !openHouse.listingKey || nearbyRefreshTriedRef.current.has(openHouse.id)) return
+    if ((snap.amenities?.schema_version ?? 0) >= CHEAT_SHEET_NEARBY_VERSION) return
+    nearbyRefreshTriedRef.current.add(openHouse.id)
+    const res = await api.properties.getNearbyAmenities(openHouse.listingKey)
+    if (!res.success || !res.data?.available || !res.data.schema_version) return
+    const next = { ...snap, amenities: res.data }
+    api.openHouses.updateCheatSheetSnapshot(openHouse.id, next)
+    setOpenHouses(prev => prev.map(oh => oh.id === openHouse.id ? { ...oh, cheatSheetSnapshot: next } as any : oh))
+    setOpenHouseForPDFs(prev => prev && prev.id === openHouse.id ? { ...prev, cheatSheetSnapshot: next } as any : prev)
+  }, [])
+
   const handleOpenViewPDFs = useCallback((openHouse: OpenHouse) => {
     setOpenHouseForPDFs(openHouse)
     setIsViewPDFsModalOpen(true)
-  }, [])
+    refreshStaleCheatSheetNearby(openHouse)
+  }, [refreshStaleCheatSheetNearby])
 
   const handleCloseViewPDFs = useCallback(() => {
     setIsViewPDFsModalOpen(false)

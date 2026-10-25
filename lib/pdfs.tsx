@@ -1839,7 +1839,7 @@ export const OpenHouseCheatSheetDocument = ({ property, agent, amenities, fit = 
                 </View>
                 <View style={{ width: '48%' }}>
                   <AmenityCategory label="Medical Care Nearby" places={amenities!.medical_care} maxItems={amenityItemCap} />
-                  <AmenityCategory label="Major Airports Nearby" places={amenities!.airports} maxItems={amenityItemCap} />
+                  <AmenityCategory label="Airports Nearby" places={amenities!.airports} maxItems={amenityItemCap} />
                   <AmenityCategory label="Nearby Downtown Areas" places={amenities!.downtown_areas} maxItems={amenityItemCap} />
                 </View>
               </View>
