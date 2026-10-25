@@ -14,8 +14,13 @@ import PropertySearchPicker from './PropertySearchPicker'
 import OhpLoader from './brand/OhpLoader'
 import FlowDock from './ui/FlowDock'
 import BoundaryCanvas, { CanvasBadge, CanvasShape } from './maps/BoundaryCanvas'
+import MapPopup from './maps/MapPopup'
+import MapPropertyCard, { mapCardSpecs } from './maps/MapPropertyCard'
+import { formatStatus, statusBadgeColor } from './website-public/listingFormat'
 import { formatNumberWithCommas, stripCommas, normalizeImageUrl } from '@/lib/utils'
 import { STATE_CENTERS, US_FALLBACK_CENTER } from '@/lib/usStateCenters'
+import { homesLabel, SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
+import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
 
 // Restrained light-blue treatment for every geographic overlay (radius circle, drawn polygon) -
 // deliberately distinct from the brand gold ([#C9A24D]), which stays reserved for selection/accent
@@ -165,14 +170,17 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
   const drawPxRef = useRef<{ x: number; y: number } | null>(null)
   const drawPathRef = useRef<google.maps.LatLng[]>([])
   const markersRef = useRef<Map<string, google.maps.Marker>>(new Map())
-  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null)
+  // The home whose little card is open on the map (MapPopup keeps it inside the map, 10/25).
+  const [popupId, setPopupId] = useState<string | null>(null)
 
   const [formData, setFormData] = useState<FormState>(EMPTY_FORM)
   const [viewMode, setViewMode] = useState<ViewMode>('split')
   // Below the tablet breakpoint the panel/map/grid don't fit side-by-side at all, so mobile gets
   // its own 3-way tab switcher instead of viewMode's Map/Grid/Both toggle (which stays for
   // tablet+, where there's room to show the panel and content together).
-  const [mobileTab, setMobileTab] = useState<'criteria' | 'map' | 'grid'>('map')
+  // Phones always open on Criteria first - editing and creating alike (user, 10/24). The map still
+  // builds behind it at full size (see the main column below), so the Map tab is instant.
+  const [mobileTab, setMobileTab] = useState<'criteria' | 'map' | 'grid'>('criteria')
   const [isDrawing, setIsDrawing] = useState(false)
   // Refs don't trigger re-renders, so this mirrors polygonsRef.current.length purely so the
   // "Shape 1 / Shape 2 / ..." remove-list in the left panel can actually reflect the shape count.
@@ -303,21 +311,6 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
         clickableIcons: false,
       })
       mapRef.current = map
-      infoWindowRef.current = new google.maps.InfoWindow()
-      // Google's own InfoWindow chrome reserves generous default padding around whatever content
-      // it's given (plus room for its close button) - that's the "dead space above the picture"
-      // complaint, and content-side changes alone can't remove it. Trimmed (not zeroed, so the
-      // close button still has room) via a one-time global style - safe here since this is a
-      // full-screen modal and no other InfoWindow is open on the page at the same time.
-      if (!document.getElementById('showcase-map-infowindow-style')) {
-        const style = document.createElement('style')
-        style.id = 'showcase-map-infowindow-style'
-        style.textContent = `
-          .gm-style .gm-style-iw-c { padding: 6px !important; }
-          .gm-style .gm-style-iw-d { overflow: hidden !important; }
-        `
-        document.head.appendChild(style)
-      }
       // The container's real size isn't settled until after this paint (it's laid out via CSS
       // Grid/flex, not a fixed px height like the app's other maps), so the map can construct
       // itself against a stale 0x0 measurement and render nothing. Re-measuring on the next frame
@@ -360,7 +353,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
         window.removeEventListener('touchend', placeCenterWindowMouseUpListenerRef.current)
       }
       placeCenterPreviewCircleRef.current?.setMap(null)
-      infoWindowRef.current?.close()
+      setPopupId(null)
       mapRef.current = null
       circleRef.current = null
       setMapLoaded(false)
@@ -523,10 +516,8 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
     strokeWeight: isFocused ? 3 : 2,
   })
 
-  const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
-
   // Shared by a real marker click AND a grid-card click - sets focus, swaps marker icons, and
-  // opens the InfoWindow. Deliberately does NOT scroll the grid: that's only wanted when a map
+  // opens the home's map card. Deliberately does NOT scroll the grid: that's only wanted when a map
   // click reveals which card it corresponds to, not when clicking a card scrolls itself around.
   const focusProperty = (id: string) => {
     setFocusedId(id)
@@ -534,31 +525,35 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
       m.setIcon(markerIcon(markerId === id))
       m.setZIndex(markerId === id ? 999 : 1)
     })
-    const map = mapRef.current
     const marker = markersRef.current.get(id)
-    const property = previewProperties.find(p => String((p as any).id || p.ListingKey) === id)
-    const iw = infoWindowRef.current
-    if (!map || !marker || !property || !iw) return
-    const address = escapeHtml(property.FullStreetAddress || 'Property')
-    const price = property.ListPrice ? `$${Number(property.ListPrice).toLocaleString()}` : 'Price N/A'
+    if (!marker) return
+    // Picked from the grid while its pin is off the map: bring the pin into view first.
+    const pos = marker.getPosition()
+    const map = mapRef.current
+    if (map && pos && !map.getBounds()?.contains(pos)) map.panTo(pos)
+    setPopupId(id)
+  }
+
+  // The open home's card: picture-left, info-right (no taller than the old mini card).
+  const popupHome = popupId ? previewProperties.find(p => String((p as any).id || p.ListingKey) === popupId && p.Latitude != null && p.Longitude != null) || null : null
+  const popupCard = (property: Property) => {
     const dom = property.DaysOnMarket
-    const imgUrl = normalizeImageUrl(property.ListPictureURL || (property as any).imageUrl || '') || ''
-    // Picture-left, info-right "longish" mini card - same layout OpenHouseCard.tsx uses for
-    // its own list thumbnails, hand-written as an HTML string since InfoWindow content isn't
-    // React. display:inline-flex (not a fixed width) so the bubble shrinks to fit this short
-    // text instead of leaving blank filler space - Google's own chrome padding is trimmed
-    // separately, see the one-time <style> injected in the map-init effect above.
-    iw.setContent(`
-          <div style="display:inline-flex;max-width:200px;font-family:inherit;overflow:hidden;border-radius:8px;">
-            <div style="flex-shrink:0;width:60px;height:60px;background:#e5e7eb ${imgUrl ? `url('${imgUrl}')` : ''} center/cover no-repeat;"></div>
-            <div style="min-width:0;padding:6px 8px;display:flex;flex-direction:column;justify-content:center;gap:2px;">
-              <p style="margin:0;font-size:11px;font-weight:800;color:#111827;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${address}</p>
-              <p style="margin:0;font-size:13px;font-weight:800;color:#8b7355;">${price}</p>
-              ${dom != null ? `<p style="margin:0;font-size:10px;font-weight:700;color:#9CA3AF;white-space:nowrap;">${dom} ${dom === 1 ? 'day' : 'days'} on market</p>` : ''}
-            </div>
-          </div>
-        `)
-    iw.open({ map, anchor: marker })
+    const status = formatStatus(property.MlsStatus)
+    const badge = statusBadgeColor(property.MlsStatus)
+    const lotSqft = property.LotSizeSquareFeet
+    return (
+      <MapPropertyCard
+        layout="row"
+        photo={normalizeImageUrl(property.ListPictureURL || (property as any).imageUrl || '') || null}
+        price={property.ListPrice ? `$${Number(property.ListPrice).toLocaleString()}` : null}
+        priceNote={dom != null ? `${dom} ${dom === 1 ? 'day' : 'days'} on mkt` : null}
+        status={status ? { label: status, bg: badge.bg, fg: badge.fg } : null}
+        street={property.FullStreetAddress || 'Property'}
+        place={property.City || null}
+        specs={mapCardSpecs({ beds: property.BedroomsTotal, baths: property.BathroomsTotal, sqft: property.LivingArea, acres: (property as any).LotSizeAcres ?? (lotSqft ? lotSqft / 43560 : null) })}
+        onClose={() => setPopupId(null)}
+      />
+    )
   }
 
   useEffect(() => {
@@ -1420,6 +1415,10 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
                   </div>
                 )}
                 <div ref={mapDivRef} className="h-full w-full" />
+                <MapPopup map={mapLoaded ? mapRef.current : null} position={popupHome ? { lat: popupHome.Latitude as number, lng: popupHome.Longitude as number } : null}
+                  anchor={{ above: 14, below: 14, side: 14 }} onClose={() => setPopupId(null)} className="z-[45]">
+                  {popupHome && popupCard(popupHome)}
+                </MapPopup>
                 <BoundaryCanvas map={mapLoaded ? mapRef.current : null} shapes={areaCanvasShapes} badges={areaBadges} avoid={homePins} dark={isDarkUi} animKey="area" />
                 <AnimatePresence>
                   {areaShapesLoading && mapLoaded && (

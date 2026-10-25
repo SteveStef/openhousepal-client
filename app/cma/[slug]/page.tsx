@@ -17,6 +17,8 @@ import {
 import { CmaPresentationDocument } from '@/lib/pdfs'
 import { googleMapsLoader } from '@/lib/googleMapsLoader'
 import { HomeAreaOverlay } from '@/components/maps/HomeAreaMap'
+import MapPopup from '@/components/maps/MapPopup'
+import MapPropertyCard, { mapCardSpecs } from '@/components/maps/MapPropertyCard'
 import { normalizeImageUrl } from '@/lib/utils'
 
 export default function PublicCmaPage() {
@@ -1236,62 +1238,30 @@ function PopupFact({ icon: Icon, label, value, className = '' }: { icon: any, la
   )
 }
 
-function escapeMapHtml(value: string | number | null | undefined) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
-}
-
-function publicMapCompCardHtml(comp: CmaComparable, index: number, onOpen?: () => void) {
+// A comp's card on the report map (components/maps/MapPropertyCard): tapping it opens the same
+// details window as the comp cards below the map.
+function PublicMapCompCard({ comp, index, layout, onOpen, onClose }: { comp: CmaComparable, index: number, layout: 'stack' | 'row', onOpen?: () => void, onClose: () => void }) {
   const price = compDisplayPrice(comp).value
-  const acres = comp.lot_size ? (comp.lot_size / 43560) : null
-  const statusColor = COMP_STATUS_HEX[comp.status] || '#374151'
-  const statusText = comp.status === 'sold' && comp.sale_date ? `Closed ${formatDate(comp.sale_date)}` : (COMP_STATUS_LABEL[comp.status] || comp.status)
-  let soldPctLine = ''
+  let note: string | null = comp.distance_miles != null ? `${comp.distance_miles} mi away` : null
   if (comp.status === 'sold' && comp.sale_price && comp.list_price) {
-    const pct = ((comp.sale_price - comp.list_price) / comp.list_price) * 100
-    const rounded = Math.round(pct * 10) / 10
-    const label = Math.abs(rounded) < 0.1 ? 'Sold at asking' : `Sold ${Math.abs(rounded)}% ${rounded > 0 ? 'above' : 'below'} asking`
-    soldPctLine = `<p style="margin:2px 0 0;font-size:10px;font-weight:700;color:#6B7280;">${escapeMapHtml(label)}</p>`
+    const pct = Math.round(((comp.sale_price - comp.list_price) / comp.list_price) * 1000) / 10
+    note = Math.abs(pct) < 0.1 ? 'Sold at asking' : `${Math.abs(pct)}% ${pct > 0 ? 'over' : 'under'} ask`
   }
-  const stat = (value: string | number | null | undefined, label: string) => value != null && value !== ''
-    ? `<div style="min-width:0;text-align:center;"><p style="margin:0;font-size:10px;font-weight:800;color:#111827;">${escapeMapHtml(value)}</p><p style="margin:0;font-size:7px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.03em;">${escapeMapHtml(label)}</p></div>`
-    : ''
-  const stats = [
-    stat(comp.beds, 'Beds'),
-    stat(comp.baths, 'Baths'),
-    stat(comp.sqft ? formatNumber(comp.sqft) : null, 'SF'),
-    stat(acres ? acres.toLocaleString(undefined, { maximumFractionDigits: 2 }) : null, 'AC'),
-    stat(comp.distance_miles != null ? `${comp.distance_miles} Miles` : null, 'Away'),
-  ].filter(Boolean).join('')
-
-  const container = document.createElement('div')
-  container.className = 'comps-map-infowindow'
-  container.innerHTML = `
-    <div style="width:160px;font-family:inherit;color:#111827;margin:0;">
-      <div style="position:relative;">
-        ${comp.photo_url ? `<img src="${escapeMapHtml(normalizeImageUrl(comp.photo_url) || '')}" alt="" style="display:block;width:100%;height:120px;aspect-ratio:4/3;object-fit:cover;border-radius:9px;background:#F3F4F6;" />` : `<div style="width:100%;height:120px;aspect-ratio:4/3;border-radius:9px;background:#F3F4F6;"></div>`}
-        <span style="position:absolute;top:5px;left:5px;border-radius:999px;padding:2px 6px;font-size:8px;font-weight:800;color:#fff;background:#111827;">#${index + 1}</span>
-        <span style="position:absolute;top:5px;right:5px;border-radius:999px;padding:2px 6px;font-size:8px;font-weight:800;color:#fff;background:${statusColor};">${escapeMapHtml(statusText)}</span>
-      </div>
-      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:5px;margin-top:6px;">
-        <p style="margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:800;color:#111827;">${escapeMapHtml(comp.street_address || 'Comparable Property')}</p>
-        <p style="margin:0;flex-shrink:0;font-size:11px;font-weight:800;color:#111827;">${price ? escapeMapHtml(formatMoney(price, { compact: true })) : '&mdash;'}</p>
-      </div>
-      <p style="margin:0;font-size:8px;font-weight:700;color:#9CA3AF;">${escapeMapHtml([comp.city, comp.state, comp.zipcode].filter(Boolean).join(', '))}</p>
-          ${soldPctLine}
-      <div style="display:flex;justify-content:space-between;gap:2px;padding:6px 0;margin-top:5px;border-top:1px solid #E5E7EB;border-bottom:1px solid #E5E7EB;">${stats}</div>
-      <div style="display:flex;gap:5px;margin-top:7px;">
-        <button data-action="details" style="flex:1;border:1px solid #E5E7EB;border-radius:8px;padding:4px 5px;font-size:8px;font-weight:800;cursor:pointer;color:#111827;background:#fff;">Details</button>
-        <button type="button" disabled style="flex:1;border:none;border-radius:8px;padding:4px 5px;font-size:8px;font-weight:800;color:#fff;background:#059669;">Added ✓</button>
-      </div>
-    </div>
-  `
-  container.querySelector('[data-action="details"]')?.addEventListener('click', () => onOpen?.())
-  return container
+  return (
+    <MapPropertyCard
+      layout={layout}
+      photo={comp.photo_url ? normalizeImageUrl(comp.photo_url) : null}
+      price={price ? formatMoney(price) : null}
+      priceNote={note}
+      status={{ label: comp.status === 'sold' && comp.sale_date ? `Sold ${formatDate(comp.sale_date)}` : (COMP_STATUS_LABEL[comp.status] || comp.status), bg: COMP_STATUS_HEX[comp.status] || '#374151' }}
+      tag={{ label: `#${index + 1}`, bg: '#111827' }}
+      street={comp.street_address || 'Comparable'}
+      place={comp.city || [comp.state, comp.zipcode].filter(Boolean).join(' ')}
+      specs={mapCardSpecs({ beds: comp.beds, baths: comp.baths, sqft: comp.sqft, acres: comp.lot_size ? comp.lot_size / 43560 : null })}
+      onOpen={onOpen}
+      onClose={onClose}
+    />
+  )
 }
 
 function CmaInteractiveMap({ subject, comparables, fallbackUrl, activeComparableId, onSelectComparable, onOpenComparable }: {
@@ -1305,7 +1275,8 @@ function CmaInteractiveMap({ subject, comparables, fallbackUrl, activeComparable
   const mapRef = useRef<HTMLDivElement>(null)
   const mapObjRef = useRef<google.maps.Map | null>(null)
   const markerRefs = useRef<Map<string, google.maps.Marker>>(new Map())
-  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null)
+  // The comp whose card is open (MapPopup keeps it inside the map, 10/25).
+  const [openCompId, setOpenCompId] = useState<string | null>(null)
   const lastOpenedCompIdRef = useRef<string | null>(null)
   const [loadError, setLoadError] = useState(false)
   const [mapReadyKey, setMapReadyKey] = useState(0)
@@ -1371,17 +1342,6 @@ function CmaInteractiveMap({ subject, comparables, fallbackUrl, activeComparable
       })
       mapObjRef.current = map
       setMapObj(map)
-      const infoWindow = new google.maps.InfoWindow({ maxWidth: 180 })
-      infoWindowRef.current = infoWindow
-      infoWindow.addListener('closeclick', () => {
-        lastOpenedCompIdRef.current = null
-        onSelectComparable?.(null)
-      })
-      map.addListener('click', () => {
-        infoWindow.close()
-        lastOpenedCompIdRef.current = null
-        onSelectComparable?.(null)
-      })
 
       const bounds = new google.maps.LatLngBounds()
       markerRefs.current.forEach(marker => marker.setMap(null))
@@ -1407,8 +1367,7 @@ function CmaInteractiveMap({ subject, comparables, fallbackUrl, activeComparable
           marker.addListener('click', () => {
             lastOpenedCompIdRef.current = point.comp!.id
             onSelectComparable?.(point.comp!.id)
-            infoWindow.setContent(publicMapCompCardHtml(point.comp!, point.index!, () => onOpenComparable?.(point.comp!)))
-            infoWindow.open({ map, anchor: marker })
+            setOpenCompId(point.comp!.id)
           })
         }
       })
@@ -1420,9 +1379,8 @@ function CmaInteractiveMap({ subject, comparables, fallbackUrl, activeComparable
       cancelled = true
       markerRefs.current.forEach(marker => marker.setMap(null))
       markerRefs.current = new Map()
-      infoWindowRef.current?.close()
+      setOpenCompId(null)
       mapObjRef.current = null
-      infoWindowRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapDataKey, onSelectComparable, onOpenComparable])
@@ -1432,15 +1390,13 @@ function CmaInteractiveMap({ subject, comparables, fallbackUrl, activeComparable
     if (lastOpenedCompIdRef.current === activeComparableId) return
     const map = mapObjRef.current
     const marker = markerRefs.current.get(activeComparableId)
-    const infoWindow = infoWindowRef.current
     const compIndex = comparables.findIndex(c => c.id === activeComparableId)
     const comp = compIndex >= 0 ? comparables[compIndex] : null
     const position = marker?.getPosition()
-    if (!map || !marker || !infoWindow || !comp || !position) return
+    if (!map || !marker || !comp || !position) return
     map.panTo(position)
     if ((map.getZoom() || 0) < 14) map.setZoom(14)
-    infoWindow.setContent(publicMapCompCardHtml(comp, compIndex, () => onOpenComparable?.(comp)))
-    infoWindow.open({ map, anchor: marker })
+    setOpenCompId(comp.id)
     lastOpenedCompIdRef.current = activeComparableId
   }, [activeComparableId, comparables, mapReadyKey, onOpenComparable])
 
@@ -1453,6 +1409,17 @@ function CmaInteractiveMap({ subject, comparables, fallbackUrl, activeComparable
   return (
     <div className="relative h-full w-full">
       <div ref={mapRef} className="h-full w-full" />
+      {(() => {
+        const i = openCompId ? comparables.findIndex(c => c.id === openCompId) : -1
+        const comp = i >= 0 ? comparables[i] : null
+        const close = () => { setOpenCompId(null); lastOpenedCompIdRef.current = null; onSelectComparable?.(null) }
+        return (
+          <MapPopup map={mapObj} position={comp && comp.latitude != null && comp.longitude != null ? { lat: comp.latitude, lng: comp.longitude } : null}
+            anchor={{ above: 14, below: 14, side: 14 }} onClose={close} className="z-[45]">
+            {space => comp && <PublicMapCompCard comp={comp} index={i} layout={space.height < 300 || space.width < 300 ? 'row' : 'stack'} onOpen={() => onOpenComparable?.(comp)} onClose={close} />}
+          </MapPopup>
+        )
+      })()}
       {subject.latitude != null && subject.longitude != null && (
         <HomeAreaOverlay map={mapObj} latitude={subject.latitude} longitude={subject.longitude} fit={false} />
       )}

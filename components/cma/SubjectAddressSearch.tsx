@@ -29,6 +29,13 @@ function badgeClass(status?: string | null): string {
   return 'bg-gray-500'
 }
 
+// The badge on the 56px dropdown photo has room for one short word: "Coming Soon" -> "Soon"
+// (same as the OHP kit's address dropdown). Every other status label stays as-is.
+function photoBadgeLabel(status?: string | null): string {
+  const label = formatMlsStatusLabel(status)
+  return label === 'Coming Soon' ? 'Soon' : label
+}
+
 function soldWhen(date?: string | null): string {
   if (!date) return ''
   const d = new Date(`${date.slice(0, 10)}T12:00:00`)
@@ -206,7 +213,7 @@ export default function SubjectAddressSearch({ onPick, onEnterManually, autoFocu
                   {s.status && (
                     <div className="absolute inset-x-0 bottom-1 flex justify-center px-1">
                       <span className={`max-w-full truncate rounded-full px-1.5 py-0.5 text-[7px] font-black uppercase leading-none text-white shadow-sm ${s.isRental ? 'bg-gray-500' : badgeClass(s.status)}`}>
-                        {s.isRental ? 'Rental' : formatMlsStatusLabel(s.status)}
+                        {s.isRental ? 'Rental' : photoBadgeLabel(s.status)}
                       </span>
                     </div>
                   )}

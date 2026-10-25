@@ -15,6 +15,9 @@ import SiteLoader from './SiteLoader'
 import { createPinLayer, type PinLayer } from './mapPins'
 import { IMG } from '@/lib/siteImage'
 import SitePhoto from './SitePhoto'
+import { fontClass } from './blocks/fontClass'
+import MapPopup from '@/components/maps/MapPopup'
+import MapPropertyCard, { mapCardSpecs } from '@/components/maps/MapPropertyCard'
 
 export interface MapListing {
   listing_key: string
@@ -171,6 +174,9 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [loaded, setLoaded] = useState(false)
+  // Bumped each time a map is made: the phone Map button makes a new one, and loaded can go
+  // false -> true inside one render, so without this the new map never got its pins (10/25).
+  const [mapGen, setMapGen] = useState(0)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [activeKey, setActiveKey] = useState<string | null>(null)
   const [hoverKey, setHoverKey] = useState<string | null>(null)
@@ -271,6 +277,7 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
       fittedRef.current = null
       map.addListener('click', () => setActiveKey(null))
       setLoaded(true)
+      setMapGen(g => g + 1)
     }).catch(() => { if (!cancelled) setLoadError("The map couldn't load right now.") })
     return () => {
       cancelled = true
@@ -301,7 +308,7 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
       fittedRef.current = areaKey
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mappable, loaded, filters.area])
+  }, [mappable, loaded, mapGen, filters.area])
 
   // Pin states follow the list (hover) and the selection (click).
   useEffect(() => {
@@ -417,6 +424,37 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
           data-ohp-prefill={JSON.stringify({ property_of_interest: [street, l.city].filter(Boolean).join(', ') })} data-ohp-criteria={homeCriteria(l)}
           aria-label="Get homes like this first" className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-[#111827] shadow transition hover:scale-110 hover:text-rose-500"><Heart className="h-4 w-4" /></a>
       </div>
+    )
+  }
+
+  // A clicked pin's card on the map (components/maps/MapPropertyCard, 10/25): this site's own
+  // colors and Classic/Luxe shape, kept inside the map by MapPopup. Opens the home's page.
+  const mapCard = (l: MapListing, layout: 'stack' | 'row') => {
+    const badge = statusBadgeColor(l.status)
+    const status = formatStatus(l.status)
+    const street = cleanStreet(l.address, l.city)
+    return (
+      <MapPropertyCard
+        layout={layout}
+        look={luxe ? 'luxe' : 'classic'}
+        priceClassName={luxe ? fontClass(theme.heading_font, 'font-serif') : ''}
+        photo={l.photo || null}
+        price={l.price ? `$${l.price.toLocaleString()}` : 'Price on request'}
+        priceNote={listedAgo(l.days_on_market)}
+        status={status ? { label: status, bg: badge.bg, fg: badge.fg } : null}
+        street={street}
+        place={[l.city, l.state].filter(Boolean).join(', ')}
+        specs={mapCardSpecs({ beds: l.bedrooms, baths: l.bathrooms, sqft: l.living_area, acres: l.lot_size_acres })}
+        href={href(l)}
+        onOpen={() => markViewed(l.listing_key)}
+        onClose={() => setActiveKey(null)}
+        photoActions={layout === 'stack' ? (
+          <a href={`${basePrefix}/create-showcase?site_chrome=1`} data-ohp-form="showcase_request" data-ohp-form-title="Get homes like this first"
+            data-ohp-prefill={JSON.stringify({ property_of_interest: [street, l.city].filter(Boolean).join(', ') })} data-ohp-criteria={homeCriteria(l)}
+            onClick={e => e.stopPropagation()} aria-label="Get homes like this first" title="Get homes like this first"
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[#111827] shadow-sm transition hover:scale-110 hover:text-rose-500"><Heart className="h-3.5 w-3.5" /></a>
+        ) : null}
+      />
     )
   }
 
@@ -639,16 +677,11 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
                   <div className="absolute inset-0 z-[15] cursor-crosshair" style={{ touchAction: 'none' }}
                     onPointerDown={startDraw} onPointerMove={moveDraw} onPointerUp={endDraw} onPointerCancel={endDraw} />
                 )}
-                <AnimatePresence>
-                  {active && (
-                    <motion.div key={active.listing_key} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }} className="absolute inset-x-3 bottom-3 z-20 mx-auto max-w-sm">
-                      <div className="relative">
-                        <button type="button" onClick={() => setActiveKey(null)} aria-label="Close" className="absolute -right-2 -top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#111827] shadow-lg"><X className="h-3.5 w-3.5" /></button>
-                        {card(active, true)}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {/* The price pin stands ~38px above its spot when picked (scaled up). */}
+                <MapPopup map={loaded ? mapRef.current : null} position={active && !drawing ? { lat: active.latitude as number, lng: active.longitude as number } : null}
+                  anchor={{ above: 38, below: 2, side: 34 }} onClose={() => setActiveKey(null)} className="z-[22]">
+                  {space => active && mapCard(active, space.height < 330 || space.width < 300 ? 'row' : 'stack')}
+                </MapPopup>
               </div>
           </div>
         </div>

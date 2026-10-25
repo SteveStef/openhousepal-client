@@ -7,6 +7,8 @@ import { normalizeImageUrl } from '@/lib/utils'
 import { formatMoney, formatDate, COMP_STATUS_HEX, COMP_STATUS_LABEL } from '@/lib/cma'
 import { sqftToAcres } from '@/lib/matchScore'
 import { CmaCompCandidate } from '@/types'
+import MapPopup from '@/components/maps/MapPopup'
+import MapPropertyCard, { mapCardButton, mapCardSpecs } from '@/components/maps/MapPropertyCard'
 
 const GOLD = '#C9A24D'
 const DEFAULT_STATUS_COLOR = '#374151'
@@ -105,7 +107,8 @@ export default function CompsMapView({ subject, candidates, addedKeys, radiusMil
   // toggle on the same set just redraws in place)
   const droppedForRef = useRef("")
   const dropTimersRef = useRef<number[]>([])
-  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null)
+  // The comp whose card is open (components/maps/MapPopup keeps it inside the map, 10/25).
+  const [openKey, setOpenKey] = useState<string | null>(null)
   const radiusMilesRef = useRef(radiusMiles)
   const onRadiusChangeRef = useRef(onRadiusChange)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -163,7 +166,6 @@ export default function CompsMapView({ subject, candidates, addedKeys, radiusMil
         if (roundedMiles !== radiusMilesRef.current) onRadiusChangeRef.current(roundedMiles)
       })
 
-      infoWindowRef.current = new google.maps.InfoWindow({ maxWidth: 220 })
       setLoaded(true)
     }).catch(() => {
       if (!cancelled) setLoadError("Map couldn't load. Double-check the Maps JavaScript API is enabled for this Google Cloud project.")
@@ -175,7 +177,6 @@ export default function CompsMapView({ subject, candidates, addedKeys, radiusMil
       candidateMarkersRef.current = []
       subjectMarkerRef.current?.setMap(null)
       circleRef.current?.setMap(null)
-      infoWindowRef.current?.close()
       mapRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -228,70 +229,7 @@ export default function CompsMapView({ subject, candidates, addedKeys, radiusMil
           title: candidate.street_address || 'Comparable',
           zIndex: added ? 500 : 1,
         })
-        marker.addListener('click', () => {
-          const iw = infoWindowRef.current
-          if (!iw) return
-          const score = matchScoreFor(candidate)
-
-          // Top-right-of-photo badge: sold comps show their close date; anything still on-market
-          // shows its status instead, since there's no close date yet. The sold-%-vs-asking gap
-          // (when both prices are known) gets its own line below, since it doesn't fit cleanly
-          // alongside a date/status badge.
-          const topRightBadge = candidate.status === 'sold' && candidate.sale_date
-            ? `Closed ${formatDate(candidate.sale_date)}`
-            : COMP_STATUS_LABEL[candidate.status] || candidate.status
-          let soldPctLine = ''
-          if (candidate.status === 'sold' && candidate.sale_price && candidate.list_price) {
-            const pct = ((candidate.sale_price - candidate.list_price) / candidate.list_price) * 100
-            const rounded = Math.round(pct * 10) / 10
-            const label = Math.abs(rounded) < 0.1 ? 'Sold at asking' : `Sold ${Math.abs(rounded)}% ${rounded > 0 ? 'above' : 'below'} asking`
-            soldPctLine = `<p style="margin:2px 0 0;font-size:10px;font-weight:700;color:#6B7280;">${label}</p>`
-          }
-
-          const acres = candidate.lot_size ? sqftToAcres(candidate.lot_size) : null
-          const stat = (value: string | number | null | undefined, label: string) => value != null && value !== ''
-            ? `<div style="text-align:center;min-width:0;"><p style="margin:0;font-size:10px;font-weight:800;color:#111827;">${value}</p><p style="margin:0;font-size:7px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.03em;">${label}</p></div>`
-            : ''
-          const stats = [
-            stat(candidate.beds, 'Beds'),
-            stat(candidate.baths, 'Baths'),
-            stat(candidate.sqft ? candidate.sqft.toLocaleString() : null, 'SF'),
-            stat(candidate.price_per_sqft ? `$${candidate.price_per_sqft}/SF` : null, ''),
-            stat(acres ? acres.toLocaleString(undefined, { maximumFractionDigits: 2 }) : null, 'AC'),
-            stat(candidate.days_on_market, 'DOM'),
-          ].filter(Boolean).join('')
-
-          const container = document.createElement('div')
-          container.className = 'comps-map-infowindow'
-          // Explicit color on every piece of text here, not inherited - this HTML is injected
-          // straight into Google's InfoWindow DOM, outside Tailwind/dark-mode's normal cascade,
-          // so an ambient/global text color (e.g. from dark mode) can otherwise land white text
-          // on this popup's own white background and make it unreadable.
-          container.innerHTML = `
-            <div style="width:200px;font-family:inherit;color:#111827;margin:0;">
-              <div style="position:relative;">
-                ${candidate.photo_url ? `<img src="${normalizeImageUrl(candidate.photo_url) || ''}" style="display:block;width:100%;height:150px;aspect-ratio:4/3;object-fit:contain;border-radius:10px;background:#F3F4F6;" />` : `<div style="width:100%;height:150px;aspect-ratio:4/3;border-radius:10px;background:#F3F4F6;"></div>`}
-                <span style="position:absolute;top:6px;left:6px;border-radius:999px;padding:2px 6px;font-size:8px;font-weight:800;color:#fff;background:${score >= 70 ? '#059669' : '#6B7280'};">${score}% Match</span>
-                <span style="position:absolute;top:6px;right:6px;border-radius:999px;padding:2px 6px;font-size:8px;font-weight:800;color:#fff;background:${statusColor};">${topRightBadge}</span>
-              </div>
-              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:6px;margin-top:7px;">
-                <p style="margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:800;color:#111827;">${candidate.street_address || 'Comparable Property'}</p>
-                <p style="margin:0;flex-shrink:0;font-size:13px;font-weight:800;color:#111827;">${price ? formatMoney(price) : '—'}</p>
-              </div>
-              <p style="margin:0;font-size:9px;font-weight:700;color:#9CA3AF;">${[candidate.city, candidate.state, candidate.zipcode].filter(Boolean).join(', ')}</p>
-              ${soldPctLine}
-              <div style="display:flex;justify-content:space-between;gap:2px;padding:6px 0;margin-top:5px;border-top:1px solid #E5E7EB;border-bottom:1px solid #E5E7EB;">${stats}</div>
-              <div style="display:flex;gap:5px;margin-top:7px;">
-                <button data-action="details" style="flex:1;border:1px solid #E5E7EB;border-radius:8px;padding:5px 6px;font-size:9px;font-weight:800;cursor:pointer;color:#111827;background:#fff;">Details</button>
-                <button data-action="toggle" style="flex:1;border:none;border-radius:8px;padding:5px 6px;font-size:9px;font-weight:800;cursor:pointer;color:#fff;background:${added ? '#059669' : '#111827'};">${added ? 'Added ✓' : 'Add'}</button>
-              </div>
-            </div>
-          `
-          container.querySelector('[data-action="details"]')?.addEventListener('click', () => onOpenDetails(candidate))
-          container.querySelector('[data-action="toggle"]')?.addEventListener('click', () => { onToggleAdd(candidate); iw.close() })
-          iw.setContent(container)
-          iw.open({ map, anchor: marker })
-        })
+        marker.addListener('click', () => setOpenKey(candidate.listing_key))
         markerByKeyRef.current.set(candidate.listing_key, marker)
         if (dropIn) {
           // time ~ sqrt(rank): wide gaps for the first few, then bunched up - plus some jitter
@@ -314,6 +252,39 @@ export default function CompsMapView({ subject, candidates, addedKeys, radiusMil
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candidates, addedKeys, loaded])
   useEffect(() => () => { dropTimersRef.current.forEach(t => window.clearTimeout(t)) }, [])
+
+  // The open comp's card: photo, price, one specs row, address, Details / Add.
+  const openComp = openKey ? candidates.find(c => c.listing_key === openKey && c.latitude != null && c.longitude != null) || null : null
+  const openCard = (layout: 'stack' | 'row') => {
+    const c = openComp as CmaCompCandidate
+    const added = addedKeys.has(c.listing_key)
+    const price = c.sale_price ?? c.list_price
+    const score = matchScoreFor(c)
+    // Sold: the close date rides on the pill and the price line says how it sold vs asking.
+    let note: string | null = c.days_on_market != null ? `${c.days_on_market} DOM` : null
+    if (c.status === 'sold' && c.sale_price && c.list_price) {
+      const pct = Math.round(((c.sale_price - c.list_price) / c.list_price) * 1000) / 10
+      note = Math.abs(pct) < 0.1 ? 'Sold at asking' : `${Math.abs(pct)}% ${pct > 0 ? 'over' : 'under'} ask`
+    }
+    return (
+      <MapPropertyCard
+        layout={layout}
+        photo={c.photo_url ? normalizeImageUrl(c.photo_url) : null}
+        price={price ? formatMoney(price) : null}
+        priceNote={note}
+        status={{ label: c.status === 'sold' && c.sale_date ? `Sold ${formatDate(c.sale_date)}` : COMP_STATUS_LABEL[c.status] || c.status, bg: COMP_STATUS_HEX[c.status] || DEFAULT_STATUS_COLOR }}
+        tag={{ label: `${score}% Match`, bg: score >= 70 ? '#059669' : '#6B7280' }}
+        street={c.street_address || 'Comparable'}
+        place={c.city || [c.state, c.zipcode].filter(Boolean).join(' ')}
+        specs={mapCardSpecs({ beds: c.beds, baths: c.baths, sqft: c.sqft, acres: c.lot_size ? sqftToAcres(c.lot_size) : null })}
+        onClose={() => setOpenKey(null)}
+        actions={<>
+          <button type="button" onClick={() => onOpenDetails(c)} className={mapCardButton.quiet}>Details</button>
+          <button type="button" onClick={() => { onToggleAdd(c); setOpenKey(null) }} className={mapCardButton.solid} style={{ backgroundColor: added ? '#059669' : '#111827' }}>{added ? 'Added ✓' : 'Add to CMA'}</button>
+        </>}
+      />
+    )
+  }
 
   // A new page of result cards: those homes bounce twice on the map, so the agent can see where
   // the cards they're now looking at sit. The first page on load is covered by the drop-in.
@@ -357,6 +328,11 @@ export default function CompsMapView({ subject, candidates, addedKeys, radiusMil
         </div>
       )}
       <div ref={mapDivRef} className={`${heightClassName} w-full`} />
+      {/* The price tag is ~31px tall above its point (39 with the "added" check). */}
+      <MapPopup map={loaded ? mapRef.current : null} position={openComp ? { lat: openComp.latitude as number, lng: openComp.longitude as number } : null}
+        anchor={{ above: openComp && addedKeys.has(openComp.listing_key) ? 39 : 31, below: 2, side: 24 }} onClose={() => setOpenKey(null)}>
+        {space => openComp && openCard(space.height < 330 || space.width < 300 ? 'row' : 'stack')}
+      </MapPopup>
       <div className="pointer-events-none absolute right-3 top-3 rounded-lg border border-gray-200 bg-white/90 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-gray-600 shadow-sm dark:border-gray-700 dark:bg-[#151517]/90 dark:text-gray-300">
         {formatRadiusMiles(displayRadiusMiles)} mi radius
       </div>
