@@ -919,7 +919,8 @@ export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null
     if (actives.some(a => (a.days_on_market || 0) >= 60 || (a.price_cuts?.count || 0) > 0)) {
       callouts.push('Some similar homes have sat 60+ days or cut their price - pricing right matters.')
     }
-    if (pendings.length) callouts.push('The homes under contract show what buyers are paying for right now.')
+    // Contract prices aren't known until closing (grader 10/25) - these show demand, not a price.
+    if (pendings.length) callouts.push('The homes under contract show current buyer interest at their asking prices - what they sell for isn\'t known until they close.')
   }
   const groups: CmaCompetitionGroup[] = [
     { key: 'active' as const, title: 'For sale now', subtitle: buyer ? 'Other homes like this one you could buy.' : 'The homes buyers will compare yours against.', cards: actives },
