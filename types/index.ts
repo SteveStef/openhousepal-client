@@ -2732,6 +2732,8 @@ export interface CmaSubjectProperty {
   condition?: string | null;
   recent_updates?: string | null;
   photo_source?: 'upload' | 'street_view' | 'aerial' | null;
+  // The agent's own photos of the home today (optional, manual subject) - read by the same AI scan as the comps' photos.
+  condition_photos?: string[];
 }
 
 // GET /api/cma/subject-area - location facts most nearby MLS homes share, in the MLS's spelling.

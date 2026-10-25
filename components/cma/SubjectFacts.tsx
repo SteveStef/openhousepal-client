@@ -535,6 +535,64 @@ function SubjectPhoto({ reportId, subject, setSubject }: { reportId: string, sub
   )
 }
 
+// The agent's own photos of the home today (owner, 10/25): a home that isn't listed has no gallery, so
+// the analysis only had a Street View shot and guessed at the inside. Optional; the backend sends these
+// first, through the same photo read and rules as every comp's listing photos.
+const CONDITION_PHOTOS_MAX = 10
+
+function SubjectConditionPhotos({ reportId, subject, setSubject }: { reportId: string, subject: CmaSubjectProperty, setSubject: SetSubject }) {
+  const { showToast } = useToast()
+  const [uploading, setUploading] = useState(0)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const photos = subject.condition_photos || []
+  const room = CONDITION_PHOTOS_MAX - photos.length
+
+  const add = async (files: File[]) => {
+    const batch = files.slice(0, Math.max(0, room))
+    if (files.length > batch.length) showToast(`Up to ${CONDITION_PHOTOS_MAX} photos - the first ${batch.length} were added.`, 'error')
+    for (const file of batch) {
+      setUploading(n => n + 1)
+      const r = await api.cma.uploadSubjectPhoto(reportId, file)
+      setUploading(n => n - 1)
+      if (r.success && r.data) {
+        const url = r.data.photo_url
+        setSubject(s => ({ ...s, condition_photos: [...(s.condition_photos || []), url].slice(0, CONDITION_PHOTOS_MAX) }))
+      } else showToast(r.error || "Couldn't upload that photo.", 'error')
+    }
+  }
+  const remove = (url: string) => setSubject(s => ({ ...s, condition_photos: (s.condition_photos || []).filter(p => p !== url) }))
+
+  return (
+    <div>
+      <p className={sectionLabelClass}>Photos of the home today <span className="font-bold normal-case tracking-normal text-gray-400">(optional)</span></p>
+      <p className="mb-2 text-[11px] font-semibold leading-snug text-gray-400">
+        Kitchen, baths, primary suite, basement, any updates. The analysis reads them the same way it reads the comps&apos; photos.
+        Without them it assumes typical condition for the home&apos;s age.
+      </p>
+      <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
+        {photos.map((p, i) => (
+          <div key={p + i} className="relative aspect-square overflow-hidden rounded-lg ring-1 ring-black/10 dark:ring-white/10">
+            <img src={normalizeImageUrl(p)} alt="" loading="lazy" className="h-full w-full object-cover" />
+            <button type="button" onClick={() => remove(p)} title="Remove this photo"
+              className="absolute right-1 top-1 rounded-full bg-black/55 p-0.5 text-white hover:bg-black/75"><X className="h-3 w-3" /></button>
+          </div>
+        ))}
+        {Array.from({ length: uploading }).map((_, i) => (
+          <div key={`up${i}`} className="flex aspect-square items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800"><Loader2 className="h-4 w-4 animate-spin text-gray-400" /></div>
+        ))}
+        {room > uploading && (
+          <button type="button" onClick={() => fileRef.current?.click()}
+            className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-gray-300 text-[9px] font-black uppercase tracking-wide text-gray-400 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700">
+            <Upload className="h-4 w-4" /> Add photos
+          </button>
+        )}
+      </div>
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden"
+        onChange={e => { const f = Array.from(e.target.files || []); e.target.value = ''; if (f.length) add(f) }} />
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------------------------------------
 // The editor
 // ---------------------------------------------------------------------------------------------
@@ -697,6 +755,8 @@ export function SubjectFactsEditor({ reportId, subject, setSubject, area }: {
             </Labeled>
           </div>
         </div>
+
+        {manual && <SubjectConditionPhotos reportId={reportId} subject={subject} setSubject={setSubject} />}
       </div>
     </div>
   )
