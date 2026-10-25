@@ -4861,27 +4861,32 @@ function AgentReviewBanner({ report }: { report: CmaReport }) {
 }
 
 function AgentValueReviewBanner({ report }: { report: CmaReport }) {
-  const note = report.pricing?.ai_estimate?.agent_review
-  const pendingNote = (report.pricing?.ai_estimate as { current_competition?: { review?: string | null } } | null)?.current_competition?.review
-  if (!note?.message && pendingNote) {
-    return (
-      <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-sm dark:border-amber-900/40 dark:bg-amber-900/10">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-        <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-wide text-amber-800 dark:text-amber-300">Review before sending</p>
-          <p className="mt-0.5 text-xs font-semibold leading-relaxed text-amber-900 dark:text-amber-200">{pendingNote.replace(/^Review before sending:s*/, '')}</p>
-        </div>
-      </div>
-    )
-  }
-  if (!note?.message) return null
+  const est = report.pricing?.ai_estimate as (CmaReport['pricing']['ai_estimate'] & {
+    current_competition?: { review?: string | null }
+    missed_sales?: { message?: string | null } | null
+  }) | null | undefined
+  const note = est?.agent_review
+  // Every agent-only review note at once (10/25: a recent same-community sale left out of the report
+  // got its own note, and the old banner showed only one of them).
+  type ReviewNote = { text: string; values: { comps_value?: number | null; final_value?: number | null } | null }
+  const notes: ReviewNote[] = []
+  if (note?.message) notes.push({ text: note.message, values: note })
+  if (est?.current_competition?.review) notes.push({ text: est.current_competition.review, values: null })
+  if (est?.missed_sales?.message) notes.push({ text: est.missed_sales.message, values: null })
+  if (!notes.length) return null
   return (
     <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-sm dark:border-amber-900/40 dark:bg-amber-900/10">
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
       <div className="min-w-0">
         <p className="text-xs font-black uppercase tracking-wide text-amber-800 dark:text-amber-300">Review before sending</p>
-        <p className="mt-0.5 text-xs font-semibold leading-relaxed text-amber-900 dark:text-amber-200">{note.message.replace(/^Review before sending:s*/, '')}</p>
-        <p className="mt-1.5 text-[11px] font-black tabular-nums text-amber-800 dark:text-amber-300">Comps alone: {formatMoney(note.comps_value)} · Final value: {formatMoney(note.final_value)}</p>
+        {notes.map((n, i) => (
+          <div key={i} className={i ? 'mt-2 border-t border-amber-200/70 pt-2 dark:border-amber-900/40' : ''}>
+            <p className="mt-0.5 text-xs font-semibold leading-relaxed text-amber-900 dark:text-amber-200">{n.text.replace(/^Review before sending:\s*/, '')}</p>
+            {n.values && (
+              <p className="mt-1.5 text-[11px] font-black tabular-nums text-amber-800 dark:text-amber-300">Comps alone: {formatMoney(n.values.comps_value)} · Final value: {formatMoney(n.values.final_value)}</p>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   )
