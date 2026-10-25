@@ -19,8 +19,6 @@ import MapPropertyCard, { mapCardSpecs } from './maps/MapPropertyCard'
 import { formatStatus, statusBadgeColor } from './website-public/listingFormat'
 import { formatNumberWithCommas, stripCommas, normalizeImageUrl } from '@/lib/utils'
 import { STATE_CENTERS, US_FALLBACK_CENTER } from '@/lib/usStateCenters'
-import { homesLabel, SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
-import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
 
 // Restrained light-blue treatment for every geographic overlay (radius circle, drawn polygon) -
 // deliberately distinct from the brand gold ([#C9A24D]), which stays reserved for selection/accent
