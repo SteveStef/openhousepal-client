@@ -69,7 +69,7 @@ export default function CurrentCompetition({ report, agentView = false, onOpenHo
 }) {
   const view = cmaCompetitionView(report)
   if (!view) return null
-  const comp = (report.pricing?.ai_estimate as { current_competition?: { pendings_used?: { street_address?: string; list_price?: number; implied_value?: number }[]; nudge_pct?: number; nudged_from?: number | null; review?: string | null } } | null)?.current_competition
+  const comp = (report.pricing?.ai_estimate as { current_competition?: { pendings_used?: { street_address?: string; list_price?: number; implied_value?: number; moved_value?: boolean }[]; nudge_pct?: number; nudged_from?: number | null; review?: string | null } } | null)?.current_competition
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -163,6 +163,7 @@ export default function CurrentCompetition({ report, agentView = false, onOpenHo
           {(comp.pendings_used || []).map(p => (
             <p key={p.street_address} className="mt-0.5 font-semibold text-gray-500 dark:text-gray-400">
               {p.street_address}: list {formatMoney(p.list_price)} → about {formatMoney(p.implied_value)} adjusted to this home
+              {p.moved_value === false ? ' - not counted (too far from the value, or it disagrees with the others)' : ''}
             </p>
           ))}
           {comp.review && (
