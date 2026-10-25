@@ -11,6 +11,7 @@ import { AlertCircle, ArrowUpRight, Bell, CalendarClock, Camera, Check, ChevronD
 import { OHP_SUBDOMAINS_LIVE, ohpHostUrl } from '@/lib/publicResourceLinks'
 import type { NotificationPreferences, Site } from '@/types'
 import { useToolConnectionStatus } from '@/lib/toolsStatus'
+import { loginUrlForHere } from '@/lib/loginRedirect'
 import { BIO_MAX_CHARS, fitBio } from '@/lib/agentBio'
 import api, { API_BASE_URL } from '@/lib/api-service'
 import { PRICING_PLANS } from '@/lib/pricing'
@@ -320,7 +321,7 @@ export default function SettingsPage() {
   const [websiteAuto, setWebsiteAuto] = useState<WebsiteAuto>(null)
 
   useEffect(() => {
-    if (!authLoading && !user) router.push('/login')
+    if (!authLoading && !user) router.push(loginUrlForHere())  // back to this exact settings link after login
   }, [authLoading, user, router])
 
   useEffect(() => {

@@ -45,6 +45,8 @@ interface PropertyCardProps {
   // actually wants to open the full property details modal, e.g. the Similar Properties picker.
   // Omitted everywhere else (print/brag-sheet usages), so nothing changes there.
   onViewDetails?: () => void;
+  /** A labelled square "View details" button instead of the small round eye (kit Similar Homes picker). */
+  viewDetailsButton?: boolean;
 }
 
 export function PropertyRecommendationCard({
@@ -73,6 +75,7 @@ export function PropertyRecommendationCard({
   combinedAddressLine = false,
   photoOverlays = false,
   onViewDetails,
+  viewDetailsButton = false,
 }: PropertyCardProps) {
   const selectedClasses = selectionTone === 'green'
     ? 'border-emerald-500 ring-4 ring-emerald-500/15 bg-emerald-50/40'
@@ -174,7 +177,18 @@ export function PropertyRecommendationCard({
             its own) something richer to sit on than flat photo, without darkening the image itself. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/35 via-black/0 to-transparent" />
 
-        {onViewDetails && (
+        {onViewDetails && viewDetailsButton && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onViewDetails() }}
+            aria-label="View details"
+            className="absolute right-2.5 top-2.5 z-10 flex h-[58px] w-[64px] flex-col items-center justify-center gap-1 rounded-2xl bg-white/95 text-[#111827] shadow-[0_10px_24px_-10px_rgba(0,0,0,.55)] ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:bg-white print:hidden"
+          >
+            <Eye className="h-[18px] w-[18px] text-[#8b7355]" />
+            <span className="text-center text-[9.5px] font-black uppercase leading-[1.05] tracking-wide">View<br />details</span>
+          </button>
+        )}
+        {onViewDetails && !viewDetailsButton && (
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onViewDetails() }}

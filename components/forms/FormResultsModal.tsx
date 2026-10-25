@@ -329,8 +329,6 @@ export default function FormResultsModal({ isOpen, onClose, form, submissions, i
   const [activeResultsTab, setActiveResultsTab] = useState<'new' | 'reviewed'>('new')
   const openedInitial = useRef(false)
   useEscapeToClose(onClose, isOpen)
-  // Showing confirmations saved while this window is open (the parent's list isn't refetched).
-  const [showingSaved, setShowingSaved] = useState<Record<string, Showing>>({})
 
   useEffect(() => {
     if (isOpen) {
@@ -373,31 +371,6 @@ export default function FormResultsModal({ isOpen, onClose, form, submissions, i
   const visibleSubmissions = activeResultsTab === 'new' ? newSubmissions : reviewedSubmissions
   const selected = selectedId ? submissions.find(submission => submission.id === selectedId) || null : null
   const selectedVisibleIndex = selected ? submissions.findIndex(submission => submission.id === selected.id) : -1
-
-  const groupedSections: { title: string; entries: FormSubmissionAnswer[] }[] = []
-  if (selected) {
-    const order: string[] = []
-    const map = new Map<string, FormSubmissionAnswer[]>()
-    for (const answer of selected.answers) {
-      const key = answer.sectionTitle || '__none__'
-      if (!map.has(key)) { map.set(key, []); order.push(key) }
-      map.get(key)!.push(answer)
-    }
-    for (const key of order) groupedSections.push({ title: key === '__none__' ? '' : key, entries: map.get(key)! })
-  }
-  const contactGroups = groupedSections.filter(group => group.entries.some(entry => entry.type === 'email' || entry.type === 'phone'))
-  if (contactGroups.length === 0 && selected && (selected.contact_name || selected.contact_email || selected.contact_phone)) {
-    contactGroups.push({
-      title: '',
-      entries: [
-        ...(selected.contact_name ? [{ questionId: '__contact_name', label: 'Name', type: 'short_text' as const, value: selected.contact_name }] : []),
-        ...(selected.contact_email ? [{ questionId: '__contact_email', label: 'Email', type: 'email' as const, value: selected.contact_email }] : []),
-        ...(selected.contact_phone ? [{ questionId: '__contact_phone', label: 'Phone', type: 'phone' as const, value: selected.contact_phone }] : []),
-      ],
-    })
-  }
-  const contactEntryIds = new Set(contactGroups.flatMap(group => group.entries.map(entry => entry.questionId)))
-  const otherAnswers = selected ? selected.answers.filter(answer => !contactEntryIds.has(answer.questionId)) : []
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={handleBackdropClick}>
@@ -473,64 +446,8 @@ export default function FormResultsModal({ isOpen, onClose, form, submissions, i
             </div>
           ) : selected ? (
             <div className="p-4 sm:p-6">
-              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
-                {selected.form_type === 'showing' && (showingSaved[selected.id] || selected.showing) && (
-                  <ShowingConfirmSection
-                    submission={selected}
-                    showing={(showingSaved[selected.id] || selected.showing)!}
-                    onSaved={next => {
-                      setShowingSaved(current => ({ ...current, [selected.id]: next }))
-                      if (next.confirmed_date && !selected.is_reviewed) onToggleReviewed(selected.id, true)
-                    }}
-                  />
-                )}
-                {selected.property_address && (
-                  <div className={contactGroups.length > 0 ? 'border-b border-gray-100 pb-6 dark:border-gray-800' : ''}>
-                    <h4 className="flex items-center text-[10px] font-bold uppercase tracking-widest text-[#111827] dark:text-white sm:text-xs">
-                      <span className="mr-2 h-1.5 w-1.5 rounded-full bg-[#C9A24D]"></span>
-                      Property
-                    </h4>
-                    <div className="mt-3 flex items-center text-[#6B7280] dark:text-gray-400">
-                      <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-800">
-                        <MapPin size={14} className="text-gray-400 dark:text-gray-500" />
-                      </div>
-                      <span className="truncate font-medium text-[#111827] dark:text-white">{selected.property_address}</span>
-                    </div>
-                  </div>
-                )}
-
-                {contactGroups.map((group, index) => (
-                  <div key={group.title || index} className={index > 0 || selected.property_address ? 'mt-6 border-t border-gray-100 pt-6 dark:border-gray-800' : ''}>
-                    <ContactInfoSection title={`Contact ${index + 1}`} entries={group.entries} />
-                  </div>
-                ))}
-
-                <div className="mt-6 space-y-3 border-t border-gray-100 pt-6 dark:border-gray-800">
-                  <h4 className="flex items-center text-[10px] font-bold uppercase tracking-widest text-[#111827] dark:text-white sm:text-xs">
-                    <span className="mr-2 h-1.5 w-1.5 rounded-full bg-[#C9A24D]"></span>
-                    Full Responses
-                  </h4>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {otherAnswers.filter(answer => answer.value !== undefined && answer.value !== null && String(answer.value).trim() !== '').map(answer => (
-                      <div key={answer.questionId} className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">{answer.label}</p>
-                        <p className="mt-1 break-words text-sm font-medium text-[#111827] dark:text-gray-100">{answerText(answer)}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-6 flex items-center justify-end gap-2 border-t border-gray-100 pt-6 dark:border-gray-800">
-                  <button
-                    onClick={() => { onDeleteSubmission(selected); if (solo) onClose(); else setSelectedId(null) }}
-                    className="flex items-center justify-center gap-1.5 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 transition-all hover:bg-red-100 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-400 dark:hover:bg-red-900/20"
-                    aria-label="Delete submission"
-                    title="Delete submission"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" /> Delete
-                  </button>
-                </div>
-              </div>
+              <SubmissionDetail key={selected.id} submission={selected} onToggleReviewed={onToggleReviewed}
+                onDelete={() => { onDeleteSubmission(selected); if (solo) onClose(); else setSelectedId(null) }} />
             </div>
           ) : (
             <div>
@@ -617,5 +534,101 @@ export default function FormResultsModal({ isOpen, onClose, form, submissions, i
         )}
       </div>
     </div>
+  )
+}
+
+/** One person's answers - contact, the showing (confirm a time), every response, Delete. Used in
+ *  the Results window and inline in a form's Results tab (opens in place, no second window). */
+export function SubmissionDetail({ submission: selected, onToggleReviewed, onDelete, framed = true }: {
+  submission: FormSubmissionListItem
+  onToggleReviewed: (submissionId: string, isReviewed: boolean) => Promise<void>
+  onDelete: () => void
+  /** false = no card of its own (it sits in a card already). */
+  framed?: boolean
+}) {
+  const [showingSaved, setShowingSaved] = useState<Showing | null>(null)
+  const groupedSections: { title: string; entries: FormSubmissionAnswer[] }[] = []
+  {
+    const order: string[] = []
+    const map = new Map<string, FormSubmissionAnswer[]>()
+    for (const answer of selected.answers) {
+      const key = answer.sectionTitle || '__none__'
+      if (!map.has(key)) { map.set(key, []); order.push(key) }
+      map.get(key)!.push(answer)
+    }
+    for (const key of order) groupedSections.push({ title: key === '__none__' ? '' : key, entries: map.get(key)! })
+  }
+  const contactGroups = groupedSections.filter(group => group.entries.some(entry => entry.type === 'email' || entry.type === 'phone'))
+  if (contactGroups.length === 0 && (selected.contact_name || selected.contact_email || selected.contact_phone)) {
+    contactGroups.push({
+      title: '',
+      entries: [
+        ...(selected.contact_name ? [{ questionId: '__contact_name', label: 'Name', type: 'short_text' as const, value: selected.contact_name }] : []),
+        ...(selected.contact_email ? [{ questionId: '__contact_email', label: 'Email', type: 'email' as const, value: selected.contact_email }] : []),
+        ...(selected.contact_phone ? [{ questionId: '__contact_phone', label: 'Phone', type: 'phone' as const, value: selected.contact_phone }] : []),
+      ],
+    })
+  }
+  const contactEntryIds = new Set(contactGroups.flatMap(group => group.entries.map(entry => entry.questionId)))
+  const otherAnswers = selected.answers.filter(answer => !contactEntryIds.has(answer.questionId))
+  return (
+              <div className={framed ? 'rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6' : ''}>
+                {selected.form_type === 'showing' && (showingSaved || selected.showing) && (
+                  <ShowingConfirmSection
+                    submission={selected}
+                    showing={(showingSaved || selected.showing)!}
+                    onSaved={next => {
+                      setShowingSaved(next)
+                      if (next.confirmed_date && !selected.is_reviewed) onToggleReviewed(selected.id, true)
+                    }}
+                  />
+                )}
+                {selected.property_address && (
+                  <div className={contactGroups.length > 0 ? 'border-b border-gray-100 pb-6 dark:border-gray-800' : ''}>
+                    <h4 className="flex items-center text-[10px] font-bold uppercase tracking-widest text-[#111827] dark:text-white sm:text-xs">
+                      <span className="mr-2 h-1.5 w-1.5 rounded-full bg-[#C9A24D]"></span>
+                      Property
+                    </h4>
+                    <div className="mt-3 flex items-center text-[#6B7280] dark:text-gray-400">
+                      <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-800">
+                        <MapPin size={14} className="text-gray-400 dark:text-gray-500" />
+                      </div>
+                      <span className="truncate font-medium text-[#111827] dark:text-white">{selected.property_address}</span>
+                    </div>
+                  </div>
+                )}
+
+                {contactGroups.map((group, index) => (
+                  <div key={group.title || index} className={index > 0 || selected.property_address ? 'mt-6 border-t border-gray-100 pt-6 dark:border-gray-800' : ''}>
+                    <ContactInfoSection title={`Contact ${index + 1}`} entries={group.entries} />
+                  </div>
+                ))}
+
+                <div className="mt-6 space-y-3 border-t border-gray-100 pt-6 dark:border-gray-800">
+                  <h4 className="flex items-center text-[10px] font-bold uppercase tracking-widest text-[#111827] dark:text-white sm:text-xs">
+                    <span className="mr-2 h-1.5 w-1.5 rounded-full bg-[#C9A24D]"></span>
+                    Full Responses
+                  </h4>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {otherAnswers.filter(answer => answer.value !== undefined && answer.value !== null && String(answer.value).trim() !== '').map(answer => (
+                      <div key={answer.questionId} className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">{answer.label}</p>
+                        <p className="mt-1 break-words text-sm font-medium text-[#111827] dark:text-gray-100">{answerText(answer)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-6 flex items-center justify-end gap-2 border-t border-gray-100 pt-6 dark:border-gray-800">
+                  <button
+                    onClick={onDelete}
+                    className="flex items-center justify-center gap-1.5 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 transition-all hover:bg-red-100 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-400 dark:hover:bg-red-900/20"
+                    aria-label="Delete submission"
+                    title="Delete submission"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                  </button>
+                </div>
+              </div>
   )
 }

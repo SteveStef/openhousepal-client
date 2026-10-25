@@ -164,7 +164,7 @@ export default function PageGate({ children }: { children: React.ReactNode }) {
 
   // Every new page (first load, link, router.push, back / forward). Layout effect: the loader is
   // up before the new page ever paints.
-  useLayoutEffect(() => { countApiCalls() }, [])
+  useLayoutEffect(() => { countApiCalls(); (window as any).__ohpHydrated = 1 }, [])
   useLayoutEffect(() => { open(pathname) }, [pathname, open])
 
   // Cover the old page the moment a link to another app page is clicked.
@@ -207,9 +207,15 @@ export default function PageGate({ children }: { children: React.ReactNode }) {
       <div ref={root} className={`flex flex-1 flex-col ${phase === 'loading' || phase === 'pending' ? 'ohp-gate-hold' : ''}`}>
         {children}
       </div>
-      {(phase === 'loading' || phase === 'leaving') && (
+      {/* 'pending' too (10/24, iPhone Safari): a page opened in a NEW TAB is a full load - its
+          server HTML arrives with the page held hidden, and until all of its JavaScript has
+          downloaded and started there was nothing else on screen: a black page (dark mode) for
+          seconds on a phone, for good if a script never arrived. The loader is now in that first
+          HTML, fading in after the same short grace (CSS, no JavaScript needed), so a fast page
+          still just appears and a slow one shows the house loader from the first second. */}
+      {(phase === 'pending' || phase === 'loading' || phase === 'leaving') && (
         <div aria-hidden={phase === 'leaving'}
-          className={`fixed inset-0 z-40 transition-all duration-[400ms] ease-out ${phase === 'leaving' ? 'pointer-events-none scale-[1.03] opacity-0' : 'ohp-gate-cover opacity-100'}`}>
+          className={`fixed inset-0 z-40 transition-all duration-[400ms] ease-out ${phase === 'leaving' ? 'pointer-events-none scale-[1.03] opacity-0' : phase === 'pending' ? 'ohp-gate-cover ohp-gate-pending' : 'ohp-gate-cover opacity-100'}`}>
           <OhpLoader label={label} />
         </div>
       )}

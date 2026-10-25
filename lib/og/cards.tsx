@@ -718,67 +718,75 @@ const fitTitle = (lines: string[]) => Math.max(28, Math.min(60, Math.floor(COL /
 const fitSupport = (t: string) => Math.max(17, Math.min(23, Math.floor(COL / (t.length * 0.5))))
 const singleLine = { whiteSpace: 'nowrap' as const, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, maxWidth: COL + 60 }
 
+// The card IS the preview (user, 10/24): no dark border with a smaller card floating inside it -
+// the whole 1200x630 is the card, so the agent's photo and the title can be big. The look is worked
+// into the card itself: the page colour (Ivory wash / Midnight), a metal (or Classic colour) glow,
+// a gleaming line along the top and down the photo's edge, and the form's own picture
+// as a big quiet watermark.
+const COL2 = 640
+const fitTitle2 = (lines: string[]) => Math.max(40, Math.min(78, Math.floor(COL2 / (Math.max(...lines.map(l => l.length)) * 0.52))))
+const fitSupport2 = (t: string) => Math.max(22, Math.min(27, Math.floor(COL2 / (t.length * 0.56))))
+const rgbaOf = (hex: string, a: number) => { const x = hex.replace('#', ''); const n = parseInt(x.length === 3 ? x.split('').map(c => c + c).join('') : x, 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})` }
+const singleLine2 = { whiteSpace: 'nowrap' as const, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, maxWidth: COL2 + 20 }
+
 export function FormCard({ photo, name, brokerage, lines, support, kind, look }: {
   photo: string | null; name: string; brokerage: string | null; lines: string[]; support: string; kind: FormKind; look: HubLook
 }) {
   const face = FORM_FACE[kind]
   const ink = look.dark ? '#F3ECDD' : '#16130e'
-  const sub = look.dark ? 'rgba(243,236,221,0.72)' : mixHex(look.deep, '#16130e', 0.25)
-  const cardBg = look.dark ? `linear-gradient(135deg, ${look.night[0]} 0%, ${look.night[1]} 55%, ${look.night[2]} 100%)` : `linear-gradient(135deg, ${look.wash[0]} 0%, ${look.wash[1]} 55%, ${look.wash[2]} 100%)`
-  const outer = look.dark ? `radial-gradient(900px 520px at 85% 0%, ${mixHex(look.base, '#000000', 0.7)} 0%, #0d0d0f 60%, #070708 100%)` : `radial-gradient(900px 520px at 85% 0%, ${mixHex(look.base, '#1a150d', 0.6)} 0%, #16120c 58%, #0d0b08 100%)`
+  const sub = look.dark ? 'rgba(243,236,221,0.74)' : mixHex(look.deep, '#16130e', 0.3)
+  const page = look.dark ? look.night[1] : look.wash[1]
+  const cardBg = look.dark
+    ? `radial-gradient(760px 520px at 100% 0%, ${rgbaOf(look.base, 0.26)} 0%, ${rgbaOf(look.base, 0)} 70%), linear-gradient(135deg, ${look.night[0]} 0%, ${look.night[1]} 55%, ${look.night[2]} 100%)`
+    : `radial-gradient(760px 520px at 100% 0%, ${rgbaOf(look.light, 0.42)} 0%, ${rgbaOf(look.light, 0)} 70%), linear-gradient(135deg, ${look.wash[0]} 0%, ${look.wash[1]} 55%, ${look.wash[2]} 100%)`
   const label = look.dark ? look.light : look.deep
   const btnInk = lum(mixHex(look.light, look.base, 0.5)) < 0.5 ? '#ffffff' : '#16130e'
-  const titleSize = fitTitle(lines)
+  const titleSize = fitTitle2(lines)
+  const PHOTO_W = 430
   return (
-    <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: '#0d0b08',
-      backgroundImage: outer, alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ display: 'flex', position: 'relative', width: 1060, height: 500, borderRadius: 30, overflow: 'hidden',
-        backgroundImage: cardBg, boxShadow: '0 40px 90px -30px rgba(0,0,0,0.85)', border: `2px solid ${look.light}` }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 10, display: 'flex', backgroundImage: `linear-gradient(90deg, ${look.deep}, ${look.base}, ${look.light}, ${look.base}, ${look.deep})` }} />
-        <div style={{ position: 'absolute', top: 30, left: 30, right: 30, bottom: 30, display: 'flex', border: `1px solid ${look.base}66`, borderRadius: 20 }} />
-        {/* the form's picture, big and quiet in the corner */}
-        <div style={{ position: 'absolute', right: 46, top: 40, display: 'flex', opacity: look.dark ? 0.14 : 0.12 }}>
-          <svg width={230} height={230} viewBox="0 0 24 24" fill="none" stroke={look.base} strokeWidth={1.1} strokeLinecap="round" strokeLinejoin="round">
-            {face.d.map((seg, i) => <path key={i} d={seg} />)}
-          </svg>
+    <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: page, backgroundImage: cardBg, overflow: 'hidden' }}>
+      {/* the agent, full height down the left edge, edged with a gleaming metal (or colour) rule */}
+      <div style={{ display: 'flex', position: 'absolute', left: 0, top: 0, bottom: 0, width: PHOTO_W }}>
+        {photo
+          ? <img src={photo} width={PHOTO_W} height={630} style={{ width: PHOTO_W, height: 630, objectFit: 'cover' }} />
+          : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: PHOTO_W, height: 630, backgroundImage: `linear-gradient(160deg, ${look.light}, ${look.base} 55%, ${look.deep})`, color: look.dark ? '#16130e' : '#ffffff', fontSize: 150, fontWeight: 900, fontFamily: 'Playfair' }}>{initialsOf(name)}</div>}
+        <div style={{ display: 'flex', position: 'absolute', top: 0, bottom: 0, right: 0, width: 7, backgroundImage: `linear-gradient(180deg, ${look.light}, ${look.base} 45%, ${look.deep})`, boxShadow: `0 0 26px 2px ${rgbaOf(look.base, 0.45)}` }} />
+        <div style={{ display: 'flex', position: 'absolute', left: 0, right: 0, bottom: 0, height: 160, backgroundImage: `linear-gradient(180deg, transparent, ${look.dark ? 'rgba(0,0,0,0.55)' : 'rgba(22,19,14,0.35)'})` }} />
+      </div>
+      {/* the form's own picture, big and quiet */}
+      <div style={{ position: 'absolute', right: -36, bottom: -48, display: 'flex', opacity: look.dark ? 0.12 : 0.1 }}>
+        <svg width={340} height={340} viewBox="0 0 24 24" fill="none" stroke={look.base} strokeWidth={1} strokeLinecap="round" strokeLinejoin="round">
+          {face.d.map((seg, i) => <path key={i} d={seg} />)}
+        </svg>
+      </div>
+      {/* a gleaming line along the top, in the look's metal / colour */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 9, display: 'flex', backgroundImage: `linear-gradient(90deg, ${look.deep}, ${look.base} 30%, ${look.light} 55%, ${look.base} 75%, ${look.deep})` }} />
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'absolute', left: PHOTO_W + 58, right: 50, top: 0, bottom: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 54, height: 54, borderRadius: 999, backgroundImage: `linear-gradient(140deg, ${look.light}, ${look.base} 60%, ${look.deep})`, boxShadow: `0 12px 24px -12px ${look.deep}` }}>
+            <Ico d={face.d} size={27} color={btnInk} />
+          </div>
+          <div style={{ display: 'flex', fontSize: 19, fontWeight: 900, letterSpacing: 5, textTransform: 'uppercase', color: label }}>{face.eyebrow}</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '0 0 0 60px' }}>
-          <div style={{ display: 'flex', position: 'relative' }}>
-            <div style={{ display: 'flex', padding: 7, borderRadius: 34, backgroundImage: `linear-gradient(140deg, ${look.light}, ${look.base} 60%, ${look.deep})`, boxShadow: `0 24px 50px -20px ${look.deep}b3` }}>
-              {photo
-                ? <img src={photo} width={232} height={310} style={{ width: 232, height: 310, borderRadius: 28, objectFit: 'cover' }} />
-                : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 232, height: 310, borderRadius: 28, backgroundColor: look.dark ? '#000' : '#16130e', color: look.light, fontSize: 88, fontWeight: 900 }}>{initialsOf(name)}</div>}
-            </div>
-            {/* the same picture as a badge on the photo */}
-            <div style={{ position: 'absolute', right: -22, bottom: -14, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 84, height: 84, borderRadius: 999,
-              backgroundImage: `linear-gradient(140deg, ${look.light}, ${look.base} 60%, ${look.deep})`, border: `5px solid ${look.dark ? look.night[1] : '#ffffff'}`, boxShadow: '0 16px 30px -12px rgba(0,0,0,0.55)' }}>
-              <Ico d={face.d} size={38} color={btnInk} />
-            </div>
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', marginTop: 22 }}>
+          {lines.map((l, i) => (
+            <div key={i} style={{ display: 'flex', ...singleLine2, fontFamily: 'Playfair', fontWeight: 900, fontSize: titleSize, lineHeight: 1.06, letterSpacing: -1.5, color: i === 0 ? ink : label }}>{l}</div>
+          ))}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 46px 0 58px', flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 900, letterSpacing: 4, textTransform: 'uppercase', color: label }}>
-            <div style={{ display: 'flex', width: 28, height: 2, backgroundColor: look.base }} />
-            {face.eyebrow}
+        <div style={{ display: 'flex', maxWidth: COL2, fontSize: fitSupport2(support), lineHeight: 1.3, fontWeight: 600, color: sub, marginTop: 16 }}>{support}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 22, marginTop: 34 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, height: 66, padding: '0 32px', borderRadius: 999, fontSize: 24, fontWeight: 900, flexShrink: 0,
+            backgroundImage: `linear-gradient(135deg, ${look.light}, ${look.base})`, color: btnInk, boxShadow: `0 16px 30px -14px ${look.deep}` }}>
+            {face.button}
+            <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={btnInk} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', marginTop: 14 }}>
-            {lines.map((l, i) => (
-              <div key={i} style={{ display: 'flex', ...singleLine, fontFamily: 'Playfair', fontWeight: 900, fontSize: titleSize, lineHeight: 1.1, letterSpacing: -1, color: i === 0 ? ink : label }}>{l}</div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', ...singleLine, fontSize: fitSupport(support), lineHeight: 1.3, fontWeight: 600, color: sub, marginTop: 14 }}>{support}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 30 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 54, padding: '0 24px', borderRadius: 999, fontSize: 19, fontWeight: 900, flexShrink: 0,
-              backgroundImage: `linear-gradient(135deg, ${look.light}, ${look.base})`, color: btnInk, boxShadow: `0 12px 26px -14px ${look.deep}` }}>
-              {face.button}
-              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={btnInk} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
-            </div>
-            <div style={{ display: 'flex', fontSize: 15, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: sub }}>About 25 seconds</div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 26, fontSize: 19, fontWeight: 800, color: ink }}>
-            {name}{brokerage ? <div style={{ display: 'flex', color: sub, fontWeight: 700 }}>·  {brokerage}</div> : null}
-          </div>
+          <div style={{ display: 'flex', fontSize: 17, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: sub }}>About 25 seconds</div>
         </div>
+      </div>
+      {/* who it's from - on the photo, bottom left */}
+      <div style={{ display: 'flex', flexDirection: 'column', position: 'absolute', left: 36, bottom: 30, maxWidth: PHOTO_W - 90 }}>
+        <div style={{ display: 'flex', ...singleLine2, maxWidth: PHOTO_W - 90, fontFamily: 'Playfair', fontSize: 32, fontWeight: 900, color: '#ffffff' }}>{name}</div>
+        {brokerage ? <div style={{ display: 'flex', ...singleLine2, maxWidth: PHOTO_W - 90, fontSize: 17, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: 'rgba(255,255,255,0.82)', marginTop: 4 }}>{brokerage}</div> : null}
       </div>
     </div>
   )

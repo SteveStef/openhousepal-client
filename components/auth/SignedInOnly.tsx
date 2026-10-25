@@ -5,6 +5,7 @@
 import { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import OhpLoader from '@/components/brand/OhpLoader'
 
 export default function SignedInOnly({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -14,12 +15,21 @@ export default function SignedInOnly({ children }: { children: React.ReactNode }
   // homepage as the "PDF".
   const exportRender = /\/print\/?$/.test(usePathname() || '')
 
+  const pathname = usePathname() || '/'
   useEffect(() => {
-    if (!exportRender && !isLoading && !isAuthenticated) router.replace('/')
-  }, [exportRender, isLoading, isAuthenticated, router])
+    // Not signed in on this tab (e.g. a shortcut link opened in a new tab without a session): the
+    // sign-in page, then straight back here - instead of a blank page or the homepage.
+    if (!exportRender && !isLoading && !isAuthenticated) {
+      const back = pathname + (typeof window !== 'undefined' ? window.location.search : '')
+      router.replace(`/login?redirect=${encodeURIComponent(back)}`)
+    }
+  }, [exportRender, isLoading, isAuthenticated, router, pathname])
 
-  // Hidden only until we know who's signed in. A later re-check (refreshUser after a save) keeps the
-  // page mounted - blanking it there threw away the page's state mid-use.
-  if (!isAuthenticated && !exportRender) return null
+  // Until we know who's signed in: the house loader - never an empty page. (It used to render
+  // nothing here, and the page loader (PageGate) stops waiting after 9s, so a new tab whose sign-in
+  // check was slow showed a bare black / white page that looked like it was loading forever - 10/24.)
+  // A later re-check (refreshUser after a save) keeps the page mounted - blanking it there threw
+  // away the page's state mid-use.
+  if (!isAuthenticated && !exportRender) return <OhpLoader label={isLoading ? undefined : 'Taking you to sign in'} />
   return <>{children}</>
 }

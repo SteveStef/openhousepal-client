@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Flame, GraduationCap,
   Home, MapPin, Maximize2, MessageCircle, Navigation, Share2, Receipt, Send, Trees, TrendingDown, TrendingUp, X,
@@ -408,8 +408,11 @@ export function PropertyPhotos({ home, extraBadges, split = 'lg', className = ''
   const arrow = `absolute top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-[#111827] shadow-[0_10px_24px_-8px_rgba(0,0,0,.6)] transition duration-300 hover:scale-105 opacity-0 group-hover/ph:opacity-100 ${wide === 'md' ? 'md:grid' : 'lg:grid'}`
   return (
     <div className={`min-w-0 ${className}`}>
+      {/* Phones: a real swipe strip that follows the finger and snaps photo to photo (user, 10/24 -
+          no cross-fade or zoom-in / zoom-out between photos). Wider screens: the stage below. */}
+      <PhoneStrip home={home} photos={photos} extraBadges={extraBadges} onOpen={setViewer} className={wide === 'md' ? 'md:hidden' : 'lg:hidden'} />
       <div
-        className={`pp-in group/ph relative aspect-[4/3] overflow-hidden rounded-t-[22px] sm:rounded-t-[26px] ${wide === 'md' ? 'md:bg-[#0b0b0c] md:shadow-[0_34px_70px_-44px_rgba(0,0,0,.85)]' : 'lg:bg-[#0b0b0c] lg:shadow-[0_34px_70px_-44px_rgba(0,0,0,.85)]'}`}
+        className={`pp-in group/ph relative hidden aspect-[4/3] overflow-hidden rounded-t-[22px] sm:rounded-t-[26px] ${wide === 'md' ? 'md:block md:bg-[#0b0b0c] md:shadow-[0_34px_70px_-44px_rgba(0,0,0,.85)]' : 'lg:block lg:bg-[#0b0b0c] lg:shadow-[0_34px_70px_-44px_rgba(0,0,0,.85)]'}`}
         onTouchStart={e => { touchX.current = e.touches[0].clientX }}
         onTouchEnd={e => { if (touchX.current === null) return; const d = e.changedTouches[0].clientX - touchX.current; touchX.current = null; if (Math.abs(d) > 40) go(d < 0 ? 1 : -1) }}
       >
@@ -495,6 +498,52 @@ export function PropertyPhotos({ home, extraBadges, split = 'lg', className = ''
       })()}
 
       <PhotoViewer photos={photos} title={home.street} index={viewer} onChange={onViewer} />
+    </div>
+  )
+}
+
+function PhoneStrip({ home, photos, extraBadges, onOpen, className = '' }: {
+  home: HomeView; photos: string[]; extraBadges?: ReactNode; onOpen: (i: number) => void; className?: string
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [at, setAt] = useState(0)
+  const n = photos.length
+  useEffect(() => { setAt(0); ref.current?.scrollTo({ left: 0 }) }, [home.key])
+  const onScroll = () => {
+    const el = ref.current
+    if (el) setAt(Math.min(n - 1, Math.max(0, Math.round(el.scrollLeft / Math.max(1, el.clientWidth)))))
+  }
+  return (
+    <div className={`relative aspect-[4/3] overflow-hidden rounded-t-[22px] bg-black/5 sm:rounded-t-[26px] ${className}`}>
+      <div ref={ref} onScroll={onScroll}
+        className="flex h-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {photos.map((src, k) => (
+          <button key={`${k}-${src}`} type="button" onClick={() => onOpen(k)} aria-label={`Open photo ${k + 1} full screen`}
+            className="relative h-full w-full shrink-0 snap-center snap-always">
+            <img src={sizedImage(src, 1200)} alt={k === 0 ? home.fullAddress : `${home.street} - photo ${k + 1}`} loading={k < 2 ? 'eager' : 'lazy'} draggable={false}
+              className="h-full w-full select-none object-cover object-left-bottom" />
+          </button>
+        ))}
+      </div>
+      <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/45 to-transparent" />
+      {(extraBadges || home.status) && (
+        <div className="pointer-events-none absolute left-3 top-3 flex max-w-[60%] flex-wrap gap-2">
+          {home.status && <StatusPill status={home.status} small />}
+          {extraBadges}
+        </div>
+      )}
+      {domText(home) && <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-lg">{domText(home)}</span>}
+      {n > 1 && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-3.5 flex justify-center gap-1.5">
+          {Array.from({ length: Math.min(n, 7) }).map((_, i) => {
+            const lit = n <= 7 ? at : at < 3 ? at : at > n - 4 ? 6 - (n - 1 - at) : 3
+            return <span key={i} className={`h-1.5 rounded-full bg-white shadow transition-all duration-300 ${i === lit ? 'w-5 opacity-100' : 'w-1.5 opacity-60'}`} />
+          })}
+        </div>
+      )}
+      <button type="button" onClick={() => onOpen(at)} className="absolute bottom-2.5 right-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-[10.5px] font-black text-white shadow-lg">
+        <Maximize2 className="h-3.5 w-3.5" /> {n > 1 ? `${at + 1} / ${n}` : 'View'}
+      </button>
     </div>
   )
 }
@@ -820,10 +869,14 @@ export function hasDetails(home: HomeView) { return detailGroups(home).length > 
 /** One line of a home's price history (backend price_history_service.get_history). */
 export type PriceEvent = { date: string | null; event: string; price?: number | null; change?: number | null; change_pct?: number | null; rental?: boolean }
 
-const EVENT_DOT: Record<string, string> = {
-  'Sold': 'bg-[var(--pp-gold)]', 'Price reduced': 'bg-emerald-500', 'Price increased': 'bg-rose-500',
-  'Under contract': 'bg-sky-500', 'Pending': 'bg-sky-500', 'Back on market': 'bg-amber-500',
-  'Temporarily off market': 'bg-gray-400', 'Taken off market': 'bg-gray-400', 'Listing removed': 'bg-gray-400', 'Rented': 'bg-gray-400', 'Listed for rent': 'bg-gray-400',
+// One colour per kind of event on every property page (user, 10/24): Sold = red, Listed = green,
+// a price change = gray, Pending / Under contract = yellow. None of them is the page ink (a navy
+// dot vanished in dark mode).
+const eventDot = (event: string): string => {
+  if (/^(sold|rented)/i.test(event)) return 'bg-red-500'
+  if (/^(listed|coming soon|back on market|relisted)/i.test(event)) return 'bg-emerald-500'
+  if (/^(pending|under contract|active under contract|contingent)/i.test(event)) return 'bg-yellow-400'
+  return 'bg-gray-400'   // price reduced / increased / changed, off market...
 }
 
 /** Every listing this home has had - listed, price cuts, under contract, sold - newest first. Uses
@@ -873,7 +926,7 @@ export function PriceHistory({ home, events: given }: { home: HomeView; events?:
           <li key={i} className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-0.5 py-3 sm:grid-cols-[7.5rem_minmax(0,1fr)_auto]">
             <span className={`order-2 col-span-2 text-xs font-semibold sm:order-none sm:col-span-1 ${pp.faint}`}>{shortDate(e.date)}</span>
             <span className={`flex items-center gap-2 text-sm font-black ${pp.heading}`}>
-              <span className={`h-2 w-2 shrink-0 rounded-full ${EVENT_DOT[e.event] || 'bg-[var(--pp-ink)]'}`} />{e.event}
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${eventDot(e.event)}`} />{e.event}
             </span>
             <span className="text-right">
               <span className={`block text-sm font-black ${pp.heading}`}>{e.price != null ? money(e.price) : <span className={pp.faint}>-</span>}</span>
@@ -926,7 +979,7 @@ function PriceHistoryFromListing({ home }: { home: HomeView }) {
         <ol className="relative mt-6 space-y-5 border-l border-[color:var(--pp-gold-line)] pl-6">
           {steps.map((s, i) => (
             <li key={i} className="relative">
-              <span className={`absolute -left-[31px] top-1 h-3 w-3 rounded-full ring-4 ring-[color:var(--pp-card)] ${i === steps.length - 1 ? 'bg-[var(--pp-gold)]' : 'bg-[var(--pp-faint)]'}`} />
+              <span className={`absolute -left-[31px] top-1 h-3 w-3 rounded-full ring-4 ring-[color:var(--pp-card)] ${eventDot(s.what)}`} />
               <div className="flex flex-wrap items-baseline justify-between gap-x-4">
                 <p className={`text-sm font-black ${pp.heading}`}>{s.what}</p>
                 {s.amount && <p className={`text-sm font-black ${s.tone === 'down' ? 'text-emerald-600' : s.tone === 'up' ? 'text-rose-600' : pp.heading}`}>{s.amount}</p>}
@@ -1092,7 +1145,7 @@ export function ShowingPicker({ onOpen, label = 'Schedule a showing', status, on
     // Requests for a day once it's on the market are fine - the agent books it when showings open.
     const when = opens.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
     return (
-      <div className="mt-5">
+      <div className="mt-5" data-pp-showing>
         <PanelHead icon={<CalendarDays className="h-5 w-5" />} title={`Showings start ${when}`} sub="Coming soon - pick a day on or after it, then the time." />
         <div className="mt-3.5 grid grid-cols-4 gap-1.5">
           {days.map((d, i) => (
@@ -1113,7 +1166,7 @@ export function ShowingPicker({ onOpen, label = 'Schedule a showing', status, on
   }
   if (comingSoon) {
     return (
-      <div className="mt-5">
+      <div className="mt-5" data-pp-showing>
         <PanelHead icon={<CalendarDays className="h-5 w-5" />} title="Coming soon" sub="Showings open the day it goes active - be first in line." />
         <motion.button type="button" onClick={onAsk || onOpen} whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} className={`${pp.goldBtn} pp-shine mt-3.5 w-full`}>
           <CalendarDays className="h-4 w-4" /> Tell me when showings open
@@ -1122,7 +1175,7 @@ export function ShowingPicker({ onOpen, label = 'Schedule a showing', status, on
     )
   }
   return (
-    <div className="mt-5">
+    <div className="mt-5" data-pp-showing>
       <PanelHead icon={<CalendarDays className="h-5 w-5" />} title="Book a showing" sub="Pick a day - you'll choose the time next." />
       <div className="mt-3.5 grid grid-cols-4 gap-1.5">
         {days.map((d, i) => (
@@ -1285,13 +1338,44 @@ export function AskForm({ id, title, sub, agentFirst, agent, initial, onSend, em
   )
 }
 
-/** Phones: the page's main actions ride along at the bottom. */
+/** Phones: the page's main actions ride along at the bottom - flush with the bottom edge like the
+ *  Showcase / CMA bars (no see-through gap under it), clear of the iPhone home indicator - and only
+ *  once the page's own "Book a showing" card (ShowingPicker) has scrolled away above: while that's
+ *  on screen the same buttons are right there (user, 10/24). */
 export function PhoneBar({ photo, children }: { photo?: string | null; children: ReactNode }) {
+  const [show, setShow] = useState(false)
+  const reduce = useReducedMotion()
+  useEffect(() => {
+    let io: IntersectionObserver | null = null
+    let tries = 0
+    let timer = 0
+    const watch = () => {
+      const el = document.querySelector('[data-pp-showing]')
+      if (!el) {
+        // Not on this page (yet) - look again for a moment, then just ride along.
+        if (tries++ < 20) { timer = window.setTimeout(watch, 250); return }
+        setShow(true)
+        return
+      }
+      io = new IntersectionObserver(([e]) => setShow(!e.isIntersecting && e.boundingClientRect.top < 0), { threshold: 0 })
+      io.observe(el)
+    }
+    watch()
+    return () => { window.clearTimeout(timer); io?.disconnect() }
+  }, [])
   return (
-    <div className="fixed inset-x-3 bottom-3 z-40 flex items-center gap-2 rounded-2xl bg-[var(--pp-ink)] p-2 shadow-[0_20px_40px_-12px_rgba(0,0,0,.5)] ring-1 ring-white/10 lg:hidden" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
-      {photo && <img src={photo} alt="" className="h-10 w-10 shrink-0 rounded-full max-[379px]:hidden object-cover ring-2 ring-[color:var(--pp-gold)]" />}
-      {children}
-    </div>
+    <AnimatePresence>
+      {show && (
+        <motion.div key="pp-phone-bar"
+          initial={reduce ? { opacity: 0 } : { y: '110%' }} animate={reduce ? { opacity: 1 } : { y: 0 }} exit={reduce ? { opacity: 0 } : { y: '110%' }}
+          transition={{ type: 'spring', stiffness: 420, damping: 38 }}
+          className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 rounded-t-[22px] bg-[var(--pp-ink)] px-3 pt-2.5 shadow-[0_-16px_40px_-18px_rgba(0,0,0,.6)] ring-1 ring-white/10 lg:hidden"
+          style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom))' }}>
+          {photo && <img src={photo} alt="" className="h-10 w-10 shrink-0 rounded-full max-[379px]:hidden object-cover ring-2 ring-[color:var(--pp-gold)]" />}
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 

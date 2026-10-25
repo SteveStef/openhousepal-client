@@ -1,7 +1,7 @@
 import { SlidersHorizontal,
   Calendar, CalendarClock, Eye, Home, FileText, FileCheck, Inbox, CheckCircle2, XCircle, MessageSquareText,
   MessageCircle, Megaphone, UserCheck, Mail, TrendingUp, ThumbsUp, ThumbsDown, Send, UserPlus, HelpCircle, Film,
-  MailOpen, MailX, Star, Newspaper, Bell, CreditCard, ClipboardList, AlertTriangle,
+  MailOpen, MailX, Star, Newspaper, Bell, CreditCard, ClipboardList, AlertTriangle, Sparkles,
 } from 'lucide-react'
 
 // Shared per-type display metadata for Notification.type - used by both the bell dropdown
@@ -18,8 +18,9 @@ export const NOTIFICATION_META: Record<string, { icon: React.ComponentType<{ cla
   PROPERTY_INTERACTION: { icon: ThumbsUp, label: 'Property Activity', className: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 border-blue-200 dark:border-blue-800' },
   PROPERTY_COMMENT: { icon: MessageCircle, label: 'Showcase Comment', className: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 border-blue-200 dark:border-blue-800' },
   PROPERTY_INQUIRY: { icon: Mail, label: 'Property Inquiry', className: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 border-blue-200 dark:border-blue-800' },
-  // The 4:30 PM roll-up of every new match + price drop across the agent's Showcases (one a day).
-  SHOWCASE_DIGEST: { icon: TrendingUp, label: "Today's Showcase Update", className: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800' },
+  // Today's Rundown - one a day when the daily briefing goes out; opens the Rundown window
+  // (components/rundown/TodaysRundown.tsx). Older ones are titled "Today's Showcase update".
+  SHOWCASE_DIGEST: { icon: Sparkles, label: "Today's Rundown", className: 'bg-[#C9A24D]/15 dark:bg-[#C9A24D]/20 text-[#8b7355] dark:text-[#e8c97a] border-[#C9A24D]/40' },
   PROPERTY_SYNC_UPDATE: { icon: TrendingUp, label: 'Showcase Update', className: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800' },
   INVITE_RSVP: { icon: FileText, label: 'Invite RSVP', className: 'bg-[#C9A24D]/15 dark:bg-[#C9A24D]/20 text-[#8b7355] dark:text-[#d7b974] border-[#C9A24D]/30' },
   FORM_SUBMISSION: { icon: FileText, label: 'Form Submission', className: 'bg-[#C9A24D]/15 dark:bg-[#C9A24D]/20 text-[#8b7355] dark:text-[#d7b974] border-[#C9A24D]/30' },
@@ -69,6 +70,8 @@ export const NOTIFICATION_META: Record<string, { icon: React.ComponentType<{ cla
   EMAIL_ACTIVITY: { icon: MailOpen, label: 'Email Opened', className: 'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30' },
   // Automatic emails to a client went weekly / stopped / came back on (the inbox-protection rules).
   EMAIL_STATUS: { icon: MailX, label: 'Email Sending', className: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-800' },
+  // OpenHousePal's own emails to the agent go unopened (junk?) / switched to weekly / back on - agent_email_health_service.
+  EMAIL_HEALTH: { icon: MailX, label: 'Your Inbox', className: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-800' },
   NEW_REVIEW: { icon: Star, label: 'New Review', className: 'bg-[#C9A24D]/15 dark:bg-[#C9A24D]/20 text-[#8b7355] dark:text-[#d7b974] border-[#C9A24D]/30' },
   PORTAL_LEAD: { icon: Inbox, label: 'Portal Lead', className: 'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30' },
   LEAD: { icon: Newspaper, label: 'Blog Question', className: 'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30' },
@@ -104,6 +107,7 @@ const EMAIL_OFF_META = { icon: MailX, label: 'Emails Stopped', className: 'bg-ro
 
 export function getNotificationMeta(type: string, message?: string | null, title?: string | null) {
   if (type === 'EMAIL_ACTIVITY' && title?.includes('clicked')) return EMAIL_CLICKED_META
+  if (type === 'EMAIL_HEALTH' && title?.includes('back on')) return EMAIL_BACK_META
   if (type === 'EMAIL_STATUS' && title) {
     if (title.includes('back to daily')) return EMAIL_BACK_META
     if (title.includes('stopped')) return EMAIL_OFF_META

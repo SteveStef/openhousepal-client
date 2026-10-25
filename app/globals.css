@@ -1883,6 +1883,10 @@ div[role="button"]:active {
    pure CSS - if JavaScript never takes over, both step aside after 10s on their own. */
 .ohp-gate-hold { visibility: hidden; animation: ohpGateShow 0s linear 10s forwards; }
 .ohp-gate-cover { animation: ohpGateCoverOff .4s ease-out 10s forwards; }
+/* PageGate's first moment (also in the server HTML): invisible for the grace period, then the
+   loader fades in - unless the page is already there (the cover is removed by then). */
+.ohp-gate-cover.ohp-gate-pending { opacity: 0; pointer-events: none; animation: ohpGatePendingIn .35s ease-out .3s forwards, ohpGateCoverOff .4s ease-out 10s forwards; }
+@keyframes ohpGatePendingIn { to { opacity: 1; } }
 @keyframes ohpGateShow { to { visibility: visible; } }
 @keyframes ohpGateCoverOff { to { opacity: 0; visibility: hidden; pointer-events: none; } }
 
@@ -1929,3 +1933,9 @@ div[role="button"]:active {
 .ohp-reveal > *:nth-child(23) { animation-delay: 900ms; }
 .ohp-reveal > *:nth-child(24) { animation-delay: 900ms; }
 @media (prefers-reduced-motion: reduce) { .ohp-reveal > * { animation: none; } }
+
+/* Site-wide (10/24): a quick double tap on a button or link never zooms the page on a phone.
+   Typing-box zoom on iPhone is handled by the viewport in app/layout.tsx. */
+@media (pointer: coarse) {
+  :is(button, a, label, input, select, textarea, [role='button']) { touch-action: manipulation; }
+}

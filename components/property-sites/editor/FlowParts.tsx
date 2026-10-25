@@ -237,7 +237,24 @@ export function PreviewOverlay({ template, siteId, names, onClose, onUse, initia
 // several at once - more than iOS Safari allows a tab, so it crashed, reloaded and crashed again.
 // On a phone each preview is the phone-width page instead (what a visitor's phone shows anyway),
 // only ONE preview is live at a time, and after a crash the editor opens with tap-to-load previews.
-let livePhonePreview: ((v: boolean) => void) | null = null
+//
+// 10/24 (owner): scrolling past a preview on a phone reloaded it, flickered between the two designs
+// and showed black boxes. Now each preview shows a still of the home's own photo until it's really
+// on screen (half of it showing), then the live page fades in over it - and a loaded preview STAYS
+// loaded (up to two at a time, enough for the Design step's two designs), so scrolling back never
+// starts it over. A third one only bumps the one used longest ago.
+const PHONE_LIVE_MAX = 2
+const livePhonePreviews: ((v: boolean) => void)[] = []
+function claimPhonePreview(set: (v: boolean) => void) {
+  const at = livePhonePreviews.indexOf(set)
+  if (at >= 0) livePhonePreviews.splice(at, 1)
+  livePhonePreviews.push(set)
+  while (livePhonePreviews.length > PHONE_LIVE_MAX) livePhonePreviews.shift()?.(false)
+}
+function releasePhonePreview(set: (v: boolean) => void) {
+  const at = livePhonePreviews.indexOf(set)
+  if (at >= 0) livePhonePreviews.splice(at, 1)
+}
 const phoneScreen = () => typeof window !== 'undefined' && window.innerWidth < 768
 export function spotlightLiteMode(): boolean {
   try { return typeof window !== 'undefined' && sessionStorage.getItem('sp-lite') === '1' } catch { return false }
@@ -248,7 +265,9 @@ export const ScaledPreview = forwardRef<HTMLIFrameElement, {
   className?: string
   label?: string
   onLoad?: () => void
-}>(function ScaledPreview({ src, aspect = 0.625, className = '', label, onLoad }, ref) {
+  /** A still shown until the live page is in (the home's main photo) - never a black box. */
+  poster?: string | null
+}>(function ScaledPreview({ src, aspect = 0.625, className = '', label, onLoad, poster }, ref) {
   const boxRef = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(0)
   const [near, setNear] = useState(false)
@@ -261,14 +280,13 @@ export const ScaledPreview = forwardRef<HTMLIFrameElement, {
     if (!el) return
     const ro = new ResizeObserver(([e]) => setW(e.contentRect.width))
     ro.observe(el)
-    // Phones: live only while (nearly) on screen, and only one at a time.
+    // Phones: starts once half of it is on screen, then stays (see claimPhonePreview).
     const io = new IntersectionObserver(([e]) => {
       if (!phone) { if (e.isIntersecting) { setNear(true); io.disconnect() } return }
-      if (e.isIntersecting) { livePhonePreview?.(false); livePhonePreview = setNear; setNear(true) }
-      else setNear(false)
-    }, { rootMargin: phone ? '0px' : '300px', threshold: phone ? 0.35 : 0 })
+      if (e.intersectionRatio >= 0.5) { claimPhonePreview(setNear); setNear(true) }
+    }, { rootMargin: phone ? '0px' : '300px', threshold: phone ? [0, 0.5, 1] : 0 })
     io.observe(el)
-    return () => { ro.disconnect(); io.disconnect(); if (livePhonePreview === setNear) livePhonePreview = null }
+    return () => { ro.disconnect(); io.disconnect(); releasePhonePreview(setNear) }
   }, [phone])
   useEffect(() => { setLoaded(false) }, [src])
   useEffect(() => { if (!near) setLoaded(false) }, [near])
@@ -284,6 +302,12 @@ export const ScaledPreview = forwardRef<HTMLIFrameElement, {
         <span className="ml-2 truncate rounded-md bg-white px-2 py-0.5 text-[9px] font-semibold text-gray-400 dark:bg-black/30">{label || 'your-listing.openhousepal.com'}</span>
       </div>
       <div ref={boxRef} className="relative overflow-hidden" style={{ height: w ? w * aspect : undefined, aspectRatio: w ? undefined : `${1 / aspect}` }}>
+        {poster && (
+          <div aria-hidden className={`absolute inset-0 transition-opacity duration-700 ${loaded ? 'opacity-0' : 'opacity-100'}`}>
+            <img src={poster} alt="" className={`h-full w-full object-cover ${phone ? 'object-[50%_30%]' : ''}`} />
+            <span className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/55" />
+          </div>
+        )}
         {near && w > 0 && (!lite || tapped) && (
           <iframe
             ref={ref}
@@ -298,16 +322,19 @@ export const ScaledPreview = forwardRef<HTMLIFrameElement, {
           />
         )}
         {lite && !tapped && (
-          <button type="button" onClick={() => setTapped(true)} className="absolute inset-0 z-[1] flex items-center justify-center bg-[#0b0b0c] text-[11px] font-black uppercase tracking-wide text-white/80">
-            Tap to load the preview
+          <button type="button" onClick={() => setTapped(true)} className={`absolute inset-0 z-[1] flex items-center justify-center text-[11px] font-black uppercase tracking-wide text-white/90 ${poster ? 'bg-black/35' : 'bg-[#0b0b0c]'}`}>
+            <span className="rounded-full bg-black/60 px-3 py-1.5">Tap to load the preview</span>
           </button>
         )}
-        {!loaded && !(lite && !tapped) && (
+        {!loaded && !(lite && !tapped) && (poster ? (
+          // The still stays calm - just a small "loading" chip once the live page is on its way.
+          near && <span className="absolute bottom-2.5 right-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/55"><Loader2 className="h-3.5 w-3.5 animate-spin text-[#e8c97a]" /></span>
+        ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="fp-shimmer absolute inset-0" />
             <Loader2 className="relative h-5 w-5 animate-spin text-[#C9A24D]" />
           </div>
-        )}
+        ))}
       </div>
       <style>{`.fp-shimmer{background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.08) 50%,transparent 70%);background-size:220% 100%;animation:fpShim 1.4s linear infinite}@keyframes fpShim{from{background-position:120% 0}to{background-position:-120% 0}}`}</style>
     </div>

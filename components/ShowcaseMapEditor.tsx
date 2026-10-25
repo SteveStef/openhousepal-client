@@ -19,6 +19,8 @@ import MapPropertyCard, { mapCardSpecs } from './maps/MapPropertyCard'
 import { formatStatus, statusBadgeColor } from './website-public/listingFormat'
 import { formatNumberWithCommas, stripCommas, normalizeImageUrl } from '@/lib/utils'
 import { STATE_CENTERS, US_FALLBACK_CENTER } from '@/lib/usStateCenters'
+import { homesLabel, SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
+import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
 
 // Restrained light-blue treatment for every geographic overlay (radius circle, drawn polygon) -
 // deliberately distinct from the brand gold ([#C9A24D]), which stays reserved for selection/accent
@@ -194,6 +196,10 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
   const placeCenterPreviewCircleRef = useRef<google.maps.Circle | null>(null)
   const [previewProperties, setPreviewProperties] = useState<Property[]>([])
   const [previewCount, setPreviewCount] = useState(0)
+  // More homes match than a Showcase holds (lib/showcaseLimit): counts say "100+" + a tighten-it note.
+  const [previewAtLimit, setPreviewAtLimit] = useState(false)
+  const countLabel = homesLabel(previewCount, previewAtLimit)
+  const atLimit = previewAtLimit || previewCount > SHOWCASE_MAX_HOMES
   const [isLoadingPreview, setIsLoadingPreview] = useState(false)
   const [mapLoaded, setMapLoaded] = useState(false)
   // Homes already in this Showcase - the client's liked / commented / toured ones always stay,
@@ -263,6 +269,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
     if (!hasGeo) {
       setPreviewProperties([])
       setPreviewCount(0)
+      setPreviewAtLimit(false)
       return
     }
     setIsLoadingPreview(true)
@@ -271,6 +278,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
       if (success && data) {
         setPreviewProperties(data.properties || [])
         setPreviewCount(data.count || 0)
+        setPreviewAtLimit(!!data.at_limit)
       }
       setIsLoadingPreview(false)
     }, 450)
@@ -377,7 +385,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
       if (center) map.setCenter(center)
     })
     return () => { window.clearTimeout(fallback); idle.remove() }
-  }, [viewMode, mapLoaded])
+  }, [viewMode, mapLoaded, mobileTab])
 
   const polygonToRing = (polygon: google.maps.Polygon): number[][] => {
     const path = polygon.getPath()
@@ -989,7 +997,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
             <p className="truncate text-[9px] font-black uppercase tracking-[0.28em] text-[#8b7355] dark:text-[#e8c97a] sm:text-[10px]">
               New Showcase · Search area
               <span className="ml-2 font-bold normal-case tracking-normal text-gray-500 dark:text-white/50">
-                {isLoadingPreview ? 'Updating matches…' : geoMode === 'none' ? '' : `${previewCount} matching ${previewCount === 1 ? 'home' : 'homes'}`}
+                {isLoadingPreview ? 'Updating matches…' : geoMode === 'none' ? '' : `${countLabel} matching ${previewCount === 1 && !atLimit ? 'home' : 'homes'}`}
               </span>
             </p>
             <h2 className="line-clamp-2 font-serif text-base font-black leading-tight text-[#111827] dark:text-white sm:truncate sm:text-2xl">
@@ -1049,10 +1057,10 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
             {isLoadingPreview ? <Loader2 className="h-4 w-4 animate-spin text-[#e8c97a]" /> : <span className="relative grid h-2.5 w-2.5 place-items-center"><span className="absolute h-full w-full animate-ping rounded-full bg-emerald-400/60" /><span className="h-2 w-2 rounded-full bg-emerald-400" /></span>}
             <span className="relative h-6 min-w-[2ch] overflow-hidden text-lg font-black tabular-nums leading-6">
               <AnimatePresence mode="popLayout" initial={false}>
-                <motion.span key={previewCount} className="block" initial={{ y: 18, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -18, opacity: 0 }} transition={{ type: 'spring', stiffness: 420, damping: 30 }}>{previewCount}</motion.span>
+                <motion.span key={countLabel} className="block" initial={{ y: 18, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -18, opacity: 0 }} transition={{ type: 'spring', stiffness: 420, damping: 30 }}>{countLabel}</motion.span>
               </AnimatePresence>
             </span>
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/60">{previewCount === 1 ? 'match' : 'matches'}</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/60">{previewCount === 1 && !atLimit ? 'match' : 'matches'}</span>
           </div>
           <motion.button
             onClick={handleSave}
@@ -1089,12 +1097,12 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
           >
             {mobileTab === tab && <motion.span layoutId="me-mobile-tab" className="absolute inset-0 rounded-xl bg-[#111827] shadow-md dark:bg-white" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
             <Icon className="relative h-3.5 w-3.5" /><span className="relative">{label}</span>
-            {tab === 'grid' && previewCount > 0 && <span className={`relative rounded-full px-1.5 text-[9px] ${mobileTab === tab ? 'bg-[#C9A24D] text-[#111827]' : 'bg-gray-100 text-gray-500 dark:bg-white/10'}`}>{previewCount}</span>}
+            {tab === 'grid' && previewCount > 0 && <span className={`relative rounded-full px-1.5 text-[9px] ${mobileTab === tab ? 'bg-[#C9A24D] text-[#111827]' : 'bg-gray-100 text-gray-500 dark:bg-white/10'}`}>{countLabel}</span>}
           </button>
         ))}
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="relative grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[360px_minmax(0,1fr)]">
         {/* Left control panel - always visible at md+ (tablet is deliberately desktop-like); on
             mobile only when the Criteria tab is active. */}
         <div className={`${mobileTab === 'criteria' ? 'block' : 'hidden'} me-scroll md:block min-h-0 space-y-3 overflow-y-auto border-b border-gray-200 bg-[#f6f4ef] p-3.5 dark:border-white/[0.07] dark:bg-[#0f0f11] md:border-b-0 md:border-r`}>
@@ -1108,6 +1116,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
             )}
           </AnimatePresence>
 
+          <ShowcaseLimitNote show={geoMode !== 'none' && !isLoadingPreview && atLimit} />
           {card({
             i: 0, icon: <DollarSign className="h-4 w-4" />, title: 'Budget', set: !!(formData.min_price || formData.max_price),
             children: pair({ label: 'Min price', node: money('min_price', '0') }, { label: 'Max price', node: money('max_price', 'No limit') }),
@@ -1376,10 +1385,12 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
 
         {/* Main: map + optional grid - always visible at md+; on mobile only when Criteria isn't
             the active tab (Map/Grid tabs then pick which of the two panes shows below). */}
-        <div className={`${mobileTab === 'criteria' ? 'hidden' : 'flex'} md:flex min-h-0 flex-1 flex-col`}>
+        {/* On the Criteria tab it's laid out underneath, invisible - not display:none - so the map
+            measures its real size and fits the search area before the agent ever taps Map. */}
+        <div className={`${mobileTab === 'criteria' ? 'max-md:pointer-events-none max-md:invisible max-md:absolute max-md:inset-0' : ''} flex min-h-0 flex-1 flex-col`} aria-hidden={mobileTab === 'criteria' ? true : undefined}>
           <div className="hidden shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2 dark:border-white/[0.07] dark:bg-[#151517] md:flex">
             <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-gray-400">
-              {isLoadingPreview ? <><Loader2 className="h-3.5 w-3.5 animate-spin text-[#C9A24D]" /> Updating matches…</> : geoMode === 'none' ? 'Set a search area to see matches' : <><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{previewCount} live {previewCount === 1 ? 'match' : 'matches'}{keptHomes.length > 0 && <span className="ml-1 text-rose-500">+ {keptHomes.length} kept</span>}{previewCount > 500 && <span className="ml-1 normal-case tracking-normal text-amber-600 dark:text-amber-400">· a Showcase holds 500 - narrow it down</span>}</>}
+              {isLoadingPreview ? <><Loader2 className="h-3.5 w-3.5 animate-spin text-[#C9A24D]" /> Updating matches…</> : geoMode === 'none' ? 'Set a search area to see matches' : <><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{countLabel} live {previewCount === 1 && !atLimit ? 'match' : 'matches'}{keptHomes.length > 0 && <span className="ml-1 text-rose-500">+ {keptHomes.length} kept</span>}{atLimit && <span className="ml-1 normal-case tracking-normal text-[#a8843a] dark:text-[#e8c97a]">· the closest {SHOWCASE_MAX_HOMES} are kept</span>}</>}
             </p>
             <div className="flex items-center gap-1 rounded-xl bg-gray-100 p-1 dark:bg-white/[0.06]">
               {([['map', MapIcon, 'Map'], ['split', Columns2, 'Both'], ['grid', LayoutGrid, 'Grid']] as const).map(([mode, Icon, label]) => (
@@ -1398,7 +1409,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
           </div>
 
           <div className={`flex min-h-0 flex-1 ${viewMode === 'split' ? 'flex-col xl:flex-row' : 'flex-col'}`}>
-            <div className={`${mobileTab === 'map' ? 'flex' : 'hidden'} ${(viewMode === 'map' || viewMode === 'split') ? 'md:flex' : 'md:hidden'} me-pane relative min-h-[320px] flex-1 bg-gray-100 dark:bg-gray-800`}>
+            <div className={`${mobileTab !== 'grid' ? 'flex' : 'hidden'} ${(viewMode === 'map' || viewMode === 'split') ? 'md:flex' : 'md:hidden'} me-pane relative min-h-[320px] flex-1 bg-gray-100 dark:bg-gray-800`}>
                 <AnimatePresence>
                   {!mapLoaded && !mapLoadError && (
                     <motion.div key="loading" exit={{ opacity: 0, scale: 1.02, transition: { duration: 0.35 } }} className="absolute inset-0 z-10 grid place-items-center bg-[#f6f4ef] dark:bg-[#111113]">
@@ -1536,7 +1547,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
       {create && (
         <FlowDock inline step={3} total={3} onBack={() => create.onBack(formData)} backDisabled={isSubmitting}
           onContinue={handleSave} busy={isSubmitting} continueLabel={isSubmitting ? 'Creating…' : 'Create'} icon={<Sparkles />}
-          note={isLoadingPreview ? 'Updating…' : geoMode === 'none' ? undefined : `${previewCount} ${previewCount === 1 ? 'home' : 'homes'}`} />
+          note={isLoadingPreview ? 'Updating…' : geoMode === 'none' ? undefined : `${countLabel} ${previewCount === 1 && !atLimit ? 'home' : 'homes'}`} />
       )}
       </motion.div>
 

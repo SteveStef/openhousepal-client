@@ -23,10 +23,12 @@ export default function PhotoShow({ photos, alt, onOpen, tone, fontClass = '' }:
   const [reduced, setReduced] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
+  const swipe = useRef<{ x: number; y: number } | null>(null)
   // Bumped each time a slide becomes the active one, so its drift restarts from the beginning.
   const starts = useRef<Record<number, number>>({})
-  const firstDuration = 7600
-  const duration = 5200
+  // 30% quicker than before (user, 10/24: was 7.6s / 5.2s a photo).
+  const firstDuration = 5320
+  const duration = 3640
   const playing = inView && !userPaused && !reduced && shown.length > 1
   const ms = index === 0 ? firstDuration : duration
 
@@ -64,13 +66,25 @@ export default function PhotoShow({ photos, alt, onOpen, tone, fontClass = '' }:
   return (
     <div ref={rootRef} className={`ps ${dark ? 'ps-dark' : 'ps-light'} ${inView ? '' : 'is-off'}`}>
       <style>{PS_CSS}</style>
-      <div className="ps-stage">
+      <div
+        className="ps-stage"
+        // Phones: a sideways swipe on the show moves to the next / previous photo.
+        onTouchStart={e => { swipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
+        onTouchEnd={e => {
+          const s = swipe.current
+          swipe.current = null
+          if (!s) return
+          const dx = e.changedTouches[0].clientX - s.x
+          const dy = e.changedTouches[0].clientY - s.y
+          if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) go(index + (dx < 0 ? 1 : -1))
+        }}
+      >
         {shown.map((src, i) => {
           const state = i === index ? 'is-active' : i === prev ? 'is-prev' : ''
           // Same shorthand while active and while fading out underneath the next one, so the
           // drift carries on through the dissolve instead of snapping back.
           const drift = state && !reduced
-            ? (i === 0 ? `psZoomOut ${firstDuration + 1600}ms cubic-bezier(.16,.6,.3,1) both` : `${i % 2 ? 'psDriftIn' : 'psDriftOut'} ${duration + 1600}ms linear both`)
+            ? (i === 0 ? `psZoomOut ${firstDuration + 1200}ms cubic-bezier(.16,.6,.3,1) both` : `${i % 2 ? 'psDriftIn' : 'psDriftOut'} ${duration + 1200}ms linear both`)
             : undefined
           return (
             <button
@@ -136,7 +150,7 @@ const PS_CSS = `
 .ps-slide.is-prev img,.ps-slide.is-active img{will-change:transform}
 .ps.is-off .ps-slide img{animation-play-state:paused!important}
 .ps-slide.is-prev{opacity:1;z-index:1;transition:none}
-.ps-slide.is-active{opacity:1;z-index:2;transition:opacity 1.6s cubic-bezier(.4,0,.2,1)}
+.ps-slide.is-active{opacity:1;z-index:2;transition:opacity 1.2s cubic-bezier(.4,0,.2,1)}
 @keyframes psZoomOut{from{transform:scale(1.2)}to{transform:scale(1)}}
 @keyframes psDriftIn{from{transform:scale(1.02)}to{transform:scale(1.13)}}
 @keyframes psDriftOut{from{transform:scale(1.13)}to{transform:scale(1.02)}}

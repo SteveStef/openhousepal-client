@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, CalendarDays, Check, Loader2, MessageSquare, Video, Home } from 'lucide-react'
 import { visitSource } from '@/lib/visitSource'
-import { LEAD_EVENT, fmtDay, fmtPhone, fmtTimeRange, type PropertySiteAgent, type PropertySiteOpenHouse } from './model'
+import { LEAD_EVENT, fmtDay, fmtNumber, fmtPhone, fmtTimeRange, type PropertySiteAgent, type PropertySiteOpenHouse } from './model'
 import { TONE, type Tone } from './tone'
 import { atTime, busyAt, type BusyBlock } from '@/lib/agentBusy'
 import ScheduleTourModal from '@/components/ScheduleTourModal'
+import { InfoRequestWindow } from './GuestFlows'
+import { useCompactScreen as useCompact } from './SpotSheet'
+import { readVisitor, saveVisitor } from '@/lib/visitor'
 import type { Property, TourRequest } from '@/types'
 
 // The one lead-capture form for both Spotlight templates. "Request info" and "Schedule a tour"
@@ -58,7 +61,15 @@ export default function LeadForm({
   const t = TONE[tone]
   const [tab, setTab] = useState<'info' | 'tour'>('info')
   const [tourOpen, setTourOpen] = useState(false)
-  const openTour = () => { setTab('tour'); if (siteId !== 'preview') setTourOpen(true) }
+  const [infoOpen, setInfoOpen] = useState(false)
+  const phoneForm = useCompact()
+  const phoneRef = useRef(phoneForm)
+  phoneRef.current = phoneForm
+  const openTour = () => {
+    setTab('tour')
+    if (siteId !== 'preview') setTourOpen(true)
+    else document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [attempted, setAttempted] = useState(false)
   const [form, setForm] = useState({
@@ -88,12 +99,37 @@ export default function LeadForm({
 
   // Where they came from (a QR, the Agent Hub, Google...) - captured on arrival, sent with the form.
   useEffect(() => { visitSource(`site:${siteId}`) }, [siteId])
+  // Someone who already gave their details anywhere on the site (Follow this home, the documents,
+  // a question...) finds them filled in here too.
+  useEffect(() => {
+    const fill = () => {
+      const v = readVisitor()
+      if (!v) return
+      const [first, ...rest] = (v.name || '').trim().split(/\s+/)
+      setForm(f => ({
+        ...f,
+        first_name: f.first_name || v.firstName || first || '',
+        last_name: f.last_name || rest.join(' '),
+        email: f.email || v.email || '',
+        phone: f.phone || v.phone || '',
+      }))
+    }
+    fill()
+    window.addEventListener('ohp-visitor', fill)
+    return () => window.removeEventListener('ohp-visitor', fill)
+  }, [])
 
   useEffect(() => {
     const onOpen = (e: Event) => {
       const detail = (e as CustomEvent).detail || {}
-      if (detail.tab === 'tour' && allowTour) { setTab('tour'); if (siteId !== 'preview') setTourOpen(true) }
-      else if (detail.tab === 'info') setTab('info')
+      if (detail.tab === 'tour' && allowTour) {
+        setTab('tour')
+        if (siteId !== 'preview') setTourOpen(true)
+        else if (phoneRef.current) document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } else if (detail.tab === 'info' || (detail.tab === 'tour' && !allowTour)) {
+        setTab('info')
+        if (phoneRef.current) setInfoOpen(true)
+      }
       if (detail.date) setForm(f => ({ ...f, requested_date: detail.date }))
       if (detail.message) setForm(f => ({ ...f, message: f.message || detail.message }))
       if (status === 'sent' || status === 'error') setStatus('idle')
@@ -122,6 +158,7 @@ export default function LeadForm({
       }),
     }).catch(() => null)
     if (!res || !res.ok) throw new Error('That didn’t go through - please try again.')
+    saveVisitor({ name: (d.visitorName || '').trim(), email: (d.visitorContact || '').trim(), phone: d.visitorPhone || undefined })
     setForm(f => ({ ...f, requested_date: d.preferredDate, preferred_time: label(d.preferredTime) || '' }))
   }
   // The tour window "closes itself" after its sent moment; then this card says it went.
@@ -132,8 +169,15 @@ export default function LeadForm({
   } as unknown as Property
   const tourWindow = allowTour && (
     <ScheduleTourModal property={tourHome} isOpen={tourOpen} onClose={closeTour} onSubmit={sendTour} showContactFields contactStyle="full"
-      initialName={[form.first_name, form.last_name].filter(Boolean).join(' ')} initialContact={form.email}
+      initialName={[form.first_name, form.last_name].filter(Boolean).join(' ')} initialContact={form.email} initialPhone={form.phone}
       loadBusy={() => fetch(`/api/website-property-sites/${siteId}/agent-busy`).then(r => r.json()).then(x => (Array.isArray(x?.busy) ? x.busy : []))} />
+  )
+  // "Request info" as the same kind of window as the tour (user, 10/24) - used on phones.
+  const infoWindow = (
+    <InfoRequestWindow open={infoOpen} onClose={() => setInfoOpen(false)} home={{
+      siteId, street: address.split(',')[0], place, photo, agent,
+      facts: [beds != null ? `${fmtNumber(beds)} bd` : '', baths != null ? `${fmtNumber(baths)} ba` : '', sqft ? `${fmtNumber(sqft)} sqft` : ''].filter(Boolean).join(' · '),
+    }} />
   )
 
   const errors = useMemo(() => ({
@@ -162,6 +206,7 @@ export default function LeadForm({
     try {
       const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       setStatus(res.ok ? 'sent' : 'error')
+      if (res.ok) saveVisitor({ name: `${base.first_name} ${base.last_name}`.trim(), email: base.email, phone: base.phone || undefined })
     } catch {
       setStatus('error')
     }
@@ -208,6 +253,30 @@ export default function LeadForm({
       {attempted && errors[key] && <span className={`mt-1 block text-[11px] font-medium ${t.error}`}>{errors[key]}</span>}
     </label>
   )
+
+  // Phones: no rows of fields (user, 10/24) - two buttons, each opening its own short window.
+  if (phoneForm) {
+    return (
+      <div className={t.text}>
+        {tourWindow}
+        {infoWindow}
+        <div className="grid gap-2.5">
+          {allowTour && (
+            <button type="button" onClick={openTour} className={`group inline-flex w-full items-center justify-center gap-2.5 px-6 py-4 text-sm font-semibold tracking-wide transition ${t.primaryBtn}`}>
+              <CalendarDays className="h-4 w-4" /> Schedule a tour <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+            </button>
+          )}
+          <button type="button" onClick={() => { setTab('info'); setInfoOpen(true) }}
+            className={`group inline-flex w-full items-center justify-center gap-2.5 px-6 py-4 text-sm font-semibold tracking-wide transition ${allowTour ? t.ghostBtn : t.primaryBtn}`}>
+            <MessageSquare className="h-4 w-4" /> Request info
+          </button>
+        </div>
+        <p className={`mt-3 text-[11px] leading-relaxed ${t.faint}`}>
+          {agentFirst ? `${agentFirst} replies personally` : 'The listing agent replies personally'}. We never sell your information.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <form onSubmit={submit} noValidate className={t.text}>

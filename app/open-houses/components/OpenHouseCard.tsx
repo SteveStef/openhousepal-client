@@ -4,10 +4,12 @@ import { memo, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Bath, Bed, BoxSelect, ChevronDown, MapPin, MonitorPlay, Plus, Sparkles, Tablet, Ticket, Trash2, Mail } from 'lucide-react'
+import { ChevronDown, MapPin, MonitorPlay, Plus, Sparkles, Tablet, Ticket, Trash2 } from 'lucide-react'
 import { AfterSignin, GuestSettingsPatch, OpenHouse } from '@/types'
 
 interface OpenHouseCardProps {
+  // React 19: a plain prop - AnimatePresence (popLayout) measures the card through it.
+  ref?: React.Ref<HTMLDivElement>;
   openHouse: OpenHouse;
   index: number;
   onViewVisitors: (openHouse: OpenHouse) => void;
@@ -20,6 +22,7 @@ interface OpenHouseCardProps {
 }
 
 export const OpenHouseCard = memo(function OpenHouseCard({
+  ref,
   openHouse,
   index,
   onViewVisitors,
@@ -39,8 +42,6 @@ export const OpenHouseCard = memo(function OpenHouseCard({
   // Similar Homes (the kit's sheet + the Guest Pass's similar homes): MLS-linked homes on Bright plans.
   const similarAvailable = passAvailable && !!openHouse.listingKey
   const similarOn = openHouse.similarHomes !== false
-  // Guest Pass footer: the host's Email Signature card (plans with signatures) or the plain agent card.
-  const passSigOn = openHouse.passSignature !== false
   const hubOk = !!(openHouse.hubAvailable && openHouse.hubReady)
   const opens: AfterSignin = openHouse.afterSignin === 'hub' && hubOk ? 'hub' : 'none'
   const showOpens = !passAvailable && !!openHouse.hubAvailable
@@ -53,6 +54,7 @@ export const OpenHouseCard = memo(function OpenHouseCard({
         sqft: String(openHouse.livingArea ?? ''), image: openHouse.coverImageUrl || '',
       }).filter(([, v]) => v)).toString()}`
   const cityLabel = openHouse.city || (openHouse as any).city
+  const street = formatAddress(openHouse.address).split(',')[0]
   const visitorCount = openHouse.visitorCount ?? (openHouse as any).visitor_count ?? (openHouse as any).visitors?.length ?? 0
   // The API only sends this while a guest-hosted open is still upcoming - its presence is what
   // flips "Notes" to "Notes & Info" (the listing agent's access info for this open).
@@ -85,16 +87,22 @@ export const OpenHouseCard = memo(function OpenHouseCard({
 
   return (
     <motion.div
+      ref={ref}
+      layout
       initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: Math.min(index * 0.03, 0.3), ease: [0.22, 1, 0.36, 1] }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      // Removed: fades, then folds its height (and its spacing) away IN PLACE, so the cards and the
+      // sections under it glide up with it - nothing below jumps (user, 10/24).
+      exit={{ opacity: 0, scale: 0.96, height: 0, marginBottom: 0, transition: { opacity: { duration: 0.18 }, scale: { duration: 0.22 }, height: { duration: 0.34, delay: 0.1, ease: [0.4, 0, 0.2, 1] }, marginBottom: { duration: 0.34, delay: 0.1, ease: [0.4, 0, 0.2, 1] } } }}
+      transition={{ duration: 0.3, delay: Math.min(index * 0.03, 0.3), ease: [0.22, 1, 0.36, 1], layout: { type: 'spring', stiffness: 340, damping: 34 } }}
       onClick={() => onViewVisitors(openHouse)}
-      className="group relative flex flex-col sm:flex-row bg-white dark:bg-[#151517] rounded-3xl border border-gray-200/80 dark:border-gray-800 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#C9A24D]/60 hover:shadow-[0_26px_48px_-28px_rgba(139,115,85,.75)] dark:hover:border-[#C9A24D]/40 overflow-hidden cursor-pointer h-auto isolate transform-gpu"
+      className="group relative mb-4 sm:mb-6 flex flex-col sm:flex-row bg-white dark:bg-[#151517] rounded-3xl border border-gray-200/80 dark:border-gray-800 shadow-sm transition-[border-color,box-shadow] duration-300 hover:border-[#C9A24D]/60 hover:shadow-[0_26px_48px_-28px_rgba(139,115,85,.75)] dark:hover:border-[#C9A24D]/40 overflow-hidden cursor-pointer h-auto isolate transform-gpu"
     >
       {/* gold edge that lights up on hover */}
       <span className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 bg-gradient-to-r from-transparent via-[#C9A24D] to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-      {/* Left Side: Image - height is unset on sm+ so it stretches (align-items: stretch) to match the content column's natural height, keeping the two sides in sync without a hardcoded px value */}
-      <div className="relative h-48 sm:h-auto w-full sm:w-60 flex-shrink-0 overflow-hidden bg-gray-100 dark:bg-[#202022]">
+      {/* Photo with the address + town on it (user, 10/24 - no separate title line, no beds/baths/
+          sqft row, so the card is much shorter). On sm+ it stretches to the content column's height. */}
+      <div className="relative h-36 sm:h-auto sm:min-h-[132px] w-full sm:w-56 flex-shrink-0 overflow-hidden bg-gray-100 dark:bg-[#202022]">
         <Image
           src={openHouse.coverImageUrl || (openHouse as any).cover_image_url || "/placeholder.svg"}
           alt={`Property at ${openHouse.address}`}
@@ -103,66 +111,43 @@ export const OpenHouseCard = memo(function OpenHouseCard({
           className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
           priority={index < 2}
         />
-        {/* Subtle Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 sm:bg-gradient-to-tr sm:from-black/50 sm:via-transparent sm:to-transparent"></div>
-        {cityLabel && (
-          <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-2 pb-2 pt-8">
-            <MapPin className="h-3 w-3 shrink-0 text-white" />
-            <span className="max-w-[80%] truncate text-[10px] font-black uppercase tracking-wide text-white">
-              {cityLabel}
-            </span>
-          </div>
-        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/10" />
+        <div className="absolute inset-x-0 bottom-0 px-3.5 pb-3 pt-8">
+          <h3
+            className="truncate font-serif text-[17px] font-black leading-tight text-white drop-shadow-[0_1px_6px_rgba(0,0,0,.45)] sm:text-base"
+            title={openHouse.address}
+          >
+            {street}
+          </h3>
+          {cityLabel && (
+            <p className="mt-0.5 flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.14em] text-white/80">
+              <MapPin className="h-3 w-3 shrink-0 text-[#e8c97a]" />
+              <span className="truncate">{cityLabel}</span>
+            </p>
+          )}
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete(openHouse)
+          }}
+          className="absolute right-2.5 top-2.5 grid h-9 w-9 place-items-center rounded-full bg-black/35 text-white/85 ring-1 ring-white/20 transition-colors hover:bg-red-600 hover:text-white active:scale-95"
+          title="Delete"
+          aria-label="Delete this open house"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
       </div>
 
       {/* Right Side: Content */}
-      <div className="flex-1 flex flex-col p-4 sm:p-4 min-w-0">
-
-        {/* Top Row: Title + Overflow */}
-        <div className="flex items-start justify-between gap-3 mb-3 sm:mb-2">
-          <h3
-            className="font-serif text-lg font-black text-gray-900 dark:text-gray-100 leading-tight truncate group-hover:text-[#a8803a] dark:group-hover:text-[#e8c97a] transition-colors"
-            title={openHouse.address}
-          >
-            {formatAddress(openHouse.address)}
-          </h3>
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete(openHouse)
-            }}
-            className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 p-1.5 rounded-full hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors -mr-1.5 -mt-1.5"
-            title="Delete"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Stats Row */}
-        <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 mb-2 sm:mb-0 [&>div]:rounded-full [&>div]:bg-[#faf7f0] [&>div]:px-2.5 [&>div]:py-1 dark:[&>div]:bg-white/[0.05]">
-          {/* Beds */}
-          <div className="flex items-center gap-1" title="Beds">
-            <Bed className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-gray-400 dark:text-gray-500" />
-            <span className="font-black text-[#111827] dark:text-white">{openHouse.BedroomsTotal || (openHouse as any).bedrooms || '-'}</span>
-          </div>
-          {/* Baths */}
-          <div className="flex items-center gap-1" title="Baths">
-            <Bath className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-gray-400 dark:text-gray-500" />
-            <span className="font-black text-[#111827] dark:text-white">{openHouse.BathroomsTotal || (openHouse as any).bathrooms || '-'}</span>
-          </div>
-          {/* SqFt */}
-          <div className="flex items-center gap-1" title="SqFt">
-            <BoxSelect className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-gray-400 dark:text-gray-500" />
-            <span className="font-black text-[#111827] dark:text-white">{(openHouse.LivingArea || (openHouse as any).living_area || (openHouse as any).livingArea)?.toLocaleString() || '-'}</span>
-          </div>
-        </div>
+      <div className="flex-1 flex flex-col p-3 sm:p-3.5 min-w-0">
 
         {/* What happens when a guest signs in - per open house, one row. Each piece only shows when
             the plan includes it (the API decides): Showcases (Premium / IDX), the Guest Pass (Basic /
             Premium / IDX), "Opens Hub / Nothing" (No-MLS Pro), and "+ Spotlight" when it's their own
             listing on IDX with no Spotlight yet (once published it's featured on the Guest Pass). */}
         {(openHouse.showcasesAvailable || passAvailable || showOpens || openHouse.canMakeSpotlight) && (
-        <div ref={switchRow} className={`mt-2 flex flex-nowrap overflow-hidden ${fit === 0 ? 'gap-1' : 'gap-[3px]'}`}>
+        <div ref={switchRow} className={`flex flex-nowrap overflow-hidden ${fit === 0 ? 'gap-1' : 'gap-[3px]'}`}>
           {openHouse.showcasesAvailable && (
           <GuestSwitch
             on={showcasesOn}
@@ -191,19 +176,8 @@ export const OpenHouseCard = memo(function OpenHouseCard({
               onToggle={() => onGuestSettings(openHouse, { guestPass: !passOn })}
             />
           )}
-          {passAvailable && passOn && openHouse.passSignatureAvailable && (
-            <GuestSwitch
-              on={passSigOn}
-              icon={<Mail className="h-3 w-3" />}
-              label="Signature Footer"
-              shortLabel="Signature"
-              fit={fit}
-              hint={passSigOn
-                ? "ON - the bottom of each guest's Guest Pass is your email signature card (your photo, buttons, latest listing or sales, socials) instead of the plain agent card. Edit it under Studio -> Signature."
-                : 'OFF - the bottom of the Guest Pass shows the plain agent card (name, Call / Text / Email / My Hub / Website).'}
-              onToggle={() => onGuestSettings(openHouse, { passSignature: !passSigOn })}
-            />
-          )}
+          {/* The Signature Footer switch is gone from the card (user, 10/24) - the Guest Pass keeps
+              using the saved per-open-house setting (on by default). */}
           {showOpens && (
             <label
               onClick={(e) => e.stopPropagation()}
@@ -249,7 +223,7 @@ export const OpenHouseCard = memo(function OpenHouseCard({
         {/* Action Row - a 2x2 mini grid (Visitors, Kit / Kiosk, Note) instead of 3-across-plus-
             one-full-width, so all four actions read as one consistent set of equal-weight buttons
             in a clear left-to-right, top-to-bottom order. */}
-        <div className="mt-auto grid grid-cols-2 gap-1.5 pt-3">
+        <div className="mt-auto grid grid-cols-2 gap-1.5 pt-2.5">
           <button
             onClick={(e) => {
               e.stopPropagation()

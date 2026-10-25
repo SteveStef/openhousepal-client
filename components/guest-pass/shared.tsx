@@ -28,7 +28,7 @@ export interface GuestPassData {
   spotlight_url: string | null
   // null = no Showcase button (they have an agent, or the plan has no Showcases). url null = not
   // built yet - the button builds it.
-  showcase: { url: string | null } | null
+  showcase: { url: string | null; building?: boolean } | null
   requested: { disclosure: boolean; second_visit: boolean }
   // When the server built this (the similar homes are refreshed from the MLS on every load).
   live_at?: string

@@ -11,9 +11,11 @@ import { FlowDockHostContext } from '@/components/ui/FlowDock'
 // once; inside it each step slides in, and every step change (and every results page) brings the
 // window back to the top. Nothing animates its height, so filters never make the page jump.
 
-export type KitFlowStepId = 'similar' | 'cover' | 'cheat' | 'kit' | 'guests'
+// 'details' = the No-MLS plans' hand-entry step (address, price/beds/baths/size, photos) - it takes
+// Similar Homes' place at the front of the same flow, since there's no Bright listing to pull from.
+export type KitFlowStepId = 'details' | 'similar' | 'cover' | 'cheat' | 'kit' | 'guests'
 
-const STEP_LABEL: Record<KitFlowStepId, string> = { similar: 'Similar Homes', cover: 'Cover photo', cheat: 'Cheat Sheet', kit: 'Your kit', guests: 'Guests' }
+const STEP_LABEL: Record<KitFlowStepId, string> = { details: 'Home details', similar: 'Similar Homes', cover: 'Cover photo', cheat: 'Cheat Sheet', kit: 'Your kit', guests: 'Guests' }
 
 // Steps inside the window call this to go back to the top (e.g. results page 2).
 const ScrollTopContext = createContext<(() => void) | null>(null)
@@ -60,7 +62,7 @@ export default function KitFlowShell({ steps, current, contentKey, title, addres
       <style>{KIT_SHELL_CSS}</style>
       <motion.div
         initial={{ opacity: 0, y: 28, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 28 }}
-        className="relative mx-auto w-full max-w-[1240px] overflow-hidden bg-[#FAFAF7] dark:bg-[#151517] sm:rounded-[2rem] sm:border sm:border-white/50 sm:shadow-2xl sm:dark:border-gray-800">
+        className="relative mx-auto w-full max-w-[1240px] overflow-clip bg-[#FAFAF7] dark:bg-[#151517] sm:rounded-[2rem] sm:border sm:border-white/50 sm:shadow-2xl sm:dark:border-gray-800">
         <ScrollTopContext.Provider value={scrollTop}>
           {/* phone header: the home, lit */}
           <div className="relative isolate overflow-hidden bg-[#0b0b0c] px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white sm:hidden">

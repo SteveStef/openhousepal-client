@@ -9,7 +9,10 @@
 
 import PhotoGridGate from '@/components/ui/PhotoGridGate'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Check, Clock, Download, Film, Lightbulb, Loader2, Maximize, Moon, Sofa, Sparkles, Trash2, Video, X } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Check, Clock, Download, Film, Lightbulb, Loader2, Maximize, Moon, Pointer, Sofa, Sparkles, Trash2, Video, X } from 'lucide-react'
+import { usePagePin } from '@/components/ui/windowMotion'
 import type { StudioEnhancement, StudioImageEffect, StudioMediaAsset, StudioRoomType, StudioStagingStyle } from '@/types'
 
 export const MAX_VIDEO_PHOTOS = 7
@@ -146,30 +149,45 @@ export const OHP_MEDIA_STYLE = `
   .ohp-media-lab button:disabled{cursor:not-allowed}
   @keyframes ohpCardIn{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
   .ohp-card-in{animation:ohpCardIn .6s cubic-bezier(.2,.8,.2,1) backwards}
-  @media (prefers-reduced-motion:reduce){.ohp-media-lab button,.ohp-media-lab .animate-fadeIn,.ohp-media-lab .ohp-pop,.ohp-media-lab .ohp-reveal,.ohp-media-lab .ohp-card-in{transition:none!important;animation:none!important}}
+  @keyframes ohpSelect{0%{transform:scale(1)}30%{transform:scale(.93)}65%{transform:scale(1.035)}100%{transform:scale(1)}}
+  @keyframes ohpRing{0%{box-shadow:0 0 0 0 rgba(201,162,77,.75)}100%{box-shadow:0 0 0 16px rgba(201,162,77,0)}}
+  .ohp-sel{animation:ohpSelect .5s cubic-bezier(.2,.8,.2,1),ohpRing .8s ease-out}
+  @keyframes ohpTipPulse{0%,100%{box-shadow:0 0 0 0 rgba(232,201,122,.85)}50%{box-shadow:0 0 0 7px rgba(232,201,122,0)}}
+  .ohp-tip-pulse{animation:ohpTipPulse 1.3s ease-in-out infinite}
+  @keyframes ohpCoach{0%{left:46%;top:58%;transform:scale(1);opacity:0}10%{opacity:1}22%{left:46%;top:58%;transform:scale(.8)}32%{transform:scale(1)}58%{left:calc(100% - 22px);top:14px;transform:scale(1)}70%{transform:scale(.8)}80%{transform:scale(1);opacity:1}100%{left:calc(100% - 22px);top:14px;opacity:0}}
+  .ohp-coach{animation:ohpCoach 2.8s cubic-bezier(.4,0,.2,1) infinite}
+  @keyframes ohpDone{0%{opacity:0;transform:scale(.6)}60%{opacity:1;transform:scale(1.08)}100%{opacity:1;transform:scale(1)}}
+  .ohp-done{animation:ohpDone .55s cubic-bezier(.34,1.56,.64,1) both}
+  @media (prefers-reduced-motion:reduce){.ohp-media-lab button,.ohp-media-lab .animate-fadeIn,.ohp-media-lab .ohp-pop,.ohp-media-lab .ohp-reveal,.ohp-media-lab .ohp-card-in,.ohp-media-lab .ohp-sel,.ohp-media-lab .ohp-coach,.ohp-media-lab .ohp-tip-pulse,.ohp-media-lab .ohp-done{transition:none!important;animation:none!important}}
 `
 
-export function Section({ step, title, active = true, overflowVisible = false, raised = false, leading, aside, flush = false, children }: {
+// What a still-photo edit usually takes, end to end (one model pass ~40-70s, plus the circled
+// removal pass when there is one) - drives the progress bars on the result page and the list.
+export const PHOTO_ETA_SECONDS = 75
+
+export function Section({ step, title, active = true, overflowVisible = false, raised = false, leading, aside, flush = false, oneLine = false, children }: {
   step: number; title: string; active?: boolean; overflowVisible?: boolean; raised?: boolean
   /** Before the title (e.g. a back arrow) / at the end of the title line (info chips). */
   leading?: React.ReactNode; aside?: React.ReactNode
   /** No top margin - the section is the first thing on the page. */
   flush?: boolean
+  /** Phones: title + aside stay on one line (the aside shrinks/truncates instead of wrapping). */
+  oneLine?: boolean
   children: React.ReactNode
 }) {
   return (
     <div className={`animate-fadeIn relative ${flush ? '' : 'mt-5'} rounded-2xl border bg-white shadow-sm transition-colors dark:bg-[#151517] ${raised ? 'z-10' : ''} ${overflowVisible ? '' : 'overflow-hidden'} ${active ? 'border-[#C9A24D]/40' : 'border-gray-200 opacity-90 dark:border-gray-800'}`}>
       <div className={`absolute inset-x-0 top-0 h-1 rounded-t-2xl ${active ? 'bg-gradient-to-r from-[#C9A24D] to-[#e0b85f]' : 'bg-transparent'}`} />
       <div className="p-4 sm:p-5">
-        <div className="mb-3.5 flex flex-wrap items-center gap-x-3 gap-y-2">
-          <h3 className="flex items-center gap-2.5 font-serif text-lg font-black text-[#111827] dark:text-white">
+        <div className={`mb-3.5 flex items-center gap-x-3 gap-y-2 ${oneLine ? 'flex-nowrap gap-x-2 sm:flex-wrap sm:gap-x-3' : 'flex-wrap'}`}>
+          <h3 className={`flex items-center gap-2.5 font-serif text-lg font-black text-[#111827] dark:text-white ${oneLine ? 'shrink-0 gap-2 sm:gap-2.5' : ''}`}>
             {leading}
             {step > 0 && (
               <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-black ${active ? 'bg-[#C9A24D] text-[#111827]' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>{step}</span>
             )}
             {title}
           </h3>
-          {aside}
+          {oneLine ? <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:contents">{aside}</div> : aside}
         </div>
         {children}
       </div>
@@ -268,8 +286,10 @@ export function PhotoGeneratingCard({ src, label, elapsed }: { src?: string; lab
 // photo grid. `loading="lazy"`/`decoding="async"` stop the browser from eagerly fetching+decoding
 // every full-resolution MLS photo at once on mount.
 const PhotoTile = memo(function PhotoTile({
-  url, kind, isVideo, selected, badge, canRemove, eligibility, onLoadDims, onPick, onInspect, onRemoveUpload,
+  url, kind, isVideo, selected, badge, canRemove, eligibility, onLoadDims, onPick, onInspect, onRemoveUpload, coach = false,
 }: {
+  /** First-time hint on this tile: a finger taps the photo, then the enlarge button. */
+  coach?: boolean
   url: string
   kind: 'listing' | 'upload'
   isVideo: boolean
@@ -293,7 +313,7 @@ const PhotoTile = memo(function PhotoTile({
         aria-disabled={blockedForVideo}
         className={`relative block aspect-[4/3] w-full overflow-hidden rounded-xl border-2 transition ${
           selected
-            ? 'border-[#C9A24D] ring-4 ring-[#C9A24D]/35 shadow-lg shadow-[#C9A24D]/40'
+            ? 'ohp-sel border-[#C9A24D] ring-4 ring-[#C9A24D]/35 shadow-lg shadow-[#C9A24D]/40'
             : unsupported
               ? 'border-gray-200 opacity-45 grayscale hover:border-gray-200 dark:border-gray-800'
               : blockedForVideo
@@ -313,8 +333,16 @@ const PhotoTile = memo(function PhotoTile({
           })}
         />
         {selected && (
-          <span className="absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-[#C9A24D] text-[#111827] shadow-md">
-            {isVideo ? <span className="text-[12px] font-black">{badge}</span> : <Check className="h-3.5 w-3.5" strokeWidth={4} />}
+          <>
+            <span className="pointer-events-none absolute inset-0 bg-[#C9A24D]/15" />
+            <span className="ohp-pop absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-[#C9A24D] text-[#111827] shadow-md">
+              {isVideo ? <span className="text-[12px] font-black">{badge}</span> : <Check className="h-3.5 w-3.5" strokeWidth={4} />}
+            </span>
+          </>
+        )}
+        {coach && (
+          <span aria-hidden className="ohp-coach pointer-events-none absolute z-20 -ml-3 -mt-1 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,.6)]">
+            <Pointer className="h-6 w-6 fill-white/90 text-[#111827]" strokeWidth={1.6} />
           </span>
         )}
         {unsupported && (
@@ -328,13 +356,15 @@ const PhotoTile = memo(function PhotoTile({
           Choose a standard landscape photo for best AI video quality.
         </span>
       )}
+      {/* See it big. Always showing on touch screens (there's no hover there). */}
       <button
         type="button"
         onClick={() => onInspect(url)}
-        title="Inspect image"
-        className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition hover:bg-[#C9A24D] hover:text-[#111827] group-hover:opacity-100 focus:opacity-100"
+        title="See it bigger"
+        aria-label="See this photo bigger"
+        className={`absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-[#C9A24D] hover:text-[#111827] focus:opacity-100 sm:h-6 sm:w-6 ${coach ? 'ohp-tip-pulse bg-[#C9A24D] text-[#111827] opacity-100' : 'opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100'}`}
       >
-        <Maximize className="h-3 w-3" />
+        <Maximize className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
       </button>
       {canRemove && (
         <button
@@ -350,31 +380,108 @@ const PhotoTile = memo(function PhotoTile({
   )
 })
 
-export function ImageInspectModal({ url, onClose }: { url: string; onClose: () => void }) {
+/** The big view of one photo. Portalled to <body> - inside the page it sat in a parent with a
+ *  transform (the reveal animation), which made "fixed" measure from that box instead of the
+ *  screen, so on a phone it opened halfway down the page (user, 10/24). */
+export function ImageInspectModal({ url, onClose, onUse, used }: { url: string; onClose: () => void; onUse?: () => void; used?: boolean }) {
+  usePagePin(true)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
-
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-3 " onClick={onClose}>
-      <div className="relative max-h-full max-w-6xl" onClick={(e) => e.stopPropagation()}>
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <motion.div
+      className="fixed inset-0 z-[90] flex flex-col items-center justify-center gap-3 bg-black/90 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}
+      onClick={onClose}
+      role="dialog" aria-modal="true" aria-label="Photo preview"
+    >
+      <motion.div
+        className="relative max-h-full max-w-6xl"
+        initial={{ scale: 0.92, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 8 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           type="button"
           onClick={onClose}
           aria-label="Close image preview"
-          className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/65 text-white transition hover:bg-white hover:text-[#111827]"
+          className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/65 text-white transition hover:bg-white hover:text-[#111827]"
         >
           <X className="h-5 w-5" />
         </button>
-        <img src={url} alt="" className="max-h-[92vh] max-w-full rounded-xl object-contain shadow-2xl" />
-      </div>
+        <img src={url} alt="" className="max-h-[82vh] max-w-full rounded-xl object-contain shadow-2xl sm:max-h-[88vh]" />
+      </motion.div>
+      {onUse && (
+        <motion.button
+          type="button"
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
+          onClick={(e) => { e.stopPropagation(); onUse() }}
+          className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-6 py-3 text-sm font-black text-[#111827] shadow-lg shadow-black/40"
+        >
+          <Check className="h-4 w-4" strokeWidth={3} /> {used ? 'Picked - keep this photo' : 'Use this photo'}
+        </motion.button>
+      )}
+    </motion.div>,
+    document.body,
+  )
+}
+
+const PHOTO_TIP_KEY = 'ohp-media-photo-tip'
+
+export type StagingTagPos = 'off' | 'bottom-right' | 'bottom-middle'
+
+/** A photo with the "Virtually Staged" label drawn where (and as big as) it lands on the
+ *  downloaded file - the backend's apply_staging_tag: Inter bold, 2% of the photo's width, a dark
+ *  pill 2.5% in from the bottom (and right) edge. The wrapper hugs the photo, so the label sits
+ *  on the picture, never on letterboxing. */
+export function StagedPhoto({ src, tag, imgClassName = '', className = '', onLoad }: {
+  src: string
+  tag?: StagingTagPos | null
+  imgClassName?: string
+  className?: string
+  onLoad?: () => void
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [w, setW] = useState(0)
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setW(el.clientWidth))
+    ro.observe(el)
+    setW(el.clientWidth)
+    return () => ro.disconnect()
+  }, [])
+  const on = tag === 'bottom-right' || tag === 'bottom-middle'
+  const font = Math.max(7, w * 0.02)
+  return (
+    <div ref={wrapRef} className={`relative mx-auto w-fit max-w-full ${className}`}>
+      <img src={src} alt="" className={`block max-w-full ${imgClassName}`} onLoad={() => { if (wrapRef.current) setW(wrapRef.current.clientWidth); onLoad?.() }} />
+      <AnimatePresence>
+        {on && w > 0 && (
+          <motion.span
+            key="staged-tag"
+            layout
+            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+            className="pointer-events-none absolute whitespace-nowrap rounded-full font-bold uppercase leading-none text-white"
+            style={{
+              bottom: w * 0.025, fontSize: font, padding: `${w * 0.0075}px ${w * 0.016}px`,
+              background: 'rgba(17,24,39,0.84)', fontFamily: 'Inter, system-ui, sans-serif',
+              ...(tag === 'bottom-middle' ? { left: '50%', x: '-50%' } : { right: w * 0.025 }),
+            }}
+          >
+            Virtually Staged
+          </motion.span>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
 
-export function PhotoGrid({ photos, kind, isVideo, videoPhotos, selectedUrl, uploadAssets, onPick, onRemoveUpload }: {
+export function PhotoGrid({ photos, kind, isVideo, videoPhotos, selectedUrl, uploadAssets, onPick, onRemoveUpload, onInspect }: {
   photos: string[]
   kind: 'listing' | 'upload'
   isVideo: boolean
@@ -383,9 +490,47 @@ export function PhotoGrid({ photos, kind, isVideo, videoPhotos, selectedUrl, upl
   uploadAssets: StudioMediaAsset[]
   onPick: (url: string, kind: 'listing' | 'upload') => void
   onRemoveUpload: (asset: StudioMediaAsset) => void
+  /** The page shows the big view itself (it can then keep the grid open meanwhile). */
+  onInspect?: (url: string, kind: 'listing' | 'upload') => void
 }) {
   const [dimsByUrl, setDimsByUrl] = useState<Record<string, PhotoDims>>({})
-  const [inspectUrl, setInspectUrl] = useState<string | null>(null)
+  const [ownInspectUrl, setOwnInspectUrl] = useState<string | null>(null)
+  // Tap once = pick it; a second tap on the same photo within a moment (double tap) or the
+  // enlarge button = see it big.
+  const lastTap = useRef<{ url: string; t: number } | null>(null)
+  const inspect = useCallback((url: string) => {
+    if (onInspect) onInspect(url, kind)
+    else setOwnInspectUrl(url)
+  }, [onInspect, kind])
+  // First visit only: a finger shows "tap to pick, tap here to see it big" on the first photo.
+  const [tip, setTip] = useState(false)
+  useEffect(() => {
+    try { if (!window.localStorage.getItem(PHOTO_TIP_KEY)) setTip(true) } catch { /* private mode - no tip */ }
+  }, [])
+  const endTip = useCallback(() => {
+    setTip(false)
+    try { window.localStorage.setItem(PHOTO_TIP_KEY, '1') } catch { /* fine */ }
+  }, [])
+  useEffect(() => {
+    if (!tip) return
+    const t = window.setTimeout(endTip, 9000)
+    return () => window.clearTimeout(t)
+  }, [tip, endTip])
+  const tapTile = useCallback((url: string, k: 'listing' | 'upload') => {
+    if (tip) endTip()
+    const now = Date.now()
+    const prev = lastTap.current
+    if (prev && prev.url === url && now - prev.t < 330) {
+      lastTap.current = null
+      // a double tap on a multi-pick grid shouldn't also un-pick the photo
+      if (isVideo) onPick(url, k)
+      inspect(url)
+      return
+    }
+    lastTap.current = { url, t: now }
+    onPick(url, k)
+  }, [tip, endTip, isVideo, onPick, inspect])
+  const inspectTile = useCallback((url: string) => { if (tip) endTip(); inspect(url) }, [tip, endTip, inspect])
   const uploadByUrl = useMemo(() => {
     const m = new Map<string, StudioMediaAsset>()
     if (kind === 'upload') for (const a of uploadAssets) if (a.result_url) m.set(a.result_url, a)
@@ -405,12 +550,27 @@ export function PhotoGrid({ photos, kind, isVideo, videoPhotos, selectedUrl, upl
 
   return (
     <>
+      <AnimatePresence initial={false}>
+        {tip && photos.length > 0 && (
+          <motion.p
+            key="tip"
+            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <span className="mb-2 flex items-center gap-2 rounded-xl border border-[#C9A24D]/40 bg-[#C9A24D]/10 px-3 py-2 text-[11.5px] font-bold text-[#6b5530] dark:text-[#e8c97a]">
+              <Pointer className="h-4 w-4 shrink-0" />
+              <span className="min-w-0 flex-1">Tap a photo to pick it. Tap <Maximize className="mx-0.5 inline h-3 w-3" /> or double-tap to see it bigger.</span>
+              <button type="button" onClick={endTip} className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#8b7355] hover:bg-[#C9A24D]/20 dark:text-[#e8c97a]">Got it</button>
+            </span>
+          </motion.p>
+        )}
+      </AnimatePresence>
       <PhotoGridGate urls={photos.slice(0, 16)}>
       <div
-        className="ohp-reveal grid max-h-[520px] auto-rows-max grid-cols-3 gap-2.5 overflow-y-auto pr-1 sm:grid-cols-4"
+        className="ohp-reveal grid max-h-[520px] auto-rows-max grid-cols-3 gap-2.5 overflow-y-auto p-1 sm:grid-cols-4"
         style={{ overscrollBehavior: 'auto' }}
       >
-        {photos.map((url) => {
+        {photos.map((url, i) => {
           const vIdx = videoPhotos.indexOf(url)
           const selected = isVideo ? vIdx >= 0 : selectedUrl === url
           return (
@@ -424,15 +584,18 @@ export function PhotoGrid({ photos, kind, isVideo, videoPhotos, selectedUrl, upl
               canRemove={uploadByUrl.has(url)}
               eligibility={videoPhotoEligibility(dimsByUrl[url])}
               onLoadDims={rememberDims}
-              onPick={onPick}
-              onInspect={setInspectUrl}
+              onPick={tapTile}
+              onInspect={inspectTile}
               onRemoveUpload={removeUploadByUrl}
+              coach={tip && i === 0}
             />
           )
         })}
       </div>
       </PhotoGridGate>
-      {inspectUrl && <ImageInspectModal url={inspectUrl} onClose={() => setInspectUrl(null)} />}
+      <AnimatePresence>
+        {ownInspectUrl && <ImageInspectModal key={ownInspectUrl} url={ownInspectUrl} onClose={() => setOwnInspectUrl(null)} />}
+      </AnimatePresence>
     </>
   )
 }
@@ -454,7 +617,7 @@ function useElapsedSeconds(createdAt: string): number {
 function ProjectCardVideoProgress({ asset }: { asset: StudioMediaAsset }) {
   const elapsed = useElapsedSeconds(asset.created_at)
   const photoCount = (asset.options?.photo_count as number | undefined) || 1
-  const pct = Math.max(4, Math.min(96, Math.round((elapsed / estimatedVideoSeconds(photoCount)) * 100)))
+  const pct = Math.max(4, Math.min(96, Math.round((elapsed / (asset.kind === 'video' ? estimatedVideoSeconds(photoCount) : PHOTO_ETA_SECONDS)) * 100)))
   return (
     <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
       {asset.source_photo_url
@@ -464,7 +627,11 @@ function ProjectCardVideoProgress({ asset }: { asset: StudioMediaAsset }) {
         className="pointer-events-none absolute inset-x-0 h-1/3"
         style={{ animation: 'ohpScan 2.1s cubic-bezier(.4,0,.2,1) infinite', background: 'linear-gradient(180deg,transparent,rgba(230,199,122,0.5) 45%,rgba(255,255,255,0.8) 50%,rgba(230,199,122,0.5) 55%,transparent)', filter: 'blur(1.5px)' }}
       />
-      <Loader2 className="relative z-10 h-5 w-5 animate-spin text-white drop-shadow" />
+      <div className="relative z-10 flex flex-col items-center gap-1 text-center">
+        <Loader2 className="h-5 w-5 animate-spin text-white drop-shadow" />
+        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#f1d58b] drop-shadow">Generating</span>
+        <span className="font-serif text-lg font-black leading-none tabular-nums text-white drop-shadow">{pct}%</span>
+      </div>
       <div className="absolute inset-x-2 bottom-2 h-1 overflow-hidden rounded-full bg-white/25">
         <div
           className="h-full rounded-full transition-[width] duration-700 ease-out"
@@ -494,7 +661,7 @@ const GROUP_TAG: Record<MediaGroup, { label: string; icon: typeof Video }> = {
 
 // Gallery card: the result fills the card, a glass tag says what it is, videos play on hover,
 // and `feature` makes it the big 2x2 tile at the front of the grid.
-export function ProjectCard({ asset, active, downloading, onOpen, onDownload, onDelete, feature = false, index = 0 }: {
+export function ProjectCard({ asset, active, downloading, onOpen, onDownload, onDelete, feature = false, index = 0, justDone = false }: {
   asset: StudioMediaAsset
   active: boolean
   downloading: boolean
@@ -503,6 +670,8 @@ export function ProjectCard({ asset, active, downloading, onOpen, onDownload, on
   onDelete: () => void
   feature?: boolean
   index?: number
+  /** It finished while the list was open - a "Ready" moment until it's opened. */
+  justDone?: boolean
 }) {
   const isVid = asset.kind === 'video'
   const done = asset.status === 'succeeded' && !!asset.result_url
@@ -517,18 +686,18 @@ export function ProjectCard({ asset, active, downloading, onOpen, onDownload, on
       style={{ animationDelay: `${Math.min(index, 12) * 45}ms` }}
       onMouseEnter={() => { vid.current?.play().catch(() => {}) }}
       onMouseLeave={() => { const v = vid.current; if (v) { v.pause(); v.currentTime = 0 } }}
-      className={`ohp-card-in group relative flex flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_44px_-26px_rgba(139,115,85,.75)] dark:bg-[#151517] ${active ? 'border-[#C9A24D] ring-2 ring-[#C9A24D]/30' : 'border-gray-200 hover:border-[#C9A24D]/60 dark:border-gray-800'} ${feature ? 'lg:col-span-2 lg:row-span-2' : ''}`}
+      className={`ohp-card-in group relative flex flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_44px_-26px_rgba(139,115,85,.75)] dark:bg-[#151517] ${justDone && done ? 'border-emerald-400 ring-2 ring-emerald-400/40' : asset.status === 'processing' ? 'border-[#C9A24D]/60' : active ? 'border-[#C9A24D] ring-2 ring-[#C9A24D]/30' : 'border-gray-200 hover:border-[#C9A24D]/60 dark:border-gray-800'} ${feature ? 'lg:col-span-2 lg:row-span-2' : ''}`}
     >
       <button onClick={onOpen} className={`relative block w-full overflow-hidden bg-gray-100 dark:bg-gray-800 ${feature ? 'aspect-[4/3] lg:aspect-auto lg:min-h-0 lg:flex-1' : 'aspect-[4/3]'}`}>
         <div className="absolute inset-0">
           {done && !isVid && <img src={asset.result_url!} alt="" className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.06]" />}
           {done && isVid && <video ref={vid} src={asset.result_url!} muted loop playsInline preload="metadata" onLoadedMetadata={e => { const d = e.currentTarget.duration; if (d && isFinite(d)) setSecs(d) }} className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.03]" />}
           {!done && (
-            asset.status === 'processing' && isVid
+            asset.status === 'processing'
               ? <ProjectCardVideoProgress asset={asset} />
               : (
                 <div className="flex h-full w-full items-center justify-center text-gray-300">
-                  {asset.status === 'processing' ? <Loader2 className="h-5 w-5 animate-spin text-[#C9A24D]" /> : <Film className="h-5 w-5" />}
+                  <Film className="h-5 w-5" />
                 </div>
               )
           )}
@@ -549,6 +718,15 @@ export function ProjectCard({ asset, active, downloading, onOpen, onDownload, on
         {length && (
           <span className="pointer-events-none absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-black tabular-nums text-white ">
             <Clock className="h-2.5 w-2.5 text-[#e8c97a]" /> {length}
+          </span>
+        )}
+        {justDone && done && (
+          <span className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-emerald-900/70 via-black/40 to-[#8b7355]/60">
+            <span className="ohp-done flex items-center gap-1.5 text-xs font-black text-white drop-shadow">
+              <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/40"><Check className="h-3 w-3" strokeWidth={3.5} /></span>
+              Ready
+            </span>
+            <span className="rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#111827] shadow">Tap to open</span>
           </span>
         )}
       </button>

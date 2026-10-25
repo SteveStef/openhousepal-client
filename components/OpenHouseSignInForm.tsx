@@ -1,17 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Property, SignInFormData } from '@/types'
+import AutoHeight from '@/components/ui/AutoHeight'
 
 // Plain opacity + x slide, one tween for both - no `scale` (an extra property fighting for the
 // same frames as the slide) and no spring (its duration varies with velocity, which is what was
 // reading as "not smooth" on iPad: dropped frames make a spring visibly stutter in a way a fixed
-// tween doesn't). Deliberately no `layout` prop on the step either - combined with
-// mode="popLayout" it FLIPs (measures DOM rects before/after) on every step change, which is
-// exactly the kind of layout thrashing Safari on iPad handles worst; letting the container just
-// reflow to the next step's height while it slides in reads as smoother, not less finished.
+// tween doesn't). The box around the steps glides to the next step's height (AutoHeight - a
+// measured height, not a layout FLIP) and the page is anchored at the top, so a shorter next
+// question never makes anything jump (user, 10/24).
 const stepVariants = {
   enter: (dir: number) => ({ opacity: 0, x: dir > 0 ? 24 : -24 }),
   center: { opacity: 1, x: 0 },
@@ -27,6 +27,44 @@ interface OpenHouseSignInFormProps {
   // point (reached from a Similar Properties handout, not the open house sign-in sheet/QR),
   // which reuses this exact same form/flow but isn't framed as signing in to anything.
   headline?: string;
+  // Opening the sign-in: the home "unlocks" in the middle of the screen, then settles into its
+  // spot at the top of the sign-in card (user, 10/24 - a small cousin of the Guest Pass opening).
+  intro?: boolean;
+}
+
+// The unlock: the home's photo with a padlock on it - the shackle lifts, a gold ring glints, and the
+// photo glides up into the card (a shared layoutId, so it lands exactly where the card's photo is).
+function UnlockIntro({ photo, onDone }: { photo: string; onDone: () => void }) {
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    const a = window.setTimeout(() => setOpen(true), 520)
+    const b = window.setTimeout(onDone, 1250)
+    return () => { window.clearTimeout(a); window.clearTimeout(b) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  return (
+    <motion.div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#FAFAF7] dark:bg-[#0B0B0B]"
+      initial={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.45, ease: [0.4, 0, 0.2, 1] } }}>
+      <div className="relative">
+        <motion.div layoutId="oh-signin-home" style={{ borderRadius: 26 }} className="relative h-[150px] w-[220px] overflow-hidden bg-gray-200 shadow-[0_30px_60px_-28px_rgba(0,0,0,0.55)] dark:bg-gray-800"
+          initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}>
+          {photo && <img src={photo} alt="" className="h-full w-full object-cover" />}
+          <motion.span className="absolute inset-0 bg-black/35" animate={{ opacity: open ? 0 : 1 }} transition={{ duration: 0.4 }} />
+        </motion.div>
+        {/* the padlock - its shackle swings up and it fades as the home "opens" */}
+        <motion.span className="absolute left-1/2 top-1/2 grid h-14 w-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white text-[#C9A24D] shadow-[0_12px_30px_-10px_rgba(0,0,0,0.5)]"
+          initial={{ scale: 0.6, opacity: 0 }} animate={open ? { scale: 1.25, opacity: 0 } : { scale: 1, opacity: 1 }}
+          transition={open ? { duration: 0.4, ease: [0.4, 0, 0.2, 1] } : { delay: 0.15, type: 'spring', stiffness: 420, damping: 22 }}>
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+            <rect x="4.5" y="10.5" width="15" height="10" rx="2.5" />
+            <motion.path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" animate={{ y: open ? -3.5 : 0, rotate: open ? -18 : 0 }} style={{ originX: '16px', originY: '10.5px' }} transition={{ duration: 0.3 }} />
+          </svg>
+          <motion.span className="absolute inset-0 rounded-full border-2 border-[#C9A24D]" initial={{ scale: 1, opacity: 0 }}
+            animate={open ? { scale: 1.9, opacity: [0.9, 0] } : { opacity: 0 }} transition={{ duration: 0.5 }} />
+        </motion.span>
+      </div>
+    </motion.div>
+  )
 }
 
 export default function OpenHouseSignInForm({
@@ -34,7 +72,10 @@ export default function OpenHouseSignInForm({
   onSubmit,
   isLoading = false,
   headline = 'Guest Sign-in',
+  intro = false,
 }: OpenHouseSignInFormProps) {
+  const reduce = useReducedMotion()
+  const [unlocking, setUnlocking] = useState(intro && !reduce)
   const [formData, setFormData] = useState<SignInFormData>({
     firstName: '',
     lastName: '',
@@ -167,34 +208,46 @@ export default function OpenHouseSignInForm({
 
   const the_image_src = property.ListPictureURL || "";
 
+  // While the home "unlocks" in the middle of the screen the card is just its outline-free bones
+  // (backgrounds fade in after, never the photo - it flies into its slot).
+  const shellOn = !unlocking
+  const fadeIn = { initial: false as const, animate: { opacity: shellOn ? 1 : 0 }, transition: { duration: 0.4, delay: shellOn ? 0.15 : 0 } }
+
   return (
-    <div className="max-w-lg w-full bg-white dark:bg-[#151517] rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 overflow-hidden transition-colors duration-300">
+    <>
+    {unlocking && <UnlockIntro photo={the_image_src} onDone={() => setUnlocking(false)} />}
+    <div className={`max-w-lg w-full rounded-3xl border overflow-hidden transition-[background-color,border-color,box-shadow] duration-500 ${shellOn ? 'bg-white dark:bg-[#151517] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border-gray-100 dark:border-gray-800' : 'bg-transparent border-transparent shadow-none'}`}>
       {/* Property Info Header */}
-      <div className="p-6 bg-[#FAFAF7] dark:bg-[#1A1A1C] border-b border-gray-100 dark:border-gray-800">
-        <div className="text-center mb-6">
+      <div className={`p-6 border-b transition-[background-color,border-color] duration-500 ${shellOn ? 'bg-[#FAFAF7] dark:bg-[#1A1A1C] border-gray-100 dark:border-gray-800' : 'bg-transparent border-transparent'}`}>
+        <motion.div {...fadeIn} className="text-center mb-6">
           <h1 className="text-xl font-black text-[#0B0B0B] dark:text-white tracking-tight uppercase relative inline-block">
             {headline}
             <span className="absolute -bottom-2 left-0 right-0 h-1 bg-[#C9A24D] rounded-full opacity-30"></span>
           </h1>
-        </div>
+        </motion.div>
 
-        <div className="bg-white dark:bg-[#151517] rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex shadow-sm">
-          {/* Property Image */}
+        <div className={`rounded-2xl border flex transition-[background-color,border-color,box-shadow] duration-500 ${shellOn ? 'bg-white dark:bg-[#151517] border-gray-100 dark:border-gray-800 shadow-sm' : 'bg-transparent border-transparent'}`}>
+          {/* Property Image - lands here from the unlock (same layoutId) */}
           {the_image_src && (
-            <div className="w-32 h-32 flex-shrink-0 bg-gray-100 dark:bg-gray-800 relative">
-              <Image
-                src={the_image_src}
-                alt={property.FullStreetAddress}
-                fill
-                sizes="256px"
-                quality={90}
-                className="object-cover"
-              />
+            <div className="w-32 h-32 flex-shrink-0 relative">
+              {!unlocking && (
+                <motion.div layoutId={intro ? 'oh-signin-home' : undefined} style={{ borderRadius: '15px 0 0 15px' }} className="absolute inset-0 overflow-hidden bg-gray-100 dark:bg-gray-800"
+                  transition={{ type: 'spring', stiffness: 260, damping: 30 }}>
+                  <Image
+                    src={the_image_src}
+                    alt={property.FullStreetAddress}
+                    fill
+                    sizes="256px"
+                    quality={90}
+                    className="object-cover"
+                  />
+                </motion.div>
+              )}
             </div>
           )}
 
           {/* Property Details */}
-          <div className="flex-1 p-4 flex flex-col justify-center min-w-0">
+          <motion.div {...fadeIn} className="flex-1 p-4 flex flex-col justify-center min-w-0">
             <h2 className="text-sm font-black text-[#0B0B0B] dark:text-white mb-2 leading-tight truncate">
               {property.FullStreetAddress}
             </h2>
@@ -220,10 +273,11 @@ export default function OpenHouseSignInForm({
                 )}
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
 
+      <motion.div {...fadeIn}>
       {/* Progress Section */}
       <div className="p-8 pb-4">
         <div className="flex items-center justify-between mb-4">
@@ -245,12 +299,10 @@ export default function OpenHouseSignInForm({
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col px-8 pb-8">
-        {/* This wrapper (not the individual steps) owns the height animation: it never
-            unmounts, so framer-motion can FLIP its actual before/after rect as step 1's tall
-            inputs give way to step 2's short Yes/No card - the buttons below it then get
-            carried along smoothly (see `layout` on that row) instead of the whole thing
-            snapping straight to the new height, which was reading as a glitchy resize. */}
-        <motion.div layout transition={stepTransition} className="flex-1 flex flex-col justify-center space-y-6 overflow-hidden">
+        {/* This box (not the steps) owns the height: it measures the step inside and glides to
+            its height, the leaving step popped out of the flow (popLayout) so there's never a
+            moment with both or neither - the buttons under it ride along smoothly. */}
+        <AutoHeight>
         <AnimatePresence mode="popLayout" custom={direction} initial={false}>
           {/* Step 1: Name, Email & Phone - everything the keyboard is needed for, all at once */}
           {currentStep === 1 && (
@@ -328,52 +380,38 @@ export default function OpenHouseSignInForm({
                 <p className="text-[#0B0B0B] dark:text-white text-base font-bold">Do you have an active agreement with a real estate agent?</p>
               </div>
 
+              {/* One tap and they're on their way to the Guest Pass - the page plays its opening right
+                  away (user, 10/24: no "Processing"); the answer they picked just lights up. */}
               <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => handleAgentResponse('NO')}
-                  disabled={isLoading}
-                  className={`py-6 px-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all duration-300 border-2 bg-white dark:bg-[#0B0B0B] border-gray-100 dark:border-gray-800 text-[#6B7280] dark:text-gray-400 hover:border-[#C9A24D] hover:text-[#C9A24D] active:scale-95 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {isLoading && formData.hasAgent === 'NO' ? (
-                    <span className="flex items-center justify-center">
-                      <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-[#6B7280] dark:text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Processing...
-                    </span>
-                  ) : 'No'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleAgentResponse('YES')}
-                  disabled={isLoading}
-                  className={`py-6 px-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all duration-300 border-2 bg-white dark:bg-[#0B0B0B] border-gray-100 dark:border-gray-800 text-[#6B7280] dark:text-gray-400 hover:border-[#C9A24D] hover:text-[#C9A24D] active:scale-95 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {isLoading && formData.hasAgent === 'YES' ? (
-                    <span className="flex items-center justify-center">
-                      <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-[#111827] dark:text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Processing...
-                    </span>
-                  ) : 'Yes'}
-                </button>
+                {(['NO', 'YES'] as const).map(v => {
+                  const picked = formData.hasAgent === v && isLoading
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => handleAgentResponse(v)}
+                      disabled={isLoading}
+                      className={`py-6 px-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all duration-300 border-2 active:scale-95 disabled:cursor-default ${picked
+                        ? 'border-[#C9A24D] bg-[#C9A24D] text-white shadow-[0_14px_30px_-14px_rgba(201,162,77,0.9)]'
+                        : `bg-white dark:bg-[#0B0B0B] border-gray-100 dark:border-gray-800 text-[#6B7280] dark:text-gray-400 hover:border-[#C9A24D] hover:text-[#C9A24D] ${isLoading ? 'opacity-50' : ''}`}`}
+                    >
+                      {v === 'NO' ? 'No' : 'Yes'}
+                    </button>
+                  )
+                })}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
-        </motion.div>
+        </AutoHeight>
 
-        <motion.div layout transition={stepTransition} className="flex space-x-4 pt-8">
+        <div className="flex space-x-4 pt-8">
           {currentStep === 2 && (
             <button
               type="button"
               onClick={handlePrevStep}
-              className="flex-1 bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-[#6B7280] dark:text-gray-400 font-black uppercase tracking-widest py-4 px-6 rounded-2xl border-2 border-gray-100 dark:border-gray-800 transition-all text-xs"
+              disabled={isLoading}
+              className="flex-1 disabled:opacity-40 bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-[#6B7280] dark:text-gray-400 font-black uppercase tracking-widest py-4 px-6 rounded-2xl border-2 border-gray-100 dark:border-gray-800 transition-all text-xs"
             >
               Back
             </button>
@@ -394,8 +432,10 @@ export default function OpenHouseSignInForm({
               </span>
             </button>
           )}
-        </motion.div>
+        </div>
       </form>
+      </motion.div>
     </div>
+    </>
   )
 }

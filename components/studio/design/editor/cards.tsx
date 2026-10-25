@@ -325,7 +325,7 @@ export function WordsCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open
           <TextField label="Headline" value={headline.data?.text || ''} onCommit={v => setData(ctl, headline.id, { text: v })} placeholder="What is your home worth today?" autoFocus={focus === headline.id} />
           <TextField label="Supporting line" multiline value={headline.data?.subtext || ''} onCommit={v => setData(ctl, headline.id, { subtext: v })} placeholder="A sentence that makes the offer clear." />
           <ComplianceChips text={headline.data?.subtext || ''} onApply={text => setData(ctl, headline.id, { subtext: text })} />
-          <TextField label="Small label above" value={headline.data?.eyebrow || ''} onCommit={v => setData(ctl, headline.id, { eyebrow: v })} placeholder="For Homeowners" />
+          <TextField label="Small label above" value={headline.data?.eyebrow || ''} onCommit={v => setData(ctl, headline.id, { eyebrow: v })} placeholder="Homeowners" />
         </>
       )}
       {headline && !ctl.leadGen && (

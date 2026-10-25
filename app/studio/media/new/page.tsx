@@ -4,8 +4,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft, Check, ChevronDown, ImagePlus, Loader2, Sparkles, Sunset, Trash2, Upload, Video, Wand2,
+  ArrowLeft, Check, ChevronDown, ImagePlus, Loader2, Maximize2, Sparkles, Sunset, Trash2, Upload, Video, Wand2,
 } from 'lucide-react'
+import { AnimatePresence } from 'framer-motion'
+import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
 import AuthGuard from '@/components/AuthGuard'
 import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
@@ -19,8 +21,8 @@ import type {
   LinkedProperty, StudioEnhancement, StudioImageEffect, StudioMediaAsset, StudioMediaOptions,
 } from '@/types'
 import {
-  Chip, EFFECTS, EnhancementOptions, MAX_VIDEO_PHOTOS, ModeCard, OHP_MEDIA_STYLE, OptionRow,
-  PhotoGeneratingCard, PhotoGrid, ROOM_TYPES, STAGING_STYLES, Section, estimatedVideoSeconds, stageLabel,
+  Chip, EFFECTS, EnhancementOptions, ImageInspectModal, MAX_VIDEO_PHOTOS, ModeCard, OHP_MEDIA_STYLE, OptionRow,
+  PhotoGeneratingCard, PhotoGrid, ROOM_TYPES, STAGING_STYLES, Section, StagedPhoto, estimatedVideoSeconds, stageLabel,
 } from '@/components/studio/media/shared'
 
 const STUDIO_MEDIA_STAGES = ['Property', 'What to make', 'Pick photos', 'Generate']
@@ -131,6 +133,8 @@ function CreateMediaPage() {
   const selectedUrls = isVideo ? videoPhotos : (photo ? [photo.url] : [])
   const selCount = selectedUrls.length
   const videoReview = isVideo && videoPhotos.length >= maxVideoPhotos && !pickerOpen
+  // Photo edit with its photo picked and the grid folded away: the "what to do" half.
+  const photoPicked = !isVideo && !!photo && !pickerOpen
 
   useEffect(() => {
     if (!isVideo) { if (selCount === 0) setPickerOpen(true); return }
@@ -226,13 +230,38 @@ function CreateMediaPage() {
     })
   }
 
+  // Photo edit: the tap shows the pick (gold ring + check pop), then a moment later the grid
+  // folds away into the big picked photo. A double tap (or the enlarge button) opens the big view
+  // instead and keeps the grid where it is.
+  const foldTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (foldTimer.current) clearTimeout(foldTimer.current) }, [])
+  const [inspect, setInspect] = useState<{ url: string; kind: 'listing' | 'upload' } | null>(null)
   const pickPhoto = (url: string, kind: 'listing' | 'upload') => {
-    if (isVideo) toggleVideoPhoto(url)
-    else { setPhoto({ url, kind }); setPickerOpen(false); setOptions(o => ({ ...o, remove_areas: undefined })) }
+    if (isVideo) { toggleVideoPhoto(url); return }
+    setPhoto({ url, kind })
+    setOptions(o => ({ ...o, remove_areas: undefined }))
+    if (foldTimer.current) clearTimeout(foldTimer.current)
+    foldTimer.current = setTimeout(() => { foldTimer.current = null; setPickerOpen(false) }, 650)
+  }
+  const openInspect = (url: string, kind: 'listing' | 'upload') => {
+    if (foldTimer.current) { clearTimeout(foldTimer.current); foldTimer.current = null }
+    setInspect({ url, kind })
   }
 
+  // One id per Generate press: a phone that re-sends the request (or a second tap) gets the same
+  // project back instead of a second copy. A new id once anything about the job changes.
+  const requestIdRef = useRef<string | null>(null)
+  const jobKey = JSON.stringify([mode, photo?.url, videoPhotos, effects, options])
+  useEffect(() => { requestIdRef.current = null }, [jobKey])
+  const newRequestId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`)
+
   const generate = async () => {
+    if (generating) return
     setGenerating(true); setError('')
+    if (!requestIdRef.current) requestIdRef.current = newRequestId()
+    const client_request_id = requestIdRef.current
     const linked = canUseListings && property ? property : null
     const res = isVideo
       ? await api.mediaLab.generate({
@@ -242,6 +271,7 @@ function CreateMediaPage() {
           source_kind: usingUploads ? 'upload' : 'listing',
           linked_property: usingUploads ? null : linked,
           options,
+          client_request_id,
         })
       : await api.mediaLab.generate({
           action: 'stack',
@@ -250,8 +280,10 @@ function CreateMediaPage() {
           source_kind: photo!.kind,
           linked_property: photo!.kind === 'listing' ? linked : null,
           options,
+          client_request_id,
         })
     if (res.success && res.data) {
+      // The run carries on in the background; its page shows the progress.
       router.replace(`/studio/media/${res.data.id}`)
     } else {
       setGenerating(false)
@@ -305,7 +337,7 @@ function CreateMediaPage() {
           </div>
         </div>
       )}
-      <div className="mx-auto max-w-5xl px-4 pb-28 pt-4 sm:py-6">
+      <div className="mx-auto max-w-6xl px-4 pb-28 pt-4 sm:py-6">
         <div className="sticky top-0 z-10 relative -mx-4 mb-4 overflow-hidden border-b border-gray-200 bg-white/95 dark:border-gray-800 dark:bg-[#151517]/95 sm:-mx-0 sm:rounded-2xl sm:border">
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#C9A24D] to-[#e0b85f]" />
           <div className="flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3.5 sm:px-5">
@@ -313,16 +345,16 @@ function CreateMediaPage() {
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#C9A24D] to-[#e0b85f] text-[#111827] shadow-sm">
                 <Sparkles className="h-4 w-4" />
               </span>
-              <p className="whitespace-nowrap font-serif text-base font-black text-[#111827] dark:text-white sm:text-lg">Create New</p>
+              <p className="hidden whitespace-nowrap font-serif sm:block text-base font-black text-[#111827] dark:text-white sm:text-lg">Create New</p>
             </div>
             <div className="min-w-[160px] flex-1">
               <StepBar step={step} busy={busy} onJumpToSource={changeSource} onJumpToMode={startOver} />
             </div>
             <Link
               href="/studio/media"
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white"
+              aria-label="Back to projects" className="shrink-0 inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs sm:px-3 font-black text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white"
             >
-              <ArrowLeft className="h-3.5 w-3.5" /> Projects
+              <ArrowLeft className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> <span className="hidden sm:inline">Projects</span>
             </Link>
           </div>
         </div>
@@ -384,7 +416,32 @@ function CreateMediaPage() {
         )}
 
         {mode && (
-          <Section step={3} title={isVideo ? (isTimelapse ? 'Pick a photo' : 'Pick photos, in order') : 'Pick a photo & effects'} active={step === 3}>
+          <Section step={3} title={isVideo ? (isTimelapse ? 'Pick a photo' : 'Pick photos, in order') : photoPicked ? 'What should we do to it?' : 'Pick a photo'} active={step === 3}>
+            {/* Photo edit, once a photo is picked: the photo itself, big (sticky on a computer),
+                beside what to do to it (user, 10/24: "show the selected photo much larger"). */}
+            <div ref={photoPicked ? afterPickerRef : undefined} className={photoPicked ? 'grid scroll-mt-28 gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:items-start' : ''}>
+            {photoPicked && photo && (
+              <div className="ohp-reveal lg:sticky lg:top-28">
+                <div className="group relative overflow-hidden rounded-2xl border-2 border-[#C9A24D]/60 bg-[#111827] shadow-[0_0_44px_-16px_rgba(201,162,77,0.65)]">
+                  <button type="button" onClick={() => openInspect(photo.url, photo.kind)} className="block w-full" aria-label="See this photo bigger">
+                    {/* the "Virtually Staged" label previews live where it will sit on the result */}
+                    <StagedPhoto src={photo.url} tag={effects.includes('virtual_staging') ? (options.staging_tag || 'off') : 'off'} imgClassName="max-h-[46vh] w-auto sm:max-h-[62vh]" />
+                  </button>
+                  <span className="ohp-pop pointer-events-none absolute left-2.5 top-2.5 inline-flex items-center gap-1.5 rounded-full bg-[#C9A24D] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[#111827] shadow-md">
+                    <Check className="h-3 w-3" strokeWidth={3.5} /> <span className="hidden min-[400px]:inline sm:inline">Photo </span>picked
+                  </span>
+                  <div className="absolute right-2.5 top-2.5 flex items-center justify-end gap-2">
+                    <button type="button" onClick={() => openInspect(photo.url, photo.kind)} className="inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-black text-white shadow hover:bg-black/75">
+                      <Maximize2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Bigger</span>
+                    </button>
+                    <button type="button" onClick={() => setPickerOpen(true)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] font-black text-[#111827] shadow hover:bg-gray-50 disabled:opacity-60">
+                      <ImagePlus className="h-3.5 w-3.5" /> Change<span className="hidden sm:inline"> photo</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="min-w-0">
             {videoReview ? (
               <div ref={afterPickerRef} className="ohp-reveal mb-4 overflow-hidden rounded-2xl border-2 border-[#C9A24D]/50 bg-gradient-to-br from-[#C9A24D]/[0.1] via-white to-white p-4 shadow-[0_0_44px_-14px_rgba(201,162,77,0.55)] dark:via-[#151517] dark:to-[#151517]">
                 <div className="mb-3.5 flex items-center gap-2.5">
@@ -433,7 +490,7 @@ function CreateMediaPage() {
                   Takes up to ~{Math.max(3, Math.round(estimatedVideoSeconds(videoPhotos.length) / 60))} minutes to fully render. Feel free to leave this page — or close OpenHousePal entirely — it keeps working in the background. We'll drop a notification in your Activity bell the moment it's ready.
                 </p>
               </div>
-            ) : (!pickerOpen && selCount > 0) ? (
+            ) : photoPicked ? null : (!pickerOpen && selCount > 0) ? (
               <div className="ohp-reveal mb-4 flex items-center justify-between gap-3 rounded-xl border border-[#C9A24D]/30 bg-[#C9A24D]/[0.06] p-2.5">
                 <div className="flex min-w-0 items-center gap-2.5">
                   <div className="flex -space-x-2">
@@ -462,7 +519,7 @@ function CreateMediaPage() {
               uploadPhotos.length > 0 ? (
                 <div className="mb-4">
                   <p className="mb-2 text-[10px] font-black uppercase tracking-[0.25em] text-[#8b7355] dark:text-[#d7b974]">Your uploads <span className="text-gray-400">({uploadPhotos.length})</span></p>
-                  <PhotoGrid photos={uploadPhotos} kind="upload" isVideo={isVideo} videoPhotos={videoPhotos} selectedUrl={photo?.url ?? null} uploadAssets={uploadAssets} onPick={pickPhoto} onRemoveUpload={removeUpload} />
+                  <PhotoGrid photos={uploadPhotos} kind="upload" isVideo={isVideo} videoPhotos={videoPhotos} selectedUrl={photo?.url ?? null} uploadAssets={uploadAssets} onPick={pickPhoto} onRemoveUpload={removeUpload} onInspect={openInspect} />
                 </div>
               ) : (
                 <p className="rounded-xl border border-dashed border-gray-300 p-4 text-center text-xs font-bold text-gray-400 dark:border-gray-700">
@@ -475,7 +532,7 @@ function CreateMediaPage() {
                   <p className="mb-2 text-[10px] font-black uppercase tracking-[0.25em] text-[#8b7355] dark:text-[#d7b974]">
                     {property?.address ? `${property.address} — listing photos` : 'Listing photos'} <span className="text-gray-400">({listingPhotos.length})</span>
                   </p>
-                  <PhotoGrid photos={listingPhotos} kind="listing" isVideo={isVideo} videoPhotos={videoPhotos} selectedUrl={photo?.url ?? null} uploadAssets={uploadAssets} onPick={pickPhoto} onRemoveUpload={removeUpload} />
+                  <PhotoGrid photos={listingPhotos} kind="listing" isVideo={isVideo} videoPhotos={videoPhotos} selectedUrl={photo?.url ?? null} uploadAssets={uploadAssets} onPick={pickPhoto} onRemoveUpload={removeUpload} onInspect={openInspect} />
                 </div>
               ) : (
                 <p className="rounded-xl border border-dashed border-gray-300 p-4 text-center text-xs font-bold text-gray-400 dark:border-gray-700">
@@ -501,13 +558,13 @@ function CreateMediaPage() {
               </p>
             )}
 
-            {!isVideo && (
-              <div ref={afterPickerRef} className="mt-5 space-y-4">
+            {photoPicked && (
+              <div className="space-y-4">
                 <div>
                   <p className="mb-2 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide text-gray-400">
                     <Wand2 className="h-3.5 w-3.5 text-[#C9A24D]" /> Effects — stack any, applied as one edit
                   </p>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-2">
                     {EFFECTS.map((ef) => {
                       const on = effects.includes(ef.id)
                       return (
@@ -517,7 +574,7 @@ function CreateMediaPage() {
                           className={`relative flex flex-col items-start gap-1 rounded-xl border-2 p-2.5 pr-7 text-left transition ${on ? 'border-[#C9A24D] bg-gradient-to-br from-[#C9A24D]/15 to-transparent' : 'border-gray-200 bg-white hover:border-[#C9A24D]/50 dark:border-gray-800 dark:bg-[#151517]'}`}
                         >
                           <span className="text-sm font-black text-[#111827] dark:text-white">{ef.label}</span>
-                          <span className="w-full truncate text-[10.5px] font-semibold text-gray-500 dark:text-gray-400">{ef.blurb}</span>
+                          <span className="line-clamp-2 w-full text-[10.5px] leading-snug font-semibold text-gray-500 dark:text-gray-400">{ef.blurb}</span>
                           {on && <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#C9A24D] text-[#111827]"><Check className="h-3 w-3" strokeWidth={3.5} /></span>}
                         </button>
                       )
@@ -533,11 +590,11 @@ function CreateMediaPage() {
                     <OptionRow label="Style">
                       {STAGING_STYLES.map((s) => <Chip key={s.id} active={options.style === s.id} onClick={() => setOptions(o => ({ ...o, style: s.id }))}>{s.label}</Chip>)}
                     </OptionRow>
-                    <OptionRow label={'"Virtually Staged" tag on export'}>
+                    <OptionRow label={'"Virtually Staged" label (shown on the photo, saved in downloads)'}>
                       {([
                         { id: 'off', label: 'Off' },
-                        { id: 'bottom-right', label: 'Bottom right' },
                         { id: 'bottom-middle', label: 'Bottom middle' },
+                        { id: 'bottom-right', label: 'Bottom right' },
                       ] as const).map((p) => (
                         <Chip key={p.id} active={(options.staging_tag || 'off') === p.id} onClick={() => setOptions(o => ({ ...o, staging_tag: p.id }))}>{p.label}</Chip>
                       ))}
@@ -592,6 +649,11 @@ function CreateMediaPage() {
             {error && (
               <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">{error}</p>
             )}
+            {/* Before a run: where the monthly AI allowance stands right now (the result page
+                then shows what this run used and how long it took). */}
+            {(photoPicked || (isVideo && videoPhotos.length > 0)) && !busy && (
+              <MonthlyAiUsageMeter variant="inline" compact stretch className="mt-4" refreshKey={usageTick} />
+            )}
             {!videoReview && !busy && (
               // Bigger screens only - on phones the flow bar's Generate is the one button.
               <div className="mt-3 hidden sm:block">
@@ -618,9 +680,29 @@ function CreateMediaPage() {
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Queuing your shots with OpenHousePal AI…
               </p>
             )}
+            </div>
+            </div>
           </Section>
         )}
       </div>
+      <AnimatePresence>
+        {inspect && (
+          <ImageInspectModal
+            key={inspect.url}
+            url={inspect.url}
+            onClose={() => setInspect(null)}
+            used={!isVideo ? photo?.url === inspect.url : videoPhotos.includes(inspect.url)}
+            onUse={() => {
+              const pick = inspect
+              setInspect(null)
+              if (isVideo) { if (!videoPhotos.includes(pick.url)) toggleVideoPhoto(pick.url); return }
+              setPhoto(pick)
+              setOptions(o => ({ ...o, remove_areas: undefined }))
+              setPickerOpen(false)
+            }}
+          />
+        )}
+      </AnimatePresence>
       {/* Phones: the flow bar (components/ui/FlowDock). Steps 1-2 move on by picking (a photo
           source, then Photo / Video), so only step 3 has the main action - the same generate() and
           the same can't-press rules as the Create / Generate button on the page. Back = the

@@ -5,7 +5,7 @@
 // right here - it saves to the same profile Settings and the setup flow use.
 import { useState } from 'react'
 import Link from 'next/link'
-import { Loader2, ShieldCheck } from 'lucide-react'
+import { Camera, Loader2, ShieldCheck } from 'lucide-react'
 import api from '@/lib/api-service'
 import type { ProfileGap } from '@/lib/studio/designCompliance'
 
@@ -70,8 +70,23 @@ export default function ProfileGate({ gaps, onSaved, compact = false }: { gaps: 
           <label key={g.key} className={`block ${g.key === 'officePhone' || g.key === 'photo' ? 'sm:col-span-2' : ''}`}>
             <span className="text-[11px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">{g.label}</span>
             {g.key === 'photo' ? (
-              <input type="file" accept="image/jpeg" onChange={e => setPhoto(e.target.files?.[0] || null)}
-                className="mt-1.5 block w-full cursor-pointer text-sm font-semibold file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-[#111827] file:px-3 file:py-2 file:text-sm file:font-black file:text-white dark:text-gray-300 dark:file:bg-white dark:file:text-[#111827]" />
+              <>
+                {/* The real picker stays hidden - the browser's own "Choose File" looked out of place. */}
+                <input type="file" accept="image/jpeg" className="sr-only" onChange={e => setPhoto(e.target.files?.[0] || null)} />
+                <span className="mt-1.5 flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-[#C9A24D]/60 bg-white px-3 py-2.5 transition hover:border-[#C9A24D] hover:bg-[#fffaf0] dark:border-[#C9A24D]/40 dark:bg-[#0B0B0B] dark:hover:bg-[#C9A24D]/[0.08]">
+                  {photo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={URL.createObjectURL(photo)} alt="" className="h-11 w-11 shrink-0 rounded-xl object-cover" />
+                  ) : (
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#C9A24D]/15 text-[#8b6a2b]"><Camera className="h-5 w-5" /></span>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-black text-[#111827] dark:text-white">{photo ? photo.name : 'Choose your headshot'}</span>
+                    <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{photo ? 'Tap to pick a different one' : 'A JPG photo of you'}</span>
+                  </span>
+                  <span className="shrink-0 rounded-lg bg-[#111827] px-3 py-1.5 text-xs font-black text-white dark:bg-white dark:text-[#111827]">{photo ? 'Change' : 'Upload'}</span>
+                </span>
+              </>
             ) : (
               <input value={values[g.key] || ''} onChange={e => setValues(v => ({ ...v, [g.key]: e.target.value }))}
                 onBlur={() => (g.key === 'phone' || g.key === 'officePhone') && setValues(v => ({ ...v, [g.key]: formatPhone(v[g.key] || '') }))}

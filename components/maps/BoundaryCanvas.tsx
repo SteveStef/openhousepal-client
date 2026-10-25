@@ -31,6 +31,9 @@ export interface CanvasMarker {
   title: string
   lines: string[] // tooltip detail lines
   kicker?: string // the tooltip's small top line (schools: Public / Private school)
+  /** A place pin's category icon (coffee cup, hospital...) - drawn white on its colour, with the
+   *  number in a small tag on its shoulder. */
+  icon?: React.ComponentType<{ className?: string; strokeWidth?: number }>
 }
 export interface CanvasBadge {
   id: string
@@ -67,6 +70,9 @@ const CANVAS_CSS = `
 .ohp-dot-private .ohp-dot-core{color:#fff;font-size:10.5px}
 .ohp-dot-place{width:26px;height:26px;background:var(--dot);box-shadow:0 0 0 2.5px #fff,0 8px 16px -5px rgba(0,0,0,.45)}
 .ohp-dot-place .ohp-dot-core{color:var(--dot-ink,#fff);font-size:11px}
+.ohp-dot-icon{width:30px;height:30px;color:#fff}
+.ohp-dot-num{position:absolute;right:-5px;top:-5px;min-width:15px;height:15px;padding:0 3px;border-radius:9999px;background:#fff;color:var(--dot);
+  font:900 9px/15px ui-sans-serif,system-ui,sans-serif;text-align:center;box-shadow:0 0 0 1.5px var(--dot),0 2px 5px rgba(0,0,0,.25)}
 .ohp-dot-ripple{position:absolute;inset:-3px;border-radius:inherit;border:2px solid var(--dot);opacity:0;animation:ohpRipple 1.3s ease-out 1 both}
 @keyframes ohpRipple{0%{opacity:.75;transform:scale(.6)}100%{opacity:0;transform:scale(2.3)}}
 button:hover>span>span>.ohp-dot{box-shadow:0 0 0 3px var(--dot),0 0 0 8px color-mix(in srgb,var(--dot) 22%,transparent),0 8px 18px -4px rgba(0,0,0,.4)}
@@ -119,7 +125,7 @@ function edgeDist(x: number, y: number, rings: Pt[][], cap: number): number {
   return best
 }
 
-export default function BoundaryCanvas({ map, shapes, markers = [], badges = [], avoid = [], dark = false, animKey = '', activeMarker, onActiveMarker, highlight, topInset = 14, home = null }: {
+export default function BoundaryCanvas({ map, shapes, markers = [], badges = [], avoid = [], dark = false, animKey = '', activeMarker, onActiveMarker, highlight, topInset = 14, home = null, drawSeconds = 1.3 }: {
   map: google.maps.Map | null
   shapes: CanvasShape[]
   markers?: CanvasMarker[]
@@ -132,7 +138,10 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
   highlight?: string | null // a shape id to lift (legend hover)
   topInset?: number // px kept clear at the top for buttons floating over the map
   home?: { lat: number; lng: number; color: string; label?: string } | null // a house marker + its name bubble
+  /** How long a line takes to draw itself in (a layer switch draws quicker than the first time). */
+  drawSeconds?: number
 }) {
+  const nameDelay = Math.max(0.5, drawSeconds * 0.7)
   const [panes, setPanes] = useState<{ lines: HTMLDivElement; top: HTMLDivElement } | null>(null)
   const projRef = useRef<google.maps.MapCanvasProjection | null>(null)
   const [tick, setTick] = useState(0)
@@ -312,11 +321,11 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
                     <motion.path d={d} stroke="none" fill={s.color} fillRule="evenodd"
                       initial={{ fillOpacity: 0 }}
                       animate={{ fillOpacity: lifted ? Math.min(0.42, (s.fill ?? 0.14) * 2.4) : (s.fill ?? 0.14) }}
-                      transition={{ fillOpacity: { duration: 0.8, delay: 0.7 + i * 0.12 } }} />
+                      transition={{ fillOpacity: { duration: 0.8, delay: drawSeconds * 0.54 + i * 0.12 } }} />
                     <motion.path d={outer} stroke={s.color} fill="none" strokeLinejoin="round"
                       initial={{ pathLength: 0 }}
                       animate={{ pathLength: 1, strokeWidth: lifted ? (s.width || 2.5) + 1.5 : (s.width || 2.5) }}
-                      transition={{ pathLength: { duration: 1.3, ease, delay: i * 0.12 }, strokeWidth: { duration: 0.25 } }} />
+                      transition={{ pathLength: { duration: drawSeconds, ease, delay: i * 0.12 }, strokeWidth: { duration: 0.25 } }} />
                     {holes && <motion.path d={holes} stroke={s.color} fill="none" strokeWidth={1.3} strokeDasharray="4 4" strokeLinecap="round"
                       initial={{ opacity: 0 }} animate={{ opacity: 0.75 }} transition={{ duration: 0.6, delay: 1.2 + i * 0.12 }} />}
                     </>
@@ -336,7 +345,7 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
               return (
                 <motion.div key={`${animKey}:${b.id}`} className="pointer-events-none absolute left-0 top-0"
                   initial={{ opacity: 0, scale: 0.6, x, y }} animate={{ opacity: highlight && highlight !== b.shapeId ? 0.45 : 1, scale: 1, x, y }} exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ opacity: { duration: 0.5, delay: 0.9 + i * 0.15 }, scale: { type: 'spring', stiffness: 260, damping: 18, delay: 0.9 + i * 0.15 }, x: { type: 'spring', stiffness: 170, damping: 24 }, y: { type: 'spring', stiffness: 170, damping: 24 } }}
+                  transition={{ opacity: { duration: 0.5, delay: nameDelay + i * 0.15 }, scale: { type: 'spring', stiffness: 260, damping: 18, delay: nameDelay + i * 0.15 }, x: { type: 'spring', stiffness: 170, damping: 24 }, y: { type: 'spring', stiffness: 170, damping: 24 } }}
                   style={{ zIndex: 5 }}>
                   <div className="ohp-badge -translate-x-1/2 -translate-y-1/2" style={{ ['--badge' as any]: b.color }}>
                     {b.small ? (
@@ -393,9 +402,14 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
                   aria-label={mk.title}>
                   <span className="block -translate-x-1/2 -translate-y-1/2">
                     <motion.span className="block" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 420, damping: 15, delay: 0.5 + Math.min(i, 30) * 0.035 }}>
-                      <motion.span className={`ohp-dot ohp-dot-${mk.kind}`} style={{ ['--dot' as any]: mk.color, ['--dot-ink' as any]: inkOn(mk.color) }} animate={{ scale: on ? 1.3 : 1 }} transition={{ type: 'spring', stiffness: 500, damping: 22 }}>
+                      <motion.span className={`ohp-dot ohp-dot-${mk.kind} ${mk.icon ? 'ohp-dot-icon' : ''}`} style={{ ['--dot' as any]: mk.color, ['--dot-ink' as any]: inkOn(mk.color) }} animate={{ scale: on ? 1.3 : 1 }} transition={{ type: 'spring', stiffness: 500, damping: 22 }}>
                         <span className="ohp-dot-ripple" style={{ animationDelay: `${0.55 + Math.min(i, 30) * 0.035}s` }} />
-                        <span className="ohp-dot-core">{mk.glyph}</span>
+                        {mk.icon ? (
+                          <>
+                            <mk.icon className="h-[15px] w-[15px]" strokeWidth={2.4} />
+                            <span className="ohp-dot-num">{mk.glyph}</span>
+                          </>
+                        ) : <span className="ohp-dot-core">{mk.glyph}</span>}
                       </motion.span>
                     </motion.span>
                   </span>
@@ -406,10 +420,22 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
 
           {/* Tooltip for the hovered / tapped school */}
           <AnimatePresence>
-            {dots.filter(d => d.mk.id === shown).map(({ mk, p }) => (
+            {dots.filter(d => d.mk.id === shown).map(({ mk, p }) => {
+              // Its card opens above the pin - below it when the pin is up under the switch at the
+              // top of the map - and slides sideways to stay inside the map's edges.
+              const cp = proj.fromLatLngToContainerPixel(new google.maps.LatLng(mk.lat, mk.lng))
+              const mapW = map?.getDiv().clientWidth || 0
+              const below = !!cp && cp.y < topInset + 128
+              let dx = 0
+              if (cp && mapW) {
+                const half = Math.min(120, mapW / 2 - 8)
+                if (cp.x - half < 8) dx = 8 - (cp.x - half)
+                else if (cp.x + half > mapW - 8) dx = mapW - 8 - (cp.x + half)
+              }
+              return (
               <motion.div key={`tip:${mk.id}`} className="pointer-events-none absolute left-0 top-0" style={{ x: p.x, y: p.y, zIndex: 40 }}
                 initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.18 }}>
-                <div className="-translate-x-1/2 translate-y-[-100%] pb-5">
+                <div className={`-translate-x-1/2 ${below ? 'pt-6' : 'translate-y-[-100%] pb-5'}`} style={{ marginLeft: dx }}>
                   <div className="w-max max-w-[240px] rounded-2xl border px-3.5 py-2.5 shadow-2xl " style={{ background: card.bg, borderColor: card.line }}>
                     <p className="text-[10px] font-black uppercase tracking-[0.16em]" style={{ color: mk.color }}>{mk.kicker || (mk.kind === 'public' ? 'Public school' : 'Private school')}</p>
                     <p className="mt-0.5 text-[13px] font-black leading-snug" style={{ color: card.ink }}>{mk.title}</p>
@@ -417,7 +443,8 @@ export default function BoundaryCanvas({ map, shapes, markers = [], badges = [],
                   </div>
                 </div>
               </motion.div>
-            ))}
+              )
+            })}
           </AnimatePresence>
         </div>,
         panes.top,

@@ -31,7 +31,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const { success, data } = await api.auth.me()
+      // Never wait forever on "who's signed in" (10/24 - a new tab on an iPhone sat on the loader
+      // for good when this one request never came back): each try gives up after 12s, three tries.
+      let res: { success: boolean; data?: any } = { success: false }
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const timedOut = new Promise<null>(r => setTimeout(() => r(null), 12000))
+        const got = await Promise.race([api.auth.me(), timedOut])
+        if (got) { res = got; break }
+      }
+      const { success, data } = res
       if (success && data) {
         setUser(data)
         // Every QR code drawn in the app from now on uses this agent's centre logo choice.
@@ -77,6 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+/** Like useAuth, but safe outside AuthProvider (e.g. shared pieces also used on public sites) - undefined there. */
+export function useOptionalAuth() {
+  return useContext(AuthContext)
 }
 
 export function useAuth() {

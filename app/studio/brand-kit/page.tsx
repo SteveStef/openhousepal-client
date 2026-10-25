@@ -3,8 +3,11 @@
 import OhpLoader from '@/components/brand/OhpLoader'
 
 import { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
-import { ArrowUpRight, Building2, Check, Home, Loader2, Save, Trash2, Upload, User as UserIcon, Users, Wand2 } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Building2, Check, Home, Loader2, Save, Trash2, Upload, User as UserIcon, Users, Wand2 } from 'lucide-react'
+import type { BrandUsage } from '@/types'
+import { BRANDING_CSS, BrandColorDock, BrandColorStage, FeatureShowcase } from '@/components/studio/branding/BrandingCenter'
+import { designAgentFrom, SAMPLE_DESIGN_AGENT } from '@/lib/studio/designAgent'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { BrandKit } from '@/types'
 import LuxeHero from '@/components/ui/LuxeHero'
@@ -13,9 +16,9 @@ import SubscriptionGuard from '@/components/SubscriptionGuard'
 import { BRAND_MAIN_COLORS, type BrandSwatch } from '@/lib/brandSwatches'
 import { isLight } from '@/components/setup/SetupUi'
 import { useAuth } from '@/contexts/AuthContext'
+import { hasAgentHubAccess, hasMlsAccess } from '@/lib/navAccess'
 import { brandLookOf, luxeAllowedFor, modeLabel, brandColorName, useBrandKit, type BrandKitPatch } from '@/lib/brandKit'
 import { LUXE_METALS } from '@/lib/luxeMetals'
-import BrandLookPicker, { BrandLookPreview } from '@/components/studio/BrandLookPicker'
 
 const FONT_OPTIONS = [
   { value: 'serif', label: 'Editorial Serif', className: 'font-serif' },
@@ -29,6 +32,14 @@ const DEFAULT_KIT: BrandKit = {
   accent_color: '#816937',
   heading_font: 'serif',
   body_font: 'sans',
+}
+
+// The header line lists only what this plan has (No-MLS plans have no website / Spotlight;
+// plain No-MLS has no Agent Hub, signature or Studio designs either).
+function brandWearers(planTier?: string | null): string {
+  if (!planTier || hasMlsAccess(planTier)) return 'Pick your color once - your Agent Hub, website, forms, signature, invites, Spotlight and designs all wear it.'
+  if (hasAgentHubAccess(planTier)) return 'Pick your color once - your Agent Hub, forms, signature, invites and designs all wear it.'
+  return 'Pick your color once - your open house sign-in, forms and invites all wear it.'
 }
 
 export default function BrandKitPage() {
@@ -58,7 +69,46 @@ function BrandKitPageInner() {
       if (response.success && response.data) setKit(response.data)
       setLoading(false)
     })
+    api.agentHub.getMine().then(r => { if (r.success && r.data) setHub(r.data) })
   }, [])
+
+  // Branding center: which features wear the brand (refreshed after every save), and the people
+  // drawn in the previews.
+  const [usage, setUsage] = useState<BrandUsage | null>(null)
+  const [hub, setHub] = useState<{ slug?: string | null; config?: Record<string, any> | null } | null>(null)
+  const loadUsage = () => api.studio.brandUsage().then(r => { if (r.success && r.data) setUsage(r.data) })
+  useEffect(() => { void loadUsage() }, [])
+  useEffect(() => { if (saveStatus === 'saved') void loadUsage() }, [saveStatus])
+  const applyAll = async () => {
+    const r = await api.studio.applyBrandEverywhere()
+    return r.success && r.data ? r.data : null
+  }
+  const agent = designAgentFrom(user, hub)
+  const designAgent = agent.agentName ? agent : SAMPLE_DESIGN_AGENT
+  const person = {
+    name: agent.agentName || [user?.first_name, user?.last_name].filter(Boolean).join(' ') || 'Your Name',
+    title: agent.agentTitle || 'Realtor',
+    brokerage: agent.agentBrokerage || 'Your Brokerage',
+    photo: agent.agentPhotoUrl || user?.photo_url || null,
+    phone: agent.agentPhone || '(610) 555-0134',
+    email: user?.email || '',
+  }
+  // phones: the palette rides along the bottom once the picker has scrolled away and the features are in view
+  const pickerRef = useRef<HTMLElement>(null)
+  const showcaseRef = useRef<HTMLDivElement>(null)
+  const [pickerVisible, setPickerVisible] = useState(true)
+  const [showcaseVisible, setShowcaseVisible] = useState(false)
+  useEffect(() => {
+    if (loading) return
+    const io = new IntersectionObserver(entries => entries.forEach(e => {
+      if (e.target === pickerRef.current) setPickerVisible(e.isIntersecting)
+      if (e.target === showcaseRef.current) setShowcaseVisible(e.isIntersecting)
+    }), { threshold: 0.05 })
+    if (pickerRef.current) io.observe(pickerRef.current)
+    if (showcaseRef.current) io.observe(showcaseRef.current)
+    return () => io.disconnect()
+  }, [loading])
+  const dockOn = !pickerVisible && showcaseVisible
 
   // The look (Classic / Luxe, finish, Ivory / Midnight) saves at once - every feature on
   // "My Brand Kit" changes with it. A color tap from the look picker goes through scheduleSave.
@@ -155,37 +205,36 @@ function BrandKitPageInner() {
           compact
           backHref="/studio"
           backLabel="Tools"
-          kicker="Brand Kit"
+          kicker="Branding"
           icon={Wand2}
-          title={<>Your brand, <em>set once.</em></>}
-          subtitle="Your look, colors, fonts and logos. Every feature uses them unless you choose otherwise in that feature."
-          asideClassName="lg:w-auto"
+          title={<>Your brand, <em>everywhere.</em></>}
+          subtitle={<>{brandWearers(user?.plan_tier)} <span className="sr-only">{lookName}</span></>}
+          asideClassName="lg:w-auto max-lg:absolute max-lg:right-4 max-lg:top-3"
           aside={<div className="flex lg:justify-end">{statusChip}</div>}
         />
+        <style>{BRANDING_CSS}</style>
 
-        <div className="mt-5 grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_340px] lg:gap-8">
+        {/* 1. the color + where it shows (owner 10/24: Brand Kit -> a Branding center) */}
+        <motion.div className="mt-5" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
+          <BrandColorStage kit={kit} look={shownLook} luxeAllowed={luxeAllowed} onChange={changeLook} usage={usage} idxPlan={luxeAllowed}
+            pickerRef={pickerRef} applyAll={applyAll} onApplied={u => setUsage(u)} />
+        </motion.div>
+
+        {/* 2. every feature in the color */}
+        <div ref={showcaseRef}>
+          <FeatureShowcase kit={kit} look={shownLook} usage={usage} idxPlan={luxeAllowed} person={person} agent={designAgent} />
+        </div>
+
+        {/* 3. logos, print background, fonts, disclaimer */}
+        <div className="mt-10 flex items-center gap-3">
+          <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#C9A24D]/40 to-[#C9A24D]/40" />
+          <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[#8b7355] dark:text-[#e8c97a]">Logos, fonts &amp; print</span>
+          <span className="h-px flex-1 bg-gradient-to-l from-transparent via-[#C9A24D]/40 to-[#C9A24D]/40" />
+        </div>
+        <div className="mt-4 grid grid-cols-1 items-start gap-6 lg:grid-cols-2 lg:gap-8">
           <div className="min-w-0">
-            {/* The look - the one every feature wears by default */}
-            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-[#151517]" data-testid="brand-look-section">
-              <h2 className="text-sm font-black uppercase tracking-widest text-gray-400">Your look</h2>
-              <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">The same looks and colors as your Agent Hub and IDX website. Now: <span className="font-black text-[#111827] dark:text-white" data-testid="brand-look-name">{lookName}</span></p>
-              <div className="mt-4">
-                <BrandLookPicker kit={kit} luxeAllowed={luxeAllowed} onChange={changeLook} />
-              </div>
-              <div className="mt-5 rounded-xl bg-[#fbfaf7] p-3 dark:bg-white/[0.04]">
-                <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">Uses your Brand Kit unless you change it there</p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {[['Agent Hub', '/studio/site'], ['IDX Website', '/studio/website?tab=design'], ['Forms', '/studio/site?tab=forms'], ['Email Signature', '/studio/email-signature']].map(([label, href]) => (
-                    <Link key={label} href={href} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-black text-[#111827] transition hover:border-[#C9A24D] dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-white">
-                      {label} <ArrowUpRight className="h-3 w-3 text-gray-400" />
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </section>
-
             {/* Logos */}
-            <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-[#151517]">
+            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-[#151517]">
               <h2 className="text-sm font-black uppercase tracking-widest text-gray-400">Logos</h2>
               <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">JPG or PNG. Used on your designs, Spotlight and signature.</p>
               {/* Three small tiles in one row on every screen (they were three tall stacked boxes on phones). */}
@@ -209,8 +258,10 @@ function BrandKitPageInner() {
               </div>
             </section>
 
+          </div>
+          <div className="min-w-0">
             {/* Fonts */}
-            <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
+            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
               <h2 className="text-sm font-black uppercase tracking-widest text-gray-400">Fonts</h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
@@ -262,23 +313,10 @@ function BrandKitPageInner() {
             </section>
           </div>
 
-          {/* Live preview */}
-          {/* Phones: the two previews side by side, half size, instead of two full-width posters. */}
-          <div className="lg:sticky lg:top-6">
-            <p className="mb-2 px-1 text-xs font-black uppercase tracking-widest text-gray-400">Live Preview</p>
-            <div className="grid grid-cols-2 gap-3 lg:block">
-              <div className="min-w-0">
-                <div data-testid="brand-hub-preview"><BrandLookPreview look={shownLook} /></div>
-                <p className="mt-2 px-1 text-[11px] font-semibold leading-snug text-gray-400 lg:mb-4">Your Agent Hub, forms, website and signature.</p>
-              </div>
-              <div className="min-w-0">
-                <BrandKitPreview kit={kit} />
-                <p className="mt-2 px-1 text-[11px] font-semibold leading-snug text-gray-400">Your flyers, posts and blogs.</p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
+      <BrandColorDock look={shownLook} luxeAllowed={luxeAllowed} onChange={changeLook} show={dockOn} />
+      {dockOn && <div aria-hidden className="h-20 lg:hidden" />}
     </div>
   )
 }

@@ -10,6 +10,8 @@ import DomainSetupGuide from './DomainSetupGuide'
 import OldLinksPanel from './OldLinksPanel'
 import OneClickConnect from '@/components/domains/OneClickConnect'
 import BuyDomain, { PurchasedDomainCard, useDomainShop } from '@/components/domains/BuyDomain'
+import DomainWarningSheet from '@/components/domains/DomainWarningSheet'
+import type { LinkDomainState } from '@/types'
 
 const OHP_BASE_DOMAIN = process.env.NEXT_PUBLIC_OHP_BASE_DOMAIN || 'openhousepal.com'
 // Agents can connect their own domain once the platform side (Cloudflare custom hostnames + the
@@ -22,7 +24,7 @@ const CUSTOM_DOMAINS_LIVE = process.env.NEXT_PUBLIC_CUSTOM_DOMAINS_LIVE === 'tru
 const STATUS_META: Record<SiteDomain['status'], { label: string; className: string; dot: string }> = {
   PENDING: { label: 'Waiting for DNS', className: 'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:ring-amber-500/30', dot: 'bg-amber-500 animate-pulse' },
   VERIFIED: { label: 'Setting up HTTPS...', className: 'bg-blue-50 text-blue-600 ring-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:ring-blue-500/30', dot: 'bg-blue-500 animate-pulse' },
-  ACTIVE: { label: 'Connected', className: 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-500/30', dot: 'bg-emerald-500' },
+  ACTIVE: { label: 'Active', className: 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-500/30', dot: 'bg-emerald-500' },
   FAILED: { label: 'Problem — check DNS', className: 'bg-red-50 text-red-600 ring-red-200 dark:bg-red-900/20 dark:text-red-300 dark:ring-red-500/30', dot: 'bg-red-500' },
 }
 
@@ -53,13 +55,16 @@ function StatusChip({ status }: { status: SiteDomain['status'] }) {
   )
 }
 
-function DomainRow({ domain, partner, onChanged, back, bought }: { domain: SiteDomain; partner?: SiteDomain; onChanged: () => void; back: string; bought: boolean }) {
+function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHost }: { domain: SiteDomain; partner?: SiteDomain; onChanged: () => void; back: string; bought: boolean; isDefault: boolean; ohpHost: string }) {
   const [checking, setChecking] = useState(false)
   const [settingPrimary, setSettingPrimary] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [askDelete, setAskDelete] = useState(false)
   const isRedirect = !!domain.redirect_target_domain_id
   const step = stepOf(domain.status)
   const failed = domain.status === 'FAILED'
+  const live = domain.status === 'ACTIVE'
+  const both = partner ? `${domain.hostname} and ${partner.hostname}` : domain.hostname
 
   const handleCheck = async () => {
     setChecking(true)
@@ -77,7 +82,6 @@ function DomainRow({ domain, partner, onChanged, back, bought }: { domain: SiteD
   }
 
   const handleDelete = async () => {
-    if (!confirm(`Disconnect ${partner ? `${partner.hostname} and ${domain.hostname}` : domain.hostname}?`)) return
     setDeleting(true)
     await api.sites.deleteDomain(domain.id)
     setDeleting(false)
@@ -85,24 +89,26 @@ function DomainRow({ domain, partner, onChanged, back, bought }: { domain: SiteD
   }
 
   return (
-    <div className={`rounded-2xl border p-3.5 transition-colors ${domain.status === 'ACTIVE' ? 'border-emerald-200 bg-gradient-to-br from-white to-emerald-50/50 dark:border-emerald-500/25 dark:from-[#151517] dark:to-emerald-500/[0.06]' : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-[#151517]'}`}>
-      <div className="flex items-start gap-2.5">
-        <span className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl ${domain.status === 'ACTIVE' ? 'bg-emerald-500 text-white' : 'bg-[#FAFAF7] text-[#8b7355] dark:bg-white/[0.06] dark:text-[#e8c97a]'}`}>
-          {domain.status === 'ACTIVE' ? <Lock className="h-4 w-4" /> : <Globe2 className="h-4 w-4" />}
+    <div className={`relative overflow-hidden rounded-2xl border p-3.5 transition-colors ${live ? 'border-emerald-300 bg-gradient-to-br from-white via-emerald-50/60 to-[#f3fbf6] shadow-[0_14px_36px_-22px_rgba(16,185,129,.55)] dark:border-emerald-500/35 dark:from-[#101814] dark:via-[#0f1a15] dark:to-emerald-500/[0.10]' : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-[#151517]'}`}>
+      {live && <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-emerald-400/20 blur-2xl" />}
+      <div className="relative flex items-start gap-2.5">
+        <span className={`relative mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl ${live ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'bg-[#FAFAF7] text-[#8b7355] dark:bg-white/[0.06] dark:text-[#e8c97a]'}`}>
+          {live ? <Lock className="h-4 w-4" /> : <Globe2 className="h-4 w-4" />}
+          {live && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-white animate-pulse dark:ring-[#101814]" />}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="break-all font-mono text-[13px] font-bold leading-snug text-[#111827] dark:text-white">{domain.hostname}</p>
+          <p className="break-all font-mono text-[14px] font-bold leading-snug text-[#111827] dark:text-white">{domain.hostname}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <StatusChip status={domain.status} />
-            {domain.is_primary && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#111827]">
-                <Star className="h-2.5 w-2.5" /> Primary
+            {live && isDefault && (
+              <span data-testid="own-domain-default" className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#111827]">
+                <Star className="h-2.5 w-2.5" /> Default
               </span>
             )}
           </div>
         </div>
         <button
-          onClick={handleDelete}
+          onClick={() => setAskDelete(true)}
           disabled={deleting}
           title={`Disconnect ${domain.hostname}`}
           className="shrink-0 rounded-lg p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-900/20"
@@ -110,6 +116,23 @@ function DomainRow({ domain, partner, onChanged, back, bought }: { domain: SiteD
           {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
         </button>
       </div>
+
+      {live && (
+        <div className="relative mt-2.5 flex items-center gap-2 rounded-xl border border-white/80 bg-white/90 py-1.5 pl-3 pr-1.5 shadow-sm dark:border-white/10 dark:bg-black/30">
+          <Lock className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+          <span className="min-w-0 flex-1 text-[12px] font-bold leading-snug text-emerald-800 dark:text-emerald-200">Live and secure - open or copy your link</span>
+          <CopyButton text={`https://${domain.hostname}`} />
+          <a href={`https://${domain.hostname}`} target="_blank" rel="noreferrer" title="Open" className="inline-flex shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white p-1.5 text-gray-500 transition-all hover:-translate-y-0.5 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/10 dark:bg-white/[0.04] dark:text-white/60">
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </div>
+      )}
+      {live && isDefault && (
+        <p data-testid="own-domain-note" className="relative mt-2.5 flex items-start gap-1.5 rounded-xl bg-emerald-50 p-2.5 text-[12px] font-semibold leading-snug text-emerald-900 ring-1 ring-emerald-200/70 dark:bg-emerald-500/10 dark:text-emerald-100 dark:ring-emerald-500/20">
+          <CheckCircle2 className="mt-px h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-300" />
+          <span>Both links work - when you share links they now use your own domain; the old openhousepal link ({ohpHost}) redirects to your site.</span>
+        </p>
+      )}
 
       {isRedirect && (
         <p className="mt-2 text-[11px] font-semibold text-gray-400">Redirects to your primary domain once connected.</p>
@@ -183,11 +206,33 @@ function DomainRow({ domain, partner, onChanged, back, bought }: { domain: SiteD
               disabled={settingPrimary}
               className="inline-flex items-center gap-1.5 rounded-xl border border-[#C9A24D]/50 bg-[#fbf3df] px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[#8b6a2b] transition hover:-translate-y-0.5 hover:border-[#C9A24D] disabled:opacity-50 dark:bg-[#C9A24D]/10 dark:text-[#e8c97a]"
             >
-              {settingPrimary ? <Loader2 className="h-3 w-3 animate-spin" /> : <Star className="h-3 w-3" />} Make Primary
+              {settingPrimary ? <Loader2 className="h-3 w-3 animate-spin" /> : <Star className="h-3 w-3" />} Make Default
             </button>
           )}
         </div>
       )}
+
+      <DomainWarningSheet
+        open={askDelete}
+        onClose={() => setAskDelete(false)}
+        onConfirm={handleDelete}
+        title="Disconnect your domain?"
+        subtitle={both}
+        intro={live
+          ? <>Your website stops opening on <b className="font-mono">{both}</b>. Here&apos;s everything that changes:</>
+          : <>This domain isn&apos;t live yet, so nothing you&apos;ve shared uses it. Here&apos;s what changes:</>}
+        points={live ? [
+          { text: <>Your website goes back to your free OpenHousePal address, <b className="font-mono">{ohpHost}</b>.</> },
+          ...(isDefault ? [{ text: <>Everything new you share - sign-in QR codes, Guest Passes, Showcases, forms, your Agent Hub and signature links - goes back to <b>openhousepal.com</b>.</> }] : []),
+          { text: <>Links and QR codes you already handed out with <b className="font-mono">{domain.hostname}</b> stop opening (printed signs, old emails, bookmarks).</> },
+          { text: <>Google slowly moves your pages back to the OpenHousePal address, and old pages from your previous website stop being forwarded.</> },
+          { text: <>The domain itself stays yours{bought ? ' and keeps renewing here until you stop it' : ' at your domain company'} - you can connect it again any time.</>, tone: 'ok' as const },
+        ] : [
+          { text: <>The setup for <b className="font-mono">{both}</b> is removed - any DNS record you added can stay or be deleted at your domain company.</> },
+          { text: <>Your website keeps working on <b className="font-mono">{ohpHost}</b>, and your links keep using openhousepal.com.</>, tone: 'ok' as const },
+        ]}
+        confirmLabel="Disconnect domain"
+      />
     </div>
   )
 }
@@ -209,11 +254,15 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
   const purchases = (shop?.purchases || []).filter(p => p.status !== 'ABANDONED')
   const boughtHosts = new Set(purchases.filter(p => p.status === 'ACTIVE' || p.status === 'REGISTERING').flatMap(p => [p.domain, `www.${p.domain}`]))
 
+  // Which address links use right now - the own domain gets the "Default" badge only when it
+  // really is the one we share (connected, primary, "use my own domain" on, opening).
+  const [linkState, setLinkState] = useState<LinkDomainState | null>(null)
   const load = () => {
     api.sites.getDomains().then(res => {
       if (res.success && res.data) setDomains(res.data)
       setLoading(false)
     })
+    api.sites.getLinkDomain().then(({ success, data }) => { if (success && data) setLinkState(data) }).catch(() => {})
     onChanged?.()
   }
   const refreshAll = () => { load(); reloadShop() }
@@ -225,6 +274,8 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
   // a connected own domain (not just its bare-domain forward) - its old site's pages get rerouted
   const hasActiveCustom = domains.some(d => d.status === 'ACTIVE' && !d.redirect_target_domain_id)
   const ohpHost = `${subdomainSlug}.${OHP_BASE_DOMAIN}`
+  const ownDefaultHost = linkState?.use_own_domain && linkState.own_base_url && linkState.current_base_url === linkState.own_base_url
+    ? linkState.custom_domain : null
 
   const handleAdd = async () => {
     const trimmed = hostname.trim().toLowerCase()
@@ -255,9 +306,9 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
         <div className="relative flex items-center justify-between gap-2">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]">OpenHousePal address</p>
           <div className="flex shrink-0 items-center gap-1.5">
-            {!hasActivePrimary && (
+            {!ownDefaultHost && (
               <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#111827]">
-                <Star className="h-2.5 w-2.5" /> Primary
+                <Star className="h-2.5 w-2.5" /> Default
               </span>
             )}
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-500/30">
@@ -273,7 +324,9 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
         </div>
-        <p className="relative mt-2 text-[11px] font-semibold text-gray-500 dark:text-white/50">Always available, even if a custom domain has an issue.</p>
+        <p className="relative mt-2 text-[11px] font-semibold text-gray-500 dark:text-white/50">{ownDefaultHost
+          ? <>Still works - visitors who open it are sent to {ownDefaultHost}.</>
+          : 'Always available, even if a custom domain has an issue.'}</p>
       </div>}
 
       <div className={`${hideFree ? '' : 'mt-5 '}flex items-center gap-2`}>
@@ -287,7 +340,7 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
       ) : domains.length > 0 && (
         <div className="mt-2.5 space-y-2.5">
           {domains.filter(d => !(d.redirect_target_domain_id && domains.some(m => m.id === d.redirect_target_domain_id))).map(domain => (
-            <DomainRow key={domain.id} domain={domain} partner={domains.find(d => d.redirect_target_domain_id === domain.id)} onChanged={refreshAll} back={back} bought={boughtHosts.has(domain.hostname)} />
+            <DomainRow key={domain.id} domain={domain} partner={domains.find(d => d.redirect_target_domain_id === domain.id)} onChanged={refreshAll} back={back} bought={boughtHosts.has(domain.hostname)} isDefault={!!ownDefaultHost && ownDefaultHost === domain.hostname} ohpHost={ohpHost} />
           ))}
         </div>
       )}
@@ -326,7 +379,7 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
         {/* Any number of domains can open the same website (owner, 10/22) - the one marked Primary
             is the address Google and your links use; the others open the same site. */}
         {!loading && domains.length > 0 && (
-          <p className="mb-2.5 text-[12px] font-semibold leading-snug text-gray-500 dark:text-white/55"><span className="font-black text-[#111827] dark:text-white">Have another domain?</span> Connect it too - every domain you add opens this same website. The one marked Primary is the address we share.</p>
+          <p className="mb-2.5 text-[12px] font-semibold leading-snug text-gray-500 dark:text-white/55"><span className="font-black text-[#111827] dark:text-white">Have another domain?</span> Connect it too - every domain you add opens this same website. The one marked Default is the address we share.</p>
         )}
         <form onSubmit={e => { e.preventDefault(); handleAdd() }} className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">

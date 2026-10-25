@@ -8,7 +8,10 @@ import type { PrintPref } from '@/lib/printPrefs'
 import { pdfFirstPageImage } from '@/lib/pdfImages'
 import api from '@/lib/api-service'
 import FlowDock from '@/components/ui/FlowDock'
+import { OhpSpinner } from '@/components/brand/OhpLoader'
+import { PREVIEW_FX_CSS } from '@/components/studio/website/previewFx'
 import { useKitFlowDock } from './KitFlowShell'
+import QuickAddHomeSheet, { quickHomeToEntry, type QuickHome } from '@/components/agent-hub/QuickAddHomeSheet'
 
 // The last part of "Generate Kit", in two steps (user, 10/16):
 //   1. Your kit - every document with its settings on the same line as its name, and a live
@@ -43,6 +46,8 @@ function ThemeChoice({ dark, onChange }: { dark: boolean; onChange: (dark: boole
   const base = 'inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[10px] font-black uppercase tracking-widest transition-colors sm:h-auto sm:py-1'
   return (
     <div onClick={e => e.stopPropagation()} className="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 p-0.5 dark:border-gray-700 dark:bg-[#0B0B0B]" title="Theme of the sign-in screen guests see when they scan the QR code or use the kiosk. Doesn't change the printed flyer.">
+      {/* What this choice is for (owner, 10/24): the guest's phone sign-in screen. */}
+      <span className="inline-flex items-center gap-1 pl-2 pr-1.5 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400"><span aria-hidden className="text-[12px] leading-none">📱</span>Sign-in</span>
       <button type="button" onClick={() => onChange(false)} className={`${base} ${!dark ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200' : 'text-gray-400 hover:text-gray-600'}`}><Sun className={`h-3 w-3 ${!dark ? 'text-amber-500' : ''}`} strokeWidth={3} />Ivory</button>
       <button type="button" onClick={() => onChange(true)} className={`${base} ${dark ? 'bg-[#111111] text-white shadow-sm ring-1 ring-white/10' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}><Moon className="h-3 w-3" strokeWidth={3} />Midnight</button>
     </div>
@@ -50,8 +55,10 @@ function ThemeChoice({ dark, onChange }: { dark: boolean; onChange: (dark: boole
 }
 
 // One document in "Your kit": icon, name and its settings on one line, preview link at the end.
-function DocRow({ mode, icon: Icon, active, onSelect, onPreview, children, index }: {
+function DocRow({ mode, icon: Icon, active, onSelect, onPreview, children, index, foot }: {
   mode: KitDocMode; icon: React.ComponentType<{ className?: string }>; active: boolean; onSelect: () => void; onPreview: () => void; children?: React.ReactNode; index: number
+  /** A short line under the row that explains its setting (e.g. what Recap on / off does). */
+  foot?: React.ReactNode
 }) {
   return (
     <motion.div
@@ -73,14 +80,15 @@ function DocRow({ mode, icon: Icon, active, onSelect, onPreview, children, index
           <Eye className="h-3.5 w-3.5" /> PDF
         </button>
       </div>
+      {foot && <div className="mt-2 pl-12">{foot}</div>}
     </motion.div>
   )
 }
 
 // The guest's on-screen sign-in page (scan the QR / kiosk), light or dark.
-function SignInPhone({ dark, photo, street }: { dark: boolean; photo?: string; street: string }) {
+export function SignInPhone({ dark, photo, street, big = false }: { dark: boolean; photo?: string; street: string; big?: boolean }) {
   return (
-    <div className="w-[150px] rounded-[26px] border-[5px] border-[#111827] bg-[#111827] shadow-[0_24px_50px_-20px_rgba(0,0,0,.55)]">
+    <div className={`${big ? 'w-[150px] origin-top scale-[1.2] sm:scale-[1.45]' : 'w-[150px]'} rounded-[26px] border-[5px] border-[#111827] bg-[#111827] shadow-[0_24px_50px_-20px_rgba(0,0,0,.55)]`}>
       <div className={`overflow-hidden rounded-[20px] transition-colors duration-500 ${dark ? 'bg-[#0B0B0B]' : 'bg-[#FAFAF7]'}`}>
         <div className="relative h-[86px] bg-cover bg-center" style={{ backgroundImage: photo ? `url(${photo})` : undefined }}>
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
@@ -145,22 +153,42 @@ function GuestPassPhone({ prefs, photo, street, similar }: { prefs: GuestPrefs; 
 // phones (Android Chrome won't show one inside a page) and in some browsers' settings.
 
 // The live preview: the real PDF page (rendered in the browser, same documents as "Preview PDF").
-function LivePage({ mode, build, prefs, onError, variant = '' }: {
+function LivePage({ mode, build, prefs, onError, variant = '', spot = null, onSpotDone }: {
   /** Anything else the document depends on (Showcases on/off, Similar Homes picked) - a change re-draws it. */
   variant?: string
   mode: KitDocMode
   build: (mode: KitDocMode, opts?: { brand?: boolean }) => Promise<any | null>
   prefs: Record<PrintPref, boolean>
   onError?: () => void
+  /** "Show me what that does": ring this part of the page once it's drawn (red = coming off). */
+  spot?: Spot | null
+  onSpotDone?: (key: number) => void
 }) {
   const [url, setUrl] = useState<string | null>(null)
   const [asImage, setAsImage] = useState(true)
   const [failed, setFailed] = useState(false)
+  // 'nodata' = nothing to put on the page yet (e.g. a Brag Sheet with no sales shown), not a broken render
+  const [failKind, setFailKind] = useState<'nodata' | 'render'>('render')
   const [busy, setBusy] = useState(true)
   const cache = useRef<Record<string, any>>({})
   const lastUrl = useRef<string | null>(null)
   useEffect(() => { setUrl(null) }, [mode])
-  const dep = (mode === 'flyer' ? `flyer:${prefs.flyerBrand}` : mode === 'recommendations' ? `rec:${prefs.matchScore}` : mode === 'bragSheet' ? `brag:${prefs.bragStats}` : 'cheat') + `|${variant}`
+  // Brag Sheet with no sales yet: add one right here (quick-add window), then the page redraws.
+  const [quickSaleOpen, setQuickSaleOpen] = useState(false)
+  const [reload, setReload] = useState(0)
+  const saveQuickSale = async (home: QuickHome) => {
+    const r = await api.agentHub.getMine()
+    // The hub config save is a full replace - never send it without the current config in hand.
+    if (!r.success || !r.data) return
+    const cfg = (r.data.config || {}) as Record<string, any>
+    const sales = Array.isArray(cfg.recentSales) ? cfg.recentSales : []
+    const saved = await api.agentHub.saveConfig({ ...cfg, recentSales: [...sales, quickHomeToEntry(home, 'sale')] })
+    if (!saved.success) return
+    setQuickSaleOpen(false)
+    Object.keys(cache.current).filter(k => k.startsWith('bragSheet')).forEach(k => { delete cache.current[k] })
+    setReload(n => n + 1)
+  }
+  const dep = (mode === 'flyer' ? `flyer:${prefs.flyerBrand}` : mode === 'recommendations' ? `rec:${prefs.matchScore}` : mode === 'bragSheet' ? `brag:${prefs.bragStats}:${reload}` : 'cheat') + `|${variant}`
   useEffect(() => {
     let alive = true
     setBusy(true)
@@ -171,7 +199,7 @@ function LivePage({ mode, build, prefs, onError, variant = '' }: {
         if (!(key in cache.current)) cache.current[key] = await build(mode, { brand: prefs.flyerBrand })
         const data = cache.current[key]
         if (!alive) return
-        if (!data) { setUrl(null); setFailed(true); setBusy(false); onError?.(); return }
+        if (!data) { setUrl(null); setFailKind('nodata'); setFailed(true); setBusy(false); onError?.(); return }
         const [{ pdf }, docs] = await Promise.all([import('@react-pdf/renderer'), import('@/lib/pdfs')])
         const el = mode === 'flyer' ? <docs.OpenHouseFlyerDocument data={data} />
           : mode === 'recommendations' ? <docs.SimilarPropertiesDocument properties={data.properties} address={data.address} openHouseEventId={data.openHouseEventId} showMatchScore={prefs.matchScore} />
@@ -193,7 +221,7 @@ function LivePage({ mode, build, prefs, onError, variant = '' }: {
           setUrl(next)
         }
       } catch {
-        if (alive) { setUrl(null); setFailed(true) }
+        if (alive) { setUrl(null); setFailKind('render'); setFailed(true) }
         onError?.()
       } finally {
         if (alive) setBusy(false)
@@ -203,6 +231,17 @@ function LivePage({ mode, build, prefs, onError, variant = '' }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dep])
   useEffect(() => () => { if (lastUrl.current) URL.revokeObjectURL(lastUrl.current) }, [])
+  // The ring plays once this page is drawn: red for 1.5s (the old look still showing), gold 2.4s.
+  const [ringKey, setRingKey] = useState<number | null>(null)
+  const spotOn = !!spot && spot.mode === mode && !busy && !!url
+  useEffect(() => {
+    if (!spot || !spotOn) return
+    setRingKey(spot.key)
+    const k = spot.key
+    const t = window.setTimeout(() => { onSpotDone?.(k) }, spot.kind === 'off' ? 1500 : 2400)
+    return () => window.clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spot?.key, spotOn])
   return (
     <div className="relative mx-auto aspect-[8.5/11] w-full max-w-[460px] overflow-hidden rounded-xl bg-white shadow-[0_30px_60px_-30px_rgba(17,24,39,.55)] ring-1 ring-black/5">
       <AnimatePresence initial={false}>
@@ -219,19 +258,61 @@ function LivePage({ mode, build, prefs, onError, variant = '' }: {
       {failed && !busy && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
           <FileText className="h-8 w-8 text-gray-300" />
-          <p className="text-sm font-black text-gray-600">This page can&apos;t be previewed here</p>
-          <p className="text-xs font-semibold text-gray-400">Tap PDF on its row to open the full preview.</p>
+          {mode === 'bragSheet' && failKind === 'nodata' ? (
+            // The Brag Sheet is built from the sales shown on the Agent Hub - with none there's no page yet.
+            <>
+              <p className="text-sm font-black text-gray-600">Your Brag Sheet needs a sale first</p>
+              <p className="text-xs font-semibold text-gray-400">It shows your recent sales. Add one now - it also goes on your Recent Sales list for next time.</p>
+              <button type="button" onClick={() => setQuickSaleOpen(true)} className="mt-1 inline-flex items-center gap-1 rounded-full bg-[#111827] px-3.5 py-2 text-[11px] font-black text-white transition active:scale-95">Add a sale <ArrowRight className="h-3 w-3" /></button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-black text-gray-600">This page can&apos;t be previewed here</p>
+              <p className="text-xs font-semibold text-gray-400">Tap PDF on its row to open the full preview.</p>
+            </>
+          )}
+        </div>
+      )}
+      {mode === 'bragSheet' && (
+        // Above the kit window (z-[120]) it opens from.
+        <QuickAddHomeSheet open={quickSaleOpen} onClose={() => setQuickSaleOpen(false)} kind="sale" onSave={saveQuickSale} zClass="z-[140]" />
+      )}
+      {spot && spotOn && ringKey === spot.key && (
+        <div key={spot.key} aria-hidden className="ohp-spot" data-kind={spot.kind}
+          style={{ top: `${spot.region.top}%`, left: `${spot.region.left}%`, width: `${spot.region.width}%`, height: `${spot.region.height}%`, borderRadius: 10 }}>
+          <span className="ohp-spot-tag" data-at={spot.region.height > 30 ? 'in' : spot.region.top < 12 ? 'below' : 'above'}>{spot.kind === 'on' ? '✓ ' : ''}{spot.label}</span>
         </div>
       )}
       {busy && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-[1px] dark:bg-[#0B0B0B]/40">
+        <div className="absolute inset-0 flex items-center justify-center bg-white/60 dark:bg-[#0B0B0B]/40">
           <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[11px] font-black text-[#8b7355] shadow">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Updating preview
+            <OhpSpinner size={16} /> Updating preview
           </span>
         </div>
       )}
     </div>
   )
+}
+
+// "Show me what that does" (same rings as the IDX / Spotlight editors - components/studio/website/
+// previewFx): change a setting and the preview switches to that sheet, scrolls into view and rings
+// the part that changes - red while it comes off (the old page stays up until the red has played),
+// gold once something is added. Regions are % of the page.
+type Region = { top: number; left: number; width: number; height: number }
+type Spot = { key: number; mode: KitDocMode; kind: 'on' | 'off'; label: string; region: Region; then?: () => void }
+type SpotPref = 'flyerBrand' | 'matchScore' | 'bragStats' | 'recap'
+const WHOLE_PAGE: Region = { top: 1.5, left: 2, width: 96, height: 97 }
+const SPOT_REGION: Record<SpotPref, Region> = {
+  flyerBrand: { top: 32.5, left: 3.5, width: 36, height: 9 },
+  matchScore: { top: 5.5, left: 3, width: 94, height: 80 },
+  bragStats: { top: 15, left: 3, width: 94, height: 13 },
+  recap: WHOLE_PAGE,
+}
+const SPOT_LABEL: Record<SpotPref, [string, string]> = {
+  flyerBrand: ['Adding your brand', 'Removing your brand'],
+  matchScore: ['Adding the % Match badges', 'Removing the % Match badges'],
+  bragStats: ['Adding your sold stats', 'Removing your sold stats'],
+  recap: ['Page 2: a short AI recap', 'Page 2: the full MLS description'],
 }
 
 export default function KitReviewDialog({
@@ -269,22 +350,71 @@ export default function KitReviewDialog({
   const [focus, setFocus] = useState<KitDocMode>('flyer')
   // Phones and tablets show the live preview under the list - tapping a document glides down to it.
   const previewRef = useRef<HTMLDivElement>(null)
-  const pick = (m: KitDocMode) => {
-    setFocus(m)
+  const revealPreview = () => {
     if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches) requestAnimationFrame(() => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
+  // The ring on the preview, the old values it keeps showing while a red "removing" ring plays,
+  // and the phone sign-in screen shown after an Ivory / Midnight change (until something else is clicked).
+  const [spot, setSpot] = useState<Spot | null>(null)
+  const [hold, setHold] = useState<Partial<Record<PrintPref, boolean>>>({})
+  const [phoneMock, setPhoneMock] = useState<{ key: number; from: boolean; to: boolean } | null>(null)
+  const [mockDark, setMockDark] = useState<boolean>(true)
+  const spotSeq = useRef(0)
+  const pick = (m: KitDocMode) => {
+    setPhoneMock(null)
+    setFocus(m)
+    revealPreview()
+  }
+  const spotRef = useRef<Spot | null>(null)
+  spotRef.current = spot
+  const onSpotDone = (key: number) => {
+    const s = spotRef.current
+    if (!s || s.key !== key) return
+    if (s.kind === 'off') setHold({})
+    setSpot(null)
+    s.then?.()
+  }
+  useEffect(() => {
+    if (!phoneMock) return
+    setMockDark(phoneMock.from)
+    const t = window.setTimeout(() => setMockDark(phoneMock.to), 650)
+    return () => window.clearTimeout(t)
+  }, [phoneMock])
   const [saving, setSaving] = useState(false)
   const [note, setNote] = useState<string>('')
   // Every plan gets step 2 now: the follow-ups switch for this open house is on it (user, 10/17).
   const hasGuestStep = !!guestPrefs
   const photo = selectedImage?.url
 
-  // A setting changed: show that document and say what changed on it.
+  // A setting changed: show that document (scrolled into view), ring what changes on it, say what changed.
   const change = (mode: KitDocMode, pref: PrintPref, on: boolean, text: string) => {
     onKitPrefChange(pref, on)
     setFocus(mode)
-    setNote(text)
+    revealPreview()
+    if (pref === 'qrDark') {
+      // The guest's phone sign-in screen in the old look, then it turns to the new one.
+      setSpot(null); setHold({})
+      setPhoneMock(p => ({ key: (p?.key || 0) + 1, from: !on, to: on }))
+      setNote(text)
+      return
+    }
+    setPhoneMock(null)
+    if (pref !== 'recap') setNote(text)
+    const k = pref as SpotPref
+    setHold(on ? {} : { [pref]: !on })
+    setSpot({ key: ++spotSeq.current, mode, kind: on ? 'on' : 'off', label: SPOT_LABEL[k][on ? 0 : 1], region: SPOT_REGION[k] })
   }
+  // Leaving Similar Homes out: show that sheet ringed in red first, then take it out.
+  const leaveSimilarOut = () => {
+    setPhoneMock(null)
+    setFocus('recommendations')
+    revealPreview()
+    setNote('Similar Homes sheet left out of this kit.')
+    setSpot({ key: ++spotSeq.current, mode: 'recommendations', kind: 'off', label: 'Removing the Similar Homes sheet', region: WHOLE_PAGE, then: () => { setFocus('flyer'); onSimilarChange(false) } })
+  }
+  const previewPrefs = { ...kitPrefs, ...hold }
+  // The eye / PDF button always opens the printed SHEET (and the live preview goes back to the sheet).
+  const openPdf = (m: KitDocMode) => { setPhoneMock(null); onPreview(m) }
   useEffect(() => { if (!note) return; const t = setTimeout(() => setNote(''), 4200); return () => clearTimeout(t) }, [note])
 
   const save = async () => {
@@ -297,7 +427,7 @@ export default function KitReviewDialog({
     flyer: kitPrefs.flyerBrand ? 'Brand on: your photo, name and brokerage across the top of the photo.' : 'Brand off: a clean photo, no agent pill.',
     recommendations: kitPrefs.matchScore ? 'Match % on: every home shows its match badge, best match first.' : 'Match % off: the match badges come off every home.',
     bragSheet: kitPrefs.bragStats ? 'Sold Stats on: your homes sold, volume and average price up top.' : 'Sold Stats off: just your recent sales, no numbers row.',
-    cheatSheet: kitPrefs.recap ? 'Recap on: the long MLS description becomes a short "Highlights of" paragraph when the kit is made.' : 'Recap off: the full MLS description prints as-is.',
+    cheatSheet: "The first page of your Cheat Sheet - photos, the home's facts and you.",
   }
 
   const body = (
@@ -315,7 +445,7 @@ export default function KitReviewDialog({
                   <span className="shrink-0 rounded-full bg-[#C9A24D]/15 px-2.5 py-1 text-[10px] font-black text-[#8b6a2b] dark:text-[#e8c97a]">{docs.length} {docs.length === 1 ? 'page' : 'pages'}</span>
                 </div>
                 <div className="space-y-2.5">
-                  <DocRow index={0} mode="flyer" icon={ClipboardList} active={focus === 'flyer'} onSelect={() => pick('flyer')} onPreview={() => onPreview('flyer')}>
+                  <DocRow index={0} mode="flyer" icon={ClipboardList} active={focus === 'flyer'} onSelect={() => pick('flyer')} onPreview={() => openPdf('flyer')}>
                     <Chip on={kitPrefs.flyerBrand} label="Brand" hint="Your photo, name and brokerage across the top of the printed flyer's photo." onClick={() => change('flyer', 'flyerBrand', !kitPrefs.flyerBrand, !kitPrefs.flyerBrand ? 'Brand on - your pill is back on the flyer.' : 'Brand off - the pill comes off the flyer.')} />
                     <ThemeChoice dark={kitPrefs.qrDark} onChange={d => change('flyer', 'qrDark', d, d ? "Guests' sign-in screen is now Midnight." : "Guests' sign-in screen is now Ivory.")} />
                   </DocRow>
@@ -328,18 +458,26 @@ export default function KitReviewDialog({
                     </motion.div>
                   )}
                   {hasRecommendations && (
-                    <DocRow index={1} mode="recommendations" icon={Layers} active={focus === 'recommendations'} onSelect={() => pick('recommendations')} onPreview={() => onPreview('recommendations')}>
+                    <DocRow index={1} mode="recommendations" icon={Layers} active={focus === 'recommendations'} onSelect={() => pick('recommendations')} onPreview={() => openPdf('recommendations')}>
                       <Chip on={kitPrefs.matchScore} icon={Percent} label="Match" hint="The % Match badge on each home, best match first." onClick={() => change('recommendations', 'matchScore', !kitPrefs.matchScore, !kitPrefs.matchScore ? 'Match % on - badges added to each home.' : 'Match % off - badges removed from each home.')} />
-                      {similarAvailable && <Chip on label="Include" hint="Included. Tap to leave Similar Homes out - guests stay focused on this home." onClick={() => onSimilarChange(false)} />}
+                      {similarAvailable && <Chip on label="Include" hint="Included. Tap to leave Similar Homes out - guests stay focused on this home." onClick={leaveSimilarOut} />}
                     </DocRow>
                   )}
                   {hasBragSheet && (
-                    <DocRow index={2} mode="bragSheet" icon={Trophy} active={focus === 'bragSheet'} onSelect={() => pick('bragSheet')} onPreview={() => onPreview('bragSheet')}>
+                    <DocRow index={2} mode="bragSheet" icon={Trophy} active={focus === 'bragSheet'} onSelect={() => pick('bragSheet')} onPreview={() => openPdf('bragSheet')}>
                       <Chip on={kitPrefs.bragStats} icon={BarChart3} label="Sold Stats" hint="Your homes sold, total volume and average price across the top." onClick={() => change('bragSheet', 'bragStats', !kitPrefs.bragStats, !kitPrefs.bragStats ? 'Sold Stats on.' : 'Sold Stats off.')} />
                     </DocRow>
                   )}
                   {hasCheatSheet && (
-                    <DocRow index={3} mode="cheatSheet" icon={FileText} active={focus === 'cheatSheet'} onSelect={() => pick('cheatSheet')} onPreview={() => onPreview('cheatSheet')}>
+                    <DocRow index={3} mode="cheatSheet" icon={FileText} active={focus === 'cheatSheet'} onSelect={() => pick('cheatSheet')} onPreview={() => openPdf('cheatSheet')}
+                      foot={
+                        <AnimatePresence mode="wait" initial={false}>
+                          <motion.p key={String(kitPrefs.recap)} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}
+                            className={`text-[11.5px] font-bold leading-snug ${kitPrefs.recap ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-500 dark:text-gray-400'}`}>
+                            {kitPrefs.recap ? 'Recap on: the long MLS description becomes a short AI "Highlights of" paragraph when the kit is made.' : 'Recap off: the full MLS description prints as-is.'}
+                          </motion.p>
+                        </AnimatePresence>
+                      }>
                       <Chip on={kitPrefs.recap} icon={Sparkles} label="Recap" hint="Replaces the long MLS description with a short AI 'Highlights of' paragraph (3 lines max)." onClick={() => change('cheatSheet', 'recap', !kitPrefs.recap, !kitPrefs.recap ? 'Recap on - written when the kit is made.' : 'Recap off - the full description prints.')} />
                     </DocRow>
                   )}
@@ -356,8 +494,21 @@ export default function KitReviewDialog({
                     </p>
                   </div>
                   {/* the flyer, with the guest's on-screen sign-in page beside it (Light / Dark) */}
+                  <style>{PREVIEW_FX_CSS}</style>
+                  {phoneMock ? (
+                    // After an Ivory / Midnight change: the guest's sign-in screen, old look turning into the new one.
+                    <motion.div key="phone-mock" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}
+                      className={`relative mx-auto flex aspect-[8.5/11] w-full max-w-[460px] flex-col items-center justify-start overflow-hidden rounded-xl pt-6 shadow-[0_30px_60px_-30px_rgba(17,24,39,.55)] ring-1 ring-black/5 transition-colors duration-700 ${mockDark ? 'bg-[#1a1a1d]' : 'bg-white'}`}>
+                      <p className={`mb-4 text-[10px] font-black uppercase tracking-[0.22em] transition-colors duration-700 ${mockDark ? 'text-[#e8c97a]' : 'text-[#8b7355]'}`}>📱 What guests see when they scan</p>
+                      <SignInPhone big dark={mockDark} photo={photo} street={street} />
+                      <motion.span key={String(mockDark)} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 24 }}
+                        className={`absolute bottom-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-widest shadow ${mockDark ? 'bg-[#111111] text-white ring-1 ring-white/15' : 'bg-white text-gray-900 ring-1 ring-gray-200'}`}>
+                        {mockDark ? <Moon className="h-3 w-3" strokeWidth={3} /> : <Sun className="h-3 w-3 text-amber-500" strokeWidth={3} />}{mockDark ? 'Midnight' : 'Ivory'}
+                      </motion.span>
+                    </motion.div>
+                  ) : (
                   <div className={focus === 'flyer' ? 'flex items-end gap-3' : ''}>
-                    <div className="min-w-0 flex-1"><LivePage mode={focus} build={buildDocData} prefs={kitPrefs} variant={`${guestPrefs?.autoShowcase !== false}:${hasRecommendations}`} /></div>
+                    <div className="min-w-0 flex-1"><LivePage mode={focus} build={buildDocData} prefs={previewPrefs} variant={`${guestPrefs?.autoShowcase !== false}:${hasRecommendations}`} spot={spot} onSpotDone={onSpotDone} /></div>
                     {focus === 'flyer' && (
                       <motion.div key={String(kitPrefs.qrDark)} initial={{ scale: 0.92, opacity: 0.6 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                         className="hidden shrink-0 sm:block" title="What guests see on screen when they scan the QR code or use the kiosk">
@@ -366,6 +517,7 @@ export default function KitReviewDialog({
                       </motion.div>
                     )}
                   </div>
+                  )}
                   <AnimatePresence mode="wait">
                     <motion.p key={note || caption[focus]} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25 }}
                       className={`mt-4 rounded-xl px-3 py-2 text-xs font-bold ${note ? 'bg-[#C9A24D]/15 text-[#6b5320] dark:text-[#e8c97a]' : 'text-gray-500 dark:text-gray-400'}`}>
@@ -397,7 +549,9 @@ export default function KitReviewDialog({
                     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4 }}
                       className="flex flex-wrap items-start gap-3 rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-700 dark:bg-[#1a1a1c] sm:flex-nowrap">
                       <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#111827] text-[#e8c97a] dark:bg-white/10"><MonitorPlay className="h-4 w-4" /></span>
-                      <div className="min-w-0 flex-1">
+                      {/* Phones: the text takes the row beside the icon and the switch drops under it
+                          (it used to squeeze the text into a one-word-wide column). */}
+                      <div className="min-w-0 flex-1 max-sm:basis-[calc(100%-3rem)]">
                         <p className="text-sm font-black text-gray-800 dark:text-gray-100">After sign-in, open</p>
                         <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Your Agent Hub (once it&apos;s set up), or just the thank-you screen. Never on a Kiosk tablet.</p>
                       </div>
@@ -448,7 +602,7 @@ export default function KitReviewDialog({
           ) : (
             <button type="button" onClick={save} disabled={saving}
               className="inline-flex flex-[2] items-center justify-center gap-2 rounded-xl bg-[#111827] px-6 py-3.5 font-bold text-white shadow-[0_10px_20px_-5px_rgba(17,24,39,0.2)] transition-all duration-300 hover:bg-[#C9A24D] hover:text-[#111827] active:scale-95 disabled:cursor-wait disabled:opacity-80 dark:bg-white dark:text-[#111827]">
-              {saving ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> Generating Kit...</> : <>Save &amp; Finish <Check className="h-4 w-4" strokeWidth={3} /></>}
+              {saving ? <><OhpSpinner size={18} /> Generating Kit...</> : <>Save &amp; Finish <Check className="h-4 w-4" strokeWidth={3} /></>}
             </button>
           )}
         </div>

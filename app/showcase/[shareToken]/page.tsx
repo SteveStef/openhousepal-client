@@ -26,6 +26,8 @@ import { todayLocal } from '@/lib/relativeDays'
 import { useAuth } from '@/contexts/AuthContext'
 import Link from 'next/link'
 import { Eye } from 'lucide-react'
+import { SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
+import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
 
 export default function CustomerShowcasePage() {
   return (
@@ -905,12 +907,14 @@ function ShowcaseContent() {
   // Each one reads as a short phrase: big value, small plain label under it. "Match right now"
   // counts homes still for sale (not the ones showing a sold / under-contract notice).
   const forSaleNow = matchedProperties.filter(p => !p.disliked && isPropertyAvailableStatus(p.MlsStatus)).length
+  // Holding the most homes a Showcase can (lib/showcaseLimit) - "100+" and a tighten-your-search note.
+  const showcaseFull = !!(showcase as any)?.stats?.atLimit
   const searchTiles = ([
     { icon: MapPin, value: whereTile || districtTile || 'Anywhere', label: whereTile ? (prefsNow.has_drawn_area ? 'Search area' : prefsNow.address ? `of ${builtStreet || 'the home'}` : 'Towns') : districtTile ? 'School district' : 'Search area' },
     whereTile && districtTile ? { icon: GraduationCap, value: districtTile.replace(/ schools$/, ''), label: 'Schools only' } : null,
     { icon: Tag, value: prefsNow.min_price && prefsNow.max_price ? `${kShort(prefsNow.min_price)} – ${kShort(prefsNow.max_price)}` : prefsNow.max_price ? `Up to ${kShort(prefsNow.max_price)}` : prefsNow.min_price ? `${kShort(prefsNow.min_price)}+` : 'Any', label: 'Price' },
     { icon: BedDouble, value: prefsNow.min_beds ? `${prefsNow.min_beds}+ beds` : 'Any beds', label: prefsNow.min_baths ? `${prefsNow.min_baths}+ baths` : 'Bedrooms' },
-    { icon: HomeIcon, value: `${forSaleNow} ${forSaleNow === 1 ? 'home' : 'homes'}`, label: 'Match right now' },
+    { icon: HomeIcon, value: showcaseFull ? `${SHOWCASE_MAX_HOMES}+ homes` : `${forSaleNow} ${forSaleNow === 1 ? 'home' : 'homes'}`, label: 'Match right now' },
   ].filter(Boolean)) as { icon: typeof MapPin; value: string; label: string }[]
   const searchBar = (
     <div className="flex flex-col gap-3 border-t border-gray-100 px-4 py-3 dark:border-gray-800 sm:flex-row sm:items-center sm:px-6">
@@ -1206,6 +1210,7 @@ function ShowcaseContent() {
             {/* Their search + the one big "Change your search" button, built into this header (it
                 was its own card under it - three headers stacked looked busy). */}
             {searchBar}
+            <ShowcaseLimitNote show={showcaseFull} audience="client" className="px-4 pb-3 sm:px-6" />
 
             {/* Property Status Tabs - a full-width, even 4-column bar built into the very bottom
                 edge of the header card (bleeds past the card's own padding via negative margins;
@@ -1240,7 +1245,7 @@ function ShowcaseContent() {
                       ? 'bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8cf8a]'
                       : 'bg-gray-100 dark:bg-gray-800 text-[#6B7280] dark:text-gray-400'
                   }`}>
-                    {tab.count}
+                    {tab.key === 'all' && showcaseFull ? `${SHOWCASE_MAX_HOMES}+` : tab.count}
                     {tab.key === 'disliked' && dislikedPulse > 0 && (
                       <motion.span key={`ping-${dislikedPulse}`} aria-hidden className="pointer-events-none absolute inset-0 rounded-full ring-2 ring-rose-400"
                         initial={{ opacity: 0.9, scale: 1 }} animate={{ opacity: 0, scale: 1.9 }} transition={{ duration: 0.9, ease: 'easeOut' }} />

@@ -65,7 +65,8 @@ function ReviewsTierGate() {
     if (isLoading || !user) return
     if (user.is_admin) return
     if (!REVIEWS_TIERS.includes(user.plan_tier || '')) {
-      router.push(`/upgrade-required?tier=PREMIUM&feature=${encodeURIComponent('Client Reviews')}`)
+      // Each track upsells to its own next plan (plain No-MLS -> No-MLS Premium, not Bright Premium).
+      router.push(`/upgrade-required?tier=${user.plan_tier === 'NO_MLS' ? 'PRO_NO_MLS' : 'PREMIUM'}&feature=${encodeURIComponent('Client Reviews')}`)
     }
   }, [isLoading, user, router])
 

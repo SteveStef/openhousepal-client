@@ -24,6 +24,8 @@ import { profileGaps, propertyRuleFor } from '@/lib/studio/designCompliance'
 import { BLOCK_TO_CARD, CardId, DetailsCard, EditorCtl, PhotoCard, Reposition, WordsCard, find } from './cards'
 import { LeadsCard, LookCard, PropertyCard, YouCard } from './cardsMore'
 import DesignFeatureProbe, { type DesignDraws } from './DesignFeatureProbe'
+import { useDesignSaver } from '@/lib/studio/designDownload'
+import OhSheet from '@/components/open-house-manager/OhSheet'
 
 // The one design editor. Big live preview on the left - click anything on it to change it; a
 // short stack of plain-English cards on the right (Photos, Words, Price & facts, You, Look,
@@ -117,10 +119,13 @@ export default function DesignEditor({ designId }: { designId: string }) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const latest = useRef<DesignProject | null>(null)
   latest.current = design
+  // Bumped after every save - the key for the phone's ready-made download file (lib/studio/designDownload).
+  const [savedVersion, setSavedVersion] = useState(0)
   const writeNow = useCallback(async (d: DesignProject) => {
     setSaveStatus('saving')
     const res = await api.designs.update(d.id, snapshot(d))
     setSaveStatus(res.success ? 'saved' : 'error')
+    if (res.success) setSavedVersion(v => v + 1)
     if (res.success) window.setTimeout(() => setSaveStatus(s => (s === 'saved' ? 'idle' : s)), 1600)
     return res.success
   }, [])
@@ -309,9 +314,40 @@ export default function DesignEditor({ designId }: { designId: string }) {
     const d = latest.current
     if (d && d.status === 'DRAFT') { const res = await api.designs.updateStatus(d.id, 'EXPORTED'); if (res.success && res.data) setDesign(cur => (cur ? { ...cur, status: res.data!.status } : cur)) }
   }
+  // Phones: Download opens the Share sheet ("Save Image") with a file made ahead of time.
+  const saver = useDesignSaver()
+  const phoneSave = async (kind: 'png' | 'pdf') => {
+    const d = latest.current
+    if (!d) return
+    setExporting(kind)
+    try {
+      await flush()
+      const r = await saver.save(d.id, d.name, kind, String(savedVersionRef.current))
+      if (r === 'error') { showToast('The download did not work. Please try again.', 'error'); return }
+      if (r === 'cancelled') return
+      await markExported()
+      if (r === 'shared') showToast('Saved - it is in your designs too.', 'success')
+    } finally {
+      setExporting(null)
+    }
+  }
+  const savedVersionRef = useRef(0)
+  savedVersionRef.current = savedVersion
+  useEffect(() => {
+    if (!saver.phone || !design?.id || saveStatus === 'saving' || saveTimer.current) return
+    const id = design.id
+    const isPrint = !!getDesignFormat(design.design_type)?.isPrint
+    const t = window.setTimeout(() => {
+      saver.prebuild(id, 'png', String(savedVersion))
+      if (isPrint) saver.prebuild(id, 'pdf', String(savedVersion))
+    }, 2500)
+    return () => window.clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saver.phone, design?.id, savedVersion, saveStatus])
   const exportPng = async () => {
     const d = latest.current
     if (!d) return
+    if (saver.phone) { await phoneSave('png'); return }
     setExporting('png')
     try {
       await flush()
@@ -341,6 +377,7 @@ export default function DesignEditor({ designId }: { designId: string }) {
   const exportPdf = async () => {
     const d = latest.current
     if (!d) return
+    if (saver.phone) { await phoneSave('pdf'); return }
     setExporting('pdf')
     try {
       await flush()
@@ -398,6 +435,15 @@ export default function DesignEditor({ designId }: { designId: string }) {
     if (h.success && h.data) setHub(h.data)
     setGateOpen(false)
   }
+  // Done (the phone bar): save, mark a draft Ready, back to your designs.
+  const finish = async () => {
+    if (closing) return
+    setClosing(true)
+    await Promise.all([flush(), new Promise(r => setTimeout(r, 340))])
+    const d = latest.current
+    if (d && d.status === 'DRAFT') await api.designs.updateStatus(d.id, 'READY')
+    router.push('/studio/design')
+  }
   const openHouseBlock = find(design.blocks, 'open_house_details')
   const linkedOpenHouse = openHouseBlock?.data?.open_house_event_id ? linkedOpenHouses.find(oh => oh.openHouseEventId === openHouseBlock.data.open_house_event_id) : null
   const buyerForm = agentForms.find(f => f.form_type === 'buying')
@@ -423,8 +469,11 @@ export default function DesignEditor({ designId }: { designId: string }) {
   }
 
   // Fit: the whole design visible inside the stage with a little breathing room; zoom scales from there.
-  const pad = 32
-  const fitWidth = stage.w && stage.h ? Math.max(200, Math.min(stage.w - pad * 2, (stage.h - pad * 2) * format.aspectRatio)) : 480
+  // Phones: a tighter margin and no 200px floor - a tall Story used to overflow the short phone
+  // stage, so it only fit at 70% (owner 10/24).
+  const smallStage = stage.w > 0 && stage.w < 640
+  const pad = smallStage ? 14 : 32
+  const fitWidth = stage.w && stage.h ? Math.max(smallStage ? 110 : 200, Math.min(stage.w - pad * 2, (stage.h - pad * 2) * format.aspectRatio)) : 480
   const canvasWidth = Math.round(fitWidth * zoom)
   const meta = DESIGN_FORMAT_META[design.design_type]
   const canUndo = history.current.past.length > 0
@@ -443,7 +492,7 @@ export default function DesignEditor({ designId }: { designId: string }) {
         </div>
       </div>
     )}
-    <div className={`flex h-screen flex-col bg-[#f3f1ec] transition-opacity duration-300 ease-in dark:bg-[#0B0B0B] ${closing ? 'pointer-events-none opacity-0 delay-100' : ''}`}>
+    <div className={`flex h-screen supports-[height:100dvh]:h-[100dvh] flex-col bg-[#f3f1ec] transition-opacity duration-300 ease-in dark:bg-[#0B0B0B] ${closing ? 'pointer-events-none opacity-0 delay-100' : ''}`}>
       {/* Top bar */}
       <header className="flex items-center gap-3 border-b border-black/5 bg-white/90 px-3 py-2 dark:border-white/10 dark:bg-[#111113]/90 sm:px-4">
         <button type="button" onClick={async () => { if (closing) return; setClosing(true); await Promise.all([flush(), new Promise(r => setTimeout(r, 340))]); smartBack(router, '/studio/design') }} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-black text-gray-500 transition hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-white/10 dark:hover:text-white">
@@ -459,16 +508,18 @@ export default function DesignEditor({ designId }: { designId: string }) {
           {twinOf(design.design_type) && (
             <button type="button" onClick={() => makeTwin(composition)} disabled={twinning} data-testid="make-twin"
               title={twinOf(design.design_type) === 'instagram_story' ? 'Make a Story with this same design' : 'Make a square post with this same design'}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#C9A24D]/40 bg-white px-3 py-2.5 text-sm font-black text-[#111827] transition hover:-translate-y-0.5 hover:border-[#C9A24D] disabled:opacity-60 dark:bg-white/5 dark:text-white">
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#C9A24D]/40 bg-white px-2.5 py-2.5 text-sm font-black text-[#111827] transition hover:-translate-y-0.5 hover:border-[#C9A24D] disabled:opacity-60 dark:bg-white/5 dark:text-white sm:px-3">
               {twinning ? <Loader2 className="h-4 w-4 animate-spin" /> : twinOf(design.design_type) === 'instagram_story' ? <Smartphone className="h-4 w-4 text-[#8b7355]" /> : <Square className="h-4 w-4 text-[#8b7355]" />}
-              <span className="hidden md:inline">Matching {twinOf(design.design_type) === 'instagram_story' ? 'Story' : 'Post'}</span>
+              {/* Always readable (owner 10/24) - "Story" / "Post" on phones, the full words on wider screens. */}
+              <span className="whitespace-nowrap"><span className="hidden md:inline">Matching </span>{twinOf(design.design_type) === 'instagram_story' ? 'Story' : 'Post'}</span>
             </button>
           )}
           <div className="relative">
-            <button type="button" onClick={() => (gaps.length ? setGateOpen(true) : format.isPrint ? setExportMenu(v => !v) : exportPng())} disabled={!!exporting} className="lx-shine relative inline-flex items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-4 py-2.5 text-sm font-black text-[#111827] shadow-lg shadow-[#C9A24D]/30 transition hover:-translate-y-0.5 disabled:opacity-60">
-              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} {exporting ? 'Preparing…' : 'Download'}
+            {/* Phones: icon only, so the Story / Post shortcut beside it keeps its words. */}
+            <button type="button" onClick={() => (gaps.length ? setGateOpen(true) : format.isPrint ? setExportMenu(v => !v) : exportPng())} disabled={!!exporting} aria-label={exporting ? 'Preparing your file' : 'Download'} title="Download" data-testid="editor-download" className="lx-shine relative inline-flex items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] p-2.5 text-sm font-black text-[#111827] shadow-lg shadow-[#C9A24D]/30 transition hover:-translate-y-0.5 disabled:opacity-60 sm:px-4">
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} <span className="hidden sm:inline">{exporting ? 'Preparing…' : 'Download'}</span>
             </button>
-            {exportMenu && format.isPrint && (
+            {exportMenu && format.isPrint && !saver.phone && (
               <div className="absolute right-0 z-40 mt-2 w-72 overflow-hidden rounded-2xl border border-gray-200 bg-white p-1.5 shadow-2xl dark:border-white/10 dark:bg-[#1a1a1c]" onMouseLeave={() => setExportMenu(false)}>
                 <button type="button" onClick={() => { setExportMenu(false); exportPdf() }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-[#C9A24D]/10">
                   <Printer className="h-4 w-4 shrink-0 text-[#8b7355]" /><span><span className="block text-sm font-black text-[#111827] dark:text-white">Print-ready PDF</span><span className="block text-[11px] font-semibold text-gray-400">{meta?.size} · exact size for your printer</span></span>
@@ -487,9 +538,9 @@ export default function DesignEditor({ designId }: { designId: string }) {
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* Preview */}
-        <div className="relative flex min-h-[46vh] flex-1 flex-col lg:min-h-0">
+        <div className={`relative flex flex-1 flex-col lg:min-h-0 ${format.aspectRatio < 0.7 ? 'min-h-[60vh]' : 'min-h-[46vh]'} max-lg:[@media(max-height:500px)]:min-h-[78vh]`}>
           <div ref={stageRef} className="relative flex-1 overflow-auto" onClick={() => { if (!reposition) setSelectedBlockId(null) }}>
-            <div className="flex min-h-full min-w-full items-center justify-center p-6 lg:p-8 lg:pb-16">
+            <div className="flex min-h-full min-w-full items-center justify-center p-3.5 sm:p-6 lg:p-8 lg:pb-16">
               <div
                 className={`relative shrink-0 overflow-hidden rounded-sm shadow-[0_30px_80px_-30px_rgba(17,24,39,.55)] ${reposition ? (dragRef.current ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
                 style={{ width: canvasWidth, touchAction: reposition ? 'none' : undefined, contain: 'layout paint', transform: closing ? 'translateZ(0) translateY(18px) scale(0.9)' : 'translateZ(0)', transition: closing ? 'transform 380ms cubic-bezier(.4,0,.2,1)' : undefined }}
@@ -557,9 +608,36 @@ export default function DesignEditor({ designId }: { designId: string }) {
               )
             })}
           </div>
-          <p className="mt-4 px-1 text-[11px] font-semibold leading-relaxed text-gray-400">Everything saves automatically. Changed your mind? Undo is the arrow at the top (or Ctrl+Z).</p>
+          <p className="mt-4 px-1 pb-24 text-[11px] font-semibold leading-relaxed text-gray-400 lg:pb-0">Everything saves automatically. Changed your mind? Undo is the arrow at the top (or Ctrl+Z).</p>
         </aside>
       </div>
+
+      {/* Phones (owner 10/24): a bar along the bottom with Done - finished here goes back to your designs. */}
+      <div className={`fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-black/5 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_30px_-20px_rgba(17,24,39,.45)] transition-transform duration-300 dark:border-white/10 dark:bg-[#111113] lg:hidden ${closing ? 'translate-y-full' : ''}`} data-testid="editor-done-bar">
+        <span className={`inline-flex min-w-0 flex-1 items-center gap-1.5 text-[12px] font-black ${saveStatus === 'error' ? 'text-red-600' : 'text-gray-500 dark:text-gray-400'}`}>
+          {saveStatus === 'saving' ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…</> : saveStatus === 'error' ? 'Could not save - check your connection' : <><Check className="h-3.5 w-3.5 text-emerald-500" /> All changes saved</>}
+        </span>
+        <motion.button type="button" whileTap={{ scale: 0.96 }} onClick={finish} disabled={closing}
+          className="inline-flex h-12 min-w-[132px] shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#111827] px-6 text-[15px] font-black text-white shadow-lg shadow-black/20 disabled:opacity-60 dark:bg-white dark:text-[#111827]">
+          {closing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" strokeWidth={3} />} Done
+        </motion.button>
+      </div>
+
+      {/* Phones: the print download choice slides up from the bottom (a sheet, not a dropdown). */}
+      <OhSheet open={exportMenu && format.isPrint && saver.phone} onClose={() => setExportMenu(false)} width="max-w-md" title="Download" subtitle={`${format.label} · ${meta?.size || ''}`} icon={<Download className="h-5 w-5" />}>
+        <div className="space-y-2 p-4">
+          <button type="button" onClick={() => { setExportMenu(false); exportPdf() }} className="flex w-full items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-left active:scale-[0.99] dark:border-white/10 dark:bg-white/5">
+            <Printer className="h-5 w-5 shrink-0 text-[#8b7355]" /><span><span className="block text-sm font-black text-[#111827] dark:text-white">Print-ready PDF</span><span className="block text-[11px] font-semibold text-gray-400">Exact size for your printer</span></span>
+          </button>
+          <button type="button" onClick={() => { setExportMenu(false); exportPng() }} className="flex w-full items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-left active:scale-[0.99] dark:border-white/10 dark:bg-white/5">
+            <Download className="h-5 w-5 shrink-0 text-[#8b7355]" /><span><span className="block text-sm font-black text-[#111827] dark:text-white">Image</span><span className="block text-[11px] font-semibold text-gray-400">For email, texts or screens</span></span>
+          </button>
+          <p className="rounded-xl bg-[#fffaf0] px-3 py-2.5 text-[11px] font-semibold leading-snug text-gray-600 dark:bg-white/5 dark:text-gray-300">
+            Before it goes out: if your brokerage reviews marketing, get their OK first.{design.design_type === 'door_hanger' ? ' Door hangers go on doors only - never inside mailboxes (federal law).' : ''}
+          </p>
+        </div>
+      </OhSheet>
+      {saver.sheet}
 
       <DesignFeatureProbe blocks={design.blocks} ctx={ctx} brandKit={brandKit} onResult={setDraws} />
 

@@ -1,10 +1,14 @@
 'use client'
 
-import { HUB_ICON, HUB_ICON_TILE, HubCollapse, hubCardClass, useHubPanelOpen } from './HubPanelChrome'
+import { HUB_ICON, HUB_ICON_TILE, HubCollapse, hubCardClass, useHubPanelOpen, useSmoothToggle } from './HubPanelChrome'
+import OhpSwitch from '@/components/ui/OhpSwitch'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertCircle, Check, ChevronDown, ChevronRight, DollarSign, Pencil, Trash2 } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
+import { useOptionalAuth } from '@/contexts/AuthContext'
+import { hasMlsAccess } from '@/lib/navAccess'
+import QuickAddHomeSheet, { quickHomeToEntry, type QuickHome } from './QuickAddHomeSheet'
 import { AgentSale, formatSaleStatus, getEligibleSales, getSaleStatusClass, getStreetOnly, SALES_ROTATION_POOL_SIZE, shouldAutoShowSale } from '@/lib/agentSales'
 
 type ManualSaleDraft = { street: string; city: string; state: string; zipcode: string; price: string; closedDate: string; image: string }
@@ -103,8 +107,14 @@ function ManualSaleForm({ editing, draft, onFieldChange, formatPriceInput, fileI
               accept="image/jpeg"
               disabled={uploading}
               onChange={(event) => onPhotoChange(event.target.files?.[0])}
-              className="block w-full cursor-pointer text-sm font-semibold transition-transform active:scale-[0.98] file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-[#111827] file:px-3 file:py-2 file:text-sm file:font-black file:text-white file:transition-colors file:duration-150 hover:file:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+              className="hidden"
             />
+            {/* A real button look instead of the browser's "Choose File / No file chosen" (the
+                whole row is the input's label, so tapping anywhere opens the picker). */}
+            <span className={`inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#111827] px-3.5 py-2 text-sm font-black text-white transition active:scale-95 dark:bg-white dark:text-[#111827] ${uploading ? 'opacity-60' : ''}`}>
+              {uploading ? 'Uploading...' : draft.image ? 'Replace photo' : 'Upload photo'}
+            </span>
+            {!draft.image && !uploading && <span className="ml-3 text-xs font-semibold text-gray-400">JPG, under 5MB</span>}
           </div>
           {uploading && <p className="mt-1 text-xs font-semibold text-gray-400">Uploading photo...</p>}
           {uploadError && <p className="mt-1 text-xs font-semibold text-rose-500">{uploadError}</p>}
@@ -150,29 +160,20 @@ export function SettingToggleRow({ label, hint, checked, onChange, accent = 'gol
   // One gold "on" state for every hub toggle, no glow - `accent` kept only so older callers still
   // type-check (explicit ask: no colored/glowing toggles, one clean OpenHousePal style).
   void accent
-  const onClass = 'bg-[#C9A24D]'
+  // The spring switch used everywhere else; flips instantly, saves once the knob has landed (useSmoothToggle).
+  const [shown, flip] = useSmoothToggle(checked, onChange)
   return (
     <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-[#fbfaf7] p-3 dark:border-gray-700 dark:bg-gray-800">
       <div className="min-w-0 flex-1">
         <p className="text-xs font-black uppercase tracking-wide text-gray-700 dark:text-gray-200">{label}</p>
         <p className="mt-0.5 text-[11px] font-semibold leading-snug text-gray-400">{hint}</p>
       </div>
-      <button
-        type="button"
-        onClick={() => onChange(!checked)}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition ${checked ? onClass : 'bg-gray-300 dark:bg-gray-600'}`}
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
-        title={checked ? `Turn off ${label}` : `Turn on ${label}`}
-      >
-        <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all duration-200 ${checked ? 'left-6' : 'left-1'}`} />
-      </button>
+      <OhpSwitch on={shown} onChange={() => flip()} label={label} />
     </div>
   )
 }
 
-export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgentSales, showStats, setShowStats, carousel, setCarousel, autoScroll, setAutoScroll, minPrice, setMinPrice, onChange, onSave, plain = false, ready = true, incomplete, compact = false, sortOverride }: {
+export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgentSales, showStats, setShowStats, carousel, setCarousel, autoScroll, setAutoScroll, minPrice, setMinPrice, onChange, onSave, plain = false, ready = true, incomplete, compact = false, sortOverride, onSortChange }: {
   // The setup flow's Sales step asks the display questions itself (big, one at a time) - compact
   // shows only the list, Manually Add and Refresh, in the order the step picked (sortOverride).
   compact?: boolean
@@ -206,23 +207,42 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
   // When defined (Settings `plain` mode), shows the same Complete / Incomplete badge the other
   // settings cards use, right on this one large card. Undefined elsewhere = no badge.
   incomplete?: boolean
+  /** Tells the editor's live preview the order visitors see (salesSort lives only in this panel). */
+  onSortChange?: (sort: 'newest' | 'price-high' | 'price-low') => void
 }) {
   const [isLoading, setIsLoading] = useState(false)
   const [isOpen, setIsOpen] = useHubPanelOpen('sales')
+  // No-MLS plans: nothing to pull from Bright - every sale is added by hand (no Refresh button).
+  const authUser = useOptionalAuth()?.user
+  const noMls = !!authUser?.plan_tier && !hasMlsAccess(authUser.plan_tier)
+  const salesSubtitle = noMls
+    ? "Add the homes you've sold by hand."
+    : 'Pulled from your listing data based on your agent profile.'
   const [sortMode, setSortMode] = useState<'recent' | 'price-high' | 'price-low'>('recent')
   // The order here is the order visitors see (Agent Hub config salesSort - also set in the setup
   // flow's Sales step), so it loads from and saves to that one setting.
   useEffect(() => {
-    api.agentHub.getMine().then(r => { const s = r.success ? r.data?.config?.salesSort : null; if (s === 'price-high' || s === 'price-low') setSortMode(s) })
+    api.agentHub.getMine().then(r => { const s = r.success ? r.data?.config?.salesSort : null; if (s === 'price-high' || s === 'price-low') { setSortMode(s); onSortChange?.(s) } })
   }, [])
   const saveSortMode = async (next: 'recent' | 'price-high' | 'price-low') => {
     setSortMode(next)
+    onSortChange?.(next === 'recent' ? 'newest' : next)
     const latest = await api.agentHub.getMine()
     const base = latest.success && latest.data?.config ? latest.data.config : null
     if (base) api.agentHub.saveConfig({ ...base, salesSort: next === 'recent' ? 'newest' : next })
   }
   const [page, setPage] = useState(1)
   const [manualAddOpen, setManualAddOpen] = useState(false)
+  const [quickAddOpen, setQuickAddOpen] = useState(false)
+  const addQuickSale = (home: QuickHome) => {
+    const entry = quickHomeToEntry(home, 'sale')
+    const nextSales = [...getEligibleSales(agentSales), entry as AgentSale]
+      .sort((a, b) => String(b.sold_date || '').localeCompare(String(a.sold_date || '')))
+    setAgentSales(nextSales)
+    onSave({ recentSales: nextSales })
+    setQuickAddOpen(false)
+    setPage(1)
+  }
   const [editingSaleId, setEditingSaleId] = useState<string | null>(null)
   const [manualSaleDraft, setManualSaleDraft] = useState({
     street: '',
@@ -276,8 +296,8 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
   }
 
   useEffect(() => {
-    if (ready && !getEligibleSales(agentSales).length) loadSales()
-  }, [reLicenseNumber, ready])
+    if (ready && !noMls && !getEligibleSales(agentSales).length) loadSales()
+  }, [reLicenseNumber, ready, noMls])
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages)
@@ -415,7 +435,7 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
               )}
               <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:bg-gray-800 dark:text-gray-400">{visibleCount}/{eligibleAgentSales.length} shown</span>
             </div>
-            <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">Pulled from your listing data based on your agent profile.</p>
+            <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">{salesSubtitle}</p>
           </div>
           <ChevronDown className={`h-5 w-5 shrink-0 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
         </button>
@@ -427,7 +447,7 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
           </span>
           <div>
             <h3 className="font-serif text-xl font-black text-[#111827] dark:text-white">Recent Sales</h3>
-            <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">Pulled from your listing data based on your agent profile.</p>
+            <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">{salesSubtitle}</p>
           </div>
         </button>
         <div className="flex shrink-0 items-center justify-end gap-2">
@@ -495,19 +515,16 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
               </select>}
               <button
                 onClick={() => {
-                  if (manualAddOpen) {
-                    setManualAddOpen(false)
-                  } else {
-                    setEditingSaleId(null)
-                    setManualSaleDraft({ street: '', city: '', state: '', zipcode: '', price: '', closedDate: '', image: '' })
-                    setManualAddOpen(true)
-                  }
+                  // Quick-add window (pull-up sheet on phones) - Where / Details / Photos.
+                  setManualAddOpen(false)
+                  setEditingSaleId(null)
+                  setQuickAddOpen(true)
                 }}
-                className={`rounded-xl border px-3.5 py-2.5 text-sm font-black shadow-sm ${manualAddOpen ? 'border-[#C9A24D] bg-[#C9A24D]/15 text-[#8b7355]' : 'border-gray-200 bg-[#fbfaf7] text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white'}`}
+                className={`rounded-xl border px-3.5 py-2.5 text-sm font-black shadow-sm ${manualAddOpen ? 'border-[#C9A24D] bg-[#C9A24D]/15 text-[#8b7355]' : noMls ? 'border-[#111827] bg-[#111827] text-white dark:border-white dark:bg-white dark:text-[#111827]' : 'border-gray-200 bg-[#fbfaf7] text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white'}`}
               >
-                Manually Add
+                {noMls ? '+ Add a sale' : 'Manually Add'}
               </button>
-              <button onClick={loadSales} disabled={isLoading} className="rounded-xl bg-[#111827] px-3.5 py-2.5 text-sm font-black text-white shadow-sm disabled:opacity-60">{isLoading ? 'Refreshing...' : 'Refresh Sales'}</button>
+              {!noMls && <button onClick={loadSales} disabled={isLoading} className="rounded-xl bg-[#111827] px-3.5 py-2.5 text-sm font-black text-white shadow-sm disabled:opacity-60">{isLoading ? 'Refreshing...' : 'Refresh Sales'}</button>}
             </div>
           </div>
 
@@ -577,7 +594,9 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.15 }}
-                      className={`grid grid-cols-[56px_1fr_auto] items-center gap-2 rounded-xl border p-2.5 sm:grid-cols-[68px_1fr_auto] sm:gap-3 ${sale.visible ? 'border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900' : 'border-dashed border-gray-300 bg-gray-100 shadow-inner dark:border-gray-700 dark:bg-gray-950'}`}
+                      // Phones: photo + address on top, price and the buttons on their own row under
+                      // them - side by side they squeezed the address down to "88 ...".
+                      className={`grid grid-cols-[56px_minmax(0,1fr)] items-center gap-2 rounded-xl border p-2.5 sm:grid-cols-[68px_minmax(0,1fr)_auto] sm:gap-3 ${sale.visible ? 'border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900' : 'border-dashed border-gray-300 bg-gray-100 shadow-inner dark:border-gray-700 dark:bg-gray-950'}`}
                     >
                       <div className={`h-14 w-14 shrink-0 rounded-lg bg-cover bg-center sm:w-[68px] ${sale.visible ? '' : 'grayscale opacity-60'}`} style={{ backgroundImage: `url(${sale.image || '/placeholder.jpg'})` }} />
                       <div className="min-w-0 self-center">
@@ -588,9 +607,9 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
                         <p className={`truncate text-sm font-black leading-snug ${sale.visible ? 'text-gray-950 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>{getStreetOnly(sale.address)}</p>
                         <p className={`mt-1 truncate text-sm font-semibold ${sale.visible ? 'text-gray-500 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>{[sale.city, sale.state].filter(Boolean).join(', ') || 'Location unavailable'}</p>
                       </div>
-                      <div className="self-center text-right">
+                      <div className="self-center text-right max-sm:col-span-2 max-sm:flex max-sm:items-center max-sm:justify-between max-sm:gap-2 max-sm:border-t max-sm:border-gray-100 max-sm:pt-2 dark:max-sm:border-gray-800">
                         <p className={`whitespace-nowrap text-sm font-black ${sale.visible ? 'text-[#8b7355]' : 'text-gray-400 dark:text-gray-500'}`}>{sale.price ? `$${sale.price.toLocaleString()}` : 'No price'}</p>
-                        <div className="mt-1 flex flex-nowrap items-center justify-end gap-2">
+                        <div className="flex flex-nowrap items-center justify-end gap-2 sm:mt-1">
                           {sale.source === 'manual' && (
                             <>
                               <button
@@ -628,7 +647,7 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
               ))
             ) : (
               <div className="rounded-2xl border border-dashed border-gray-300 bg-[#fbfaf7] p-5 text-sm font-bold text-gray-500">
-                {reLicenseNumber.trim() ? 'No matching sales or listings found for this RE License number yet.' : 'Add your RE License number first (Profile, or the License step in Setup) - then your sales and listings show up here.'}
+                {noMls ? "No sales yet - tap + Add a sale to put your first one on your Agent Hub." : reLicenseNumber.trim() ? 'No matching sales or listings found for this RE License number yet.' : 'Add your RE License number first (Profile, or the License step in Setup) - then your sales and listings show up here.'}
               </div>
             )}
           </div>
@@ -659,6 +678,7 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
           )}
         </div>
       </HubCollapse>
+      <QuickAddHomeSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} kind="sale" onSave={addQuickSale} />
     </section>
   )
 }

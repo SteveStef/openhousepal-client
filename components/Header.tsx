@@ -14,6 +14,7 @@ import { useToast } from '@/contexts/ToastContext'
 import NotificationBell from './NotificationBell'
 import IncompleteSettingsModal from './IncompleteSettingsModal'
 import { useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
+import { useOpenRequestsCount } from '@/hooks/useOpenRequestsCount'
 import { useFormsActionCount } from '@/hooks/useFormsActionCount'
 import { useShowcasesActionCount } from '@/hooks/useShowcasesActionCount'
 import { useSettingsCompleteness } from '@/hooks/useSettingsCompleteness'
@@ -133,7 +134,9 @@ export default function Header({ mode = 'app' }: HeaderProps) {
   const showcasesAccess = getNavFeatureAccess(user?.plan_tier, 'showcases')
   const idxAccess = getNavFeatureAccess(user?.plan_tier, 'idx_website')
   const { listingAgentCount, hostCount } = useOpenHouseActionCounts()
-  const pendingHostRequestCount = listingAgentCount + hostCount
+  // + guests' disclosure / second-tour requests still waiting on the agent (10/25 - they're answered on Opens).
+  const openRequestsCount = useOpenRequestsCount()
+  const pendingHostRequestCount = listingAgentCount + hostCount + openRequestsCount
   const formsActionCount = useFormsActionCount()
   const showcasesActionCount = useShowcasesActionCount()
   const { anyMissing: settingsIncomplete } = useSettingsCompleteness()
@@ -182,7 +185,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
     { href: '/studio/integrations', label: 'CRM', icon: Plug, iconClass: 'ohp-icon-assemble-plug' },
     { href: '/studio/email', label: 'Email', icon: Send },
     { href: '/studio/calendar', label: 'Calendar', icon: CalendarClock, iconClass: 'ohp-icon-assemble-calendar' },
-    { href: '/studio/reviews', label: 'Reviews', icon: Star },
+    { href: '/studio/reviews', label: 'Reviews', icon: Star, feature: 'reviews' },
   ]
 
   // Everything about the agent's people, under "Leads".
@@ -270,7 +273,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                 </div>
                 
                 {/* Desktop Menu */}
-                <div className="hidden md:flex items-center space-x-1 sm:space-x-3">
+                <div className="hidden xl:flex items-center space-x-1 sm:space-x-3">
                 {/* Admin: each big area is its own tab, with its pages in a hover menu (lib/adminNav.ts). */}
                 {user?.is_admin && ADMIN_SECTIONS.map(sec => {
                   const href = sec.key === 'overview' ? '/admin' : `/admin/${sec.key}`
@@ -352,7 +355,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                         <span>Opens</span>
                         {pendingHostRequestCount > 0 && (
                           <span
-                            title={`${pendingHostRequestCount} pending host request${pendingHostRequestCount === 1 ? '' : 's'}`}
+                            title={`${pendingHostRequestCount} waiting on you${openRequestsCount ? ` (${openRequestsCount} guest request${openRequestsCount === 1 ? '' : 's'})` : ''}`}
                             className="ml-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white"
                           >
                             {pendingHostRequestCount > 9 ? '9+' : pendingHostRequestCount}
@@ -374,6 +377,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                               // my own outgoing requests waiting on a reply.
                               const itemBadgeCount = item.href === '/open-houses/my-listings' ? listingAgentCount
                                 : item.href === '/discovery' ? hostCount
+                                : item.href === '/open-houses' ? openRequestsCount
                                 : 0
                               return (
                                 <Link
@@ -627,17 +631,19 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                   <button
                     onClick={handleLogout}
                     disabled={isLoggingOut}
+                    title="Logout"
+                    aria-label="Logout"
                     className="group px-3 py-2 text-[#6B7280] dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 font-bold text-xs uppercase tracking-widest transition-all duration-200 flex items-center disabled:opacity-50"
                   >
-                    <LogOut className="ohp-icon-draw w-4 h-4 mr-2" />
-                    <span>{isLoggingOut ? '...' : 'Logout'}</span>
+                    <LogOut className="ohp-icon-draw w-4 h-4 2xl:mr-2" />
+                    <span className="hidden 2xl:inline">{isLoggingOut ? '...' : 'Logout'}</span>
                   </button>
                 </div>
 
                 {/* Mobile Hamburger */}
                 <button
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                  className="p-2 rounded-lg text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-all focus:outline-none md:hidden"
+                  className="p-2 rounded-lg text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-all focus:outline-none xl:hidden"
                   aria-label="Toggle Menu"
                 >
                   {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -647,17 +653,17 @@ export default function Header({ mode = 'app' }: HeaderProps) {
 
             {/* Landing/Public Actions */}
             {!isCheckingAuth && !isAuthenticated && (
-              <div className="flex items-center space-x-1 sm:space-x-2">
+              <div className="flex shrink-0 items-center space-x-0.5 sm:space-x-2">
                 <ThemeToggle />
                 <Link
                   href="/login"
-                  className="text-[#111827] dark:text-white font-black text-sm px-2 sm:px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all"
+                  className="text-[#111827] dark:text-white font-black text-[13px] sm:text-sm px-1.5 sm:px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all"
                 >
                   Login
                 </Link>
                 <Link
                   href="/register"
-                  className="px-3 sm:px-5 py-2.5 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-black text-sm hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-xl transition-all duration-300 whitespace-nowrap"
+                  className="px-2.5 sm:px-5 py-2 sm:py-2.5 text-[13px] sm:text-sm bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-xl font-black hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] hover:shadow-xl transition-all duration-300 whitespace-nowrap"
                 >
                   Get Started
                 </Link>
@@ -681,7 +687,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
-        <div data-scroll-lock="on" className="fixed inset-0 z-50 overscroll-contain md:hidden">
+        <div data-scroll-lock="on" className="fixed inset-0 z-50 overscroll-contain xl:hidden">
           {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-black/60 "

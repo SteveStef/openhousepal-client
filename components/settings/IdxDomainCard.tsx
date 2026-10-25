@@ -10,9 +10,10 @@
 // LinkDomainShortcut is the one-line version the website builder's Domain tab shows.
 import { ReactNode, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowUpRight, Globe, Link2, Loader2, PowerOff, Star } from 'lucide-react'
+import { ArrowUpRight, CheckCircle2, Globe, Link2, Loader2, PowerOff, Star } from 'lucide-react'
 import api from '@/lib/api-service'
 import DomainHealthBanner from '@/components/DomainHealthBanner'
+import DomainWarningSheet from '@/components/domains/DomainWarningSheet'
 import type { LinkDomainState } from '@/types'
 
 export type { LinkDomainState }
@@ -71,12 +72,30 @@ function Switch({ on, disabled, onClick, label, saving }: { on: boolean; disable
   )
 }
 
+function ActiveChip() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-500/30">
+      <CheckCircle2 className="h-2.5 w-2.5" /> Active
+    </span>
+  )
+}
+
+function DefaultChip() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#111827]">
+      <Star className="h-2.5 w-2.5" /> Default
+    </span>
+  )
+}
+
 export default function IdxDomainCard({ children, linkDomain }: { children?: ReactNode; linkDomain?: LinkDomainHook }) {
   const own = useLinkDomain()
   const { state, saving, error, setUseOwn } = linkDomain || own
   const siteOff = state?.site_enabled === false
   const hasCustom = !!state?.has_custom_domain
   const on = !!state?.use_own_domain
+  // links really use the own domain right now (it opens) - then the free address forwards to it
+  const ownLive = on && !!state?.own_base_url && state?.current_base_url === state?.own_base_url
   // Tapping the switch before a domain is connected points them to where they connect one.
   const [needDomain, setNeedDomain] = useState(false)
 
@@ -96,29 +115,36 @@ export default function IdxDomainCard({ children, linkDomain }: { children?: Rea
       {state && hasCustom && (
         <div className="mt-4 space-y-2">
           {/* Default - free, automatic */}
+          {/* The agent's own, uploaded domain - shines as live; "Default" while links use it */}
+          <div className="relative overflow-hidden rounded-xl border border-emerald-300 bg-gradient-to-br from-white via-emerald-50/60 to-[#f3fbf6] px-3.5 py-2.5 shadow-[0_12px_30px_-22px_rgba(16,185,129,.6)] dark:border-emerald-500/35 dark:from-[#101814] dark:via-[#0f1a15] dark:to-emerald-500/[0.10]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="flex min-w-0 items-center gap-1.5 font-mono text-xs font-bold text-[#111827] dark:text-white">
+                  <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-500" />
+                  <span className="truncate">{state.custom_domain}</span>
+                </p>
+                <p className="mt-0.5 text-[11px] font-semibold text-emerald-800/80 dark:text-emerald-200/80">Your own domain — connected and live.</p>
+              </div>
+              <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                <ActiveChip />
+                {ownLive && <DefaultChip />}
+              </span>
+            </div>
+          </div>
+          {/* Default - free, automatic */}
           <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 px-3.5 py-2.5 dark:border-gray-800">
             <div className="min-w-0">
               <p className="truncate font-mono text-xs font-bold text-[#111827] dark:text-white">{hostOf(state.default_base_url)}</p>
-              <p className="mt-0.5 text-[11px] font-semibold text-gray-400">Your default address — included free with IDX, set up automatically.</p>
+              <p className="mt-0.5 text-[11px] font-semibold text-gray-400">{ownLive
+                ? `Your free OpenHousePal address — still works and sends visitors to ${state.custom_domain}.`
+                : 'Your free OpenHousePal address — included with IDX, set up automatically.'}</p>
             </div>
-            <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-500 dark:bg-white/10 dark:text-gray-300">Default · Free</span>
-          </div>
-          {/* The agent's own, uploaded domain */}
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 px-3.5 py-2.5 dark:border-gray-800">
-            <div className="min-w-0">
-              {hasCustom ? (
-                <p className="truncate font-mono text-xs font-bold text-[#111827] dark:text-white">{state.custom_domain}</p>
-              ) : (
-                <p className="text-xs font-bold text-gray-400">No domain of your own connected yet</p>
-              )}
-              <p className="mt-0.5 text-[11px] font-semibold text-gray-400">
-                {hasCustom ? 'Your own domain — connected and live.' : 'Bring a domain you own (like yourname.com) — connect it below.'}
-              </p>
-            </div>
-            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ${hasCustom ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300' : 'bg-gray-100 text-gray-400 dark:bg-white/5'}`}>
-              {hasCustom ? <><Star className="h-2.5 w-2.5" /> Your own</> : 'Not connected'}
+            <span className="flex shrink-0 flex-wrap justify-end gap-1">
+              <ActiveChip />
+              {!ownLive && <DefaultChip />}
             </span>
           </div>
+          {/* The "Both links work..." note sits under the own domain in the domain manager below. */}
         </div>
       )}
 
@@ -170,12 +196,22 @@ export default function IdxDomainCard({ children, linkDomain }: { children?: Rea
 export function IdxSiteSwitch({ linkDomain }: { linkDomain: LinkDomainHook }) {
   const { state, saving, error, setSiteEnabled } = linkDomain
   const on = state?.site_enabled !== false
+  const [askOff, setAskOff] = useState(false)
   const toggle = async () => {
-    if (on && !confirm('Turn off your IDX website?\n\nIt stops being served (visitors get a "not available" page) and every new QR code and link uses openhousepal.com instead. Nothing is deleted - turn it back on any time.')) return
-    await setSiteEnabled(!on)
+    if (on) { setAskOff(true); return }
+    await setSiteEnabled(true)
   }
   return (
     <div className="flex items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
+      <DomainWarningSheet open={askOff} onClose={() => setAskOff(false)} onConfirm={() => setSiteEnabled(false)}
+        title="Turn off your IDX website?" subtitle="Nothing is deleted"
+        points={[
+          { text: <>Your IDX website stops opening on all your addresses{state?.custom_domain ? <> (including <b className="font-mono">{state.custom_domain}</b>)</> : null} - visitors see a &quot;not available&quot; page.</> },
+          { text: <>Every new QR code, Guest Pass, Showcase, form and copied link uses <b>openhousepal.com</b> instead.</> },
+          { text: <>Your Agent Hub, open houses, leads and the rest of your plan keep working as usual.</>, tone: 'ok' },
+          { text: <>Your pages and settings are kept - switch it back on any time and it&apos;s back exactly as published.</>, tone: 'ok' },
+        ]}
+        confirmLabel="Turn it off" cancelLabel="Keep it on" />
       <div className="min-w-0">
         <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">IDX Website</p>
         <p className="mt-1 text-sm font-black text-[#111827] dark:text-white">{on ? 'On — your IDX website is live on your addresses' : 'Off — you’re using a website of your own'}</p>
@@ -196,13 +232,18 @@ export function LinkDomainShortcut() {
   if (!state) return null
   const label = state.site_enabled === false ? 'IDX site: off' : state.use_own_domain ? 'Own domain: on' : state.has_custom_domain ? 'Own domain: off' : 'Default address'
   return (
-    <Link href="/settings#idx-domain" className="group mb-4 flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left shadow-sm transition-colors hover:border-[#C9A24D] dark:border-gray-800 dark:bg-[#151517]">
+    // Phones: stacked - label + status on one line, the full address under it, a real Change pill
+    // (owner, 10/24: the one-row version wrapped the label and cut the domain off at 390px).
+    <Link href="/settings#idx-domain" className="group mb-4 flex flex-col gap-2.5 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left shadow-sm transition-colors hover:border-[#C9A24D] dark:border-gray-800 dark:bg-[#151517] sm:flex-row sm:items-center sm:justify-between sm:gap-3">
       <span className="min-w-0">
-        <span className="block text-[10px] font-black uppercase tracking-widest text-gray-400">Your links use</span>
-        <span className="block truncate font-mono text-xs font-bold text-[#8b7355] dark:text-[#d7b974]">{hostOf(state.current_base_url)}</span>
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-widest text-gray-400">Your links use</span>
+          <span className="whitespace-nowrap rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-500 dark:bg-white/10 dark:text-gray-300">{label}</span>
+        </span>
+        <span className="mt-1 block break-all font-mono text-[13px] font-bold leading-snug text-[#8b7355] dark:text-[#d7b974]">{hostOf(state.current_base_url)}</span>
       </span>
-      <span className="flex shrink-0 items-center gap-1 text-[11px] font-black uppercase tracking-wide text-gray-500 group-hover:text-[#111827] dark:text-gray-400 dark:group-hover:text-white">
-        {label} · Change <ArrowUpRight className="h-3.5 w-3.5" />
+      <span className="inline-flex shrink-0 items-center justify-center gap-1 self-start rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-black uppercase tracking-wide text-gray-600 transition group-hover:border-[#C9A24D] group-hover:text-[#111827] dark:border-gray-700 dark:text-gray-300 dark:group-hover:text-white sm:self-center">
+        Change <ArrowUpRight className="h-3.5 w-3.5" />
       </span>
     </Link>
   )

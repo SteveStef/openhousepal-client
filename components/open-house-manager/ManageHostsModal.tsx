@@ -24,7 +24,11 @@ export default function ManageHostsModal({
   prefillDirectDate,
   focusHostNotes,
   hostingWindow,
+  findOnly = false,
 }: {
+  /** Opened from a card's "needs a host" day (user, 10/24): show ONLY the Find a Host pull-up for
+   *  that day - not the Open House Hosts window behind it. Closing it closes everything. */
+  findOnly?: boolean
   listingKey: string | null
   onClose: () => void
   onActionComplete: () => void
@@ -241,7 +245,7 @@ export default function ManageHostsModal({
 
   return (
     <>
-    <OhSheet open={!!listingKey} onClose={onClose} title="Open House Hosts" subtitle={detail?.address || 'Loading…'} image={detail?.image ?? null} width="max-w-5xl">
+    <OhSheet open={!!listingKey && !findOnly} onClose={onClose} title="Open House Hosts" subtitle={detail?.address || 'Loading…'} image={detail?.image ?? null} width="max-w-5xl">
         <div>
           {isLoading ? (
             <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
@@ -578,8 +582,9 @@ export default function ManageHostsModal({
         requested={pendingDates}
         teamHosts={teamHosts}
         pastHosts={nonTeamTrustedHosts}
-        onClose={() => setFindHost(null)}
-        onSent={() => { setFindHost(null); loadBroadcasts(listingKey) }}
+        // Find-only: let the pull-up slide away first, then drop the whole thing.
+        onClose={() => { setFindHost(null); if (findOnly) window.setTimeout(onClose, 300) }}
+        onSent={() => { setFindHost(null); if (findOnly) { onActionComplete(); window.setTimeout(onClose, 300) } else loadBroadcasts(listingKey) }}
       />
     )}
 

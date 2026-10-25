@@ -23,6 +23,11 @@ import OpenHouseInsightsModal from '@/components/open-house-manager/OpenHouseIns
 import OpenHouseTeamPanel from '@/components/open-house-manager/OpenHouseTeamPanel'
 import WarningConfirmModal from '@/components/WarningConfirmModal'
 import { useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
+import PageReveal from '@/components/ui/PageReveal'
+import ExpandOnFocus from '@/components/ui/ExpandOnFocus'
+import OhSheet from '@/components/open-house-manager/OhSheet'
+import { useImagesReady } from '@/hooks/useImagesReady'
+import { useIsPhone } from '@/components/ui/windowMotion'
 
 type SortOption = 'dom_high' | 'dom_low' | 'price_high' | 'price_low'
 
@@ -60,6 +65,7 @@ function MyListingsContent() {
   const [manageHostsKey, setManageHostsKey] = useState<string | null>(null)
   const [manageHostsPrefillDate, setManageHostsPrefillDate] = useState<string | null>(null)
   const [manageHostsFocusNotes, setManageHostsFocusNotes] = useState(false)
+  const [manageHostsFindOnly, setManageHostsFindOnly] = useState(false)
   const [insightsKey, setInsightsKey] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [removeTargetKey, setRemoveTargetKey] = useState<string | null>(null)
@@ -67,9 +73,14 @@ function MyListingsContent() {
   const [showSortDropdown, setShowSortDropdown] = useState(false)
   const [sortMenuPos, setSortMenuPos] = useState<{ top: number; left: number; width: number } | null>(null)
   const sortDropdownRef = useRef<HTMLDivElement>(null)
+  const pageRef = useRef<HTMLElement>(null)
+  const pageReady = useImagesReady(pageRef, !isLoading, { count: 6 })
+  const isPhone = useIsPhone()
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
+      // Taps inside a pull-up sheet (the phone sort sheet) aren't "outside".
+      if ((event.target as HTMLElement | null)?.closest?.('[data-scroll-lock="off"]')) return
       if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
         setShowSortDropdown(false)
       }
@@ -82,7 +93,7 @@ function MyListingsContent() {
   // aligned to it same as the old inline version. Closes on scroll rather than re-tracking, since
   // a scrolling background while picking a sort order isn't a real use case.
   useEffect(() => {
-    if (!showSortDropdown) return
+    if (!showSortDropdown || isPhone) return
     const updatePosition = () => {
       const rect = sortDropdownRef.current?.getBoundingClientRect()
       if (rect) setSortMenuPos({ top: rect.bottom + 8, left: Math.max(8, rect.right - 224), width: 224 })
@@ -95,7 +106,7 @@ function MyListingsContent() {
       window.removeEventListener('scroll', close, true)
       window.removeEventListener('resize', updatePosition)
     }
-  }, [showSortDropdown])
+  }, [showSortDropdown, isPhone])
 
   const [pendingDates, setPendingDates] = useState<Record<string, string[]>>({})
   const load = useCallback(async (opts?: { silent?: boolean }) => {
@@ -190,9 +201,13 @@ function MyListingsContent() {
     if (open) {
       setManageHostsFocusNotes(true)
       setManageHostsPrefillDate(null)
+      setManageHostsFindOnly(false)
     } else {
+      // A day that needs a host opens ONLY the Find a Host pull-up (user, 10/24 - it used to open
+      // Manage Hosts behind it too, two windows on a phone).
       setManageHostsPrefillDate(cell.date)
       setManageHostsFocusNotes(false)
+      setManageHostsFindOnly(true)
     }
   }
 
@@ -200,6 +215,7 @@ function MyListingsContent() {
     setManageHostsKey(null)
     setManageHostsPrefillDate(null)
     setManageHostsFocusNotes(false)
+    setManageHostsFindOnly(false)
   }
 
   const totalPending = useMemo(() => (data?.listings || []).reduce((sum, l) => sum + l.pending_request_count, 0), [data])
@@ -226,7 +242,10 @@ function MyListingsContent() {
 
   return (
     <div className="min-h-screen bg-[#fafafb] dark:bg-[#0B0B0B] flex flex-col">
-      <main className="flex-grow container mx-auto px-4 py-4 sm:py-6 max-w-7xl text-[#111827] dark:text-[#F3F4F6]">
+      {/* Opening (user, 10/24): the house loader until your listings AND their first photos are
+          in, then the whole page rises into place. */}
+      <PageReveal ready={pageReady} label="Loading your listings" className="flex flex-grow flex-col">
+      <main ref={pageRef} className="flex-grow container mx-auto px-4 py-4 sm:py-6 max-w-7xl text-[#111827] dark:text-[#F3F4F6]">
         {/* Header + Stats + Actions + Search, all one section instead of floating pieces */}
         {/* Header - the shared luxe header: same stats on the right, the three actions built into
             its bottom bar; search + sort sit in their own card right under it. */}
@@ -285,15 +304,18 @@ function MyListingsContent() {
           {/* Search + Sort - only meaningful once there's something to search */}
           {data && data.listings.length > 0 && (
             <div className="flex flex-row items-center gap-2 p-3 sm:gap-3 sm:p-5">
-              <div className="relative min-w-0 flex-1 sm:max-w-md">
+              <ExpandOnFocus className="min-w-0 flex-1 sm:max-w-md" label="Search your listings">
+              <div className="relative">
                 <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
+                  enterKeyHint="search"
                   placeholder={`Search ${data.listings.length === 1 ? 'your listing' : `your ${data.listings.length} listings`}...`}
                   className="w-full rounded-2xl border border-gray-100 dark:border-gray-800 bg-[#fafafb] dark:bg-[#0B0B0B] py-3 pl-10 pr-4 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:text-white"
                 />
               </div>
+              </ExpandOnFocus>
               <div className="relative shrink-0 sm:ml-auto" ref={sortDropdownRef}>
                 <button
                   onClick={() => setShowSortDropdown(v => !v)}
@@ -311,7 +333,23 @@ function MyListingsContent() {
                     overflow (to keep the flat action-button grid's square corners from poking
                     past its own rounded corners), which was silently clipping this panel away
                     the moment it tried to render below the button. */}
-                {showSortDropdown && sortMenuPos && createPortal(
+                {/* Phones: the sort is a pull-up sheet that drags down to close (user, 10/24). */}
+                <OhSheet open={isPhone && showSortDropdown} onClose={() => setShowSortDropdown(false)} title="Sort your listings" icon={<SortDesc size={18} />}>
+                  <div className="space-y-2">
+                    {SORT_OPTIONS.map((option, i) => (
+                      <motion.button key={option.value} type="button" whileTap={{ scale: 0.97 }}
+                        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+                        onClick={() => { setSortBy(option.value); setShowSortDropdown(false) }}
+                        className={`flex w-full items-center justify-between rounded-2xl border px-4 py-4 text-left text-[13px] font-black transition-colors ${sortBy === option.value
+                          ? 'border-[#C9A24D] bg-[#FCF9F1] text-[#8b6a2b] dark:bg-[#C9A24D]/10 dark:text-[#e8c97a]'
+                          : 'border-gray-100 bg-white text-[#111827] dark:border-white/10 dark:bg-white/[0.03] dark:text-white'}`}>
+                        {option.label}
+                        {sortBy === option.value && <span className="grid h-6 w-6 place-items-center rounded-full bg-[#C9A24D] text-white"><Check size={13} strokeWidth={3.5} /></span>}
+                      </motion.button>
+                    ))}
+                  </div>
+                </OhSheet>
+                {!isPhone && showSortDropdown && sortMenuPos && createPortal(
                   <div
                     style={{ position: 'fixed', top: sortMenuPos.top, left: sortMenuPos.left, width: sortMenuPos.width }}
                     className="z-[100] overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1A1A1C] shadow-xl"
@@ -372,6 +410,7 @@ function MyListingsContent() {
           </motion.div>
         )}
       </main>
+      </PageReveal>
       <Footer />
 
       <HostRequestsPanel
@@ -391,6 +430,7 @@ function MyListingsContent() {
         onActionComplete={load}
         prefillDirectDate={manageHostsPrefillDate}
         focusHostNotes={manageHostsFocusNotes}
+        findOnly={manageHostsFindOnly}
         hostingWindow={data?.listings.find(l => l.listing_key === manageHostsKey)}
       />
       <OpenHouseInsightsModal

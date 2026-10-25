@@ -1,6 +1,8 @@
 'use client'
 
 import { memo } from 'react'
+import { motion } from 'framer-motion'
+import { backdropMotion, panelMotion } from '@/components/ui/windowMotion'
 import { OpenHouse } from '@/types'
 
 interface DeleteConfirmationDialogProps {
@@ -17,8 +19,10 @@ export const DeleteConfirmationDialog = memo(function DeleteConfirmationDialog({
   isDeleting
 }: DeleteConfirmationDialogProps) {
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-3 sm:p-4" onTouchMove={e => e.stopPropagation()}>
-      <div className="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] border border-white/50 bg-[#FAFAF7] shadow-2xl dark:border-gray-800 dark:bg-[#151517]">
+    // Fades/springs in and out (the page renders it inside <AnimatePresence>) - no hard pop.
+    <motion.div {...backdropMotion} className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-3 sm:p-4" onTouchMove={e => e.stopPropagation()}
+      onClick={e => { if (e.target === e.currentTarget && !isDeleting) onCancel() }}>
+      <motion.div {...panelMotion} className="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] border border-white/50 bg-[#FAFAF7] shadow-2xl dark:border-gray-800 dark:bg-[#151517]">
         <div className="border-b border-gray-200/50 bg-white/50 p-5 sm:p-8 dark:border-gray-800 dark:bg-[#0B0B0B]/50">
           <div className="flex items-center">
             <div className="mr-4 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-red-100 sm:mr-5 sm:h-12 sm:w-12 bg-red-50 shadow-sm dark:border-red-900/30 dark:bg-red-900/20">
@@ -104,7 +108,7 @@ export const DeleteConfirmationDialog = memo(function DeleteConfirmationDialog({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 })

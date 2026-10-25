@@ -7,9 +7,11 @@ import { useParams, useRouter } from 'next/navigation'
 import { smartBackClick } from '@/lib/navHistory'
 import Link from 'next/link'
 import {
-  ArrowLeft, CalendarDays, Check, Clapperboard, Clock, Download, Edit3, Film, Images, LayoutTemplate, Loader2, MapPin, MonitorPlay,
-  RectangleHorizontal, RectangleVertical, Sparkles, Square, Trash2, Wand2,
+  ArrowLeft, CalendarDays, Check, Clapperboard, Clock, Copy, Download, Edit3, ExternalLink, Film, Images, Loader2, Mail, MapPin, MonitorPlay,
+  RectangleHorizontal, RectangleVertical, Share2, Sparkles, Square, Trash2, Wand2,
 } from 'lucide-react'
+import AiRunReceipt, { secondsBetween } from '@/components/ai/AiRunReceipt'
+import { isTouchPhone, saveFile, shareLink } from '@/lib/mobileShare'
 import { AnimatePresence, motion } from 'framer-motion'
 import AuthGuard from '@/components/AuthGuard'
 import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
@@ -26,7 +28,7 @@ import type {
   BrandKit, BrandingOptions, StudioEnhancement, StudioImageEffect, StudioMediaAsset, TitleCardOptions,
 } from '@/types'
 import {
-  EFFECTS, EnhancementOptions, OHP_MEDIA_STYLE, OptionRow, ROOM_TYPES, STAGING_STYLES, Section, Chip,
+  EFFECTS, ENHANCEMENTS, EnhancementOptions, OHP_MEDIA_STYLE, OptionRow, PHOTO_ETA_SECONDS, ROOM_TYPES, STAGING_STYLES, Section, Chip, StagedPhoto,
   actionLabel, estimatedVideoSeconds, formatMinSec, stageLabel,
 } from '@/components/studio/media/shared'
 import RemoveAreaPainter from '@/components/studio/media/RemoveAreaPainter'
@@ -66,10 +68,14 @@ function MediaResultPage() {
   const [savingStagingTag, setSavingStagingTag] = useState(false)
   const setStagingTag = async (position: 'bottom-right' | 'bottom-middle' | 'off') => {
     if (!current) return
+    // Shown on the photo right away (the label preview), saved behind it.
+    const before = current
+    setCurrent({ ...current, options: { ...(current.options || {}), staging_tag: position } })
     setSavingStagingTag(true)
     const { success, data } = await api.mediaLab.setStagingTag(current.id, position)
     setSavingStagingTag(false)
     if (success && data) setCurrent(data)
+    else setCurrent(before)
   }
   const [error, setError] = useState('')
   // In-browser render of a video with its motion design (see renderMotionVideo) - 0..1, null = idle.
@@ -87,15 +93,27 @@ function MediaResultPage() {
   }, [])
   useEffect(() => stopPolling, [stopPolling])
 
-  const pollAsset = useCallback((assetId: string) => {
+  // Set when this page saw the run finish (it was processing when opened) - plays the reveal.
+  const [justFinished, setJustFinished] = useState(false)
+  const pollAsset = useCallback((assetId: string, everyMs = 4000) => {
     stopPolling()
     pollRef.current = setInterval(async () => {
       const { success, data } = await api.mediaLab.getAsset(assetId)
       if (!success || !data) return
       setCurrent(prev => (prev && prev.id === data.id ? data : prev))
-      if (data.status !== 'processing') stopPolling()
-    }, 4000)
+      setHistory(prev => prev.map(h => (h.id === data.id ? data : h)))
+      if (data.status !== 'processing') { stopPolling(); setJustFinished(true) }
+    }, everyMs)
   }, [stopPolling])
+
+  // Monthly AI allowance (for the "used X% of monthly AI" receipt once a run is done).
+  const [monthBudget, setMonthBudget] = useState<number | null>(null)
+  useEffect(() => {
+    if (current?.status === 'processing') return
+    let alive = true
+    api.mediaLab.usage().then(r => { if (alive && r.success && r.data) setMonthBudget(r.data.month_ai_budget_usd ?? null) })
+    return () => { alive = false }
+  }, [current?.status])
 
   // Load the asset itself, then its real version history (every row sharing the same group_id -
   // all prior/later versions from this same source photo + action, not just whatever happened to
@@ -109,7 +127,9 @@ function MediaResultPage() {
       if (!success || !data) { setNotFound(true); setLoading(false); return }
       setCurrent(data)
       setLoading(false)
-      if (data.kind === 'video' && data.status === 'processing') pollAsset(data.id)
+      // A photo edit now runs in the background too (it used to hold the request open, and a
+      // phone leaving the page showed "Network error") - poll it a little faster than a video.
+      if (data.status === 'processing') pollAsset(data.id, data.kind === 'video' ? 4000 : 2500)
       api.mediaLab.listAssets({ group_id: data.group_id, limit: 30 }).then(r => {
         if (alive && r.success && r.data) setHistory(r.data.assets)
       })
@@ -303,15 +323,61 @@ function MediaResultPage() {
     }
     if (isVid && ratio) setDownloadingFmt(null)
     if (!blob) { setError('Download failed. Try again in a moment.'); return }
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
     const tag = isVid && ratio && ratio !== '16:9' ? `-${ratio.replace(':', 'x')}` : ''
-    a.download = `${asset.action.replace(/\+/g, '-')}-${asset.id.slice(0, 8)}${tag}.${ext}`
-    document.body.appendChild(a); a.click(); a.remove()
-    URL.revokeObjectURL(url)
+    // Phone: the Share sheet (Save Image / Save to Files in one tap). Computer: a plain download.
+    await saveFile(blob, `${asset.action.replace(/\+/g, '-')}-${asset.id.slice(0, 8)}${tag}.${ext}`)
   }
-  const download = (ratio?: VideoFmt) => { if (current) return downloadAsset(current, ratio) }
+
+  // Phones: a Share sheet only opens during the tap itself, so the finished photo (with its
+  // "Virtually Staged" label, if on) is fetched ahead - Download / Share then hand it over at once.
+  const [readyPhoto, setReadyPhoto] = useState<{ key: string; blob: Blob } | null>(null)
+  const photoKey = current && current.kind === 'image' && current.status === 'succeeded' ? `${current.id}:${current.options?.staging_tag || 'off'}` : ''
+  useEffect(() => {
+    if (!photoKey || !current || !isTouchPhone()) return
+    let alive = true
+    api.mediaLab.download(current.id).then(({ success, blob }) => { if (alive && success && blob) setReadyPhoto({ key: photoKey, blob }) })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photoKey])
+  const photoFileName = current ? `${current.action.replace(/\+/g, '-')}-${current.id.slice(0, 8)}.png` : 'photo.png'
+  const [savingPhoto, setSavingPhoto] = useState(false)
+  const download = async (ratio?: VideoFmt) => {
+    if (!current) return
+    if (current.kind === 'image' && readyPhoto?.key === photoKey) { await saveFile(readyPhoto.blob, photoFileName); return }
+    if (current.kind === 'image') setSavingPhoto(true)
+    try { await downloadAsset(current, ratio) } finally { setSavingPhoto(false) }
+  }
+
+  // Share: phone = the Share sheet (the photo itself when it's ready, else its link); computer =
+  // a small menu - copy the link (says "Link copied"), open it, or email it.
+  const [shareMenu, setShareMenu] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
+  const shareRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!shareMenu) return
+    const onDown = (e: MouseEvent) => { if (!shareRef.current?.contains(e.target as Node)) setShareMenu(false) }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [shareMenu])
+  const share = async () => {
+    if (!current?.result_url) return
+    if (isTouchPhone()) {
+      if (current.kind === 'image' && readyPhoto?.key === photoKey && typeof File !== 'undefined') {
+        const file = new File([readyPhoto.blob], photoFileName, { type: readyPhoto.blob.type || 'image/png' })
+        if (navigator.canShare?.({ files: [file] })) {
+          try { await navigator.share({ files: [file] }); return } catch (e) { if ((e as Error)?.name === 'AbortError') return }
+        }
+      }
+      await shareLink(current.result_url, name.trim() || actionLabel(current.action))
+      return
+    }
+    setShareMenu(v => !v)
+  }
+  const copyShareLink = async () => {
+    if (!current?.result_url) return
+    const r = await shareLink(current.result_url)
+    if (r === 'copied') { setShareCopied(true); window.setTimeout(() => setShareCopied(false), 1800) }
+  }
 
   const confirmDelete = async () => {
     const asset = pendingDelete
@@ -350,23 +416,30 @@ function MediaResultPage() {
     const clipsN = (current.options?.clips as unknown[] | undefined)?.length || 0
     const secs = videoLength ?? (Number(current.options?.duration_seconds) || 0)
     const chip = 'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 text-[10px] font-black uppercase tracking-wider text-gray-500 dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-gray-400'
-    const chips: { icon: React.ReactNode; label: string; title?: string; wide?: boolean }[] = []
+    // `phone`: still shown on a phone, where the whole title line stays on ONE line (user, 10/24:
+    // "Result / VIRTUAL STAGE / 191 PRESIDENTIAL BLVD" was wrapping onto three) - the address
+    // shrinks with "…" instead of wrapping.
+    const chips: { icon: React.ReactNode; label: string; title?: string; phone?: boolean; shrink?: boolean }[] = []
     if (current.kind === 'video' && secs) chips.push({ icon: <Clock className="h-3 w-3" />, label: `${Math.floor(secs / 60)}:${String(Math.floor(secs % 60)).padStart(2, '0')}`, title: 'Length' })
-    if (current.kind === 'video' && clipsN > 1) chips.push({ icon: <Clapperboard className="h-3 w-3" />, label: `${clipsN} clips`, wide: true })
+    if (current.kind === 'video' && clipsN > 1) chips.push({ icon: <Clapperboard className="h-3 w-3" />, label: `${clipsN} clips` })
     if (res) chips.push({ icon: <MonitorPlay className="h-3 w-3" />, label: res, title: `${current.options?.final_width}×${fh}` })
-    if (lp?.address) chips.push({ icon: <MapPin className="h-3 w-3" />, label: lp.address.split(',')[0], title: [lp.address, lp.city, lp.state].filter(Boolean).join(', ') })
-    if (created) chips.push({ icon: <CalendarDays className="h-3 w-3" />, label: created.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(created.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) }), title: created.toLocaleString(), wide: true })
+    if (lp?.address) chips.push({ icon: <MapPin className="h-3 w-3 shrink-0" />, label: lp.address.split(',')[0], title: [lp.address, lp.city, lp.state].filter(Boolean).join(', '), phone: true, shrink: true })
+    if (created) chips.push({ icon: <CalendarDays className="h-3 w-3" />, label: created.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(created.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) }), title: created.toLocaleString() })
     const resultHeader = (
       <>
-        <span className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-[#C9A24D]/15 px-2.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">
+        <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-[#C9A24D]/15 px-2 text-[10px] font-black uppercase tracking-wide sm:gap-1.5 sm:px-2.5 sm:tracking-widest text-[#8b7355] dark:text-[#d7b974]">
           <Sparkles className="h-3 w-3" /> {actionLabel(current.action)}
         </span>
-        {name.trim() && <span className="min-w-0 max-w-[260px] truncate text-sm font-black text-[#111827] dark:text-white" title={name}>{name}</span>}
-        {current.status === 'processing' && <span className={`${chip} border-[#C9A24D]/50 text-[#8b7355]`}><Loader2 className="h-3 w-3 animate-spin" /> Working</span>}
+        {name.trim() && <span className="hidden min-w-0 max-w-[260px] truncate text-sm font-black text-[#111827] dark:text-white sm:inline" title={name}>{name}</span>}
+        {current.status === 'processing' && <span className={`${chip} hidden border-[#C9A24D]/50 text-[#8b7355] sm:inline-flex`}><Loader2 className="h-3 w-3 animate-spin" /> Working</span>}
         {current.status === 'failed' && <span className={`${chip} border-red-200 text-red-600`}>Failed</span>}
         {chips.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto sm:justify-end">
-            {chips.map(c => <span key={c.label} className={`${chip} ${c.wide ? 'hidden sm:inline-flex' : ''}`} title={c.title}>{c.icon}{c.label}</span>)}
+          <div className="flex min-w-0 items-center gap-1.5 sm:ml-auto sm:flex-wrap sm:justify-end">
+            {chips.map(c => (
+              <span key={c.label} className={`${c.shrink ? `${chip.replace('shrink-0 ', '')} min-w-0` : chip} ${c.phone ? '' : 'hidden sm:inline-flex'}`} title={c.title}>
+                {c.icon}{c.shrink ? <span className="min-w-0 truncate">{c.label}</span> : c.label}
+              </span>
+            ))}
           </div>
         )}
       </>
@@ -376,7 +449,7 @@ function MediaResultPage() {
     <div className="ohp-media-lab min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]">
       <style>{OHP_MEDIA_STYLE}</style>
       <div className={`mx-auto px-4 py-4 sm:py-6 ${current.kind === 'video' ? 'max-w-[1440px]' : 'max-w-5xl'}`}>
-        <Section step={0} title="Result" active flush
+        <Section step={0} title="Result" active flush oneLine
           leading={
             <Link href="/studio/media" onClick={smartBackClick(router)} title="All projects" aria-label="Back to all projects"
               className="group grid h-8 w-8 shrink-0 place-items-center rounded-full border border-gray-200 bg-white text-gray-500 transition hover:-translate-x-0.5 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-gray-400">
@@ -384,10 +457,64 @@ function MediaResultPage() {
             </Link>
           }
           aside={resultHeader}>
-          <div className={`grid gap-5 ${current.kind === 'video' ? 'lg:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,1fr)_460px]' : 'lg:grid-cols-[1fr_320px]'}`}>
+          <div className={`grid gap-5 ${current.kind === 'video' ? 'lg:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,1fr)_460px]' : current.status === 'processing' ? '' : 'lg:grid-cols-[minmax(0,1fr)_320px]'}`}>
             <div className="relative overflow-hidden rounded-2xl border-2 border-[#C9A24D]/40 bg-gradient-to-br from-[#C9A24D]/[0.08] via-white to-white p-3 shadow-[0_0_40px_-16px_rgba(201,162,77,0.5)] dark:via-[#151517] dark:to-[#151517] sm:p-4">
 
-              {current.status === 'processing' && (
+              {current.status === 'processing' && current.kind === 'image' && (() => {
+                // A photo edit in progress: the two finished steps folded to one line each, then
+                // only the generating animation - nothing else to scroll past (user, 10/24).
+                const o = current.options || {}
+                const detail = [
+                  o.room_type && ROOM_TYPES.find(r => r.id === o.room_type)?.label,
+                  o.style && STAGING_STYLES.find(s => s.id === o.style)?.label,
+                  ...((o.enhancements as string[] | undefined) || []).map(e => ENHANCEMENTS.find(x => x.id === e)?.label),
+                  o.remove_areas?.length ? `${o.remove_areas.length} area${o.remove_areas.length === 1 ? '' : 's'} circled` : null,
+                ].filter(Boolean).join(' · ')
+                const pct = Math.max(4, Math.min(96, Math.round((elapsed / PHOTO_ETA_SECONDS) * 100)))
+                const doneStep = 'flex min-w-0 items-center gap-2.5 rounded-xl border border-gray-200 bg-white/80 px-2.5 py-2 dark:border-gray-800 dark:bg-[#1A1A1C]/80'
+                const tick = <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#111827] text-white dark:bg-white dark:text-[#111827]"><Check className="h-3.5 w-3.5" strokeWidth={3.5} /></span>
+                return (
+                  <div className="ohp-reveal">
+                    <div className="mb-3 grid gap-1.5 sm:grid-cols-2">
+                      <div className={doneStep}>
+                        {tick}
+                        <img src={current.source_photo_url} alt="" className="h-8 w-11 shrink-0 rounded-md object-cover" />
+                        <div className="min-w-0">
+                          <p className="text-[9.5px] font-black uppercase tracking-[0.16em] text-gray-400">Photo</p>
+                          <p className="truncate text-xs font-black text-[#111827] dark:text-white">{lp?.address?.split(',')[0] || (current.source_kind === 'upload' ? 'Your upload' : 'Listing photo')}</p>
+                        </div>
+                      </div>
+                      <div className={doneStep}>
+                        {tick}
+                        <div className="min-w-0">
+                          <p className="text-[9.5px] font-black uppercase tracking-[0.16em] text-gray-400">{actionLabel(current.action)}</p>
+                          <p className="truncate text-xs font-black text-[#111827] dark:text-white">{detail || 'As picked'}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="relative mx-auto min-h-[380px] w-full max-w-3xl overflow-hidden rounded-xl border-2 border-[#C9A24D]/50 sm:aspect-[16/10] sm:min-h-0" style={{ boxShadow: '0 0 44px -10px rgba(201,162,77,0.5)' }}>
+                      <img src={current.source_photo_url} alt="" className="absolute inset-0 h-full w-full scale-105 object-cover blur-[2px] brightness-[0.5]" draggable={false} />
+                      <div className="pointer-events-none absolute inset-x-0 h-1/3" style={{ animation: 'ohpScan 2.1s cubic-bezier(.4,0,.2,1) infinite', background: 'linear-gradient(180deg,transparent,rgba(230,199,122,0.5) 45%,rgba(255,255,255,0.8) 50%,rgba(230,199,122,0.5) 55%,transparent)', filter: 'blur(2px)' }} />
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 px-6 text-center">
+                        <div className="relative flex h-11 w-11 items-center justify-center">
+                          <span className="absolute inset-0 rounded-full bg-[#C9A24D]/40" style={{ animation: 'ohpGlow 1.6s ease-in-out infinite' }} />
+                          <Loader2 className="h-6 w-6 animate-spin text-white" />
+                        </div>
+                        <p className="text-sm font-black text-white drop-shadow">{stageLabel(false, elapsed, actionLabel(current.action))}</p>
+                        <p className="font-serif text-3xl font-black tabular-nums leading-none text-white drop-shadow">{pct}%</p>
+                        <div className="h-1.5 w-full max-w-[260px] overflow-hidden rounded-full bg-white/15">
+                          <div className="h-full rounded-full transition-[width] duration-700 ease-out" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#C9A24D,#f1d58b,#C9A24D)', backgroundSize: '200% 100%', animation: 'ohpShimmer 1.8s linear infinite' }} />
+                        </div>
+                        <p className="text-[11px] font-bold tabular-nums text-white/70">{formatMinSec(elapsed)} · usually about a minute</p>
+                        <p className="max-w-[270px] rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-[10.5px] font-semibold leading-snug text-white/75">
+                          Leave whenever you like - it keeps working and waits in your Media Lab.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+              {current.status === 'processing' && current.kind === 'video' && (
                 <div
                   className="relative flex w-full min-h-[320px] flex-col items-center justify-center gap-3.5 overflow-hidden rounded-xl border-2 border-[#C9A24D]/50 px-8 py-8 text-center"
                   style={{ boxShadow: '0 0 44px -10px rgba(201,162,77,0.5)' }}
@@ -470,16 +597,23 @@ function MediaResultPage() {
               {current.status === 'succeeded' && current.kind === 'image' && current.result_url && (
                 currentHasStaging ? (
                   <div>
-                    <img src={showOriginal ? current.source_photo_url : current.result_url} alt="" className="w-full rounded-xl border border-gray-200 object-contain dark:border-gray-700" />
+                    {/* The "Virtually Staged" label is drawn on the preview exactly where (and as
+                        big as) it lands on the downloaded photo - see apply_staging_tag. */}
+                    <StagedPhoto
+                      src={showOriginal ? current.source_photo_url : current.result_url}
+                      tag={showOriginal ? 'off' : current.options?.staging_tag}
+                      className={`overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 ${justFinished ? 'ohp-reveal' : ''}`}
+                      imgClassName="max-h-[72vh] w-auto"
+                    />
                     <button onClick={() => setShowOriginal(v => !v)} className="mt-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-black text-[#111827] transition hover:border-[#C9A24D] dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-white">
                       {showOriginal ? 'Show staged' : 'Show original'}
                     </button>
                     <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                      <span className="text-[10px] font-black uppercase tracking-wide text-gray-400">&quot;Virtually Staged&quot; tag on export:</span>
+                      <span className="text-[10px] font-black uppercase tracking-wide text-gray-400">&quot;Virtually Staged&quot; label:</span>
                       {([
                         { id: 'off', label: 'Off' },
-                        { id: 'bottom-right', label: 'Bottom right' },
                         { id: 'bottom-middle', label: 'Bottom middle' },
+                        { id: 'bottom-right', label: 'Bottom right' },
                       ] as const).map((p) => (
                         <button
                           key={p.id}
@@ -559,64 +693,101 @@ function MediaResultPage() {
               )}
 
               {current.status === 'succeeded' && (
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {current.kind === 'image' && (
-                    <button onClick={() => download()} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-xs font-black text-[#111827] transition hover:border-[#C9A24D] dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-white">
-                      <Download className="h-3.5 w-3.5" /> Download
+                // Delete on the left; Share, Download, Done on the right - all four on one line,
+                // phones included (user, 10/24). Done only goes back to the list; it never saves
+                // or creates anything (the project is already saved).
+                <div className="mt-3 grid grid-cols-4 gap-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
+                  <button onClick={() => setPendingDelete(current)} className="inline-flex flex-col items-center justify-center gap-1 rounded-lg border border-red-200 bg-white px-1 py-2 text-[11px] sm:flex-row sm:gap-1.5 sm:py-2.5 font-black text-red-600 transition hover:border-red-400 hover:bg-red-50 dark:border-red-900/40 dark:bg-[#1A1A1C] dark:text-red-400 dark:hover:bg-red-900/20 sm:px-4 sm:text-xs">
+                    <Trash2 className="h-3.5 w-3.5 shrink-0" /> Delete
+                  </button>
+                  <div ref={shareRef} className="relative sm:ml-auto">
+                    <button onClick={share} aria-expanded={shareMenu} className="inline-flex w-full flex-col items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-1 py-2 text-[11px] sm:flex-row sm:gap-1.5 sm:py-2.5 font-black text-[#111827] transition hover:border-[#C9A24D] dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-white sm:px-4 sm:text-xs">
+                      <Share2 className="h-3.5 w-3.5 shrink-0" /> Share
+                    </button>
+                    <AnimatePresence>
+                      {shareMenu && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                          transition={{ duration: 0.16 }}
+                          className="absolute bottom-full right-0 z-30 mb-2 w-60 overflow-hidden rounded-2xl border border-gray-200 bg-white p-1.5 shadow-2xl dark:border-gray-700 dark:bg-[#1A1A1C]"
+                        >
+                          <p className="px-2.5 pb-1 pt-1.5 text-[9.5px] font-black uppercase tracking-[0.16em] text-gray-400">Share this {current.kind === 'video' ? 'video' : 'photo'}</p>
+                          <button onClick={copyShareLink} className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs font-black text-[#111827] hover:bg-[#C9A24D]/10 dark:text-white">
+                            {shareCopied ? <Check className="h-4 w-4 text-emerald-500" strokeWidth={3} /> : <Copy className="h-4 w-4 text-[#8b7355] dark:text-[#d7b974]" />}
+                            {shareCopied ? 'Link copied' : 'Copy link'}
+                          </button>
+                          <a href={current.result_url || '#'} target="_blank" rel="noopener noreferrer" onClick={() => setShareMenu(false)} className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-black text-[#111827] hover:bg-[#C9A24D]/10 dark:text-white">
+                            <ExternalLink className="h-4 w-4 text-[#8b7355] dark:text-[#d7b974]" /> Open in a new tab
+                          </a>
+                          <a href={`mailto:?subject=${encodeURIComponent(name.trim() || actionLabel(current.action))}&body=${encodeURIComponent(current.result_url || '')}`} onClick={() => setShareMenu(false)} className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-black text-[#111827] hover:bg-[#C9A24D]/10 dark:text-white">
+                            <Mail className="h-4 w-4 text-[#8b7355] dark:text-[#d7b974]" /> Email it
+                          </a>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  {current.kind === 'image' ? (
+                    <button onClick={() => download()} disabled={savingPhoto} className="inline-flex flex-col items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-1 py-2 text-[11px] sm:flex-row sm:gap-1.5 sm:py-2.5 font-black text-[#111827] transition hover:border-[#C9A24D] disabled:opacity-60 dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-white sm:px-4 sm:text-xs">
+                      {savingPhoto ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" /> : <Download className="h-3.5 w-3.5 shrink-0" />} <span className="truncate">Download</span>
+                    </button>
+                  ) : (
+                    <button onClick={() => download(fmt)} disabled={!!downloadingFmt} className="inline-flex flex-col items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-1 py-2 text-[11px] sm:flex-row sm:gap-1.5 sm:py-2.5 font-black text-[#111827] transition hover:border-[#C9A24D] disabled:opacity-60 dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-white sm:px-4 sm:text-xs">
+                      {downloadingFmt ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" /> : <Download className="h-3.5 w-3.5 shrink-0" />} <span className="truncate">Download</span>
                     </button>
                   )}
-                  {current.kind === 'image' && current.result_url && (
-                    // This edited photo, straight into a Studio design (it becomes the lead photo).
-                    <motion.button
-                      whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
-                      onClick={() => {
-                        const q = new URLSearchParams({ new: '1', photo: current.result_url! })
-                        const lp = current.linked_property
-                        if (lp?.address) q.set('address', [lp.address, lp.city, lp.state].filter(Boolean).join(', '))
-                        router.push(`/studio/design?${q.toString()}`)
-                      }}
-                      className="group relative inline-flex items-center gap-1.5 overflow-hidden rounded-lg bg-[#111827] px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_26px_-14px_rgba(17,24,39,.9)] dark:bg-white dark:text-[#111827]"
-                    >
-                      <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-                      <LayoutTemplate className="h-3.5 w-3.5 text-[#e8c97a] dark:text-[#a8843a]" /> Design in Studio
-                    </motion.button>
-                  )}
-                  <button onClick={() => setPendingDelete(current)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-4 py-2.5 text-xs font-black text-red-600 transition hover:border-red-400 hover:bg-red-50 dark:border-red-900/40 dark:bg-[#1A1A1C] dark:text-red-400 dark:hover:bg-red-900/20">
-                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                  <button onClick={() => router.push('/studio/media')} className="inline-flex flex-col items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-[#C9A24D] to-[#e0b85f] px-1 py-2 text-[11px] sm:flex-row sm:gap-1.5 sm:py-2.5 font-black text-[#111827] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:px-5 sm:text-xs">
+                    <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={3} /> Done
                   </button>
-                  <button onClick={() => router.push('/studio/media')} className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#C9A24D] to-[#e0b85f] px-5 py-2.5 text-xs font-black text-[#111827] shadow-sm transition hover:shadow-md hover:-translate-y-0.5">
-                    <Check className="h-3.5 w-3.5" strokeWidth={3} /> Done
-                  </button>
+                </div>
+              )}
+
+              {current.status === 'succeeded' && (
+                <AiRunReceipt
+                  className="mt-2.5"
+                  label={current.kind === 'video' ? 'This video' : 'This edit'}
+                  costUsd={current.cost_usd}
+                  monthlyBudgetUsd={monthBudget}
+                  tookSeconds={secondsBetween(current.created_at, current.updated_at)}
+                />
+              )}
+
+              {/* Version history sits under the buttons now (user, 10/24). */}
+              {current.kind === 'image' && current.status !== 'processing' && history.length > 0 && (
+                <div className="mt-4 border-t border-gray-200 pt-3.5 dark:border-gray-800">
+                  <p className="mb-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    <Images className="h-3.5 w-3.5" /> Version history <span className="text-gray-300 dark:text-gray-600">· {history.length}</span>
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {history.map((h) => {
+                      const dot = h.status === 'succeeded' ? 'bg-emerald-500' : h.status === 'failed' ? 'bg-red-500' : 'bg-[#C9A24D] animate-pulse'
+                      return (
+                        <button
+                          key={h.id}
+                          onClick={() => openVersion(h)}
+                          className={`flex w-full items-center gap-2.5 rounded-xl border p-2 text-left transition ${current?.id === h.id ? 'border-[#C9A24D] bg-[#C9A24D]/10 shadow-sm' : 'border-gray-200 bg-white hover:border-[#C9A24D]/40 dark:border-gray-800 dark:bg-[#151517]'}`}
+                        >
+                          <div className="relative h-11 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
+                            {h.result_url && h.kind === 'image'
+                              ? <img src={h.result_url} alt="" className="h-full w-full object-cover" />
+                              : <div className="flex h-full w-full items-center justify-center text-gray-300">{h.status === 'processing' ? <Loader2 className="h-4 w-4 animate-spin text-[#C9A24D]" /> : <Film className="h-4 w-4" />}</div>}
+                            <span className={`absolute right-1 top-1 h-2 w-2 rounded-full ring-2 ring-white dark:ring-[#151517] ${dot}`} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-black text-[#111827] dark:text-white">{h.options?.custom_name || actionLabel(h.action)}</p>
+                            <p className="truncate text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                              {h.status === 'processing' ? 'Generating…' : h.status === 'failed' ? 'Failed' : new Date(h.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                              {current?.id === h.id ? ' · viewing' : ''}
+                            </p>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>
 
-            {(() => {
-              const historyList = (
-                <div className="space-y-2">
-                  {history.map((h) => {
-                    const dot = h.status === 'succeeded' ? 'bg-emerald-500' : h.status === 'failed' ? 'bg-red-500' : 'bg-[#C9A24D] animate-pulse'
-                    return (
-                      <button
-                        key={h.id}
-                        onClick={() => openVersion(h)}
-                        className={`flex w-full items-center gap-2.5 rounded-xl border p-2 text-left transition ${current?.id === h.id ? 'border-[#C9A24D] bg-[#C9A24D]/10 shadow-sm' : 'border-gray-200 bg-white hover:border-[#C9A24D]/40 dark:border-gray-800 dark:bg-[#151517]'}`}
-                      >
-                        <div className="relative h-11 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
-                          {h.result_url && h.kind === 'image'
-                            ? <img src={h.result_url} alt="" className="h-full w-full object-cover" />
-                            : <div className="flex h-full w-full items-center justify-center text-gray-300"><Film className="h-4 w-4" /></div>}
-                          <span className={`absolute right-1 top-1 h-2 w-2 rounded-full ring-2 ring-white dark:ring-[#151517] ${dot}`} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-black text-[#111827] dark:text-white">{h.options?.custom_name || actionLabel(h.action)}</p>
-                          <p className="truncate text-[10px] font-bold uppercase tracking-wide text-gray-400">{h.kind} · {h.status}</p>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              )
+            {!(current.kind === 'image' && current.status === 'processing') && (() => {
               // Video deliberately has no "History" tab here - re-running a video isn't a cheap
               // options tweak the way a photo re-effect is, so there's no in-page regenerate flow
               // to give it a purpose, and sibling versions are still one click away from the list.
@@ -708,13 +879,6 @@ function MediaResultPage() {
                     >
                       {regenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />} Create new version
                     </button>
-                  </div>
-
-                  <div>
-                    <p className="mb-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                      <Images className="h-3.5 w-3.5" /> Version history
-                    </p>
-                    {historyList}
                   </div>
                 </div>
               )

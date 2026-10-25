@@ -4,6 +4,7 @@
  */
 
 import { User } from '@/types'
+import { loginUrlForHere } from '@/lib/loginRedirect'
 
 /**
  * Checks if a user has a valid subscription or is within their trial period.
@@ -45,9 +46,9 @@ export function handleAuthError(error?: any) {
     
     if (isUnauthorized) {
       const path = window.location.pathname;
-      // Don't redirect if we're already on an auth page
+      // Don't redirect if we're already on an auth page. The whole link (query + #) comes back after login.
       if (!path.startsWith('/login') && !path.startsWith('/register')) {
-        window.location.href = `/login?redirect=${encodeURIComponent(path)}`;
+        window.location.href = loginUrlForHere();
       }
     }
   }

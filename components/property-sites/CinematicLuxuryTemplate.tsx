@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Cormorant_Garamond, Inter_Tight } from 'next/font/google'
 import {
-  ArrowRight, ArrowUpRight, Box, CalendarDays, Check, Download, Expand,
+  ArrowRight, ArrowUpRight, Box, CalendarDays, Check, Compass, Download, Expand,
   FileText, GraduationCap, Grid3x3, Home, Mail, MapPin, Menu, Navigation, Phone, Play, Quote,
   Share2, Sparkles, Star, Trees, Users, X,
 } from 'lucide-react'
@@ -21,7 +21,9 @@ import PhotoShow from './spotlight/PhotoShow'
 import HeroMedia from './spotlight/HeroMedia'
 import GuestTools from './spotlight/GuestTools'
 import RoomChapters from './spotlight/RoomChapters'
+import { DocumentRequestWindow, flowHomeOf } from './spotlight/GuestFlows'
 import OpenHouseChip from './spotlight/OpenHouseChip'
+import OpenHouseBrief from './spotlight/OpenHouseBrief'
 import TownFeature from './spotlight/TownSection'
 import { groupSpecs, prettyFeature, splitFeatures } from './spotlight/features'
 import { AddToCalendar, AgentActions, MobileActionBar, SpotlightJsonLd } from './spotlight/Widgets'
@@ -32,6 +34,7 @@ import {
 import { onAccent, usableAccent } from './spotlight/tone'
 import { SP_MOTION_CSS, useOffscreenPause, usePresence } from './spotlight/motion'
 import NearbyMap from '@/components/maps/NearbyMap'
+import { openDirections } from '@/lib/directions'
 
 // Types + helpers now live in ./spotlight/model (shared with EditorialEstateTemplate); re-exported
 // here because the public site renderer imports the resolve type from this module.
@@ -87,6 +90,7 @@ export default function CinematicLuxuryTemplate({ data, publicUrl }: { data: Pro
   return (
     <div
       ref={rootRef}
+      data-spotlight-root=""
       className={`cl ${display.variable} ${sans.variable} bg-[#0A0A0A] text-white`}
       style={{ ['--sp-accent' as string]: accent, ['--sp-on-accent' as string]: onAccent(accent) }}
     >
@@ -97,7 +101,7 @@ export default function CinematicLuxuryTemplate({ data, publicUrl }: { data: Pro
 
       <NavBar items={navItems} m={m} logoUrl={data.brand_kit?.logo_url} onShare={() => setShareOpen(true)} allowTour={allowTour} />
       <Hero m={m} imgRef={heroImgRef} onPhotos={() => openPhotos(0)} allowTour={allowTour} />
-      {has.openHouses && m.nextOpenHouse && <OpenHouseRibbon m={m} url={publicUrl} />}
+      {has.openHouses && <OpenHouseBrief m={m} url={publicUrl} look="cinematic" />}
 
       {has.story && <StorySection m={m} />}
       <AtAGlance m={m} />
@@ -128,8 +132,8 @@ export default function CinematicLuxuryTemplate({ data, publicUrl }: { data: Pro
       )}
       {has.payment && p.price && <PaymentSection m={m} />}
       {has.openHouses && <OpenHousesSection m={m} url={publicUrl} />}
-      {has.documents && <DocumentsSection documents={m.documents} />}
-      {has.agents && <AgentsSection m={m} url={publicUrl} signatureSlug={has.signature ? data.signature_hub_slug || null : null} />}
+      {has.documents && <DocumentsSection m={m} siteId={data.site_id} />}
+      {has.agents && <AgentsSection m={m} url={publicUrl} siteId={data.site_id} signatureSlug={has.signature ? data.signature_hub_slug || null : null} />}
       {m.show('guest_tools') && <GuestTools m={m} siteId={data.site_id} url={publicUrl} tone="dark" />}
       <ContactSection m={m} siteId={data.site_id} url={publicUrl} onShare={() => setShareOpen(true)} allowTour={allowTour} />
       <SiteFooter m={m} navItems={navItems} />
@@ -291,7 +295,7 @@ function NavBar({ items, m, logoUrl, onShare, allowTour }: { items: NavItem[]; m
 
   return (
     <>
-      <nav className={`fixed inset-x-0 top-0 z-[90] transition-[background-color,border-color] duration-500 ${solid ? 'border-b border-white/[0.07] bg-[#0A0A0A]/80 ' : 'bg-gradient-to-b from-black/60 to-transparent'}`}>
+      <nav className={`fixed inset-x-0 top-0 z-[90] transition-[background-color,border-color] duration-500 ${solid ? 'border-b border-white/[0.07] bg-[#0A0A0A] shadow-[0_10px_30px_-18px_rgba(0,0,0,.9)]' : 'bg-gradient-to-b from-black/60 to-transparent'}`}>
         <div className={`flex w-full items-center justify-between gap-4 px-5 transition-[height] duration-500 sm:px-10 xl:px-14 ${solid ? 'h-16' : 'h-20'}`}>
           <button onClick={() => goTo('overview')} className="flex min-w-0 items-center gap-3 text-left" aria-label="Back to top">
             {/* The agent - photo, name, brokerage - on every screen (user, 10/17: phones showed only
@@ -457,6 +461,14 @@ function Hero({ m, imgRef, onPhotos, allowTour }: { m: SpotlightModel; imgRef: R
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,.55)_0%,rgba(0,0,0,.05)_28%,rgba(0,0,0,.15)_55%,rgba(10,10,10,.96)_100%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_100%,rgba(0,0,0,.55),transparent_60%)]" />
       <LuxeHeroDecor />
+      {/* The open house, top-middle of the photo: the day only - a tap glides to the rows right
+          under the header with every date, time and Add to calendar (user, 10/24). */}
+      {oh && m.has.openHouses && (
+        <div className="cl-hero-chip pointer-events-none absolute inset-x-0 top-[5.4rem] z-[2] flex justify-center px-5 sm:top-[6.2rem]">
+          <OpenHouseChip dateOnly oh={oh} onClick={() => scrollToId('open-house-brief')}
+            className="pointer-events-auto rounded-full border border-[color:color-mix(in_srgb,var(--sp-accent)_55%,transparent)] bg-black/55 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white shadow-[0_12px_30px_-12px_rgba(0,0,0,.7)] transition hover:bg-black/70" />
+        </div>
+      )}
 
       <div className="cl-hero-copy relative flex w-full flex-1 flex-col justify-end px-5 pb-8 [container-type:inline-size] sm:px-10 sm:pb-10 xl:px-14">
         <div className="flex flex-wrap items-center gap-2">
@@ -466,7 +478,6 @@ function Hero({ m, imgRef, onPhotos, allowTour }: { m: SpotlightModel; imgRef: R
               Price improved {fmtCompactMoney(m.reduction)}
             </span>
           )}
-          {oh && <OpenHouseChip oh={oh} onClick={() => scrollToId('open-houses')} className="cl-hero-chip rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition hover:bg-white/20" />}
         </div>
         {m.cityState && <p className="cl-hero-chip mt-3 text-[10px] font-medium sm:mt-6 sm:text-[11px] uppercase tracking-[0.42em] text-white/70">{[p.city, p.state, p.zipcode].filter(Boolean).join(' · ')}</p>}
         <h1 className="sp-display mt-3 font-light leading-[0.9] tracking-[-0.02em]" style={fitLine(street, '8.4rem', 185)}>
@@ -547,23 +558,6 @@ function CountUp({ value, delay = 900, ms = 1600 }: { value: string; delay?: num
   return <span ref={ref}>{value}</span>
 }
 
-function OpenHouseRibbon({ m, url }: { m: SpotlightModel; url: string }) {
-  const oh = m.nextOpenHouse!
-  return (
-    <div className="relative z-10 border-y border-[color:color-mix(in_srgb,var(--sp-accent)_30%,transparent)] bg-[linear-gradient(90deg,color-mix(in_srgb,var(--sp-accent)_22%,#0A0A0A),#0A0A0A_70%)]">
-      <div className="flex w-full flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-10 xl:px-14">
-        <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.35em] text-[color:var(--sp-accent)]">Open house</span>
-          <span className="sp-display text-2xl leading-none">{fmtDay(oh.date)}</span>
-          {fmtTimeRange(oh.start_time, oh.end_time) && <span className="text-sm text-white/70">{fmtTimeRange(oh.start_time, oh.end_time)}</span>}
-          {m.openHouses.length > 1 && <button onClick={() => scrollToId('open-houses')} className="text-xs text-white/50 underline underline-offset-4 hover:text-white">+{m.openHouses.length - 1} more date{m.openHouses.length > 2 ? 's' : ''}</button>}
-        </p>
-        <AddToCalendar openHouse={oh} address={m.p.address} fullAddress={m.fullAddress} url={url} agentName={m.agent?.name} tone="dark" />
-      </div>
-    </div>
-  )
-}
-
 // Two-row ambient ticker: Row 1 is hard structured facts (never a placeholder), Row 2 the agent's
 // own highlights. Pure CSS loop (see .animate-marquee-x-slow in globals.css).
 function StatsMarquee({ m }: { m: SpotlightModel }) {
@@ -625,7 +619,7 @@ function Section({ id, eyebrow, title, intro, children, className = '', wide = f
 function storyParagraphs(text: string): string[] {
   const given = text.split(/\n\s*\n|\n/).map(t => t.trim()).filter(Boolean)
   if (given.length > 1) return given
-  const sentences = text.split(/(?<=[.!?])\s+(?=[A-Z0-9"“])/).map(t => t.trim()).filter(Boolean)
+  const sentences = text.replace(/([.!?])\s+(?=[A-Z0-9"“])/g, '$1 ').split(' ').map(t => t.trim()).filter(Boolean)
   const out: string[] = []
   let cur = ''
   for (const sn of sentences) {
@@ -638,7 +632,7 @@ function storyParagraphs(text: string): string[] {
 
 // The first sentence or two - never more than a short paragraph.
 function storyExcerpt(text: string): string {
-  const sentences = text.replace(/\s+/g, ' ').split(/(?<=[.!?])\s+(?=[A-Z0-9"“])/).filter(Boolean)
+  const sentences = text.replace(/\s+/g, ' ').replace(/([.!?])\s+(?=[A-Z0-9"“])/g, '$1 ').split(' ').filter(Boolean)
   let out = ''
   for (const sn of sentences) {
     if (out && out.length + sn.length > 300) break
@@ -1015,6 +1009,9 @@ function DetailsSection({ m }: { m: SpotlightModel }) {
   )
 }
 
+// The map section right below opens with "Explore what's nearby" itself (user, 10/24 - a separate
+// arrow card here pointed at a map that started under it). The card only stays when the page has
+// no map section and Explore Nearby stands on its own.
 function TownSection({ m }: { m: SpotlightModel }) {
   const t = m.town!
   return (
@@ -1026,15 +1023,20 @@ function TownSection({ m }: { m: SpotlightModel }) {
       photo={t.photo}
       place={[['County', m.p.county], ['Township', m.p.township], ['School district', m.p.school_district_name]]}
       kicker={<p className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.4em] text-[color:var(--sp-accent)]"><span className="h-px w-8 bg-[color:var(--sp-accent)]" /> The town</p>}
-      onExplore={m.has.nearby ? () => scrollToId('explore-nearby') : undefined}
+      onExplore={m.has.nearby && !(m.has.location && m.hasCoords) ? () => scrollToId('explore-nearby') : undefined}
     />
   )
 }
 
 function LocationSection({ m, siteId }: { m: SpotlightModel; siteId: string }) {
   const { p } = m
+  // With nearby places on, the map IS "Explore what's nearby" - its title says so, right above it.
+  const explore = m.has.nearby && m.hasCoords
   return (
-    <Section id="location" eyebrow="Location" title={<>{m.has.town ? <>On the <em className="italic text-white/80">map.</em></> : p.city ? <>Life in <em className="italic text-white/80">{p.city}.</em></> : 'Where you’ll live.'}</>} wide>
+    <Section id="location" eyebrow={explore ? 'Location · Explore nearby' : 'Location'}
+      title={explore ? <>Explore what’s <em className="italic text-white/80">nearby.</em></> : <>{m.has.town ? <>On the <em className="italic text-white/80">map.</em></> : p.city ? <>Life in <em className="italic text-white/80">{p.city}.</em></> : 'Where you’ll live.'}</>}
+      intro={explore ? <span className="inline-flex items-start gap-3"><Compass className="mt-0.5 h-5 w-5 shrink-0 text-[color:var(--sp-accent)]" strokeWidth={1.5} /><span>Restaurants, coffee, parks and more - tap a kind of place and they drop onto the map, each with how far it is from {p0(p.address)}.</span></span> : undefined}
+      wide>
       <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
         {m.hasCoords ? (
           <NearbyMap latitude={p.latitude!} longitude={p.longitude!} address={m.fullAddress} accent="var(--sp-accent)" dark tone="dark"
@@ -1074,9 +1076,9 @@ function LocationSection({ m, siteId }: { m: SpotlightModel; siteId: string }) {
               <p className="mt-3 text-[11px] leading-relaxed text-white/35">School assignments per the MLS; confirm enrollment with the district.</p>
             </div>
           )}
-          <a href={m.directionsUrl} target="_blank" rel="noreferrer" className="mt-8 inline-flex w-fit items-center gap-2 rounded-full border border-white/20 px-5 py-3 text-sm font-medium transition hover:border-[color:var(--sp-accent)] hover:text-[color:var(--sp-accent)]">
+          <button type="button" onClick={() => openDirections(m.fullAddress, { label: m.fullAddress })} className="mt-8 inline-flex w-fit items-center gap-2 rounded-full border border-white/20 px-5 py-3 text-sm font-medium transition hover:border-[color:var(--sp-accent)] hover:text-[color:var(--sp-accent)]">
             <Navigation className="h-4 w-4" /> Get directions
-          </a>
+          </button>
         </div>
       </div>
     </Section>
@@ -1123,26 +1125,36 @@ function OpenHousesSection({ m, url }: { m: SpotlightModel; url: string }) {
   )
 }
 
-function DocumentsSection({ documents }: { documents: { label: string; url: string }[] }) {
+// Documents are never handed over on the spot (user, 10/24): tapping one opens a short window that
+// asks where to send it, and it's emailed - the agent gets the lead.
+function DocumentsSection({ m, siteId }: { m: SpotlightModel; siteId: string }) {
+  const documents = m.documents
+  const [open, setOpen] = useState<number | null>(null)
+  const last = useRef(0)
+  if (open !== null) last.current = open
   return (
-    <Section id="documents" eyebrow="Documents" title={<>Brochures &amp; <em className="italic text-white/80">disclosures.</em></>}>
+    <Section id="documents" eyebrow="Documents" title={<>Brochures &amp; <em className="italic text-white/80">disclosures.</em></>}
+      intro={documents.length > 1 ? 'Tap one - we’ll email it to you, or all of them at once.' : 'Tap it and we’ll email it straight to you.'}>
       <div className="cl-stagger grid gap-3 sm:grid-cols-2">
         {documents.map((d, i) => (
-          <a key={i} href={d.url} target="_blank" rel="noreferrer" className="group flex items-center gap-4 rounded-[2px] border border-white/[0.08] bg-[#0f0f0f] px-5 py-5 transition hover:border-[color:color-mix(in_srgb,var(--sp-accent)_50%,transparent)]">
+          <button key={i} type="button" onClick={() => setOpen(i)} className="group flex items-center gap-4 rounded-[2px] border border-white/[0.08] bg-[#0f0f0f] px-5 py-5 text-left transition hover:border-[color:color-mix(in_srgb,var(--sp-accent)_50%,transparent)]">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 text-[color:var(--sp-accent)]"><FileText className="h-4 w-4" /></span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[15px] font-medium">{d.label || 'Document'}</span>
-              <span className="text-xs text-white/40">{/\.pdf($|\?)/i.test(d.url) ? 'PDF' : 'Opens in a new tab'}</span>
+              <span className="text-xs text-white/40">{/\.pdf($|\?)/i.test(d.url) ? 'PDF' : 'Document'} · emailed to you</span>
             </span>
-            <Download className="h-4 w-4 text-white/35 transition group-hover:text-[color:var(--sp-accent)]" />
-          </a>
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 px-3 py-1.5 text-[11px] font-semibold text-white/70 transition group-hover:border-[color:var(--sp-accent)] group-hover:text-[color:var(--sp-accent)]">
+              <Download className="h-3.5 w-3.5" /> Get it
+            </span>
+          </button>
         ))}
       </div>
+      <DocumentRequestWindow open={open !== null} onClose={() => setOpen(null)} home={flowHomeOf(m, siteId)} documents={documents} initial={last.current} />
     </Section>
   )
 }
 
-function AgentsSection({ m, url, signatureSlug }: { m: SpotlightModel; url: string; signatureSlug?: string | null }) {
+function AgentsSection({ m, url, siteId, signatureSlug }: { m: SpotlightModel; url: string; siteId: string; signatureSlug?: string | null }) {
   const [primary, ...co] = m.agents
   return (
     <section id="agent" className="scroll-mt-16 border-t border-white/[0.07] px-5 py-24 sm:px-10 sm:py-32">
@@ -1162,7 +1174,7 @@ function AgentsSection({ m, url, signatureSlug }: { m: SpotlightModel; url: stri
           <h2 className="sp-display mt-4 text-[clamp(2.6rem,5vw,4.2rem)] font-light leading-none">{primary.name}</h2>
           <p className="mt-3 text-sm text-white/55">{[primary.title, primary.brokerage].filter(Boolean).join(' · ')}</p>
           {primary.bio && <p className="mt-6 max-w-xl text-[15px] leading-[1.8] text-white/65">{excerpt(primary.bio, 3, 420)}</p>}
-          <AgentActions agent={primary} address={m.p.address} url={url} tone="dark" className="mt-8" />
+          <AgentActions agent={primary} address={m.p.address} url={url} tone="dark" className="mt-8" siteId={siteId} />
           <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-white/40">
             {primary.phone && <span>{fmtPhone(primary.phone)}</span>}
             {primary.email && <span>{primary.email}</span>}

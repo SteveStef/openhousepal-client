@@ -5,14 +5,15 @@
 //   "Showcase invite after your open house" switch and its delay (User.email_settings via
 //   /api/v1/email-settings) - the same values that page shows.
 // - How a new kit starts: the kit print choices the Create Open House Kit wizard pre-fills from
-//   (lib/printPrefs - remembered per device, exactly like the wizard does it).
+//   (lib/printPrefs - saved to the account, so every computer / phone starts kits the same way).
 import { useEffect, useState } from 'react'
 import { Loader2, Moon, Sparkles, Sun } from 'lucide-react'
 import api, { type EmailSettings } from '@/lib/api-service'
-import { readPrintPref, writePrintPref, type PrintPref } from '@/lib/printPrefs'
+import { syncPrintPrefs, writePrintPref, type PrintPref } from '@/lib/printPrefs'
 import { hasMlsAccess, hasShowcaseAccess } from '@/lib/navAccess'
 import { planHasBragSheet } from '@/lib/bragSheetData'
 import { BigToggle, ChoiceCard, MiniFlow, StepCtx, SubHead, useGate, useMiniFlow } from './SetupUi'
+import { SignInPhone } from '@/app/open-houses/components/KitReviewDialog'
 
 const DELAY_LABEL: Record<number, string> = { 0: 'Right away', 15: 'In 15 min', 30: 'In 30 min', 60: 'In 1 hour' }
 
@@ -24,8 +25,10 @@ export function OpenHouseStep({ ctx }: { ctx: StepCtx }) {
   const [es, setEs] = useState<EmailSettings | null>(null)
   const [prefs, setPrefs] = useState<Record<PrintPref, boolean> | null>(null)
   useEffect(() => {
-    setPrefs({ flyerBrand: readPrintPref('flyerBrand'), qrDark: readPrintPref('qrDark'), matchScore: readPrintPref('matchScore'), recap: readPrintPref('recap'), bragStats: readPrintPref('bragStats') })
+    let alive = true
+    syncPrintPrefs(true).then(p => { if (alive) setPrefs(p) })
     if (showcases) api.emailSettings.get().then(r => { if (r.success && r.data) setEs(r.data) })
+    return () => { alive = false }
   }, [showcases])
   useGate(ctx, { ok: true, onContinue: async () => { await api.setup.setState({ confirm: 'openhouse' }) } }, [])
   // Two short pages when there's a Showcase question (owner, 10/22); just the kit otherwise.
@@ -75,13 +78,21 @@ export function OpenHouseStep({ ctx }: { ctx: StepCtx }) {
       <div key="kit">
         <SubHead sub="Every new kit starts with these - you can still change them while you make it.">Your open house kit</SubHead>
         <p className="mb-2.5 text-[14px] font-black text-[#111827] dark:text-white">Sign-in screen guests see</p>
-        <div className="grid grid-cols-2 gap-3">
-          <ChoiceCard on={!prefs.qrDark} onClick={() => setPref('qrDark', false)} title="Ivory">
-            <div className="flex h-16 items-center justify-center rounded-2xl bg-gradient-to-br from-white to-[#f3eee3] ring-1 ring-black/5"><Sun className="h-7 w-7 text-amber-500" /></div>
-          </ChoiceCard>
-          <ChoiceCard on={prefs.qrDark} onClick={() => setPref('qrDark', true)} title="Midnight">
-            <div className="flex h-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#111827] to-[#2a2218]"><Moon className="h-7 w-7 text-[#e8c97a]" /></div>
-          </ChoiceCard>
+        {/* The two looks on the left (half size), and on the right what a guest's phone shows when
+            they scan the QR code, in the look picked - so light vs dark is obvious (owner, 10/24). */}
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 sm:gap-8">
+          <div className="grid gap-3">
+            <ChoiceCard on={!prefs.qrDark} onClick={() => setPref('qrDark', false)} title="Ivory" blurb="Light screen">
+              <div className="flex h-10 items-center justify-center rounded-xl bg-gradient-to-br from-white to-[#f3eee3] ring-1 ring-black/5"><Sun className="h-5 w-5 text-amber-500" /></div>
+            </ChoiceCard>
+            <ChoiceCard on={prefs.qrDark} onClick={() => setPref('qrDark', true)} title="Midnight" blurb="Dark screen">
+              <div className="flex h-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#111827] to-[#2a2218]"><Moon className="h-5 w-5 text-[#e8c97a]" /></div>
+            </ChoiceCard>
+          </div>
+          <div className="flex flex-col items-center">
+            <SignInPhone dark={prefs.qrDark} photo="/home.jpg" street="123 Your Listing Ln" />
+            <p className="mt-2 text-center text-[10px] font-black uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">📱 Guest sign-in<br /><span className="text-[#8b6a2b] dark:text-[#e8c97a]">{prefs.qrDark ? 'Midnight' : 'Ivory'}</span></p>
+          </div>
         </div>
         <div className="mt-4 space-y-3">
           <BigToggle on={prefs.flyerBrand} onChange={v => setPref('flyerBrand', v)} title="My photo and name on the sign-in flyer" blurb="A small card with your photo, name and brokerage over the home's photo." />
@@ -89,7 +100,7 @@ export function OpenHouseStep({ ctx }: { ctx: StepCtx }) {
           {mls && <BigToggle on={prefs.recap} onChange={v => setPref('recap', v)} title="Short highlights on the Cheat Sheet" blurb="An easy-to-read summary of the home instead of the full MLS description." />}
           {brag && <BigToggle on={prefs.bragStats} onChange={v => setPref('bragStats', v)} title="My sales numbers on the Brag Sheet" blurb="Homes sold, total volume and average price." />}
         </div>
-        <p className="mt-3 text-[13px] font-medium text-gray-500 dark:text-gray-400">Kit choices are remembered on this computer or phone - the same way the kit maker remembers them.</p>
+        <p className="mt-3 text-[13px] font-medium text-gray-500 dark:text-gray-400">Saved to your account - every computer and phone you sign in on starts new kits this way.</p>
       </div>
   )
 

@@ -12,11 +12,13 @@ import { useAuth } from '@/contexts/AuthContext'
 import { CardAlive, GoldLastWord, TOOL_CARD_CSS, trackGlow } from '@/components/ui/LuxeSurface'
 import { backdropMotion, useEscapeToClose, useIsPhone, usePagePin, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 import {
-  RSVP_WORD, TYPE_META, initialsOf, invitesApi,
+  RSVP_WORD, TYPE_META, initialsOf, invitesApi, parseDay,
   type Invite, type InviteDetail, type InvitePresets, type InviteRsvp, type InviteType, type RsvpResponse,
 } from '@/lib/invites'
 import InviteCard, { type InviteCardData } from './InviteCard'
 import InviteFlow, { ShareStep, TYPE_ART } from './InviteFlow'
+import { announceInvitesChanged } from './FormsInvitesChrome'
+import { cardTitle } from '@/lib/inviteTitle'
 
 // Forms & Invites -> Invites: start a new invite (four kinds, each a living card like the Tools
 // page's), your invites with their RSVP counts, and each invite's guest list / answers / share /
@@ -36,19 +38,28 @@ export default function InvitesPanel() {
     const r = await invitesApi.list()
     if (r.success) setInvites(r.data)
     else { setErr(r.error); setInvites([]) }
+    announceInvitesChanged()  // the header's "New" chips / numbers / the Invites badge
   }, [])
   useEffect(() => {
     invitesApi.presets().then(r => { if (r.success) setPresets(r.data) })
     load()
   }, [load])
-  // ?invite=<id> (the bell, a lead's "View RSVP") opens that invite.
+  // ?invite=<id> (the bell, a lead's "View RSVP", the header's "New" chips) opens that invite;
+  // ?newInvite=1 opens a new one - once (it's taken out of the address so a tab switch doesn't reopen it).
   useEffect(() => {
     const id = params.get('invite')
     if (id) setOpenId(id)
-    if (params.get('newInvite') === '1') setFlow({ type: null })
+    if (params.get('newInvite') === '1') {
+      setFlow({ type: null })
+      const q = new URLSearchParams(params.toString()); q.delete('newInvite')
+      window.history.replaceState(null, '', `${window.location.pathname}?${q.toString()}`)
+    }
   }, [params])
 
-  const host = { name: [user?.first_name, user?.last_name].filter(Boolean).join(' '), brokerage: user?.brokerage || null, photo: user?.photo_url || null }
+  // The invite footer's agent - the Agent Hub profile (like the signature) once presets load (round 5).
+  const ph = presets?.host
+  const host = { name: ph?.name || [user?.first_name, user?.last_name].filter(Boolean).join(' '), brokerage: ph?.brokerage || user?.brokerage || null,
+    photo: ph?.photo_url || user?.photo_url || null, area: ph ? ph.market || null : user?.market || null }
   const closeDetail = () => {
     setOpenId(null)
     if (params.get('invite')) {
@@ -121,24 +132,35 @@ const PLACEHOLDER = [
 
 // ------------------------------------------------------------------ the four "make one" cards
 
+/** Round 4 (owner, 10/24): all four cards the same size - one-line labels, short "who" lines and
+ *  descriptions of about the same length, with Create pinned to the bottom of every card. */
+const CARD_WORDS: Record<InviteType, { who: string; label: string; blurb: string }> = {
+  open_house: { who: 'Buyers & neighbors', label: 'Open House', blurb: 'Buyers and neighbors tour the home.' },
+  brokers_open: { who: 'Other agents', label: "Broker's Open", blurb: 'Agents preview it before the public.' },
+  client_event: { who: 'Your clients', label: 'Client Dinner', blurb: 'A dinner or thank-you night for clients.' },
+  custom: { who: 'Anyone you like', label: 'Custom', blurb: 'A market talk, happy hour or class.' },
+}
+
 function TypeCard({ id, label, blurb, index, disabled, onClick }: { id: InviteType; label: string; blurb: string; index: number; disabled: boolean; onClick: () => void }) {
   const art = TYPE_ART[id]
   return (
     <motion.button type="button" onClick={onClick} disabled={disabled} onMouseMove={trackGlow} data-testid={`invite-new-${id}`}
       initial={{ opacity: 0, y: 16, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 24, delay: 0.05 * index }} whileTap={{ scale: 0.97 }}
-      className="lx-hero group/lx group relative flex min-h-[150px] flex-col overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#fffdf8_0%,#fbf6ec_60%,#f6eddb_100%)] p-4 text-left shadow-[0_20px_44px_-32px_rgba(139,115,85,.6)] transition duration-300 hover:-translate-y-1 hover:border-[#C9A24D]/60 hover:shadow-[0_28px_56px_-30px_rgba(201,162,77,.75)] disabled:opacity-60 dark:border-white/[0.08] dark:bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#0b0f0e_0%,#111827_60%,#1d1810_100%)] sm:p-5">
+      className="lx-hero group/lx group relative flex items-start gap-3 overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#fffdf8_0%,#fbf6ec_60%,#f6eddb_100%)] p-4 text-left shadow-[0_20px_44px_-32px_rgba(139,115,85,.6)] transition duration-300 hover:-translate-y-1 hover:border-[#C9A24D]/60 hover:shadow-[0_28px_56px_-30px_rgba(201,162,77,.75)] disabled:opacity-60 dark:border-white/[0.08] dark:bg-[radial-gradient(120%_120%_at_100%_0%,rgba(201,162,77,.16),transparent_55%),linear-gradient(140deg,#0b0f0e_0%,#111827_60%,#1d1810_100%)] sm:p-5">
       <div aria-hidden className="ohp-tool-grid pointer-events-none absolute inset-0" />
       <CardAlive seed={label.length * (index + 2)} />
-      <art.icon aria-hidden className="lx-mark pointer-events-none absolute -bottom-10 -right-8 h-40 w-40 text-[#C9A24D]/[0.12] dark:text-[#e8c97a]/[0.08]" />
-      <EnvelopeArt tint={art.tint} icon={<art.icon className="h-4 w-4" />} delay={index * 0.6} />
-      <div className="relative mt-auto pr-2 pt-14 sm:pt-16">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974]">{TYPE_META[id].who}</p>
-        <h4 className="mt-0.5 font-serif text-lg font-black text-[#111827] dark:text-white"><GoldLastWord text={label} /></h4>
-        <p className="mt-1 text-xs font-semibold leading-relaxed text-gray-500 dark:text-gray-400">{blurb}</p>
-        <span className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[#111827] px-3.5 py-2 text-[11px] font-black text-white transition group-hover:bg-black dark:bg-white dark:text-[#111827]">
+      <art.icon aria-hidden className="lx-mark pointer-events-none absolute -bottom-10 -right-8 h-36 w-36 text-[#C9A24D]/[0.10] dark:text-[#e8c97a]/[0.07]" />
+      {/* Studio-card layout (user, 10/24): the words up top on the left, the envelope on the right -
+          the description wraps in its own column instead of being pushed under / past the art. */}
+      <div className="relative flex min-w-0 flex-1 flex-col self-stretch">
+        <p className="truncate text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974]">{CARD_WORDS[id]?.who || TYPE_META[id].who}</p>
+        <h4 className="mt-0.5 truncate font-serif text-lg font-black leading-tight text-[#111827] dark:text-white"><GoldLastWord text={CARD_WORDS[id]?.label || label} /></h4>
+        <p className="mb-3 mt-1 line-clamp-2 text-xs sm:min-h-[2.5rem] font-semibold leading-relaxed text-gray-500 dark:text-gray-400">{CARD_WORDS[id]?.blurb || blurb}</p>
+        <span className="mt-auto inline-flex w-fit items-center gap-1.5 rounded-xl bg-[#111827] px-3.5 py-2 text-[11px] font-black text-white transition group-hover:bg-black dark:bg-white dark:text-[#111827]">
           <Plus className="h-3.5 w-3.5" /> Create <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
         </span>
       </div>
+      <div className="relative h-[58px] w-[78px] shrink-0"><EnvelopeArt tint={art.tint} icon={<art.icon className="h-4 w-4" />} delay={index * 0.6} /></div>
     </motion.button>
   )
 }
@@ -146,7 +168,7 @@ function TypeCard({ id, label, blurb, index, disabled, onClick }: { id: InviteTy
 /** A little envelope whose card peeks out and back - the type's icon on the card. */
 function EnvelopeArt({ tint, icon, delay }: { tint: string; icon: React.ReactNode; delay: number }) {
   return (
-    <div aria-hidden className="absolute right-4 top-4 h-[58px] w-[78px]">
+    <div aria-hidden className="absolute inset-0">
       <div className="absolute inset-x-0 bottom-0 h-[44px] rounded-md" style={{ background: `linear-gradient(160deg, ${tint}, #111827)` }} />
       <div className="ip-peek absolute left-1/2 top-0 grid h-[46px] w-[60px] -translate-x-1/2 place-items-center rounded-[5px] bg-[#fdfbf6] text-[#8b6d2c] shadow-sm ring-1 ring-black/5" style={{ animationDelay: `${delay}s` }}>
         {icon}
@@ -163,8 +185,8 @@ function EnvelopeArt({ tint, icon, delay }: { tint: string; icon: React.ReactNod
 
 // ------------------------------------------------------------------ an invite in the list
 
-function InviteRow({ inv, host, index, onOpen }: { inv: Invite; host: { name: string; brokerage: string | null; photo: string | null }; index: number; onOpen: () => void }) {
-  const data: InviteCardData = { ...inv, hostName: host.name, hostBrokerage: host.brokerage, hostPhoto: host.photo }
+function InviteRow({ inv, host, index, onOpen }: { inv: Invite; host: { name: string; brokerage: string | null; photo: string | null; area?: string | null }; index: number; onOpen: () => void }) {
+  const data: InviteCardData = { ...inv, hostName: host.name, hostBrokerage: host.brokerage, hostPhoto: host.photo, hostArea: host.area || null }
   const c = inv.counts
   const status = inv.is_past ? { label: 'Past', cls: 'bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400' }
     : inv.status === 'closed' ? { label: 'RSVPs closed', cls: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300' }
@@ -181,7 +203,8 @@ function InviteRow({ inv, host, index, onOpen }: { inv: Invite; host: { name: st
           <span className={`rounded-full px-2 py-0.5 text-[9.5px] font-black uppercase tracking-wider ${status.cls}`}>{status.label}</span>
           <span className="truncate text-[10px] font-black uppercase tracking-wider text-[#a8843a] dark:text-[#e8c97a]">{TYPE_META[inv.invite_type].short}</span>
         </div>
-        <p className="mt-1 line-clamp-2 font-serif text-[16px] font-black leading-tight text-[#111827] dark:text-white">{inv.title}</p>
+        <p className="mt-1 line-clamp-2 font-serif text-[16px] font-black leading-tight text-[#111827] dark:text-white">{cardTitle(inv.title, inv.invite_type).text}</p>
+        {inv.subtitle ? <p className="truncate text-[12px] font-bold text-[#8b7355] dark:text-[#d7b974]">{inv.subtitle}</p> : null}
         <p className="mt-0.5 truncate text-[12px] font-semibold text-gray-500 dark:text-gray-400">{inv.when_label || 'No date yet'}</p>
         <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-2">
           <Chip tone="yes" n={c.guests_yes} label="coming" />
@@ -203,7 +226,7 @@ function Chip({ tone, n, label }: { tone: RsvpResponse; n: number; label: string
 // ------------------------------------------------------------------ one invite: guests, answers, share
 
 function InviteDetailSheet({ id, host, onClose, onEdit, onChanged, onOpenOther }: {
-  id: string | null; host: { name: string; brokerage: string | null; photo: string | null }
+  id: string | null; host: { name: string; brokerage: string | null; photo: string | null; area?: string | null }
   onClose: () => void; onEdit: (inv: Invite) => void; onChanged: () => void; onOpenOther: (id: string) => void
 }) {
   const [mount, setMount] = useState<HTMLElement | null>(null)
@@ -250,14 +273,14 @@ function DetailWindow({ id, host, onClose, onEdit, onChanged, onOpenOther }: Omi
     onChanged()
   }
 
-  const data: InviteCardData | null = inv ? { ...inv, hostName: host.name, hostBrokerage: host.brokerage, hostPhoto: host.photo } : null
+  const data: InviteCardData | null = inv ? { ...inv, hostName: host.name, hostBrokerage: host.brokerage, hostPhoto: host.photo, hostArea: host.area || null } : null
   const rsvps = (inv?.rsvps || []).filter(r => filter === 'all' || r.response === filter)
 
   return (
     <motion.div {...backdropMotion} data-scroll-lock="off" onClick={e => { if (e.target === e.currentTarget) onClose() }}
       className={`fixed inset-0 z-[90] flex bg-[#0b0b0c]/60 ${phone ? 'items-end' : 'items-center justify-center p-6'}`} data-testid="invite-detail">
       <motion.div ref={sheetRef} {...sheetMotion} style={phone ? { y } : undefined}
-        className={`relative flex w-full overflow-hidden bg-[#FAFAF7] shadow-[0_40px_100px_-30px_rgba(0,0,0,.7)] dark:bg-[#0d0d0f] ${phone ? 'max-h-[94dvh] flex-col rounded-t-[28px]' : 'h-[min(780px,calc(100dvh-3rem))] max-w-5xl flex-row rounded-[28px]'}`}>
+        className={`relative flex w-full overflow-hidden bg-[#FAFAF7] shadow-[0_40px_100px_-30px_rgba(0,0,0,.7)] dark:bg-[#0d0d0f] ${phone ? 'h-[92dvh] flex-col rounded-t-[28px]' : 'h-[min(780px,calc(100dvh-3rem))] max-w-5xl flex-row rounded-[28px]'}`}>
         {phone && <span aria-hidden className="absolute left-1/2 top-2 z-10 h-1.5 w-10 -translate-x-1/2 rounded-full bg-gray-300 dark:bg-white/20" />}
         {!inv ? (
           <div className="grid h-64 place-items-center">{err ? <p className="text-sm font-bold text-red-500">{err}</p> : <Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" />}</div>
@@ -270,7 +293,8 @@ function DetailWindow({ id, host, onClose, onEdit, onChanged, onOpenOther }: Omi
               {phone && <div className="shrink-0" style={{ width: 74 }}><InviteCard data={data!} width={74} shine={false} /></div>}
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#a8843a] dark:text-[#e8c97a]">{TYPE_META[inv.invite_type].label}{inv.status === 'closed' ? ' · RSVPs closed' : inv.is_past ? ' · Past' : ''}</p>
-                <h2 className="line-clamp-2 font-serif text-xl font-black leading-tight text-[#111827] dark:text-white">{inv.title}</h2>
+                <h2 className="line-clamp-2 font-serif text-xl font-black leading-tight text-[#111827] dark:text-white">{cardTitle(inv.title, inv.invite_type).text}</h2>
+                {inv.subtitle ? <p className="truncate text-[13px] font-bold text-[#8b7355] dark:text-[#d7b974]">{inv.subtitle}</p> : null}
                 <p className="truncate text-[12.5px] font-semibold text-gray-500 dark:text-gray-400">{inv.when_label}</p>
                 <a href={inv.share_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block max-w-full truncate text-[12px] font-bold text-[#8b6d2c] underline-offset-2 hover:underline dark:text-[#e8c97a]">{inv.share_url.replace(/^https?:\/\//, '')}</a>
               </div>
@@ -287,20 +311,27 @@ function DetailWindow({ id, host, onClose, onEdit, onChanged, onOpenOther }: Omi
                 <Stat n={inv.view_count} label="Opened" sub="times" tone="views" />
               </div>
 
-              {/* actions */}
-              <div className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
-                <ActBtn icon={<Share2 className="h-4 w-4" />} label="Share" onClick={() => setTab('share')} primary />
-                <ActBtn icon={<Pencil className="h-4 w-4" />} label="Edit" onClick={() => onEdit(inv)} testId="invite-edit" />
-                <ActBtn icon={busy === 'dup' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CopyPlus className="h-4 w-4" />} label="Duplicate"
+              {/* actions - one even row on a phone: Share / Edit / Delete are icons only (user, 10/24),
+                  every button the same colour; Remind (when it applies) gets its own line under it */}
+              <div className={`mt-4 ${phone ? 'grid grid-cols-[44px_44px_auto_minmax(0,1fr)_44px] gap-1.5' : 'flex flex-wrap gap-2'}`} data-testid="invite-actions">
+                <ActBtn icon={<Share2 className="h-4 w-4" />} label="Share" onClick={() => setTab('share')} iconOnly={phone} testId="invite-share-btn" />
+                <ActBtn icon={<Pencil className="h-4 w-4" />} label="Edit" onClick={() => onEdit(inv)} testId="invite-edit" iconOnly={phone} />
+                <ActBtn icon={busy === 'dup' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CopyPlus className="h-4 w-4" />} label="Duplicate" compact={phone}
                   onClick={() => act('dup', () => invitesApi.duplicate(inv.id), d => d?.id && onOpenOther(d.id))} />
-                <ActBtn icon={busy === 'status' ? <Loader2 className="h-4 w-4 animate-spin" /> : inv.status === 'live' ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                  label={inv.status === 'live' ? 'Close RSVPs' : 'Reopen RSVPs'} onClick={() => act('status', () => invitesApi.setStatus(inv.id, inv.status === 'live' ? 'closed' : 'live'))} testId="invite-close" />
-                {inv.recipients.total > 0 && (
+                <ActBtn icon={busy === 'status' ? <Loader2 className="h-4 w-4 animate-spin" /> : inv.status === 'live' ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />} compact={phone}
+                  label={inv.status === 'live' ? (phone ? 'Close' : 'Close RSVPs') : (phone ? 'Reopen' : 'Reopen RSVPs')} onClick={() => act('status', () => invitesApi.setStatus(inv.id, inv.status === 'live' ? 'closed' : 'live'))} testId="invite-close" />
+                {!phone && inv.recipients.total > 0 && (
                   <ActBtn icon={busy === 'remind' ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellRing className="h-4 w-4" />} label={`Remind ${inv.recipients.waiting}`} disabled={!inv.recipients.waiting || inv.status !== 'live'}
                     onClick={() => act('remind', () => invitesApi.resend(inv.id), d => setNote(d?.sent ? `Reminder sent to ${d.sent} ${d.sent === 1 ? 'person' : 'people'}.` : 'Everyone was emailed in the last 12 hours - try again later.'))} />
                 )}
-                <ActBtn icon={<Trash2 className="h-4 w-4" />} label="Delete" danger onClick={() => setConfirmDelete(true)} />
+                <ActBtn icon={<Trash2 className="h-4 w-4" />} label="Delete" danger onClick={() => setConfirmDelete(true)} iconOnly={phone} />
               </div>
+              {phone && inv.recipients.total > 0 && (
+                <div className="mt-1.5 grid">
+                  <ActBtn icon={busy === 'remind' ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellRing className="h-4 w-4" />} label={`Remind the ${inv.recipients.waiting} who haven't answered`} disabled={!inv.recipients.waiting || inv.status !== 'live'} compact
+                    onClick={() => act('remind', () => invitesApi.resend(inv.id), d => setNote(d?.sent ? `Reminder sent to ${d.sent} ${d.sent === 1 ? 'person' : 'people'}.` : 'Everyone was emailed in the last 12 hours - try again later.'))} />
+                </div>
+              )}
               {note && <p className="mt-2 rounded-xl bg-[#C9A24D]/10 px-3 py-2 text-[12.5px] font-bold text-[#5c4a22] dark:text-[#e8c97a]">{note}</p>}
               <AnimatePresence>
                 {confirmDelete && (
@@ -330,7 +361,7 @@ function DetailWindow({ id, host, onClose, onEdit, onChanged, onOpenOther }: Omi
               </div>
 
               <AnimatePresence mode="wait" initial={false}>
-                <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.16 }} className="mt-4">
+                <motion.div key={tab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }} className="mt-4" style={{ minHeight: phone ? "52dvh" : 420 }}>
                   {tab === 'guests' && (
                     <div>
                       {/* one row of four - "Can't make it" used to wrap onto a line of its own */}
@@ -348,7 +379,7 @@ function DetailWindow({ id, host, onClose, onEdit, onChanged, onOpenOther }: Omi
                           <p className="mt-1 text-sm text-gray-500">{inv.rsvps.length ? 'Try another filter.' : 'Share the link - answers show up here the moment they come in.'}</p>
                         </div>
                       ) : (
-                        <div className="space-y-2">{rsvps.map(r => <GuestRow key={r.id} r={r} audience={inv.audience} />)}</div>
+                        <div className="space-y-2">{rsvps.map(r => <GuestRow key={r.id} r={r} audience={inv.audience} days={inv.dates} />)}</div>
                       )}
                     </div>
                   )}
@@ -398,20 +429,43 @@ function Stat({ n, label, sub, tone }: { n: number; label: string; sub: string; 
   )
 }
 
-function ActBtn({ icon, label, onClick, primary, danger, disabled, testId }: { icon: React.ReactNode; label: string; onClick: () => void; primary?: boolean; danger?: boolean; disabled?: boolean; testId?: string }) {
+function ActBtn({ icon, label, onClick, danger, disabled, testId, iconOnly, compact }: {
+  icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean; disabled?: boolean; testId?: string
+  /** Phone: just the icon (the label is still read out). */
+  iconOnly?: boolean
+  /** Phone: a tighter button that fits its grid cell. */
+  compact?: boolean
+}) {
+  // Every action wears the same quiet style (Share used to be solid - white in dark mode).
+  const tone = danger ? 'border border-red-200 bg-white text-red-600 hover:bg-red-50 dark:border-red-500/30 dark:bg-white/5 dark:text-red-400 dark:hover:bg-red-500/10'
+    : 'border border-gray-200 bg-white text-[#111827] hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/5 dark:text-white'
   return (
-    <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={onClick} disabled={disabled} data-testid={testId}
-      className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl px-3.5 text-[12px] font-black transition disabled:opacity-40 ${primary ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : danger ? 'border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-500/30 dark:hover:bg-red-500/10' : 'border border-gray-200 bg-white text-[#111827] hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/5 dark:text-white'}`}>
-      {icon} {label}
+    <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={onClick} disabled={disabled} data-testid={testId} aria-label={label} title={iconOnly ? label : undefined}
+      className={`inline-flex h-11 min-w-0 items-center justify-center rounded-xl font-black transition disabled:opacity-40 ${iconOnly ? 'w-11 px-0' : compact ? 'gap-1 px-2 text-[11px]' : 'shrink-0 gap-1.5 px-3.5 text-[12px]'} ${tone}`}>
+      <span className="shrink-0">{icon}</span>{!iconOnly && <span className="truncate">{label}</span>}
     </motion.button>
   )
 }
 
-function GuestRow({ r, audience }: { r: InviteRsvp; audience: string }) {
+function GuestRow({ r, audience, days }: { r: InviteRsvp; audience: string; days?: { date: string }[] }) {
   const [open, setOpen] = useState(false)
   const tone = r.response === 'yes' ? 'bg-emerald-500 text-white' : r.response === 'maybe' ? 'bg-amber-400 text-[#111827]' : 'bg-gray-300 text-[#111827] dark:bg-white/20 dark:text-white'
   const Icon = r.response === 'yes' ? Check : r.response === 'maybe' ? HelpCircle : X
   const when = r.updated_at || r.created_at
+  // Who they are to the agent (invites_service.lead_kind_of) + what they asked for.
+  const gray = 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300'
+  const gold = 'bg-[#C9A24D]/15 text-[#7a5f22] dark:text-[#e8c97a]'
+  const req = (r.requests || {}) as Record<string, unknown>
+  const tags = [
+    r.lead_kind === 'lead' ? { label: 'New lead', cls: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' } : null,
+    r.lead_kind === 'agent' ? { label: 'Agent', cls: gray } : null,
+    r.lead_kind === 'represented' ? { label: 'Has an agent', cls: gray } : null,
+    r.response === 'no' && r.still_interested ? { label: 'Still interested', cls: gold } : null,
+    r.keep_updated ? { label: 'Wants updates', cls: gold } : null,
+    req.disclosure ? { label: 'Asked for disclosure', cls: gold } : null,
+    req.second_tour ? { label: 'Asked for 2nd tour', cls: gold } : null,
+    ...(days && days.length > 1 && r.days?.length ? r.days.map(d => ({ label: parseDay(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }), cls: gray })) : []),
+  ].filter(Boolean) as { label: string; cls: string }[]
   return (
     <div className={`overflow-hidden rounded-2xl border bg-white transition dark:bg-[#141416] ${open ? 'border-[#C9A24D]/50' : 'border-gray-100 dark:border-white/[0.07]'}`} data-testid="invite-guest">
       <button type="button" onClick={() => setOpen(v => !v)} className="flex w-full items-center gap-3 p-3 text-left">
@@ -427,6 +481,11 @@ function GuestRow({ r, audience }: { r: InviteRsvp; audience: string }) {
           <span className="block truncate text-[12px] font-semibold text-gray-500">
             {RSVP_WORD[r.response]}{r.response !== 'no' && r.guest_count > 1 ? ` · party of ${r.guest_count}` : ''}{when ? ` · ${new Date(when).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
           </span>
+          {tags.length > 0 && (
+            <span className="mt-1 flex flex-wrap gap-1">
+              {tags.map(t => <span key={t.label} className={`rounded-full px-1.5 py-0.5 text-[9.5px] font-black uppercase tracking-wider ${t.cls}`}>{t.label}</span>)}
+            </span>
+          )}
         </span>
         <motion.span animate={{ rotate: open ? 180 : 0 }} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-500 dark:bg-white/10"><ChevronDown className="h-4 w-4" /></motion.span>
       </button>
@@ -444,7 +503,7 @@ function GuestRow({ r, audience }: { r: InviteRsvp; audience: string }) {
                 {r.phone && <a href={`tel:${r.phone.replace(/[^\d+]/g, '')}`} className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-[12px] font-black text-[#111827] dark:border-white/10 dark:bg-white/5 dark:text-white"><Phone className="h-3.5 w-3.5 text-[#C9A24D]" /> {r.phone}</a>}
                 {r.email && <a href={`mailto:${r.email}`} className="inline-flex h-10 max-w-full items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-[12px] font-black text-[#111827] dark:border-white/10 dark:bg-white/5 dark:text-white"><Mail className="h-3.5 w-3.5 shrink-0 text-[#C9A24D]" /> <span className="truncate">{r.email}</span></a>}
                 {r.lead_id && <Link href={`/leads/${r.lead_id}`} className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#111827] px-3 text-[12px] font-black text-white dark:bg-white dark:text-[#111827]">Open in Leads <ArrowRight className="h-3.5 w-3.5" /></Link>}
-                {!r.lead_id && audience === 'agents' && <span className="inline-flex h-10 items-center rounded-xl px-1 text-[11.5px] font-semibold text-gray-400">Agent RSVP - not added to Leads</span>}
+                {!r.lead_id && (audience === 'agents' || r.lead_kind === 'agent' || r.lead_kind === 'represented') && <span className="inline-flex h-10 items-center rounded-xl px-1 text-[11.5px] font-semibold text-gray-400">{r.lead_kind === 'represented' ? 'Has an agent' : 'Agent'} - not added to Leads, no follow-up</span>}
               </div>
             </div>
           </motion.div>

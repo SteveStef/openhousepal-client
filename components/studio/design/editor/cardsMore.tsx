@@ -6,6 +6,7 @@ import api from '@/lib/api-service'
 import type { DesignBlock, FormCampaign } from '@/types'
 import { blockId, DESIGN_STYLES } from '@/lib/studio/designFormats'
 import { DESIGN_COLOR_MODES, joinColorMode, splitColorMode } from '@/lib/studio/designColors'
+import { brandSwatch } from '@/lib/studio/designTheme'
 import { LUXE_METALS } from '@/lib/luxeMetals'
 import LuxeFinishPicker from '@/components/studio/design/LuxeFinishPicker'
 import { getTemplatesFor, isCompositionReady, isStyleReady } from '@/lib/studio/designTemplates'
@@ -114,7 +115,7 @@ export function YouCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open: 
       {ctl.draws?.logo !== false && <div>
         <p className={labelCls}>Logo</p>
         {logos.length === 0 ? (
-          <Note>No logos yet. <a href="/studio/brand-kit" className="font-black text-[#8b7355] hover:underline">Add your logo in Brand Kit</a> and it will appear on every design.</Note>
+          <Note>No logos yet. <a href="/studio/brand-kit" className="font-black text-[#8b7355] hover:underline">Add your logo in Branding</a> and it will appear on every design.</Note>
         ) : (
           <>
             <div className="mt-2 grid grid-cols-2 gap-2">
@@ -138,7 +139,7 @@ export function YouCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open: 
                 <Seg value={scale} options={[{ value: '0.8', label: 'Smaller' }, { value: '1', label: 'Normal' }, { value: '1.3', label: 'Larger' }]} onChange={v => ensureBranding({ data: { scale: Number(v) } })} />
               </div>
             )}
-            <a href="/studio/brand-kit" className="mt-2 inline-block text-[11px] font-black text-[#8b7355] hover:underline dark:text-[#d7b974]">Manage logos in Brand Kit →</a>
+            <a href="/studio/brand-kit" className="mt-2 inline-block text-[11px] font-black text-[#8b7355] hover:underline dark:text-[#d7b974]">Manage logos in Branding →</a>
           </>
         )}
       </div>}
@@ -232,7 +233,7 @@ export function LookCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open:
         <div className="mt-2 grid grid-cols-3 gap-2">
           {DESIGN_COLOR_MODES.map(c => {
             const locked = c.id === 'luxe' && !ctl.isIdx
-            const swatch: [string, string] = c.id === 'brand' ? [ctl.brandKit?.primary_color || c.swatch[0], ctl.brandKit?.secondary_color || c.swatch[1]] : c.swatch
+            const swatch: [string, string] = c.id === 'brand' ? brandSwatch(ctl.brandKit) : c.swatch
             return (
               <LookTile key={c.id} selected={baseColor === c.id} label={c.label} luxe={c.id === 'luxe'} locked={locked} swatch={swatch} onClick={() => { if (locked) { setPitch(true); return } ctl.changeLook({ color_mode: joinColorMode(c.id, metal) }) }}>
                 <DesignPreview blocks={ctl.blocks} ctx={{ ...ctl.ctx, colorMode: joinColorMode(c.id, metal) }} rounded={false} />
@@ -243,7 +244,7 @@ export function LookCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open:
         <div className="mt-3">
           <LuxeFinishPicker compact value={metal} goldTheme={baseColor === 'luxe' || ctl.ctx.composition === 'luxe'} locked={!ctl.isIdx} onChange={m => { if (m && !ctl.isIdx) { setPitch(true); return } ctl.changeLook({ color_mode: joinColorMode(baseColor, m) }) }} />
         </div>
-        <p className="mt-2 text-[11px] font-semibold text-gray-400">Brand uses your Brand Kit colors. <a href="/studio/brand-kit" target="_blank" rel="noreferrer" className="font-black text-[#8b7355] hover:underline">Edit Brand Kit</a></p>
+        <p className="mt-2 text-[11px] font-semibold text-gray-400">Brand uses your brand color from Branding. <a href="/studio/brand-kit" target="_blank" rel="noreferrer" className="font-black text-[#8b7355] hover:underline">Open Branding</a></p>
       </div>
     </Card>
   )

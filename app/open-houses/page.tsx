@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Footer from '@/components/Footer'
+import { hasMlsAccess } from '@/lib/navAccess'
 import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
@@ -29,9 +30,11 @@ import { OpenHouseFormRequestsPanel } from '@/components/OpenHouseFormRequestsPa
 import { DeleteConfirmationDialog } from './components/DeleteConfirmationDialog'
 import { OpenHouseNoteModal } from './components/OpenHouseNoteModal'
 import OpenHouseVisitors from './components/OpenHouseVisitors'
-import { AnimatePresence, motion } from 'framer-motion'
-import { X } from 'lucide-react'
+import { AnimatePresence } from 'framer-motion'
 import OhpLoader from '@/components/brand/OhpLoader'
+import OhSheet from '@/components/open-house-manager/OhSheet'
+import { useIsPhone, useLastValue } from '@/components/ui/windowMotion'
+import ShowcasesOffSheet from './components/ShowcasesOffSheet'
 
 // --- HELPERS ---
 const formatAddress = (address: string) => {
@@ -135,6 +138,10 @@ function OpenHouseContent() {
   // Kiosk Modal State - in-screen popup (like clicking into a property) instead of navigating
   // away or opening a separate browser window/tab.
   const [kioskOpenHouse, setKioskOpenHouse] = useState<OpenHouse | null>(null)
+  const kioskShown = useLastValue(kioskOpenHouse)
+  const isPhone = useIsPhone()
+  // Guests' disclosure / second-tour requests not handled yet - that section moves to the top.
+  const [requestsWaiting, setRequestsWaiting] = useState(0)
 
   // Edit Similar Properties Modal State
   const [isEditSimilarModalOpen, setIsEditSimilarModalOpen] = useState(false)
@@ -196,10 +203,16 @@ function OpenHouseContent() {
   // Closing the Visitors pop-up: once it has finished animating away, quietly refresh just that
   // open house's guest count (notes/deletes may have changed it) - no list reload, no spinner.
   const closedVisitorsFor = useRef<string | null>(null)
+  // Kept while the sheet slides away (the id clears the moment it's told to close).
+  const visitorsSheetId = useLastValue(visitorsFor)
+  const visitorsSheetOh = openHouses.find(oh => oh.id === visitorsSheetId) || null
   const closeVisitors = useCallback(() => {
     closedVisitorsFor.current = visitorsFor
     setVisitorsFor(null)
+    // Once the sheet has slid away, quietly refresh that open house's guest count.
+    window.setTimeout(() => { refreshClosedVisitorCountRef.current?.() }, 420)
   }, [visitorsFor])
+  const refreshClosedVisitorCountRef = useRef<(() => void) | null>(null)
   const refreshClosedVisitorCount = useCallback(async () => {
     const id = closedVisitorsFor.current
     closedVisitorsFor.current = null
@@ -210,6 +223,7 @@ function OpenHouseContent() {
       setOpenHouses(prev => prev.map(oh => (oh.id === id ? { ...oh, visitorCount: count } : oh)))
     }
   }, [])
+  refreshClosedVisitorCountRef.current = refreshClosedVisitorCount
 
   const handleOpenViewPDFs = useCallback((openHouse: OpenHouse) => {
     setOpenHouseForPDFs(openHouse)
@@ -247,7 +261,7 @@ function OpenHouseContent() {
   }, [openHouseForPDFs])
 
   const handleGuestSettings = useCallback((openHouse: OpenHouse, patch: GuestSettingsPatch) => {
-    const undo: GuestSettingsPatch = { autoShowcase: openHouse.autoShowcase, similarHomes: openHouse.similarHomes, afterSignin: openHouse.afterSignin ?? undefined, guestPass: openHouse.guestPass, passSignature: openHouse.passSignature }
+    const undo: GuestSettingsPatch = { autoShowcase: openHouse.autoShowcase, similarHomes: openHouse.similarHomes, afterSignin: openHouse.afterSignin ?? undefined, guestPass: openHouse.guestPass, passSignature: openHouse.passSignature, passShowcase: openHouse.passShowcase }
     const merge = (oh: OpenHouse, vals: GuestSettingsPatch) => {
       const next = { ...oh }
       if (vals.autoShowcase !== undefined) next.autoShowcase = vals.autoShowcase
@@ -255,6 +269,7 @@ function OpenHouseContent() {
       if (vals.afterSignin !== undefined) next.afterSignin = vals.afterSignin
       if (vals.guestPass !== undefined) next.guestPass = vals.guestPass
       if (vals.passSignature !== undefined) next.passSignature = vals.passSignature
+      if (vals.passShowcase !== undefined) next.passShowcase = vals.passShowcase
       return next
     }
     // The card list and the open Documents window both show these switches - keep them in step.
@@ -269,6 +284,7 @@ function OpenHouseContent() {
       ...(patch.afterSignin !== undefined ? { after_signin: patch.afterSignin } : {}),
       ...(patch.guestPass !== undefined ? { guest_pass: patch.guestPass } : {}),
       ...(patch.passSignature !== undefined ? { pass_signature: patch.passSignature } : {}),
+      ...(patch.passShowcase !== undefined ? { pass_showcase: patch.passShowcase } : {}),
     }).then(({ success }) => {
       if (!success) {
         apply(undo)
@@ -276,6 +292,17 @@ function OpenHouseContent() {
       }
     })
   }, [])
+
+  // Switching Showcases OFF asks first what guests without an agent still get on their Guest Pass
+  // (Similar homes / a build-on-tap Showcase) - user, 10/24. Everything else saves right away.
+  const [showcasesOffFor, setShowcasesOffFor] = useState<OpenHouse | null>(null)
+  const requestGuestSettings = useCallback((openHouse: OpenHouse, patch: GuestSettingsPatch) => {
+    if (patch.autoShowcase === false && openHouse.autoShowcase !== false && Object.keys(patch).length === 1) {
+      setShowcasesOffFor(openHouse)
+      return
+    }
+    handleGuestSettings(openHouse, patch)
+  }, [handleGuestSettings])
 
   const handleOpenEditSimilar = useCallback((openHouse: OpenHouse) => {
     setOpenHouseToEditSimilar(openHouse)
@@ -816,10 +843,14 @@ function OpenHouseContent() {
     setIsDeleting(true)
     const { success, error } = await api.openHouses.delete(openHouseToDelete.id)
     if (success) {
-      showToast('🗑 Listing removed successfully. All related data is preserved.', 'success')
-      await loadOpenHouseHistory()
+      // Close the window first, then take just this card out of the list - it collapses away and
+      // the rest glide up (OpenHouseHistory). No full reload: that flashed the skeletons and made
+      // the whole page jump (user, 10/24).
+      const goneId = openHouseToDelete.id
       setShowDeleteDialog(false)
       setOpenHouseToDelete(null)
+      window.setTimeout(() => setOpenHouses(prev => prev.filter(oh => oh.id !== goneId)), 180)
+      showToast('Listing removed. Its visitors, leads and notes are all kept.', 'success')
     } else {
       showToast(error || 'Failed to remove listing. Please try again.', 'error')
     }
@@ -881,10 +912,10 @@ function OpenHouseContent() {
 
       <div className="flex-1 flex flex-col w-full max-w-full overflow-x-hidden">
         <div className="flex-1 p-4 sm:p-6 pb-20 w-full">
-          <div className="max-w-7xl mx-auto w-full">
+          <div className="max-w-7xl mx-auto w-full flex flex-col">
 
             {/* Basic only: guests who'd already have a Showcase on Premium (renders nothing otherwise). */}
-            <div className="mb-6">
+            <div className="mb-6 empty:hidden">
               <MissedShowcasesBanner />
             </div>
 
@@ -900,12 +931,15 @@ function OpenHouseContent() {
             />
             </div>
 
-            <ConfirmedToHostStrip
-              openHouses={openHouses}
-              onBuild={buildKitFor}
-              onOpenKit={handleOpenViewPDFs}
-              autoBuildId={typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('build') : null}
-            />
+            {/* Opens you're approved to host come from Discovery (Bright MLS) - none on No-MLS plans. */}
+            {hasMlsAccess(currentUser?.plan_tier) && (
+              <ConfirmedToHostStrip
+                openHouses={openHouses}
+                onBuild={buildKitFor}
+                onOpenKit={handleOpenViewPDFs}
+                autoBuildId={typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('build') : null}
+              />
+            )}
 
             {/* Portfolio History */}
             <OpenHouseHistory
@@ -917,12 +951,20 @@ function OpenHouseContent() {
               onDeleteClick={handleDeleteClick}
               onOpenNoteModal={handleOpenOpenHouseNoteModal}
               onOpenKiosk={handleOpenKiosk}
-              onGuestSettings={handleGuestSettings}
+              onGuestSettings={requestGuestSettings}
               formatAddress={formatAddress}
             />
 
-            {/* Disclosure/Second-Visit Requests from Cheat Sheet QR scans */}
-            <OpenHouseFormRequestsPanel />
+            {/* Disclosure/Second-Visit Requests from Cheat Sheet QR scans - No-MLS plans have no
+                Cheat Sheet, so nothing to show there. */}
+            {/* While a guest's request is waiting on you it jumps to the very TOP of the page (user,
+                10/25 - a has-agent guest's disclosure request sat unseen at the bottom); once
+                they're all handled it settles back down here. */}
+            {hasMlsAccess(currentUser?.plan_tier) && (
+              <div className={requestsWaiting > 0 ? 'order-first mb-8 [&>section]:mt-0' : ''}>
+                <OpenHouseFormRequestsPanel limit={isPhone ? 4 : 6} onActionNeededChange={setRequestsWaiting} />
+              </div>
+            )}
 
           </div>
         </div>
@@ -980,12 +1022,11 @@ function OpenHouseContent() {
         }}
       />
 
-      {kioskOpenHouse && (
-        <KioskModal
-          url={`${kioskOpenHouse.formUrl || (kioskOpenHouse as any).form_url}?kiosk=1`}
-          onClose={handleCloseKiosk}
-        />
-      )}
+      <KioskModal
+        open={!!kioskOpenHouse}
+        url={kioskShown ? `${kioskShown.formUrl || (kioskShown as any).form_url}?kiosk=1` : ''}
+        onClose={handleCloseKiosk}
+      />
 
       {isViewPDFsModalOpen && openHouseForPDFs && (
         <ViewPDFsModal
@@ -1055,49 +1096,45 @@ function OpenHouseContent() {
         onSave={handleSaveOpenHouseNote}
       />
 
-      <AnimatePresence onExitComplete={refreshClosedVisitorCount}>
-        {visitorsFor && (
-          <motion.div
-            key="visitors"
-            className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0b0f0e]/65 p-3 sm:p-6"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
-            onClick={closeVisitors}
-          >
-            {/* A centered pop-up on phones too (not a slide-up sheet), and the X floats over the
-                corner instead of taking a column - so nothing gets pushed left (user, 10/17). */}
-            <motion.div
-              role="dialog" aria-modal="true" aria-label="Visitors"
-              onClick={e => e.stopPropagation()}
-              initial={{ opacity: 0, y: 24, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 380, damping: 32 } }}
-              exit={{ opacity: 0, y: 16, scale: 0.97, transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } }}
-              style={{ willChange: 'transform, opacity' }}
-              className="relative flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-[#faf9f7] shadow-2xl dark:bg-[#0B0B0B] sm:max-h-[92vh]"
-            >
-              <button
-                onClick={closeVisitors}
-                aria-label="Close"
-                className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-gray-500 shadow-md transition hover:rotate-90 hover:text-[#111827] dark:border-gray-700 dark:bg-[#151517] dark:hover:text-white sm:right-4 sm:top-4"
-              >
-                <X className="h-4 w-4" />
-              </button>
-              <div className="min-h-[40vh] overflow-y-auto overscroll-contain">
-                <OpenHouseVisitors openHouseEventId={visitorsFor} onClose={closeVisitors} />
-              </div>
-            </motion.div>
-          </motion.div>
+      {/* Visitors (user, 10/24): a slide-up sheet on phones that pulls down to close, a centred
+          window on a computer - the shared OhSheet, with the home's photo + address up top. */}
+      <OhSheet
+        open={!!visitorsFor}
+        onClose={closeVisitors}
+        width="max-w-6xl"
+        title="Visitors"
+        subtitle={visitorsSheetOh ? `${formatStreetAndCity(visitorsSheetOh.address, visitorsSheetOh.city)}${visitorsSheetOh.price ? ` · $${Number(visitorsSheetOh.price).toLocaleString()}` : ''}` : undefined}
+        image={visitorsSheetOh?.coverImageUrl || null}
+        badge={visitorsSheetOh ? (
+          <span className="shrink-0 rounded-full bg-[#111827] px-2 py-0.5 text-[10px] font-black tabular-nums text-[#e8c97a] dark:bg-[#e8c97a] dark:text-[#111827]">{visitorsSheetOh.visitorCount ?? 0}</span>
+        ) : undefined}
+      >
+        {visitorsSheetId && (
+          <OpenHouseVisitors
+            openHouseEventId={visitorsSheetId}
+            onClose={closeVisitors}
+            showcasesOn={visitorsSheetOh ? visitorsSheetOh.autoShowcase !== false || !!visitorsSheetOh.passShowcase : true}
+          />
+        )}
+      </OhSheet>
+
+      <ShowcasesOffSheet
+        openHouse={showcasesOffFor}
+        onClose={() => setShowcasesOffFor(null)}
+        onSave={handleGuestSettings}
+      />
+
+      <AnimatePresence>
+        {showDeleteDialog && openHouseToDelete && (
+          <DeleteConfirmationDialog
+            key="delete-oh"
+            openHouse={openHouseToDelete}
+            onConfirm={handleDeleteConfirm}
+            onCancel={() => setShowDeleteDialog(false)}
+            isDeleting={isDeleting}
+          />
         )}
       </AnimatePresence>
-
-      {showDeleteDialog && openHouseToDelete && (
-        <DeleteConfirmationDialog
-          openHouse={openHouseToDelete}
-          onConfirm={handleDeleteConfirm}
-          onCancel={() => setShowDeleteDialog(false)}
-          isDeleting={isDeleting}
-        />
-      )}
     </div>
   )
 }

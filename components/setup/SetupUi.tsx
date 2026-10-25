@@ -50,8 +50,36 @@ export function useMiniFlow(ctx: StepCtx, labels: string[]) {
   go.current = (i: number) => {
     const n = Math.max(0, Math.min(count - 1, i))
     if (n === partRef.current) return
+    // Switching pages folds the step's intro away (or back) above the tabs. That used to run while
+    // the window also smooth-scrolled to the top, so on phones the page bounced up and down (owner,
+    // 10/24). Now: tabs on screen -> they stay exactly where they are while the intro folds (the
+    // scroll is corrected every frame); tabs off screen (Next in the bottom bar) -> glide up to them
+    // once the fold is done.
+    const strip = document.querySelector<HTMLElement>('[data-mini-steps]')
+    const start = strip ? strip.getBoundingClientRect().top : null
     setPart(n)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    if (strip && start !== null && start >= 0 && start < window.innerHeight * 0.75) {
+      // Corrected right after each layout, before the frame is painted (ResizeObserver), so the tabs
+      // never visibly move; a frame loop backs it up.
+      const hold = () => {
+        if (!strip.isConnected) return
+        const d = strip.getBoundingClientRect().top - start
+        if (Math.abs(d) >= 1) window.scrollBy(0, d)
+      }
+      const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(hold) : null
+      const box = strip.closest('section') || document.body
+      ro?.observe(box)
+      Array.from(box.children).forEach(ch => ro?.observe(ch))
+      const t0 = performance.now()
+      const loop = () => { hold(); if (performance.now() - t0 < 600) requestAnimationFrame(loop); else ro?.disconnect() }
+      requestAnimationFrame(loop)
+      return
+    }
+    window.setTimeout(() => {
+      const s = document.querySelector<HTMLElement>('[data-mini-steps]')
+      if (!s) return
+      window.scrollTo({ top: Math.max(0, window.scrollY + s.getBoundingClientRect().top - 16), behavior: 'smooth' })
+    }, 320)
   }
   const key = labels.join('|')
   useEffect(() => { ctx.setMini({ part, count, labels, go: i => go.current(i) }) }, [part, key]) // eslint-disable-line react-hooks/exhaustive-deps

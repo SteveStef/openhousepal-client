@@ -17,6 +17,7 @@ import { pickBestForm } from '@/lib/studio/formFit'
 import { DESIGN_SITUATIONS, DesignMessagingVariant, DesignSituationDef, DesignSituationId, getSituation } from '@/lib/studio/designSituations'
 import { DesignTemplateDef, getTemplate, getTemplatesFor, isCompositionReady, isStyleReady, TemplateBuildOptions } from '@/lib/studio/designTemplates'
 import { DESIGN_COLOR_MODES, joinColorMode, splitColorMode } from '@/lib/studio/designColors'
+import { brandSwatch } from '@/lib/studio/designTheme'
 import { LUXE_METALS } from '@/lib/luxeMetals'
 import LuxeFinishPicker from '@/components/studio/design/LuxeFinishPicker'
 import { isLuxeDesign } from '@/lib/studio/designCompositions'
@@ -33,6 +34,8 @@ import { DesignPreview } from '@/components/studio/design/StyleThumbnail'
 import { DesignCanvasContext } from '@/components/studio/design/DesignCanvas'
 import { copyText } from '@/lib/copyText'
 import FlowDock from '@/components/ui/FlowDock'
+import { useDesignSaver } from '@/lib/studio/designDownload'
+import { backdropMotion, useSheetMotion } from '@/components/ui/windowMotion'
 import CampaignRedirectPicker, { CampaignRedirect, DEFAULT_CAMPAIGN_REDIRECT, campaignRedirectError, campaignRedirectPayload } from '@/components/forms/CampaignRedirectPicker'
 
 // The Design Studio wizard - the same flow the homepage "Our Tools" Studio demo walks through:
@@ -46,6 +49,14 @@ type StepId = 'situation' | 'format' | 'property' | 'tracking' | 'layout' | 'sty
 // right after the property - required for mailers and lead-generation pieces, optional otherwise.
 // 'crop' = frame the lead photo inside the chosen layout (drag, zoom, or show the whole photo).
 const STEP_ORDER: StepId[] = ['situation', 'format', 'property', 'tracking', 'layout', 'style', 'theme', 'crop', 'review']
+
+// Step change: the same glide both ways (custom = +1 forward / -1 back, from AnimatePresence so an
+// exiting step always knows the newest direction).
+const STEP_SLIDE = {
+  enter: (d: number) => ({ opacity: 0, x: d * 22 }),
+  center: { opacity: 1, x: 0, transition: { duration: 0.3, delay: 0.03, ease: [0.22, 1, 0.36, 1] as const } },
+  exit: (d: number) => ({ opacity: 0, x: d * -10, transition: { duration: 0.1, ease: [0.4, 0, 1, 1] as const } }),
+}
 
 // Mail pieces exist to bring in leads - they always carry a tracked form.
 const MAIL_FORMATS = new Set(['postcard', 'postcard_jumbo', 'letter_mailer', 'property_mailer', 'door_hanger'])
@@ -136,6 +147,8 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
 
   const [step, setStep] = useState<StepId>(initialStep)
   const [direction, setDirection] = useState(1)
+  const stepScrollRef = useRef<HTMLDivElement>(null)
+  const openMotion = useSheetMotion()
   const [furthest, setFurthest] = useState(STEP_ORDER.indexOf(initialStep))
   const [situationId, setSituationId] = useState<DesignSituationId | null>(seededSituation)
   const [designType, setDesignType] = useState<string | null>(seededFormat)
@@ -559,11 +572,13 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
 
   return (
     <MotionConfig reducedMotion="user">
-    <div className="fixed inset-0 z-50 flex items-stretch justify-center bg-[#0b0b0d]/70 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Create a design">
+    // Opening (owner 10/24: not smooth on a phone): the backdrop fades while the flow springs up
+    // from the bottom edge like a sheet on phones, or rises into place on a computer; closing
+    // reverses it (the dashboard wraps this in AnimatePresence).
+    <motion.div {...backdropMotion} className="fixed inset-0 z-50 flex items-stretch justify-center bg-[#0b0b0d]/70 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Create a design">
       <motion.div
-        initial={{ opacity: 0, y: 16, scale: 0.985 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        {...openMotion}
+        style={{ willChange: 'transform' }}
         className="flex h-full w-full max-w-[1320px] overflow-hidden bg-white shadow-[0_40px_120px_rgba(0,0,0,0.45)] dark:bg-[#111113] sm:h-[min(92vh,920px)] sm:rounded-[28px] sm:border sm:border-black/5 dark:sm:border-white/10"
       >
         {/* Step rail */}
@@ -646,15 +661,21 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
           </div>
 
           <div className="flex min-h-0 flex-1">
-            <div className="min-w-0 flex-1 overflow-y-auto overscroll-contain px-5 py-6 sm:px-8">
+            <div ref={stepScrollRef} className="min-w-0 flex-1 overflow-y-auto overscroll-contain px-5 py-6 sm:px-8">
               {gaps.length > 0 && !created ? <ProfileGate gaps={gaps} onSaved={reloadProfile} /> : (
-              <AnimatePresence mode="wait" custom={direction} initial={false}>
+              // Every step starts at its top (owner 10/24: Next on a phone was glitchy - the new step
+              // landed half-way down, wherever the last one had been scrolled to, then jumped). The
+              // old step fades where it is, the scroll resets while nothing is on screen, and the new
+              // one glides in a beat later - once its (heavy) live previews have mounted.
+              <AnimatePresence mode="wait" custom={direction} initial={false} onExitComplete={() => { const el = stepScrollRef.current; if (el) el.scrollTop = 0 }}>
                 <motion.div
                   key={step}
                   custom={direction}
-                  initial={{ opacity: 0, x: direction * 18 }}
-                  animate={{ opacity: 1, x: 0, transition: { duration: 0.26, ease: [0.22, 1, 0.36, 1] } }}
-                  exit={{ opacity: 0, transition: { duration: 0.07, ease: 'linear' } }}
+                  style={{ willChange: 'transform, opacity' }}
+                  variants={STEP_SLIDE}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
                 >
                   {step === 'situation' && (
                     <SituationStep selected={situationId} onPick={id => pickAndAdvance(() => selectSituation(id))} />
@@ -863,7 +884,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
                       <PreviewGrid columns={format?.orientation === 'landscape' ? 'wide' : 'five'}>
                         {DESIGN_COLOR_MODES.map(cm => {
                           const ctx = ctxFor(template, styleId, joinColorMode(cm.id, luxeMetal))
-                          const swatch: [string, string] = cm.id === 'brand' ? [brandKit?.primary_color || cm.swatch[0], brandKit?.secondary_color || cm.swatch[1]] : cm.swatch
+                          const swatch: [string, string] = cm.id === 'brand' ? brandSwatch(brandKit) : cm.swatch
                           return ctx && (
                             <PreviewTile
                               key={cm.id}
@@ -886,7 +907,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
                       </div>
                       {luxeThemeLocked && <LuxeUpgradePitch className="mt-5" feature="Studio Luxe" text={luxeMetal && baseColor !== 'luxe' ? "That's your design with a Luxe finish. Upgrade to IDX to use it - or choose None to keep going." : "That's your design in the Luxe theme. Upgrade to IDX to use it - or pick another theme to keep going."} />}
                       <p className="mt-4 text-xs font-semibold text-gray-400">
-                        Brand uses your Brand Kit colors and logo. <a href="/studio/brand-kit" target="_blank" rel="noreferrer" className="font-black text-[#8b7355] hover:underline">Edit Brand Kit</a>
+                        Brand uses your brand color (from Branding) on your print background, with your logo. <a href="/studio/brand-kit" target="_blank" rel="noreferrer" className="font-black text-[#8b7355] hover:underline">Open Branding</a>
                       </p>
                     </>
                   )}
@@ -933,7 +954,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
                   )}
 
                   {step === 'review' && template && currentCtx && format && situation && (
-                    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+                    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
                       <div className="flex items-start justify-center rounded-3xl bg-[#f4f2ee] p-5 dark:bg-black/30 sm:p-8">
                         <div className="w-full shadow-[0_24px_60px_rgba(0,0,0,0.22)]" style={{ maxWidth: format.orientation === 'portrait' ? (format.aspectRatio < 0.5 ? 240 : 420) : format.orientation === 'square' ? 520 : 760 }}>
                           <DesignPreview blocks={currentBlocks} ctx={currentCtx} rounded={false} />
@@ -1044,7 +1065,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
           </>)}
         </div>
       </motion.div>
-    </div>
+    </motion.div>
     </MotionConfig>
   )
 }
@@ -1084,7 +1105,9 @@ function OptionCard({ selected, onClick, children }: { selected: boolean; onClic
       role="button"
       tabIndex={0}
       onClick={onClick}
-      onKeyDown={e => { if (e.key === ' ') { e.preventDefault(); onClick() } }}
+      // Only a Space pressed on the card itself selects it - a Space typed in the "Write your own"
+      // box inside it bubbles up here too, and preventing it swallowed every space (10/24).
+      onKeyDown={e => { if (e.key === ' ' && e.target === e.currentTarget) { e.preventDefault(); onClick() } }}
       className={`relative cursor-pointer rounded-2xl border-2 p-4 text-left transition focus:outline-none focus-visible:ring-4 focus-visible:ring-[#C9A24D]/25 ${selected ? 'border-[#C9A24D] bg-[#C9A24D]/[0.06]' : 'border-gray-200 hover:border-gray-300 dark:border-white/10 dark:hover:border-white/20'}`}
     >
       {selected && <SelectedBadge />}
@@ -1339,7 +1362,7 @@ function CropStep({ blocks, ctx, maxWidth, hasPhoto, crop, onCrop }: {
     return <p className="rounded-2xl border-2 border-dashed border-gray-200 p-6 text-center text-sm font-semibold text-gray-500 dark:border-white/10">This design has no photo - nothing to frame. Continue to finish.</p>
   }
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div className="flex items-start justify-center rounded-3xl bg-[#f4f2ee] p-5 dark:bg-black/30 sm:p-8">
         <div
           className={`relative w-full touch-none select-none shadow-[0_24px_60px_rgba(0,0,0,0.22)] ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
@@ -1662,23 +1685,23 @@ function DoneView({ design, ctx, isPrint, portrait, narrow, square, campaign, fo
   campaign: CampaignLookup | null; formTitle: string | null; link: string | null
   onEditor: () => void; onDone: (exported: boolean) => void
 }) {
-  const [busy, setBusy] = useState<'png' | 'pdf' | null>(null)
   const [error, setError] = useState('')
   const [downloaded, setDownloaded] = useState(false)
   const [copied, setCopied] = useState(false)
+  // Phones: the Share sheet ("Save Image"), with the file made ahead of time (lib/studio/designDownload).
+  const saver = useDesignSaver()
+  const busy = saver.busy
+  useEffect(() => {
+    saver.prebuild(design.id, 'png')
+    if (isPrint) saver.prebuild(design.id, 'pdf')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [design.id])
   const download = async (kind: 'png' | 'pdf') => {
-    setBusy(kind)
     setError('')
-    const res = kind === 'png' ? await api.designs.exportPng(design.id) : await api.designs.exportPdf(design.id)
-    setBusy(null)
+    const r = await saver.save(design.id, design.name, kind)
     // The raw server message ("PNG export failed: Page.goto: Timeout...") means nothing to an agent.
-    if (!res.success || !res.blob) { setError("We couldn't make the file just now. Try again in a moment - or open the editor and download it there."); return }
-    const url = URL.createObjectURL(res.blob)
-    const link = document.createElement('a')
-    link.download = `${design.name || 'design'}.${kind}`
-    link.href = url
-    link.click()
-    window.setTimeout(() => URL.revokeObjectURL(url), 2000)
+    if (r === 'error') { setError("We couldn't make the file just now. Try again in a moment - or open the editor and download it there."); return }
+    if (r === 'cancelled') return
     setDownloaded(true)
     if (design.status === 'DRAFT') void api.designs.updateStatus(design.id, 'EXPORTED')
   }
@@ -1689,12 +1712,14 @@ function DoneView({ design, ctx, isPrint, portrait, narrow, square, campaign, fo
         <h2 className="mt-1 font-serif text-2xl font-black leading-tight text-[#111827] dark:text-white sm:text-[28px]">Happy with this design?</h2>
         <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">Download it now - or edit it to swap the photo, change the words or price, or try another look.</p>
       </header>
-      <div className="grid min-h-0 flex-1 gap-8 overflow-y-auto px-5 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+      {/* grid-cols-1 = minmax(0,1fr): an auto column grew to the design's own width on phones and
+          the whole screen scrolled sideways (owner 10/24). */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-8 overflow-y-auto overflow-x-hidden px-5 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <motion.div
           initial={{ opacity: 0, scale: 0.97, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-          className="flex items-start justify-center rounded-3xl bg-[#f4f2ee] p-5 dark:bg-black/30 sm:p-8"
+          className="flex min-w-0 items-start justify-center rounded-3xl bg-[#f4f2ee] p-4 dark:bg-black/30 sm:p-8"
         >
           <div className="w-full shadow-[0_24px_60px_rgba(0,0,0,0.22)]" style={{ maxWidth: portrait ? (narrow ? 240 : 420) : square ? 520 : 760 }}>
             <DesignPreview blocks={design.blocks} ctx={ctx} rounded={false} />
@@ -1704,7 +1729,7 @@ function DoneView({ design, ctx, isPrint, portrait, narrow, square, campaign, fo
           initial={{ opacity: 0, x: 16 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.35, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
-          className="space-y-3"
+          className="min-w-0 space-y-3"
         >
           <p className="text-[11px] font-black uppercase tracking-[0.16em] text-gray-400">Looks good</p>
           {isPrint && (
@@ -1715,14 +1740,15 @@ function DoneView({ design, ctx, isPrint, portrait, narrow, square, campaign, fo
           {isPrint && (
             <button type="button" onClick={() => download('pdf')} disabled={!!busy} className="flex w-full items-center gap-3 rounded-2xl bg-[#111827] px-4 py-3.5 text-left text-white shadow-sm transition hover:bg-black disabled:opacity-60 dark:bg-white dark:text-[#111827]">
               {busy === 'pdf' ? <Loader2 className="h-5 w-5 shrink-0 animate-spin" /> : <Printer className="h-5 w-5 shrink-0" />}
-              <span><span className="block text-sm font-black">Download print-ready PDF</span><span className="block text-[11px] font-semibold opacity-60">Exact size, 300 DPI - send to your printer</span></span>
+              <span><span className="block text-sm font-black">{saver.phone ? 'Save' : 'Download'} print-ready PDF</span><span className="block text-[11px] font-semibold opacity-60">Exact size, 300 DPI - send to your printer</span></span>
             </button>
           )}
           <button type="button" onClick={() => download('png')} disabled={!!busy} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left shadow-sm transition disabled:opacity-60 ${isPrint ? 'border border-gray-200 bg-white text-[#111827] hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/5 dark:text-white' : 'bg-[#111827] text-white hover:bg-black dark:bg-white dark:text-[#111827]'}`}>
             {busy === 'png' ? <Loader2 className="h-5 w-5 shrink-0 animate-spin" /> : <Download className="h-5 w-5 shrink-0" />}
-            <span><span className="block text-sm font-black">Download PNG</span><span className="block text-[11px] font-semibold opacity-60">{isPrint ? 'Full resolution image' : 'Ready to post - full resolution'}</span></span>
+            <span><span className="block text-sm font-black">{saver.phone ? 'Save image' : 'Download PNG'}</span><span className="block text-[11px] font-semibold opacity-60">{isPrint ? 'Full resolution image' : 'Ready to post - full resolution'}</span></span>
           </button>
-          {downloaded && <p className="text-xs font-bold text-emerald-600">Downloaded - it’s saved in your designs too.</p>}
+          {downloaded && <p className="text-xs font-bold text-emerald-600">{saver.phone ? 'Saved' : 'Downloaded'} - it’s in your designs too.</p>}
+          {saver.sheet}
           {error && (
             <div className="rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600 dark:bg-red-500/10 dark:text-red-400">
               {error}

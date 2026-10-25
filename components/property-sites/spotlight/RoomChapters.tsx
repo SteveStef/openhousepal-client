@@ -36,6 +36,9 @@ export default function RoomChapters({ chapters, onOpen, tone, labelClass = '', 
   )
 }
 
+// How long each room photo stays before the next dissolves in (user, 10/24: 30% faster - was 5.2s).
+const SLIDE_MS = 3640
+
 function Room({ ch, n, total, roman, flip, onOpen, labelClass }: {
   ch: PropertySiteChapter; n: string; total: string; roman: boolean; flip: boolean; labelClass: string
   onOpen: (photos: string[], i: number, title: string) => void
@@ -44,19 +47,24 @@ function Room({ ch, n, total, roman, flip, onOpen, labelClass }: {
   const [active, setActive] = useState(0)
   const [inView, setInView] = useState(false)
   const [open, setOpen] = useState(false)
+  const [reduced, setReduced] = useState(false)
   const ref = useRef<HTMLElement>(null)
+  useEffect(() => { setReduced(window.matchMedia('(prefers-reduced-motion: reduce)').matches) }, [])
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0.35 })
+    // Starts as soon as the room's top reaches the middle of the screen (user, 10/24 - it used to
+    // wait until a third of the whole, very tall, room was showing, i.e. nearly centred).
+    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { rootMargin: '0px 0px -45% 0px', threshold: 0 })
     io.observe(el)
     return () => io.disconnect()
   }, [])
+  const playing = inView && photos.length > 1 && !reduced
   useEffect(() => {
-    if (!inView || photos.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const t = window.setTimeout(() => setActive(a => (a + 1) % photos.length), 5200)
+    if (!playing) return
+    const t = window.setTimeout(() => setActive(a => (a + 1) % photos.length), SLIDE_MS)
     return () => window.clearTimeout(t)
-  }, [inView, active, photos.length])
+  }, [playing, active, photos.length])
   const long = (ch.copy || '').length > 220
   return (
     <article ref={ref} id={`room-${ch.id}`} className={`rc-room ${flip ? 'is-flip' : ''} ${inView ? 'is-in' : ''}`}>
@@ -73,6 +81,12 @@ function Room({ ch, n, total, roman, flip, onOpen, labelClass }: {
         <button type="button" className="rc-tap" onClick={() => onOpen(ch.photos, active, ch.label)} aria-label={`See all ${ch.label} photos`} />
         <span className={`rc-badge ${labelClass}`}>{roman ? <>Chapter {n}</> : <>{n}<i>/ {total}</i></>}</span>
         <h3 className="sp-display rc-title-m">{ch.label}</h3>
+        {/* A thin line along the photo's bottom edge that fills until the next photo comes in. */}
+        {photos.length > 1 && !reduced && (
+          <span className="rc-bar" aria-hidden>
+            <i key={`${active}-${playing}`} style={{ animationDuration: `${SLIDE_MS}ms`, animationPlayState: playing ? 'running' : 'paused' }} />
+          </span>
+        )}
       </div>
       <div className="rc-body">
         {roman
@@ -90,7 +104,7 @@ function Room({ ch, n, total, roman, flip, onOpen, labelClass }: {
             {photos.map((src, j) => (
               <button key={src + j} onClick={() => setActive(j)} className={j === active ? 'is-on' : ''} aria-label={`Show photo ${j + 1}`}>
                 <img src={src} alt="" loading="lazy" />
-                {j === active && <i key={active} />}
+                {j === active && <i key={`${active}-${playing}`} style={{ animationPlayState: playing ? 'running' : 'paused' }} />}
               </button>
             ))}
           </div>
@@ -114,8 +128,14 @@ const RC_CSS = `
 .rc-index a{font-size:11px;letter-spacing:.08em;padding:7px 12px;border:1px solid rgba(255,255,255,.14);border-radius:999px;opacity:.8;transition:opacity .25s,border-color .25s,background .25s}
 .rc-index a:hover{opacity:1;border-color:var(--sp-accent,#C9A24D);background:rgba(255,255,255,.05)}
 .rc-index b{font-weight:600;color:var(--sp-accent,#C9A24D);margin-right:4px}
+/* Phones + tablets: no room shortcuts row (user, 10/24) - the rooms simply follow one another. */
+@media(max-width:1023px){.rc-index{display:none}}
 .rc-room{position:relative;overflow:hidden;scroll-margin-top:64px}
-.rc-photo{position:relative;height:74svh;min-height:400px;max-height:760px}
+/* overflow:hidden - the slowly zooming photos are scaled past the panel; unclipped, a strip of
+   un-shaded photo showed below the room's name (user, 10/24). */
+.rc-photo{position:relative;height:74svh;min-height:400px;max-height:760px;overflow:hidden}
+.rc-bar{position:absolute;left:0;right:0;bottom:0;z-index:3;height:2px;background:rgba(255,255,255,.16);pointer-events:none}
+.rc-bar i{display:block;height:100%;width:100%;background:var(--sp-accent,#C9A24D);transform-origin:0 50%;animation-name:rcFill;animation-timing-function:linear;animation-fill-mode:both;box-shadow:0 0 8px color-mix(in srgb,var(--sp-accent,#C9A24D) 70%,transparent)}
 .rc-media{position:absolute;inset:0}
 .rc-tap{position:absolute;inset:0;z-index:1}
 .rc-badge{position:absolute;left:16px;top:16px;z-index:2;display:inline-flex;align-items:baseline;gap:5px;padding:7px 12px;border-radius:999px;background:var(--sp-accent,#C9A24D);color:var(--sp-on-accent,#111);font-size:13px;font-weight:700;letter-spacing:.06em;box-shadow:0 8px 22px -8px rgba(0,0,0,.6)}
@@ -130,11 +150,13 @@ const RC_CSS = `
   .rc-room .rc-num,.rc-room .rc-title{display:block}
   .rc-room .rc-chapter{display:inline-block}
 }
-.rc-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.1);transition:opacity 1.4s cubic-bezier(.4,0,.2,1),transform 9s cubic-bezier(.2,.6,.2,1)}
+.rc-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.1);transition:opacity 1.2s cubic-bezier(.4,0,.2,1),transform 6.3s cubic-bezier(.2,.6,.2,1)}
 .rc-media img.is-on{opacity:1;transform:scale(1.0)}
-.rc-shade{position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.7) 0%,rgba(0,0,0,.18) 30%,rgba(0,0,0,0) 50%),linear-gradient(180deg,rgba(0,0,0,.25) 0%,rgba(0,0,0,0) 22%)}
+/* Phones: the shade runs into the page's own colour at the very bottom, so the photo melts into the
+   words below it with no hard edge or bright line. */
+.rc-shade{position:absolute;inset:-1px 0;background:linear-gradient(0deg,#0A0A0A 0%,rgba(10,10,10,.78) 12%,rgba(0,0,0,.3) 34%,rgba(0,0,0,0) 55%),linear-gradient(180deg,rgba(0,0,0,.25) 0%,rgba(0,0,0,0) 22%)}
 @media(min-width:1024px){.rc-shade{background:linear-gradient(90deg,rgba(0,0,0,.86) 0%,rgba(0,0,0,.55) 38%,rgba(0,0,0,0) 70%)}.rc-room.is-flip .rc-shade{background:linear-gradient(270deg,rgba(0,0,0,.86) 0%,rgba(0,0,0,.55) 38%,rgba(0,0,0,0) 70%)}}
-.rc-deep .rc-shade{background:linear-gradient(0deg,rgba(9,21,19,.75) 0%,rgba(9,21,19,.2) 30%,rgba(9,21,19,0) 50%),linear-gradient(180deg,rgba(9,21,19,.25) 0%,rgba(9,21,19,0) 22%)}
+.rc-deep .rc-shade{background:linear-gradient(0deg,#0e1d1b 0%,rgba(14,29,27,.8) 12%,rgba(9,21,19,.32) 34%,rgba(9,21,19,0) 55%),linear-gradient(180deg,rgba(9,21,19,.25) 0%,rgba(9,21,19,0) 22%)}
 @media(min-width:1024px){.rc-deep .rc-shade{background:linear-gradient(90deg,rgba(9,21,19,.9) 0%,rgba(9,21,19,.55) 38%,rgba(9,21,19,0) 70%)}.rc-deep .rc-room.is-flip .rc-shade{background:linear-gradient(270deg,rgba(9,21,19,.9) 0%,rgba(9,21,19,.55) 38%,rgba(9,21,19,0) 70%)}}
 .rc-body{position:relative;z-index:2;width:100%;max-width:560px;padding:4px 20px 40px}
 .rc-body>.rc-copy-wrap .rc-copy{margin-top:16px}
@@ -156,10 +178,10 @@ const RC_CSS = `
 .rc-strip button:hover{opacity:.85}
 .rc-strip button.is-on{opacity:1;outline-color:var(--sp-accent,#C9A24D)}
 .rc-strip img{width:100%;height:100%;object-fit:cover}
-.rc-strip i{position:absolute;left:0;bottom:0;height:2px;width:100%;background:var(--sp-accent,#C9A24D);transform-origin:0 50%;animation:rcFill 5.2s linear both}
+.rc-strip i{position:absolute;left:0;bottom:0;height:2px;width:100%;background:var(--sp-accent,#C9A24D);transform-origin:0 50%;animation:rcFill ${SLIDE_MS}ms linear both}
 @keyframes rcFill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 .rc-open{display:inline-flex;align-items:center;gap:8px;margin-top:22px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;padding:10px 16px;border:1px solid rgba(255,255,255,.3);border-radius:999px;opacity:0;transition:opacity .9s ease .45s,border-color .25s,background .25s}
 .rc-deep .rc-open{border-radius:0}
 .rc-open:hover{border-color:var(--sp-accent,#C9A24D);background:rgba(255,255,255,.06)}
-@media(prefers-reduced-motion:reduce){.rc-media img{transition:opacity .4s ease;transform:none}.rc-num,.rc-title,.rc-copy-wrap,.rc-strip,.rc-open{opacity:1;transform:none;transition:none}.rc-strip i{animation:none}}
+@media(prefers-reduced-motion:reduce){.rc-media img{transition:opacity .4s ease;transform:none}.rc-num,.rc-title,.rc-copy-wrap,.rc-strip,.rc-open{opacity:1;transform:none;transition:none}.rc-strip i,.rc-bar i{animation:none}}
 `

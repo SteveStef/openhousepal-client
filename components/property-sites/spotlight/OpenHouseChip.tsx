@@ -28,7 +28,9 @@ export function openHouseState(oh: PropertySiteOpenHouse, now = new Date()): Sta
   return 'today'
 }
 
-export default function OpenHouseChip({ oh, className, onClick }: { oh: PropertySiteOpenHouse; className: string; onClick?: () => void }) {
+// dateOnly: the header pill (user, 10/24) - just the day, no hours; the times are one tap away in
+// the open-house rows right under the header.
+export default function OpenHouseChip({ oh, className, onClick, dateOnly = false }: { oh: PropertySiteOpenHouse; className: string; onClick?: () => void; dateOnly?: boolean }) {
   // Server render shows the date; the live state settles in on the visitor's own clock.
   const [state, setState] = useState<State>('later')
   useEffect(() => {
@@ -38,8 +40,8 @@ export default function OpenHouseChip({ oh, className, onClick }: { oh: Property
     return () => window.clearInterval(t)
   }, [oh])
   if (state === 'over') return null
-  const time = fmtTimeRange(oh.start_time, oh.end_time)
-  const end = fmtTimeRange(oh.end_time, null)
+  const time = dateOnly ? null : fmtTimeRange(oh.start_time, oh.end_time)
+  const end = dateOnly ? null : fmtTimeRange(oh.end_time, null)
   return (
     <button onClick={onClick} className={`${className} ohc ${state === 'now' ? 'is-now' : ''}`}>
       <style>{`.ohc{display:inline-flex;align-items:center;gap:7px}.ohc i{position:relative;display:inline-block;width:7px;height:7px;border-radius:999px;background:#22c55e}.ohc i:after{content:"";position:absolute;inset:-4px;border-radius:999px;background:#22c55e;opacity:.5;animation:ohcPing 1.6s ease-out infinite}@keyframes ohcPing{from{transform:scale(.4);opacity:.6}to{transform:scale(1.6);opacity:0}}@media(prefers-reduced-motion:reduce){.ohc i:after{animation:none}}`}</style>

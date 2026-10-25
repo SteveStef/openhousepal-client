@@ -119,7 +119,7 @@ export function useToolConnectionStatus(planTier?: string): ToolConnectionStatus
         ? 'Collecting reviews - no Google/Zillow link yet'
         : 'Not set up yet'
   const reviewsDetail = !reviewsAvailable
-    ? 'Available on Premium & IDX'
+    ? (planTier === 'NO_MLS' ? 'Available on No-MLS Premium' : 'Available on Premium & IDX')
     : `${reviewsSummary?.received ?? 0} review${reviewsSummary?.received === 1 ? '' : 's'} received · 1-3★ stay private`
 
   // ---- Follow-ups

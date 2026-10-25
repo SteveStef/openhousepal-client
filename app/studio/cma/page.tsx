@@ -18,6 +18,7 @@ import StudioPageHeader from '@/components/studio/StudioPageHeader'
 import { LuxeTabs } from '@/components/ui/LuxeHero'
 import { AlertTriangle, CheckCircle2, LayoutGrid, PenLine, Sparkles } from 'lucide-react'
 import { estimatedProgress, estimatedTimeLeft } from '@/lib/cmaProgress'
+import { isTouchPhone, saveFile } from '@/lib/mobileShare'
 
 // Which finished AI runs the agent has already opened from this list (per browser): report id ->
 // the generation_started_at of the run they saw. A run that finished in the last few hours and
@@ -212,9 +213,20 @@ function CmaDashboardInner() {
     setShareLinks(buildShareLinks(slug))
   }
 
+  // Same as the PDF button inside a CMA (user, 10/24): a computer downloads it straight away; a
+  // phone hands it to the Share sheet (Save to Files, AirDrop, Mail...) and it never opens in this
+  // tab. A phone only allows the Share sheet during the tap itself and the PDF takes a few seconds
+  // to build, so when the tap has expired by then the button turns into "Save" - one more tap.
+  const [readyPdf, setReadyPdf] = useState<{ id: string, blob: Blob, name: string } | null>(null)
   const handleDownload = async (report: CmaReportListItem, event: React.MouseEvent) => {
     event.preventDefault()
     event.stopPropagation()
+    if (readyPdf?.id === report.id) {
+      const ready = readyPdf
+      setReadyPdf(null)
+      await saveFile(ready.blob, ready.name)
+      return
+    }
     if (!agent) {
       showToast('Agent details are still loading. Try again in a moment.', 'error')
       return
@@ -230,14 +242,13 @@ function CmaDashboardInner() {
       const fullReport = response.data as CmaReport
       const fileName = `CMA-${(fullReport.subject?.street_address || 'Report').replace(/[^a-z0-9]+/gi, '-')}.pdf`
       const blob = await pdf(<CmaPresentationDocument report={fullReport as any} agent={agent} />).toBlob()
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = fileName
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      URL.revokeObjectURL(url)
+      const tapStillLive = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation?.isActive
+      if (isTouchPhone() && !tapStillLive) {
+        setReadyPdf({ id: report.id, blob, name: fileName })
+        showToast('Your PDF is ready - tap Save to keep it.', 'success')
+      } else {
+        await saveFile(blob, fileName)
+      }
     } catch {
       showToast('Could not generate this CMA PDF.', 'error')
     } finally {
@@ -427,16 +438,18 @@ function CmaDashboardInner() {
                       </div>
                     </div>
                   )}
-                  {readyBadge && (
-                    <span className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-2 py-1 text-[9px] font-black uppercase tracking-wide text-[#111827] shadow">
-                      <Sparkles className="h-3 w-3" /> AI ready
-                    </span>
-                  )}
-                  <div className="absolute left-2.5 top-2.5 flex items-center gap-1.5">
-                    <span className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide shadow ${CMA_STATUS_STYLES[report.status]}`}>
+                  {/* Status on the left, Buyer/Listing on the right, "AI ready" in the middle -
+                      they used to pile up on top of each other in the top-right (user, 10/24). */}
+                  <div className="absolute inset-x-2 top-2 grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:inset-x-2.5 sm:top-2.5">
+                    <span className={`justify-self-start rounded-full px-2 py-1 text-[8.5px] font-black uppercase leading-none tracking-wide shadow sm:px-2.5 sm:text-[9px] ${CMA_STATUS_STYLES[report.status]}`}>
                       {report.status.toLowerCase()}
                     </span>
-                    <span className="rounded-full bg-black/60 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-white shadow">
+                    {readyBadge ? (
+                      <span className="inline-flex items-center gap-0.5 whitespace-nowrap rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-1.5 py-1 text-[8.5px] font-black uppercase leading-none tracking-wide text-[#111827] shadow sm:gap-1 sm:px-2 sm:text-[9px]">
+                        <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> AI ready
+                      </span>
+                    ) : <span />}
+                    <span className="justify-self-end rounded-full bg-black/60 px-2 py-1 text-[8.5px] font-black uppercase leading-none tracking-wide text-white shadow sm:px-2.5 sm:text-[9px]">
                       {report.mode === 'buyer' ? 'Buyer' : 'Listing'}
                     </span>
                   </div>
@@ -492,11 +505,11 @@ function CmaDashboardInner() {
                   </button>
                   <button
                     onClick={event => handleDownload(report, event)}
-                    title="Download PDF"
+                    title={readyPdf?.id === report.id ? 'Save the PDF' : 'Download PDF'}
                     disabled={downloadingId === report.id || !agent}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-1.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-gray-600 transition hover:border-[#C9A24D] hover:text-[#8b7355] disabled:opacity-60 dark:border-gray-700 dark:text-gray-300"
+                    className={`inline-flex items-center justify-center gap-1 rounded-lg border px-1.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition disabled:opacity-60 ${readyPdf?.id === report.id ? 'animate-pulse border-[#C9A24D] bg-[#C9A24D] text-[#111827]' : 'border-gray-200 text-gray-600 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-300'}`}
                   >
-                    {downloadingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                    {downloadingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : readyPdf?.id === report.id ? <><Check className="h-3.5 w-3.5" strokeWidth={3} /> Save</> : <Download className="h-3.5 w-3.5" />}
                   </button>
                   {/* Same sliding switch as the Review step's Share section - which state is
                       active reads at a glance instead of needing to compare two small icon
@@ -508,7 +521,7 @@ function CmaDashboardInner() {
                     aria-label="Toggle visitor default theme"
                     aria-pressed={report.default_theme !== 'light'}
                     className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full p-0.5 transition-colors ${
-                      report.default_theme === 'light' ? 'bg-gray-200 dark:bg-gray-700' : 'bg-[#111827]'
+                      report.default_theme === 'light' ? 'bg-gray-200 ring-1 ring-inset ring-black/5 dark:bg-gray-600 dark:ring-white/20' : 'bg-[#111827] ring-1 ring-inset ring-[#C9A24D]/40 dark:bg-[#C9A24D]/35 dark:ring-[#C9A24D]/60'
                     }`}
                   >
                     <span

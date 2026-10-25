@@ -17,11 +17,13 @@ import OhpLoader from '@/components/brand/OhpLoader'
 import NewListingSpotlightCard from '@/components/dash/NewListingSpotlightCard'
 import SetupChecklistCard from '@/components/dash/SetupChecklistCard'
 import DomainHealthBanner from '@/components/DomainHealthBanner'
+import EmailHealthBanner from '@/components/EmailHealthBanner'
 import StatCard from '@/components/stats/StatCard'
 import { useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
 import DashLeadCard from '@/components/dash/DashLeadCard'
 import LeadDetailModal from '@/components/leads/LeadDetailModal'
 import DashActivityFeed from '@/components/dash/DashActivityFeed'
+import { RundownDashCard } from '@/components/rundown/TodaysRundown'
 import { DiscoveryListing } from '@/components/dash/DashOpensPanel'
 import { DiscoveryListingStatus } from '@/components/dash/DashDiscoveryPanel'
 import DashManagerCard from '@/components/dash/DashManagerCard'
@@ -30,7 +32,7 @@ import DashDiscoveryCard from '@/components/dash/DashDiscoveryCard'
 import TasksPanel, { CalendarChip } from '@/components/tasks/TasksPanel'
 import { useFollowupsEnabled } from '@/components/tasks/FollowupsSwitch'
 import ScrollableSection from '@/components/dash/ScrollableSection'
-import { getNavFeatureAccess, type NavFeatureKey } from '@/lib/navAccess'
+import { getNavFeatureAccess, hasMlsAccess, hasAgentHubAccess, hasStudioDesignAccess, type NavFeatureKey } from '@/lib/navAccess'
 import { AUTO_HIDE_WHEN_READ_TYPES, visibleNotifications } from '@/lib/notificationDisplay'
 
 const STAT_CARDS: { metric: keyof StatSummary; label: string; icon: React.ComponentType<{ className?: string }>; isPercent?: boolean }[] = [
@@ -170,7 +172,14 @@ export default function DashPage() {
   }, [])
   useEffect(() => { if (!user?.is_admin) refreshFollowupCount() }, [refreshFollowupCount, user?.is_admin])
 
+  // No-MLS plans (both tiers) never touch Discovery / the Manager - those are built on Bright MLS
+  // data. Skip those calls entirely (they'd only 403 every poll) and hide their panels below.
+  const mlsPlan = hasMlsAccess(user?.plan_tier)
+  const mlsPlanRef = useRef(mlsPlan)
+  mlsPlanRef.current = mlsPlan
   const loadDashData = useCallback(async (isFirstLoad = false) => {
+    const mls = mlsPlanRef.current
+    const skip: Promise<unknown> = Promise.resolve({ success: false, data: null })
     const [statsRes, attentionLeadsRes, recentLeadsRes, activityNotificationsRes, hostRequestsRes, discoveryRes, myListingsRes] = await Promise.all([
       api.stats.getSummary(),
       // Unlimited - every lead needing attention, however many that is, always shown (and always
@@ -185,12 +194,12 @@ export default function DashPage() {
       // 6 highest-priority leads' own last-touch date, which could scatter across many
       // unrelated days instead of reflecting today's real activity).
       api.notifications.getAll(false, 30),
-      api.openHouseManager.getHostRequests('pending'),
-      api.discovery.get(),
-      api.openHouseManager.getMyListings(),
+      mls ? api.openHouseManager.getHostRequests('pending') : (skip as ReturnType<typeof api.openHouseManager.getHostRequests>),
+      mls ? api.discovery.get() : (skip as ReturnType<typeof api.discovery.get>),
+      mls ? api.openHouseManager.getMyListings() : (skip as ReturnType<typeof api.openHouseManager.getMyListings>),
     ])
-    // Not in the Promise.all above: the No-MLS plans get a 403 here, which must never hold up Dash.
-    api.openHouseManager.getMyRequests().then(r => { if (r.success && r.data) setMyHostRequests(r.data) }).catch(() => {})
+    // Not in the Promise.all above: must never hold up Dash.
+    if (mls) api.openHouseManager.getMyRequests().then(r => { if (r.success && r.data) setMyHostRequests(r.data) }).catch(() => {})
 
     if (statsRes.success && statsRes.data) setStatSummary(statsRes.data)
     if (attentionLeadsRes.success && attentionLeadsRes.data) {
@@ -306,7 +315,11 @@ export default function DashPage() {
   // the matching max-h-[430px] on both ScrollableSections below. 21 = 3x that, same ratio as Leads.
   // AI Video alerts drop out once seen (see lib/notificationDisplay.tsx) rather than just
   // graying out like every other type - viewing them here counts as "seen" too (below).
-  const topActivityNotifications = visibleNotifications(activityNotifications).slice(0, 21)
+  // Invites (user, 10/24): RSVPs show here like form responses, but a "Can't make it" stays off the
+  // dashboard - it's on the bell, the Activity page and the Invites tab (its red count) instead.
+  const topActivityNotifications = visibleNotifications(activityNotifications)
+    .filter(n => !(n.type === 'INVITE_RSVP' && /can't make it/i.test(n.title || '')))
+    .slice(0, 21)
 
   useEffect(() => {
     const hasUnseenAutoHide = activityNotifications.some(n => AUTO_HIDE_WHEN_READ_TYPES.has(n.type) && !n.isRead)
@@ -340,7 +353,9 @@ export default function DashPage() {
         title="Leads" icon={Mail} viewHref="/leads" badgeCount={newLeadsCount} badgeExact
         status={newLeadsCount ? `${newLeadsCount} unread` : 'All caught up'} statusTone={newLeadsCount ? 'red' : 'green'}
         isEmpty={topNewLeads.length === 0}
-        emptyLabel="New leads will show up here — open house sign-ins, form fills, and inquiries from your Agent Hub, the moment someone reaches out."
+        emptyLabel={hasAgentHubAccess(user?.plan_tier) || mlsPlan
+          ? 'New leads will show up here — open house sign-ins, form fills, and inquiries from your Agent Hub, the moment someone reaches out.'
+          : 'New leads will show up here — open house sign-ins, form fills and invite replies, the moment someone reaches out.'}
       >
         <ScrollableSection maxHeightClass="max-h-[430px]" viewHref="/leads" viewLabel="View all leads">
           <div className="flex min-w-0 flex-col gap-2.5">
@@ -362,7 +377,7 @@ export default function DashPage() {
         />
       ),
     } : {}),
-    'Open House Discovery': (
+    ...(mlsPlan ? { 'Open House Discovery': (
       <DashDiscoveryCard
         listings={discoveryListings}
         statuses={discoveryListingStatuses}
@@ -372,7 +387,7 @@ export default function DashPage() {
         counteredAsHost={counteredAsHost}
         incomingAsks={incomingAsks}
       />
-    ),
+    ) } : {}),
   }
 
   // Follow-ups is deliberately NOT part of the draggable two-column set above - its position is
@@ -381,6 +396,12 @@ export default function DashPage() {
   // tucked full-width at the bottom, out of the way, once the agent is caught up. Defaults to the
   // bottom while the count is still loading (null) so it doesn't pop to the top and then back down.
   const followupsAtTop = followupsOn && (followupOpenCount ?? 0) > 0
+  // No-MLS track: drop the stat tiles for features that plan doesn't have (plain No-MLS has no
+  // Agent Hub or Blogs). Bright tiers keep every tile (Basic's are the upgrade nudge).
+  const hiddenStats = new Set<keyof StatSummary>(mlsPlan || !user?.plan_tier ? [] : [
+    ...(hasAgentHubAccess(user.plan_tier) ? [] : ['agent_hub_visits' as const]),
+    ...(hasStudioDesignAccess(user.plan_tier) ? [] : ['blog_reads' as const]),
+  ])
   // Hide/show for this visit only - coming back to Dash (or reloading) opens it again, so what's
   // due is always in front of the agent.
   const [followupsHidden, setFollowupsHidden] = useState(false)
@@ -462,16 +483,20 @@ export default function DashPage() {
           />
         </motion.div>
 
+        {/* Today's Rundown - the daily briefing in the app, always one tap away (opens in place). */}
+        <RundownDashCard className="mt-4" />
+
         {/* The setup flow - every step for this plan, until all are done (skipped ones stay as chips). */}
         <DomainHealthBanner className="mt-4" />
+        <EmailHealthBanner className="pt-4" />
         <SetupChecklistCard className="mt-4" />
 
         {/* KPI strip */}
         {statSummary && (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="mt-4 grid min-w-0 grid-cols-3 gap-1.5 max-sm:hidden sm:gap-2.5 lg:grid-cols-6">
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className={`mt-4 grid min-w-0 grid-cols-3 gap-1.5 max-sm:hidden sm:gap-2.5 ${hiddenStats.size === 2 ? 'sm:grid-cols-4' : hiddenStats.size === 1 ? 'lg:grid-cols-5' : 'lg:grid-cols-6'}`}>
             {statDrag.order.map(metric => {
               const card = STAT_CARDS.find(c => c.metric === metric)
-              if (!card) return null
+              if (!card || hiddenStats.has(card.metric)) return null
               const { metric: cardMetric, label, icon, isPercent } = card
               return (
                 <div key={metric} {...statDrag.dragProps(metric)} className={`group relative min-w-0 cursor-grab rounded-xl active:cursor-grabbing ${statDrag.draggedId === metric ? 'opacity-40' : ''}`}>

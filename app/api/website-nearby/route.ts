@@ -13,6 +13,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ detail: 'Missing required nearby search parameters.' }, { status: 422 })
   }
 
+  // A Guest Pass (user, 10/24): site_id carries the pass's signed token - same budget-gated search,
+  // around the open house the guest signed in at.
+  if (kind.startsWith('guest_pass')) {
+    const t = encodeURIComponent(siteId)
+    let gpPath: string
+    if (kind === 'guest_pass_availability') gpPath = `/guest-pass/${t}/nearby/availability`
+    else if (kind === 'guest_pass_place_details') {
+      const placeId = params.get('place_id') || ''
+      if (!placeId) return NextResponse.json({ detail: 'Missing place ID.' }, { status: 422 })
+      gpPath = `/guest-pass/${t}/places/${encodeURIComponent(placeId)}/details`
+    } else {
+      if (!category) return NextResponse.json({ detail: 'Missing nearby category.' }, { status: 422 })
+      gpPath = `/guest-pass/${t}/nearby?${new URLSearchParams({ category })}`
+    }
+    const res = await fetch(`${INTERNAL_API_URL}${gpPath}`, { cache: 'no-store' })
+    const body = await res.json().catch(() => ({ detail: 'Nearby places are unavailable right now.' }))
+    return NextResponse.json(body, { status: res.status })
+  }
+
   // Spotlight (single-property) sites live in a separate table/id-space from the older
   // website-builder Site model, so they get their own backend prefix - everything else about
   // this proxy (budget gating, response shape) is identical either way.

@@ -2,6 +2,7 @@ import { BrandKit, DesignColorMode, DesignStyleId } from '@/types'
 import { DESIGN_FONTS } from '@/lib/studio/designFonts'
 import { isDark, relativeLuminance, splitColorMode } from '@/lib/studio/designColors'
 import { LUXE_METALS, type LuxeMetal } from '@/lib/luxeMetals'
+import { brandClassicAccent } from '@/lib/brandKit'
 
 // The fully-resolved look of one design: Style (typography system + ornament language) composed
 // with Color (a curated palette). Every composition in DesignCanvas.tsx reads ONLY from this, so
@@ -75,12 +76,32 @@ function contrastRatio(a: string, b: string): number {
 // accent - but only where it's actually legible. A brand secondary that doesn't clear 2.4:1 against
 // the background falls back to a tint of the text color instead, so no Brand Kit (however light,
 // dark or saturated) can produce an unreadable kicker or price.
+// The Brand color is EXACTLY the one in Branding (owner 10/24: "Brand doesn't match my Brand Kit
+// color"): the Classic color made safe for buttons (brandDesignAccent), or the Luxe finish when the
+// brand look is Luxe. When it can't be read on the print background it stays the same hue, just
+// lighter / deeper - never swapped for a tint of the background.
+export function brandDesignAccent(brandKit: BrandKit | null | undefined, onDarkBg = true): string {
+  const look = brandKit?.look
+  if (look && (look.shown_theme || look.theme) === 'luxe' && look.metal && LUXE_METALS[look.metal]) {
+    const m = LUXE_METALS[look.metal]
+    return onDarkBg ? m.light : m.deep
+  }
+  return brandClassicAccent(normalizeHex(brandKit?.secondary_color, '#C9A24D'))
+}
+
+/** The two chips on a "Brand" theme tile: [print background, the brand color]. */
+export function brandSwatch(brandKit: BrandKit | null | undefined): [string, string] {
+  const primary = normalizeHex(brandKit?.primary_color, '#111827')
+  return [primary, brandDesignAccent(brandKit, isDark(primary))]
+}
+
 function brandPalette(brandKit: BrandKit | null): DesignPalette {
   const primary = normalizeHex(brandKit?.primary_color, '#111827')
-  const secondary = normalizeHex(brandKit?.secondary_color, '#C9A24D')
   const dark = isDark(primary)
+  const secondary = brandDesignAccent(brandKit, dark)
   const ink = dark ? '#FFFFFF' : '#14161A'
-  const accent = contrastRatio(secondary, primary) >= 2.4 ? secondary : (dark ? mix(primary, '#FFFFFF', 0.72) : mix(primary, '#000000', 0.62))
+  const accent = contrastRatio(secondary, primary) >= 2.4 ? secondary
+    : (dark ? mix(secondary, '#FFFFFF', 0.5) : mix(secondary, '#000000', 0.45))
   const accentInk = isDark(accent) ? '#FFFFFF' : '#14161A'
   const scrimBase = dark ? primary : mix(primary, '#000000', 0.78)
   const photoAccent = isDark(secondary) ? mix(secondary, '#FFFFFF', 0.55) : secondary

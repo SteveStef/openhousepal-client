@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, ChevronDown, Hand, Loader2, RefreshCw, ScanSearch, Sparkles, Trash2, Wand2 } from 'lucide-react'
+import { Check, Hand, Loader2, RefreshCw, Sparkles, Trash2, Wand2 } from 'lucide-react'
 import api from '@/lib/api-service'
 import ChaptersEditor, { CHAPTER_TYPE_LABELS } from '@/components/property-sites/ChaptersEditor'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
+import AiRunReceipt from '@/components/ai/AiRunReceipt'
 import type { PropertyWebsiteChapter } from '@/types'
 
 // The editor's "Room by room" step. Sells the idea first (a live mock made from the agent's own
 // photos), then one click has a small, cheap vision model sort the listing photos, pick the 3-4
 // spaces that sell this home and write a few lines for each - no manual dragging. Hand editor below.
-export default function RoomsStep({ siteId, photos, chapters, onChange, description, percent, onSpent }: {
+export default function RoomsStep({ siteId, photos, chapters, onChange, description, percent, onSpent, limitUsd }: {
   siteId: string
   photos: string[]
   chapters: PropertyWebsiteChapter[]
@@ -19,14 +20,20 @@ export default function RoomsStep({ siteId, photos, chapters, onChange, descript
   description: string
   percent: number | null | undefined
   onSpent: () => void
+  /** The agent's monthly AI allowance in USD - turns a run's cost into "X% of monthly AI". */
+  limitUsd?: number | null
 }) {
   const [phase, setPhase] = useState<'idle' | 'sorting' | 'writing'>('idle')
   const [error, setError] = useState('')
   const [manual, setManual] = useState(false)
-  const [editorOpen, setEditorOpen] = useState(false)
+  // What the last AI run used and how long it took - the same receipt CMAs / AI Media show (10/24).
+  const [receipt, setReceipt] = useState<{ cost: number; secs: number } | null>(null)
   // Spaces the listing mentions but the AI couldn't place with confidence - the agent decides.
   const [questions, setQuestions] = useState<{ question: string; photos: string[]; choices: string[] }[]>([])
   const live = chapters.filter(c => c.enabled && c.photos.length)
+  const needConfirm = live
+  const confirmedCount = needConfirm.filter(c => c.confirmed).length
+  const allConfirmed = needConfirm.length > 0 && confirmedCount === needConfirm.length
   const costLine = percent == null ? 'Under a cent of your monthly AI' : percent < 1 ? `Under 1% of your monthly AI (about ${percent.toFixed(2)}%)` : `About ${Math.round(percent)}% of your monthly AI`
   // Same "% of monthly AI" tag the paid video options wear, right on the button.
   const costTag = percent == null ? '<1¢' : percent < 1 ? '<1% AI' : `~${Math.round(percent)}% AI`
@@ -34,6 +41,7 @@ export default function RoomsStep({ siteId, photos, chapters, onChange, descript
   const sortWithAi = async (fresh = false) => {
     setError('')
     setPhase('sorting')
+    const t0 = Date.now()
     const { success, data, error: e } = await api.propertySites.autoRooms(siteId, fresh)
     if (!success || !data) { setPhase('idle'); setError(e || 'The photo sorter is busy - try again in a moment.'); return }
     if (!data.chapters.length) { setPhase('idle'); setError('We couldn’t find enough photos of any one space - you can still set rooms up by hand.'); return }
@@ -44,21 +52,24 @@ export default function RoomsStep({ siteId, photos, chapters, onChange, descript
     setQuestions(data.questions || [])
     onChange(made)
     onSpent()
+    let cost = Number(data.cost_usd) || 0
     if (description.trim()) {
       setPhase('writing')
-      onChange(await withCopy(made))
+      const written = await withCopy(made)
+      cost += written.cost
+      onChange(written.list)
       onSpent()
     }
+    setReceipt({ cost, secs: (Date.now() - t0) / 1000 })
     setPhase('idle')
-    setEditorOpen(false)
   }
   // A few lines for each space, from the full listing description (no new facts).
   const withCopy = async (list: PropertyWebsiteChapter[]) => {
     const copies = await Promise.all(list.map(async ch => {
       const res = await api.ai.copywrite({ purpose: 'property_site_section', context: `Section: ${ch.label}\n\nFull listing description:\n${description}` })
-      return res.success && res.data?.text ? res.data.text.trim() : ''
+      return { text: res.success && res.data?.text ? res.data.text.trim() : '', cost: Number(res.data?.cost_usd) || 0 }
     }))
-    return list.map((ch, i) => ({ ...ch, copy: copies[i] }))
+    return { list: list.map((ch, i) => ({ ...ch, copy: copies[i].text })), cost: copies.reduce((sum, c) => sum + c.cost, 0) }
   }
   const answer = async (qi: number, choice: string | null) => {
     const q = questions[qi]
@@ -67,7 +78,7 @@ export default function RoomsStep({ siteId, photos, chapters, onChange, descript
     const base: PropertyWebsiteChapter = { id: `custom-${Date.now()}`, type: 'custom' as PropertyWebsiteChapter['type'], label: choice, enabled: true, photos: q.photos, copy: '' }
     onChange([...chapters, base])
     if (description.trim()) {
-      const [done] = await withCopy([base])
+      const { list: [done] } = await withCopy([base])
       onChange([...chapters, done])
       onSpent()
     }
@@ -111,7 +122,7 @@ export default function RoomsStep({ siteId, photos, chapters, onChange, descript
           </button>
           <p className="mt-1.5 text-center text-[10px] font-semibold text-gray-400">AI looks at your {photos.length} photos and your listing description · {costLine}</p>
           <div className="mt-3"><MonthlyAiUsageMeter variant="card" /></div>
-          <button onClick={() => { setManual(true); setEditorOpen(true) }} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-[13px] font-black text-gray-600 transition hover:border-[#C9A24D] hover:text-[#111827] dark:border-gray-700 dark:text-gray-300 dark:hover:text-white">
+          <button onClick={() => setManual(true)} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-[13px] font-black text-gray-600 transition hover:border-[#C9A24D] hover:text-[#111827] dark:border-gray-700 dark:text-gray-300 dark:hover:text-white">
             <Hand className="h-4 w-4" /> I&apos;ll set it up by hand
           </button>
           {error && <p className="mt-2 text-xs font-bold text-red-600">{error}</p>}
@@ -165,18 +176,24 @@ export default function RoomsStep({ siteId, photos, chapters, onChange, descript
           <RefreshCw className="h-3.5 w-3.5" /> Pick again with AI
         </button>
         <span className="text-[10px] font-semibold text-gray-400">{costLine}</span>
-        <button onClick={() => setEditorOpen(o => !o)} className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-[12px] font-black sm:ml-auto sm:min-h-0 sm:w-auto sm:text-[11px] text-[#111827] hover:border-[#C9A24D] dark:border-gray-700 dark:text-white">
-          <Sparkles className="h-3.5 w-3.5 text-[#C9A24D]" /> {editorOpen ? 'Done fine-tuning' : 'Fine-tune rooms & words'} <ChevronDown className={`h-3.5 w-3.5 transition ${editorOpen ? 'rotate-180' : ''}`} />
-        </button>
+        {receipt && <AiRunReceipt costUsd={receipt.cost} monthlyBudgetUsd={limitUsd} tookSeconds={receipt.secs} label="Last AI run" className="sm:ml-auto" />}
       </div>
       {error && <p className="mt-2 text-xs font-bold text-red-600">{error}</p>}
-      <AnimatePresence initial={false}>
-        {editorOpen && (
-          <motion.div key="rs-fine" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }} className="-mx-1 overflow-hidden px-1 pb-1">
-            <div className="pt-4"><ChaptersEditor chapters={chapters} onChange={onChange} photos={photos} description={description} /></div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Fine-tuning is always open now and every room needs a tap on its check (owner, 10/24 -
+          tucked behind a button, nobody found it). */}
+      <div className={`-mx-1 mt-5 rounded-2xl border-2 p-2 transition-colors duration-300 sm:mx-0 sm:p-4 ${allConfirmed ? 'border-emerald-300 bg-emerald-50/50 dark:border-emerald-500/40 dark:bg-emerald-500/5' : 'border-[#C9A24D]/40 bg-[#fffaf0] dark:border-[#C9A24D]/30 dark:bg-[#C9A24D]/[0.04]'}`}>
+        <div className="mb-3 flex items-start gap-3 px-1 pt-1 sm:px-0 sm:pt-0">
+          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${allConfirmed ? 'bg-emerald-500 text-white' : 'bg-[#111827] text-[#e8c97a] dark:bg-white/10'}`}>{allConfirmed ? <Check className="h-4 w-4" strokeWidth={3} /> : <Sparkles className="h-4 w-4" />}</span>
+          <div className="min-w-0 flex-1">
+            <p className="flex flex-wrap items-center gap-x-2 font-serif text-base font-black text-[#111827] dark:text-white">
+              Fine-tune each room
+              {needConfirm.length > 0 && <span className={`rounded-full px-2 py-0.5 font-sans text-[10px] font-black uppercase tracking-wide ${allConfirmed ? 'bg-emerald-500 text-white' : 'bg-[#C9A24D]/15 text-[#8b6a2b] dark:text-[#e8c97a]'}`}>{confirmedCount}/{needConfirm.length} checked</span>}
+            </p>
+            <p className="mt-0.5 text-[12px] font-semibold leading-snug text-gray-500 dark:text-gray-400">{allConfirmed ? 'All set - every room is checked.' : 'Open a room to rename it, swap its photos or edit its words - then tap its check.'}</p>
+          </div>
+        </div>
+        <ChaptersEditor chapters={chapters} onChange={onChange} photos={photos} description={description} />
+      </div>
     </div>
   )
 }

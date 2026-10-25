@@ -54,6 +54,9 @@ interface PropertyDetailsModalProps {
   /** How the last home change happened - which way the next home slides in, and a Pass sends the
    *  passed home off to the side. */
   move?: HomeMove | null
+  /** Picking homes (the kit's Similar Homes): a Select / Unselect button instead of the buyer's
+   *  actions, and - once you scroll - a bottom bar with only X (close), Select and the arrows. */
+  picker?: { selected: boolean; onToggle: () => void } | null
 }
 
 export type HomeNav = { index: number; total: number; onPrev?: (() => void) | null; onNext?: (() => void) | null }
@@ -169,6 +172,7 @@ export default function PropertyDetailsModal({
   showcaseTools = false,
   nav = null,
   move = null,
+  picker = null,
 }: PropertyDetailsModalProps) {
   // Keep the home on screen while the window animates closed (pages clear it the moment they close).
   const property = useLastValue(propertyProp)
@@ -407,7 +411,7 @@ export default function PropertyDetailsModal({
                   {/* The photos take the whole top; the buyer's Love / Pass, tour and comments ride beside the rest. */}
                   <PropertyHero
                     home={home}
-                    actions={showVisitorActions ? (
+                    actions={picker ? <SelectButton selected={picker.selected} onToggle={picker.onToggle} /> : showVisitorActions ? (
                       <div className="space-y-2">
                         <TakeButtons tone="light" liked={!!property.liked} disliked={!!property.disliked}
                           onLike={() => onLike?.(property.id!, !property.liked)} onPass={() => onDislike?.(property.id!, !property.disliked)} />
@@ -572,6 +576,33 @@ export default function PropertyDetailsModal({
                 </AnimatePresence>
               </div>
 
+              {/* Picking homes: once you scroll, a bar with only X (close) on the left, Select in the
+                  middle and the previous / next arrows on the right. */}
+              <AnimatePresence>
+              {picker && barOn && (
+                <motion.div
+                  key="picker-bar"
+                  initial={reduce ? { opacity: 0 } : { y: '105%' }}
+                  animate={reduce ? { opacity: 1 } : { y: 0, transition: SPRING }}
+                  exit={reduce ? { opacity: 0 } : { y: '105%', transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }}
+                  className="absolute inset-x-0 bottom-0 z-30 rounded-t-[22px] bg-[var(--pp-ink)] px-3 pt-2.5 shadow-[0_-16px_40px_-18px_rgba(0,0,0,.6)] ring-1 ring-white/10 sm:bottom-4 sm:mx-auto sm:w-[460px] sm:rounded-[22px]"
+                  style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom))' }}
+                >
+                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                    <motion.button type="button" whileTap={{ scale: 0.88 }} onClick={onClose} aria-label="Close"
+                      className="grid h-[42px] w-[42px] place-items-center justify-self-start rounded-xl bg-white/10 text-white transition-colors hover:bg-white/15">
+                      <X size={19} strokeWidth={2.5} />
+                    </motion.button>
+                    <SelectButton compact selected={picker.selected} onToggle={picker.onToggle} />
+                    <div className="flex items-center justify-self-end">
+                      {hasNav && <NavButton dir={-1} onClick={nav!.onPrev} dark />}
+                      {hasNav && <NavButton dir={1} onClick={nav!.onNext} dark />}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+              </AnimatePresence>
+
               {/* Phones: Love / Pass / tour / message ride along once you've scrolled past the price
                   panel - flush with the bottom edge (no gap above the browser's own bar), clear of
                   the iPhone home indicator, with the previous / next home either side. */}
@@ -611,6 +642,24 @@ export default function PropertyDetailsModal({
         </motion.div>
       )}
     </AnimatePresence>
+  )
+}
+
+/** Picking homes: Select (outlined) / Selected - green, tap again to unselect. */
+function SelectButton({ selected, onToggle, compact = false }: { selected: boolean; onToggle: () => void; compact?: boolean }) {
+  return (
+    <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={onToggle} aria-pressed={selected}
+      className={`relative inline-flex items-center justify-center gap-2 overflow-hidden font-black uppercase tracking-widest transition-colors duration-300 ${compact ? 'h-[42px] min-w-[150px] rounded-xl px-5 text-[12px]' : 'h-12 w-full rounded-2xl px-5 text-[13px]'} ${selected
+        ? 'bg-emerald-600 text-white shadow-[0_14px_28px_-14px_rgba(5,150,105,.9)]'
+        : compact ? 'bg-white text-[#111827]' : 'border-2 border-emerald-600/70 bg-white text-emerald-700 hover:bg-emerald-50 dark:bg-transparent dark:text-emerald-300'}`}>
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span key={String(selected)} className="inline-flex items-center gap-2"
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.16 }}>
+          {selected ? <><Check size={16} strokeWidth={3.5} /> Selected</> : <>Select</>}
+        </motion.span>
+      </AnimatePresence>
+      {selected && !compact && <span className="absolute right-4 text-[10px] font-bold normal-case tracking-normal text-white/75">Tap to unselect</span>}
+    </motion.button>
   )
 }
 

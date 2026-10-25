@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Copy, Check, Mail, Phone, Users, UserCheck, UserPlus } from 'lucide-react'
+import { Copy, Check, Mail, Phone, Users, UserCheck, UserPlus, Star, Activity } from 'lucide-react'
+import { VisitorStar, StarShowcaseAsk, PassActivitySheet, VisitorShowcaseSwitch } from './VisitorExtras'
+import { useToast } from '@/contexts/ToastContext'
 import LuxeHero, { LuxeStats } from '@/components/ui/LuxeHero'
 import { formatPhone } from '@/lib/leadEventDetails'
 import { toTitleCase } from '@/lib/cheatSheetContent'
@@ -18,7 +20,7 @@ import { copyText } from '@/lib/copyText'
 // The Visitor Insights view. As its own page (/open-houses/visitors/[id]) it reads the id from the
 // URL; inside the Opens screen's pop-up it's handed `openHouseEventId` + `onClose`, so agents
 // never lose their place on Opens.
-export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose }) {
+export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, showcasesOn: showcasesOnProp }) {
   const router = useRouter()
   const params = useParams()
   const openHouseEventId = idProp || params?.openHouseEventId
@@ -47,6 +49,56 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
     return () => clearTimeout(t)
   }, [focusVisitorId, isLoading])
   const focusRing = (id) => id === focusVisitorId ? 'ring-2 ring-inset ring-[#C9A24D] bg-[#C9A24D]/[0.07]' : ''
+
+  // Lead star (user, 10/24): saves right away; when it's turned ON and the person has a Showcase,
+  // asks whether to star the Showcase too - never when this open house's Showcases are off.
+  const showcasesOn = showcasesOnProp ?? (openHouse ? openHouse.autoShowcase !== false || !!openHouse.passShowcase : true)
+  const [askShowcaseFor, setAskShowcaseFor] = useState(null)
+  const [activityFor, setActivityFor] = useState(null)
+  const patchVisitor = (id, patch) => setVisitors(prev => prev.map(v => v.id === id ? { ...v, ...patch } : v))
+  const toggleStar = async (visitor) => {
+    if (!visitor.lead_id) return
+    const next = !visitor.is_favorite
+    patchVisitor(visitor.id, { is_favorite: next })
+    const { success } = await api.leads.update(visitor.lead_id, { is_favorite: next })
+    if (!success) { patchVisitor(visitor.id, { is_favorite: !next }); return }
+    if (next && (visitor.showcase_switchable ? visitor.showcase_on : showcasesOn) && visitor.showcase_id && !visitor.showcase_starred) setAskShowcaseFor({ ...visitor, is_favorite: true })
+  }
+  // Per-visitor Showcase switch (user, 10/25): flips at once, saves in order (a quick on-then-off
+  // is two saves, the second cancels the first's invite), and flips back if a save fails.
+  const { showToast } = useToast()
+  const [showcaseBusy, setShowcaseBusy] = useState({})
+  const showcaseQueue = useRef({})
+  const toggleShowcase = (visitor) => {
+    const next = !visitor.showcase_on
+    patchVisitor(visitor.id, { showcase_on: next, ...(next ? {} : { showcase_invite_at: null }) })
+    setShowcaseBusy(b => ({ ...b, [visitor.id]: (b[visitor.id] || 0) + 1 }))
+    const run = async () => {
+      const { success, data, error } = await api.openHouses.setVisitorShowcase(visitor.id, next)
+      setShowcaseBusy(b => ({ ...b, [visitor.id]: Math.max(0, (b[visitor.id] || 1) - 1) }))
+      if (!success) {
+        patchVisitor(visitor.id, { showcase_on: !next })
+        showToast?.(error || "Couldn't change their Showcase - switched back.", 'error')
+        return
+      }
+      if (next) {
+        patchVisitor(visitor.id, { showcase_invite_at: data?.invite_at || null, ...(data?.showcase_id ? { showcase_id: data.showcase_id } : {}) })
+        // A brand-new Showcase is built in the background - pick up its invite time in a moment.
+        if (data?.building) setTimeout(async () => {
+          const r = await api.openHouses.getVisitors(openHouseEventId)
+          const fresh = r.success && r.data ? r.data.find(v => v.id === visitor.id) : null
+          if (fresh) patchVisitor(visitor.id, { showcase_on: fresh.showcase_on, showcase_invite_at: fresh.showcase_invite_at, showcase_id: fresh.showcase_id })
+        }, 9000)
+      }
+    }
+    showcaseQueue.current[visitor.id] = (showcaseQueue.current[visitor.id] || Promise.resolve()).then(run, run)
+  }
+  const starShowcase = async (visitor) => {
+    if (!visitor.showcase_id) return
+    patchVisitor(visitor.id, { showcase_starred: true })
+    const { success } = await api.collections.setFavorite(visitor.showcase_id, true)
+    if (!success) patchVisitor(visitor.id, { showcase_starred: false })
+  }
 
   const handleCopy = (field, value) => {
     if (!value) return
@@ -216,46 +268,27 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
     <div className={embedded ? 'flex flex-col' : 'min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B] flex flex-col transition-colors duration-300'}>
       
 
-      <div className={embedded ? 'flex-1 p-4 sm:p-6' : 'flex-1 p-6 sm:p-8 pb-20 sm:pb-32'}>
+      <div className={embedded ? 'flex-1' : 'flex-1 p-6 sm:p-8 pb-20 sm:pb-32'}>
         <div className="max-w-7xl mx-auto">
           {/* Header Section */}
-          <div className={embedded ? 'mb-6' : 'mb-8'}>
+          <div className={embedded ? 'mb-4' : 'mb-8'}>
             {embedded ? (
-              <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-gray-800 p-5 pr-14 sm:p-8 sm:pr-16 transition-colors">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:justify-between">
-                  <div className="flex items-center min-w-0">
-                    {openHouse?.coverImageUrl ? (
-                      <img
-                        src={openHouse.coverImageUrl}
-                        alt={openHouse.address}
-                        className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-cover mr-4 sm:mr-6 shadow-lg flex-shrink-0 border border-gray-100 dark:border-gray-800"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#151517] dark:bg-[#C9A24D] rounded-2xl flex items-center justify-center mr-4 sm:mr-6 shadow-lg flex-shrink-0">
-                        <svg className="w-6 h-6 sm:w-7 sm:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <h1 className="text-xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight">Visitor Insights</h1>
-                      {openHouse?.address ? (
-                        <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1 font-light truncate">
-                          {toTitleCase(String(openHouse?.address || '').split(',')[0])}{openHouse.price ? ` · $${Number(openHouse.price).toLocaleString()}` : ''}
-                        </p>
-                      ) : (
-                        <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1 font-light">Track and manage sign-ins from your open house event</p>
-                      )}
-                    </div>
+              // Inside the Visitors sheet - its header already shows the home; just the counts here.
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Visitors', value: visitors.length, icon: Users },
+                  { label: 'No agent', value: visitors.filter(v => String(v.has_agent || '').toUpperCase() !== 'YES').length, icon: UserPlus },
+                  { label: 'Starred', value: visitors.filter(v => v.is_favorite).length, icon: Star },
+                ].map(t => (
+                  // Phones: number over its label (side by side "No agent" got cut off).
+                  <div key={t.label} className="flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl border border-gray-100 bg-white px-2 py-2 dark:border-white/[0.07] dark:bg-[#141416] sm:flex-row sm:gap-2 sm:py-2.5">
+                    <span className="flex items-center gap-1.5">
+                      <t.icon className="h-4 w-4 shrink-0 text-[#C9A24D]" />
+                      <span className="text-base font-black tabular-nums text-[#111827] dark:text-white">{isLoading ? '–' : t.value}</span>
+                    </span>
+                    <span className="max-w-full truncate text-[9px] font-black uppercase tracking-widest text-gray-400">{t.label}</span>
                   </div>
-                  {!isLoading && !error && (
-                    <div className="bg-gray-900 dark:bg-[#0B0B0B] text-white border border-gray-800 dark:border-gray-700 rounded-full px-5 py-2 self-start sm:self-auto shadow-lg shadow-gray-900/10">
-                      <span className="font-bold text-sm">
-                        {visitors.length} <span className="font-normal text-gray-300 dark:text-gray-400 ml-1">Total Visitors</span>
-                      </span>
-                    </div>
-                  )}
-                </div>
+                ))}
               </div>
             ) : (
               <LuxeHero
@@ -321,19 +354,19 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
                       <thead className="bg-[#faf9f7] dark:bg-[#0B0B0B]">
                         <tr>
-                          <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          <th scope="col" className="px-4 py-4 lg:px-5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Visitor
                           </th>
-                          <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          <th scope="col" className="px-4 py-4 lg:px-5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Contact Info
                           </th>
-                          <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Agent Status
+                          <th scope="col" className="px-4 py-4 lg:px-5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Agent &amp; Showcase
                           </th>
-                          <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          <th scope="col" className="px-4 py-4 lg:px-5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Checked In
                           </th>
-                          <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          <th scope="col" className="px-4 py-4 lg:px-5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Notes
                           </th>
                         </tr>
@@ -342,9 +375,14 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
                         {visitors.map((visitor, index) => (
                           <Fragment key={visitor.id}>
                             {!isSameDayAsPrevious(visitor, index) && (
-                              <tr className={index > 0 ? 'border-t-8 border-t-[#faf9f7] dark:border-t-[#0B0B0B]' : ''}>
-                                <td colSpan={5} className="px-6 pt-4 pb-1 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
-                                  {formatGroupDate(visitor.created_at)}
+                              // A clear break before each new day - room above the label, a hairline
+                              // after it (it sat right under the last row - user, 10/24).
+                              <tr className={index > 0 ? 'border-t border-gray-100 dark:border-gray-800/60' : ''}>
+                                <td colSpan={5} className={`px-4 lg:px-5 pb-2 ${index > 0 ? 'pt-8' : 'pt-4'}`}>
+                                  <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]">
+                                    <span className="shrink-0">{formatGroupDate(visitor.created_at)}</span>
+                                    <span className="h-px flex-1 bg-gradient-to-r from-[#C9A24D]/40 to-transparent" />
+                                  </div>
                                 </td>
                               </tr>
                             )}
@@ -355,7 +393,7 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
                               data-visitor-id={visitor.id}
                               className={`hover:bg-gray-50 dark:hover:bg-[#2c241b] transition-colors ${isSameDayAsPrevious(visitor, index) ? 'border-t border-gray-100 dark:border-gray-800/60' : ''} ${focusRing(visitor.id)}`}
                             >
-                              <td className="px-6 py-4 whitespace-nowrap w-1/5">
+                              <td className="px-4 py-4 lg:px-5 whitespace-nowrap w-1/5">
                                 <div className="flex items-center">
                                   <div className="h-10 w-10 bg-[#151517] dark:bg-[#C9A24D] rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
                                     <span className="text-white text-sm font-bold">
@@ -366,23 +404,28 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
                                     <div className="text-sm font-bold text-gray-900 dark:text-white">{visitor.full_name}</div>
                                     <div className="text-xs text-gray-500 dark:text-gray-400">#{index + 1}</div>
                                   </div>
+                                  {visitor.lead_id && <div className="ml-2"><VisitorStar size="sm" on={!!visitor.is_favorite} onToggle={() => toggleStar(visitor)} /></div>}
                                 </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap w-1/4">
+                              <td className="px-4 py-4 lg:px-5 whitespace-nowrap w-1/4">
                                 <div className="flex flex-col space-y-1">
                                   <CopyField field={`${visitor.id}-email`} value={visitor.email} icon={Mail} href={`mailto:${visitor.email}`} />
                                   <CopyField field={`${visitor.id}-phone`} value={visitor.phone} icon={Phone} href={`tel:${visitor.phone}`} display={formatPhone(visitor.phone)} />
                                 </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td className="px-4 py-4 lg:px-5 whitespace-nowrap">
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${getAgentStatusColor(visitor.has_agent)}`}>
                                   {getAgentStatusLabel(visitor.has_agent)}
                                 </span>
+                                {visitor.showcase_switchable && (
+                                  <VisitorShowcaseSwitch layout="cell" visitor={visitor} busy={!!showcaseBusy[visitor.id]} onToggle={() => toggleShowcase(visitor)} />
+                                )}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                                {formatDate(visitor.created_at)}
+                              <td className="px-4 py-4 lg:px-5 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                {embedded ? new Date(visitor.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : formatDate(visitor.created_at)}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td className="px-4 py-4 lg:px-5 whitespace-nowrap">
+                                <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => handleOpenNoteModal(visitor)}
                                   className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white dark:bg-transparent border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600"
@@ -392,6 +435,16 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
                                   </svg>
                                   Notes
                                 </button>
+                                {visitor.pass_events > 0 && (
+                                  <button
+                                    onClick={() => setActivityFor(visitor)}
+                                    title="Everything they did on their Guest Pass"
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#C9A24D]/45 bg-[#C9A24D]/10 px-3 py-1.5 text-xs font-bold text-[#8b7355] transition hover:border-[#C9A24D] hover:bg-[#C9A24D]/20 dark:text-[#e8c97a]"
+                                  >
+                                    <Activity className="h-3 w-3" /> Activity
+                                  </button>
+                                )}
+                                </div>
                               </td>
                             </motion.tr>
                           </Fragment>
@@ -401,56 +454,80 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
                   </div>
                 </div>
 
-                {/* Mobile: compact pill cards, no inner scrolling needed */}
-                <div className="md:hidden space-y-0">
-                  {visitors.map((visitor, index) => (
-                    <div key={visitor.id} className={isSameDayAsPrevious(visitor, index) ? 'mt-2' : 'mt-5'}>
-                      {!isSameDayAsPrevious(visitor, index) && (
-                        <p className="mb-2 px-1 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
-                          {formatGroupDate(visitor.created_at)}
-                        </p>
+                {/* Phones (user, 10/24): roomy cards grouped by day - a clear gap + gold rule
+                    before each new day, the lead star up top, Notes / Activity side by side. */}
+                <div className="md:hidden">
+                  {visitors.map((visitor, index) => {
+                    const newDay = !isSameDayAsPrevious(visitor, index)
+                    const status = String(visitor.has_agent || '').toUpperCase()
+                    return (
+                    <div key={visitor.id} className={newDay ? (index === 0 ? '' : 'mt-8') : 'mt-2.5'}>
+                      {newDay && (
+                        <div className="mb-2.5 flex items-center gap-3 px-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]">
+                          <span className="shrink-0">{formatGroupDate(visitor.created_at)}</span>
+                          <span className="h-px flex-1 bg-gradient-to-r from-[#C9A24D]/45 to-transparent" />
+                        </div>
                       )}
                       <motion.div
-                        initial={{ opacity: 0, y: 6 }}
+                        initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.3), ease: [0.22, 1, 0.36, 1] }}
+                        transition={{ duration: 0.28, delay: Math.min(index * 0.04, 0.3), ease: [0.22, 1, 0.36, 1] }}
                         data-visitor-id={visitor.id}
-                        className={`rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#151517] shadow-sm p-4 ${focusVisitorId === visitor.id ? 'ring-2 ring-[#C9A24D] ring-offset-2 dark:ring-offset-[#0B0B0B]' : ''}`}
+                        className={`overflow-hidden rounded-[22px] border bg-white shadow-[0_14px_30px_-26px_rgba(17,24,39,.55)] dark:bg-[#141416] ${visitor.is_favorite ? 'border-[#C9A24D]/45' : 'border-gray-100 dark:border-white/[0.07]'} ${focusVisitorId === visitor.id ? 'ring-2 ring-[#C9A24D] ring-offset-2 dark:ring-offset-[#0B0B0B]' : ''}`}
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center min-w-0">
-                            <div className="h-10 w-10 bg-[#151517] dark:bg-[#C9A24D] rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
-                              <span className="text-white text-sm font-bold">
-                                {visitor.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                              </span>
-                            </div>
-                            <div className="ml-3 min-w-0">
-                              <div className="text-sm font-bold text-gray-900 dark:text-white truncate">{visitor.full_name}</div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400">#{index + 1} · {formatDate(visitor.created_at)}</div>
-                            </div>
+                        <div className="flex items-center gap-3 p-3.5 pb-3">
+                          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#111827] to-[#2a2218] font-serif text-sm font-black text-[#e8c97a] shadow-sm">
+                            {visitor.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                           </div>
-                          <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${getAgentStatusColor(visitor.has_agent)}`}>
-                            {getAgentStatusLabel(visitor.has_agent)}
-                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-serif text-[16px] font-black leading-tight text-[#111827] dark:text-white">{visitor.full_name}</p>
+                            <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                              <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${status === 'YES' ? 'bg-sky-500' : status === 'LOOKING' ? 'bg-violet-500' : 'bg-emerald-500'}`} />
+                              <span className="truncate">{getAgentStatusLabel(visitor.has_agent)} · {new Date(visitor.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                            </p>
+                          </div>
+                          {visitor.lead_id && <VisitorStar on={!!visitor.is_favorite} onToggle={() => toggleStar(visitor)} />}
                         </div>
 
-                        <div className="mt-3 flex flex-col gap-1.5 border-t border-gray-100 dark:border-gray-800 pt-3">
+                        <div className="mx-3.5 flex flex-col gap-1.5 rounded-2xl bg-[#faf9f7] px-3 py-2.5 dark:bg-white/[0.03]">
                           <CopyField field={`${visitor.id}-email-m`} value={visitor.email} icon={Mail} href={`mailto:${visitor.email}`} />
                           <CopyField field={`${visitor.id}-phone-m`} value={visitor.phone} icon={Phone} href={`tel:${visitor.phone}`} display={formatPhone(visitor.phone)} />
                         </div>
 
-                        <button
-                          onClick={() => handleOpenNoteModal(visitor)}
-                          className="mt-3 inline-flex w-full items-center justify-center px-3 py-2 rounded-lg text-xs font-bold transition-all bg-[#faf9f7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600"
-                        >
-                          <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                          </svg>
-                          Notes
-                        </button>
+                        {visitor.showcase_switchable && (
+                          <div className="mx-3.5 mt-2.5">
+                            <VisitorShowcaseSwitch visitor={visitor} busy={!!showcaseBusy[visitor.id]} onToggle={() => toggleShowcase(visitor)} />
+                          </div>
+                        )}
+
+                        <div className={`grid gap-2 p-3.5 pt-3 ${visitor.pass_events > 0 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                          <motion.button
+                            type="button"
+                            whileTap={{ scale: 0.97 }}
+                            onClick={() => handleOpenNoteModal(visitor)}
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-xs font-black uppercase tracking-wide text-[#111827] dark:border-white/10 dark:bg-white/5 dark:text-white"
+                          >
+                            <svg className="h-3.5 w-3.5 text-[#C9A24D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                            Notes
+                          </motion.button>
+                          {visitor.pass_events > 0 && (
+                            <motion.button
+                              type="button"
+                              whileTap={{ scale: 0.97 }}
+                              onClick={() => setActivityFor(visitor)}
+                              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-[#111827] px-3 text-xs font-black uppercase tracking-wide text-white shadow-md shadow-black/15 dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827]"
+                            >
+                              <Activity className="h-3.5 w-3.5 text-[#e8c97a] dark:text-[#111827]" />
+                              Activity
+                            </motion.button>
+                          )}
+                        </div>
                       </motion.div>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </>
             )}
@@ -469,15 +546,18 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 bg-[#111827]/60 z-[120] flex items-center justify-center p-4"
+          data-scroll-lock="off"
+          onClick={e => { if (e.target === e.currentTarget) handleCloseNoteModal() }}
+          // Phones: near the TOP of the screen, so the keyboard never covers the note box.
+          className="fixed inset-0 bg-[#111827]/60 z-[120] flex items-start justify-center p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center sm:p-4"
         >
           <motion.div
-            initial={{ opacity: 0, y: 12, scale: 0.97 }}
+            initial={{ opacity: 0, y: -14, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.97 }}
+            exit={{ opacity: 0, y: -10, scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 420, damping: 38 }}
-            className="bg-white dark:bg-[#151517] rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 max-w-lg w-full overflow-hidden">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-[#faf9f7] dark:bg-[#0B0B0B]">
+            className="bg-white dark:bg-[#151517] rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 max-w-lg w-full max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain [scrollbar-width:none]">
+            <div className="px-5 py-4 sm:p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-[#faf9f7] dark:bg-[#0B0B0B]">
               <div>
                 <h3 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight">Visitor Note</h3>
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5">
@@ -494,7 +574,7 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="p-5 sm:p-6">
               {selectedVisitorForNote.lead_id ? (
                 <>
                   <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">
@@ -522,7 +602,6 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
                       className="block w-full px-4 py-3 bg-[#faf9f7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 resize-none font-medium"
                       rows={6}
                       placeholder="Enter notes about this visitor's preferences, feedback, or follow-up needs..."
-                      autoFocus
                     />
                   </div>
 
@@ -547,6 +626,9 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose })
         </motion.div>
       )}
       </AnimatePresence>, document.body)}
+
+      <StarShowcaseAsk visitor={askShowcaseFor} onClose={() => setAskShowcaseFor(null)} onYes={starShowcase} />
+      <PassActivitySheet visitor={activityFor} onClose={() => setActivityFor(null)} />
     </div>
   )
 }

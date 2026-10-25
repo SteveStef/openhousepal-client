@@ -1,10 +1,12 @@
 'use client'
 
-import { memo, ReactNode } from 'react'
-import { Check, Info, X } from 'lucide-react'
+import { memo, ReactNode, useCallback, useState } from 'react'
+import { motion } from 'framer-motion'
+import { Check, FileText, Info, X } from 'lucide-react'
+import OhSheet from '@/components/open-house-manager/OhSheet'
 import ThemeSwitch from '@/components/ThemeSwitch'
 import { useBodyScrollLock } from '@/lib/useBodyScrollLock'
-import { useEscapeToClose } from '@/components/ui/windowMotion'
+import { useEscapeToClose, useIsPhone } from '@/components/ui/windowMotion'
 import { useAuth } from '@/contexts/AuthContext'
 import { planHasBragSheet } from '@/lib/bragSheetData'
 import { hasMlsAccess, hasShowcaseAccess } from '@/lib/navAccess'
@@ -188,6 +190,48 @@ function ActionButton({ action }: { action: CardAction }) {
   );
 }
 
+function PhoneChip({ action, wide }: { action: CardAction; wide?: boolean }) {
+  const toggle = action.active !== undefined
+  const theme = action.icon === 'moon' || action.icon === 'sun'
+  return (
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.96 }}
+      onClick={(event) => { event.stopPropagation(); action.onClick() }}
+      disabled={action.loading}
+      aria-pressed={toggle ? !!action.active : undefined}
+      className={`flex min-h-11 items-center justify-center gap-2 rounded-xl border px-3 text-[11px] font-black uppercase tracking-[0.06em] shadow-[0_1px_0_rgba(0,0,0,0.03)] transition-colors disabled:opacity-60 ${wide ? 'col-span-2' : ''} ${
+        toggle
+          ? action.active
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+            : 'border-gray-200 bg-white text-gray-400 dark:border-white/10 dark:bg-[#151517] dark:text-gray-500'
+          : 'border-gray-200 bg-white text-[#111827] dark:border-white/10 dark:bg-[#151517] dark:text-gray-200'
+      }`}
+    >
+      {toggle ? (
+        action.active ? (
+          <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-500 text-white"><Check className="h-2.5 w-2.5" strokeWidth={4} /></span>
+        ) : (
+          <span className="h-4 w-4 shrink-0 rounded-full border-2 border-gray-300 dark:border-gray-600" />
+        )
+      ) : theme ? (
+        <ThemeSwitch dark={action.icon === 'moon'} small />
+      ) : (
+        <svg className={`h-3.5 w-3.5 shrink-0 text-[#C9A24D] ${action.loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {action.icon === 'print' ? (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          ) : action.icon === 'edit' ? (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          ) : (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          )}
+        </svg>
+      )}
+      <span className="truncate">{action.loading ? "Working..." : action.label}</span>
+    </motion.button>
+  )
+}
+
 function DocumentCard({
   icon,
   title,
@@ -236,11 +280,16 @@ function DocumentCard({
         )}
       </button>
 
-      {actions.length > 0 && (
-        <div className="flex divide-x divide-gray-100 border-t border-gray-100 dark:divide-gray-800 dark:border-gray-800 sm:hidden">
-          {actions.flat().map(action => <ActionButton key={action.key} action={action} />)}
-        </div>
-      )}
+      {/* Phones (user, 10/24 - "make them look much better"): the options as roomy rounded chips,
+          two per row (an odd last one spans the row), instead of one cramped divided strip. */}
+      {actions.length > 0 && (() => {
+        const flat = actions.flat()
+        return (
+          <div className={`grid gap-2 border-t border-gray-100 bg-[#faf9f7]/70 p-2.5 dark:border-gray-800 dark:bg-black/20 sm:hidden ${flat.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+            {flat.map((action, i) => <PhoneChip key={action.key} action={action} wide={flat.length > 1 && flat.length % 2 === 1 && i === flat.length - 1} />)}
+          </div>
+        )
+      })()}
       {actions.map((entry, index) =>
         Array.isArray(entry) ? (
           <div key={entry.map(a => a.key).join('+')} className="hidden divide-x divide-gray-100 border-t border-gray-100 dark:divide-gray-800 dark:border-gray-800 sm:flex">
@@ -290,8 +339,12 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
   onToggleFlyerBrand,
 }: ViewPDFsModalProps) {
   // Wheel/touch over the window must not scroll the Open Houses page behind it.
-  useBodyScrollLock(true);
-  useEscapeToClose(onClose);
+  const phone = useIsPhone();
+  useBodyScrollLock(!phone);
+  // Phone sheet: slides away first, then the page unmounts it.
+  const [sheetOpen, setSheetOpen] = useState(true);
+  const close = useCallback(() => { setSheetOpen(false); window.setTimeout(onClose, 320) }, [onClose]);
+  useEscapeToClose(onClose, !phone);
   const { user } = useAuth();
   const hasComps = Boolean(openHouse.similarPropertiesSnapshot && openHouse.similarPropertiesSnapshot.length > 0);
   // With the switch wired, the Similar Homes card always shows for an MLS-linked home (on, off, or
@@ -309,22 +362,7 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
   const bragSheetSubtitle = hasShowcaseAccess(user?.plan_tier) && showcasesOn !== false && similarOn && hasComps ? 'Bio, Your Sales, & Showcase Pitch' : 'Bio & Your Recent Sales';
   const canReloadFlyerPrice = Boolean(onReloadFlyerPrice && openHouse.listingKey);
 
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-3 sm:p-4 print:hidden animate-fadeIn">
-      <div className="bg-[#FAFAF7] dark:bg-[#151517] rounded-3xl sm:rounded-[2.5rem] shadow-2xl max-w-4xl w-full max-h-[88dvh] overflow-y-auto overscroll-contain border border-white/50 dark:border-gray-800 transform transition-all relative">
-        {/* Decorative Top Bar */}
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#8b7355] via-[#C9A24D] to-[#8b7355]" />
-
-        {/* Header */}
-        <div className="pt-6 pb-4 px-5 text-center border-b border-gray-100 dark:border-gray-800 bg-white/50 dark:bg-[#0B0B0B]/30 sm:pt-8 sm:pb-5 sm:px-8">
-          <h3 className="font-serif text-xl font-bold text-gray-900 dark:text-white tracking-tight sm:text-3xl">Documents</h3>
-          <div className="mt-2 flex items-center justify-center gap-2">
-            <span className="h-px w-4 bg-[#C9A24D]/40" />
-            <p className="text-[#6B7280] dark:text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] sm:text-xs">{formatAddress(openHouse.address)}</p>
-            <span className="h-px w-4 bg-[#C9A24D]/40" />
-          </div>
-        </div>
-
+  const cards = (
         <div className="flex flex-col gap-2.5 p-3.5 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-3 sm:p-6 md:flex-nowrap md:gap-4">
           <DocumentCard
             onView={onViewFlyer}
@@ -509,6 +547,34 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
             />
           )}
         </div>
+  )
+
+  // Phones (user, 10/24): a slide-up sheet that pulls down to close (the shared OhSheet).
+  if (phone) return (
+    <OhSheet open={sheetOpen} onClose={close} title="Documents" subtitle={formatAddress(openHouse.address)}
+      icon={<FileText className="h-5 w-5" />}
+      footer={<p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Tap a document to open its print preview</p>}>
+      <div className="-m-3.5">{cards}</div>
+    </OhSheet>
+  )
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-3 sm:p-4 print:hidden animate-fadeIn">
+      <div className="bg-[#FAFAF7] dark:bg-[#151517] rounded-3xl sm:rounded-[2.5rem] shadow-2xl max-w-4xl w-full max-h-[88dvh] overflow-y-auto overscroll-contain border border-white/50 dark:border-gray-800 transform transition-all relative">
+        {/* Decorative Top Bar */}
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#8b7355] via-[#C9A24D] to-[#8b7355]" />
+
+        {/* Header */}
+        <div className="pt-6 pb-4 px-5 text-center border-b border-gray-100 dark:border-gray-800 bg-white/50 dark:bg-[#0B0B0B]/30 sm:pt-8 sm:pb-5 sm:px-8">
+          <h3 className="font-serif text-xl font-bold text-gray-900 dark:text-white tracking-tight sm:text-3xl">Documents</h3>
+          <div className="mt-2 flex items-center justify-center gap-2">
+            <span className="h-px w-4 bg-[#C9A24D]/40" />
+            <p className="text-[#6B7280] dark:text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] sm:text-xs">{formatAddress(openHouse.address)}</p>
+            <span className="h-px w-4 bg-[#C9A24D]/40" />
+          </div>
+        </div>
+
+        {cards}
 
         <div className="px-5 pb-5 flex flex-col items-center sm:px-8 sm:pb-10">
           <button

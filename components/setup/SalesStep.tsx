@@ -14,6 +14,7 @@ import { ArrowDownWideNarrow, ArrowUpNarrowWide, BarChart3, CalendarClock, FileT
 import api from '@/lib/api-service'
 import { applySalesDisplay, getEligibleSales, getSaleSummary, salesSortOf, type AgentSale, type SalesSort } from '@/lib/agentSales'
 import { planHasBragSheet } from '@/lib/bragSheetData'
+import { hasAgentHubAccess } from '@/lib/navAccess'
 import { mergeSignatureConfig } from '@/lib/signatureConfig'
 import RecentSalesPanel from '@/components/agent-hub/RecentSalesPanel'
 import { HubPanelsOpen } from '@/components/agent-hub/HubPanelChrome'
@@ -69,7 +70,9 @@ export function SalesStep({ ctx }: { ctx: StepCtx }) {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   useGate(ctx, { ok: true, onContinue: async () => { await api.setup.setState({ confirm: 'sales' }) } }, [])
   // Four short pages (owner, 10/22) - the sales themselves first, since the stats add them up.
-  const flow = useMiniFlow(ctx, ['Sales', 'Stats', 'Where', 'Order'])
+  // No Agent Hub (plain No-MLS): the sales only go on the Brag Sheet - just Sales + Stats.
+  const hubPlan = hasAgentHubAccess(ctx.plan)
+  const flow = useMiniFlow(ctx, hubPlan ? ['Sales', 'Stats', 'Where', 'Order'] : ['Sales', 'Stats'])
 
   const run = (job: () => Promise<unknown>) => ctx.markSaving(serial(job))
   const saveHub = (patch: Parameters<typeof patchHubConfig>[0]) => run(() => patchHubConfig(patch))
@@ -100,7 +103,7 @@ export function SalesStep({ ctx }: { ctx: StepCtx }) {
   if (!ready) return <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
 
   const statPlaces = [
-    { icon: LayoutTemplate, label: 'Your Agent Hub', sub: 'Across the top under your name, and on your Sales page.' },
+    ...(hubPlan ? [{ icon: LayoutTemplate, label: 'Your Agent Hub', sub: 'Across the top under your name, and on your Sales page.' }] : []),
     ...(hasSig ? [{ icon: Mail, label: 'Your email signature', sub: 'Plus your signature card on Cheat Sheets, Spotlights, website articles and Guest Pass pages.' }] : []),
     ...(isIdx ? [{ icon: Globe, label: 'Your website', sub: 'The numbers on your About page.' }] : []),
     ...(brag ? [{ icon: FileText, label: 'Your open house Brag Sheet', sub: 'The printed sheet in your open house kit.' }] : []),
@@ -138,6 +141,7 @@ export function SalesStep({ ctx }: { ctx: StepCtx }) {
         <PlaceList places={statPlaces} />
         {!summary.totalSold && <p className="mt-3 text-[13px] font-semibold text-gray-500 dark:text-gray-400">They appear once you have a sale on the first page - zeros never show.</p>}
       </QuestionCard>,
+      ...(hubPlan ? [
 
       // 2. Recent sales - where they show
       <QuestionCard key="where" icon={Home} testId="sales-show-question" on={anyPlace} onChange={setAll} title="Show my recent sales"
@@ -186,6 +190,7 @@ export function SalesStep({ ctx }: { ctx: StepCtx }) {
         </div>
       </div>
       </div>,
+      ] : []),
     ]} />
   )
 }

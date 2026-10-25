@@ -28,6 +28,7 @@ import BrokerageGroupsPanel from '@/components/admin/BrokerageGroupsPanel'
 import AdminOverviewPanel from '@/components/admin/AdminOverviewPanel'
 import PromoCodesPanel from '@/components/admin/PromoCodesPanel'
 import InsightsPanel from '@/components/admin/insights/InsightsPanel'
+import EmailHealthPanel from '@/components/admin/insights/EmailHealthPanel'
 
 // One admin page: its section's header + tabs, and the open tab's panel. The sections are the
 // admin's own items in the top bar (lib/adminNav.ts); /admin/<section>/<tab> picks the tab.
@@ -120,7 +121,8 @@ export default function AdminShell({ sectionKey, tabKey }: { sectionKey: string;
             {k === 'groups' && <BrokerageGroupsPanel users={users} groups={groups} onToast={showToast} onChanged={async () => { await Promise.all([fetchGroups(), fetchUsers()]) }} />}
             {k === 'codes' && <PromoCodesPanel groups={groups} onToast={showToast} onAgentsChanged={fetchUsers} />}
             {k === 'activity' && <AgentActivityPanel groups={groups} />}
-            {section.key === 'insights' && <InsightsPanel page={k} blurb={tab.blurb} title={tab.label} onGo={go} />}
+            {section.key === 'insights' && k !== 'emailhealth' && <InsightsPanel page={k} blurb={tab.blurb} title={tab.label} onGo={go} />}
+            {k === 'emailhealth' && <EmailHealthPanel title={tab.label} blurb={tab.blurb} />}
             {k === 'support' && <SupportInboxPanel onRead={unreadChanged} />}
             {k === 'questions' && <PublicQuestionsPanel onRead={unreadChanged} />}
             {k === 'failures' && <RecentFailuresPanel />}

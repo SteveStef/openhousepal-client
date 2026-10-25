@@ -204,6 +204,8 @@ function ShowcaseContent() {
       },
       stats: {
         totalProperties: backendCollection.stats?.totalProperties || 0,
+        // "100+": the Showcase holds the most homes it can (lib/showcaseLimit).
+        atLimit: !!(backendCollection.at_limit ?? backendCollection.stats?.atLimit),
         activeProperties: backendCollection.stats?.activeProperties || 0,
         newProperties: backendCollection.stats?.newProperties || 0,
         viewedProperties: backendCollection.stats?.viewedProperties || 0,
@@ -226,6 +228,8 @@ function ShowcaseContent() {
       inactiveAt: backendCollection.inactive_at || null,
       emailMode: backendCollection.email_mode || 'daily',
       emailModeReason: backendCollection.email_mode_reason || null,
+      cameFrom: backendCollection.came_from || null,
+      stillUsing: !!backendCollection.still_using,
     }
   }, [])
 
@@ -614,9 +618,12 @@ function ShowcaseContent() {
       setCollections(prev => prev.map(c => c.id === collectionId ? { ...c, favoritedAt: collection.favoritedAt ?? null } : c))
       showToast(error || 'Could not save the star', 'error')
     } else if (data?.status === 'ACTIVE' && collection.status !== 'ACTIVE') {
-      // Starring a Showcase that fell asleep for no response wakes it (starred ones never sleep).
-      setCollections(prev => prev.map(c => c.id === collectionId ? { ...c, status: 'ACTIVE', inactiveReason: null, inactiveAt: null } : c))
-      showToast('Starred - it\'s awake again and catching up on new homes', 'success')
+      // Starring an asleep Showcase (no response or switched off) wakes it and moves it to Active
+      // (user, 10/24) - starred ones never sleep. Same email reset as switching it back on.
+      const emailReset = collection.inactiveReason === 'no_response' && collection.emailMode === 'off'
+        ? { emailMode: 'daily' as const, emailModeReason: 'Turned back on by you' } : {}
+      setCollections(prev => prev.map(c => c.id === collectionId ? { ...c, status: 'ACTIVE', inactiveReason: null, inactiveAt: null, ...emailReset } : c))
+      showToast('Starred - moved to Active and catching up on new homes', 'success')
     }
   }
 

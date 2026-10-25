@@ -2,12 +2,13 @@
 
 import { OhpSpinner } from '@/components/brand/OhpLoader'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import Link from 'next/link'
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Building2, Check, Compass, Copy, Eye, EyeOff, Heart, Home, Loader2, Mail,
-  MailX, MessageCircle, Pencil, Phone, Plus, Sparkles, Tag, ThumbsDown, Trash2, X,
+  MailX, MessageCircle, Pencil, Phone, Plus, Send, Sparkles, Tag, ThumbsDown, Trash2, X,
 } from 'lucide-react'
+import OhSheet from '@/components/open-house-manager/OhSheet'
 import api from '@/lib/api-service'
 import { eventDetails, formatPhone } from '@/lib/leadEventDetails'
 import { activityMeta, dialable, exactTime, ORIGIN_META, TONE_CLASSES, timeAgo } from '@/lib/leadActivity'
@@ -146,6 +147,18 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
   const [handling, setHandling] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  // "Send them a new invitation?" after their email was changed.
+  const [invite, setInvite] = useState<{ openHouse: boolean; email: string } | null>(null)
+  const [inviteStep, setInviteStep] = useState<'ask' | 'pick'>('ask')
+  const [inviteBusy, setInviteBusy] = useState<string | null>(null)
+  const sendInvite = async (kind: 'open_house' | 'showcase') => {
+    if (!lead) return
+    setInviteBusy(kind)
+    const r = await api.leads.reinvite(lead.id, kind)
+    setInviteBusy(null)
+    if (r.success) { showToast(`New invitation on its way to ${r.data?.to || invite?.email}`, 'success'); setInvite(null); reload() }
+    else showToast(r.error || "Couldn't send the invitation", 'error')
+  }
 
   const reload = useCallback(async () => {
     const r = await api.leads.get(leadId)
@@ -286,7 +299,17 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
                     className="w-full max-w-[16rem] rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#C9A24D]/30 dark:border-gray-700 dark:bg-[#151517] dark:text-gray-200" />
                   <input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Phone" type="tel"
                     className="w-full max-w-[11rem] rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#C9A24D]/30 dark:border-gray-700 dark:bg-[#151517] dark:text-gray-200" />
-                  <button onClick={async () => { if (await applyUpdate({ name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim() })) setEditing(false) }} disabled={saving}
+                  <button onClick={async () => {
+                    const before = (lead.email || '').trim().toLowerCase()
+                    const next = editEmail.trim()
+                    if (!(await applyUpdate({ name: editName.trim(), email: next, phone: editPhone.trim() }))) return
+                    setEditing(false)
+                    // New email + a live Showcase: offer a fresh invitation to the new address (user, 10/24).
+                    if (next && next.toLowerCase() !== before) {
+                      const o = await api.leads.inviteOptions(lead.id)
+                      if (o.success && o.data?.collection_id) { setInviteStep('ask'); setInvite({ openHouse: o.data.open_house, email: next.toLowerCase() }) }
+                    }
+                  }} disabled={saving}
                     className="inline-flex items-center gap-1 rounded-lg bg-[#111827] px-3 py-1.5 text-xs font-black text-white disabled:opacity-50 dark:bg-white dark:text-[#111827]">
                     <Check className="h-3.5 w-3.5" /> Save
                   </button>
@@ -579,14 +602,54 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
         </div>
       </div>
 
+      <OhSheet open={!!invite} onClose={() => setInvite(null)} width="max-w-md"
+        icon={<span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8c97a]"><Send className="h-5 w-5" /></span>}
+        title="Send a new invite?"
+        subtitle="Their email changed">
+        <div className="px-5 pb-6 pt-2 sm:px-6">
+          <AnimatePresence mode="wait" initial={false}>
+            {inviteStep === 'ask' ? (
+              <motion.div key="ask" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.18 }}>
+                <p className="break-words text-[13.5px] font-medium leading-relaxed text-gray-600 dark:text-gray-300">
+                  Their Showcase now goes to <b className="text-[#111827] dark:text-white">{invite?.email}</b>. Everything else is already updated - their email rules start over at the new address, as if they just came in.
+                </p>
+                <div className="mt-5 grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setInvite(null)} className="rounded-xl border border-gray-200 py-3 text-sm font-black text-gray-600 dark:border-white/10 dark:text-gray-300">No thanks</button>
+                  <button type="button" onClick={() => setInviteStep('pick')} className="rounded-xl bg-[#111827] py-3 text-sm font-black text-white dark:bg-white dark:text-[#111827]">Yes, send one</button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div key="pick" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }} transition={{ duration: 0.18 }} className="space-y-2">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-gray-400">Which invitation?</p>
+                {invite?.openHouse && (
+                  <button type="button" disabled={!!inviteBusy} onClick={() => sendInvite('open_house')}
+                    className="flex w-full items-center gap-3 rounded-2xl border border-[#C9A24D]/40 bg-white p-3.5 text-left transition hover:border-[#C9A24D] disabled:opacity-60 dark:bg-white/[0.04]">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8c97a]">{inviteBusy === 'open_house' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Home className="h-4 w-4" />}</span>
+                    <span className="min-w-0"><span className="block text-sm font-black text-[#111827] dark:text-white">Showcase from an open house</span>
+                      <span className="block text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">&ldquo;Following up from the open house&rdquo; - the one guests get after signing in</span></span>
+                  </button>
+                )}
+                <button type="button" disabled={!!inviteBusy} onClick={() => sendInvite('showcase')}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 text-left transition hover:border-[#C9A24D] disabled:opacity-60 dark:border-white/10 dark:bg-white/[0.04]">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300">{inviteBusy === 'showcase' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}</span>
+                  <span className="min-w-0"><span className="block text-sm font-black text-[#111827] dark:text-white">Normal Showcase invite</span>
+                    <span className="block text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">&ldquo;Your Showcase is ready&rdquo; - their link and the first homes in it</span></span>
+                </button>
+                <button type="button" onClick={() => setInviteStep('ask')} className="w-full pt-1 text-center text-xs font-black text-gray-400">Back</button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </OhSheet>
+
       <MotionModal open={confirmDelete} onBackdropClick={() => setConfirmDelete(false)} className="z-[60] bg-black/55">
         <div onClick={e => e.stopPropagation()} className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl dark:bg-[#151517]">
           <h3 className="text-lg font-black text-[#111827] dark:text-white">Delete {lead.name || 'this lead'}?</h3>
           <p className="mt-1.5 text-sm font-medium text-gray-500 dark:text-gray-400">
-            This permanently removes them, their activity and their notes. To just get them off your lists, use <b>Hide</b> instead - you can bring them back any time.
+            This removes them from everything for good: their activity and notes, your Activity feed, the Email Tracker - and <b>their Showcase is deleted too</b>. Automatic emails to them stop.
           </p>
           <p className="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">
-            Automatic emails to them stop, and their Showcase is turned off (not deleted - you can turn it back on in Showcases).
+            To just get them off your lists, use <b>Hide</b> instead - you can bring them back any time.
           </p>
           <div className="mt-5 flex gap-2">
             <button onClick={() => setConfirmDelete(false)} className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-bold dark:border-white/10 dark:text-white">Keep</button>

@@ -257,7 +257,9 @@ a.tw-photo-credit:hover{opacity:1;text-decoration:underline}
 .tw-home{position:absolute;left:0;top:2px;width:12px;height:12px;border-radius:999px;background:var(--tw-accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--tw-accent) 25%,transparent)}
 .tw-stop{position:relative;opacity:0;transform:translateY(8px)}
 .tw.is-in .tw-stop{animation:twRise .7s cubic-bezier(.2,.7,.2,1) var(--d,0ms) both}
-.tw-stop-dot{position:absolute;left:-2rem;top:.35rem;width:12px;height:12px;border-radius:999px;border:2px solid var(--tw-accent);background:var(--deep,#0A0A0A)}
+/* Centred on the route line: the list sits 1.75rem (pl-7) right of the line's 12px lane, so the
+   12px dot starts exactly 1.75rem back - it used to be 2rem, which put every stop 4px off the line. */
+.tw-stop-dot{position:absolute;left:-1.75rem;top:.3rem;width:12px;height:12px;border-radius:999px;border:2px solid var(--tw-accent);background:var(--deep,#0A0A0A);box-sizing:border-box}
 .tw-cinematic .tw-stop-dot{background:#0A0A0A}
 .tw-live{position:relative;width:8px;height:8px;border-radius:999px;background:var(--tw-accent)}
 .tw-live:after{content:"";position:absolute;inset:-4px;border-radius:999px;border:1px solid var(--tw-accent);animation:twRing 2s ease-out infinite}

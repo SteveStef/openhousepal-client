@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom'
 import { ArrowLeft, ArrowRight, CalendarDays, Check, Loader2, Moon, Send, Sun, Sunrise, X } from 'lucide-react'
 import { Property, TourRequest } from '@/types'
 import { cleanAddress, normalizeImageUrl } from '@/lib/utils'
+import AutoHeight from '@/components/ui/AutoHeight'
 
 interface ScheduleTourModalProps {
   property: Property | null
@@ -19,6 +20,8 @@ interface ScheduleTourModalProps {
   // Pre-filled contact fields (e.g. a Guest Pass - they already gave these at sign-in). Still editable.
   initialName?: string
   initialContact?: string
+  /** Pre-filled phone ('full' contact style). */
+  initialPhone?: string
   /** The agent's busy blocks from their connected Google / Outlook calendar - those times are
    *  crossed out. Omitted (or none connected) = every time is open. */
   loadBusy?: () => Promise<{ start: string; end: string }[]>
@@ -83,6 +86,7 @@ function ScheduleTourWindow({
   showContactFields = false,
   initialName = '',
   initialContact = '',
+  initialPhone = '',
   loadBusy,
   contactStyle = 'compact',
   maxPicks = 3,
@@ -122,7 +126,7 @@ function ScheduleTourWindow({
   const [dir, setDir] = useState(1)
   const [name, setName] = useState(initialName)
   const [contact, setContact] = useState(initialContact)
-  const [phone, setPhone] = useState('')
+  const [phone, setPhone] = useState(() => (initialPhone ? formatPhone(initialPhone) : ''))
   const [note, setNote] = useState('')
   const [sending, setSending] = useState(false)
   useEscapeToClose(onClose, !sending)
@@ -270,7 +274,11 @@ function ScheduleTourWindow({
           )}
 
           <div className="scrollbar-hide relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:none]">
-            <AnimatePresence mode="wait" custom={dir} initial={false}>
+            {/* The window glides to its new height (user, 10/24: picking Afternoon loaded the times
+                and the whole sheet jumped). popLayout: the next step is in place the moment the old
+                one starts leaving, so the height never dips to nothing in between. */}
+            <AutoHeight>
+            <AnimatePresence mode="popLayout" custom={dir} initial={false}>
               {step === 'when' && (
                 <motion.div key="when" custom={dir} variants={slide} initial="initial" animate="animate" exit="exit" className="flex h-full flex-col px-5 pt-3 sm:px-8">
                   {/* 1. the day */}
@@ -310,7 +318,7 @@ function ScheduleTourWindow({
 
                   {/* 3. the time - shown once a part of the day is picked */}
                   <StageLabel n={3} active={stage === 3} locked={stage < 3} text="Pick a time" />
-                  <AnimatePresence mode="wait" initial={false}>
+                  <AnimatePresence mode="popLayout" initial={false}>
                     {day && period ? (
                       <motion.div key={`${day}-${period}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.16 }}
                         className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
@@ -346,7 +354,9 @@ function ScheduleTourWindow({
 
                   {/* the chosen times */}
                   <div className="pb-2 pt-5">
-                    {busy.length > 0 && (
+                    {/* There from the first frame whenever the agent's calendar is being checked (it
+                        appearing once the busy times came back made the settled sheet jump - group 09, 10/24). */}
+                    {(busy.length > 0 || !!loadBusy) && (
                       <p className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold text-gray-400"><span className="h-px w-4 bg-rose-400/70" /> Crossed-out times are already booked on the agent&apos;s calendar.</p>
                     )}
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Your times <span className="font-bold normal-case tracking-normal">- up to {maxPicks}, first is your top pick</span></p>
@@ -430,6 +440,7 @@ function ScheduleTourWindow({
                 </motion.div>
               )}
             </AnimatePresence>
+            </AutoHeight>
           </div>
 
           {step !== 'done' && (

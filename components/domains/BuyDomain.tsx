@@ -9,6 +9,7 @@ import { ArrowLeft, Check, Copy, Globe2, Loader2, Lock, Mail, RefreshCw, Search,
 import api from '@/lib/api-service'
 import { copyText } from '@/lib/copyText'
 import { DomainContact, DomainSearch, DomainShop, DomainOption, PurchasedDomain, US_STATES, money, prettyDate } from '@/lib/domainShop'
+import DomainWarningSheet from './DomainWarningSheet'
 
 const box = 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-[#111827] outline-none transition focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/15 dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white'
 const gold = 'inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-4 py-2.5 text-xs font-black uppercase tracking-wide text-[#111827] shadow-md shadow-[#C9A24D]/30 transition hover:-translate-y-0.5 hover:shadow-lg disabled:translate-y-0 disabled:opacity-50 disabled:shadow-none'
@@ -187,8 +188,8 @@ export function PurchasedDomainCard({ p, onChanged }: { p: PurchasedDomain; onCh
   const [busy, setBusy] = useState('')
   const [code, setCode] = useState('')
   const [msg, setMsg] = useState('')
+  const [askStop, setAskStop] = useState(false)
   const stop = async () => {
-    if (!confirm(`Stop renewing ${p.domain}?\n\nIt keeps working until ${prettyDate(p.expires_at)}, then it ends and your website goes back to your free OpenHousePal address.`)) return
     setBusy('stop'); setMsg('')
     const r = await api.sites.stopDomainRenewal(p.id)
     setBusy('')
@@ -209,6 +210,15 @@ export function PurchasedDomainCard({ p, onChanged }: { p: PurchasedDomain; onCh
   const working = p.status === 'CHECKOUT' || p.status === 'REGISTERING'
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-3.5 dark:border-gray-800 dark:bg-[#151517]">
+      <DomainWarningSheet open={askStop} onClose={() => setAskStop(false)} onConfirm={stop}
+        title={`Stop renewing ${p.domain}?`} subtitle="Bought through OpenHousePal"
+        points={[
+          { text: <>It keeps working until <b>{prettyDate(p.expires_at)}</b>, then the domain ends - you won&apos;t be charged again.</>, tone: 'ok' },
+          { text: <>After that, your website goes back to your free OpenHousePal address and new links use <b>openhousepal.com</b>.</> },
+          { text: <>Links and QR codes you handed out with <b className="font-mono">{p.domain}</b> stop opening once it ends, and someone else could buy the name.</> },
+          { text: <>Want to keep the name at another domain company instead? Get its transfer code here first (the move option on this card).</>, tone: 'ok' },
+        ]}
+        confirmLabel="Stop renewing" />
       <div className="flex items-start gap-2.5">
         <span className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl ${p.status === 'ACTIVE' ? 'bg-[#C9A24D] text-white' : 'bg-[#FAFAF7] text-[#8b7355] dark:bg-white/[0.06] dark:text-[#e8c97a]'}`}>
           {working ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe2 className="h-4 w-4" />}
@@ -233,7 +243,7 @@ export function PurchasedDomainCard({ p, onChanged }: { p: PurchasedDomain; onCh
             {busy === 'move' ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Move to another company
           </button>
           {p.auto_renew && (
-            <button type="button" onClick={stop} disabled={!!busy} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wide text-gray-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-900/20">
+            <button type="button" onClick={() => setAskStop(true)} disabled={!!busy} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wide text-gray-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-900/20">
               {busy === 'stop' ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />} Stop renewing
             </button>
           )}

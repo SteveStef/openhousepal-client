@@ -1,4 +1,4 @@
-import type { MarketingMoments, SiteSeo, ShowingStatus, ShowcaseInbox, EmailPerson, ClientEmailRow } from '@/types'
+import type { MarketingMoments, SiteSeo, ShowingStatus, ShowcaseInbox, EmailPerson, ClientEmailRow, BrandUsage } from '@/types'
 import type { DomainContact, DomainSearch, DomainShop, OneClick, PurchasedDomain } from '@/lib/domainShop'
 
 // One "which home?" suggestion for a public showing request (any on-market listing, the agent's first).
@@ -20,7 +20,9 @@ import { ApiResponse, User, OpenHouse, OpenHouseFormRequest, SearchPreferences, 
   IntegrationsInfo, CrmTestResult,
   TitleCardOptions, BrandingOptions, BlogAiContext, BlogAiBrief, BlogAiGenerateResult, BlogAiRefineAction, LinkDomainState } from '@/types';
 import { getToken, removeToken } from './token';
+import { loginUrlForHere } from './loginRedirect';
 import { tidyAllCaps } from './cheatSheetContent';
+import { passSessionId } from './passSession';
 
 /** Something wrong with an agent's own domain right now, in plain words + the fix (domain_health_service). */
 /** One home from GET /api/properties/address/search (see backend address_search_service.py). */
@@ -155,7 +157,7 @@ class ApiService {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
       if (!path.startsWith('/login') && !path.startsWith('/register')) {
-        window.location.href = `/login?redirect=${encodeURIComponent(path)}`;
+        window.location.href = loginUrlForHere();  // the whole link, query included
       }
     }
   }
@@ -165,7 +167,8 @@ class ApiService {
       id: backend.id,
       type: backend.type,
       referenceId: backend.reference_id,
-      title: backend.title,
+      // Older daily-briefing alerts were titled "Today's Showcase update" - they're Today's Rundown now.
+      title: backend.type === 'SHOWCASE_DIGEST' ? "Today's Rundown" : backend.title,
       message: backend.message,
       visitorName: backend.visitor_name || undefined,
       propertyAddress: tidyAllCaps(backend.property_address) || undefined,
@@ -454,7 +457,7 @@ class ApiService {
 
     // Per open house: auto-build Showcases for guests without an agent, and where a guest's phone
     // goes after they sign in (their Spotlight / Agent Hub / nothing). Either field alone is fine.
-    updateGuestSettings: (id: string, settings: { auto_showcase?: boolean; similar_homes?: boolean; after_signin?: 'hub' | 'none'; guest_pass?: boolean; pass_signature?: boolean; followups_mode?: 'on' | 'no_calendar' | 'off' }) =>
+    updateGuestSettings: (id: string, settings: { auto_showcase?: boolean; similar_homes?: boolean; after_signin?: 'hub' | 'none'; guest_pass?: boolean; pass_signature?: boolean; pass_showcase?: boolean; followups_mode?: 'on' | 'no_calendar' | 'off' }) =>
       this.request<{ success: boolean; auto_showcase: boolean; similar_homes: boolean; after_signin: string | null; guest_pass: boolean; pass_signature: boolean }>(`/api/open-houses/${id}/guest-settings`, {
         method: 'PUT',
         body: JSON.stringify(settings),
@@ -505,6 +508,16 @@ class ApiService {
     }),
 
     getVisitorNotes: (visitorId: string) => this.request<LeadNote[]>(`/api/visitors/${visitorId}/notes`),
+    // The Visitors window's per-guest Showcase switch (beats the kit's Showcases setting).
+    setVisitorShowcase: (visitorId: string, on: boolean) => this.request<{
+      showcase_on: boolean; building: boolean; showcase_id: string | null; invite_at: string | null; invites_cancelled: number
+    }>(`/api/visitors/${visitorId}/showcase`, { method: 'PUT', body: JSON.stringify({ on }) }),
+    // Everything this guest did on their Guest Pass (visits, time spent, homes opened...).
+    getVisitorPassActivity: (visitorId: string) => this.request<{
+      visits: { session: string | null; started_at: string; last_seen_at: string | null; seconds: number; events: { kind: string; key: string | null; label: string | null; at: string }[] }[]
+      other: { kind: string; key: string | null; label: string | null; at: string }[]
+      total_seconds: number; visit_count: number; days: string[]; came_back: boolean; signed_in_at: string | null
+    }>(`/api/visitors/${visitorId}/pass-activity`),
     addVisitorNote: (visitorId: string, data: { text: string; open_house_event_id?: string }) =>
       this.request<LeadNote>(`/api/visitors/${visitorId}/notes`, { method: 'POST', body: JSON.stringify(data) }),
     updateVisitorNoteThread: (noteId: string, text: string) =>
@@ -1026,7 +1039,7 @@ class ApiService {
     // PropertyService function the real save path uses, so the preview never drifts from what
     // Save actually produces. Nothing is persisted by this call.
     previewMatches: (preferences: Partial<CollectionPreferences>) =>
-      this.request<{ properties: any[], count: number }>(`/collections/preview-matches`, {
+      this.request<{ properties: any[], count: number, at_limit?: boolean }>(`/collections/preview-matches`, {
         method: 'POST',
         body: JSON.stringify(preferences),
       }),
@@ -1091,6 +1104,10 @@ class ApiService {
       `/api/v1/notifications/mark-types-as-read?${types.map(t => `types=${encodeURIComponent(t)}`).join('&')}`,
       { method: 'POST' }
     ),
+
+    // Today's Rundown - the daily briefing in the app (components/rundown/TodaysRundown.tsx).
+    rundown: () => this.request<unknown>('/api/v1/rundown/today'),
+    markRundownRead: () => this.request<{ success: boolean; marked: number }>('/api/v1/rundown/today/read', { method: 'POST' }),
 
     getPreferences: () => this.request<NotificationPreferences>('/api/v1/notifications/preferences'),
 
@@ -1329,7 +1346,7 @@ class ApiService {
     deleteSubmission: (submissionId: string) =>
       this.request<null>(`/agent-hub/forms/submissions/${submissionId}`, { method: 'DELETE' }),
 
-    updateForm: (formId: string, data: Partial<Pick<AgentFormConfig, 'title' | 'headline' | 'subtitle' | 'description' | 'questions' | 'success_heading' | 'success_message' | 'accent_color' | 'show_branding' | 'dark_mode' | 'redirect_to_agent_hub' | 'property_photo_carousel' | 'background_effects' | 'welcome_text_effects' | 'branding_layout' | 'linked_property' | 'look_mode' | 'look_theme' | 'luxe_metal'>>) =>
+    updateForm: (formId: string, data: Partial<Pick<AgentFormConfig, 'title' | 'headline' | 'subtitle' | 'description' | 'questions' | 'success_heading' | 'success_message' | 'accent_color' | 'show_branding' | 'dark_mode' | 'redirect_to_agent_hub' | 'redirect_to_showcase' | 'property_photo_carousel' | 'background_effects' | 'welcome_text_effects' | 'branding_layout' | 'linked_property' | 'look_mode' | 'look_theme' | 'luxe_metal'>>) =>
       this.request<AgentFormConfig>(`/agent-hub/forms/${formId}`, {
         method: 'PUT',
         body: JSON.stringify(data),
@@ -1383,6 +1400,9 @@ class ApiService {
    */
   public studio = {
     getBrandKit: () => this.request<BrandKit>('/studio/brand-kit'),
+    // Branding center (Studio -> Branding): which features wear the brand, and "use it everywhere".
+    brandUsage: () => this.request<BrandUsage>('/studio/brand-kit/usage'),
+    applyBrandEverywhere: () => this.request<BrandUsage>('/studio/brand-kit/apply-all', { method: 'POST' }),
 
     // The short "about this home" lines a design prints - this agent's saved ones for the listing,
     // else written once by AI (cheap) and saved; saveListingBlurb keeps an agent's edit for next time.
@@ -1704,6 +1724,8 @@ class ApiService {
       this.request<PropertyWebsite>(`/studio/property-sites/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
 
     publish: (id: string) => this.request<PropertyWebsite>(`/studio/property-sites/${id}/publish`, { method: 'POST' }),
+    // Publish once the editor's first-open setup is done - the server finishes it if the agent leaves.
+    publishWhenReady: (id: string) => this.request<PropertyWebsite>(`/studio/property-sites/${id}/publish-when-ready`, { method: 'POST' }),
 
     unpublish: (id: string) => this.request<PropertyWebsite>(`/studio/property-sites/${id}/unpublish`, { method: 'POST' }),
 
@@ -1837,8 +1859,13 @@ class ApiService {
     markHandled: (leadId: string, kind: string) =>
       this.request<LeadDetail>(`/leads/${leadId}/handled`, { method: 'POST', body: JSON.stringify({ kind }) }),
 
-    update: (leadId: string, data: { name?: string; email?: string; phone?: string; status?: LeadStatus; represented?: LeadRepresented; tags?: string[]; notes?: string; mark_contacted?: boolean }) =>
+    update: (leadId: string, data: { name?: string; email?: string; phone?: string; status?: LeadStatus; represented?: LeadRepresented; tags?: string[]; notes?: string; mark_contacted?: boolean; is_favorite?: boolean }) =>
       this.request<LeadDetail>(`/leads/${leadId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    /** After an email change: can "Send them a new invitation?" be offered (and the open-house one)? */
+    inviteOptions: (leadId: string) =>
+      this.request<{ collection_id: string | null; open_house: boolean }>(`/leads/${leadId}/invite-options`),
+    reinvite: (leadId: string, kind: 'open_house' | 'showcase') =>
+      this.request<{ sent: boolean; to: string }>(`/leads/${leadId}/reinvite`, { method: 'POST', body: JSON.stringify({ kind }) }),
 
     hide: (lead: Pick<Lead, 'id' | 'email' | 'phone' | 'open_houses'>) =>
       this.request<LeadDetail>('/leads/hide', {
@@ -1937,6 +1964,19 @@ class ApiService {
       this.request<EmailPerson>('/client-emails/people', { method: 'PUT', body: JSON.stringify({ email, on }) }),
   };
 
+  // Is the agent opening OpenHousePal's own emails? (backend agent_email_health_service)
+  public emailHealth = {
+    get: () => this.request<import('@/types').EmailHealth>('/me/email-health'),
+    dismiss: () => this.request<import('@/types').EmailHealth>('/me/email-health/dismiss', { method: 'POST' }),
+    restore: () => this.request<import('@/types').EmailHealth>('/me/email-health/restore', { method: 'POST' }),
+    sendTest: () => this.request<import('@/types').EmailHealth & { sent: boolean }>('/me/email-health/test', { method: 'POST' }),
+    /** Admin: a day (start only) or a range, Eastern dates YYYY-MM-DD. */
+    adminMetrics: <T = any>(start: string, end: string) =>
+      this.request<T>(`/admin/insights/email-health?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`),
+    adminAgent: <T = any>(agentId: string, start: string, end: string) =>
+      this.request<T>(`/admin/insights/email-health/agent/${encodeURIComponent(agentId)}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`),
+  };
+
   // The middle of the agent's QR codes (backend qr_brand_routes).
   public qrBrand = {
     get: () => this.request<{ kind: string; choice: 'ohp' | 'logo' | 'initials'; allowed: boolean; initials?: string; logo?: string; has_logo: boolean }>('/me/qr-brand', { cache: 'no-store' }),
@@ -1980,7 +2020,7 @@ class ApiService {
     // AI copywriter - Design Studio text, Blogs AI mode, Agent Hub bio polish, caption/email drafts.
     // Metered against the shared Monthly AI Usage allowance.
     copywrite: (body: { purpose: string; context?: string; tone?: string; instruction?: string }) =>
-      this.request<{ text: string }>('/ai/copywrite', { method: 'POST', body: JSON.stringify(body) }),
+      this.request<{ text: string; cost_usd?: number | null }>('/ai/copywrite', { method: 'POST', body: JSON.stringify(body) }),
 
     // Advisory Fair-Housing / MLS phrase check - returns risky phrases + a suggested swap.
     complianceCheck: (text: string) =>
@@ -2200,6 +2240,8 @@ class ApiService {
             afterSignin: p.afterSignin || null,
             // Off = this open house shows no similar homes (sign-in thank-you wording).
             similarHomes: p.similarHomes !== false,
+            // On = the guest's phone opens their Guest Pass after signing in.
+            guestPass: p.guestPass === true,
           },
           theme: response.data?.theme || null,
           qrDarkMode: Boolean(response.data?.qrDarkMode),
@@ -2262,6 +2304,19 @@ class ApiService {
       }, false),
     guestPassShowcase: (token: string) =>
       this.request<{ url: string }>(`/guest-pass/${encodeURIComponent(token)}/showcase`, { method: 'POST' }, false),
+    // What the guest opened on their pass - noted on the agent's follow-up (fire-and-forget).
+    guestPassSeen: (token: string, view: 'similar' | 'cheat' | 'showcase' | 'map', key?: string | null) =>
+      this.request<{ noted: boolean }>(`/guest-pass/${encodeURIComponent(token)}/seen`, {
+        method: 'POST',
+        body: JSON.stringify({ view, key: key || null, session: passSessionId(token) }),
+      }, false),
+    // Heartbeat while the pass is on screen - time spent + return visits for the agent's log.
+    guestPassPing: (token: string) =>
+      this.request<{ ok: boolean }>(`/guest-pass/${encodeURIComponent(token)}/ping`, {
+        method: 'POST',
+        keepalive: true,
+        body: JSON.stringify({ session: passSessionId(token) }),
+      }, false),
 
     setActingAsOwner: (v: boolean) => { this.publicAsOwner = v },
 
@@ -2277,7 +2332,7 @@ class ApiService {
     // and returns the same shape as getSharedShowcase, refreshed.
     // What the visitor's unsaved search changes would match - count + where (nothing saved).
     previewShowcaseMatches: (shareToken: string, preferences: Partial<CollectionPreferences>) =>
-      this.request<{ count: number; points: { id: string; lat: number; lng: number }[] }>(`/collections/shared/${shareToken}/preview-matches`, {
+      this.request<{ count: number; at_limit?: boolean; points: { id: string; lat: number; lng: number }[] }>(`/collections/shared/${shareToken}/preview-matches`, {
         method: 'POST',
         body: JSON.stringify(preferences),
       }, false),
@@ -2504,6 +2559,9 @@ class ApiService {
     hubLink: () => this.request<SetupHubLink>('/setup/hub-link', { cache: 'no-store' }),
     websiteSales: () => this.request<SetupWebsiteSales>('/setup/website-sales', { cache: 'no-store' }),
     setWebsiteSales: (on: boolean) => this.request<SetupWebsiteSales>('/setup/website-sales', { method: 'PUT', body: JSON.stringify({ on }) }),
+    // Open house kit print choices saved to the account (lib/printPrefs keeps a per-device copy).
+    kitPrefs: () => this.request<{ prefs: Record<string, boolean> }>('/setup/kit-prefs', { cache: 'no-store' }),
+    setKitPrefs: (prefs: Record<string, boolean>) => this.request<{ prefs: Record<string, boolean> }>('/setup/kit-prefs', { method: 'PUT', body: JSON.stringify({ prefs }) }),
     formDefaults: () => this.request<SetupFormDefaults>('/setup/form-defaults', { cache: 'no-store' }),
     setFormDefaults: (patch: Partial<Record<'animated' | 'show_branding' | 'redirect_to_agent_hub', boolean>>) =>
       this.request<SetupFormDefaults>('/setup/form-defaults', { method: 'PUT', body: JSON.stringify(patch) }),

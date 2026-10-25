@@ -7,7 +7,7 @@ import api from '@/lib/api-service'
 import type { SitePage, SiteSeo } from '@/types'
 import type { SeoPagesData } from '@/lib/api-service'
 import { autoSectionMeta, type SeoCtx } from '@/lib/siteSeoAuto'
-import SeoPagesList, { seoCtxFrom, type SeoPreviewPage } from './SeoPagesList'
+import SeoPagesList, { AutoChip, seoCtxFrom, type SeoPreviewPage } from './SeoPagesList'
 import OhpSwitch from '@/components/ui/OhpSwitch'
 import GoogleListingCard from './GoogleListingCard'
 
@@ -15,6 +15,9 @@ import GoogleListingCard from './GoogleListingCard'
 // browser tab - the site name, the home result's blue title + grey description, the tab icon, and
 // each main page's own title + description (the indented sub-links Google can show under the
 // result). Google chooses when to show sub-links; this gives it everything it looks for.
+
+/** Every IDX site's tab icon until the agent picks their own - the OpenHousePal house mark (owner, 10/24). */
+export const OHP_TAB_ICON = '/icon-512.png'
 
 export const DEFAULT_SITE_SEO: SiteSeo = { site_name: '', home_title: '', description: '', favicon_url: null, share_image_url: null, allow_indexing: true, share_rating: true, pages: {} }
 
@@ -73,7 +76,7 @@ export default function SearchAppearancePanel({ seo, onChange, pages, defaults, 
     { ok: !!siteName.trim(), label: 'Site name' },
     { ok: !!((seo.home_title || '').trim() || autoHome?.title), label: 'Home title' },
     { ok: ((seo.description || '').trim() || autoHome?.description || '').length >= 70, label: 'Home description' },
-    { ok: !!(seo.favicon_url || defaults.logoUrl), label: 'Tab icon' },
+    { ok: true, label: 'Tab icon' },
     { ok: links.filter(l => (seo.pages[l.key]?.description || l.fallbackDescription).trim()).length >= 4, label: 'Sub-link descriptions' },
   ]
   const score = checks.filter(c => c.ok).length
@@ -105,36 +108,35 @@ export default function SearchAppearancePanel({ seo, onChange, pages, defaults, 
 
       {/* Name + tab icon */}
       <Group title="Your name on Google" hint="Shown above your link, and on the browser tab." active={focusKey === 'brand'} onFocus={() => onFocusKey('brand')}>
-        <Field label="Site name" value={seo.site_name} placeholder={defaults.siteName || 'e.g. The Gordon Group'} onChange={v => set({ site_name: v })} max={40} />
+        <Field label="Site name" value={seo.site_name} auto={defaults.siteName || undefined} placeholder="e.g. The Gordon Group" onChange={v => set({ site_name: v })} max={40} />
         <div className="mt-3">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/50">Tab icon</p>
+          <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/50">Tab icon{!seo.favicon_url && <span className="rounded-full bg-[#C9A24D]/15 px-1.5 py-px text-[8.5px] font-black tracking-wide text-[#8b6a2b] dark:text-[#e8c97a]">OPENHOUSEPAL</span>}</p>
           <div className="mt-1.5 flex items-center gap-3">
-            <motion.span key={seo.favicon_url || defaults.logoUrl || 'none'} initial={{ scale: 0.6, rotate: -20, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+            <motion.span key={seo.favicon_url || 'ohp'} initial={{ scale: 0.6, rotate: -20, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 18 }}
               className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-white shadow-sm dark:border-white/10">
-              {seo.favicon_url || defaults.logoUrl
-                // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={(seo.favicon_url || defaults.logoUrl)!} alt="" className="h-full w-full object-cover" />
-                : <ImageIcon className="h-5 w-5 text-gray-300" />}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={seo.favicon_url || OHP_TAB_ICON} alt="" className="h-full w-full object-cover" />
             </motion.span>
             <div className="flex flex-wrap gap-2">
               <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-xl bg-[#111827] px-3 py-2 text-[11px] font-black text-white transition hover:-translate-y-0.5 dark:bg-white dark:text-[#111827]">
-                {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Upload icon
+                {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} {seo.favicon_url ? 'Change icon' : 'Upload my own'}
               </motion.button>
-              {seo.favicon_url && <button type="button" onClick={() => set({ favicon_url: null })} className="rounded-xl px-2.5 py-2 text-[11px] font-black text-gray-400 transition hover:text-red-600">Use my logo</button>}
+              {defaults.logoUrl && seo.favicon_url !== defaults.logoUrl && <button type="button" onClick={() => set({ favicon_url: defaults.logoUrl! })} className="rounded-xl px-2.5 py-2 text-[11px] font-black text-[#8b7355] transition hover:text-[#111827] dark:text-[#e8c97a]">Use my logo</button>}
+              {seo.favicon_url && <button type="button" onClick={() => set({ favicon_url: null })} className="rounded-xl px-2.5 py-2 text-[11px] font-black text-gray-400 transition hover:text-[#111827] dark:hover:text-white">Back to house icon</button>}
             </div>
             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = '' }} />
           </div>
           <p className="mt-1.5 text-[11px] font-semibold text-gray-400">
-            Shows on the browser tab for everything on your own domain - your site, Showcases, Spotlights, forms and CMAs. Any image works; it&apos;s fitted to a crisp square for you (a simple logo mark reads best that small). Without one, your site logo is used. Shows once you publish.
+            Shows on the browser tab for everything on your own domain - your site, Showcases, Spotlights, forms and CMAs. Any image works; it&apos;s fitted to a crisp square for you (a simple logo mark reads best that small). Until you pick one, the OpenHousePal house icon is used. Shows once you publish.
           </p>
         </div>
       </Group>
 
       {/* Home result */}
       <Group title="Your main result" hint="The big blue headline and the line under it." active={focusKey === 'home'} onFocus={() => onFocusKey('home')}>
-        <Field label="Headline" value={seo.home_title} placeholder={autoHome?.title || `${siteName || 'Your Name'} | Real Estate`} onChange={v => set({ home_title: v })} max={TITLE_MAX}
+        <Field label="Headline" value={seo.home_title} auto={autoHome?.title || `${siteName || 'Your Name'} | ${defaults.area ? `${defaults.area} ` : ''}Real Estate`} placeholder={`${siteName || 'Your Name'} | Real Estate`} onChange={v => set({ home_title: v })} max={TITLE_MAX}
           action={<button type="button" onClick={suggestTitle} className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-[#8b7355] transition hover:text-[#111827] dark:text-[#e8c97a]"><Wand2 className="h-3 w-3" /> Suggest</button>} />
-        <Field label="Description" value={seo.description} placeholder={autoHome?.description ? `Automatic: ${autoHome.description}` : `e.g. ${siteName || 'We'} help buyers and sellers${defaults.area ? ` across ${defaults.area}` : ''} - search every home for sale, see what's sold, and get a free home value.`} onChange={v => set({ description: v })} max={DESC_MAX} multiline />
+        <Field label="Description" value={seo.description} auto={autoHome?.description || `${siteName || 'We'} help${siteName ? 's' : ''} buyers and sellers${defaults.area ? ` across ${defaults.area}` : ''} - search every home for sale, see what's sold, and get a free home value.`} placeholder="A sentence or two about you and the area you serve" onChange={v => set({ description: v })} max={DESC_MAX} multiline />
       </Group>
 
       {/* Every page - main pages (Google's sub-links), neighborhoods, articles, homes */}
@@ -196,24 +198,30 @@ function Group({ title, hint, active, onFocus, children }: { title: string; hint
   )
 }
 
-function Field({ label, value, placeholder, onChange, max, multiline, compact, action }: {
+function Field({ label, value: own, placeholder, auto, onChange: setOwn, max, multiline, compact, action }: {
   label: string; value: string; placeholder?: string; onChange: (v: string) => void; max: number; multiline?: boolean; compact?: boolean; action?: React.ReactNode
+  /** Real text the live site uses when this is blank - shown as the value (not grey), owner 10/24. */
+  auto?: string
 }) {
+  const [cleared, setCleared] = useState(false)
+  const isAuto = !own && !cleared && !!auto
+  const value = own || (cleared ? '' : auto || '')
+  const onChange = (v: string) => { setCleared(v === ''); setOwn(v) }
   const len = (value || '').length
   const over = len > max
   const cls = `w-full rounded-xl border bg-white px-3 ${compact ? 'py-2 text-xs' : 'py-2.5 text-sm'} font-semibold outline-none transition focus:border-[#C9A24D] focus:shadow-[0_0_0_4px_rgba(201,162,77,.14)] dark:bg-[#0B0B0B] dark:text-white ${over ? 'border-amber-400' : 'border-gray-200 dark:border-gray-700'}`
   return (
     <label className={`block ${compact ? '' : 'mt-3 first:mt-0'}`}>
       <span className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/50">{label}</span>
+        <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/50">{label}{isAuto && <AutoChip />}</span>
         <span className="flex items-center gap-2">
           {action}
           <span className={`text-[10px] font-black tabular-nums ${over ? 'text-amber-600' : len > max * 0.85 ? 'text-[#8b7355]' : 'text-gray-300'}`}>{len}/{max}</span>
         </span>
       </span>
       {multiline
-        ? <textarea value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={compact ? 2 : 3} className={`${cls} mt-1 resize-none`} />
-        : <input value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={`${cls} mt-1`} />}
+        ? <textarea value={value || ''} onChange={e => onChange(e.target.value)} onBlur={() => setCleared(false)} placeholder={placeholder} rows={compact ? 2 : 3} className={`${cls} mt-1 resize-none`} />
+        : <input value={value || ''} onChange={e => onChange(e.target.value)} onBlur={() => setCleared(false)} placeholder={placeholder} className={`${cls} mt-1`} />}
       {over && <span className="mt-1 block text-[10px] font-bold text-amber-600">Google usually cuts this off around {max} characters.</span>}
     </label>
   )

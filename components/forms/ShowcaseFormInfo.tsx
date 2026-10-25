@@ -7,6 +7,8 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, ChevronDown, Home, Sparkles, X } from 'lucide-react'
+import { useOptionalAuth } from '@/contexts/AuthContext'
+import { hasMlsAccess } from '@/lib/navAccess'
 
 type Info = { badge: string; title: string; lead: string; yes: string[]; no: string[] }
 
@@ -26,8 +28,8 @@ export const SHOWCASE_FORMS: Record<string, Info> = {
   },
   buying: {
     badge: 'Builds a Showcase',
-    title: 'This form quietly builds a Showcase for buyers without an agent',
-    lead: 'When a buyer finishes it, a Showcase is built from their home-search answers. They aren\'t sent to it - your follow-up message introduces it as a nice surprise.',
+    title: 'This form builds a Showcase for buyers without an agent',
+    lead: 'When a buyer finishes it, a Showcase is built from their home-search answers and opens for them right after the thank-you (you can switch that off in the form\'s Settings). Your follow-up message introduces it too.',
     yes: [
       'They say they are NOT working with an agent.',
       'They told us what they want - at least an area, a price range or bedrooms.',
@@ -44,7 +46,7 @@ export const SHOWCASE_FORMS: Record<string, Info> = {
     // window say it's buyers without an agent only.
     badge: 'Builds a Showcase',
     title: 'Only buyers without an agent get a Showcase from this form',
-    lead: 'How Can We Help asks if they\'re buying or selling. Buyers who aren\'t working with an agent get a Showcase built quietly from their answers - your follow-up message introduces it.',
+    lead: 'How Can We Help asks if they\'re buying or selling. Buyers who aren\'t working with an agent get a Showcase built from their answers, and it opens for them right after the thank-you (switchable in Settings).',
     yes: [
       'They picked buying (or buying and selling).',
       'They say they are NOT working with an agent.',
@@ -61,7 +63,9 @@ export const SHOWCASE_FORMS: Record<string, Info> = {
 /** Small pill for the form cards on the Forms page. */
 export function ShowcaseFormBadge({ formType }: { formType?: string | null }) {
   const info = formType ? SHOWCASE_FORMS[formType] : undefined
-  if (!info) return null
+  // No-MLS plans never build Showcases (Bright MLS homes) - no promise of one there.
+  const planTier = useOptionalAuth()?.user?.plan_tier
+  if (!info || (planTier && !hasMlsAccess(planTier))) return null
   return (
     <span title={info.title} className="inline-flex h-5 items-center gap-1 rounded-full bg-emerald-50 px-2 text-[10px] font-black uppercase leading-none tracking-wider text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/20">
       <Sparkles className="h-3 w-3" /> {info.badge}
@@ -82,7 +86,8 @@ export function ShowcaseFormInfoBlock({ formType, compact = false }: { formType?
     try { if (v) window.localStorage.removeItem(memoryKey); else window.localStorage.setItem(memoryKey, '1') } catch { /* private mode */ }
     return v
   })
-  if (!info) return null
+  const blockPlanTier = useOptionalAuth()?.user?.plan_tier
+  if (!info || (blockPlanTier && !hasMlsAccess(blockPlanTier))) return null
   return (
     <div className={`${compact ? 'rounded-xl border' : 'border-b'} border-emerald-100 bg-gradient-to-br from-emerald-50/80 via-white to-[#fbf7ee] px-5 py-4 dark:border-emerald-500/10 dark:from-emerald-500/[0.07] dark:via-[#0B0B0B] dark:to-[#1c1a14]`}>
       <button type="button" onClick={() => setOpen(o => !o)} className="flex w-full items-start gap-3 text-left" aria-expanded={open}>

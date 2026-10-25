@@ -21,6 +21,7 @@ export type QrStyle = {
 export type QrCenter = { kind: 'ohp' } | { kind: 'logo'; logo: string } | { kind: 'initials'; initials: string }
 
 const DEFAULT_EYE = '#5C431A' // deep OpenHousePal bronze - ~9:1 on white
+const DEFAULT_CORNER = '#A5822F' // the deep brand gold - scans as well as the bronze when small or blurred (dev/qr + zxing); the lighter #C9A24D did not
 
 function hexToRgb(hex: string): [number, number, number] | null {
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim())
@@ -48,7 +49,7 @@ const OHP_ROOF = 'M3.5 22.5 L20 8 L36.5 22.5'
 const OHP_WALLS = 'M7 20 V43 H14.5 M25.5 43 H33 V20'
 const OHP_DOOR = 'M25.5 46 V29.5 L19.5 31.8 V46 Z'
 const GOLD = '#C9A24D'
-const NAVY = '#121826'
+const INK = '#111318'
 const esc = (t: string) => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string))
 
 export type QrSvgParts = { size: number; body: string }
@@ -80,9 +81,11 @@ export function styledQrSvg(text: string, style: QrStyle = {}): QrSvgParts | nul
       dots += `M${c + 0.02} ${r + 0.3}a.28 .28 0 0 1 .28-.28h.4a.28 .28 0 0 1 .28 .28v.4a.28 .28 0 0 1-.28 .28h-.4a.28 .28 0 0 1-.28-.28z`
     }
   }
+  // No colour given = the OpenHousePal default: the corner eyes in the brand gold (owner, 10/25)
+  const corner = style.eye ? eye : DEFAULT_CORNER
   const eyeAt = (x: number, y: number) =>
-    `<rect x="${x + 0.5}" y="${y + 0.5}" width="6" height="6" rx="1.9" fill="none" stroke="${eye}" stroke-width="1"/>` +
-    `<rect x="${x + 2}" y="${y + 2}" width="3" height="3" rx="0.95" fill="${eye}"/>`
+    `<rect x="${x + 0.5}" y="${y + 0.5}" width="6" height="6" rx="1.9" fill="none" stroke="${corner}" stroke-width="1"/>` +
+    `<rect x="${x + 2}" y="${y + 2}" width="3" height="3" rx="0.95" fill="${corner}"/>`
   let body = `<path d="${dots}" fill="${dot}"/>` + eyeAt(0, 0) + eyeAt(n - 7, 0) + eyeAt(0, n - 7)
   if (hole) {
     const pad = 0.5
@@ -103,14 +106,15 @@ export function styledQrSvg(text: string, style: QrStyle = {}): QrSvgParts | nul
         `<circle cx="${cx}" cy="${cx}" r="${r * 0.82}" fill="none" stroke="${GOLD}" stroke-width="${w * 0.035}"/>` +
         `<text x="${cx}" y="${cx}" dy="0.35em" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" letter-spacing="${fs * 0.02}" font-size="${fs}" fill="#FFFFFF">${t}</text>`
     } else {
-      // The app icon: navy tile, white house (40 x 44 box) at ~64% of the tile.
-      body += tile(NAVY)
-      const k = (w * 0.64) / 44
+      // The logo on white (owner, 10/25): a white tile ringed in the brand gold, the house outlined in
+      // ink with its ring window, the open door in gold - lighter than the solid navy app icon.
+      body += `<rect x="${x}" y="${x}" width="${w}" height="${w}" rx="${w * 0.24}" fill="#FFFFFF" stroke="${GOLD}" stroke-width="${w * 0.06}"/>`
+      const k = (w * 0.76) / 44
       const ox = x + (w - 40 * k) / 2, oy = x + (w - 44 * k) / 2 - 4 * k
       body += `<g transform="translate(${ox} ${oy}) scale(${k})">` +
-        `<path d="${OHP_ROOF}" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>` +
-        `<path d="${OHP_WALLS}" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>` +
-        `<circle cx="20" cy="18.6" r="2.5" fill="none" stroke="#FFFFFF" stroke-width="2.4"/>` +
+        `<path d="${OHP_ROOF}" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>` +
+        `<path d="${OHP_WALLS}" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>` +
+        `<circle cx="20" cy="18.6" r="2.5" fill="none" stroke="${INK}" stroke-width="2.2"/>` +
         `<path d="${OHP_DOOR}" fill="${GOLD}"/></g>`
     }
   }

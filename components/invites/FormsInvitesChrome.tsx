@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ClipboardList, Mail } from 'lucide-react'
+import { ArrowRight, ClipboardList, Eye, Mail, Users } from 'lucide-react'
 import { TOOL_CARD_CSS } from '@/components/ui/LuxeSurface'
-import { invitesApi } from '@/lib/invites'
+import { InboxButton } from '@/components/ui/InboxWindow'
+import { invitesApi, type Invite } from '@/lib/invites'
 
 // The Forms & Invites page's own bits: the big Forms | Invites switch, and the warmer card look the
 // form cards now wear (the Tools page's ivory-and-gold card: the faint grid, drifting sparkles, the
@@ -18,7 +20,12 @@ export function FormsInvitesSwitch({ view, onChange, formBadge = 0 }: {
 }) {
   // New RSVPs the agent hasn't looked at yet - a red count on the Invites side.
   const [inviteBadge, setInviteBadge] = useState(0)
-  useEffect(() => { invitesApi.list().then(r => { if (r.success) setInviteBadge(r.data.reduce((n, i) => n + (i.counts?.unseen || 0), 0)) }) }, [view])
+  useEffect(() => {
+    const load = () => invitesApi.list().then(r => { if (r.success) setInviteBadge(r.data.reduce((n, i) => n + (i.counts?.unseen || 0), 0)) })
+    load()
+    window.addEventListener(INVITES_CHANGED, load)
+    return () => window.removeEventListener(INVITES_CHANGED, load)
+  }, [view])
   const items = [
     { id: 'forms' as const, label: 'Forms', sub: 'Capture leads', icon: ClipboardList, badge: formBadge },
     { id: 'invites' as const, label: 'Invites', sub: 'Events & RSVPs', icon: Mail, badge: inviteBadge },
@@ -46,6 +53,95 @@ export function FormsInvitesSwitch({ view, onChange, formBadge = 0 }: {
           )
         })}
       </div>
+    </div>
+  )
+}
+
+// ------------------------------------------------------------------ the Invites side of the page header
+// (user, 10/24: the tabs glitched because the header lost its "New" row + stat cards on Invites and
+// jumped in height - Invites now has its own, the same size: new RSVPs as one-tap chips, and the
+// numbers + an inbox.)
+
+const INVITES_CHANGED = 'ohp:invites-changed'
+export const announceInvitesChanged = () => { try { window.dispatchEvent(new Event(INVITES_CHANGED)) } catch { /* ssr */ } }
+
+function useInviteList() {
+  const [list, setList] = useState<Invite[] | null>(null)
+  useEffect(() => {
+    let live = true
+    const load = () => invitesApi.list().then(r => { if (live && r.success) setList(r.data) })
+    load()
+    window.addEventListener(INVITES_CHANGED, load)
+    window.addEventListener('focus', load)
+    return () => { live = false; window.removeEventListener(INVITES_CHANGED, load); window.removeEventListener('focus', load) }
+  }, [])
+  return list
+}
+
+/** Opens an invite's guest list (InvitesPanel listens for ?invite=). */
+function useOpenInvite() {
+  const router = useRouter()
+  const pathname = usePathname()
+  return (id: string) => {
+    const q = new URLSearchParams(window.location.search)
+    q.set('view', 'invites'); q.set('invite', id)
+    router.replace(`${pathname}?${q.toString()}`, { scroll: false })
+  }
+}
+
+export function InvitesNewChips() {
+  const list = useInviteList()
+  const open = useOpenInvite()
+  const fresh = (list || []).filter(i => i.counts.unseen > 0)
+  return (
+    <div className="flex min-h-[36px] items-center gap-2 overflow-x-auto px-1 [scrollbar-width:none]" data-testid="invites-new-chips">
+      <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]">
+        <span className="relative flex h-2 w-2">
+          {fresh.length > 0 && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-70" />}
+          <span className={`relative inline-flex h-2 w-2 rounded-full ${fresh.length ? 'bg-red-500' : 'bg-emerald-500'}`} />
+        </span>
+        New
+      </span>
+      {fresh.map(inv => (
+        <button key={inv.id} type="button" onClick={() => open(inv.id)}
+          className="group inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#C9A24D]/40 bg-white px-3 py-1.5 text-xs font-black text-[#111827] shadow-sm transition hover:-translate-y-0.5 hover:border-[#C9A24D] hover:shadow-md dark:border-white/10 dark:bg-white/[0.06] dark:text-white">
+          <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+          {inv.counts.unseen} new RSVP{inv.counts.unseen === 1 ? '' : 's'}
+          <span className="max-w-[160px] truncate font-semibold text-gray-400">· {inv.title}</span>
+          <ArrowRight className="h-3 w-3 text-gray-400 transition-transform group-hover:translate-x-0.5" />
+        </button>
+      ))}
+      {list && fresh.length === 0 && <span className="text-xs font-semibold text-gray-500 dark:text-white/50">All caught up - new RSVPs show up here the moment they come in.</span>}
+      {!list && <span className="h-4 w-56 animate-pulse rounded-full bg-[#C9A24D]/15" />}
+    </div>
+  )
+}
+
+export function InvitesHeaderStats() {
+  const list = useInviteList()
+  const open = useOpenInvite()
+  const live = (list || []).filter(i => i.status === 'live' && !i.is_past).length
+  const coming = (list || []).reduce((n, i) => n + (i.counts.guests_yes || 0), 0)
+  const views = (list || []).reduce((n, i) => n + (i.view_count || 0), 0)
+  const unseen = (list || []).reduce((n, i) => n + (i.counts.unseen || 0), 0)
+  const firstNew = (list || []).find(i => i.counts.unseen > 0)
+  const tile = (icon: React.ReactNode, label: string, short: string, value: number) => (
+    <div className="block w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-left shadow-sm dark:border-gray-800 dark:bg-[#151517] lg:px-4 lg:py-3.5">
+      <div className="flex items-center gap-1.5">
+        <span className="shrink-0 text-[#8b7355] [&_svg]:h-3 [&_svg]:w-3 lg:[&_svg]:h-3.5 lg:[&_svg]:w-3.5">{icon}</span>
+        <p className="min-w-0 truncate text-[9px] font-black uppercase leading-tight text-gray-400 lg:text-[10px]"><span className="sm:hidden">{short}</span><span className="hidden sm:inline">{label}</span></p>
+      </div>
+      <p className="mt-1 min-w-0 truncate text-xl font-black leading-none text-[#111827] dark:text-white lg:mt-2 lg:text-2xl">{list ? value : '-'}</p>
+    </div>
+  )
+  return (
+    <div className="flex w-full items-stretch gap-2" data-testid="invites-header-stats">
+      <div className="grid flex-1 grid-cols-3 gap-2 sm:min-w-[340px] lg:min-w-[400px]">
+        {tile(<Mail />, 'Live invites', 'Live', live)}
+        {tile(<Users />, 'Guests coming', 'Going', coming)}
+        {tile(<Eye />, 'Times opened', 'Views', views)}
+      </div>
+      <InboxButton label="RSVPs" count={unseen} onClick={() => { if (firstNew) open(firstNew.id) }} title="New RSVPs you haven't looked at yet" />
     </div>
   )
 }

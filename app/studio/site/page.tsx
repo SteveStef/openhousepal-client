@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
@@ -15,11 +16,13 @@ import { toJpeg } from '@/components/setup/SetupUi'
 import api, { API_BASE_URL, resolveMediaUrl } from '@/lib/api-service'
 import FormResultsModal from '@/components/forms/FormResultsModal'
 import InvitesPanel from '@/components/invites/InvitesPanel'
-import { FormsInvitesSwitch, PLAYFUL_FORM_CARD, PlayfulFormCard } from '@/components/invites/FormsInvitesChrome'
+import { FormsInvitesSwitch, InvitesHeaderStats, InvitesNewChips, PLAYFUL_FORM_CARD, PlayfulFormCard } from '@/components/invites/FormsInvitesChrome'
 import { GoldLastWord } from '@/components/ui/LuxeSurface'
 import FormStatsModal from '@/components/forms/FormStatsModal'
 import FormBuilderModal from '@/components/forms/FormBuilderModal'
 import FormLookPicker from '@/components/forms/FormLookPicker'
+import { AfterSubmitSettings, EffectsSettings, RevertButton, SaveFormButton } from '@/components/forms/FormSettingsBits'
+import { hasAgentHubAccess } from '@/lib/navAccess'
 import { formLookOf, type FormLookFields } from '@/lib/formLook'
 import { brandFormLook, brandHubPatch, brandColorName, modeLabel, useBrandKit } from '@/lib/brandKit'
 import FormQrCode from '@/components/forms/FormQrCode'
@@ -38,7 +41,8 @@ import HubItemCarousel from '@/components/agent-hub/HubItemCarousel'
 import BlogCard from '@/components/studio/blogs/BlogCard'
 import RecentSalesPanel, { SettingToggleRow } from '@/components/agent-hub/RecentSalesPanel'
 import { scrollRowByCard } from '@/lib/rowScroll'
-import { HUB_ICON, HUB_ICON_TILE, HUB_TOGGLE_OFF, HUB_TOGGLE_ON, HubCollapse, HubPanelMemory, hubCardClass, useHubPanelOpen } from '@/components/agent-hub/HubPanelChrome'
+import { HUB_ICON, HUB_ICON_TILE, HUB_TOGGLE_OFF, HUB_TOGGLE_ON, HubCollapse, HubPanelMemory, hubCardClass, useHubPanelOpen, useSmoothToggle } from '@/components/agent-hub/HubPanelChrome'
+import OhpSwitch from '@/components/ui/OhpSwitch'
 import MyListingsPanel from '@/components/agent-hub/MyListingsPanel'
 import { HUB_MOBILE_HEADERS, HUB_THEMES, HubLuxeDecor, HubLuxeIntro, HubLuxeStyles, HubSplitHeader, HubAgentPhoto, isHubPhotoSet, LUXE_BLOG_CARD, LUXE_HOME_CARD, LUXE_VIDEO_CARD, LuxeBlogCardBody, LuxeHomeCardBody, LuxeVideoCardBody, type HubMobileHeaderId, type HubThemeId, hubLuxeMetalClass } from '@/components/agent-hub/HubLuxeTheme'
 import { HUB_CLASSIC_ACCENTS, HUB_CLASSIC_DEFAULT_ACCENT, HubClassicStyles, hubAccentOf, hubAccentStyle, hubClassicClass } from '@/components/agent-hub/HubClassicTheme'
@@ -48,7 +52,7 @@ import { LUXE_METALS, LUXE_METAL_ORDER, metalOf, type LuxeMetal } from '@/lib/lu
 import SocialLinksEditor, { SocialLink, defaultSocialLinks, getSocialBrandClass, type WebsiteAuto } from '@/components/agent-hub/SocialLinksEditor'
 import DraggableAvatarPhoto from '@/components/agent-hub/DraggableAvatarPhoto'
 import ContactCardPanel, { ContactCardFields, ContactCardPreview, defaultContactCardFields, mergeContactCardFields } from '@/components/agent-hub/ContactCardPanel'
-import { AgentSale, formatSaleStatus, getEligibleListings, getEligibleSales, getSaleLocation, getSaleStatusClass, getSaleSummary, getStreetOnly } from '@/lib/agentSales'
+import { AgentSale, applySalesDisplay, formatSaleStatus, getEligibleListings, getEligibleSales, getSaleLocation, getSaleStatusClass, getSaleSummary, getStreetOnly, type SalesSort } from '@/lib/agentSales'
 import { openHousePalPublicUrl, websitePublicBaseUrl, websitePublicUrl, websitePublicHostname } from '@/lib/publicResourceLinks'
 import { AgentFormConfig, BlogListItem, FormQuestion, FormQuestionType, FormSubmissionListItem, LinkedProperty, Site, SiteDomain, StatSummary } from '@/types'
 import StatCard from '@/components/stats/StatCard'
@@ -120,6 +124,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { OhpWordmark } from '@/components/brand/OhpBrand'
+import OhpLoader from '@/components/brand/OhpLoader'
 import { copyText } from '@/lib/copyText'
 import { upgradeHubPhones } from '@/lib/hubPhones'
 
@@ -129,11 +134,13 @@ type HubItem = { id: string; title: string; description?: string; image?: string
 type SavedSocialLink = { id: string; label: string; url: string; enabled: boolean }
 // One on/off row (Layout -> Reviews, Profile -> Star Rating).
 function HubSwitchRow({ on, onClick, title, sub, testId }: { on: boolean; onClick: () => void; title: string; sub: string; testId?: string }) {
+  // Flips at once, saves after the knob lands - no lag on phones (useSmoothToggle).
+  const [shown, flip] = useSmoothToggle(on, () => onClick())
   return (
-    <button type="button" role="switch" aria-checked={on} onClick={onClick} data-testid={testId}
-      className="flex w-full items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 text-left dark:border-gray-700 dark:bg-[#0B0B0B]">
+    <button type="button" role="switch" aria-checked={shown} onClick={flip} data-testid={testId}
+      className="flex w-full items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 text-left transition hover:border-[#C9A24D]/50 active:scale-[0.99] dark:border-gray-700 dark:bg-[#0B0B0B]">
       <span><span className="block text-sm font-black text-[#111827] dark:text-white">{title}</span><span className="block text-xs font-semibold text-gray-500 dark:text-gray-400">{sub}</span></span>
-      <span className={`relative h-5 w-9 shrink-0 rounded-full ${on ? HUB_TOGGLE_ON : HUB_TOGGLE_OFF}`}><span className={`absolute top-1 h-3 w-3 rounded-full bg-white transition ${on ? 'left-5' : 'left-1'}`} /></span>
+      <OhpSwitch on={shown} size="sm" as="span" />
     </button>
   )
 }
@@ -499,6 +506,8 @@ function ScaleFit({ designWidth, children }: { designWidth: number; children: Re
 function PublicPreview({
   size,
   compact = false,
+  salesMinPrice = 0,
+  salesSort = 'newest',
   socialLinks,
   contact,
   profilePhotoUrl,
@@ -539,6 +548,9 @@ function PublicPreview({
 }: {
   size: PreviewSize
   compact?: boolean
+  /** The hub's sales choices - the preview shows exactly the sales visitors get (owner, 10/24). */
+  salesMinPrice?: number
+  salesSort?: SalesSort
   socialLinks: SocialLink[]
   contact: { call: string; text: string; email: string }
   profilePhotoUrl: string
@@ -692,10 +704,10 @@ function PublicPreview({
             <span className="text-[11px] font-black uppercase text-[#caa65e] dark:text-[#d7b974]">View All &rsaquo;</span>
           </div>
           {salesCarousel && size === 'mobile' ? (
-            <RecentSalesCarousel sales={getEligibleSales(recentSales).filter(sale => sale.visible).slice(0, 8)} compact luxe={luxe} />
+            <RecentSalesCarousel sales={applySalesDisplay(getEligibleSales(recentSales).filter(sale => sale.visible), salesMinPrice, salesSort).slice(0, 8)} compact luxe={luxe} />
           ) : (
             <CarouselRow step={170} showArrows={size === 'desktop'} shellClass={compact ? 'relative' : size === 'desktop' ? 'agent-hub-shelf-window relative px-5 lg:px-10' : 'relative px-5'} rowClassName={size === 'desktop' ? 'agent-hub-desktop-trio' : ''} scrollPulse={autoScrollStep?.id === id ? autoScrollStep.nonce : 0}>
-              {getEligibleSales(recentSales).filter(sale => sale.visible).slice(0, 6).map((sale) => luxe ? (
+              {applySalesDisplay(getEligibleSales(recentSales).filter(sale => sale.visible), salesMinPrice, salesSort).slice(0, 6).map((sale) => luxe ? (
                 <div key={sale.id} className={LUXE_HOME_CARD}>
                   <LuxeHomeCardBody image={sale.image} price={sale.price ? `$${sale.price.toLocaleString()}` : 'Price'} location={getSaleLocation(sale)} status={formatSaleStatus(sale.status)} statusClass={getSaleStatusClass(sale.status)} />
                 </div>
@@ -1171,6 +1183,22 @@ function AgentHubContent() {
   const [saveStatus, setSaveStatus] = useState('Unsaved Changes')
   const hasUnsavedChanges = saveStatus !== 'Saved'
   const [lastSavedHub, setLastSavedHub] = useState<SavedAgentHubData | null>(null)
+  // "Saved ✓" feedback (owner, 10/24): every save - a click, a switch, a Save button - pops the
+  // small Saved check (SavedToast) and the Save buttons morph to a tick (HubSaveButton).
+  const [savedTick, setSavedTick] = useState(0)
+  const [hubSaving, setHubSaving] = useState(false)
+  const flashSaved = () => setSavedTick(t => t + 1)
+  // Look/theme switches save straight to the config - same feedback as everything else.
+  const saveHubConfig = async (config: Parameters<typeof api.agentHub.saveConfig>[0]) => {
+    const res = await api.agentHub.saveConfig(config)
+    if (res.success) flashSaved()
+    else showToast(res.error || "Couldn't save that - try again.", 'error')
+    return res
+  }
+  // Clicks/switches whose new value lives in state (social links on/off, contact-card fields):
+  // save on the next render, once that state is in place - no Save button needed for them.
+  const [saveRequest, setSaveRequest] = useState(0)
+  const requestSave = () => setSaveRequest(n => n + 1)
   // Guards against a real data-loss race: the Recent Sales / My Listings panels each
   // auto-fetch-and-save on mount whenever their slice of local state is still empty (normal on a
   // fresh browser/session with no localStorage draft, before the backend config below has loaded).
@@ -1254,6 +1282,7 @@ function AgentHubContent() {
   // volume to make bragging about it worthwhile.
   const [showSalesStats, setShowSalesStats] = useState(false)
   const [salesMinPrice, setSalesMinPrice] = useState(0)
+  const [salesSort, setSalesSort] = useState<SalesSort>('newest')
   const [salesCarousel, setSalesCarousel] = useState(true)
   const [listingsCarousel, setListingsCarousel] = useState(true)
   const [videosCarousel, setVideosCarousel] = useState(false)
@@ -1341,6 +1370,8 @@ function AgentHubContent() {
   // since the questions/copy on those forms drive automation and aren't meant to be touched.
   const [themeEditFormId, setThemeEditFormId] = useState('')
   const [formSaveStatus, setFormSaveStatus] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({})
+  const [themeReverting, setThemeReverting] = useState(false)
+  const [themeRevertDone, setThemeRevertDone] = useState(false)
   // Tracks edits made since the last successful save/load, independent of formSaveStatus (which
   // starts at 'idle' whether or not anything's actually been touched) - lets closing the builder
   // warn only when there's something real to lose, instead of on every open/close.
@@ -1432,7 +1463,7 @@ function AgentHubContent() {
     setLuxePeek(false)
     const latest = await api.agentHub.getMine()
     const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
-    const res = await api.agentHub.saveConfig({ ...config, ...brandHubPatch(look) } as any)
+    const res = await saveHubConfig({ ...config, ...brandHubPatch(look) } as any)
     if (!res.success) {
       setHubLookSource(prev.hubLookSource); setHubTheme(prev.hubTheme); setHubAccent(prev.hubAccent); setHubLuxeMetal(prev.hubLuxeMetal); setVisitorDarkMode(prev.visitorDarkMode)
     }
@@ -1443,7 +1474,7 @@ function AgentHubContent() {
     const latest = await api.agentHub.getMine()
     const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
     // Starts from the look it has now (the Brand Kit's), so nothing changes until they pick.
-    const res = await api.agentHub.saveConfig({ ...config, lookSource: 'own' } as any)
+    const res = await saveHubConfig({ ...config, lookSource: 'own' } as any)
     if (!res.success) setHubLookSource('brand')
   }
   const handleHubTheme = async (next: HubThemeId) => {
@@ -1456,7 +1487,7 @@ function AgentHubContent() {
     setHubLookSource('own')
     const latest = await api.agentHub.getMine()
     const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
-    const res = await api.agentHub.saveConfig({ ...config, hubTheme: next, lookSource: 'own' } as any)
+    const res = await saveHubConfig({ ...config, hubTheme: next, lookSource: 'own' } as any)
     if (!res.success) setHubTheme(prev)
   }
   // Luxe finish - gold (default), silver or bronze. Same Luxe look, the metal swapped everywhere.
@@ -1468,7 +1499,7 @@ function AgentHubContent() {
     setHubLookSource('own')
     const latest = await api.agentHub.getMine()
     const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
-    const res = await api.agentHub.saveConfig({ ...config, hubLuxeMetal: next, lookSource: 'own' } as any)
+    const res = await saveHubConfig({ ...config, hubLuxeMetal: next, lookSource: 'own' } as any)
     if (!res.success) setHubLuxeMetal(prev)
   }
   // Classic accent colour - every plan (the Luxe metals are Luxe's own).
@@ -1483,7 +1514,7 @@ function AgentHubContent() {
     setHubLookSource('own')
     const latest = await api.agentHub.getMine()
     const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
-    const res = await api.agentHub.saveConfig({ ...config, hubAccent: next, lookSource: 'own' } as any)
+    const res = await saveHubConfig({ ...config, hubAccent: next, lookSource: 'own' } as any)
     if (!res.success) setHubAccent(prev)
   }
   // Visitor dark mode - saved the moment it's switched, like the theme (it used to wait for Save,
@@ -1495,7 +1526,7 @@ function AgentHubContent() {
     try { localStorage.setItem('agentHubVisitorDarkMode', JSON.stringify(next)) } catch { /* private mode */ }
     const latest = await api.agentHub.getMine()
     const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
-    const res = await api.agentHub.saveConfig({ ...config, visitorDarkMode: next, lookSource: 'own' } as any)
+    const res = await saveHubConfig({ ...config, visitorDarkMode: next, lookSource: 'own' } as any)
     if (!res.success) {
       setVisitorDarkMode(prev)
       try { localStorage.setItem('agentHubVisitorDarkMode', JSON.stringify(prev)) } catch { /* private mode */ }
@@ -1508,7 +1539,7 @@ function AgentHubContent() {
     setMobileHeader(next)
     const latest = await api.agentHub.getMine()
     const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
-    const res = await api.agentHub.saveConfig({ ...config, mobileHeader: next } as any)
+    const res = await saveHubConfig({ ...config, mobileHeader: next } as any)
     if (!res.success) setMobileHeader(prev)
   }
   const [videoAutoSync, setVideoAutoSync] = useState(true)
@@ -1517,7 +1548,7 @@ function AgentHubContent() {
     setVideoAutoSync(next)
     const latest = await api.agentHub.getMine()
     const config = (latest.success && latest.data?.config ? latest.data.config : {}) as Record<string, unknown>
-    const res = await api.agentHub.saveConfig({ ...config, videoAutoSync: next } as any)
+    const res = await saveHubConfig({ ...config, videoAutoSync: next } as any)
     if (!res.success) setVideoAutoSync(!next)
   }
 
@@ -1858,10 +1889,20 @@ function AgentHubContent() {
   // "View RSVP" link there). Switching only rewrites the address bar, the page doesn't reload.
   const [formsView, setFormsView] = useState<'forms' | 'invites'>(() => (searchParams.get('view') === 'invites' ? 'invites' : 'forms'))
   useEffect(() => { if (searchParams.get('view') === 'invites') setFormsView('invites') }, [searchParams])
+  // A link that opened one form's results (?formId=...&submission=... / ?view=unfinished) is used
+  // once - left in the address it re-opened that result on every tab switch (user, 10/24).
+  const clearOpenedResult = (q: URLSearchParams) => { q.delete('formId'); q.delete('submission'); if (q.get('view') === 'unfinished') q.delete('view') }
   const switchFormsView = (next: 'forms' | 'invites') => {
     setFormsView(next)
     const q = new URLSearchParams(window.location.search)
-    if (next === 'invites') q.set('view', 'invites'); else { q.delete('view'); q.delete('invite') }
+    clearOpenedResult(q)
+    if (next === 'invites') q.set('view', 'invites'); else { q.delete('view'); q.delete('invite'); q.delete('newInvite') }
+    window.history.replaceState(null, '', `${pathname}${q.toString() ? `?${q.toString()}` : ''}`)
+  }
+  const forgetOpenedResult = () => {
+    const q = new URLSearchParams(window.location.search)
+    if (!q.has('formId') && !q.has('submission')) return
+    clearOpenedResult(q)
     window.history.replaceState(null, '', `${pathname}${q.toString() ? `?${q.toString()}` : ''}`)
   }
   // The Agent Hub editor's categories - each tab opens straight to its own panels.
@@ -1948,9 +1989,9 @@ function AgentHubContent() {
               {pendingSubmissions > 9 ? '9+' : pendingSubmissions}
             </span>
           )}
-          <div className={`flex items-center gap-3 ${big ? 'p-5' : 'p-4'}`}>
-            {formMedia}
-            <button onClick={() => setThemeEditFormId(form.id)} className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left">
+          {/* words first, starting at the top; the form's picture on the right (like the Studio cards) */}
+          <div className={`flex items-start gap-3 ${big ? 'p-5' : 'p-4'}`}>
+            <button onClick={() => setThemeEditFormId(form.id)} className="order-1 flex min-w-0 flex-1 items-center justify-between gap-3 text-left">
               <div className="min-w-0">
                 <p className="truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white"><GoldLastWord text={form.title} /></p>
                 <p className={`mt-1 text-xs font-medium leading-snug text-gray-500 dark:text-gray-400 ${big ? '' : 'line-clamp-2'}`}>{form.description || meta.description}</p>
@@ -1961,7 +2002,8 @@ function AgentHubContent() {
                 </div>
               </div>
             </button>
-            <div className="flex shrink-0 items-center gap-1">
+            <span className="order-2 shrink-0">{formMedia}</span>
+            <div className="order-3 flex shrink-0 items-center gap-1">
               <button onClick={() => handleDuplicateForm(form)} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Duplicate" aria-label="Duplicate form">
                 <Copy className="h-4 w-4" />
               </button>
@@ -2076,9 +2118,10 @@ function AgentHubContent() {
               </span>
             )}
           </div>
-          <div className={`flex items-center gap-3 ${big ? 'p-5' : 'p-4'}`}>
-            {formMedia}
-            <button onClick={openEditor} className="flex min-w-0 flex-1 items-center gap-3 pr-7 text-left">
+          {/* words first, starting at the top; the form's picture (or QR) on the right, clear of the corner buttons */}
+          <div className={`flex items-start gap-3 ${big ? 'p-5' : 'p-4'}`}>
+            <span className={`order-2 shrink-0 ${form.form_type === 'custom' || pendingSubmissions > 0 ? 'mr-8' : ''}`}>{formMedia}</span>
+            <button onClick={openEditor} className="order-1 flex min-w-0 flex-1 items-center gap-3 text-left">
               <div className="min-w-0">
                 <p className="truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white"><GoldLastWord text={form.title} /></p>
                 <p className={`mt-1 text-xs font-medium leading-snug text-gray-500 dark:text-gray-400 ${big ? '' : 'line-clamp-2'}`}>{form.description || meta.description}</p>
@@ -2242,33 +2285,43 @@ function AgentHubContent() {
           style={{ '--form-accent': form.accent_color || '#816937', '--form-accent-dark': form.accent_color || '#d7b974' } as React.CSSProperties}
         />
         <PlayfulFormCard seed={form.title.length + form.questions.length} />
-        {pendingSubmissions > 0 && (
-          <span className="absolute right-3 top-3 z-10 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white shadow-sm">
-            {pendingSubmissions > 9 ? '9+' : pendingSubmissions}
-          </span>
-        )}
         {/* Just the form and what it's for - everything else (Edit, Duplicate, Campaigns, Stats,
             Results, and the link/Share info) lives on its detail page now, one click away. Custom
             and Onboarding forms never reach here - they're not Campaign-eligible, so they keep
-            everything on the card itself (the branch above). */}
-        <button onClick={() => setCampaignsModalFormId(form.id)} className={`flex flex-1 items-center gap-3 text-left ${big ? 'p-5' : 'p-4'}`}>
-          {formMedia}
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white"><GoldLastWord text={form.title} /></p>
-            <p className={`mt-1 text-xs font-medium leading-snug text-gray-500 dark:text-gray-400 ${big ? '' : 'line-clamp-2'}`}>{form.description || meta.description}</p>
-            {/* question count and Showcase badge: one row, the same pill size */}
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <span className="inline-flex h-5 items-center rounded-full bg-[#C9A24D]/10 px-2 text-[10px] font-black uppercase leading-none tracking-wider text-[#8b7355] ring-1 ring-[#C9A24D]/20 dark:bg-[#C9A24D]/15 dark:text-[#e8cf8a]">{form.questions.length} questions</span>
-              <ShowcaseFormBadge formType={form.form_type} />
-            </div>
-            {form.additional_campaign_count > 0 && (
-              <p className="mt-0.5 truncate text-[11px] font-bold text-[#8b7355] dark:text-[#e8cf8a]">
-                General + {form.additional_campaign_count} more campaign{form.additional_campaign_count === 1 ? '' : 's'}
-              </p>
-            )}
-          </div>
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#C9A24D]/25 text-[#8b7355] transition group-hover:translate-x-0.5 group-hover:border-[#C9A24D] group-hover:bg-[#C9A24D] group-hover:text-white dark:text-[#e8cf8a]">
-            <ChevronRight className="h-4 w-4" />
+            everything on the card itself (the branch above).
+            Laid out like the Studio cards (user, 10/24): the words start at the top and use the
+            card's full width, the form's picture sits on the right, the chips + arrow underneath. */}
+        <button onClick={() => setCampaignsModalFormId(form.id)} className={`flex flex-1 flex-col text-left ${big ? 'p-5' : 'p-4'}`}>
+          <span className="flex w-full items-start gap-3">
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white"><GoldLastWord text={form.title} /></span>
+              <span className={`mt-1 text-xs font-medium leading-snug text-gray-500 dark:text-gray-400 ${big ? 'block' : 'line-clamp-2'}`}>{form.description || meta.description}</span>
+            </span>
+            <span className="relative shrink-0">
+              {formMedia}
+              {pendingSubmissions > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 z-10 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white shadow-sm ring-2 ring-white dark:ring-[#151517]">
+                  {pendingSubmissions > 9 ? '9+' : pendingSubmissions}
+                </span>
+              )}
+            </span>
+          </span>
+          <span className="mt-auto flex w-full items-end justify-between gap-2 pt-2.5">
+            <span className="min-w-0">
+              {/* question count and Showcase badge: one row, the same pill size */}
+              <span className="flex flex-wrap items-center gap-1.5">
+                <span className="inline-flex h-5 items-center rounded-full bg-[#C9A24D]/10 px-2 text-[10px] font-black uppercase leading-none tracking-wider text-[#8b7355] ring-1 ring-[#C9A24D]/20 dark:bg-[#C9A24D]/15 dark:text-[#e8cf8a]">{form.questions.length} questions</span>
+                <ShowcaseFormBadge formType={form.form_type} />
+              </span>
+              {form.additional_campaign_count > 0 && (
+                <span className="mt-1 block truncate text-[11px] font-bold text-[#8b7355] dark:text-[#e8cf8a]">
+                  General + {form.additional_campaign_count} more campaign{form.additional_campaign_count === 1 ? '' : 's'}
+                </span>
+              )}
+            </span>
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#C9A24D]/25 text-[#8b7355] transition group-hover:translate-x-0.5 group-hover:border-[#C9A24D] group-hover:bg-[#C9A24D] group-hover:text-white dark:text-[#e8cf8a]">
+              <ChevronRight className="h-4 w-4" />
+            </span>
           </span>
         </button>
       </div>
@@ -2299,11 +2352,13 @@ function AgentHubContent() {
     setSocialLinks(current => current.map(link => link.id === id ? { ...link, ...updates } : link))
     setEditorSectionStatus(current => ({ ...current, 'Social Links': 'Incomplete' }))
     setSaveStatus('Unsaved Changes')
+    if ('enabled' in updates) requestSave()  // a switch saves right away; links save with Save / on leaving the box
   }
 
   const updateContactCardField = (key: string, updates: Partial<ContactCardFields[string]>) => {
     setContactCard(current => ({ ...current, [key]: { ...current[key], ...updates } }))
     setSaveStatus('Unsaved Changes')
+    if ('include' in updates) requestSave()  // switches save right away; typed labels/values with Save
   }
 
   const handleSaveAgentHubChanges = async (overrides?: Partial<Pick<SavedAgentHubData, 'recentSales' | 'myListings' | 'showSalesStats' | 'salesMinPrice' | 'salesCarousel' | 'listingsCarousel' | 'videosCarousel' | 'toursCarousel' | 'blogsCarousel' | 'salesAutoScroll' | 'listingsAutoScroll' | 'videosAutoScroll' | 'toursAutoScroll' | 'blogsAutoScroll' | 'reviewsCarousel' | 'reviewsAutoScroll' | 'reviewsOnProfile' | 'reviewsProfileButton' | 'videoLinks' | 'videoChannelUrl' | 'houseTourLinks' | 'houseTourUrl' | 'blogCards' | 'layoutSections' | 'visibleSectionIds'>>) => {
@@ -2395,6 +2450,7 @@ function AgentHubContent() {
       'Social Links': socialLinks.some(link => link.enabled && link.url.trim()) ? 'Complete' : 'Incomplete',
     }
 
+    setHubSaving(true)
     api.agentHub.updateProfile({ title: profile.title, market: profile.market, name: profile.name, brokerage: profile.brokerage }).catch(() => {})
     // Merge onto the latest saved copy: Settings edits the same Agent Hub config, and keys this
     // editor doesn't manage (the hub's theme, video auto-update, ...) must never be wiped by a save here.
@@ -2403,6 +2459,8 @@ function AgentHubContent() {
     // profile is merged, not replaced - Settings keeps fields this editor doesn't have (team).
     const baseProfile = (baseConfig.profile && typeof baseConfig.profile === 'object') ? baseConfig.profile as Record<string, unknown> : {}
     const configSaveResult = await api.agentHub.saveConfig({ ...baseConfig, ...savedHub, profile: { ...baseProfile, ...savedHub.profile } } as SavedAgentHubData).catch(() => ({ success: false as const, error: 'Network error' }))
+    setHubSaving(false)
+    if (configSaveResult.success) flashSaved()
     if (!configSaveResult.success) {
       // Don't mark this saved (and don't touch localStorage as if it were) - the editor would
       // otherwise show "Saved" with a full Recent Sales list that never actually reached the
@@ -2447,6 +2505,16 @@ function AgentHubContent() {
     const isAutoPublished = nextEditorSectionStatus.Profile === 'Complete' && nextEditorSectionStatus.Contact === 'Complete' && nextEditorSectionStatus['Social Links'] === 'Complete'
     setStatus(isAutoPublished ? 'Published' : 'Draft')
     setSaveStatus('Saved')
+  }
+
+  useEffect(() => {
+    if (saveRequest) handleSaveAgentHubChanges()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveRequest])
+
+  // Text boxes save with their Save button, or when you leave the box - never on every letter.
+  const saveTextIfChanged = () => {
+    if (saveStatusRef.current !== 'Saved' && !hubSaving) handleSaveAgentHubChanges()
   }
 
   const handleCancelAgentHubChanges = () => {
@@ -2571,7 +2639,7 @@ function AgentHubContent() {
     setProfile(current => ({ ...current, [key]: value }))
     setEditorSectionStatus(current => ({ ...current, Profile: 'Incomplete' }))
     setSaveStatus('Unsaved Changes')
-    scheduleProfileAutosave()
+    // No save per letter (owner, 10/24) - Save button, or leaving the box (saveTextIfChanged).
   }
 
   const updateContactField = (label: string, value: string) => {
@@ -2586,7 +2654,6 @@ function AgentHubContent() {
     setContact(current => ({ ...current, [key]: value }))
     setEditorSectionStatus(current => ({ ...current, Contact: 'Incomplete' }))
     setSaveStatus('Unsaved Changes')
-    scheduleProfileAutosave()
   }
 
   const getProfileFieldValue = (label: string, fallback: string) => {
@@ -2763,6 +2830,12 @@ function AgentHubContent() {
     setFormIsDirty(current => ({ ...current, [formId]: true }))
   }
 
+  const toggleFormShowcaseRedirect = (formId: string) => {
+    setAgentForms(current => current.map(form => form.id === formId ? { ...form, redirect_to_showcase: form.redirect_to_showcase === false } : form))
+    setFormSaveStatus(current => ({ ...current, [formId]: 'idle' }))
+    setFormIsDirty(current => ({ ...current, [formId]: true }))
+  }
+
   const toggleFormPropertyPhotoCarousel = (formId: string) => {
     setAgentForms(current => current.map(form => form.id === formId ? { ...form, property_photo_carousel: !form.property_photo_carousel } : form))
     setFormSaveStatus(current => ({ ...current, [formId]: 'idle' }))
@@ -2862,6 +2935,7 @@ function AgentHubContent() {
       look_theme: form.look_theme || undefined,
       luxe_metal: form.luxe_metal || undefined,
       redirect_to_agent_hub: form.redirect_to_agent_hub,
+      redirect_to_showcase: form.redirect_to_showcase !== false,
       property_photo_carousel: form.property_photo_carousel,
       background_effects: form.background_effects !== false,
       welcome_text_effects: form.welcome_text_effects !== false,
@@ -2908,8 +2982,10 @@ function AgentHubContent() {
   }
 
   const handleSaveThemeEditor = async () => {
-    await saveForm(themeEditFormId)
-    setThemeEditFormId('')
+    const id = themeEditFormId
+    await saveForm(id)
+    // let the button's "Saved" tick land before the window closes
+    window.setTimeout(() => setThemeEditFormId(current => current === id ? '' : current), 750)
   }
 
   const handleConfirmDiscardFormChanges = () => {
@@ -3039,9 +3115,14 @@ function AgentHubContent() {
     )
   }
 
+  // Forms & Invites (user, 10/24 - "sometimes glitches"): the house loader stays up until the forms
+  // are in, then the page arrives in one piece - no half-built page with a spinner in the middle.
+  if (isFormsTabGroup && formsLoading) return <OhpLoader label="Loading your forms" />
+
   return (
-    <main className="agent-hub-admin min-h-screen bg-[#faf9f7] text-[#111827] dark:bg-[#0B0B0B] dark:text-white">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+    <main className={`agent-hub-admin min-h-screen bg-[#faf9f7] text-[#111827] dark:bg-[#0B0B0B] dark:text-white ${isFormsTabGroup ? 'forms-page-in' : ''}`}>
+      {isFormsTabGroup && <style dangerouslySetInnerHTML={{ __html: '.forms-page-in{animation:formsPageIn .5s ease-out backwards}@keyframes formsPageIn{from{opacity:0}to{opacity:1}}@media (prefers-reduced-motion:reduce){.forms-page-in{animation:none}}' }} />}
+      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
         {isFormsTabGroup ? (
           <>
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
@@ -3056,7 +3137,7 @@ function AgentHubContent() {
                 backHref="/studio"
                 backLabel="Tools"
                 asideClassName="w-full lg:w-auto lg:-mt-5"
-                tabs={formsView === 'invites' ? undefined : (
+                tabs={formsView === 'invites' ? <InvitesNewChips /> : (
                   // New results, as one-tap shortcuts: a form's chip opens its responses; the
                   // Cheat Sheet one jumps to the Open House Requests section.
                   <div className="flex min-h-[36px] items-center gap-2 overflow-x-auto px-1 [scrollbar-width:none]">
@@ -3091,11 +3172,11 @@ function AgentHubContent() {
                       </button>
                     ))}
                     {newResultForms.length === 0 && openHouseRequestActionCount === 0 && (
-                      <span className="text-xs font-semibold text-gray-500 dark:text-white/50">All caught up - new form leads and Cheat Sheet requests show up here.</span>
+                      <span className="text-xs font-semibold text-gray-500 dark:text-white/50">{hasMlsAccess(user?.plan_tier) ? 'All caught up - new form leads and Cheat Sheet requests show up here.' : 'All caught up - new form leads and invite replies show up here.'}</span>
                     )}
                   </div>
                 )}
-                actions={formsView === 'invites' ? undefined :
+                actions={formsView === 'invites' ? <InvitesHeaderStats /> :
                   <div className="flex w-full items-stretch gap-2">
                     {statSummary && (
                       <div className="grid flex-1 grid-cols-3 gap-2 sm:min-w-[340px] lg:min-w-[400px]">
@@ -3115,8 +3196,9 @@ function AgentHubContent() {
 
             <AnimatePresence mode="popLayout">
             {formsView === 'invites' ? (
-              <motion.section key="invites" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }}
-                transition={{ type: 'spring', stiffness: 380, damping: 36 }} className="mt-6">
+              // The same entrance as the Forms side (user, 10/24: the Invites tab glitched).
+              <motion.section key="invites" initial={{ opacity: 0, y: 12, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -12, scale: 0.99 }}
+                transition={{ type: 'spring', stiffness: 420, damping: 38, mass: 0.9 }} className="mt-6">
                 <InvitesPanel />
               </motion.section>
             ) : (
@@ -3288,6 +3370,7 @@ function AgentHubContent() {
         ) : (
           <div className="grid gap-6 md:grid-cols-[1fr_420px] xl:grid-cols-[1fr_480px] md:items-start">
             <div className="min-w-0">
+              <SavedToast tick={savedTick} />
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
                 <PageHeader
                   icon={Globe}
@@ -3342,7 +3425,7 @@ function AgentHubContent() {
                       )
                     })}
                   </div>
-                  {hubLookSource === 'brand' && <p className="px-5 pt-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Your hub follows your <Link href="/studio/brand-kit" className="font-black text-[#8b7355] underline-offset-2 hover:underline dark:text-[#e8c97a]">Brand Kit</Link> - change it there and your hub changes too. Picking anything below gives your hub its own look.</p>}
+                  {hubLookSource === 'brand' && <p className="px-5 pt-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Your hub follows your <Link href="/studio/brand-kit" className="font-black text-[#8b7355] underline-offset-2 hover:underline dark:text-[#e8c97a]">Branding</Link> - change it there and your hub changes too. Picking anything below gives your hub its own look.</p>}
                   <div className="grid gap-3 p-5 sm:grid-cols-2">
                     {HUB_THEMES.map(t => {
                       const on = shownHubTheme === t.id
@@ -3552,11 +3635,8 @@ function AgentHubContent() {
                           </button>
                         ))}
                       </div>
-                      <button type="button" role="switch" aria-checked={reviewsAutoScroll} onClick={() => { setReviewsAutoScroll(!reviewsAutoScroll); handleSaveAgentHubChanges({ reviewsAutoScroll: !reviewsAutoScroll }) }}
-                        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 text-left dark:border-gray-700 dark:bg-[#0B0B0B]">
-                        <span><span className="block text-sm font-black text-[#111827] dark:text-white">Move on their own (phones)</span><span className="block text-xs font-semibold text-gray-500 dark:text-gray-400">Reviews take turns every few seconds (the computer card always does)</span></span>
-                        <span className={`relative h-5 w-9 shrink-0 rounded-full ${reviewsAutoScroll ? HUB_TOGGLE_ON : HUB_TOGGLE_OFF}`}><span className={`absolute top-1 h-3 w-3 rounded-full bg-white transition ${reviewsAutoScroll ? 'left-5' : 'left-1'}`} /></span>
-                      </button>
+                      <HubSwitchRow on={reviewsAutoScroll} onClick={() => { setReviewsAutoScroll(!reviewsAutoScroll); handleSaveAgentHubChanges({ reviewsAutoScroll: !reviewsAutoScroll }) }}
+                        title="Move on their own (phones)" sub="Reviews take turns every few seconds (the computer card always does)" />
                     </div>
 </HubCollapse>
 </div>
@@ -3613,9 +3693,7 @@ function AgentHubContent() {
                               title={`${section.visible ? 'Hide' : 'Show'} ${section.label}`}
                             >
                               <span>{isShowing ? 'On' : 'Off'}</span>
-                              <span className={`relative h-5 w-9 shrink-0 rounded-full ${isShowing ? HUB_TOGGLE_ON : HUB_TOGGLE_OFF}`}>
-                                <span className={`absolute top-1 h-3 w-3 rounded-full bg-white transition ${isShowing ? 'left-5' : 'left-1'}`} />
-                              </span>
+                              <OhpSwitch on={isShowing} size="sm" as="span" />
                             </button>
                           </div>
                             )
@@ -3632,7 +3710,7 @@ function AgentHubContent() {
             {HUB_TAB_SECTIONS[activeTab] && (
                   <div className="space-y-5">
                     {layoutSections.filter(section => HUB_TAB_SECTIONS[activeTab].includes(section.id)).map(section => {
-                      if (section.id === 'sales') return <RecentSalesPanel key={section.id} ready={agentHubDataReady} reLicenseNumber={profile.licenseNumber} agentSales={recentSales} setAgentSales={setRecentSales} showStats={showSalesStats} setShowStats={setShowSalesStats} carousel={salesCarousel} setCarousel={setSalesCarousel} autoScroll={salesAutoScroll} setAutoScroll={setSalesAutoScroll} minPrice={salesMinPrice} setMinPrice={setSalesMinPrice} onChange={() => setSaveStatus('Unsaved Changes')} onSave={handleSaveAgentHubChanges} />
+                      if (section.id === 'sales') return <RecentSalesPanel key={section.id} ready={agentHubDataReady} reLicenseNumber={profile.licenseNumber} agentSales={recentSales} setAgentSales={setRecentSales} showStats={showSalesStats} setShowStats={setShowSalesStats} carousel={salesCarousel} setCarousel={setSalesCarousel} autoScroll={salesAutoScroll} setAutoScroll={setSalesAutoScroll} minPrice={salesMinPrice} setMinPrice={setSalesMinPrice} onSortChange={setSalesSort} onChange={() => setSaveStatus('Unsaved Changes')} onSave={handleSaveAgentHubChanges} />
                       if (section.id === 'listings') return <MyListingsPanel key={section.id} ready={agentHubDataReady} listings={myListings} setListings={setMyListings} carousel={listingsCarousel} setCarousel={setListingsCarousel} autoScroll={listingsAutoScroll} setAutoScroll={setListingsAutoScroll} onChange={() => setSaveStatus('Unsaved Changes')} onSave={handleSaveAgentHubChanges} />
                       if (section.id === 'videos') return <VideoLinksPanel key={section.id} autoSync={videoAutoSync} syncedAt={videoSyncedAt} onToggleAutoSync={handleToggleVideoAutoSync} items={videoLinks} setItems={setVideoLinks} channelUrl={videoChannelUrl} setChannelUrl={setVideoChannelUrl} carousel={videosCarousel} setCarousel={setVideosCarousel} autoScroll={videosAutoScroll} setAutoScroll={setVideosAutoScroll} onChange={() => setSaveStatus('Unsaved Changes')} onSave={handleSaveAgentHubChanges} />
                       if (section.id === 'tours') return <HouseToursPanel key={section.id} items={houseTourLinks} setItems={setHouseTourLinks} houseTourUrl={houseTourUrl} setHouseTourUrl={setHouseTourUrl} carousel={toursCarousel} setCarousel={setToursCarousel} autoScroll={toursAutoScroll} setAutoScroll={setToursAutoScroll} onSave={handleSaveAgentHubChanges} />
@@ -3671,18 +3749,12 @@ function AgentHubContent() {
                         title={group.title}
                         subtitle={theme.subtitle}
                         status={<StatusPill status={getEditorSectionStatus(group.title)} />}
-                        action={
-                          <button
-                            onClick={() => handleSaveAgentHubChanges()}
-                            title="Save changes"
-                            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#111827] px-4 py-2.5 text-xs font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-black dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827]"
-                          >
-                            <Save className="h-3.5 w-3.5" /> Save
-                          </button>
-                        } open={open} onToggle={toggle} />
+                        action={<HubSaveButton dirty={hasUnsavedChanges} saving={hubSaving} savedTick={savedTick} onSave={() => handleSaveAgentHubChanges()} />}
+                        open={open} onToggle={toggle} />
 <HubCollapse open={open}>
                       <div>
-                        <div className="border-t border-gray-100 p-5 dark:border-gray-800">
+                        {/* Leaving a text box saves it (only if something changed) - no save per letter. */}
+                        <div className="border-t border-gray-100 p-5 dark:border-gray-800" onBlur={saveTextIfChanged}>
                           {group.title === 'Social Links' && (
                             <SocialLinksEditor socialLinks={socialLinks} onChange={updateSocialLink} websiteAuto={websiteAuto} />
                           )}
@@ -3717,7 +3789,7 @@ function AgentHubContent() {
                                     </div>
                                   ) : label === 'Profile photo' ? (
                                     <div className="mt-2 flex flex-1 items-center gap-4 rounded-xl border border-gray-200 bg-[#fbfaf7] p-3 dark:border-gray-700 dark:bg-[#0B0B0B]">
-                                      <DraggableAvatarPhoto url={profilePhotoUrl} position={profilePhotoPosition} onPositionChange={(pos) => { setProfilePhotoPosition(pos); setSaveStatus('Unsaved Changes') }} size={64} uploading={photoUploading} />
+                                      <DraggableAvatarPhoto url={profilePhotoUrl} position={profilePhotoPosition} onPositionChange={(pos) => { setProfilePhotoPosition(pos); setSaveStatus('Unsaved Changes') }} onDragEnd={requestSave} size={64} uploading={photoUploading} />
                                       <div className="min-w-0 flex-1">
                                         <p className="text-sm font-bold text-gray-700 dark:text-gray-300">Current profile photo</p>
                                         <p className="text-xs font-semibold text-gray-400">Drag the circle to reposition if it looks off-centered.</p>
@@ -3913,8 +3985,11 @@ function AgentHubContent() {
                     ))}
                   </div>
                 </div>
+                {/* View only (owner, 10/24) - scrolls, but nothing in it can be clicked; "Open" is for that. */}
                 <div className="mt-6 overflow-auto rounded-2xl bg-[#f2efe8] p-4">
-                  <PublicPreview size={previewSize} socialLinks={socialLinks} contact={contact} profilePhotoUrl={profilePhotoUrl} profilePhotoPosition={profilePhotoPosition} layoutSections={layoutSections} profile={profile} recentSales={recentSales} showSalesStats={showSalesStats} salesCarousel={salesCarousel} salesAutoScroll={salesAutoScroll} myListings={myListings} listingsCarousel={listingsCarousel} listingsAutoScroll={listingsAutoScroll} visitorDarkMode={visitorDarkMode} hubTheme={shownHubTheme} hubLuxeMetal={hubLuxeMetal} hubAccent={hubAccent} mobileHeader={mobileHeader} introNonce={hubIntroNonce} videosCarousel={videosCarousel} videosAutoScroll={videosAutoScroll} toursCarousel={toursCarousel} toursAutoScroll={toursAutoScroll} blogsCarousel={blogsCarousel} blogsAutoScroll={blogsAutoScroll} videoLinks={videoLinks} videoChannelUrl={videoChannelUrl} houseTourLinks={houseTourLinks} houseTourUrl={houseTourUrl} blogCards={effectiveBlogCards} agentForms={agentForms} agentHubPublicPath={agentHubPublicPath} reviewsData={shownReviewsData} reviewsCarousel={reviewsCarousel} reviewsAutoScroll={reviewsAutoScroll} reviewsOnProfile={reviewsOnProfile} reviewsProfileButton={reviewsProfileButton} />
+                  <div inert className="pointer-events-none select-none" data-hub-preview-viewonly>
+                  <PublicPreview size={previewSize} salesMinPrice={salesMinPrice} salesSort={salesSort} socialLinks={socialLinks} contact={contact} profilePhotoUrl={profilePhotoUrl} profilePhotoPosition={profilePhotoPosition} layoutSections={layoutSections} profile={profile} recentSales={recentSales} showSalesStats={showSalesStats} salesCarousel={salesCarousel} salesAutoScroll={salesAutoScroll} myListings={myListings} listingsCarousel={listingsCarousel} listingsAutoScroll={listingsAutoScroll} visitorDarkMode={visitorDarkMode} hubTheme={shownHubTheme} hubLuxeMetal={hubLuxeMetal} hubAccent={hubAccent} mobileHeader={mobileHeader} introNonce={hubIntroNonce} videosCarousel={videosCarousel} videosAutoScroll={videosAutoScroll} toursCarousel={toursCarousel} toursAutoScroll={toursAutoScroll} blogsCarousel={blogsCarousel} blogsAutoScroll={blogsAutoScroll} videoLinks={videoLinks} videoChannelUrl={videoChannelUrl} houseTourLinks={houseTourLinks} houseTourUrl={houseTourUrl} blogCards={effectiveBlogCards} agentForms={agentForms} agentHubPublicPath={agentHubPublicPath} reviewsData={shownReviewsData} reviewsCarousel={reviewsCarousel} reviewsAutoScroll={reviewsAutoScroll} reviewsOnProfile={reviewsOnProfile} reviewsProfileButton={reviewsProfileButton} />
+                  </div>
                 </div>
               </div>
             )}
@@ -3936,7 +4011,7 @@ function AgentHubContent() {
                     Live preview
                   </p>
                   <h2 className="mt-1 font-serif text-xl font-black text-[#111827] dark:text-white">{sidePreview === 'contact' ? 'Your Contact Card' : 'Your Agent Hub'}</h2>
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">{sidePreview === 'contact' ? 'What visitors save when they tap Save Contact.' : 'Updates as you edit - exactly what visitors see.'}</p>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">{sidePreview === 'contact' ? 'What visitors save when they tap Save Contact.' : 'Updates as you edit - view only. Use Open to click around.'}</p>
                 </div>
                 <button onClick={handleOpenPublicPage} title="Open your public page" className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#C9A24D]/40 bg-[#fbf6ec] px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] transition hover:-translate-y-0.5 hover:border-[#C9A24D] dark:bg-white/[0.06] dark:text-[#e8c97a]">
                   Open <ExternalLink className="h-3 w-3" />
@@ -3957,8 +4032,10 @@ function AgentHubContent() {
                       <ContactCardPreview fields={contactCard} source={contactCardSource} />
                     </motion.div>
                   ) : (
-                    <motion.div key="hub" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
-                      <PublicPreview size="mobile" compact socialLinks={socialLinks} contact={contact} profilePhotoUrl={profilePhotoUrl} profilePhotoPosition={profilePhotoPosition} layoutSections={layoutSections} profile={profile} recentSales={recentSales} showSalesStats={showSalesStats} salesCarousel={salesCarousel} salesAutoScroll={salesAutoScroll} myListings={myListings} listingsCarousel={listingsCarousel} listingsAutoScroll={listingsAutoScroll} visitorDarkMode={visitorDarkMode} hubTheme={shownHubTheme} hubLuxeMetal={hubLuxeMetal} hubAccent={hubAccent} mobileHeader={mobileHeader} introNonce={hubIntroNonce} videosCarousel={videosCarousel} videosAutoScroll={videosAutoScroll} toursCarousel={toursCarousel} toursAutoScroll={toursAutoScroll} blogsCarousel={blogsCarousel} blogsAutoScroll={blogsAutoScroll} videoLinks={videoLinks} videoChannelUrl={videoChannelUrl} houseTourLinks={houseTourLinks} houseTourUrl={houseTourUrl} blogCards={effectiveBlogCards} agentForms={agentForms} agentHubPublicPath={agentHubPublicPath} reviewsData={shownReviewsData} reviewsCarousel={reviewsCarousel} reviewsAutoScroll={reviewsAutoScroll} reviewsOnProfile={reviewsOnProfile} reviewsProfileButton={reviewsProfileButton} />
+                    <motion.div key="hub" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}
+                      // View only (owner, 10/24): it scrolls, but no link or button inside works - "Open" does that.
+                      inert className="pointer-events-none select-none" data-hub-preview-viewonly>
+                      <PublicPreview size="mobile" compact salesMinPrice={salesMinPrice} salesSort={salesSort} socialLinks={socialLinks} contact={contact} profilePhotoUrl={profilePhotoUrl} profilePhotoPosition={profilePhotoPosition} layoutSections={layoutSections} profile={profile} recentSales={recentSales} showSalesStats={showSalesStats} salesCarousel={salesCarousel} salesAutoScroll={salesAutoScroll} myListings={myListings} listingsCarousel={listingsCarousel} listingsAutoScroll={listingsAutoScroll} visitorDarkMode={visitorDarkMode} hubTheme={shownHubTheme} hubLuxeMetal={hubLuxeMetal} hubAccent={hubAccent} mobileHeader={mobileHeader} introNonce={hubIntroNonce} videosCarousel={videosCarousel} videosAutoScroll={videosAutoScroll} toursCarousel={toursCarousel} toursAutoScroll={toursAutoScroll} blogsCarousel={blogsCarousel} blogsAutoScroll={blogsAutoScroll} videoLinks={videoLinks} videoChannelUrl={videoChannelUrl} houseTourLinks={houseTourLinks} houseTourUrl={houseTourUrl} blogCards={effectiveBlogCards} agentForms={agentForms} agentHubPublicPath={agentHubPublicPath} reviewsData={shownReviewsData} reviewsCarousel={reviewsCarousel} reviewsAutoScroll={reviewsAutoScroll} reviewsOnProfile={reviewsOnProfile} reviewsProfileButton={reviewsProfileButton} />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -4000,7 +4077,7 @@ function AgentHubContent() {
 
       <FormResultsModal
         isOpen={Boolean(resultsModalFormId)}
-        onClose={() => { setResultsModalFormId(''); setResultsFocusId('') }}
+        onClose={() => { setResultsModalFormId(''); setResultsFocusId(''); forgetOpenedResult() }}
         form={agentForms.find(form => form.id === resultsModalFormId) || null}
         submissions={formSubmissionsByFormId[resultsModalFormId] || []}
         initialSubmissionId={resultsFocusId || (searchParams.get('formId') === resultsModalFormId ? searchParams.get('submission') || undefined : undefined)}
@@ -4043,7 +4120,7 @@ function AgentHubContent() {
             key={`campaigns-${campaignsModalForm.id}`}
             form={campaignsModalForm}
             initialView={searchParams.get('view') === 'unfinished' && searchParams.get('formId') === campaignsModalForm.id ? 'unfinished' : undefined}
-            onClose={() => setCampaignsModalFormId('')}
+            onClose={() => { setCampaignsModalFormId(''); forgetOpenedResult() }}
             onReviewedChange={(submissionId, isReviewed) => {
               // Keep this page's copy in step, so the card's red count drops the moment it's
               // marked - not on the next reload.
@@ -4079,6 +4156,8 @@ function AgentHubContent() {
         onUpdateLook={(patch) => updateFormLook(formEditorOpenId, patch)}
         onApplyLookToAll={() => applyFormLookToAll(formEditorOpenId)}
         onToggleRedirectToAgentHub={() => toggleFormRedirect(formEditorOpenId)}
+        onToggleRedirectToShowcase={() => toggleFormShowcaseRedirect(formEditorOpenId)}
+        isDirty={!!formIsDirty[formEditorOpenId]}
         onTogglePropertyPhotoCarousel={() => toggleFormPropertyPhotoCarousel(formEditorOpenId)}
         onToggleBackgroundEffects={() => toggleFormBackgroundEffects(formEditorOpenId)}
         onToggleWelcomeTextEffects={() => toggleFormWelcomeTextEffects(formEditorOpenId)}
@@ -4191,6 +4270,22 @@ function AgentHubContent() {
                 </button>
               </div>
 
+              {/* Its effects and where visitors go after submitting are the agent's call too (user, 10/24). */}
+              <div className="mt-3">
+                <EffectsSettings form={themeEditForm} onToggleBackground={() => toggleFormBackgroundEffects(themeEditFormId)} onToggleWelcome={() => toggleFormWelcomeTextEffects(themeEditFormId)} />
+              </div>
+              <div className="mt-4">
+                <AfterSubmitSettings form={themeEditForm} hubAvailable={hasAgentHubAccess(user?.plan_tier)} onToggleHub={() => toggleFormRedirect(themeEditFormId)} onToggleShowcase={() => toggleFormShowcaseRedirect(themeEditFormId)} />
+              </div>
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50/50 p-4 dark:border-red-900/30 dark:bg-red-900/10">
+                <p className="text-sm font-black text-[#111827] dark:text-white">Revert to default</p>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Back to OpenHousePal's look and settings for this form: your Brand Kit look, effects on, opens their Showcase.</p>
+                <RevertButton busy={themeReverting} done={themeRevertDone} onClick={async () => {
+                  setThemeReverting(true)
+                  try { await handleResetFormToDefault(themeEditFormId); setThemeRevertDone(true); window.setTimeout(() => setThemeRevertDone(false), 2600) } finally { setThemeReverting(false) }
+                }} />
+              </div>
+
               <div className="mt-6 flex gap-2">
                 <button
                   onClick={handleCloseThemeEditor}
@@ -4198,13 +4293,7 @@ function AgentHubContent() {
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={handleSaveThemeEditor}
-                  disabled={formSaveStatus[themeEditFormId] === 'saving'}
-                  className="flex-1 rounded-xl bg-[#111827] px-4 py-2.5 text-sm font-black text-white disabled:opacity-60 dark:bg-white dark:text-[#111827]"
-                >
-                  {formSaveStatus[themeEditFormId] === 'saving' ? 'Saving...' : 'Save'}
-                </button>
+                <SaveFormButton status={formSaveStatus[themeEditFormId] || 'idle'} dirty={!!formIsDirty[themeEditFormId]} onClick={handleSaveThemeEditor} className="flex-1" />
               </div>
             </div>
           </div>
@@ -5036,15 +5125,99 @@ function HubPanelHead({ icon: Icon, kicker, title, subtitle, status, action, ope
     </>
   )
   return (
-    <div className={`group relative flex flex-wrap items-center gap-4 overflow-hidden bg-gradient-to-r from-[#fffdf8] via-white to-white p-5 dark:from-[#1a1712] dark:via-[#151517] dark:to-[#151517] ${open ? 'border-b border-[#C9A24D]/15 dark:border-white/[0.06]' : ''}`}>
+    <div className={`group relative flex flex-nowrap items-center gap-3 overflow-hidden bg-gradient-to-r from-[#fffdf8] via-white to-white p-4 sm:gap-4 sm:p-5 dark:from-[#1a1712] dark:via-[#151517] dark:to-[#151517] ${open ? 'border-b border-[#C9A24D]/15 dark:border-white/[0.06]' : ''}`}>
       <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/60 to-transparent" />
       {onToggle ? <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-4 text-left">{text}</button> : text}
       {open && action}
       {onToggle && (
-        <button type="button" onClick={onToggle} className="rounded-xl border border-gray-200 bg-white p-3 text-gray-500 dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-gray-400" aria-label={`${open ? 'Collapse' : 'Expand'} ${title}`}>
-          <ChevronDown className={`h-5 w-5 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
-        </button>
+        <motion.button type="button" whileTap={{ scale: 0.9 }} onClick={onToggle} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:border-[#C9A24D]/60 hover:text-[#8b7355] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-gray-400 sm:h-11 sm:w-11" aria-label={`${open ? 'Collapse' : 'Expand'} ${title}`}>
+          <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ type: 'spring', stiffness: 420, damping: 26 }} className="grid place-items-center"><ChevronDown className="h-5 w-5" /></motion.span>
+        </motion.button>
       )}
     </div>
+  )
+}
+
+/** The Save button on text panels (owner, 10/24: clicking Save gave no feedback). Gold dot while
+ *  something is unsaved, a spinner while saving, then it morphs into a green "Saved ✓" for a moment.
+ *  Phones get a round icon button so it never takes a whole line in the panel header. */
+function HubSaveButton({ dirty, saving, savedTick, onSave }: { dirty: boolean; saving: boolean; savedTick: number; onSave: () => void }) {
+  const [justSaved, setJustSaved] = useState(false)
+  const firstTick = useRef(savedTick)
+  useEffect(() => {
+    if (savedTick === firstTick.current) return
+    setJustSaved(true)
+    const t = setTimeout(() => setJustSaved(false), 1600)
+    return () => clearTimeout(t)
+  }, [savedTick])
+  const state = saving ? 'saving' : justSaved && !dirty ? 'saved' : dirty ? 'dirty' : 'clean'
+  return (
+    <motion.button
+      type="button"
+      // keep focus in the text box - its blur-save and this click would otherwise both save
+      onMouseDown={e => e.preventDefault()}
+      onClick={onSave}
+      disabled={saving}
+      whileTap={{ scale: 0.92 }}
+      layout
+      title={state === 'clean' ? 'All changes saved' : 'Save changes'}
+      aria-label={state === 'saved' || state === 'clean' ? 'Saved' : 'Save changes'}
+      className={`relative inline-flex h-10 shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-full text-xs font-black shadow-sm transition-colors max-sm:w-10 sm:px-4 ${
+        state === 'saved' ? 'bg-emerald-500 text-white'
+          : state === 'clean' ? 'border border-gray-200 bg-white text-gray-400 dark:border-gray-700 dark:bg-[#0B0B0B]'
+          : 'bg-[#111827] text-white hover:bg-black dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827]'}`}
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        {state === 'saving' ? (
+          <motion.span key="saving" initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} className="inline-flex items-center gap-1.5">
+            <Loader2 className="h-4 w-4 animate-spin sm:h-3.5 sm:w-3.5" /><span className="max-sm:hidden">Saving</span>
+          </motion.span>
+        ) : state === 'saved' || state === 'clean' ? (
+          <motion.span key="saved" initial={{ opacity: 0, scale: 0.4, rotate: -30 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} exit={{ opacity: 0, scale: 0.6 }} transition={{ type: 'spring', stiffness: 520, damping: 22 }} className="inline-flex items-center gap-1.5">
+            <Check className="h-4 w-4 sm:h-3.5 sm:w-3.5" strokeWidth={3.2} /><span className="max-sm:hidden">Saved</span>
+          </motion.span>
+        ) : (
+          <motion.span key="save" initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} className="inline-flex items-center gap-1.5">
+            <Save className="h-4 w-4 sm:h-3.5 sm:w-3.5" /><span className="max-sm:hidden">Save</span>
+            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[#e8c97a] ring-2 ring-[#111827] sm:static sm:ring-0" />
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </motion.button>
+  )
+}
+
+/** The small "Saved ✓" that pops up after any save - switches, clicks and Save buttons alike. */
+function SavedToast({ tick }: { tick: number }) {
+  const [shown, setShown] = useState(0)
+  const first = useRef(tick)
+  // Rendered into <body> - an animated (transformed) parent would otherwise pin "fixed" to itself.
+  const [host, setHost] = useState<HTMLElement | null>(null)
+  useEffect(() => { setHost(document.body) }, [])
+  useEffect(() => {
+    if (tick === first.current) return
+    setShown(tick)
+    const t = setTimeout(() => setShown(0), 1500)
+    return () => clearTimeout(t)
+  }, [tick])
+  if (!host) return null
+  return createPortal(
+    <div className="pointer-events-none fixed inset-x-0 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-[70] flex justify-center sm:bottom-6 sm:justify-end sm:pr-6">
+      <AnimatePresence>
+        {shown > 0 && (
+          <motion.div key={shown} role="status" aria-live="polite"
+            initial={{ opacity: 0, y: 18, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95, transition: { duration: 0.18 } }}
+            transition={{ type: 'spring', stiffness: 520, damping: 30 }}
+            className="inline-flex items-center gap-2 rounded-full bg-[#111827] py-2 pl-2 pr-4 text-[13px] font-black text-white shadow-[0_18px_40px_-14px_rgba(0,0,0,.55)] ring-1 ring-[#C9A24D]/40 dark:bg-white dark:text-[#111827]">
+            <motion.span initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 600, damping: 18, delay: 0.05 }}
+              className="grid h-6 w-6 place-items-center rounded-full bg-emerald-500 text-white">
+              <Check className="h-3.5 w-3.5" strokeWidth={3.5} />
+            </motion.span>
+            Saved
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>,
+    host,
   )
 }

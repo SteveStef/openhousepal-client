@@ -15,6 +15,7 @@ import LuxeHero, { LuxeTabs, luxePill } from '@/components/ui/LuxeHero'
 import Pager from '@/components/ui/Pager'
 import { AUTO_HIDE_WHEN_READ_TYPES, getNotificationMeta, visibleNotifications } from '@/lib/notificationDisplay'
 import { formatDateTime } from '@/lib/relativeDays'
+import { isRundownNotification, openTodaysRundown } from '@/components/rundown/TodaysRundown'
 
 // The full-history counterpart to the bell dropdown (NotificationDropdown) - the bell only shows
 // the 10 most recent (last 30 days), so this page is where everything else lives: grouped by kind
@@ -146,6 +147,8 @@ export default function ActivityPage() {
       setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, isRead: true } : x))
       api.notifications.markAsRead(n.id).then(() => window.dispatchEvent(new Event(REFRESH_EVENT)))
     }
+    // Today's Rundown (old ones say "Today's Showcase update") opens its window right here.
+    if (isRundownNotification(n)) { openTodaysRundown(); return }
     if (!n.link) return
     // On a computer it opens in a new tab so the list stays put; on a phone, right here.
     const external = /^https?:\/\//.test(n.link)

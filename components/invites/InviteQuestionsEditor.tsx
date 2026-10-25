@@ -21,7 +21,6 @@ const typeLabel = (t: InviteQuestion['type']) => TYPES.find(x => x.id === t)?.la
 /** Ready-made questions the agent can drop in (the pre-made set for each type comes from the backend). */
 export const QUESTION_BANK: (InviteQuestion & { for?: InviteType[] })[] = [
   { id: 'party', type: 'select', label: 'How many of you are coming?', options: ['Just me', '2', '3', '4', '5+'], required: true, role: 'guests' },
-  { id: 'agent', type: 'select', label: 'Are you working with a real estate agent?', options: ['Yes', 'No'], role: 'represented', for: ['open_house', 'client_event', 'custom'] },
   { id: 'brokerage', type: 'short_text', label: 'Your brokerage', role: 'brokerage', placeholder: 'Brokerage name', for: ['brokers_open'] },
   { id: 'diet', type: 'multi_select', label: 'Any dietary needs?', options: ['None', 'Vegetarian', 'Vegan', 'Gluten-free', 'Dairy-free', 'Nut allergy', 'Other'] },
   { id: 'guests', type: 'short_text', label: 'Names of your guests', placeholder: 'So we can welcome them by name' },
@@ -54,7 +53,7 @@ export default function InviteQuestionsEditor({ type, value, onChange }: { type:
   return (
     <div>
       <div className="mb-3 rounded-2xl border border-dashed border-[#C9A24D]/45 px-4 py-3 text-[13px] font-semibold text-gray-600 dark:text-gray-300">
-        Every guest is asked <b>Will you be there?</b> (Yes · Maybe · Can&apos;t make it), their <b>name</b> and an <b>email or phone</b>. Below is everything else.
+        Every guest is asked <b>Will you be there?</b> (Yes · Maybe · Can&apos;t make it), their <b>name</b> and an <b>email or phone</b>{type !== 'brokers_open' && <>, and <b>whether they&apos;re a real estate agent</b> or <b>working with one</b> - so only real leads get a follow-up</>}. Below is everything else.
       </div>
 
       <Reorder.Group axis="y" values={value} onReorder={onChange} className="space-y-2">
@@ -83,7 +82,10 @@ function QuestionItem({ q, i, open, setOpenId, update, remove }: {
                   <p className="truncate text-[14px] font-black text-[#111827] dark:text-white">{i + 1}. {q.label}</p>
                   <p className="truncate text-[11px] font-bold text-gray-400">{typeLabel(q.type)}{q.required ? ' · Required' : ''}{q.options?.length ? ` · ${q.options.length} choices` : ''}</p>
                 </button>
-                <motion.span animate={{ rotate: open ? 180 : 0 }} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-500 dark:bg-white/10"><ChevronDown className="h-4 w-4" /></motion.span>
+                {/* The arrow opens it too (user, 10/24: only the bar did). */}
+                <motion.button type="button" onClick={() => setOpenId(open ? null : q.id)} aria-label={open ? 'Close this question' : 'Edit this question'} aria-expanded={open}
+                  animate={{ rotate: open ? 180 : 0 }} whileTap={{ scale: 0.9 }} data-testid="invite-question-toggle"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-500 transition hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15"><ChevronDown className="h-4 w-4" /></motion.button>
               </div>
               <AnimatePresence initial={false}>
                 {open && (

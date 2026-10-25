@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import type { ComponentType } from 'react'
-import { Building2, Search, Calculator, ClipboardList, Globe, Link2, Sparkles, Palette, Newspaper, Layout, Users, CheckCircle2, CalendarClock, Star, Mail } from 'lucide-react'
+import { Building2, Search, Calculator, ClipboardList, Globe, Link2, Sparkles, Palette, Newspaper, Layout, Users, CheckCircle2, CalendarClock, Star, Mail, Send, WandSparkles } from 'lucide-react'
 import { SpotlightIcon, KitsIcon } from '@/components/icons/CustomIcons'
 import { PRICING_PLANS, TRIAL_PERIOD_DAYS } from '@/lib/pricing'
 
@@ -224,7 +224,7 @@ export function BasicPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Select
           <IncludesDivider label={PRICING_PLANS.BASIC.includesLabel} />
 
           <SpotlightFeatureCard group={{ label: 'Open House Kits & Sign-In', ai: true, icon: KitsIcon, kicker: 'Automated', desc: "QR or kiosk sign-in, a Brag Sheet of your recent sales, a Similar Homes flyer & a Cheat Sheet of the home and nearby - in seconds" }} alwaysShow />
-          <SpotlightFeatureCard group={{ label: 'Forms', icon: ClipboardList, iconClass: 'ohp-icon-assemble-forms', kicker: 'Capture Leads', desc: 'Forms for onboarding, ads, funnels & mailers - one link or QR, replies go to Leads' }} alwaysShow />
+          <SpotlightFeatureCard group={{ label: 'Forms & Invites', icon: ClipboardList, iconClass: 'ohp-icon-assemble-forms', kicker: 'Capture Leads', desc: 'Forms, funnels & open house invites - one link or QR, replies & RSVPs go to Leads' }} alwaysShow />
           <SpotlightFeatureCard group={{ label: 'Leads & Follow-Ups', icon: Users, kicker: 'Never Miss One', desc: 'One inbox for every sign-in & form reply, with notes, source & automatic follow-ups' }} alwaysShow />
           <SpotlightFeatureCard group={{ label: 'CMA Builder', ai: true, icon: Calculator, kicker: 'Pricing', desc: 'AI deep-dives listing facts & photos, then builds a detailed, pro-grade report' }} alwaysShow />
           <SpotlightFeatureCard group={{ label: 'Discovery + Manager', icon: DiscoveryManagerIcon, kicker: 'Open House Tools', desc: 'Find opens to host nearby; approve hosts & see guest insights on your listings' }} alwaysShow />
@@ -408,13 +408,21 @@ export function NoMlsPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Select
         <div className="flex flex-col gap-3 mb-8 flex-grow">
           <IncludesDivider label={PRICING_PLANS.NO_MLS.includesLabel} />
 
-          {/* No Brag Sheet, Similar Homes or Cheat Sheet here: the Brag Sheet needs sales from
-              Agent Hub (No-MLS Premium) or Bright MLS, and Similar Homes + the Cheat Sheet are built
-              from Bright MLS data these plans don't have. */}
-          <SpotlightFeatureCard group={{ label: 'Open House Sign-In', icon: KitsIcon, kicker: 'Manual Entry', desc: "A branded QR sign-in sheet for your open house - guests scan with their phone or sign in on a tablet kiosk, and every sign-in lands in your Leads. Enter the property details yourself since there's no Bright MLS data to pull from" }} alwaysShow />
-          <SpotlightFeatureCard group={{ label: 'Forms', icon: ClipboardList, iconClass: 'ohp-icon-assemble-forms', kicker: 'Capture Leads', desc: 'Branded forms for onboarding, Facebook leads, website funnels & mailers. Customize the questions, share one link - every response flows straight into your Leads' }} alwaysShow />
+          {/* No Similar Homes or Cheat Sheet here - both are built from Bright MLS data these plans
+              don't have. The Brag Sheet IS included (owner, 10/24): it prints the sales the agent
+              adds by hand. */}
+          <SpotlightFeatureCard group={{ label: 'Open House Sign-In', icon: KitsIcon, kicker: 'Manual Entry', desc: "A branded QR sign-in sheet or tablet kiosk - every sign-in lands in your Leads - plus a Brag Sheet of the sales you add. You type in the home's details" }} alwaysShow />
+          {/* "Forms & Invites" (owner, 10/24): open house e-invites + RSVPs live on the Forms page and
+              come with this plan - so No-MLS Premium ("All of No-MLS Basic, plus") has them too. */}
+          <SpotlightFeatureCard group={{ label: 'Forms & Invites', icon: ClipboardList, iconClass: 'ohp-icon-assemble-forms', kicker: 'Capture Leads', desc: 'Branded forms for onboarding, ads, funnels & mailers, plus open house invites with RSVPs. Share one link - every reply flows straight into your Leads' }} alwaysShow />
           <SpotlightFeatureCard group={{ label: 'Leads & Follow-Ups', icon: Users, kicker: 'Track & Convert', desc: 'Every sign-in and inquiry captured in one inbox with notes - plus an automatic next-day follow-up task on your calendar' }} alwaysShow />
           <SpotlightFeatureCard group={{ label: 'Calendar & CRM Sync', icon: CalendarClock, iconClass: 'ohp-icon-assemble-calendar', kicker: 'Two-Way Sync', desc: 'Opens, follow-up reminders & confirmed tours flow to your Google Calendar; new leads push straight to your CRM' }} alwaysShow />
+          {/* Owner 10/24 ("Add both"): two everyday tools this plan already includes, so the card
+              reads about as long as No-MLS Premium's. Brand Kit + send-from-your-email are on every plan.
+              Wording kept to what's true today: guest emails don't carry the brand color, and Outlook
+              send-as is still "Coming soon" on the Email page - add "or Outlook" back once it ships. */}
+          <SpotlightFeatureCard group={{ label: 'Your Brand, Everywhere', icon: WandSparkles, kicker: 'Brand Kit', desc: 'Your logo, colors & headshot on every sign-in sheet, form & invite - set once' }} alwaysShow />
+          <SpotlightFeatureCard group={{ label: 'Send From Your Email', icon: Send, kicker: 'Email & Tracking', desc: 'Invite & tour emails go out from your own Gmail - and you see who opened & clicked' }} alwaysShow />
 
           {/* mt-auto - see BasicPricingCard's matching pill for why (this card just switched to
               the same flex-col wrapper to support it). No-MLS's own mirror of Basic's "Bright MLS

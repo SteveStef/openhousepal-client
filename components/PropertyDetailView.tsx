@@ -15,7 +15,9 @@ import {
 import { useToast } from '@/contexts/ToastContext'
 import { normalizeImageUrl } from '@/lib/utils'
 import { visitSource, type CameFrom } from '@/lib/visitSource'
-import OhpLoader from '@/components/brand/OhpLoader'
+import PageReveal from '@/components/ui/PageReveal'
+import { SignedInShowcases } from '@/components/property/ShowcaseMembership'
+import { useImagesReady } from '@/hooks/useImagesReady'
 
 export interface PropertyDetailViewProps {
   propertyId: string
@@ -122,20 +124,14 @@ export default function PropertyDetailView({ propertyId, agentId, initialAction,
 
   const scrollToMessage = () => document.getElementById('property-message-agent')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] flex-1 items-center justify-center bg-[#faf9f7] dark:bg-[#0B0B0B]">
-        <OhpLoader guest fullScreen={false} className="!py-0" label="Opening the home" />
-      </div>
-    )
-  }
+  // The house loader stays up until the page AND its first photos are in, then the page rises in
+  // (user, 10/24: a follow-up link showed the page before its photo). One PageReveal at the root of
+  // every state below, so the loader never restarts between "fetching" and "photos loading".
+  const pageRef = useRef<HTMLDivElement>(null)
+  const photosIn = useImagesReady(pageRef, !loading && !!home && !(property?.spotlightUrl && !embedded), { count: 3, maxWait: 6000 })
 
-  if (property?.spotlightUrl && !embedded) {
-    return (
-      <div className="flex min-h-[60vh] flex-1 items-center justify-center bg-[#faf9f7] dark:bg-[#0B0B0B]">
-        <OhpLoader guest fullScreen={false} className="!py-0" />
-      </div>
-    )
+  if (loading || (property?.spotlightUrl && !embedded)) {
+    return <PageReveal ready={false} guest label="Opening the home">{null}</PageReveal>
   }
 
   if (error || !property || !home) {
@@ -157,6 +153,8 @@ export default function PropertyDetailView({ propertyId, agentId, initialAction,
 
   const prefillContact = (prefill?.contact || '').trim()
   return (
+    <PageReveal ready={photosIn} guest label="Opening the home">
+    <div ref={pageRef}>
     <PropertySurface surface="app" gold={GOLD} ink={INK} className="relative min-h-screen flex-1 bg-[var(--pp-bg)] transition-colors duration-300">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[560px]" style={{ background: 'radial-gradient(70% 60% at 85% 0%, var(--pp-gold-wash), transparent 70%)' }} />
       <div className={`relative mx-auto max-w-7xl px-5 pt-5 sm:px-8 sm:pt-7 ${hideFooter ? 'pb-10' : 'pb-28 lg:pb-14'}`}>
@@ -170,6 +168,8 @@ export default function PropertyDetailView({ propertyId, agentId, initialAction,
         {/* The photos take the whole top. Under them: the summary, with the agent's card + question box
             riding beside it all on desktop (phones: summary, those, then the rest). */}
         <PropertyHero home={home} actions={<HeroShareActions home={home} />} />
+        {/* A signed-in agent looking at any home: which of their Showcases have it (guests: nothing). */}
+        {!embedded && <SignedInShowcases listingKey={property.ListingKey || propertyId} street={home.street} />}
         <div className={`mt-9 grid gap-x-6 gap-y-6 ${HERO_COLS}`}>
           <aside className="lg:col-start-2 lg:row-start-1">
             <div className="pp-stick space-y-4">
@@ -250,5 +250,7 @@ export default function PropertyDetailView({ propertyId, agentId, initialAction,
         initialContact={prefill?.contact}
       />
     </PropertySurface>
+    </div>
+    </PageReveal>
   )
 }

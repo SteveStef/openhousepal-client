@@ -299,7 +299,7 @@ export function compPriceCaption(c: CmaComparable): string | null {
 export function remarksBasementFinish(p: { public_remarks?: string | null }): 'partial' | 'finished' | null {
   const t = (p.public_remarks || '').toLowerCase()
   if (/partially[\s-]+finished\s+(?:lower[\s-]+level|basement)|basement\s+(?:is\s+)?partially\s+finished/.test(t)) return 'partial'
-  if (/(?<!un)finished\s+(?:lower[\s-]+level|basement|walk[\s-]?out)|basement\s+(?:is\s+)?(?:fully\s+)?finished/.test(t)) return 'finished'
+  if (/finished\s+(?:lower[\s-]+level|basement|walk[\s-]?out)|basement\s+(?:is\s+)?(?:fully\s+)?finished/.test(t.replace(/unfinished/g, ''))) return 'finished'
   return null
 }
 // Basement for display: Bright's field, plus what the listing says when the field is silent on finish.

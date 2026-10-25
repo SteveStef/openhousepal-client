@@ -7,6 +7,8 @@
 import { useEffect, useState } from 'react'
 import { Check, Home, Loader2 } from 'lucide-react'
 import api from '@/lib/api-service'
+import { useOptionalAuth } from '@/contexts/AuthContext'
+import { hasMlsAccess } from '@/lib/navAccess'
 import { labelCls } from './ui'
 
 interface YourHome { key: string; label: string; tag: 'Listed' | 'Sold'; image: string; photos: string[] }
@@ -15,6 +17,8 @@ const nice = (s?: string | null) => (s && s === s.toUpperCase() ? s.toLowerCase(
 
 export default function YourHomesPhotos({ current, onPick }: { current: string | null; onPick: (main: string, more: string[]) => void }) {
   const [homes, setHomes] = useState<YourHome[] | null>(null)
+  const planTier = useOptionalAuth()?.user?.plan_tier
+  const mls = !planTier || hasMlsAccess(planTier)
 
   useEffect(() => {
     let cancelled = false
@@ -22,15 +26,19 @@ export default function YourHomesPhotos({ current, onPick }: { current: string |
       // Listings (MLS plans only - a No-MLS plan just gets a 403 and shows its sales) + the sales
       // the agent curated in their Agent Hub, falling back to the same lookup the Hub uses.
       const [mine, hub] = await Promise.all([
-        api.openHouseManager.getMyListings().catch(() => null),
+        mls ? api.openHouseManager.getMyListings().catch(() => null) : Promise.resolve(null),
         api.agentHub.getMine().catch(() => null),
       ])
+      // No-MLS: their listings are the ones they added by hand on their Agent Hub / Settings.
+      const manualListings: YourHome[] = mls ? [] : (Array.isArray(hub?.data?.config?.myListings) ? hub!.data!.config!.myListings : [])
+        .filter((l: any) => l?.source === 'manual' && l?.visible !== false && l?.image)
+        .map((l: any) => ({ key: `m-${l.id || l.address}`, label: nice(l.address), tag: 'Listed' as const, image: l.image, photos: (l.photos?.length ? l.photos : [l.image]).filter(Boolean) }))
       let sales: any[] = (Array.isArray(hub?.data?.config?.recentSales) ? hub!.data!.config!.recentSales : []).filter((s: any) => s?.visible !== false)
-      if (!sales.length) {
+      if (!sales.length && mls) {
         const res = await api.agentHub.getRecentSales().catch(() => null)
         sales = res?.success ? res.data || [] : []
       }
-      const list: YourHome[] = []
+      const list: YourHome[] = [...manualListings]
       for (const l of mine?.success ? mine.data?.listings || [] : []) {
         const photos = (l.photos?.length ? l.photos : l.image ? [l.image] : []).filter(Boolean) as string[]
         if (photos.length) list.push({ key: `l-${l.listing_key}`, label: nice(l.address), tag: 'Listed', image: photos[0], photos })

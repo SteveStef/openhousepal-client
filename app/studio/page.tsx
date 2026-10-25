@@ -31,6 +31,14 @@ export default function StudioHomePage() {
   const mediaAccess = getNavFeatureAccess(user?.plan_tier, 'ai_media')
   const spotlightAccess = getNavFeatureAccess(user?.plan_tier, 'listing_spotlight')
   const emailSignatureAccess = getNavFeatureAccess(user?.plan_tier, 'email_signature')
+  // The four top cards follow the same rules (they used to always show unlocked - a No-MLS agent
+  // saw CMA, and a plan without Agent Hub / Studio / Blogs saw them open).
+  const hubAccess = getNavFeatureAccess(user?.plan_tier, 'agent_hub')
+  const cmaAccess = getNavFeatureAccess(user?.plan_tier, 'cma')
+  const blogsAccess = getNavFeatureAccess(user?.plan_tier, 'blogs')
+  const designAccess = getNavFeatureAccess(user?.plan_tier, 'design_studio')
+  // No-MLS track: no CMA and no Spotlight, so both rows are 3 wide instead of 4.
+  const rowCols = cmaAccess.visible ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
   // Same live connection status Settings' Tools accordion shows (lib/toolsStatus.ts) - explicit
   // ask: these cards' old feature-name tags ("Google", "Two-Way Sync", "Auto-Updates") never said
   // whether the agent had actually set anything up.
@@ -54,7 +62,7 @@ export default function StudioHomePage() {
         {/* Agent Hub, Forms, CMA and Blogs - the four everyday tools - lead in the wider 4-per-row
             spot up top. AI Media, Listing Spotlight and Design Studio (the heavier, example-driven
             ones) sit in the narrower 3-per-row grid underneath. */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={`grid gap-4 sm:grid-cols-2 ${rowCols}`}>
           <motion.div initial={{ opacity: 0, y: 16, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", stiffness: 260, damping: 24, delay: 0.05 }}>
             <ProductCard
               href="/studio/site"
@@ -69,6 +77,8 @@ export default function StudioHomePage() {
               preview={(active) => <SitePreview active={active} name={[user?.first_name, user?.last_name].filter(Boolean).join(' ')} title={user?.professional_title} photoUrl={user?.photo_url} />}
               previewShort
               eyebrowMarginClass="sm:mr-28"
+              locked={hubAccess.locked}
+              upgradeHref={hubAccess.upgradeHref}
               lockedLabel="Agent Hub"
             />
           </motion.div>
@@ -79,7 +89,7 @@ export default function StudioHomePage() {
               iconClass="ohp-icon-assemble-forms"
               eyebrow="Forms"
               title="Capture Leads"
-              description="Buying, selling & home-value forms — shared as links or embedded."
+              description="Buying, selling & home-value forms, plus open house invites — shared as links."
               actions={[
                 { label: 'Results', href: '/studio/forms?tab=results', icon: FileEdit },
               ]}
@@ -90,7 +100,7 @@ export default function StudioHomePage() {
               eyebrowMarginClass="sm:mr-28"
             />
           </motion.div>
-          <motion.div initial={{ opacity: 0, y: 16, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", stiffness: 260, damping: 24, delay: 0.15 }}>
+          {cmaAccess.visible && <motion.div initial={{ opacity: 0, y: 16, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", stiffness: 260, damping: 24, delay: 0.15 }}>
             <ProductCard
               href="/studio/cma"
               icon={Calculator}
@@ -105,7 +115,7 @@ export default function StudioHomePage() {
               previewShort
               lockedLabel="CMA"
             />
-          </motion.div>
+          </motion.div>}
           <motion.div initial={{ opacity: 0, y: 16, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", stiffness: 260, damping: 24, delay: 0.2 }}>
             <ProductCard
               href="/studio/blogs"
@@ -120,6 +130,8 @@ export default function StudioHomePage() {
               accent="from-[#816937]/15 to-transparent"
               preview={(active) => <BlogPreview active={active} />}
               previewShort
+              locked={blogsAccess.locked}
+              upgradeHref={blogsAccess.upgradeHref}
             />
           </motion.div>
         </div>
@@ -129,7 +141,7 @@ export default function StudioHomePage() {
             already all lived in this one grid together; at 3 columns the 4th (whichever is
             visible last) wrapped onto its own mostly-empty row instead of sitting flush with the
             other three. */}
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={`mt-4 grid gap-4 sm:grid-cols-2 ${rowCols}`}>
           <motion.div initial={{ opacity: 0, y: 16, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", stiffness: 260, damping: 24, delay: 0.25 }}>
             <ProductCard
               href="/studio/design"
@@ -142,6 +154,8 @@ export default function StudioHomePage() {
               ]}
               accent="from-[#C9A24D]/15 to-transparent"
               preview={(active) => <DesignPreview active={active} />}
+              locked={designAccess.locked}
+              upgradeHref={designAccess.upgradeHref}
               lockedLabel="Studio"
             />
           </motion.div>
@@ -252,7 +266,7 @@ function BrandKitButton() {
   return (
     <Link
       href="/studio/brand-kit"
-      title={hasLogo === false ? 'Add your logo - every design pulls from your Brand Kit' : 'Logos, colors & fonts shared across Studio & Blogs'}
+      title={hasLogo === false ? 'Add your logo - every design pulls from your Branding' : 'Your brand color, logos & fonts - on every feature'}
       className="group flex w-full items-center gap-3 rounded-2xl border border-gray-200 bg-white py-2 pl-2 pr-4 text-left shadow-sm sm:inline-flex sm:w-auto sm:whitespace-nowrap transition hover:-translate-y-0.5 hover:border-[#C9A24D] hover:shadow-md dark:border-gray-700 dark:bg-[#151517]"
     >
       <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#C9A24D] to-[#8b7355] text-white shadow-sm transition-transform group-hover:scale-105">
@@ -261,11 +275,11 @@ function BrandKitButton() {
       </span>
       <span className="min-w-0 flex-1 leading-tight sm:flex-none">
         <span className="flex items-center gap-1.5 text-sm font-black text-[#111827] dark:text-white">
-          Brand Kit
+          Branding
           {hasLogo === true && <Check className="h-3.5 w-3.5 text-emerald-500" />}
         </span>
         <span className={`block text-[11px] font-semibold ${hasLogo === false ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
-          {hasLogo === false ? 'Add your logo - every design uses it' : 'Logos, colors & fonts for every design'}
+          {hasLogo === false ? 'Add your logo - every design uses it' : 'Your color on every feature'}
         </span>
       </span>
       <ArrowRight className="ml-1 h-4 w-4 text-gray-400 transition-transform group-hover:translate-x-0.5 group-hover:text-[#C9A24D]" />

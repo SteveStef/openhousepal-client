@@ -1,17 +1,17 @@
 'use client'
 
-import { useState } from 'react'
 import { motion } from 'framer-motion'
+import HomeAreaMap from '@/components/maps/HomeAreaMap'
 
 // The Open House Cheat Sheet as a web page - the same content as the printed sheet (both built by
 // lib/cheatSheetContent.ts from the open house's saved Cheat Sheet, so an edit to the kit shows up
 // here too), laid out for a phone: the home up top, its key facts, the guide, what's nearby, the
 // printed QR codes as one-tap buttons, and the host at the bottom.
 import {
-  ArrowLeft, ArrowUpRight, Bath, Bed, Calendar, CalendarCheck, DollarSign, Droplet, Flame, GraduationCap, House,
-  LandPlot, Mail, MapPin, Phone, Ruler, ScanSearch, Snowflake, SquareCheck, UserRound, Waves,
+  ArrowLeft, ArrowUpRight, Bath, Bed, Building2, Calendar, CalendarCheck, DollarSign, Droplet, Flame, GraduationCap, House,
+  Hospital, LandPlot, Mail, MapPin, Phone, Plane, Ruler, ScanSearch, School, ShoppingBasket, Snowflake, SquareCheck, Trees, UserRound, Waves,
 } from 'lucide-react'
-import { buildCheatSheetContent, cityFromAddress, type AmenityPlace, type CheatSheetFact, type CheatSheetIcon } from '@/lib/cheatSheetContent'
+import { buildCheatSheetContent, cityFromAddress, tidyAllCaps, type AmenityPlace, type CheatSheetFact, type CheatSheetIcon } from '@/lib/cheatSheetContent'
 import { Avatar } from './GuestPass'
 import { GuestPassData, RequestKind, RequestState, cityLine, formatPhone, img, streetOf } from './shared'
 
@@ -22,6 +22,18 @@ const ICON: Record<CheatSheetIcon, any> = {
 
 const card = 'rounded-[24px] border border-black/[0.06] bg-white shadow-[0_14px_40px_-30px_rgba(0,0,0,0.45)] dark:border-white/[0.07] dark:bg-[#141416]'
 const tint = { backgroundColor: 'color-mix(in srgb, var(--gp) 13%, transparent)' }
+// Each section has its own quiet accent (user, 10/24 - "tasteful, still professional"): the open
+// house's colour for the home itself, blue for schools, the place colours for what's nearby.
+const tintOf = (c: string) => ({ backgroundColor: `color-mix(in srgb, ${c} 13%, transparent)`, color: c })
+const SCHOOL_BLUE = '#2563EB'
+const NEARBY_LOOK: Record<string, { icon: any; color: string }> = {
+  'Nearby Private Schools': { icon: School, color: '#2563EB' },
+  'Grocery Stores Nearby': { icon: ShoppingBasket, color: '#15803D' },
+  'Parks Nearby': { icon: Trees, color: '#0F766E' },
+  'Medical Care Nearby': { icon: Hospital, color: '#DC2626' },
+  'Major Airports Nearby': { icon: Plane, color: '#475569' },
+  'Nearby Downtown Areas': { icon: Building2, color: '#7C3AED' },
+}
 
 // Each block rises in as the guest scrolls to it.
 const rise = (delay = 0) => ({
@@ -31,10 +43,10 @@ const rise = (delay = 0) => ({
   transition: { duration: 0.45, delay, ease: [0.22, 1, 0.36, 1] as const },
 })
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function SectionLabel({ children, color = 'var(--gp)' }: { children: React.ReactNode; color?: string }) {
   return (
-    <p className="mb-3 mt-9 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-[var(--gp)]">
-      <span className="h-px w-5 bg-[var(--gp)]" />{children}
+    <p className="mb-3 mt-9 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em]" style={{ color }}>
+      <span className="h-px w-5" style={{ background: color }} />{children}
     </p>
   )
 }
@@ -45,8 +57,6 @@ export default function CheatSheetView({ data, onRequest, sending, onBack }: {
   const { property, amenities } = data.cheat_sheet!
   const agent = data.agent
   const c = buildCheatSheetContent(property, amenities)
-  // Google's Static Maps can be off for the key (the printed sheet says so too) - fall back to a link.
-  const [mapFailed, setMapFailed] = useState(false)
   const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([property.address, property.city, property.state].filter(Boolean).join(', '))}`
   const photo = c.coverPhoto?.url || img(data.home.photos?.[0])
   const street = streetOf(property.address || data.home.address)
@@ -61,6 +71,16 @@ export default function CheatSheetView({ data, onRequest, sending, onBack }: {
   ].filter(n => (n.places?.length ?? 0) > 0) : []
   // Every property fact as one even grid of tiles (the short one-liners and the longer ones alike).
   const infoTiles: CheatSheetFact[] = [...c.propertyInfoLine, ...c.propertyInfo]
+  // The assigned public schools, one bar each - High, Middle, Elementary (user, 10/24) - then the
+  // district / township on its own line under them.
+  const assigned = (level: string) => amenities?.schools?.find((s: AmenityPlace) => s.place_type === level)?.name
+  const schoolBars = [
+    { level: 'High school', name: property.highSchool || assigned('High School') },
+    { level: 'Middle school', name: property.middleSchool || assigned('Middle School') },
+    { level: 'Elementary school', name: property.elementarySchool || assigned('Elementary School') },
+  ].filter(b => !!b.name).map(b => ({ ...b, name: tidyAllCaps(String(b.name)) }))
+  const lat = data.home.latitude != null ? Number(data.home.latitude) : property.latitude != null ? Number(property.latitude) : null
+  const lng = data.home.longitude != null ? Number(data.home.longitude) : property.longitude != null ? Number(property.longitude) : null
 
   return (
     <div className="mx-auto max-w-4xl px-4 pb-4 pt-5 sm:pt-8">
@@ -140,15 +160,20 @@ export default function CheatSheetView({ data, onRequest, sending, onBack }: {
         })}
       </div>
 
-      {(c.hasAssignedSchools || c.hasSchoolTownship) && (
+      {(schoolBars.length > 0 || c.hasSchoolTownship) && (
         <>
-          <SectionLabel>Schools</SectionLabel>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            {c.hasAssignedSchools && <SchoolTile label="Public Schools - (Elementary, Middle, High)" value={c.publicSchoolsDisplayValue} wide={!c.canPairSchoolTiles} />}
-            {c.hasSchoolTownship && <SchoolTile label="School District / Township" value={c.cleanedSchoolTownship} wide={c.hasAssignedSchools && !c.canPairSchoolTiles} />}
+          <SectionLabel color={SCHOOL_BLUE}>Schools</SectionLabel>
+          <div className="space-y-2">
+            {schoolBars.map((b, i) => <SchoolTile key={b.level} label={b.level} value={b.name} delay={i * 0.05} />)}
           </div>
-          {c.hasAssignedSchools && (
-            <p className="mt-2 text-[11px] font-medium text-gray-400">School assignments are based on available attendance-boundary data and should be verified with the local school district.</p>
+          {c.hasSchoolTownship && (
+            <p className="mt-3 flex items-start gap-2 px-1 text-[12.5px] font-semibold leading-snug text-gray-500 dark:text-gray-400">
+              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: SCHOOL_BLUE }} />
+              <span><span className="font-black text-[#0B0B0B] dark:text-white">School district / township: </span>{c.cleanedSchoolTownship}</span>
+            </p>
+          )}
+          {schoolBars.length > 0 && (
+            <p className="mt-2 px-1 text-[11px] font-medium text-gray-400">School assignments are based on available attendance-boundary data and should be verified with the local school district.</p>
           )}
         </>
       )}
@@ -157,14 +182,19 @@ export default function CheatSheetView({ data, onRequest, sending, onBack }: {
         <>
           <SectionLabel>What&apos;s Nearby</SectionLabel>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            {nearby.map((n, i) => (
+            {nearby.map((n, i) => {
+              const look = NEARBY_LOOK[n.title] || { icon: MapPin, color: 'var(--gp)' }
+              return (
               <motion.div key={n.title} {...rise(Math.min(i * 0.04, 0.2))} className={`${card} p-4`}>
-                <p className="text-xs font-black">{n.title}</p>
+                <p className="flex items-center gap-2 text-xs font-black">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg" style={tintOf(look.color)}><look.icon className="h-3.5 w-3.5" /></span>
+                  {n.title}
+                </p>
                 <ul className="mt-2 space-y-1.5">
                   {n.places.slice(0, c.amenityItemCap).map((pl, k) => (
                     <li key={`${pl.name}-${k}`} className="flex items-start justify-between gap-3">
                       <span className="min-w-0">
-                        {pl.place_type && <span className="block text-[9px] font-black uppercase tracking-wider text-[var(--gp)]">{pl.place_type}</span>}
+                        {pl.place_type && <span className="block text-[9px] font-black uppercase tracking-wider" style={{ color: look.color }}>{pl.place_type}</span>}
                         <span className="block truncate text-[13px] font-semibold text-gray-700 dark:text-gray-300">
                           {n.showCity && cityFromAddress(pl.address) ? `${pl.name} - ${cityFromAddress(pl.address)}` : pl.name}
                         </span>
@@ -174,30 +204,32 @@ export default function CheatSheetView({ data, onRequest, sending, onBack }: {
                   ))}
                 </ul>
               </motion.div>
-            ))}
+              )
+            })}
           </div>
         </>
       )}
 
+      {/* The map - tall and live (pan, zoom, the township / school district lines), not a picture. */}
+      {lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng) && (
+        <>
+          <SectionLabel color="#0F766E">On the map</SectionLabel>
+          <motion.div {...rise()} className="overflow-hidden rounded-[24px] border border-black/[0.06] shadow-[0_18px_50px_-30px_rgba(0,0,0,0.4)] dark:border-white/[0.07]">
+            <HomeAreaMap latitude={lat} longitude={lng} address={c.heroAddress} accent={data.theme?.accentColor || '#C9A24D'} dark={!!data.theme?.darkMode}
+              className="h-[440px] w-full sm:h-[520px]" rounded="" />
+          </motion.div>
+          <a href={mapsLink} target="_blank" rel="noopener" className="mt-2.5 inline-flex items-center gap-1 px-1 text-[10px] font-black uppercase tracking-widest text-gray-400 transition-colors hover:text-[var(--gp)]">
+            Open in Google Maps <ArrowUpRight className="h-3 w-3" />
+          </a>
+        </>
+      )}
+
       {/* The printed sheet's bottom row: Documents QR / map / Visit Again QR - as one-tap buttons */}
-      <SectionLabel>One Tap</SectionLabel>
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[1fr_1.4fr_1fr]">
+      <SectionLabel color="#B45309">One Tap</SectionLabel>
+      <div className="grid grid-cols-2 gap-2.5">
         <ActionCard eyebrow="Documents" title="Request Seller Disclosure" icon={ScanSearch}
           sending={sending === 'disclosure'} sent={data.requested.disclosure} onClick={() => onRequest('disclosure')}
           sentText={`Requested - ${agent.first_name} will send it`} idle="Tap to get the disclosure + property docs" />
-        <div className="order-last col-span-2 overflow-hidden rounded-[24px] bg-gray-100 dark:bg-[#1c1c1f] sm:order-none sm:col-span-1">
-          {c.staticMapUrl && !mapFailed ? (
-            <a href={mapsLink} target="_blank" rel="noopener" className="block h-full">
-              <img src={c.staticMapUrl} alt="Map" loading="lazy" onError={() => setMapFailed(true)} className="h-full min-h-[150px] w-full object-cover" />
-            </a>
-          ) : (
-            <a href={mapsLink} target="_blank" rel="noopener" className="flex h-full min-h-[150px] flex-col items-center justify-center gap-2 p-4 text-center">
-              <MapPin className="h-6 w-6 text-[var(--gp)]" />
-              <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{c.heroAddress}</span>
-              <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[var(--gp)]">Open in Maps <ArrowUpRight className="h-3 w-3" /></span>
-            </a>
-          )}
-        </div>
         <ActionCard eyebrow="Visit Again" title="Schedule a Second Visit" icon={CalendarCheck}
           sending={sending === 'second_visit'} sent={data.requested.second_visit} onClick={() => onRequest('second_visit')}
           sentText={`Requested - ${agent.first_name} will reach out`} idle="Tap to request another showing" />
@@ -238,15 +270,15 @@ export default function CheatSheetView({ data, onRequest, sending, onBack }: {
   )
 }
 
-function SchoolTile({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
+function SchoolTile({ label, value, delay = 0 }: { label: string; value: string; delay?: number }) {
   return (
-    <motion.div {...rise()} className={`${card} flex gap-3 p-4 ${wide ? 'sm:col-span-2' : ''}`}>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[var(--gp)]" style={tint}>
+    <motion.div {...rise(delay)} className={`${card} flex items-center gap-3 px-4 py-3.5`}>
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={tintOf(SCHOOL_BLUE)}>
         <GraduationCap className="h-4 w-4" />
       </span>
       <div className="min-w-0">
-        <p className="text-[9px] font-black uppercase tracking-wider text-gray-400">{label}</p>
-        <p className="mt-0.5 text-[13px] font-bold leading-snug">{value}</p>
+        <p className="text-[9px] font-black uppercase tracking-wider" style={{ color: SCHOOL_BLUE }}>{label}</p>
+        <p className="mt-0.5 truncate text-[14px] font-bold leading-snug">{value}</p>
       </div>
     </motion.div>
   )

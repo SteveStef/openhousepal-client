@@ -359,7 +359,9 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
       <div className="p-4 flex flex-col flex-[3] justify-between">
         <div>
           <div className="flex justify-between items-center gap-2 mb-1">
-            <div className="flex min-w-0 items-center gap-2">
+            {/* Wraps instead of sliding under the buttons: on a narrow phone card a long price +
+                "New" used to run beneath the star (user, 10/24). */}
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
               <span className="shrink-0 text-lg font-black text-[#111827] dark:text-white tracking-tight leading-none group-hover:text-[#C9A24D] transition-colors">
                 {formatPrice(property.ListPrice)}
               </span>
@@ -380,7 +382,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
                 </span>
               )}
             </div>
-            <div className="flex items-center space-x-1.5">
+            <div className="flex shrink-0 items-center space-x-1.5">
               {onRecommend && (
                 <motion.button
                   whileTap={{ scale: 0.8 }}

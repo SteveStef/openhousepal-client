@@ -300,7 +300,8 @@ function buildContent(blocks: DesignBlock[], ctx: DesignCanvasContext): Content 
   if (leadGen && !addressBlock) {
     if (headlineBlock && headlineText) {
       title = { id: headlineBlock.id, text: headlineText, o: textOverride(headlineBlock.style, bk), placeholder: false, isAddress: false }
-      const eyebrow = String(headlineBlock.data?.eyebrow || '').trim()
+      // designs saved before 10/24 said "For Homeowners" - the owner wants just "Homeowners"
+      const eyebrow = String(headlineBlock.data?.eyebrow || '').trim().replace(/^for\s+(homeowners)$/i, (_m, w: string) => w.charAt(0).toUpperCase() + w.slice(1))
       if (eyebrow) kicker = { id: headlineBlock.id, text: eyebrow, o: { k: 1, css: {} } }
       const subtext = String(headlineBlock.data?.subtext || '').trim()
       if (subtext) sub = { id: headlineBlock.id, text: subtext }
@@ -478,7 +479,28 @@ function inkOnPhoto(t: DesignTheme): Ink {
 // ---------------------------------------------------------------------------------------------
 // Primitives
 // ---------------------------------------------------------------------------------------------
-function Photo({ photo, style, radius = 0, t, children, pickId, sel }: { photo?: PhotoRef | null; style?: CSSProperties; radius?: number | string; t: DesignTheme; children?: ReactNode; pickId?: string; sel: Sel }) {
+// The photo on screen stays until a newly picked one has downloaded (owner 10/24: choosing a cover
+// photo blinked the design black while the new one loaded). First paint (and every export) uses
+// the photo straight away.
+function useSettledSrc(src: string | null | undefined): string | null | undefined {
+  const [shown, setShown] = useState(src)
+  useEffect(() => {
+    if (!src) { setShown(src); return }
+    if (src === shown) return
+    let alive = true
+    const img = new Image()
+    img.onload = img.onerror = () => { if (alive) setShown(src) }
+    img.src = src
+    if (img.complete) setShown(src)
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src])
+  return shown
+}
+
+function Photo({ photo: picked, style, radius = 0, t, children, pickId, sel }: { photo?: PhotoRef | null; style?: CSSProperties; radius?: number | string; t: DesignTheme; children?: ReactNode; pickId?: string; sel: Sel }) {
+  const settled = useSettledSrc(picked?.src)
+  const photo = picked && settled ? { ...picked, src: settled } : picked
   const r = typeof radius === 'number' ? u(radius) : radius
   // "Whole photo": nothing cropped - the full picture sits inside the frame over a soft, blurred
   // copy of itself, so the edges read as atmosphere instead of empty bars.
@@ -2690,7 +2712,7 @@ function Luxe({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
     const promises = c.leadGen && c.sub ? (() => {
       const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1)
       const out: string[] = []
-      for (const sen of c.sub.text.split(/(?<=[.!?])\s+/).filter(Boolean)) {
+      for (const sen of c.sub.text.replace(/([.!?])\s+/g, '$1\u0000').split('\u0000').filter(Boolean)) {
         const parts = sen.split(/\s+[-–—]\s+/)
         for (const part of parts) {
           // one long sentence: break at its commas when every piece still reads on its own
@@ -2703,11 +2725,12 @@ function Luxe({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
     })() : []
     // size the promises to the room left between the question and the QR card (never into the footer)
     const pFs = (() => {
-      const room = st ? 36 : sq ? 30 : port ? 27 : 100 - padT - padB - 16 - 3.2 - (qLines.length * qFs * 1.05 + 4.5) - (14 + 5.6) - 5 - (c.logo ? 8 : 0)
+      const room = st ? 36 : sq ? 30 : port ? (print && c.leadGen ? 34 : 27) : 100 - padT - padB - 16 - 3.2 - (qLines.length * qFs * 1.05 + 4.5) - (14 + 5.6) - 5 - (c.logo ? 8 : 0)
       if (st) return 3.4
-      for (let f = port ? 2.8 : 2.6; f > 1.8; f -= 0.1) {
-        const perLine = (PW * 0.88) / (f * 0.5)
-        const lines = promises.reduce((n, l) => n + Math.min(2, Math.ceil(l.length / perLine)), 0)
+      // letters (owner 10/24): the promises bigger, so they pop
+      for (let f = port && print && c.leadGen ? 3.2 : port ? 2.8 : 2.6; f > 1.8; f -= 0.1) {
+        const perLine = (PW * (port && print && c.leadGen ? 0.78 : 0.88)) / (f * 0.5)
+        const lines = promises.reduce((n, l) => n + Math.min(port && print ? 3 : 2, Math.ceil(l.length / perLine)), 0)
         if (lines * f * 1.3 + (promises.length - 1) * 1.5 <= room) return f
       }
       return 1.8
@@ -2795,7 +2818,7 @@ function Luxe({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
           {promises.map((l, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: u(1.6), textAlign: 'left', fontSize: u(pFs), lineHeight: 1.3 }}>
               <span style={{ flexShrink: 0, height: u(pFs * 1.3), display: 'flex', alignItems: 'center', lineHeight: 0 }}><LuxeDiamond size={pFs * 0.36} color={gold} /></span>
-              <span style={{ fontFamily: t.fonts.body, fontWeight: 500, fontSize: u(pFs), lineHeight: 1.3, color: hexA(ivory, 0.9), textWrap: 'balance' as CSSProperties['textWrap'], display: '-webkit-box', WebkitLineClamp: sq ? 3 : 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{l}</span>
+              <span style={{ fontFamily: t.fonts.body, fontWeight: port && print ? 600 : 500, fontSize: u(pFs), lineHeight: 1.3, color: hexA(ivory, port && print ? 0.98 : 0.9), textWrap: 'balance' as CSSProperties['textWrap'], display: '-webkit-box', WebkitLineClamp: sq || (port && print) ? 3 : 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{l}</span>
             </div>
           ))}
         </div>
@@ -2927,7 +2950,8 @@ function Luxe({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
               </Pick>
             )}
             <div style={{ flex: 1, minHeight: u(30), width: u(LW), display: 'flex', flexDirection: 'column', paddingBottom: u(addr ? plateH / 2 + 0.6 : kPlate ? kPlateH / 2 + 0.6 : 0) }}>{photo}</div>
-            <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: u(3) }}>
+            {/* lead letters (owner 10/24): the promises + the QR card pulled in toward the middle, a centred pair */}
+            <div style={{ width: c.leadGen ? '90%' : '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: u(c.leadGen ? 4.5 : 3) }}>
               <div style={{ flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: u(2.6), textAlign: 'center' }}>
                 {c.leadGen ? promiseRows : <>
                   {c.price && (
@@ -3972,7 +3996,7 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
     const noteW = 32
     const cardW = cw - noteW - S.gap * 1.5
     const ohDays = ohCards && oh ? oh.date.split(/\s*(?:&|\band\b)\s*/i).filter(Boolean).length : 0
-    const fanW = ohDays ? 37 : 39
+    const fanW = ohDays ? 34.5 : 39
     const priceW = cardW
     const statColW = facts ? (cardW - 5.2) / facts.items.length : 0
     const statSize = facts ? Math.min(S.facts * 1.9, ...facts.items.map(i => (statColW - S.gap * 0.5) / (Math.max(2, i.value.length) * 0.47))) : 0
@@ -4051,8 +4075,9 @@ function Keepsake({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
         {backdrop}
         <div style={{ position: 'absolute', inset: 0, padding: `${u(P * 0.85)} ${u(P)} ${u(P * 0.7)}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.gap * 0.9) }}>
           {/* the heading sits above the prints, so a tail like the g in Coming is never hidden */}
-          <div style={{ position: 'relative', zIndex: 7, width: '100%' }}><ScriptLine text={word} size={S.big * 1.08} color={script} align="center" id={kickId} sel={sel} comfortable={16} bold={0.022} /></div>
-          <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {/* owner 10/24: lead pieces' heading a touch lower; open house's higher, clear of the prints */}
+          <div style={{ position: 'relative', zIndex: 7, width: '100%', marginTop: ohCards ? u(-P * 0.35) : c.leadGen ? u(S.gap * 0.8) : 0 }}><ScriptLine text={word} size={S.big * 1.08 * (c.leadGen && word.length <= 12 ? 1.14 : 1)} color={script} align="center" id={kickId} sel={sel} comfortable={16} bold={0.022} /></div>
+          <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: ohCards ? u(S.gap * 0.9) : 0 }}>
             <div style={{ position: 'relative' }}>
               <PrintFan c={c} t={t} sel={sel} width={fanW} caption={caption} spread={0.55} foot={leadAsk || undefined} footH={0.36} />
               {leadAsk && (
@@ -4702,10 +4727,14 @@ function Billboard({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
                 </div>
               ) : <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>{giant}</div>}
               {/* the whole photo at its proper 3:2 - never squeezed into a strip */}
-              {card({ flexShrink: 0, width: u(colW * (c.leadGen ? 0.6 : 0.76)), aspectRatio: '3 / 2', transform: 'rotate(-1deg)' })}
+              {/* lead pieces (owner 10/24): a much bigger photo, the QR card overlapping its bottom edge */}
               {c.leadGen
-                ? qrCardB && <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', width: '100%' }}>{qrCardB}</div>
+                ? <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                    {card({ flexShrink: 0, width: u(colW * 0.86), aspectRatio: '3 / 2', transform: 'rotate(-1deg)' })}
+                    {qrCardB && <div style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'center', width: '100%', marginTop: u(-colW * 0.86 * 0.667 * 0.17) }}>{qrCardB}</div>}
+                  </div>
                 : <>
+                  {card({ flexShrink: 0, width: u(colW * 0.76), aspectRatio: '3 / 2', transform: 'rotate(-1deg)' })}
                   {/* the price + stats and the QR, side by side */}
                   <div style={{ flexShrink: 0, width: '100%', display: 'flex', alignItems: 'stretch', gap: u(2.6), marginTop: u(1.4) }}>
                     {priceCardB && <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>{priceCardB}</div>}
@@ -5163,7 +5192,8 @@ function Slant({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
       head = narrowLetter || socialFit
         ? socialFit
           ? <FitLines text={text} size={base * (story ? 0.95 : oh || showPrice ? 1.4 : 1.75) * (c.title.o.k || 1)} lines={text.length > 24 ? 2 : 1} style={{ fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : 600, lineHeight: 1.08, color: ink.ink, textAlign: align, letterSpacing: '-0.005em', opacity: c.title.placeholder ? 0.45 : 1, ...(text.length > 24 ? { textWrap: 'balance' as any } : {}), ...c.title.o.css }} />
-          : <FitLines text={text} size={base * (oh ? 1.35 : 1.75) * (c.title.o.k || 1)} lines={text.length > 26 ? 2 : 1} style={{ fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : 600, lineHeight: 1.08, color: ink.ink, textAlign: align, letterSpacing: '-0.005em', opacity: c.title.placeholder ? 0.45 : 1, ...(text.length > 26 ? { textWrap: 'balance' as any } : {}), ...c.title.o.css }} />
+          // letters (owner 10/24): the address is ALWAYS one line, however long - it shrinks to the column
+          : <div style={{ fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : 600, fontSize: u(Math.min(base * (oh ? 1.35 : 1.75), (colW * 0.97) / (text.length * cw)) * (c.title.o.k || 1)), lineHeight: 1.08, color: ink.ink, textAlign: align, letterSpacing: '-0.005em', whiteSpace: 'nowrap', opacity: c.title.placeholder ? 0.45 : 1, ...c.title.o.css }}>{text}</div>
         : <div style={{ fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : 600, fontSize: u(size * (c.title.o.k || 1)), lineHeight: 1.08, color: ink.ink, textAlign: align, letterSpacing: '-0.005em', opacity: c.title.placeholder ? 0.45 : 1, ...(fits ? { whiteSpace: 'nowrap' } : { textWrap: 'balance' as any }), ...c.title.o.css }}>{text}</div>
     } else if (c.title && feed && c.leadGen) {
       const long = c.title.text.length > 34
@@ -5172,7 +5202,12 @@ function Slant({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
       head = <FitLines text={tt} node={qm ? <>{qm[1]}<span style={{ color: gold, fontStyle: 'italic' }}>{qm[2]}</span></> : tt} size={base * (story ? 1.3 : 1.6) * (c.title.o.k || 1)} lines={long ? 2 : 1} style={{ fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : 600, lineHeight: 1.08, color: ink.ink, textAlign: align, letterSpacing: '-0.005em', opacity: c.title.placeholder ? 0.45 : 1, ...(long ? { textWrap: 'balance' as any } : {}), ...c.title.o.css }} />
     } else if (c.title) {
       const bigLetter = portrait && c.isPrint && c.leadGen
-      head = <SerifHeadline text={c.title.text} t={t} ink={ink} size={base * (tall ? 0.78 : social ? (feed && c.leadGen ? 1.38 : 1.05) : bigLetter ? 0.78 : 0.95)} align={align} o={c.title.o} placeholder={c.title.placeholder} comfortable={c.isPrint ? (bigLetter ? 40 : (tall || wide) && c.title.text.length > 24 ? (wide ? 27 : 28) : 22) : feed && c.leadGen ? 60 : 26} accent={gold} />
+      if (bigLetter) {
+        // letters beside the QR tower (owner 10/24): the question in two lines, never three
+        const tt = titleCase(c.title.text)
+        const qm = tt.match(/^([\s\S]*?)([?.!]+)$/)
+        head = <FitLines text={tt} node={qm ? <>{qm[1]}<span style={{ color: gold, fontStyle: 'italic' }}>{qm[2]}</span></> : tt} size={base * 0.78 * (c.title.o.k || 1)} lines={2} style={{ fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : 600, lineHeight: 1.08, color: ink.ink, textAlign: align, letterSpacing: '-0.005em', textWrap: 'balance' as any, opacity: c.title.placeholder ? 0.45 : 1, ...c.title.o.css }} />
+      } else head = <SerifHeadline text={c.title.text} t={t} ink={ink} size={base * (tall ? 0.78 : social ? (feed && c.leadGen ? 1.38 : 1.05) : bigLetter ? 0.78 : 0.95)} align={align} o={c.title.o} placeholder={c.title.placeholder} comfortable={c.isPrint ? (bigLetter ? 40 : (tall || wide) && c.title.text.length > 24 ? (wide ? 27 : 28) : 22) : feed && c.leadGen ? 60 : 26} accent={gold} />
     }
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: u(S.gap * 0.55), minWidth: 0, alignItems: align === 'center' ? 'center' : 'flex-start' }}>
@@ -5340,7 +5375,7 @@ function Slant({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
               return (
                 <div style={{ boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: u(S.gap * 0.9), background: hexA(gold, 0.1), padding: `${u(S.gap * 0.85)} ${u(S.gap * 1.2)} ${u(S.gap * 0.85)} ${u(S.gap * 0.9)}`, clipPath: 'polygon(0 0, calc(100% - 3cqmin) 0, 100% 3.4cqmin, 100% 100%, 0 100%)' }}>
                   <span aria-hidden style={{ alignSelf: 'stretch', width: u(0.55), background: gold, flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}><Details c={c} t={t} ink={ink} S={sideBySide ? scaled(S, 1.14) : S} align="left" sel={sel} only={['description']} clamp={sideBySide ? ((c.title?.text.length || 0) > 26 ? 6 : 7) : 4} /></div>
+                  <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}><Details c={c} t={t} ink={ink} S={sideBySide ? scaled(S, 1.14) : S} align="left" sel={sel} only={['description']} clamp={sideBySide ? ((c.title?.text.length || 0) > 26 ? 5 : 6) : 4} /></div>
                 </div>
               )
             })() : stack(ohCard, scanCardFor(colW)))}
@@ -5821,18 +5856,30 @@ function Postage({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
   // postcards (user 10/09: "much more stunning"): an airmail card - striped edge like the frame, the ask in
   // italic serif, the scan line in caps, a drawn arrow, and the QR presented as a perforated stamp.
   const scanAsk = askCta?.label || listingAsk
-  const scanSection = pcard && c.qr && scanAsk && (() => {
-    const qs = S.qr * (panel ? 1.4 : 1.32)
+  // 8.5 x 11 (owner 10/24: the Postage QR was a tiny corner square): the same airmail scan card,
+  // big, right under the headline - like every other letter-size design.
+  const portraitScan = portrait && c.isPrint && !!c.qr && !!scanAsk
+  // 8.5 x 11 listings (owner 10/24): a much bigger stamp photo, the price + stats box laid over its
+  // bottom edge instead of sitting under the greeting
+  const liftPrice = portraitScan && !c.leadGen && (!!c.price || !!facts)
+  const liftedPrice = liftPrice && (
+    <div style={{ display: 'grid', justifyItems: 'center', rowGap: u(S.gap * 0.3), background: accent, outline: `${hair} solid ${hexA(t.isDark ? '#15161A' : '#FFFFFF', 0.6)}`, outlineOffset: u(-1.1), padding: `${u(S.gap * 0.75)} ${u(S.gap * 1.8)}`, boxShadow: '0 1cqmin 2.6cqmin rgba(0,0,0,0.24)', transform: 'rotate(-1.5deg)', whiteSpace: 'nowrap' }}>
+      <PriceText c={c} t={t} ink={bandInk} size={S.price * 0.9} sel={sel} showLabel />
+      {facts && <FactsLine c={c} t={t} ink={bandInk} size={S.facts * 1.02} sel={sel} />}
+    </div>
+  )
+  const scanSection = (pcard || portraitScan) && c.qr && scanAsk && (() => {
+    const qs = S.qr * (panel ? 1.4 : portraitScan ? 1.6 : 1.32)
     const d = Math.max(1.5, qs * 0.075)
     const r = d * 0.34
     const card = '#FFFDF8'
     const dots = (dir: 'x' | 'y') => `radial-gradient(circle at 50% 50%, ${card} ${r}cqmin, transparent ${r + 0.06}cqmin) 0 0 / ${u(d)} ${u(d)} repeat-${dir}`
     const edge = (pos: CSSProperties, dir: 'x' | 'y') => <span aria-hidden style={{ position: 'absolute', background: dots(dir), ...pos }} />
     return (
-      <Pick id={askCta?.id || c.qr.id} sel={sel} style={{ alignSelf: panel ? 'stretch' : 'center', width: panel ? undefined : u(70), marginRight: panel ? u(-9) : undefined, marginTop: u(S.gap * (panel ? 1.8 : 0)), padding: u(0.65), background: `repeating-linear-gradient(135deg, ${accent} 0 ${u(1.1)}, ${card} ${u(1.1)} ${u(1.8)}, ${hexA('#1B1A17', 0.85)} ${u(1.8)} ${u(2.9)}, ${card} ${u(2.9)} ${u(3.6)})`, boxShadow: '0 0.8cqmin 2.2cqmin rgba(0,0,0,0.14)', transform: panel ? 'none' : 'rotate(-1.2deg)', boxSizing: 'border-box' }}>
-        <div style={{ background: card, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: u(S.gap * (panel ? 0.7 : 0.5)), padding: panel ? `${u(S.gap * 1)} ${u(S.gap * 1.1)} ${u(S.gap * 1)} ${u(S.gap * 1.3)}` : `${u(S.gap * 1.25)} ${u(S.gap * 1.1)} ${u(S.gap * 1.25)} ${u(S.gap * 1.4)}` }}>
+      <Pick id={askCta?.id || c.qr.id} sel={sel} style={{ alignSelf: panel ? 'stretch' : 'center', width: panel ? undefined : u(portraitScan ? 80 : 70), marginRight: panel ? u(-9) : undefined, marginTop: u(S.gap * (panel ? 1.8 : 0)), padding: u(0.65), background: `repeating-linear-gradient(135deg, ${accent} 0 ${u(1.1)}, ${card} ${u(1.1)} ${u(1.8)}, ${hexA('#1B1A17', 0.85)} ${u(1.8)} ${u(2.9)}, ${card} ${u(2.9)} ${u(3.6)})`, boxShadow: '0 0.8cqmin 2.2cqmin rgba(0,0,0,0.14)', transform: panel ? 'none' : 'rotate(-1.2deg)', boxSizing: 'border-box' }}>
+        <div style={{ background: card, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: u(S.gap * (panel ? 0.7 : 0.5)), padding: panel ? `${u(S.gap * 1)} ${u(S.gap * 1.1)} ${u(S.gap * 1)} ${u(S.gap * 1.3)}` : portraitScan ? `${u(S.gap * 0.7)} ${u(S.gap * 0.9)} ${u(S.gap * 0.7)} ${u(S.gap * 1.4)}` : `${u(S.gap * 1.25)} ${u(S.gap * 1.1)} ${u(S.gap * 1.25)} ${u(S.gap * 1.4)}` }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: u(S.facts * 0.32), minWidth: 0, flex: 1 }}>
-            <span style={{ fontFamily: t.fonts.display, fontStyle: 'italic', fontWeight: t.styleId === 'bold' ? 400 : 600, fontSize: u(panel ? fit(scanAsk, S.facts * 2.05, 26, 0.6) : fit(scanAsk, S.facts * 1.9, 38, 0.6)), lineHeight: 1.08, color: '#1B1A17', textWrap: 'balance' as any }}>{scanAsk}</span>
+            <span style={{ fontFamily: t.fonts.display, fontStyle: 'italic', fontWeight: t.styleId === 'bold' ? 400 : 600, fontSize: u(panel ? fit(scanAsk, S.facts * 2.05, 26, 0.6) : fit(scanAsk, S.facts * (portraitScan ? 2.5 : 1.9), 38, 0.6)), lineHeight: 1.08, color: '#1B1A17', textWrap: 'balance' as any }}>{scanAsk}</span>
             {/* the scan line edits the QR's words, not the ask above it */}
             {c.qr.label && <Pick id={c.qr.id} sel={sel}><span style={{ fontFamily: t.fonts.label, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.18em', fontSize: u(fit(c.qr.label, S.facts * 0.74, panel ? 24 : 20, 0.6)), lineHeight: 1.35, color: accent, whiteSpace: 'nowrap' }}>{c.qr.label}</span></Pick>}
           </div>
@@ -5879,7 +5926,7 @@ function Postage({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
             {false && news && !oh && <Pick id={c.big?.id || c.kicker?.id} sel={sel}><span style={{ display: 'inline-block', background: accent, color: t.isDark ? '#15161A' : '#FFFFFF', fontFamily: t.fonts.label, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.16em', fontSize: u(S.facts * 0.72 * k), padding: `${u(S.facts * 0.3)} ${u(S.facts * 0.7)}` }}>{news}</span></Pick>}
             {!split && !c.townOnly && c.title && <span style={{ fontFamily: t.fonts.label, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: u(S.facts * 0.72 * k), color: accent, whiteSpace: c.title.text.length > 28 ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: c.title.text.length > 28 ? (centered ? '86%' : '100%') : '100%', minWidth: 0, flexShrink: c.title.text.length <= 28 ? 0 : 1, textAlign: align, textWrap: 'balance' as any, lineHeight: 1.45 }}>{c.title.text}</span>}
           </div>
-          {!split && !panel && <div style={{ display: 'flex', alignItems: 'baseline', gap: u(S.gap), flexWrap: 'wrap', justifyContent: centered ? 'center' : 'flex-start', marginTop: u(S.gap * 0.3), ...(true ? { background: accent, outline: `${hair} solid ${hexA(t.isDark ? '#15161A' : '#FFFFFF', 0.55)}`, outlineOffset: u(-1.1), padding: `${u(S.gap * 0.7)} ${u(S.gap * 1.6)}`, marginTop: u(S.gap * 0.8), boxShadow: '0 0.6cqmin 1.6cqmin rgba(0,0,0,0.16)', display: 'grid', justifyItems: 'center', rowGap: u(S.gap * 0.3), width: centered ? 'fit-content' : '100%', maxWidth: '100%', minWidth: centered ? 0 : undefined, boxSizing: 'border-box', alignSelf: centered ? 'center' : 'stretch', whiteSpace: 'nowrap' } : {}) }}>
+          {!split && !panel && !liftPrice && <div style={{ display: 'flex', alignItems: 'baseline', gap: u(S.gap), flexWrap: 'wrap', justifyContent: centered ? 'center' : 'flex-start', marginTop: u(S.gap * 0.3), ...(true ? { background: accent, outline: `${hair} solid ${hexA(t.isDark ? '#15161A' : '#FFFFFF', 0.55)}`, outlineOffset: u(-1.1), padding: `${u(S.gap * 0.7)} ${u(S.gap * 1.6)}`, marginTop: u(S.gap * 0.8), boxShadow: '0 0.6cqmin 1.6cqmin rgba(0,0,0,0.16)', display: 'grid', justifyItems: 'center', rowGap: u(S.gap * 0.3), width: centered ? 'fit-content' : '100%', maxWidth: '100%', minWidth: centered ? 0 : undefined, boxSizing: 'border-box', alignSelf: centered ? 'center' : 'stretch', whiteSpace: 'nowrap' } : {}) }}>
             <PriceText c={c} t={t} ink={bandInk} size={S.price * 0.82 * k} sel={sel} showLabel={c.isPrint} />
             {facts && <FactsLine c={c} t={t} ink={bandInk} size={S.facts * (centered ? 0.95 : 1.02) * k} sel={sel} />}
           </div>}
@@ -5888,7 +5935,7 @@ function Postage({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
     </div>
   )
   const signOff = c.isPrint
-    ? <PrintSignOff c={pcard ? { ...c, qr: null, finePrint: null } : c} t={t} ink={ink} S={S} sel={sel} fam={fam} qrLabel={scanPrompt ? false : undefined} big={pcard ? 1.15 : wide ? 1.3 : 1} />
+    ? <PrintSignOff c={pcard ? { ...c, qr: null, finePrint: null } : portraitScan ? { ...c, qr: null } : c} t={t} ink={ink} S={S} sel={sel} fam={fam} qrLabel={scanPrompt ? false : undefined} big={pcard ? 1.15 : wide ? 1.3 : 1} />
     : (c.agent || c.logo) && (
       <div style={{ width: '100%', borderTop: `${hair} dashed ${ink.rule}`, paddingTop: u(S.gap * 0.8), display: 'flex', flexDirection: 'column', gap: u(S.gap * 0.5) }}>
         <AgentBar c={c} t={t} ink={ink} S={S} sel={sel} fam={fam} />
@@ -5934,26 +5981,97 @@ function Postage({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
     )
   }
 
+  // 8.5 x 11 letters + flyers (owner 10/24, round 3: "the photo is so small, the words are so small"):
+  // a big stamp photo up top with the price band centred on its lower edge, then two columns - the
+  // greeting / message, set large, on the left and a tall airmail QR card on the right - then the footer.
+  if (portraitScan && c.qr) {
+    const sw = oh ? 62 : 66
+    const card = '#FFFDF8'
+    // owner 10/25: a shorter QR card - the ask on one line when it fits, a little less padding
+    const askOne = scanAsk.length <= 20
+    // lead pieces (owner 10/25): the message in a narrower block (three shorter lines), the QR a bit bigger
+    const qs = S.qr * (c.leadGen ? 1.85 : 1.65)
+    const dd = Math.max(1.5, qs * 0.075), rr = dd * 0.34
+    const dots = (dir: 'x' | 'y') => `radial-gradient(circle at 50% 50%, ${card} ${rr}cqmin, transparent ${rr + 0.06}cqmin) 0 0 / ${u(dd)} ${u(dd)} repeat-${dir}`
+    const perf = (pos: CSSProperties, dir: 'x' | 'y') => <span aria-hidden style={{ position: 'absolute', background: dots(dir), ...pos }} />
+    const stripes = `repeating-linear-gradient(135deg, ${accent} 0 ${u(1.1)}, ${card} ${u(1.1)} ${u(1.8)}, ${hexA('#1B1A17', 0.85)} ${u(1.8)} ${u(2.9)}, ${card} ${u(2.9)} ${u(3.6)})`
+    const qrCol = (
+      <Pick id={askCta?.id || c.qr.id} sel={sel} style={{ flexShrink: 0, width: u(qs + 11), padding: u(0.65), background: stripes, boxShadow: '0 0.8cqmin 2.2cqmin rgba(0,0,0,0.16)', transform: 'rotate(1.4deg)', boxSizing: 'border-box' }}>
+        <div style={{ background: card, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.gap * 0.6), padding: `${u(S.gap * 0.95)} ${u(S.gap * 0.8)} ${u(S.gap * 0.9)}`, textAlign: 'center' }}>
+          <span style={{ fontFamily: t.fonts.display, fontStyle: 'italic', fontWeight: t.styleId === 'bold' ? 400 : 600, fontSize: u(askOne ? Math.min(S.facts * 2.3, (qs + 6.5) / (scanAsk.length * 0.43)) : fit(scanAsk, S.facts * 2.3, 15, 0.55)), lineHeight: 1.08, color: '#1B1A17', textWrap: 'balance' as any, whiteSpace: askOne ? 'nowrap' : undefined }}>{scanAsk}</span>
+          <div style={{ position: 'relative', background: '#FFFFFF', padding: u(qs * 0.06), boxShadow: '0 0.5cqmin 1.4cqmin rgba(0,0,0,0.18)' }}>
+            <Qr c={c} t={t} ink={{ ...ink, onPhoto: false, rule: 'transparent' }} size={qs} sel={sel} labelSide="none" />
+            {perf({ left: 0, right: 0, top: u(-dd / 2), height: u(dd) }, 'x')}
+            {perf({ left: 0, right: 0, bottom: u(-dd / 2), height: u(dd) }, 'x')}
+            {perf({ top: 0, bottom: 0, left: u(-dd / 2), width: u(dd) }, 'y')}
+            {perf({ top: 0, bottom: 0, right: u(-dd / 2), width: u(dd) }, 'y')}
+          </div>
+          {c.qr.label && <Pick id={c.qr.id} sel={sel}><span style={{ fontFamily: t.fonts.label, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.16em', paddingLeft: '0.16em', fontSize: u(fit(c.qr.label, S.facts * 0.78, 18, 0.6)), lineHeight: 1.3, color: accent, display: 'block' }}>{c.qr.label}</span></Pick>}
+        </div>
+      </Pick>
+    )
+    const stripe = <span aria-hidden style={{ display: 'block', width: u(18), height: u(1.3), background: `repeating-linear-gradient(135deg, ${accent} 0 ${u(1.6)}, transparent ${u(1.6)} ${u(2.7)}, ${hexA(ink.ink, 0.85)} ${u(2.7)} ${u(4.3)}, transparent ${u(4.3)} ${u(5.4)})` }} />
+    const descP = c.details.find(d => d.kind === 'description') as Extract<DetailItem, { kind: 'description' }> | undefined
+    const townWord = (town || 'Your Town').replace(/,.*$/, '')
+    const words = c.leadGen ? (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: u(S.gap * 0.7), alignItems: 'flex-start', minWidth: 0 }}>
+        {c.kicker && <Pick id={c.kicker.id} sel={sel}><div style={{ fontFamily: DESIGN_FONTS.script, fontSize: u(fit(c.kicker.text, S.big * 0.62, 12, 0.5)), lineHeight: 1.1, color: accent, whiteSpace: 'nowrap' }}>{c.kicker.text}</div></Pick>}
+        {c.title && <Pick id={c.title.id} sel={sel} style={{ alignSelf: 'stretch' }}><FitLines text={titleCase(c.title.text)} size={S.title * 1.02 * (c.title.o.k || 1)} lines={3} style={{ fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : 600, lineHeight: 1.06, color: ink.ink, letterSpacing: '-0.005em', textWrap: 'balance' as any, opacity: c.title.placeholder ? 0.45 : 1, ...c.title.o.css }} /></Pick>}
+        {stripe}
+        {c.sub && <Lede text={c.sub.text} t={t} ink={ink} size={S.body * 1.22} align="left" style={{ maxWidth: '72%', display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.45 }} />}
+      </div>
+    ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: u(S.gap * 0.55), alignItems: 'flex-start', minWidth: 0 }}>
+        <div style={{ fontFamily: DESIGN_FONTS.script, fontSize: u(S.big * 0.5), lineHeight: 1, color: accent }}>Greetings from</div>
+        <Pick id={c.title?.id} sel={sel} style={{ alignSelf: 'stretch' }}>
+          <div style={{ fontFamily: t.fonts.display, fontWeight: t.styleId === 'bold' ? 400 : 700, textTransform: 'uppercase', letterSpacing: t.styleId === 'modern_luxury' ? '0.04em' : '-0.01em', fontSize: u(Math.min(S.title * 1.15, 50 / (Math.max(5, townWord.length) * 0.66))), lineHeight: 0.95, color: ink.ink, whiteSpace: 'nowrap' }}>{townWord}</div>
+        </Pick>
+        {stripe}
+        {!c.townOnly && c.title && <span style={{ fontFamily: t.fonts.label, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', fontSize: u(Math.min(S.facts * 0.9, 48 / (c.title.text.length * 0.72))), color: accent, whiteSpace: 'nowrap', lineHeight: 1.4 }}>{c.title.text}</span>}
+        {descP && <Pick id={descP.id} sel={sel} style={{ marginTop: u(S.gap * 0.3) }}><Lede text={descP.text} t={t} ink={ink} size={S.body * 1.18} align="left" style={{ display: '-webkit-box', WebkitLineClamp: oh ? 3 : 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.45 }} /></Pick>}
+      </div>
+    )
+    return (
+      <>
+        {frame}
+        <div style={{ position: 'absolute', inset: u(inset), display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.gap * 1.1) }}>
+          <div style={{ position: 'relative', paddingTop: u(sw * (oh ? 0.12 : 0.05)), marginBottom: u(liftedPrice ? 5.2 : 0) }}>
+            {framed(sw, -2, 0.7)}
+            {/* the price band, centred on the stamp itself (owner 10/24: it sat off-centre) */}
+            {liftedPrice && <div style={{ position: 'absolute', left: '50%', bottom: u(-5.2), transform: 'translateX(-50%)', zIndex: 4, display: 'flex', justifyContent: 'center', width: 'max-content' }}>{liftedPrice}</div>}
+          </div>
+          <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', alignItems: 'center', gap: u(S.gap * 1.6), padding: `0 ${u(1)}`, boxSizing: 'border-box' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>{words}</div>
+            {qrCol}
+          </div>
+          <div style={{ width: '100%' }}>{signOff}</div>
+        </div>
+      </>
+    )
+  }
+
   if (centered) {
     const mailerAsk = portrait && c.leadGen
     const pinned = tall || portrait || feed || story
     // hanger listings make room for the scan prompt: a slightly smaller photo, 3 story lines
-    const stampW = story ? (c.leadGen ? 64 : 72) : tall ? (!c.leadGen && scanPrompt ? 68 : 74) : feed ? 54 : mailerAsk ? 52 : 47
+    const stampW = story ? (c.leadGen ? 64 : 72) : tall ? (!c.leadGen && scanPrompt ? 68 : 74) : feed ? 54 : portraitScan ? (c.leadGen ? 54 : oh ? 45 : 49) : mailerAsk ? 52 : 47
     return (
       <>
         {frame}
-        <div style={{ position: 'absolute', inset: u(inset), paddingTop: tall ? u(HANGER_ZONE - inset + 2) : 0, paddingBottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.gap * (tall && !c.leadGen && scanPrompt ? 0.75 : 1.1)) }}>
+        <div style={{ position: 'absolute', inset: u(inset), paddingTop: tall ? u(HANGER_ZONE - inset + 2) : 0, paddingBottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: u(S.gap * (tall && !c.leadGen && scanPrompt ? 0.75 : liftPrice ? 0.8 : 1.1)) }}>
           {tall && <div aria-hidden style={{ flex: oh ? 0.2 : 0.35, minHeight: 0 }} />}
           {feed && <div aria-hidden style={{ flex: 0.6, minHeight: 0 }} />}
           <div style={{ flex: pinned ? 'none' : 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', width: '100%', ...(tall ? { paddingTop: u(stampW * (oh ? 0.16 : !c.leadGen ? 0.13 : 0.07)), paddingBottom: u(S.gap * (!c.leadGen && scanPrompt ? 0.5 : oh ? 1.6 : 1.1)) } : story ? { paddingTop: u(stampW * (oh ? 0.16 : 0.14)) } : oh ? { paddingTop: u(stampW * 0.14), paddingBottom: u(S.gap * 0.9) } : { paddingBottom: u(S.gap * 0.5 + (feed ? 3.5 : 0)) }) }}>
             {framed(stampW, -2.5, story || tall ? 0.95 : 0.78)}
           </div>
+          {liftedPrice && <div style={{ position: 'relative', zIndex: 4, display: 'flex', justifyContent: 'center', width: '100%', marginTop: u(-(stampW * 0.15 + S.gap * 0.8)) }}>{liftedPrice}</div>}
           {tall && scanPrompt && <div aria-hidden style={{ flex: 0.5, minHeight: 0 }} />}
           {story && <div aria-hidden style={{ flex: 1, minHeight: 0 }} />}
           {greeting(story ? 1.1 : feed ? (c.leadGen ? 1.3 : 1.05) : mailerAsk ? 1.3 : 1)}
           {!c.leadGen && (portrait || tall) && <div style={{ width: tall ? '100%' : '88%' }}><PrintStory c={c} t={t} ink={ink} S={S} sel={sel} align="center" clamp={tall ? (scanPrompt ? 3 : 4) : 2} /></div>}
-          {(tall || portrait || feed || story) && <div aria-hidden style={{ flex: tall ? (scanPrompt ? 0.5 : 0.65) : 1, minHeight: portrait ? u(S.gap * (c.leadGen ? 1.5 : 0.6)) : 0 }} />}
-          {scanPrompt}
+          {portraitScan && <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginTop: u(S.gap * 0.4) }}>{scanSection}</div>}
+          {(tall || portrait || feed || story) && <div aria-hidden style={{ flex: tall ? (scanPrompt ? 0.5 : 0.65) : 1, minHeight: portrait ? u(S.gap * (portraitScan ? 0.3 : c.leadGen ? 1.5 : 0.6)) : 0 }} />}
+          {!portraitScan && scanPrompt}
           <div style={{ width: '100%' }}>{signOff}</div>
         </div>
       </>
@@ -6599,7 +6717,7 @@ function Ticket(props: CompProps) {
       </div>
     )
     // lead-gen: the note as short promises on diamond rows
-    const promises = c.leadGen && c.sub ? c.sub.text.split(/(?<=[.!?])\s+/).flatMap(x => x.split(/\s+[-–—]\s+/)).map(x => x.replace(/[.,]$/, '').trim()).filter(Boolean).map(x => x.charAt(0).toUpperCase() + x.slice(1)).slice(0, 3) : []
+    const promises = c.leadGen && c.sub ? c.sub.text.replace(/([.!?])\s+/g, '$1\u0000').split('\u0000').flatMap(x => x.split(/\s+[-–—]\s+/)).map(x => x.replace(/[.,]$/, '').trim()).filter(Boolean).map(x => x.charAt(0).toUpperCase() + x.slice(1)).slice(0, 3) : []
     const promiseRows = promises.length > 0 && c.sub && (
       <Pick id={c.sub.id} sel={sel} style={{ display: 'flex', justifyContent: 'center' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: u(1.1), maxWidth: '92%' }}>
@@ -7595,7 +7713,7 @@ function Swiss({ c, t, fam, S: S0, sel, ar = 1 }: CompProps) {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: u(size), borderBottom: `${u(0.42)} solid ${ink.ink}`, paddingBottom: u(size * 0.7), fontFamily: t.fonts.label, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.16em', fontSize: u(size), color: ink.ink, whiteSpace: 'nowrap' }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: u(size * 0.8) }}>
         <span style={{ display: 'inline-block', width: u(size * 1.15), height: u(size * 1.15), background: accent }} />
-        {lead ? (c.kicker?.text || 'For homeowners') : `N° ${num || '01'}`}
+        {lead ? (c.kicker?.text || 'Homeowners') : `N° ${num || '01'}`}
       </span>
       <span style={lead ? { color: ink.ink, fontWeight: 800, minWidth: 0, textAlign: 'right', whiteSpace: 'normal', lineHeight: 1.3, fontSize: `${Math.max(0.6, Math.min(1, 22 / Math.max(1, (c.agent?.brokerage || '').length)))}em` } : { color: ink.muted, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{lead ? (c.agent?.brokerage || '') : placeName(c)}</span>
     </div>

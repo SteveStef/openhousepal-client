@@ -43,6 +43,11 @@ export function hasStudioDesignAccess(planTier?: string | null): boolean {
   return !!planTier && STUDIO_DESIGN_ACCESS_TIERS.includes(planTier as PlanTierId)
 }
 
+const REVIEWS_ACCESS_TIERS: PlanTierId[] = ['PREMIUM', 'IDX', 'PRO_NO_MLS']
+export function hasReviewsAccess(planTier?: string | null): boolean {
+  return !!planTier && REVIEWS_ACCESS_TIERS.includes(planTier as PlanTierId)
+}
+
 export function hasStudioMediaAccess(planTier?: string | null): boolean {
   return !!planTier && STUDIO_MEDIA_ACCESS_TIERS.includes(planTier as PlanTierId)
 }
@@ -64,7 +69,7 @@ export function meetsTier(planTier: string | null | undefined, minimum: 'PREMIUM
 export type NavFeatureKey =
   | 'discovery' | 'my_listings' | 'cma'
   | 'agent_hub' | 'email_signature' | 'showcases' | 'blogs' | 'design_studio' | 'ai_media' | 'open_house_manager'
-  | 'idx_website' | 'listing_spotlight'
+  | 'idx_website' | 'listing_spotlight' | 'reviews'
 
 const FEATURE_LABELS: Record<NavFeatureKey, string> = {
   discovery: 'Discovery',
@@ -79,6 +84,7 @@ const FEATURE_LABELS: Record<NavFeatureKey, string> = {
   open_house_manager: 'Open House Manager',
   idx_website: 'IDX Website',
   listing_spotlight: 'Spotlight',
+  reviews: 'Client Reviews',
 }
 
 // MLS-only features: available to Basic/Premium/IDX, never to No-MLS / Pro No-MLS. No
@@ -108,12 +114,13 @@ export function getNavFeatureAccess(planTier: string | null | undefined, feature
     return { visible: true, locked: false, upgradeHref: '' }
   }
 
-  // Design Studio + Blogs: available to PRO_NO_MLS as well as PREMIUM/IDX. Hidden for the
-  // rest of the No-MLS track and for BASIC (BASIC keeps the locked upsell).
+  // Design Studio + Blogs: available to PRO_NO_MLS as well as PREMIUM/IDX. Locked upsell for the
+  // rest: plain No-MLS -> No-MLS Premium (its card lists Studio + Blogs, same as Media Lab / Agent
+  // Hub / Signature already did), BASIC -> Premium.
   if (feature === 'design_studio' || feature === 'blogs') {
     if (hasStudioDesignAccess(planTier)) return { visible: true, locked: false, upgradeHref: '' }
-    if (planTier === 'NO_MLS') return { visible: false, locked: false, upgradeHref: '' }
-    return { visible: true, locked: true, upgradeHref: `/upgrade-required?feature=${label}&tier=PREMIUM` }
+    const target = planTier === 'NO_MLS' ? 'PRO_NO_MLS' : 'PREMIUM'
+    return { visible: true, locked: true, upgradeHref: `/upgrade-required?feature=${label}&tier=${target}` }
   }
 
   // AI Media tool: unlocked for IDX + PRO_NO_MLS; shown but LOCKED for everyone else
@@ -138,6 +145,14 @@ export function getNavFeatureAccess(planTier: string | null | undefined, feature
   if (feature === 'email_signature') {
     if (hasEmailSignatureAccess(planTier)) return { visible: true, locked: false, upgradeHref: '' }
     const target = planTier === 'NO_MLS' ? 'PRO_NO_MLS' : 'IDX'
+    return { visible: true, locked: true, upgradeHref: `/upgrade-required?feature=${label}&tier=${target}` }
+  }
+
+  // Client Reviews (Review Hub): Premium / IDX / No-MLS Premium - matches REVIEWS_ACCESS_TIERS in
+  // backend auth.py. Plain No-MLS upsells to No-MLS Premium, Basic to Premium.
+  if (feature === 'reviews') {
+    if (hasReviewsAccess(planTier)) return { visible: true, locked: false, upgradeHref: '' }
+    const target = planTier === 'NO_MLS' ? 'PRO_NO_MLS' : 'PREMIUM'
     return { visible: true, locked: true, upgradeHref: `/upgrade-required?feature=${label}&tier=${target}` }
   }
 

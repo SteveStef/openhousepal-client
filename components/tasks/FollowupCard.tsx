@@ -50,6 +50,7 @@ const SITUATION: Record<string, { label: string; tone: Tone }> = {
   how_can_we_help: { label: 'How Can We Help', tone: 'sky' },
   how_can_we_help_seller: { label: 'Seller lead', tone: 'emerald' },
   form_submission: { label: 'Form', tone: 'sky' },
+  invite_rsvp: { label: 'Invite RSVP', tone: 'gold' },
   form_unfinished: { label: 'Unfinished form', tone: 'slate' },
   listing_inquiry: { label: 'Listing inquiry', tone: 'sky' },
   website_signin: { label: 'Website sign-in', tone: 'sky' },

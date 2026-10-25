@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Bookmark, Home, Loader2, Search, Trash2, X } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Bookmark, Home, Loader2, Search, Trash2, Upload, X } from 'lucide-react'
 import { LinkedProperty, SavedManualProperty } from '@/types'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
@@ -46,6 +47,41 @@ export default function PropertyLinkPicker({ value, onChange }: { value: LinkedP
       setIsLoadingSaved(false)
     })
   }, [])
+
+  // No-MLS: the homes they already typed in elsewhere - their Agent Hub listings + sales (Settings /
+  // Agent Hub) and their open house kits - one tap away here, never retyped.
+  type YourHome = LinkedProperty & { tag: 'Listing' | 'Sold' | 'Open house'; key: string }
+  const [yourHomes, setYourHomes] = useState<YourHome[]>([])
+  useEffect(() => {
+    if (!manualOnly) return
+    let alive = true
+    Promise.all([api.agentHub.getMine().catch(() => null), api.openHouses.getAll().catch(() => null)]).then(([hub, oh]) => {
+      if (!alive) return
+      const cfg: Record<string, any> = (hub && hub.success && hub.data?.config) || {}
+      const out: YourHome[] = []
+      const seen = new Set<string>()
+      const street = (a?: string | null) => String(a || '').split(',')[0].trim()
+      const push = (p: LinkedProperty, tag: YourHome['tag']) => {
+        const k = street(p.address).toLowerCase().replace(/[^a-z0-9]/g, '')
+        if (!k || seen.has(k)) return
+        seen.add(k)
+        out.push({ ...p, address: street(p.address), tag, key: `${tag}-${k}` })
+      }
+      for (const l of (Array.isArray(cfg.myListings) ? cfg.myListings : [])) {
+        if (l?.source !== 'manual') continue
+        push({ address: l.address, city: l.city, state: l.state, zipcode: l.zipcode, price: l.price, beds: l.beds, baths: l.baths, sqft: l.sqft, image_url: l.image, photos: l.photos, status: l.status }, 'Listing')
+      }
+      for (const s of (Array.isArray(cfg.recentSales) ? cfg.recentSales : [])) {
+        if (s?.source !== 'manual') continue
+        push({ address: s.address, city: s.city, state: s.state, zipcode: s.zipcode, price: s.price, close_price: s.price, close_date: s.sold_date, beds: s.beds, baths: s.baths, sqft: s.sqft, image_url: s.image, photos: s.photos, status: 'Sold' }, 'Sold')
+      }
+      for (const o of (oh && oh.success ? oh.data || [] : [])) {
+        push({ address: o.address, city: o.city, state: o.state, zipcode: o.zipcode, price: o.price ?? o.ListPrice, beds: o.bedrooms, baths: o.bathrooms, sqft: o.livingArea, image_url: o.coverImageUrl || undefined }, 'Open house')
+      }
+      setYourHomes(out)
+    })
+    return () => { alive = false }
+  }, [manualOnly])
 
   const updateManualDraft = (field: keyof typeof manualDraft, fieldValue: string) => {
     setManualDraft(current => ({ ...current, [field]: fieldValue }))
@@ -200,8 +236,10 @@ export default function PropertyLinkPicker({ value, onChange }: { value: LinkedP
 
   if (manualMode) {
     return (
-      <div className="rounded-xl border border-[#C9A24D]/30 bg-white p-4 dark:border-gray-700 dark:bg-[#151517]">
-        <p className="mb-3 text-sm font-black text-[#111827] dark:text-white">Enter property manually</p>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: [0.22, 0.61, 0.36, 1] }}
+        className="rounded-2xl border border-[#C9A24D]/30 bg-gradient-to-br from-white to-[#fbf6ea] p-4 shadow-[0_14px_34px_-28px_rgba(139,115,85,.8)] dark:border-gray-700 dark:from-[#151517] dark:to-[#151517] sm:p-5">
+        <p className="mb-0.5 flex items-center gap-2 font-serif text-lg font-black text-[#111827] dark:text-white"><Home className="h-4 w-4 text-[#C9A24D]" /> The home&apos;s details</p>
+        <p className="mb-3 text-xs font-semibold text-gray-500 dark:text-gray-400">{manualOnly ? 'No Bright MLS needed - type it in once, reuse it anytime.' : 'Not on the MLS? Type it in once, reuse it anytime.'}</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block sm:col-span-2">
             <span className="text-xs font-black uppercase tracking-widest text-gray-400">Address</span>
@@ -209,7 +247,7 @@ export default function PropertyLinkPicker({ value, onChange }: { value: LinkedP
               value={manualDraft.address}
               onChange={(event) => updateManualDraft('address', event.target.value)}
               placeholder="123 Main Street, Dover, PA 17315"
-              className="mt-2 w-full rounded-xl border border-gray-200 bg-[#fbfaf7] px-4 py-3 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+              className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base font-semibold shadow-sm transition focus:ring-4 focus:ring-[#C9A24D]/15 sm:text-sm outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
           </label>
           <label className="block">
@@ -217,7 +255,7 @@ export default function PropertyLinkPicker({ value, onChange }: { value: LinkedP
             <input
               value={manualDraft.city}
               onChange={(event) => updateManualDraft('city', event.target.value)}
-              className="mt-2 w-full rounded-xl border border-gray-200 bg-[#fbfaf7] px-4 py-3 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+              className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base font-semibold shadow-sm transition focus:ring-4 focus:ring-[#C9A24D]/15 sm:text-sm outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
           </label>
           <label className="block">
@@ -225,17 +263,17 @@ export default function PropertyLinkPicker({ value, onChange }: { value: LinkedP
             <input
               value={manualDraft.state}
               onChange={(event) => updateManualDraft('state', event.target.value)}
-              className="mt-2 w-full rounded-xl border border-gray-200 bg-[#fbfaf7] px-4 py-3 text-sm font-semibold uppercase outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+              className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base font-semibold shadow-sm transition focus:ring-4 focus:ring-[#C9A24D]/15 sm:text-sm uppercase outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
           </label>
           <label className="block">
             <span className="text-xs font-black uppercase tracking-widest text-gray-400">Price</span>
             <input
               inputMode="decimal"
-              value={manualDraft.price}
-              onChange={(event) => updateManualDraft('price', event.target.value.replace(/[^0-9.]/g, ''))}
-              placeholder="500,000"
-              className="mt-2 w-full rounded-xl border border-gray-200 bg-[#fbfaf7] px-4 py-3 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+              value={manualDraft.price ? `$${Number(manualDraft.price).toLocaleString()}` : ''}
+              onChange={(event) => updateManualDraft('price', event.target.value.replace(/[^0-9]/g, '').slice(0, 9))}
+              placeholder="$500,000"
+              className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base font-semibold shadow-sm transition focus:ring-4 focus:ring-[#C9A24D]/15 sm:text-sm outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
           </label>
           <label className="block">
@@ -244,41 +282,45 @@ export default function PropertyLinkPicker({ value, onChange }: { value: LinkedP
               inputMode="numeric"
               value={manualDraft.sqft}
               onChange={(event) => updateManualDraft('sqft', event.target.value.replace(/[^0-9.]/g, ''))}
-              className="mt-2 w-full rounded-xl border border-gray-200 bg-[#fbfaf7] px-4 py-3 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+              className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base font-semibold shadow-sm transition focus:ring-4 focus:ring-[#C9A24D]/15 sm:text-sm outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
           </label>
-          <label className="block">
-            <span className="text-xs font-black uppercase tracking-widest text-gray-400">Beds</span>
-            <input
-              inputMode="decimal"
-              value={manualDraft.beds}
-              onChange={(event) => updateManualDraft('beds', event.target.value.replace(/[^0-9.]/g, ''))}
-              className="mt-2 w-full rounded-xl border border-gray-200 bg-[#fbfaf7] px-4 py-3 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-            />
-          </label>
-          <label className="block">
-            <span className="text-xs font-black uppercase tracking-widest text-gray-400">Baths</span>
-            <input
-              inputMode="decimal"
-              value={manualDraft.baths}
-              onChange={(event) => updateManualDraft('baths', event.target.value.replace(/[^0-9.]/g, ''))}
-              className="mt-2 w-full rounded-xl border border-gray-200 bg-[#fbfaf7] px-4 py-3 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-            />
-          </label>
-          <label className="block sm:col-span-2">
+          {/* Beds / baths: one tap, no keyboard (same chips as the open house kit's Home details). */}
+          {([['beds', 'Beds', ['1', '2', '3', '4', '5', '6']], ['baths', 'Baths', ['1', '1.5', '2', '2.5', '3', '3.5', '4', '5']]] as const).map(([field, label, opts]) => (
+            <div key={field} className="sm:col-span-2">
+              <span className="text-xs font-black uppercase tracking-widest text-gray-400">{label}</span>
+              <div className={`mt-2 grid gap-1.5 ${opts.length > 6 ? 'grid-cols-4 sm:grid-cols-8' : 'grid-cols-6'}`}>
+                {opts.map(o => {
+                  const on = manualDraft[field] === o
+                  return (
+                    <button key={o} type="button" onClick={() => updateManualDraft(field, on ? '' : o)}
+                      className={`h-11 rounded-xl border text-sm font-black transition active:scale-95 ${on ? 'border-[#111827] bg-[#111827] text-white shadow-md dark:border-[#e8c97a] dark:bg-[#e8c97a] dark:text-[#111827]' : 'border-gray-200 bg-white text-gray-700 hover:border-[#C9A24D] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'}`}>
+                      {o === opts[opts.length - 1] ? `${o}+` : o}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+          <label className="block cursor-pointer sm:col-span-2">
             <span className="text-xs font-black uppercase tracking-widest text-gray-400">Photo</span>
-            <div className="mt-2 flex items-center gap-4 rounded-xl border border-gray-200 bg-[#fbfaf7] p-3 dark:border-gray-700 dark:bg-gray-800">
-              <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-cover bg-center bg-gray-100 dark:bg-gray-900" style={{ backgroundImage: manualDraft.image_url ? `url(${manualDraft.image_url})` : 'none' }} />
+            <div className={`mt-2 flex items-center rounded-xl border border-dashed border-[#C9A24D]/45 bg-[#C9A24D]/[0.04] p-3 transition hover:border-[#C9A24D] dark:bg-white/[0.03] ${manualDraft.image_url ? 'gap-4' : 'gap-3'}`}>
+              {manualDraft.image_url
+                ? <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-cover bg-center" style={{ backgroundImage: `url(${manualDraft.image_url})` }} />
+                : <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#111827] text-[#e8c97a]">{manualPhotoUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}</span>}
               <input
                 ref={manualFileInputRef}
                 type="file"
                 accept="image/jpeg"
                 disabled={manualPhotoUploading}
                 onChange={(event) => handleManualPhoto(event.target.files?.[0])}
-                className="block w-full text-sm font-semibold file:mr-3 file:rounded-lg file:border-0 file:bg-[#111827] file:px-3 file:py-2 file:text-sm file:font-black file:text-white disabled:opacity-60"
+                className="hidden"
               />
+              <span className="min-w-0">
+                <span className="block text-sm font-black text-[#111827] dark:text-white">{manualPhotoUploading ? 'Uploading...' : manualDraft.image_url ? 'Replace photo' : 'Add a photo'}</span>
+                <span className="block text-xs font-semibold text-gray-400">JPG - it fills the design</span>
+              </span>
             </div>
-            {manualPhotoUploading && <p className="mt-1 text-xs font-semibold text-gray-400">Uploading photo...</p>}
           </label>
         </div>
         {manualError && <p className="mt-3 text-sm font-bold text-red-600">{manualError}</p>}
@@ -308,7 +350,7 @@ export default function PropertyLinkPicker({ value, onChange }: { value: LinkedP
             Cancel
           </button>
         </div>
-      </div>
+      </motion.div>
     )
   }
 
@@ -360,6 +402,32 @@ export default function PropertyLinkPicker({ value, onChange }: { value: LinkedP
       </>
       )}
 
+      {manualOnly && yourHomes.length > 0 && (
+        <div className="mt-4">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-gray-400">
+            <Home className="h-3.5 w-3.5" /> Your homes
+          </p>
+          <div className="grid max-h-64 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2">
+            {yourHomes.map((home, i) => (
+              <motion.button key={home.key} type="button" onClick={() => { const { tag: _tag, key: _key, ...p } = home; onChange(p) }}
+                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: Math.min(i, 8) * 0.03 }}
+                className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-2 text-left transition hover:-translate-y-0.5 hover:border-[#C9A24D] active:scale-[0.99] dark:border-gray-700 dark:bg-[#151517]">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
+                  {home.image_url ? <img src={home.image_url} alt="" className="h-full w-full object-cover" /> : <Home className="h-4 w-4 text-gray-300" />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-bold text-[#111827] dark:text-white">{home.address}</span>
+                  <span className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    <span className={`shrink-0 whitespace-nowrap rounded-full px-1.5 py-px text-[9px] font-black uppercase tracking-wider ${home.tag === 'Sold' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8c97a]'}`}>{home.tag}</span>
+                    {home.price ? `$${Number(home.price).toLocaleString()}` : ''}
+                  </span>
+                </span>
+              </motion.button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {!isLoadingSaved && savedProperties.length > 0 && (
         <div className="mt-4">
           <p className="mb-2 flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-gray-400">
@@ -388,7 +456,7 @@ export default function PropertyLinkPicker({ value, onChange }: { value: LinkedP
                   role="button"
                   tabIndex={0}
                   onClick={(event) => handleDeleteSaved(event, saved.id)}
-                  className="shrink-0 rounded-lg p-2 text-gray-300 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+                  className="shrink-0 rounded-lg p-2 text-gray-300 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
                   aria-label="Remove from saved properties"
                   title="Remove from saved properties"
                 >

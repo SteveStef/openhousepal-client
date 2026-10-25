@@ -1,12 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Grid3x3, X } from 'lucide-react'
 import { usePresence } from './motion'
 
 // Full-screen photo viewer shared by both Spotlight templates: arrow keys / swipe to move, Esc to
 // close, a thumbnail rail to jump, and an "all photos" grid view - the way every serious listing
 // portal presents a home's photos. Always dark regardless of template (photos read best on black).
+// The photos sit side by side in a snapping strip (user, 10/24): on a phone the photo follows the
+// finger and the next one slides in with it, like the Photos app - not a jump after letting go.
 export default function Lightbox({
   photos: photosIn, index: indexIn, onClose, onIndex, title,
 }: {
@@ -52,9 +54,51 @@ export default function Lightbox({
   // Keep the active thumbnail in view as the visitor arrows through a long set.
   useEffect(() => {
     if (index === null || !railRef.current) return
-    const el = railRef.current.querySelector<HTMLElement>(`[data-thumb="${index}"]`)
-    el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+    const rail = railRef.current
+    const el = rail.querySelector<HTMLElement>(`[data-thumb="${index}"]`)
+    // Scroll the rail itself (scrollIntoView could also nudge the swipe strip / page).
+    if (el) rail.scrollTo({ left: el.offsetLeft - rail.clientWidth / 2 + el.clientWidth / 2, behavior: 'smooth' })
   }, [index])
+
+  // ---- the swipe strip: one full-width cell per photo, snapping into place.
+  const trackRef = useRef<HTMLDivElement>(null)
+  const indexRef = useRef(index)
+  indexRef.current = index
+  // The index the strip itself just reported (a swipe) - the strip is already there, so the
+  // "move the strip to the new photo" effect below must not scroll it again mid-swipe.
+  const fromSwipe = useRef<number | null>(null)
+  const stripShown = show && !grid && index !== null
+  // Opening (or coming back from the grid): jump straight to the photo, no glide.
+  useLayoutEffect(() => {
+    const track = trackRef.current
+    if (!stripShown || !track || indexRef.current === null) return
+    track.scrollLeft = indexRef.current * track.clientWidth
+  }, [stripShown])
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track || index === null) return
+    if (fromSwipe.current === index) { fromSwipe.current = null; return }
+    const target = index * track.clientWidth
+    if (Math.abs(track.scrollLeft - target) < 2) return
+    const far = Math.abs(track.scrollLeft - target) > track.clientWidth * 1.5 // e.g. last -> first
+    track.scrollTo({ left: target, behavior: far ? 'auto' : 'smooth' })
+  }, [index])
+  // Rotating the phone changes the cell width - stay on the same photo.
+  useEffect(() => {
+    if (!stripShown) return
+    const onResize = () => {
+      const track = trackRef.current
+      if (track && indexRef.current !== null) track.scrollLeft = indexRef.current * track.clientWidth
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [stripShown])
+  const onTrackScroll = () => {
+    const track = trackRef.current
+    if (!track || !track.clientWidth) return
+    const i = Math.max(0, Math.min(count - 1, Math.round(track.scrollLeft / track.clientWidth)))
+    if (i !== indexRef.current) { fromSwipe.current = i; onIndex(i) }
+  }
 
   if (!show || index === null || !photos[index]) return null
 
@@ -98,7 +142,7 @@ export default function Lightbox({
       ) : (
         <>
           <div
-            className="relative flex min-h-0 flex-1 select-none items-center justify-center px-2 sm:px-16"
+            className="relative flex min-h-0 flex-1 select-none"
             onTouchStart={e => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
             onTouchEnd={e => {
               const start = touch.current
@@ -106,17 +150,29 @@ export default function Lightbox({
               if (!start) return
               const dx = e.changedTouches[0].clientX - start.x
               const dy = e.changedTouches[0].clientY - start.y
-              if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) go(dx < 0 ? 1 : -1)
-              else if (dy > 110 && Math.abs(dy) > Math.abs(dx) * 1.4) onClose()
+              // Side to side is the strip's own scrolling; a firm pull down closes the viewer.
+              if (dy > 110 && Math.abs(dy) > Math.abs(dx) * 1.4) onClose()
             }}
           >
-            <img
-              key={photos[index]}
-              src={photos[index]}
-              alt={`${title} - photo ${index + 1} of ${count}`}
-              className="sp-lightbox-img max-h-full max-w-full object-contain"
-              draggable={false}
-            />
+            <div
+              ref={trackRef}
+              onScroll={onTrackScroll}
+              className="sp-lb-track flex h-full w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {photos.map((src, i) => (
+                <div key={src + i} className="flex h-full w-full shrink-0 snap-center snap-always items-center justify-center px-2 sm:px-16" aria-hidden={i !== index}>
+                  {/* Only the photos around the one on screen are loaded - a 40-photo listing stays light. */}
+                  {Math.abs(i - index) <= 2 || (index === 0 && i === count - 1) || (index === count - 1 && i === 0) ? (
+                    <img
+                      src={src}
+                      alt={`${title} - photo ${i + 1} of ${count}`}
+                      className="max-h-full max-w-full object-contain"
+                      draggable={false}
+                    />
+                  ) : null}
+                </div>
+              ))}
+            </div>
             {count > 1 && (
               <>
                 <button onClick={() => go(-1)} className="absolute left-2 top-1/2 hidden -translate-y-1/2 rounded-full bg-white/10 p-3 transition hover:bg-white/25 sm:left-4 sm:block" aria-label="Previous photo">
@@ -126,13 +182,6 @@ export default function Lightbox({
                   <ChevronRight className="h-6 w-6" />
                 </button>
               </>
-            )}
-            {/* Preload the neighbours so arrowing never waits on a spinner. */}
-            {count > 1 && (
-              <div className="hidden" aria-hidden>
-                <img src={photos[(index + 1) % count]} alt="" />
-                <img src={photos[(index - 1 + count) % count]} alt="" />
-              </div>
             )}
           </div>
           {count > 1 && (

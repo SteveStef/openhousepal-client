@@ -78,7 +78,9 @@ export interface BragSheetPayload {
  * Hub's curated Recent Sales (Agent Hub plans, incl. No-MLS Premium's manual sales) or, on Basic,
  * the agent's own Bright MLS sales. Plain No-MLS Basic has neither, so the kit leaves it out. */
 export function planHasBragSheet(planTier?: string | null): boolean {
-  return hasAgentHubAccess(planTier) || hasMlsAccess(planTier)
+  // Owner 10/24: plain No-MLS gets it too, from the sales they add by hand (Settings > Recent
+  // Sales, or the kit's own "Add a sale"). With none yet the kit shows the add-a-sale empty state.
+  return hasAgentHubAccess(planTier) || hasMlsAccess(planTier) || planTier === 'NO_MLS'
 }
 
 /** Whether this agent's public Agent Hub page actually loads - their plan includes it AND it has
@@ -109,7 +111,7 @@ function hubIsLive(planTier: string | null | undefined, config: any): boolean {
 export async function buildBragSheetData(currentUser: User | null, similarProperties?: any[], opts?: { showcases?: boolean }): Promise<{ data: BragSheetPayload | null; error?: string }> {
   const planTier = currentUser?.plan_tier
   if (!planHasBragSheet(planTier)) {
-    return { data: null, error: 'The Brag Sheet is built from your Recent Sales - it comes with No-MLS Premium, where you can add your sales by hand.' }
+    return { data: null, error: 'The Brag Sheet is built from your Recent Sales - add your sales by hand in Settings > Recent Sales.' }
   }
   // ...and only when this open house gives guests Showcases (a listing agent at their own listing
   // turns them off - no page sending guests to shop other homes).
@@ -139,7 +141,9 @@ export async function buildBragSheetData(currentUser: User | null, similarProper
   // Sales" tab (Studio > Site), so the Brag Sheet matches their public Agent Hub page. Basic has
   // no Agent Hub to curate in, so it uses the agent's own sales pulled from Bright MLS instead.
   let configuredSales = Array.isArray(config.recentSales) ? config.recentSales : []
-  let visibleSales = configuredSales.filter((sale: any) => sale?.visible)
+  // ...and the hub's "Min price to display" applies here too (owner, 10/24: settings used everywhere).
+  const minPrice = Number(config.salesMinPrice) || 0
+  let visibleSales = configuredSales.filter((sale: any) => sale?.visible && (!minPrice || (sale?.price || 0) >= minPrice))
   if (visibleSales.length === 0 && !withHub && hasMlsAccess(planTier)) {
     const brightRes = await api.agentHub.getRecentSales().catch(() => ({ success: false, data: [] as any[] }))
     const brightSales = (brightRes.success ? brightRes.data || [] : []).filter((sale: any) => (sale?.price || 0) > 0)
@@ -151,7 +155,9 @@ export async function buildBragSheetData(currentUser: User | null, similarProper
       data: null,
       error: withHub
         ? 'Add and show at least one sale in the Recent Sales tab of your Agent Hub (Studio > Site) before generating a Brag Sheet.'
-        : "We couldn't find any of your closed sales in Bright MLS yet - make sure your MLS ID is set in Settings, then try again.",
+        : !hasMlsAccess(planTier)
+          ? 'Your Brag Sheet shows the sales you add by hand - add one (Settings > Recent Sales) and it fills in.'
+          : "We couldn't find any of your closed sales in Bright MLS yet - make sure your MLS ID is set in Settings, then try again.",
     }
   }
 

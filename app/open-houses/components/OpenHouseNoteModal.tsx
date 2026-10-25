@@ -1,6 +1,8 @@
 'use client'
 
 import { memo } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { backdropMotion, useEscapeToClose, useLastValue } from '@/components/ui/windowMotion'
 import { AlertTriangle, CalendarClock } from 'lucide-react'
 import { OpenHouse } from '@/types'
 
@@ -28,17 +30,33 @@ export const OpenHouseNoteModal = memo(function OpenHouseNoteModal({
   onNotesChange,
   onSave
 }: OpenHouseNoteModalProps) {
-  if (!isOpen || !openHouse) return null
+  // Kept while it animates away (the page clears the open house as it closes).
+  const shown = useLastValue(openHouse)
+  return (
+    <AnimatePresence>
+      {isOpen && shown && <NoteWindow {...{ onClose, openHouse: shown, notes, onNotesChange, onSave }} />}
+    </AnimatePresence>
+  )
+})
 
+function NoteWindow({ onClose, openHouse, notes, onNotesChange, onSave }: Omit<OpenHouseNoteModalProps, 'isOpen' | 'openHouse'> & { openHouse: OpenHouse }) {
+  useEscapeToClose(onClose)
   // Only sent by the API while a guest-hosted open is still upcoming - see open_houses_routes.
   const hostInfo = openHouse.listingHostNotes || (openHouse as any).listing_host_notes || ''
   const scheduledLabel = formatScheduledDate(openHouse.scheduledDate)
   const coverImage = openHouse.coverImageUrl || (openHouse as any).cover_image_url
 
   return (
-    <div className="fixed inset-0 bg-[#111827]/60 z-50 flex items-center justify-center p-4 transition-all duration-300 print:hidden">
-      <div className="bg-white dark:bg-[#151517] rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 max-w-lg w-full overflow-hidden transform transition-all">
-        <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-[#faf9f7] dark:bg-[#0B0B0B]">
+    // Phones: the window sits near the TOP of the screen (user, 10/24 - the keyboard covered part
+    // of it), and nothing is focused on open, so the keyboard only comes up when they tap the box.
+    <motion.div {...backdropMotion} data-scroll-lock="off" onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      className="fixed inset-0 bg-[#111827]/60 z-50 flex items-start justify-center p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center sm:p-4 print:hidden">
+      <motion.div
+        initial={{ opacity: 0, y: -18, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 420, damping: 36 } }}
+        exit={{ opacity: 0, y: -12, scale: 0.98, transition: { duration: 0.16 } }}
+        className="bg-white dark:bg-[#151517] rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 max-w-lg w-full max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain [scrollbar-width:none]">
+        <div className="px-5 py-4 sm:p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-[#faf9f7] dark:bg-[#0B0B0B]">
           <div>
             <h3 className="text-lg font-black text-[#0B0B0B] dark:text-white tracking-tight">
               {hostInfo ? 'Notes & Info' : 'Open House Note'}
@@ -57,7 +75,7 @@ export const OpenHouseNoteModal = memo(function OpenHouseNoteModal({
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-5 sm:p-6">
           {hostInfo && (
             // Deliberately styled apart from the rest of the modal (amber, bordered, its own
             // property strip) - it's not the agent's own note but transient info shared by the
@@ -96,9 +114,8 @@ export const OpenHouseNoteModal = memo(function OpenHouseNoteModal({
               value={notes}
               onChange={(e) => onNotesChange(e.target.value)}
               className="block w-full px-4 py-3 bg-[#faf9f7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all duration-200 resize-none font-medium"
-              rows={6}
+              rows={5}
               placeholder="Enter notes about this open house (e.g., access info like the lockbox code or key location, weather, turnout, feedback)..."
-              autoFocus
             />
           </div>
 
@@ -117,7 +134,7 @@ export const OpenHouseNoteModal = memo(function OpenHouseNoteModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
-})
+}

@@ -17,6 +17,7 @@ import {
 import { FormStats, FormSplitRow } from '@/types'
 import api from '@/lib/api-service'
 import { useEscapeToClose } from '@/components/ui/windowMotion'
+import ScopePicker from '@/components/forms/ScopePicker'
 
 const RANGES = [
   { days: 7, label: '7 days' },
@@ -602,6 +603,18 @@ export default function FormStatsModal({
   campaignId?: string | 'general' | null
 }) {
   useEscapeToClose(onClose)
+  // Pick one campaign (or all / General) - a dropdown on a computer, a sheet on a phone.
+  const [scope, setScope] = useState<string | 'general' | null | undefined>(campaignId)
+  const [campaignOptions, setCampaignOptions] = useState<{ value: string | 'general' | null | undefined; label: string }[]>([])
+  useEffect(() => {
+    let alive = true
+    api.forms.getCampaigns(formId).then(res => {
+      if (!alive || !res.success || !res.data) return
+      const named = res.data.filter(c => !c.is_general && !c.deleted_at && c.id)
+      setCampaignOptions(named.length ? [{ value: undefined, label: 'All campaigns' }, { value: 'general', label: 'General' }, ...named.map(c => ({ value: c.id as string, label: c.name }))] : [])
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [formId])
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-gray-200 bg-[#f7f6f2] p-5 shadow-2xl dark:border-gray-800 dark:bg-[#0B0B0B] sm:p-6">
@@ -609,13 +622,14 @@ export default function FormStatsModal({
           <div className="min-w-0">
             <p className="text-lg font-black tracking-tight text-[#111827] dark:text-white">Stats</p>
             <p className="truncate text-xs font-semibold text-gray-400">{title}</p>
+            {campaignOptions.length > 0 && <div className="mt-2"><ScopePicker options={campaignOptions} value={scope} onChange={setScope} /></div>}
           </div>
           <button onClick={onClose} className="shrink-0 rounded-full p-2 text-gray-400 transition hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" aria-label="Close">
             <X className="h-5 w-5" />
           </button>
         </div>
         <div className="mt-5">
-          <FormStatsContent formId={formId} campaignId={campaignId} />
+          <FormStatsContent formId={formId} campaignId={scope} />
         </div>
       </div>
     </div>

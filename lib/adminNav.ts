@@ -1,6 +1,6 @@
 import {
   Activity, AlertOctagon, BarChart3, Building2, ClipboardSignature, Cpu, FileSearch, FlaskConical, HardDrive, HelpCircle, Inbox,
-  LayoutDashboard, LifeBuoy, Mail, MousePointerClick, Layout, Receipt, Ticket, Users, Wallet, Workflow, Wrench, Gauge,
+  LayoutDashboard, LifeBuoy, Mail, MailWarning, MousePointerClick, Layout, Receipt, Ticket, Users, Wallet, Workflow, Wrench, Gauge,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -33,6 +33,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
       { key: 'signins', label: 'Sign-ins & forms', icon: ClipboardSignature, blurb: 'Open house sign-ins - how many, how long they take, how many finish.' },
       { key: 'showcases', label: 'Showcases', icon: Layout, blurb: 'How many are made, how many clients open, and how many are in use now.' },
       { key: 'emails', label: 'Emails', icon: Mail, blurb: 'Every email sent - opened, clicked, bounced.' },
+      { key: 'emailhealth', label: 'Email health', icon: MailWarning, blurb: 'Pick a day or a range - who got what, what gets opened, what is repetitive, agent by agent.' },
       { key: 'tools', label: 'Agent tools', icon: Wrench, blurb: 'Which tools agents use, and how much - agent by agent.' },
       { key: 'guests', label: 'Guests', icon: MousePointerClick, blurb: 'What agents\' guests and clients do - visits, likes, tours, leads.' },
     ],

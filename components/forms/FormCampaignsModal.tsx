@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { backdropMotion, cascade, panelMotion, riseItem } from './modalMotion'
 import { refreshFormsActionCount } from '@/hooks/useFormsActionCount'
@@ -16,7 +16,8 @@ import FormQrCode from '@/components/forms/FormQrCode'
 import { FormStatsContent } from '@/components/forms/FormStatsModal'
 import { ShowcaseFormInfoBlock } from './ShowcaseFormInfo'
 import UnfinishedResponses from '@/components/forms/UnfinishedResponses'
-import FormResultsModal from '@/components/forms/FormResultsModal'
+import FormResultsModal, { SubmissionDetail } from '@/components/forms/FormResultsModal'
+import ScopePicker from '@/components/forms/ScopePicker'
 import NewCampaignModal from '@/components/forms/NewCampaignModal'
 import CampaignRedirectPicker, { CampaignRedirect, campaignRedirectError, campaignRedirectLabel, campaignRedirectPayload } from '@/components/forms/CampaignRedirectPicker'
 import ConfirmationModal from '@/components/ConfirmationModal'
@@ -35,6 +36,25 @@ type StatsScope = string | 'general' | null | undefined
 // A string = one named campaign, matched by name (FormSubmissionListItem only carries the name,
 // not the campaign id).
 type ResultsScope = 'all' | 'general' | string
+
+// The Results list eases to its new height when the view or filter changes (Submitted -> New ->
+// Unfinished), instead of the window jumping up and down (user, 10/24).
+function ResultsAutoHeight({ children }: { children: React.ReactNode }) {
+  const inner = useRef<HTMLDivElement>(null)
+  const [h, setH] = useState<number | 'auto'>('auto')
+  useEffect(() => {
+    const el = inner.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setH(el.offsetHeight))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  return (
+    <motion.div animate={{ height: h }} initial={false} transition={{ type: 'spring', stiffness: 380, damping: 40, mass: 0.8 }} style={{ overflow: 'hidden' }}>
+      <div ref={inner}>{children}</div>
+    </motion.div>
+  )
+}
 
 function HoverInfo({ text }: { text: string }) {
   return (
@@ -231,7 +251,9 @@ export default function FormCampaignsModal({
   const { showToast } = useToast()
   const [tab, setTab] = useState<Tab>(initialView ? 'results' : 'campaigns')
   // Results tab: submitted responses, or people who started but never pressed Submit.
-  const [resultsView, setResultsView] = useState<'submitted' | 'unfinished'>(initialView || 'submitted')
+  const [resultsView, setResultsView] = useState<'submitted' | 'new' | 'unfinished'>(initialView || 'submitted')
+  // The response opened in place in the Results list (only one at a time).
+  const [openResultId, setOpenResultId] = useState<string | null>(null)
   const showUnfinished = () => { setResultsView('unfinished'); setTab('results') }
 
   useEffect(() => {
@@ -338,11 +360,13 @@ export default function FormCampaignsModal({
   }
 
   const [resultsFilter, setResultsFilter] = useState<ResultsScope>('all')
-  const resultsFilterOptions: { value: ResultsScope; label: string }[] = [
-    { value: 'all', label: 'All' },
-    { value: 'general', label: 'General' },
-    ...Array.from(new Set(submissions.map(s => s.campaign_name).filter((name): name is string => Boolean(name))))
-      .map(name => ({ value: name as ResultsScope, label: name })),
+  const resultsFilterOptions: { value: ResultsScope; label: string; sub?: string }[] = [
+    { value: 'all', label: 'All campaigns', sub: `${submissions.length} response${submissions.length === 1 ? '' : 's'}` },
+    { value: 'general', label: 'General', sub: 'Your everyday link' },
+    ...Array.from(new Set([
+      ...campaigns.filter(c => !c.is_general).map(c => c.name),
+      ...submissions.map(s => s.campaign_name).filter((name): name is string => Boolean(name)),
+    ])).map(name => ({ value: name as ResultsScope, label: name, sub: `${submissions.filter(s => s.campaign_name === name).length} responses` })),
   ]
   const filteredResultsSubmissions = resultsFilter === 'all'
     ? submissions
@@ -350,7 +374,22 @@ export default function FormCampaignsModal({
       ? submissions.filter(s => !s.campaign_name)
       : submissions.filter(s => s.campaign_name === resultsFilter)
   const filteredPendingCount = filteredResultsSubmissions.filter(s => !s.is_reviewed).length
-  const resultsPreview = filteredResultsSubmissions.slice(0, 4)
+  // "New" keeps a response it just opened in the list until you switch views (so it doesn't
+  // vanish from under your finger the moment it's marked read).
+  const [keptNew, setKeptNew] = useState<Set<string>>(new Set())
+  useEffect(() => { setKeptNew(new Set()); setOpenResultId(null) }, [resultsView])
+  const listedResults = resultsView === 'new'
+    ? filteredResultsSubmissions.filter(s => !s.is_reviewed || keptNew.has(s.id))
+    : filteredResultsSubmissions
+  // Opening a response is reading it (same as the Results window).
+  const toggleResult = (submission: FormSubmissionListItem) => {
+    const next = openResultId === submission.id ? null : submission.id
+    setOpenResultId(next)
+    if (next && !submission.is_reviewed) {
+      setKeptNew(current => new Set(current).add(submission.id))
+      handleToggleReviewed(submission.id, true)
+    }
+  }
 
   const agentHubPublicUrl = openHousePalPublicUrl(`/${agentHubSlug}`)
   const formUrl = `${agentHubPublicUrl}/${form.slug}`
@@ -534,20 +573,10 @@ export default function FormCampaignsModal({
 
           {tab === 'stats' && (
             <div>
-              <motion.div variants={riseItem} className="flex flex-wrap gap-1.5">
-                {statsScopeOptions.map(option => (
-                  <button
-                    key={option.label}
-                    onClick={() => setStatsScope(option.value)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-black transition ${
-                      statsScope === option.value
-                        ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'
-                        : 'border border-gray-200 bg-white text-gray-400 dark:border-gray-700 dark:bg-[#151517]'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+              {/* Which campaign: a dropdown on a computer, a slide-up sheet on a phone (not a row of pills). */}
+              <motion.div variants={riseItem} className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-black uppercase tracking-[0.18em] text-gray-400">Showing</span>
+                <ScopePicker options={statsScopeOptions} value={statsScope} onChange={setStatsScope} />
               </motion.div>
               <motion.div variants={riseItem} className="mt-5">
                 <FormStatsContent formId={form.id} campaignId={statsScope} onShowUnfinished={showUnfinished} />
@@ -556,88 +585,97 @@ export default function FormCampaignsModal({
           )}
 
           {tab === 'results' && (
-            <motion.div variants={riseItem} className="mb-4 inline-flex rounded-full border border-gray-200 bg-white p-0.5 dark:border-gray-700 dark:bg-[#151517]">
-              {([['submitted', 'Submitted'], ['unfinished', 'Unfinished']] as const).map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setResultsView(key)}
-                  className={`rounded-full px-3.5 py-1.5 text-xs font-black transition ${resultsView === key ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white'}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </motion.div>
-          )}
-
-          {tab === 'results' && (
-          <AnimatePresence mode="wait" initial={false}>
-          <motion.div key={resultsView} variants={cascade} initial="hidden" animate="show" exit="leave">
-          {resultsView === 'unfinished' && <motion.div variants={riseItem}><UnfinishedResponses formId={form.id} /></motion.div>}
-
-          {resultsView === 'submitted' && (
-            submissionsLoading ? (
-              <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
-            ) : submissions.length === 0 ? (
-              <motion.div variants={riseItem} className="flex flex-col items-center justify-center gap-2 py-16 text-center">
-                <Mail className="h-6 w-6 text-gray-300" />
-                <p className="text-sm font-semibold text-gray-400">No submissions yet.</p>
-              </motion.div>
-            ) : (
-              <motion.div variants={cascade}>
-                {resultsFilterOptions.length > 2 && (
-                  <motion.div variants={riseItem} className="flex flex-wrap gap-1.5">
-                    {resultsFilterOptions.map(option => (
-                      <button
-                        key={option.label}
-                        onClick={() => setResultsFilter(option.value)}
-                        className={`rounded-full px-3 py-1.5 text-xs font-black transition ${
-                          resultsFilter === option.value
-                            ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'
-                            : 'border border-gray-200 bg-white text-gray-400 dark:border-gray-700 dark:bg-[#151517]'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-                <motion.p variants={riseItem} className={`text-xs font-medium text-gray-500 dark:text-gray-400 ${resultsFilterOptions.length > 2 ? 'mt-3' : ''}`}>
-                  {resultsFilter === 'all' ? 'All campaigns combined' : resultsFilter === 'general' ? 'General only' : `"${resultsFilter}" campaign`} · {filteredPendingCount === 0 ? `${filteredResultsSubmissions.length} response${filteredResultsSubmissions.length === 1 ? '' : 's'} · no new` : `${filteredPendingCount} new response${filteredPendingCount === 1 ? '' : 's'} of ${filteredResultsSubmissions.length}`}
-                </motion.p>
-                <div className="mt-3 space-y-2">
-                  {resultsPreview.map(submission => (
-                    <motion.button
-                      variants={riseItem}
-                      key={submission.id}
-                      onClick={() => openResultsFor(resultsFilter)}
-                      className="flex w-full items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition hover:border-[#C9A24D]/50 dark:border-gray-800 dark:bg-[#151517]"
+            // Results (user, 10/24): Submitted / New / Unfinished, a campaign filter (dropdown on a
+            // computer, a sheet on a phone), and every response right here - tap one and its
+            // answers open in place (no second window, no "View all results").
+            <div>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2.5">
+                <div className="relative inline-flex rounded-full border border-gray-200 bg-white p-0.5 dark:border-gray-700 dark:bg-[#151517]">
+                  {([
+                    ['submitted', 'Submitted', filteredResultsSubmissions.length],
+                    ['new', 'New', filteredPendingCount],
+                    ['unfinished', 'Unfinished', null],
+                  ] as const).map(([key, label, count]) => (
+                    <button
+                      key={key}
+                      onClick={() => setResultsView(key)}
+                      className={`relative rounded-full px-3.5 py-1.5 text-xs font-black transition-colors ${resultsView === key ? 'text-white dark:text-[#111827]' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white'}`}
                     >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-[#111827] dark:text-white">{submission.contact_name || 'Anonymous'}</p>
-                        <p className="truncate text-xs text-gray-500 dark:text-gray-400">{submission.contact_email || submission.contact_phone || submission.property_address || 'No contact details'}</p>
-                        <p className="mt-0.5 truncate text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#e8cf8a]">{submission.campaign_name || 'General'}</p>
-                      </div>
-                      <AnimatePresence initial={false}>
-                        {!submission.is_reviewed && (
-                          <motion.span initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }}
-                            className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-800">New</motion.span>
+                      {resultsView === key && <motion.span layoutId="form-results-view" className="absolute inset-0 rounded-full bg-[#111827] dark:bg-white" transition={{ type: 'spring', stiffness: 520, damping: 38 }} />}
+                      <span className="relative inline-flex items-center gap-1.5">
+                        {label}
+                        {count !== null && count > 0 && (
+                          <span className={`rounded-full px-1.5 text-[10px] ${key === 'new' ? 'bg-amber-400 text-[#111827]' : resultsView === key ? 'bg-white/20 dark:bg-[#111827]/15' : 'bg-gray-100 dark:bg-white/10'}`}>{count}</span>
                         )}
-                      </AnimatePresence>
-                    </motion.button>
+                      </span>
+                    </button>
                   ))}
                 </div>
-                <motion.button
-                  variants={riseItem}
-                  onClick={() => openResultsFor(resultsFilter)}
-                  className="mt-4 w-full rounded-xl bg-[#111827] px-4 py-2.5 text-xs font-black text-white transition hover:bg-black dark:bg-white dark:text-[#111827] dark:hover:bg-gray-200"
-                >
-                  View {resultsFilter === 'all' ? 'All' : ''} Results{resultsFilter === 'general' ? ' — General' : resultsFilter !== 'all' ? ` — ${resultsFilter}` : ''}
-                </motion.button>
-              </motion.div>
-            )
-          )}
-          </motion.div>
-          </AnimatePresence>
+                {resultsView !== 'unfinished' && (
+                  <ScopePicker options={resultsFilterOptions} value={resultsFilter} onChange={v => { setResultsFilter(v); setOpenResultId(null) }} align="right" />
+                )}
+              </div>
+              <ResultsAutoHeight>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div key={resultsView} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                    {resultsView === 'unfinished' ? (
+                      <UnfinishedResponses formId={form.id} />
+                    ) : submissionsLoading ? (
+                      <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
+                    ) : listedResults.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+                        <Mail className="h-6 w-6 text-gray-300" />
+                        <p className="text-sm font-semibold text-gray-400">
+                          {submissions.length === 0 ? 'No submissions yet.' : resultsView === 'new' ? "You're all caught up - nothing new." : 'Nothing from this campaign yet.'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {listedResults.map((submission, i) => {
+                          const open = openResultId === submission.id
+                          return (
+                            <motion.div key={submission.id} layout="position" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 8) * 0.025, type: 'spring', stiffness: 420, damping: 34 }}
+                              className={`overflow-hidden rounded-2xl border bg-white transition-colors dark:bg-[#151517] ${open ? 'border-[#C9A24D]/50 shadow-[0_18px_40px_-28px_rgba(17,24,39,.6)]' : 'border-gray-200 hover:border-[#C9A24D]/40 dark:border-gray-800'}`}>
+                              <button type="button" onClick={() => toggleResult(submission)} aria-expanded={open}
+                                className="flex w-full items-center gap-3 px-4 py-3 text-left">
+                                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-black ${submission.is_reviewed ? 'bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-300' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>
+                                  {(submission.contact_name || '?').trim().split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase() || '?'}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="flex items-center gap-2">
+                                    <span className="truncate text-sm font-black text-[#111827] dark:text-white">{submission.contact_name || 'Anonymous'}</span>
+                                    <AnimatePresence initial={false}>
+                                      {!submission.is_reviewed && (
+                                        <motion.span initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }}
+                                          className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-800">New</motion.span>
+                                      )}
+                                    </AnimatePresence>
+                                  </span>
+                                  <span className="block truncate text-xs text-gray-500 dark:text-gray-400">{submission.contact_email || submission.contact_phone || submission.property_address || 'No contact details'}</span>
+                                  <span className="mt-0.5 block truncate text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#e8cf8a]">{submission.campaign_name || 'General'} · {new Date(submission.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                </span>
+                                <motion.span animate={{ rotate: open ? 90 : 0 }} transition={{ type: 'spring', stiffness: 500, damping: 30 }} className="inline-flex shrink-0 text-gray-300 dark:text-gray-600"><ChevronRight className="h-4 w-4" /></motion.span>
+                              </button>
+                              <AnimatePresence initial={false}>
+                                {open && (
+                                  <motion.div key="detail" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                                    transition={{ height: { type: 'spring', stiffness: 360, damping: 36 }, opacity: { duration: 0.18 } }} className="overflow-hidden">
+                                    <div className="border-t border-gray-100 px-4 pb-4 pt-4 dark:border-gray-800">
+                                      <SubmissionDetail key={submission.id} submission={submission} framed={false} onToggleReviewed={handleToggleReviewed}
+                                        onDelete={() => setDeleteSubmissionTarget(submission)} />
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </motion.div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </ResultsAutoHeight>
+            </div>
           )}
           </motion.div>
           </AnimatePresence>

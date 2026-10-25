@@ -21,11 +21,12 @@ import PropertyDetailView from '@/components/PropertyDetailView'
 import SimilarHomesView, { listingKeyOf, useScoredSimilar } from './SimilarHomesView'
 import CheatSheetView from './CheatSheetView'
 import GuestPassIntro from './GuestPassIntro'
+import { usePassTracking } from './usePassTracking'
 import {
   ComplianceFooter, GuestPassData, RequestKind, RequestState, cityLine, formatPhone, img, initials, money, possessive, streetOf,
 } from './shared'
-import OhpLoader from '@/components/brand/OhpLoader'
-import HomeAreaMap from '@/components/maps/HomeAreaMap'
+import NearbyMap from '@/components/maps/NearbyMap'
+import { clearPassHandoff, peekPassHandoff, readPassHandoff, type PassHandoff } from './handoff'
 
 type View = 'home' | 'similar' | 'cheat'
 
@@ -66,18 +67,30 @@ export default function GuestPass({ token, openHouseEventId }: { token: string; 
     return () => ro.disconnect()
   }, [data])
 
-  // The opening (curtain + "Welcome, {name}"): once per visit to this pass, on its front page.
-  // `revealed` = the curtain has started parting, so the page underneath plays its entrance then.
-  const [intro, setIntro] = useState<'pending' | 'on' | 'off'>('pending')
+  // The opening (curtain + "Welcome, {name}") is also the loading screen (user, 10/24: never our
+  // logo on a guest's page): it's up from the first frame, held closed until the pass is in, then
+  // parts. Coming straight from signing in, the sign-in page already played it - it opens on that
+  // same finished frame (`handoff`) and parts the moment the data lands. Seen already this visit /
+  // a deep link = it just parts. `revealed` = the curtain has started parting, so the page
+  // underneath plays its entrance then.
+  const [intro, setIntro] = useState<'on' | 'off'>('on')
   const [revealed, setRevealed] = useState(false)
+  const [handoff, setHandoff] = useState<PassHandoff | null>(() => peekPassHandoff(token))
+  const [quick, setQuick] = useState(false)
   const loaded = !!data
+  // Visits / time spent / map use for the agent's activity log (group 02, 10/24).
+  usePassTracking(token, loaded)
+  const introChecked = useRef(false)
   useEffect(() => {
-    if (!loaded || intro !== 'pending') return
+    if (introChecked.current) return
+    introChecked.current = true
+    if (!handoff) { const h = readPassHandoff(token); if (h) setHandoff(h) }
     let seen = false
     try { seen = !!sessionStorage.getItem(`gp-intro:${token}`); sessionStorage.setItem(`gp-intro:${token}`, '1') } catch { /* private mode */ }
-    setIntro(seen || view !== 'home' || openKey ? 'off' : 'on')
+    if ((seen && !readPassHandoff(token)) || view !== 'home' || openKey) setQuick(true)
+    clearPassHandoff(token)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded])
+  }, [token])
 
   useEffect(() => {
     let alive = true
@@ -106,6 +119,20 @@ export default function GuestPass({ token, openHouseEventId }: { token: string; 
     if (typeof window === 'undefined' || window.parent === window) return
     window.parent.postMessage({ type: 'ohp:path', path: window.location.pathname + window.location.search }, '*')
   }, [view, openKey])
+
+  // What they open here (a similar home, the Cheat Sheet) goes onto the agent's follow-up - once
+  // per thing per visit (the backend notes each thing only once anyway).
+  const seen = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!loaded || (view === 'home' && !openKey)) return
+    const v = (openKey ? 'similar' : view) as 'similar' | 'cheat'
+    if (v !== 'similar' && v !== 'cheat') return
+    const k = `${v}:${openKey || ''}`
+    if (seen.current.has(k)) return
+    seen.current.add(k)
+    api.public.guestPassSeen(token, v, openKey).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, view, openKey, token])
 
   const go = useCallback((v: View, key?: string | null) => {
     const q = new URLSearchParams()
@@ -155,6 +182,7 @@ export default function GuestPass({ token, openHouseEventId }: { token: string; 
   const openShowcase = useCallback(async () => {
     if (!data?.showcase || buildingShowcase) return
     setShowcaseError(null)
+    api.public.guestPassSeen(token, 'showcase').catch(() => {})
     if (data.showcase.url) {
       window.open(data.showcase.url, '_blank', 'noopener')
       return
@@ -174,8 +202,40 @@ export default function GuestPass({ token, openHouseEventId }: { token: string; 
     }
   }, [data, buildingShowcase, token])
 
+  // Their Showcase is still being made (built in the background right after sign-in): check back
+  // every few seconds until it's there - the card says "Your Showcase is loading" meanwhile.
+  const showcaseBuilding = !!data?.showcase && !data.showcase.url && !!(data.showcase as any).building
+  useEffect(() => {
+    if (!showcaseBuilding) return
+    let tries = 0
+    const t = window.setInterval(async () => {
+      tries += 1
+      const { success, data: d }: any = await api.public.getGuestPass(token)
+      if (success && d) setData(prev => (prev ? { ...prev, showcase: d.showcase } : prev))
+      if (tries > 40) window.clearInterval(t)
+    }, 3000)
+    return () => window.clearInterval(t)
+  }, [showcaseBuilding, token])
+
   const dark = data ? !!data.theme?.darkMode : false
-  const accent = data?.theme?.accentColor || '#C9A24D'
+  const accent = data?.theme?.accentColor || handoff?.accent || '#C9A24D'
+
+  // The opening, up from the very first frame (it IS the loading screen) until it has parted.
+  const opening = intro === 'on' && !error ? (
+    <GuestPassIntro
+      key="gp-opening"
+      firstName={data ? data.guest.first_name : handoff ? handoff.firstName : null}
+      street={data ? streetOf(data.home.address) : handoff?.street || null}
+      photo={data ? img(data.home.photos?.[0]) : handoff?.photo}
+      coverPosition={data ? data.home.cover_position : handoff?.coverPosition}
+      hold={!data}
+      startedAt={handoff?.startedAt}
+      instant={!!handoff && !handoff.startedAt}
+      quick={quick}
+      onReveal={() => setRevealed(true)}
+      onDone={() => setIntro('off')}
+    />
+  ) : null
 
   if (error) {
     return (
@@ -192,13 +252,7 @@ export default function GuestPass({ token, openHouseEventId }: { token: string; 
   }
 
   if (!data) {
-    return (
-      <Shell dark={false} accent={accent}>
-        <div className="flex min-h-[80vh] flex-col items-center justify-center gap-3">
-          <OhpLoader guest fullScreen={false} className="!py-0" label="Opening your Guest Pass" />
-        </div>
-      </Shell>
-    )
+    return <Shell dark={false} accent={accent}>{opening}</Shell>
   }
 
   const { agent, guest } = data
@@ -210,7 +264,8 @@ export default function GuestPass({ token, openHouseEventId }: { token: string; 
   return (
     <Shell dark={dark} accent={accent}>
       {/* Top bar: the pass's name, a home button (the open house itself), the host. */}
-      <header className="sticky top-0 z-40 border-b border-black/[0.06] bg-[#FAFAF7]/85 dark:border-white/[0.06] dark:bg-[#0B0B0B]/80">
+      {/* Solid (user, 10/24 - the see-through bar blended into the photos scrolling under it). */}
+      <header className="sticky top-0 z-40 border-b border-black/[0.07] bg-[#FAFAF7] shadow-[0_6px_18px_-14px_rgba(0,0,0,0.35)] dark:border-white/[0.07] dark:bg-[#0B0B0B]">
         <div ref={barRef} className="relative mx-auto flex h-14 max-w-5xl items-center justify-between gap-2 px-3 sm:px-4">
           <div ref={leftRef} className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--gp)] text-white shadow-sm"><Ticket className="h-3.5 w-3.5" /></span>
@@ -252,17 +307,8 @@ export default function GuestPass({ token, openHouseEventId }: { token: string; 
         </div>
       </header>
 
-      {intro === 'on' && (
-        <GuestPassIntro
-          firstName={guest.first_name}
-          street={street}
-          photo={img(data.home.photos?.[0])}
-          coverPosition={data.home.cover_position}
-          onReveal={() => setRevealed(true)}
-          onDone={() => setIntro('off')}
-        />
-      )}
-      {intro !== 'pending' && (intro === 'off' || revealed) && (
+      {opening}
+      {(intro === 'off' || revealed) && (
       <AnimatePresence mode="wait" initial={false}>
         <motion.main
           key={`${view}:${openKey || ''}`}
@@ -546,6 +592,16 @@ function PhotoCarousel({ photos, alt, coverPosition, children }: {
   const [idx, setIdx] = useState(0)
   const [auto, setAuto] = useState(true)
   const count = photos.length
+  // While they flip through the photos, the price + address step aside so the photo is all there
+  // is; 5 seconds after they stop, they come back (user, 10/24).
+  const [bare, setBare] = useState(false)
+  const bareTimer = useRef<number | null>(null)
+  const browsing = () => {
+    setBare(true)
+    if (bareTimer.current) window.clearTimeout(bareTimer.current)
+    bareTimer.current = window.setTimeout(() => setBare(false), 5000)
+  }
+  useEffect(() => () => { if (bareTimer.current) window.clearTimeout(bareTimer.current) }, [])
 
   const scrollTo = (i: number) => {
     const el = stripRef.current
@@ -568,16 +624,17 @@ function PhotoCarousel({ photos, alt, coverPosition, children }: {
     const n = Math.round(el.scrollLeft / Math.max(1, el.clientWidth))
     idxRef.current = n
     setIdx(n)
+    if (!auto) browsing()
   }
-  const step = (d: number) => { setAuto(false); scrollTo(idxRef.current + d) }
+  const step = (d: number) => { setAuto(false); browsing(); scrollTo(idxRef.current + d) }
 
   return (
     <div className="relative">
       <div
         ref={stripRef}
         onScroll={onScroll}
-        onTouchStart={() => setAuto(false)}
-        onWheel={() => setAuto(false)}
+        onTouchStart={() => { setAuto(false); browsing() }}
+        onWheel={() => { setAuto(false); browsing() }}
         className="flex aspect-[16/10] snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] sm:aspect-[16/8] [&::-webkit-scrollbar]:hidden"
       >
         {(count ? photos : ['']).map((p, i) => (
@@ -587,7 +644,7 @@ function PhotoCarousel({ photos, alt, coverPosition, children }: {
           </div>
         ))}
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+      <div className={`pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black/80 via-black/30 to-transparent transition-opacity duration-500 ${bare ? 'opacity-0' : 'opacity-100'}`} />
       {count > 1 && (
         <>
           <button type="button" onClick={() => step(-1)} aria-label="Previous photo"
@@ -601,7 +658,7 @@ function PhotoCarousel({ photos, alt, coverPosition, children }: {
         </>
       )}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-4 sm:p-6">
-        <div className="min-w-0 text-white">{children}</div>
+        <div className={`min-w-0 text-white transition-[opacity,transform] duration-500 ease-out ${bare ? 'translate-y-2 opacity-0' : 'translate-y-0 opacity-100'}`}>{children}</div>
         {count > 1 && (
           <span className="shrink-0 rounded-full bg-black/45 px-2.5 py-1 text-[10px] font-black tracking-widest text-white ">{idx + 1} / {count}</span>
         )}
@@ -616,6 +673,8 @@ function HomeView({ data, token, street, onSimilar, onOpenSimilar, onCheat, onRe
   onShowcase: () => void; buildingShowcase: boolean; showcaseError: string | null
 }) {
   const { home, agent, guest } = data
+  const accent = data.theme?.accentColor || '#C9A24D'
+  const dark = !!data.theme?.darkMode
   const facts = [
     home.beds ? { icon: Bed, v: home.beds, l: 'Beds' } : null,
     home.baths ? { icon: Bath, v: home.baths, l: 'Baths' } : null,
@@ -715,14 +774,19 @@ function HomeView({ data, token, street, onSimilar, onOpenSimilar, onCheat, onRe
         Requests go straight to {agent.name} with the info you signed in with.
       </p>
 
-      {/* Where it is: the home's township, the ones around it and its school district (user, 10/18). */}
+      {/* Where it is + what's nearby (user, 10/24): the township / school district lines, and one tap
+          for the coffee, groceries, schools, hospitals... around it - each with how far it is. Big
+          easy buttons (the pass is a phone page). Same budget-gated search as the IDX property page. */}
       {data.home.latitude != null && data.home.longitude != null && (
         <section className="mt-8">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#a8843a] dark:text-[#e8c97a]">Where it is</p>
-          <h3 className="mt-1 font-serif text-2xl font-black text-[#111827] dark:text-white">Town lines &amp; schools</h3>
-          <p className="mt-1 text-sm font-medium text-gray-500 dark:text-gray-400">The township {street} is in, and its school district.</p>
-          <div className="mt-4 overflow-hidden rounded-[24px] border border-black/[0.06] shadow-[0_18px_50px_-30px_rgba(0,0,0,0.4)] dark:border-white/[0.07]">
-            <HomeAreaMap latitude={Number(data.home.latitude)} longitude={Number(data.home.longitude)} address={data.home.address} className="h-[300px] w-full sm:h-[380px]" rounded="" />
+          <h3 className="mt-1 font-serif text-2xl font-black text-[#111827] dark:text-white">The neighborhood</h3>
+          <p className="mt-1 text-sm font-medium text-gray-500 dark:text-gray-400">Its township and school district - tap below to see what&apos;s nearby and how far.</p>
+          <div className="mt-4">
+            <NearbyMap latitude={Number(data.home.latitude)} longitude={Number(data.home.longitude)} address={data.home.address}
+              accent={accent} dark={dark} tone="auto" siteId={token} kind="guest_pass" originLabel={street}
+              categories={['coffee', 'grocery', 'schools', 'medical', 'restaurants', 'parks']} variant="grid"
+              boxClassName="relative h-[340px] w-full overflow-hidden rounded-[24px] border border-black/[0.06] shadow-[0_18px_50px_-30px_rgba(0,0,0,0.4)] dark:border-white/[0.07] sm:h-[400px]" />
           </div>
         </section>
       )}
@@ -869,6 +933,8 @@ function Tile({ children, eyebrow, title, body, onClick, delay, done }: {
 export function ShowcaseCta({ data, onShowcase, building, error }: { data: GuestPassData; onShowcase: () => void; building: boolean; error: string | null }) {
   const street = streetOf(data.home.address)
   const has = !!data.showcase?.url
+  // Being made right now from their sign-in (the pass never waits for it) - it lights up by itself.
+  const preparing = !has && !!(data.showcase as any)?.building
   const first = (data.guest.first_name || '').trim()
   const whose = possessive(first)
   // A fan of the homes waiting inside (similar homes first, else this home's own photos).
@@ -1002,11 +1068,14 @@ export function ShowcaseCta({ data, onShowcase, building, error }: { data: Guest
             <button
               type="button"
               onClick={onShowcase}
-              disabled={building}
+              disabled={building || preparing}
               className="gp-sc-shine relative mt-2 flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.16em] text-[#0B0B0B] shadow-[0_18px_36px_-16px_rgba(0,0,0,0.9)] transition-transform hover:-translate-y-0.5 active:scale-[0.99] disabled:opacity-70"
             >
-              {building ? <><Loader2 className="h-4 w-4 animate-spin" /> Building your Showcase</> : <>{has ? 'Open Your Showcase' : 'Create My Showcase'} <ArrowUpRight className="h-4 w-4" /></>}
+              {building || preparing
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> {preparing ? 'Your Showcase is loading' : 'Building your Showcase'}</>
+                : <>{has ? 'Open Your Showcase' : 'Create My Showcase'} <ArrowUpRight className="h-4 w-4" /></>}
             </button>
+            {preparing && <p className="mt-2 text-center text-[11px] font-semibold text-white/55">Picking the homes for you now - it opens here in a moment.</p>}
             {error && <p className="mt-3 text-xs font-bold text-red-300">{error}</p>}
           </div>
         </div>
@@ -1075,7 +1144,9 @@ function AskQuestion({ agent, token }: { agent: GuestPassData['agent']; token: s
           <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="mt-4 flex flex-wrap gap-1.5">
               {QUICK_QUESTIONS.map(q => (
-                <button key={q} type="button" onClick={() => setText(q)}
+                <button key={q} type="button"
+                  // Adds to what's already typed (user, 10/24) - never wipes it: each tap stacks a line.
+                  onClick={() => setText(t => (t.includes(q) ? t : t.trim() ? `${t.replace(/\s+$/, '')}\n${q}` : q))}
                   className="rounded-full border border-black/[0.08] px-3 py-1.5 text-[11px] font-bold text-gray-600 transition-colors hover:border-[var(--gp)] hover:text-[var(--gp)] dark:border-white/[0.1] dark:text-gray-300">
                   {q}
                 </button>

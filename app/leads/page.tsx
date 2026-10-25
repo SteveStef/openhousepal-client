@@ -6,13 +6,14 @@ import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle, ArrowRight, ArrowUpDown, BellRing, ChevronDown, Flame, ListChecks, CalendarClock, CalendarDays, Check, Compass, Download, Eye, EyeOff, Home, Loader2, Mail, MailX,
-  CheckCheck, MessageCircle, MoreHorizontal, Pencil, Phone, Search, ShieldCheck, Sparkles, Tag, Trash2, UserCheck, Users, X,
+  CheckCheck, MessageCircle, MoreHorizontal, Pencil, Phone, Search, ShieldCheck, Sparkles, Star, Tag, Trash2, UserCheck, Users, X,
 } from 'lucide-react'
+import OhSheet from '@/components/open-house-manager/OhSheet'
 import { copyText } from '@/lib/copyText'
 import LuxeSelect from '@/components/ui/LuxeSelect'
 import MotionModal from '@/components/ui/MotionModal'
 import AnimatedNumber from '@/components/ui/AnimatedNumber'
-import { useLastValue } from '@/components/ui/windowMotion'
+import { useIsPhone, useLastValue } from '@/components/ui/windowMotion'
 import api from '@/lib/api-service'
 import { Lead, LeadOpenHouse, LeadOriginGroup, LeadStatus, LeadTodo } from '@/types'
 import { useToast } from '@/contexts/ToastContext'
@@ -235,6 +236,19 @@ function LeadsPageInner() {
     const r = await api.leads.update(lead.id, { mark_contacted: true })
     if (r.success) showToast(`${lead.name || 'Lead'} marked contacted`, 'success')
     await load(); setBusyId(null)
+  }
+  // Star / unstar this person - shows at once, rolls back if the save fails.
+  const toggleFavorite = async (lead: Lead) => {
+    const next = !lead.is_favorite
+    const flip = (v: boolean) => (l: Lead) => l.id === lead.id ? { ...l, is_favorite: v } : l
+    setLeads(prev => prev.map(flip(next)))
+    setHiddenLeads(prev => prev ? prev.map(flip(next)) : prev)
+    const r = await api.leads.update(lead.id, { is_favorite: next })
+    if (!r.success) {
+      setLeads(prev => prev.map(flip(!next)))
+      setHiddenLeads(prev => prev ? prev.map(flip(!next)) : prev)
+      showToast(r.error || "Couldn't star this lead", 'error')
+    }
   }
   const markSeen = (lead: Lead) => {
     setMenuFor(null)
@@ -473,7 +487,7 @@ function LeadsPageInner() {
                   onOpen={() => setSelectedLeadId(lead.id)}
                   onMenu={open => setMenuFor(open ? lead.id : null)}
                   onStatus={s => setStatus(lead, s)} onContacted={() => markContacted(lead)} onSeen={() => markSeen(lead)}
-                  onDelete={() => { setMenuFor(null); setConfirmDelete(lead) }} />
+                  onDelete={() => { setMenuFor(null); setConfirmDelete(lead) }} onFavorite={() => toggleFavorite(lead)} />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -510,10 +524,10 @@ function LeadsPageInner() {
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl dark:bg-[#151517]" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-black text-[#111827] dark:text-white">Delete {deleteShown.name || deleteShown.email || 'this lead'}?</h3>
             <p className="mt-1.5 text-sm font-medium text-gray-500 dark:text-gray-400">
-              This permanently removes them, their activity and their notes. To just get them off your lists, use <b>Hide</b> instead - you can bring them back any time.
+              This removes them from everything for good: their activity and notes, your Activity feed, the Email Tracker - and <b>their Showcase is deleted too</b>. Automatic emails to them stop.
             </p>
             <p className="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">
-              Automatic emails to them stop, and their Showcase is turned off (not deleted - you can turn it back on in Showcases).
+              To just get them off your lists, use <b>Hide</b> instead - you can bring them back any time.
             </p>
             <div className="mt-5 flex gap-2">
               <button onClick={() => setConfirmDelete(null)} className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-bold dark:border-white/10 dark:text-white">Keep</button>
@@ -594,20 +608,23 @@ const WARMTH_PILL: Record<string, string> = {
   cold: 'bg-gray-100 text-gray-500 dark:bg-white/[0.06] dark:text-gray-400',
 }
 
-function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, activeTag = '', inNoAgent = false, onTag, onOpen, onMenu, onStatus, onContacted, onSeen, onDelete }: {
+function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, activeTag = '', inNoAgent = false, onTag, onOpen, onMenu, onStatus, onContacted, onSeen, onDelete, onFavorite }: {
   lead: Lead; busy: boolean; menuOpen: boolean; showRate?: boolean; showWarmth?: boolean; activeTag?: string; onTag?: (t: string) => void
   // On the "No agent" tab, a lead who has an agent is only there because you left a note - say so
   inNoAgent?: boolean
   onOpen: () => void; onMenu: (open: boolean) => void; onStatus: (s: LeadStatus) => void
-  onContacted: () => void; onSeen: () => void; onDelete: () => void
+  onContacted: () => void; onSeen: () => void; onDelete: () => void; onFavorite: () => void
 }) {
   const menuRef = useRef<HTMLDivElement>(null)
+  const isPhone = useIsPhone()
+  // Starred person, or their Showcase is starred: a gold outline so they stand out in the list.
+  const starred = !!(lead.is_favorite || lead.showcase_starred)
   useEffect(() => {
-    if (!menuOpen) return
+    if (!menuOpen || isPhone) return  // the phone's sheet closes itself
     const close = (e: MouseEvent) => { if (!menuRef.current?.contains(e.target as Node)) onMenu(false) }
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
-  }, [menuOpen, onMenu])
+  }, [menuOpen, onMenu, isPhone])
   const status = normalizedStatus(lead)
   const origin = lead.origin
   const latest = lead.latest
@@ -631,18 +648,28 @@ function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, a
 
   return (
     <div role="button" tabIndex={0} onClick={onOpen} onKeyDown={e => { if (e.key === 'Enter') onOpen() }}
-      className={`group relative flex flex-col gap-2.5 rounded-2xl border bg-white p-3 shadow-sm transition hover:-translate-y-px hover:border-[#C9A24D]/50 hover:shadow-md dark:bg-[#151517] sm:flex-row sm:items-center sm:gap-4 sm:p-4 ${
+      className={`group relative rounded-2xl border bg-white p-3.5 shadow-sm transition hover:-translate-y-px hover:border-[#C9A24D]/50 hover:shadow-md dark:bg-[#151517] sm:p-4 ${
         fresh ? 'border-l-4 border-red-200 border-l-red-500 hover:border-l-red-500 dark:border-red-500/25 dark:border-l-red-500'
-        : 'border-gray-200 dark:border-white/[0.08]'} ${busy ? 'opacity-60' : ''}`}>
+        : 'border-gray-200 dark:border-white/[0.08]'} ${busy ? 'opacity-60' : ''} ${starred ? 'ring-2 ring-[#C9A24D]/55 ring-offset-0 dark:ring-[#e8c97a]/45' : ''}`}>
+      {/* Phones: its own layout (user, 10/24) - everything the computer row shows, stacked to read. */}
+      <PhoneLeadCard lead={lead} status={status} fresh={fresh} todos={todos} showRate={showRate} showWarmth={showWarmth} activeTag={activeTag} inNoAgent={inNoAgent}
+        onTag={onTag} onMenu={() => onMenu(!menuOpen)} onContacted={onContacted} onFavorite={onFavorite} copied={copied} onCopyEmail={copyEmail} />
+      <div className="hidden sm:flex sm:items-center sm:gap-4">
       <div className="flex min-w-0 flex-1 items-start gap-3">
         <div className="relative mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#111827] text-sm font-black sm:h-10 sm:w-10 text-[#C9A24D] dark:bg-white dark:text-[#8b7355]">
           {(lead.name || lead.email || '?').charAt(0).toUpperCase()}
           {fresh && <span title={lead.needs_you ? 'Waiting on you' : 'Something new since you last opened them'} className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#151517]" />}
+          {starred && <span title={lead.is_favorite ? 'Starred' : 'Their Showcase is starred'} className="absolute -bottom-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[#C9A24D] text-white ring-2 ring-white dark:ring-[#151517]"><Star className="h-2.5 w-2.5" fill="currentColor" /></span>}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 max-sm:min-h-9">
             <p className={`truncate text-[15px] text-[#111827] dark:text-white ${lead.needs_attention ? 'font-black' : 'font-bold'}`}>{lead.name || lead.email || 'No name given'}</p>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ring-inset ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
+            {lead.showcase_starred && (
+              <span title="You starred their Showcase" className="inline-flex items-center gap-1 rounded-full bg-[#C9A24D]/12 px-2 py-0.5 text-[10px] font-black text-[#8b6d2c] ring-1 ring-inset ring-[#C9A24D]/40 dark:text-[#e8c97a]">
+                <Star className="h-3 w-3" fill="currentColor" /> Showcase starred
+              </span>
+            )}
             {lead.represented === 'yes' && <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black text-gray-500 dark:bg-white/[0.06] dark:text-gray-400"><ShieldCheck className="h-3 w-3" /> Has an agent</span>}
             {inNoAgent && lead.represented === 'yes' && lead.has_note && (
               <span title="They have an agent, but you left a note on them, so they stay on this tab too"
@@ -721,11 +748,10 @@ function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, a
       </div>
 
       {/* Reach them in one tap, or change where they stand. */}
-      <div className="flex shrink-0 items-center gap-1.5 max-sm:w-full sm:self-center" onClick={stop}>
-        <div className="flex min-w-0 flex-1 flex-wrap gap-1.5 sm:hidden">
-          {todos.slice(0, 1).map((t, k) => <TodoChip key={k} t={t} />)}
-          {todos.length > 1 && <span className="self-center text-[11px] font-bold text-gray-400">+{todos.length - 1}</span>}
-        </div>
+      <div className="flex shrink-0 items-center gap-1.5 sm:self-center" onClick={stop}>
+        {/* Star this person (separate from starring their Showcase) and "I reached out" (user, 10/24). */}
+        <StarButton lead={lead} onFavorite={onFavorite} />
+        <ContactedButton lead={lead} onContacted={onContacted} />
         {lead.phone && (
           <>
             <a href={`tel:${dialable(lead.phone)}`} title={`Call ${formatPhone(lead.phone)}`} aria-label="Call"
@@ -759,46 +785,225 @@ function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, a
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
           </button>
           <AnimatePresence>
-            {menuOpen && (
+            {menuOpen && !isPhone && (
               <motion.div initial={{ opacity: 0, y: -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }}
                 transition={{ duration: 0.12 }}
                 className="absolute right-0 top-full z-30 mt-1.5 w-52 overflow-hidden rounded-2xl border border-gray-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-[#1A1A1C]">
-                <p className="px-2.5 pb-1 pt-1 text-[9px] font-black uppercase tracking-[0.16em] text-gray-400">Move to</p>
-                {(['new', 'contacted', 'in_talks', 'signed'] as LeadStatus[]).map(s => (
-                  <button key={s} onClick={() => onStatus(s)}
-                    className="flex w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-[13px] font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10">
-                    {STATUS_LABEL[s]} {status === s && <Check className="h-3.5 w-3.5 text-[#C9A24D]" />}
-                  </button>
-                ))}
-                <div className="my-1 h-px bg-gray-100 dark:bg-white/10" />
-                <button onClick={onContacted} className="flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-[13px] font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10">
-                  <Check className="h-3.5 w-3.5 text-gray-400" /> Mark contacted
-                </button>
-                {lead.needs_attention && (
-                  <button onClick={onSeen} className="flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-[13px] font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10">
-                    <Eye className="h-3.5 w-3.5 text-gray-400" /> Mark as seen
-                  </button>
-                )}
-                {status === 'hidden' ? (
-                  <button onClick={() => onStatus(lead.status === 'hidden' || lead.status === 'archived' ? 'new' : lead.status)}
-                    className="flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-[13px] font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10">
-                    <Eye className="h-3.5 w-3.5 text-gray-400" /> Show again
-                  </button>
-                ) : (
-                  <button onClick={() => onStatus('hidden')} className="flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-[13px] font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10">
-                    <EyeOff className="h-3.5 w-3.5 text-gray-400" /> Hide
-                  </button>
-                )}
-                <button onClick={onDelete} className="flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-[13px] font-semibold text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10">
-                  <Trash2 className="h-3.5 w-3.5" /> Delete
-                </button>
+                <LeadMenuItems lead={lead} status={status} onStatus={onStatus} onContacted={onContacted} onSeen={onSeen} onDelete={onDelete} />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
         <span className="hidden h-9 w-6 items-center justify-center text-gray-300 transition group-hover:text-[#C9A24D] sm:flex"><ArrowRight className="h-4 w-4" /></span>
       </div>
+      </div>
+      {/* Phones: the "..." choices as a sheet that slides up (drag down to close). */}
+      {isPhone && (
+        <OhSheet open={menuOpen} onClose={() => onMenu(false)} width="max-w-md"
+          title={lead.name || lead.email || 'This lead'} subtitle={<span className={`rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ring-inset ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>}>
+          <div className="px-4 pb-6 pt-1" onClick={stop}>
+            <LeadMenuItems lead={lead} status={status} big onStatus={onStatus} onContacted={onContacted} onSeen={onSeen} onDelete={onDelete} />
+          </div>
+        </OhSheet>
+      )}
     </div>
+  )
+}
+
+/** The "..." choices - the dropdown on a computer, the slide-up sheet on a phone. */
+function LeadMenuItems({ lead, status, big = false, onStatus, onContacted, onSeen, onDelete }: {
+  lead: Lead; status: ReturnType<typeof normalizedStatus>; big?: boolean
+  onStatus: (s: LeadStatus) => void; onContacted: () => void; onSeen: () => void; onDelete: () => void
+}) {
+  const row = `flex w-full items-center gap-2 rounded-xl px-2.5 text-left font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10 ${big ? 'py-3 text-[15px]' : 'py-1.5 text-[13px]'}`
+  return (
+    <>
+      <p className="px-2.5 pb-1 pt-1 text-[9px] font-black uppercase tracking-[0.16em] text-gray-400">Move to</p>
+      <div className={big ? 'grid grid-cols-2 gap-1.5' : ''}>
+        {(['new', 'contacted', 'in_talks', 'signed'] as LeadStatus[]).map(s => (
+          <button key={s} onClick={() => onStatus(s)}
+            className={big ? `flex items-center justify-between rounded-xl border px-3 py-3 text-[14px] font-black ${status === s ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#111827] dark:text-white' : 'border-gray-200 text-gray-700 dark:border-white/10 dark:text-gray-200'}`
+              : 'flex w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-[13px] font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10'}>
+            {STATUS_LABEL[s]} {status === s && <Check className="h-3.5 w-3.5 text-[#C9A24D]" />}
+          </button>
+        ))}
+      </div>
+      <div className="my-1.5 h-px bg-gray-100 dark:bg-white/10" />
+      <button onClick={onContacted} className={row}><Check className="h-4 w-4 text-gray-400" /> Mark contacted</button>
+      {lead.needs_attention && <button onClick={onSeen} className={row}><Eye className="h-4 w-4 text-gray-400" /> Mark as seen</button>}
+      {status === 'hidden' ? (
+        <button onClick={() => onStatus(lead.status === 'hidden' || lead.status === 'archived' ? 'new' : lead.status)} className={row}><Eye className="h-4 w-4 text-gray-400" /> Show again</button>
+      ) : (
+        <button onClick={() => onStatus('hidden')} className={row}><EyeOff className="h-4 w-4 text-gray-400" /> Hide</button>
+      )}
+      <button onClick={onDelete} className={`${row} !text-red-600 hover:!bg-red-50 dark:!text-red-300 dark:hover:!bg-red-500/10`}><Trash2 className="h-4 w-4" /> Delete</button>
+    </>
+  )
+}
+
+/** Gold star = you starred this person; a small "Showcase" star = their Showcase is starred. */
+function StarButton({ lead, onFavorite, compact = false }: { lead: Lead; onFavorite: () => void; compact?: boolean }) {
+  const on = !!lead.is_favorite
+  return (
+    <motion.button type="button" whileTap={{ scale: 0.85 }} onClick={e => { e.stopPropagation(); onFavorite() }}
+      aria-pressed={on} aria-label={on ? 'Unstar this lead' : 'Star this lead'}
+      title={on ? 'Starred - tap to unstar' : lead.showcase_starred ? 'Their Showcase is starred - star the lead too' : 'Star this lead'}
+      className={`relative flex shrink-0 items-center justify-center rounded-xl border transition ${compact ? 'h-9 w-9' : 'h-9 w-9'} ${on
+        ? 'border-[#C9A24D] bg-[#C9A24D]/15 text-[#b8892f] dark:text-[#e8c97a]'
+        : 'border-gray-200 text-gray-400 hover:border-[#C9A24D] hover:text-[#b8892f] dark:border-white/10 dark:text-gray-400'}`}>
+      <motion.span key={on ? 'on' : 'off'} initial={{ scale: 0.4, rotate: -40 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 520, damping: 18 }}>
+        <Star className="h-4 w-4" fill={on ? 'currentColor' : 'none'} strokeWidth={2.2} />
+      </motion.span>
+      {lead.showcase_starred && !on && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#C9A24D] ring-2 ring-white dark:ring-[#151517]" />}
+    </motion.button>
+  )
+}
+
+const contactedToday = (l: Lead) => !!l.last_contacted_at && new Date(l.last_contacted_at).toDateString() === new Date().toDateString()
+
+/** "I reached out" in one tap - stamps last contacted and moves a New lead to Contacted. */
+function ContactedButton({ lead, onContacted, block = false }: { lead: Lead; onContacted: () => void; block?: boolean }) {
+  const done = contactedToday(lead)
+  return (
+    <motion.button type="button" whileTap={{ scale: 0.94 }} onClick={e => { e.stopPropagation(); if (!done) onContacted() }}
+      title={done ? 'Marked contacted today' : 'Mark that you reached out'}
+      className={block
+        ? `flex h-full w-full flex-col items-center justify-center gap-0.5 text-[10.5px] font-black transition active:bg-gray-50 dark:active:bg-white/5 ${done ? 'bg-emerald-50/70 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'text-[#111827] dark:text-white'}`
+        : `inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-black transition ${done
+          ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300'
+          : 'border-gray-200 text-[#111827] hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/10 dark:text-white'}`}>
+      {done ? <CheckCheck className="h-4 w-4" /> : <UserCheck className={`h-4 w-4 ${block ? 'text-[#8b7355] dark:text-[#e8c97a]' : ''}`} />}
+      Contacted
+    </motion.button>
+  )
+}
+
+/** One lead on a phone: who + where they stand, why they're here, what's waiting, then one row of actions. */
+function PhoneLeadCard({ lead, status, fresh, todos, showRate, showWarmth, activeTag, inNoAgent, onTag, onMenu, onContacted, onFavorite, copied, onCopyEmail }: {
+  lead: Lead; status: ReturnType<typeof normalizedStatus>; fresh: boolean; todos: LeadTodo[]; showRate: boolean; showWarmth: boolean; activeTag: string; inNoAgent: boolean
+  onTag?: (t: string) => void; onMenu: () => void; onContacted: () => void; onFavorite: () => void; copied: boolean; onCopyEmail: () => void
+}) {
+  const origin = lead.origin
+  const latest = lead.latest
+  const showLatest = latest && (!origin || latest.label !== origin.label)
+  const om = origin ? activityMeta(origin.type) : null
+  const lm = latest ? activityMeta(latest.type) : null
+  const stop = (e: React.MouseEvent) => e.stopPropagation()
+  const pill = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-black'
+  const action = 'flex h-[52px] flex-col items-center justify-center gap-0.5 text-[10.5px] font-black text-[#111827] transition active:bg-gray-50 dark:text-white dark:active:bg-white/5'
+  return (
+    <div className="sm:hidden">
+      {/* who */}
+      <div className="flex items-start gap-3">
+        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#111827] text-base font-black text-[#C9A24D] dark:bg-white dark:text-[#8b7355]">
+          {(lead.name || lead.email || '?').charAt(0).toUpperCase()}
+          {fresh && <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#151517]" />}
+          {(lead.is_favorite || lead.showcase_starred) && (
+            <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#C9A24D] text-white ring-2 ring-white dark:ring-[#151517]"><Star className="h-3 w-3" fill="currentColor" /></span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1 pt-0.5">
+          <p className={`truncate text-[16px] leading-tight text-[#111827] dark:text-white ${lead.needs_attention ? 'font-black' : 'font-bold'}`}>{lead.name || lead.email || 'No name given'}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-black ring-1 ring-inset ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
+            {lead.showcase_starred && <span className={`${pill} bg-[#C9A24D]/12 text-[#8b6d2c] ring-1 ring-inset ring-[#C9A24D]/40 dark:text-[#e8c97a]`}><Star className="h-3 w-3" fill="currentColor" /> Showcase starred</span>}
+            {lead.represented === 'yes' && <span className={`${pill} bg-gray-100 text-gray-500 dark:bg-white/[0.06] dark:text-gray-400`}><ShieldCheck className="h-3 w-3" /> Has an agent</span>}
+            {inNoAgent && lead.represented === 'yes' && lead.has_note && <span className={`${pill} bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300`}><Pencil className="h-3 w-3" /> You left a note</span>}
+            {(lead.email_engagement?.code === 'bounced' || lead.email_engagement?.code === 'spam') ? (
+              <span className={`${pill} bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200 dark:bg-rose-500/10 dark:text-rose-300`}><MailX className="h-3 w-3" /> {lead.email_engagement.code === 'bounced' ? 'Email bounced' : 'Marked you as spam'}</span>
+            ) : lead.unsubscribed && <span className={`${pill} bg-gray-100 text-gray-500 dark:bg-white/[0.06] dark:text-gray-400`}><MailX className="h-3 w-3" /> No emails</span>}
+            {!lead.unsubscribed && lead.email_engagement && lead.email_engagement.mode !== 'daily' && (
+              <span className={`${pill} ${lead.email_engagement.mode === 'weekly' ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300'}`}>
+                <MailX className="h-3 w-3" /> {lead.email_engagement.mode === 'weekly' ? 'Emails weekly' : 'Emails off'}
+              </span>
+            )}
+            {showRate && lead.email_engagement?.rate != null && <span className={`${pill} bg-sky-50 tabular-nums text-sky-700 dark:bg-sky-500/10 dark:text-sky-300`}><Mail className="h-3 w-3" /> {lead.email_engagement.rate}% opened</span>}
+            {!!lead.showcase_new_matches && <span className={`${pill} bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300`}><Sparkles className="h-3 w-3" /> {lead.showcase_new_matches} new {lead.showcase_new_matches === 1 ? 'match' : 'matches'}</span>}
+            {!lead.heating_up && showWarmth && lead.warmth_level && lead.warmth_level !== 'cold' && (
+              <span className={`${pill} ${WARMTH_PILL[lead.warmth_level]}`}><Flame className="h-3 w-3" /> {lead.warmth ?? 0}/100 {WARMTH_LABEL[lead.warmth_level]}</span>
+            )}
+            {(lead.tags || []).slice(0, 3).map(t => (
+              <button key={t} type="button" onClick={e => { e.stopPropagation(); onTag?.(activeTag === t ? '' : t) }}
+                className={`${pill} ${activeTag === t ? 'bg-[#C9A24D] text-[#111827]' : 'bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#e8c97a]'}`}><Tag className="h-2.5 w-2.5" /> {t}</button>
+            ))}
+          </div>
+        </div>
+        <div className="-mr-1 -mt-1 flex shrink-0 items-center gap-1" onClick={stop}>
+          <StarButton lead={lead} onFavorite={onFavorite} compact />
+          <button type="button" onClick={onMenu} aria-label="More" className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-500 dark:border-white/10 dark:text-gray-300"><MoreHorizontal className="h-4 w-4" /></button>
+        </div>
+      </div>
+
+      {/* heating up - its own strip, reason included */}
+      {lead.heating_up && (
+        <div className="mt-3 flex items-start gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-rose-500 px-3 py-2 text-white shadow-sm shadow-orange-500/30">
+          <Flame className="mt-0.5 h-4 w-4 shrink-0" />
+          <p className="min-w-0 text-[12px] font-bold leading-snug">
+            <span className="mr-1 rounded-full bg-white/25 px-1.5 font-black tabular-nums">{lead.warmth ?? 0}/100</span>
+            <span className="font-black">Heating up</span>{lead.warmth_reason ? <span className="opacity-90"> · {lead.warmth_reason}</span> : null}
+          </p>
+        </div>
+      )}
+
+      {/* why they're here + the latest thing they did */}
+      {(origin && om) || (showLatest && lm) ? (
+        <div className="mt-3 space-y-1.5 rounded-xl bg-gray-50/80 px-3 py-2.5 dark:bg-white/[0.03]">
+          {origin && om && (
+            <p className="flex items-start gap-2 text-[13px] leading-snug text-gray-700 dark:text-gray-300">
+              <span className={`mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${TONE_CLASSES[om.tone]}`}><om.icon className="h-3 w-3" /></span>
+              <span className="min-w-0">
+                <span className="block text-[9.5px] font-black uppercase tracking-wider text-gray-400">Came in · {timeAgo(origin.at)}</span>
+                <span className="line-clamp-3 font-semibold">{origin.label}</span>
+              </span>
+            </p>
+          )}
+          {showLatest && lm && (
+            <p className="flex items-start gap-2 text-[13px] leading-snug text-gray-700 dark:text-gray-300">
+              <span className={`mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${TONE_CLASSES[lm.tone]}`}><lm.icon className="h-3 w-3" /></span>
+              <span className="min-w-0">
+                <span className="block text-[9.5px] font-black uppercase tracking-wider text-gray-400">Latest · {timeAgo(latest!.at)}</span>
+                <span className="line-clamp-3 font-semibold">{latest!.label}</span>
+              </span>
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {/* what's waiting on the agent - whole, never cut off */}
+      {todos.length > 0 && (
+        <div className="mt-2.5 flex flex-col gap-1.5">
+          {todos.slice(0, 3).map((t, k) => <PhoneTodo key={k} t={t} />)}
+          {todos.length > 3 && <span className="pl-1 text-[11px] font-bold text-gray-400">+{todos.length - 3} more inside</span>}
+        </div>
+      )}
+
+      {/* one row of actions */}
+      <div className="-mx-3.5 -mb-3.5 mt-3 grid auto-cols-fr grid-flow-col divide-x divide-gray-100 overflow-hidden rounded-b-2xl border-t border-gray-100 dark:divide-white/[0.06] dark:border-white/[0.06]" onClick={stop}>
+        {lead.phone && <a href={`tel:${dialable(lead.phone)}`} className={action}><Phone className="h-4 w-4 text-[#8b7355] dark:text-[#e8c97a]" /> Call</a>}
+        {lead.phone && <a href={`sms:${dialable(lead.phone)}`} className={action}><MessageCircle className="h-4 w-4 text-[#8b7355] dark:text-[#e8c97a]" /> Text</a>}
+        {lead.email && (
+          <button type="button" onClick={onCopyEmail} className={`${action} ${copied ? '!text-emerald-600 dark:!text-emerald-300' : ''}`}>
+            {copied ? <Check className="h-4 w-4" strokeWidth={3} /> : <Mail className="h-4 w-4 text-[#8b7355] dark:text-[#e8c97a]" />} {copied ? 'Copied' : 'Copy email'}
+          </button>
+        )}
+        <div className="h-[52px]"><ContactedButton lead={lead} onContacted={onContacted} block /></div>
+      </div>
+    </div>
+  )
+}
+
+/** A to-do on a phone card - the whole label, wrapping instead of "Book the showing · Over...". */
+function PhoneTodo({ t }: { t: LeadTodo }) {
+  const when = todoWhen(t)
+  const tone = !t.urgent ? 'bg-rose-50 text-rose-600 ring-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-500/25'
+    : t.bucket === 'overdue' ? 'bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/25'
+    : t.kind === 'followup' && t.bucket !== 'today' ? 'bg-gray-50 text-gray-600 ring-gray-200 dark:bg-white/[0.05] dark:text-gray-300 dark:ring-white/10'
+    : 'bg-amber-50 text-amber-800 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/25'
+  return (
+    <span className={`flex items-start gap-1.5 rounded-xl px-2.5 py-1.5 text-[12px] font-bold leading-snug ring-1 ring-inset ${tone}`}>
+      {t.kind === 'followup' ? <CalendarClock className="mt-px h-3.5 w-3.5 shrink-0" /> : <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />}
+      <span className="min-w-0">{t.label}{when && <span className="font-black"> · {when}</span>}</span>
+    </span>
   )
 }
 

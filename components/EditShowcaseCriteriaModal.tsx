@@ -15,6 +15,8 @@ import MultiSelectDatabaseInput from './MultiSelectDatabaseInput'
 import api from '@/lib/api-service'
 import { formatNumberWithCommas, stripCommas } from '@/lib/utils'
 import { copyText } from '@/lib/copyText'
+import { homesLabel, SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
+import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
 
 // Visitor-facing "refine my search" for a public showcase - a deliberately narrow subset of
 // EditPreferencesModal.tsx (the agent-side equivalent in Studio) for what a visitor can actually
@@ -63,7 +65,7 @@ interface EditShowcaseCriteriaModalProps {
 }
 
 export type SaveOutcome = { added: number; removed: number }
-export type MatchPreview = { count: number; points: { id: string; lat: number; lng: number }[] }
+export type MatchPreview = { count: number; points: { id: string; lat: number; lng: number }[]; at_limit?: boolean }
 
 type FormState = Pick<CollectionPreferences,
   'address' | 'lat' | 'long' | 'diameter' | 'min_price' | 'max_price' | 'min_beds' | 'max_beds' | 'min_baths' | 'max_baths' | 'cities' | 'school_districts'>
@@ -534,7 +536,12 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
 
   // ---------------------------------------------------------------- shared bits
 
+  // More homes match than a Showcase holds: "100+" everywhere here + a note to tighten the search.
+  const liveLabel = live ? homesLabel(live.count, live.at_limit) : '–'
+  const liveFull = !!live && (!!live.at_limit || live.count > SHOWCASE_MAX_HOMES)
   const saveBar = (label: string, extra?: ReactNode) => (
+    <div className="shrink-0">
+    {preview && !saved && <ShowcaseLimitNote show={liveFull} audience={audience} className="px-5 sm:px-7" />}
     <div className="flex shrink-0 items-center gap-3 border-t border-gray-100 bg-white/95 px-5 py-4 dark:border-white/[0.07] dark:bg-[#141416]/95 sm:px-7" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
       <motion.button type="button" onClick={onClose} whileHover={{ y: -1 }} whileTap={{ scale: 0.96 }}
         className="h-12 rounded-2xl border-2 border-gray-300 bg-white px-5 text-[11px] font-black uppercase tracking-widest text-[#111827] transition-colors hover:border-[#111827] dark:border-white/25 dark:bg-transparent dark:text-white dark:hover:border-white">Cancel</motion.button>
@@ -544,7 +551,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
           {liveLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#C9A24D]" /> : <span className="h-2 w-2 rounded-full bg-emerald-500" />}
           <span className="relative inline-flex h-5 overflow-hidden text-sm font-black tabular-nums text-[#111827] dark:text-white">
             <AnimatePresence mode="popLayout" initial={false}>
-              <motion.span key={live?.count ?? -1} className="block" initial={{ y: 14, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -14, opacity: 0 }}>{live ? live.count.toLocaleString() : '–'}</motion.span>
+              <motion.span key={live?.count ?? -1} className="block" initial={{ y: 14, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -14, opacity: 0 }}>{liveLabel}</motion.span>
             </AnimatePresence>
           </span>
           <span className="text-xs font-bold text-gray-500 dark:text-gray-400">{live?.count === 1 ? 'home' : 'homes'}</span>
@@ -557,10 +564,11 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
         <AnimatePresence mode="wait" initial={false}>
           <motion.span key={saved ? 'done' : isSubmitting ? 'busy' : 'idle'} className="inline-flex items-center gap-2"
             initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -10, opacity: 0 }} transition={{ duration: 0.16 }}>
-            {saved ? <><Check className="h-4 w-4" strokeWidth={3} /> {outcome && (outcome.added || outcome.removed) ? [outcome.added ? `+${outcome.added} new` : '', outcome.removed ? `${outcome.removed} removed` : ''].filter(Boolean).join(' · ') : 'Updated'}</> : isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Updating</> : <>{label}{preview && live && <span className="font-bold normal-case tracking-normal opacity-70 sm:hidden">· {live.count.toLocaleString()} {live.count === 1 ? 'home' : 'homes'}</span>}</>}
+            {saved ? <><Check className="h-4 w-4" strokeWidth={3} /> {outcome && (outcome.added || outcome.removed) ? [outcome.added ? `+${outcome.added} new` : '', outcome.removed ? `${outcome.removed} removed` : ''].filter(Boolean).join(' · ') : 'Updated'}</> : isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Updating</> : <>{label}{preview && live && <span className="font-bold normal-case tracking-normal opacity-70 sm:hidden">· {liveLabel} {live.count === 1 && !liveFull ? 'home' : 'homes'}</span>}</>}
           </motion.span>
         </AnimatePresence>
       </motion.button>
+    </div>
     </div>
   )
 
@@ -691,7 +699,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
                   <span className="relative inline-flex h-4 items-center overflow-hidden text-[#a8843a] dark:text-[#e8c97a]">
                     <AnimatePresence mode="popLayout" initial={false}>
                       <motion.span key={live?.count ?? 0} className="block tabular-nums" initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: liveLoading ? 0.5 : 1 }} exit={{ y: -12, opacity: 0 }}>
-                        {(live?.count ?? 0).toLocaleString()} {live?.count === 1 ? 'home' : 'homes'}
+                        {homesLabel(live?.count ?? 0, live?.at_limit)} {live?.count === 1 && !liveFull ? 'home' : 'homes'}
                       </motion.span>
                     </AnimatePresence>
                   </span>

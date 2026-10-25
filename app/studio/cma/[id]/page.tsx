@@ -122,7 +122,7 @@ function plainCmaQaIssue(raw: string): string {
   if (/(raw.*id|unresolved|property id|mls id)/.test(lower)) {
     return 'A comp reference needs to be replaced with its property name.'
   }
-  const firstSentence = text.split(/(?<=[.!?])\s+/)[0] || text
+  const firstSentence = text.replace(/([.!?])\s+/g, '$1\u0000').split('\u0000')[0] || text
   const cleaned = firstSentence
     .replace(/^[A-Z0-9_ -]{3,40}:\s*/i, '')
     .replace(/\b(comp_inferred|model_judgment|signals?|beta|fallback heuristic|audit fmv)\b/gi, 'internal check')
@@ -153,7 +153,7 @@ function cmaQaReview(report: CmaReport) {
 
 function shortReadableSentence(value: string): string {
   const cleaned = value.replace(/[*_`#]/g, '').replace(/\s+/g, ' ').trim()
-  const sentence = cleaned.split(/(?<=[.!?])\s+/)[0] || cleaned
+  const sentence = cleaned.replace(/([.!?])\s+/g, '$1\u0000').split('\u0000')[0] || cleaned
   // The whole first sentence - it used to be cut at 155 characters mid-word ("no photo obser...").
   // Only a runaway sentence is trimmed, and then at a word boundary.
   const shortened = sentence.length > 320 ? `${sentence.slice(0, 320).replace(/\s+\S*$/, '')}...` : sentence
@@ -3289,6 +3289,8 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
     const followScanAcrossPage = typeof window === 'undefined' || !window.matchMedia('(max-width: 639px)').matches
 
     const updateProgress = () => {
+      // Nothing to draw while the page is hidden - it catches up in one step when it's back.
+      if (typeof document !== 'undefined' && document.hidden) return
       const elapsedMs = Date.now() - startedAtMs
       setProgressElapsedSec(Math.floor(elapsedMs / 1000))
 
@@ -3732,7 +3734,24 @@ const AI_TYPICAL_SEC = 170
 
 function AiGenerationProgress({ pct, label, stage, elapsedSec }: { pct: number, label: string, stage: number, elapsedSec: number }) {
   const reduce = useReducedMotion()
-  const shownPct = useCountUp(pct)
+  // Back from another tab / app (user, 10/24: the bar "vibrated" on a phone): the run moved on a
+  // lot while the page was hidden and every animation tried to catch up at once. For a moment
+  // after coming back everything jumps straight to where it is now, then animates normally.
+  const [instant, setInstant] = useState(false)
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | undefined
+    const onVis = () => {
+      if (document.visibilityState !== 'visible') return
+      setInstant(true)
+      if (t) clearTimeout(t)
+      t = setTimeout(() => setInstant(false), 1200)
+    }
+    document.addEventListener('visibilitychange', onVis)
+    window.addEventListener('pageshow', onVis)
+    return () => { document.removeEventListener('visibilitychange', onVis); window.removeEventListener('pageshow', onVis); if (t) clearTimeout(t) }
+  }, [])
+  const still = reduce || instant
+  const shownPct = useCountUp(pct, still)
   const left = Math.max(0, AI_TYPICAL_SEC - elapsedSec)
   const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
   const leftText = elapsedSec > AI_TYPICAL_SEC + 20 ? 'Almost there' : left < 45 ? 'Under a minute left' : `About ${Math.ceil(left / 60)} min left`
@@ -3752,18 +3771,22 @@ function AiGenerationProgress({ pct, label, stage, elapsedSec }: { pct: number, 
             <span className="hidden sm:inline">OpenHousePal AI is working</span>
           </p>
           <div className="relative mt-1 h-5 overflow-hidden">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.p
-                key={label}
-                initial={reduce ? { opacity: 0 } : { opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={reduce ? { opacity: 0 } : { opacity: 0, y: -10 }}
-                transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute inset-x-0 truncate text-[13px] font-black text-[#111827] dark:text-white"
-              >
-                {label}
-              </motion.p>
-            </AnimatePresence>
+            {still ? (
+              <p className="absolute inset-x-0 truncate text-[13px] font-black text-[#111827] dark:text-white">{label}</p>
+            ) : (
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.p
+                  key={label}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                  className="absolute inset-x-0 truncate text-[13px] font-black text-[#111827] dark:text-white"
+                >
+                  {label}
+                </motion.p>
+              </AnimatePresence>
+            )}
           </div>
         </div>
         <p className="w-[3em] shrink-0 text-right font-serif text-3xl font-black leading-none tabular-nums text-[#111827] dark:text-white sm:text-4xl">
@@ -3779,11 +3802,10 @@ function AiGenerationProgress({ pct, label, stage, elapsedSec }: { pct: number, 
         aria-valuemax={100}
         aria-valuenow={pct}
       >
-        <motion.div
+        {/* A plain CSS width transition (not a spring): it can only ease forward, never bounce. */}
+        <div
           className="relative h-full rounded-full bg-gradient-to-r from-[#8b7355] via-[#C9A24D] to-[#f0cf7f] shadow-[0_0_14px_rgba(201,162,77,0.65)]"
-          initial={false}
-          animate={{ width: `${Math.max(3, pct)}%` }}
-          transition={{ type: 'spring', stiffness: 60, damping: 20 }}
+          style={{ width: `${Math.max(3, pct)}%`, transition: still ? 'none' : 'width 900ms cubic-bezier(.16,1,.3,1)' }}
         >
           {!reduce && (
             <span className="absolute inset-0 overflow-hidden rounded-full">
@@ -3791,7 +3813,7 @@ function AiGenerationProgress({ pct, label, stage, elapsedSec }: { pct: number, 
             </span>
           )}
           <span className="absolute -right-1 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-[#f6dc9b] shadow-[0_0_12px_4px_rgba(240,207,127,0.8)]" />
-        </motion.div>
+        </div>
       </div>
 
       <div className="mt-2 flex items-center justify-between gap-3 text-[11px] font-bold tabular-nums text-gray-500 dark:text-gray-400">
@@ -3900,12 +3922,13 @@ function AiAnalysisComplete({ report, monthlyLimitUsd, celebrate }: { report: Cm
 }
 
 // Counts a number up smoothly to its new value (the AI progress percentage).
-function useCountUp(target: number): number {
+function useCountUp(target: number, jump = false): number {
   const [shown, setShown] = useState(target)
   const shownRef = useRef(target)
   useEffect(() => {
     const from = shownRef.current
     if (from === target) return
+    if (jump || (typeof document !== 'undefined' && document.hidden)) { shownRef.current = target; setShown(target); return }
     const start = performance.now()
     let raf = 0
     const tick = (now: number) => {
@@ -5280,7 +5303,11 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
 
   return (
     <div className="space-y-5">
-      <FlowDock step={5} total={5} onBack={() => onJump('pricing')} continueLabel="Send" onContinue={() => document.getElementById('cma-complete-send')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
+      {/* Already marked ready / shared: nothing left to send from here - the bar takes them back
+          to the list instead (user, 10/24). */}
+      {readyState === 'done'
+        ? <FlowDock step={5} total={5} onBack={() => onJump('pricing')} continueLabel="Back to CMAs" onContinue={() => router.push('/studio/cma')} />
+        : <FlowDock step={5} total={5} onBack={() => onJump('pricing')} continueLabel="Send" onContinue={() => document.getElementById('cma-complete-send')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />}
       <AgentReviewBanner report={report} />
       <SectionCard title="Final Review" subtitle="Check the numbers, comps, and narrative before you mark the report ready.">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -5503,8 +5530,8 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
               onClick={() => setDefaultTheme(presentation.default_theme === 'light' ? 'dark' : 'light')}
               title={`Visitor default theme: ${presentation.default_theme === 'light' ? 'Ivory' : 'Midnight'} - click to switch`}
               aria-pressed={presentation.default_theme !== 'light'}
-              className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full p-1 transition-all duration-300 hover:shadow-md ${
-                presentation.default_theme === 'light' ? 'bg-gray-200 dark:bg-gray-700' : 'bg-[#111827]'
+              className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-all duration-300 hover:shadow-md ${
+                presentation.default_theme === 'light' ? 'bg-gray-200 ring-1 ring-inset ring-black/5 dark:bg-gray-600 dark:ring-white/20' : 'bg-[#111827] ring-1 ring-inset ring-[#C9A24D]/40 dark:bg-[#C9A24D]/35 dark:ring-[#C9A24D]/60'
               }`}
             >
               <span
@@ -5557,14 +5584,12 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
       />
 
 
-      {showShare && shareLinks && (
-        <CmaShareLinksModal
-          isOpen={showShare}
-          onClose={() => setShowShare(false)}
-          openHousePalUrl={shareLinks.openHousePalUrl}
-          websiteUrl={shareLinks.websiteUrl}
-        />
-      )}
+      <CmaShareLinksModal
+        isOpen={showShare && !!shareLinks}
+        onClose={() => setShowShare(false)}
+        openHousePalUrl={shareLinks?.openHousePalUrl || null}
+        websiteUrl={shareLinks?.websiteUrl || null}
+      />
     </div>
   )
 }

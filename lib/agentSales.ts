@@ -156,7 +156,8 @@ const compactMoney = (n: number) => (n >= 1e6 ? `$${(n / 1e6).toFixed(n >= 1e7 ?
 export function salesSummary(cfg: any): { count: number; volume: number; headline: string; sub: string | null; photos: string[]; towns: string[]; latest: AgentSale | null; sold: { photo: string; price: number; town: string }[]; top: number } {
   const all: AgentSale[] = Array.isArray(cfg?.recentSales) ? cfg.recentSales : []
   const eligible = all.filter(x => x && isEligibleSale(x))
-  const shown = eligible.filter(x => x.visible !== false).sort((a, b) => String(b.sold_date || '').localeCompare(String(a.sold_date || '')))
+  // shown = what the Agent Hub shows: picked, over the min price, newest first (count/volume still count every sale)
+  const shown = applySalesDisplay(eligible.filter(x => x.visible !== false), Number(cfg?.salesMinPrice) || 0, 'newest')
   const volume = eligible.reduce((t, x) => t + (Number(x.price) || 0), 0)
   const top = eligible.reduce((m, x) => Math.max(m, Number(x.price) || 0), 0)
   const tally = new Map<string, number>()
@@ -170,6 +171,6 @@ export function salesSummary(cfg: any): { count: number; volume: number; headlin
   // the newest shown sale with a photo (the Sales card's big picture), else the newest shown
   const latest = shown.find(x => x.image || (Array.isArray(x.photos) && x.photos[0])) || shown[0] || null
   // the Sales card's grid: exactly the sales the Agent Hub shows, in the agent's own order, with a photo
-  const sold = getEligibleSales(all).filter(x => x.visible).map(x => ({ photo: x.image || (Array.isArray(x.photos) ? x.photos[0] : ''), price: Number(x.price) || 0, town: tidyTown(x.city) })).filter(x => typeof x.photo === 'string' && !!x.photo) as { photo: string; price: number; town: string }[]
+  const sold = applySalesDisplay(getEligibleSales(all).filter(x => x.visible), Number(cfg?.salesMinPrice) || 0, salesSortOf(cfg?.salesSort)).map(x => ({ photo: x.image || (Array.isArray(x.photos) ? x.photos[0] : ''), price: Number(x.price) || 0, town: tidyTown(x.city) })).filter(x => typeof x.photo === 'string' && !!x.photo) as { photo: string; price: number; town: string }[]
   return { count, volume, headline, sub, photos, towns, latest, sold, top }
 }

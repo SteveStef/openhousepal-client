@@ -1,5 +1,6 @@
 'use client'
 
+import OhpSwitch from '@/components/ui/OhpSwitch'
 import { Facebook, Globe, Instagram, Music2, Youtube } from 'lucide-react'
 import { publicWebUrl } from '@/lib/webUrl'
 
@@ -70,14 +71,7 @@ export default function SocialLinksEditor({ socialLinks, onChange, animateIcons 
                 {enabled ? 'Showing on public Agent Hub' : 'Hidden from public Agent Hub'}
               </p>
             </div>
-            {!locked && <button
-              type="button"
-              onClick={() => onChange(id, { enabled: !enabled })}
-              className={`relative h-7 w-12 shrink-0 rounded-full transition ${enabled ? 'bg-[#111827] dark:bg-white' : 'bg-gray-300 dark:bg-gray-700'}`}
-              aria-label={`${enabled ? 'Turn off' : 'Turn on'} ${label}`}
-            >
-              <span className={`absolute top-1 h-5 w-5 rounded-full transition ${enabled ? 'left-6 bg-white dark:bg-[#111827]' : 'left-1 bg-white'}`} />
-            </button>}
+            {!locked && <OhpSwitch on={enabled} onChange={next => onChange(id, { enabled: next })} label={`${enabled ? 'Turn off' : 'Turn on'} ${label}`} />}
           </div>
           <input
             value={locked ? websiteAuto!.url : url}

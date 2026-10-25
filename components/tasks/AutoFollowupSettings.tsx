@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
-import { AlertTriangle, ArrowRight, Bell, BellOff, UserPlus, BellRing, CalendarClock, CheckCircle2, ChevronDown, ClipboardList, Clock, Home, KeyRound, Loader2, Lock, MessageSquareText, Siren, Sparkles, Sun, Zap } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Bell, BellOff, UserPlus, BellRing, CalendarClock, CheckCircle2, ChevronDown, ClipboardList, Clock, Home, KeyRound, Loader2, Lock, MessageSquareText, Siren, Sparkles, Sun, Sunset, Zap } from 'lucide-react'
 import MessageTemplateEditor from './MessageTemplateEditor'
 import CalendarAlertPreview from './CalendarAlertPreview'
 import api from '@/lib/api-service'
@@ -18,6 +18,14 @@ const SPRING = { type: 'spring', stiffness: 500, damping: 34 } as const
  * between options instead of jumping. The pill's spot is measured inside this control and moved
  * with x/width only - a shared-layout (layoutId) pill re-animated whenever anything else on the
  * page moved (a row above growing, a spinner appearing), which read as a glitch. */
+// When a follow-up lands on the calendar, per choice - mirrors tasks_service.followup_window.
+function whenHint(when: FollowupWhen, style: FollowupStyle, hours: string): string {
+  if (style === 'all_day') return when === 'next_day' ? "On the next day's calendar, all day" : "On that day's calendar, all day"
+  if (when === 'later_today') return 'Same day, about 2 hours after they come in (until 8 PM, else next morning)'
+  if (when === 'next_day') return `Next day, sometime ${hours}`
+  return 'Same day, 30 min–2½ hours after they come in'
+}
+
 function Segmented<T extends string>({ value, options, onChange, disabled, iconsFromSm }: {
   value: T
   options: { id: T; label: string; icon?: typeof Clock }[]
@@ -464,7 +472,7 @@ export default function AutoFollowupSettings() {
               value={rule.when}
               disabled={!rule.enabled}
               onChange={v => updateRule(rule, { when: v })}
-              options={[{ id: 'same_day', label: 'Same day', icon: Zap }, { id: 'next_day', label: 'Next day', icon: Sun }]}
+              options={[{ id: 'same_day', label: 'Soon', icon: Zap }, { id: 'later_today', label: 'In 2 hrs', icon: Sunset }, { id: 'next_day', label: 'Next day', icon: Sun }]}
             />
             <Segmented<FollowupStyle>
               iconsFromSm
@@ -489,6 +497,10 @@ export default function AutoFollowupSettings() {
             </motion.button>
             {/* Fixed slot, so the spinner never nudges the controls onto another line. */}
             <span className="inline-flex h-3.5 w-3.5">{saving === rule.key && <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />}</span>
+            {/* What the timing choice means, in plain words (user, 10/24). */}
+            <span className="block w-full text-[10.5px] font-semibold leading-snug text-gray-500 dark:text-gray-400 lg:text-right">
+              {whenHint(rule.when, rule.style, hoursLabel)}
+            </span>
           </div>
         </div>
         <AnimatePresence initial={false}>

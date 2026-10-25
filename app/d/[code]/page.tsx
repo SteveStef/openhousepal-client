@@ -26,8 +26,14 @@ import { isIosDevice, mailHref, smsHref } from '@/lib/smsLink'
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 type Res<T> = { ok: true; data: T } | { ok: false; error: string }
 async function call<T>(path: string, method: 'GET' | 'POST' = 'GET'): Promise<Res<T>> {
+  // Never wait forever (user, 10/24 - the link "tried, failed and nothing ever happened"): a request
+  // on a phone just waking up on a weak signal can hang for a minute+ - give up after 9s so the
+  // retry below gets its turn.
+  const ctl = new AbortController()
+  const t = setTimeout(() => ctl.abort(), 9000)
   try {
-    const r = await fetch(`${API}/public/followups/${path}`, { method, headers: { accept: 'application/json' }, cache: 'no-store' })
+    const r = await fetch(`${API}/public/followups/${path}`, { method, headers: { accept: 'application/json' }, cache: 'no-store', signal: ctl.signal })
+      .finally(() => clearTimeout(t))
     const body = await r.json().catch(() => null)
     return r.ok ? { ok: true, data: body as T } : { ok: false, error: (body && (body.detail || body.message)) || "That didn't go through - check your connection and tap again." }
   } catch {
@@ -175,7 +181,9 @@ function FollowupSheet({ code, isDone, onToggle, onClose }: { code: string; isDo
                       {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />} {copied ? 'Copied' : 'Copy message'}
                     </button>
                     {card.contact?.phone && (
-                      <a href={smsHref(card.contact.phone, card.message)} className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] text-[12px] font-black text-[#111827] shadow-sm transition active:scale-[0.97]">
+                      // Tapping Text is what checks it off (the same as the tap-to-text page) - opening this never does.
+                      <a href={smsHref(card.contact.phone, card.message)} onClick={() => { if (!isDone) onToggle().catch(() => {}) }}
+                        className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] text-[12px] font-black text-[#111827] shadow-sm transition active:scale-[0.97]">
                         <MessageSquare className="h-4 w-4" /> Text {first}
                       </a>
                     )}
@@ -281,7 +289,10 @@ export default function MarkDonePage() {
             <XCircle className="mx-auto h-12 w-12 text-gray-300" />
             <p className="mt-3 text-lg font-black text-[#111827] dark:text-white">This link isn&apos;t active</p>
             <p className="mt-1 text-sm font-medium text-gray-500">The follow-up may have been deleted, or your connection dropped - try once more. You can manage all of them in OpenHousePal.</p>
-            <a href="/leads/tasks" className="mt-5 inline-block rounded-xl bg-[#C9A24D] px-5 py-2.5 text-sm font-black text-[#111827]">Open Follow-ups</a>
+            <div className="mt-5 flex items-center justify-center gap-2">
+              <button type="button" onClick={() => window.location.reload()} className="inline-block rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-black text-[#111827] dark:border-white/15 dark:text-white">Try again</button>
+              <a href="/leads/tasks" className="inline-block rounded-xl bg-[#C9A24D] px-5 py-2.5 text-sm font-black text-[#111827]">Open Follow-ups</a>
+            </div>
           </div>
         )}
 

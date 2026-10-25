@@ -5,6 +5,7 @@ import OhpLoader from '@/components/brand/OhpLoader'
 import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { hasValidSubscription } from '@/lib/auth-helpers'
+import { loginUrlForHere } from '@/lib/loginRedirect'
 import { useAuth } from '@/contexts/AuthContext'
 import { hasMlsAccess, hasAgentHubAccess, hasEmailSignatureAccess, hasStudioDesignAccess, hasStudioMediaAccess, meetsTier } from '@/lib/navAccess'
 
@@ -63,7 +64,7 @@ export default function SubscriptionGuard(props: SubscriptionGuardProps) {
 
     // Not authenticated - redirect to login
     if (!isAuthenticated || !user) {
-      router.push('/login?redirect=' + encodeURIComponent(pathname))
+      router.push(loginUrlForHere())  // the whole link (query + #), so they land back on it after login
       return
     }
 

@@ -25,7 +25,8 @@ import HeroFramer, { frameIsSet } from '@/components/property-sites/editor/HeroF
 import type { HeaderMode, HeaderMotion, HeroFrame, SpotlightHeader, TownPhoto } from '@/components/property-sites/spotlight/model'
 import type { TownFacts } from '@/components/property-sites/spotlight/TownSection'
 import { allFeatureTags as allTags, autoFeatured, rankFeature } from '@/components/property-sites/spotlight/features'
-import api from '@/lib/api-service'
+import api, { API_BASE_URL } from '@/lib/api-service'
+import { getToken } from '@/lib/token'
 import { notify } from '@/contexts/ToastContext'
 import { propertyWebsitePublicUrl } from '@/lib/publicResourceLinks'
 import type { PropertyWebsite, PropertyWebsiteAgent, PropertyWebsiteChapter, PropertyWebsiteDocument, PropertyWebsiteFloorPlan, PropertyWebsiteOpenHouse, PropertyWebsiteTemplateId, StudioMediaAsset, SiteDomain } from '@/types'
@@ -158,6 +159,8 @@ function PropertySiteEditorPage() {
   const [compare, setCompare] = useState<'video' | 'photo'>('video')
   const [clock, setClock] = useState(() => Date.now())
   const [autoPublishing, setAutoPublishing] = useState(false)
+  // Publish was pressed while the setup was still writing - the server publishes when it's done.
+  const [publishPending, setPublishPending] = useState(false)
   const sectionsFrame = useRef<HTMLIFrameElement>(null)
   const sectionsBox = useRef<HTMLDivElement>(null)
   const sectionsList = useRef<HTMLDivElement>(null)
@@ -207,6 +210,7 @@ function PropertySiteEditorPage() {
       setHeaderChoice(LIVING_PHOTO_ENABLED && (h.mode === 'video' || (h.video?.asset_id && !h.video?.url)) ? 'video' : h.mode === 'cycle' ? 'cycle' : 'photo')
       if (LIVING_PHOTO_ENABLED && h.video?.asset_id) setJob({ status: h.video.url ? 'ready' : 'processing', startedAt: Date.now() })
       setAutoSetupDone(!!d.auto_setup_done)
+      setPublishPending(!!(d as Record<string, unknown>).publish_when_ready)
       setVideoAssetId(d.video_asset_id ?? null)
       setVirtualTourUrl(d.virtual_tour_url || '')
       setFloorPlans(d.floor_plans || [])
@@ -494,6 +498,28 @@ function PropertySiteEditorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dirty, payloadKey, saving, publishing])
 
+  // Leaving mid-flow (tab closed, app switched, phone locked): whatever isn't saved yet goes out
+  // right then - keepalive lets the request finish after the page is gone.
+  const flushRef = useRef<{ dirty: boolean; payload: object; id: string | null }>({ dirty: false, payload: {}, id: null })
+  flushRef.current = { dirty, payload, id: site?.id || null }
+  useEffect(() => {
+    const flush = () => {
+      const { dirty: d, payload: body, id: sid } = flushRef.current
+      if (!d || !sid) return
+      const token = getToken()
+      try {
+        void fetch(`${API_BASE_URL}/studio/property-sites/${sid}`, {
+          method: 'PATCH', keepalive: true, body: JSON.stringify(body),
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        })
+      } catch { /* the autosave tries again next time */ }
+    }
+    const onHide = () => { if (document.visibilityState === 'hidden') flush() }
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', onHide)
+    return () => { window.removeEventListener('pagehide', flush); document.removeEventListener('visibilitychange', onHide) }
+  }, [])
+
   // The live page is cached for a few seconds - ask it to refresh right away after publishing.
   const refreshLive = () => fetch('/api/website-property-sites/revalidate', { method: 'POST' }).catch(() => {})
 
@@ -510,6 +536,18 @@ function PropertySiteEditorPage() {
     setPublishing(true)
     const saved = dirty ? await save() : true
     if (!saved) { setPublishing(false); return }
+    // The first-open setup is still writing (owner, 10/24): the server publishes the moment it's
+    // done - and finishes it itself if the agent leaves the page.
+    if (!opts?.quiet && setupSteps.some(s => s.state === 'run' || s.state === 'wait')) {
+      const res = await api.propertySites.publishWhenReady(site.id)
+      setPublishing(false)
+      if (res.success && res.data) {
+        setSite(res.data)
+        if (res.data.status === 'PUBLISHED') { await refreshLive(); setJustPublished(true); window.setTimeout(() => setJustPublished(false), 2600) }
+        else setPublishPending(true)
+      } else setError(res.error || 'Could not publish.')
+      return
+    }
     const { success, data, error: e } = await api.propertySites.publish(site.id)
     setPublishing(false)
     setAutoPublishing(false)
@@ -524,8 +562,25 @@ function PropertySiteEditorPage() {
     } else setError(e || 'Could not publish.')
   }
 
+  // Waiting for the server to publish once the setup is done: watch for it going live.
+  useEffect(() => {
+    if (!publishPending || !site?.id) return
+    const t = window.setInterval(async () => {
+      const { success, data } = await api.propertySites.get(site.id)
+      if (success && data && data.status === 'PUBLISHED' && !(data.draft_data as Record<string, unknown>)?.publish_when_ready) {
+        setSite(data)
+        setPublishPending(false)
+        void refreshLive()
+        setJustPublished(true)
+        window.setTimeout(() => setJustPublished(false), 2600)
+      }
+    }, 3000)
+    return () => window.clearInterval(t)
+  }, [publishPending, site?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const unpublish = async () => {
     if (!site) return
+    setPublishPending(false)
     setPublishing(true)
     const { success, data } = await api.propertySites.unpublish(site.id)
     setPublishing(false)
@@ -647,6 +702,10 @@ function PropertySiteEditorPage() {
   }, [site?.id, step, setupSteps, townPhotos]) // eslint-disable-line react-hooks/exhaustive-deps
   const uploadTownPhoto = async (file: File) => {
     if (!site) return
+    if (!UPLOAD_LIMITS.floorPlans.types.includes(file.type) || file.size > UPLOAD_LIMITS.floorPlans.bytes()) {
+      notify(`That photo can't be used - a JPG or PNG up to ${mbText(UPLOAD_LIMITS.floorPlans.bytes())}, please.`)
+      return
+    }
     setTownUploading(true)
     const { success, data } = await api.propertySites.uploadFloorPlan(site.id, file)
     setTownUploading(false)
@@ -665,6 +724,16 @@ function PropertySiteEditorPage() {
       document.getElementById('sp-hero-framer')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       return
     }
+    // Room by room: every room shown on the page needs its check tapped before moving on (owner, 10/24).
+    const forward = STEPS.findIndex(x => x.key === key) > stepIndex
+    const unchecked = chapters.filter(c => c.enabled && c.photos.length && !c.confirmed).length
+    if (step === 'rooms' && forward && unchecked > 0) {
+      notify(unchecked === 1 ? 'One room still needs its check - tap the check once it looks right.' : `${unchecked} rooms still need their check - tap each one's check once it looks right.`)
+      document.querySelector('[data-unconfirmed="1"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    // A draft is saved at every step (owner, 10/24) - not only a moment after the last edit.
+    if (dirty && !saving) void save()
     const nav = document.querySelector('nav[aria-label=Steps]')
     const top = nav ? nav.getBoundingClientRect().top + window.scrollY - 96 : 0
     if (window.scrollY > top) window.scrollTo({ top: Math.max(0, top), behavior: 'auto' })
@@ -742,6 +811,9 @@ function PropertySiteEditorPage() {
   // switched on); the local helper still wins in local dev, where it points at ohp-site-render.
   const helperUrl = propertyWebsitePublicUrl(site.slug, siteDomains)
   const publicUrl = helperUrl.includes('/ohp-site-render/') ? helperUrl : (site.public_url || helperUrl)
+  // The address the previews' little browser bar shows - the agent's own domain when the page
+  // lives there (10/24), never a made-up openhousepal.com one.
+  const siteLabel = (publicUrl.includes('/ohp-site-render/') ? decodeURIComponent(publicUrl.split('/ohp-site-render/')[1]) : publicUrl.replace(/^https?:\/\//, '')).replace(/\/$/, '')
   const live = site.status === 'PUBLISHED'
   const setupRunning = setupSteps.some(s => s.state === 'run' || s.state === 'wait')
   const shownSetup = setupSteps.filter(s => s.state !== 'skip')
@@ -827,7 +899,7 @@ function PropertySiteEditorPage() {
                 <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-gray-400">Your page, live</p>
                 <ScaledPreview
                   src={`/spotlight-preview/${templateId}?site=${site.id}&embed=1&mode=${headerChoice}&motion=${header.motion}${heroImage ? `&hero=${encodeURIComponent(heroImage)}` : ''}${header.frame ? `&fx=${header.frame.x}&fy=${header.frame.y}&fz=${header.frame.zoom}${header.frame.px != null ? `&fpx=${header.frame.px}&fpy=${header.frame.py ?? 50}` : ''}` : ''}`}
-                  label={`${site.slug}.openhousepal.com`}
+                  label={siteLabel} poster={heroImage}
                 />
               </div>
             </div>
@@ -839,7 +911,7 @@ function PropertySiteEditorPage() {
               {job?.status === 'ready' && header.video?.url ? (
                 <div>
                   <p className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-emerald-600"><Check className="h-3.5 w-3.5" /> Your living photo, on your page</p>
-                  <ScaledPreview src={`/spotlight-preview/${templateId}?site=${site.id}&embed=1&mode=video&video=${encodeURIComponent(header.video.url)}${header.video.poster ? `&poster=${encodeURIComponent(header.video.poster)}` : ''}`} label={`${site.slug}.openhousepal.com`} />
+                  <ScaledPreview src={`/spotlight-preview/${templateId}?site=${site.id}&embed=1&mode=video&video=${encodeURIComponent(header.video.url)}${header.video.poster ? `&poster=${encodeURIComponent(header.video.poster)}` : ''}`} label={siteLabel} poster={heroImage} />
                 </div>
               ) : (
                 <div className="grid items-start gap-4 lg:grid-cols-[2fr_1fr]">
@@ -971,7 +1043,7 @@ function PropertySiteEditorPage() {
           )}
           <button
             onClick={() => publish()}
-            disabled={publishing || live}
+            disabled={publishing || live || publishPending}
             // Phones, last step: the page's own "Publish my page" and the bar's Publish are right
             // there - a third one up here was a double (owner wants no duplicate buttons, 10/22).
             className={`${stepIndex === STEPS.length - 1 && !live ? 'max-sm:hidden ' : ''}inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-[13px] font-black shadow-sm transition disabled:cursor-default sm:min-h-0 sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm ${
@@ -981,7 +1053,7 @@ function PropertySiteEditorPage() {
             }`}
           >
             {publishing && !autoPublishing ? <Loader2 className="h-4 w-4 animate-spin" /> : live ? <Check className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
-            {publishing && !autoPublishing ? 'Publishing…' : justPublished ? 'Published!' : live ? 'Live' : 'Publish'}
+            {publishing && !autoPublishing ? 'Publishing…' : justPublished ? 'Published!' : live ? 'Live' : publishPending ? 'Publishing soon' : 'Publish'}
           </button>
         </div>
       </div>
@@ -990,8 +1062,10 @@ function PropertySiteEditorPage() {
         {error && <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">{error}</p>}
 
         {/* Automatic setup, shown while it runs on a new site. */}
-        {shownSetup.length > 0 && (
-          <div className="ohp-modal-pop mb-5 overflow-hidden rounded-2xl border border-[#C9A24D]/30 bg-gradient-to-br from-[#fffaf0] to-white p-5 shadow-sm dark:from-[#1c1812] dark:to-[#151517]">
+        {/* Phones (owner, 10/24 - screen space matters): only on step 1, or on a later step while
+            something is still being written. Computers keep it. */}
+        {shownSetup.length > 0 && step !== 'review' && (
+          <div className={`${step !== 'design' && !setupRunning ? 'max-sm:hidden ' : ''}ohp-modal-pop mb-5 overflow-hidden rounded-2xl border border-[#C9A24D]/30 bg-gradient-to-br from-[#fffaf0] to-white p-5 shadow-sm dark:from-[#1c1812] dark:to-[#151517]`}>
             <style>{`.su-sweep{background:linear-gradient(90deg,transparent,rgba(201,162,77,.45),transparent);background-size:40% 100%;background-repeat:no-repeat;animation:suSweep 1.3s linear infinite}@keyframes suSweep{from{background-position:-40% 0}to{background-position:140% 0}}`}</style>
             {/* Every row is there from the first frame and keeps its size - only the icon and the
                 little bar under it change, so the page never shifts while the AI works. */}
@@ -1054,7 +1128,7 @@ function PropertySiteEditorPage() {
               return (
                 <div key={t.id} className={`group min-w-0 rounded-2xl border-2 p-2.5 transition ${on ? 'border-[#C9A24D] bg-[#C9A24D]/5 shadow-[0_18px_40px_-24px_rgba(201,162,77,.9)]' : 'border-gray-200 hover:border-[#C9A24D]/60 dark:border-gray-800'}`}>
                   <button onClick={() => setTemplateId(t.id)} className="block w-full text-left" aria-pressed={on}>
-                    <ScaledPreview src={`/spotlight-preview/${t.id}?site=${site.id}&embed=1`} aspect={0.62} label={`${site.slug}.openhousepal.com`} />
+                    <ScaledPreview src={`/spotlight-preview/${t.id}?site=${site.id}&embed=1`} aspect={0.62} label={siteLabel} poster={heroImage} />
                   </button>
                   {/* Name, Select and Preview on one line; the blurb underneath */}
                   <div className="px-1.5 pb-1 pt-3">
@@ -1094,7 +1168,7 @@ function PropertySiteEditorPage() {
         <EditorCard step={3} title="The Story" subtitle="The words about the home. The short version is written from your listing description - nothing made up.">
           <div className="mb-4 grid gap-3 sm:grid-cols-2">
             <ToggleRow icon={Calculator} title="Monthly payment calculator" body="Buyers see an estimated monthly payment and can play with the numbers." on={visibility.payment !== false} onChange={() => toggleSection('payment')} />
-            <ToggleRow icon={FileText} title="Follow this home & fact sheet" body="Guests can get price / open house emails and print the key facts." on={visibility.guest_tools !== false} onChange={() => toggleSection('guest_tools')} />
+            <ToggleRow icon={FileText} title="Follow this home & fact sheet" body="Guests get an email from you when the price drops, an open house is set, or it goes under contract or sells - with your photo and number. They can also print the key facts." on={visibility.guest_tools !== false} onChange={() => toggleSection('guest_tools')} />
           </div>
           {/* Phones: a full-width two-way switch with a gliding light - a short pill strip read as cramped. */}
           <div className="mb-3 grid grid-cols-2 rounded-xl bg-gray-100 p-1 dark:bg-white/5 sm:inline-flex">
@@ -1254,7 +1328,7 @@ function PropertySiteEditorPage() {
         {step === 'rooms' && (<>
         {/* 5 - photo chapters */}
         <EditorCard step={6} title="Room by Room" badge="Optional · New" subtitle="Your home's best spaces, each with its own full-screen moment. AI does the sorting.">
-          <RoomsStep siteId={site.id} photos={p.photos || []} chapters={chapters} onChange={setChapters} description={originalDescription || description} percent={estimate?.rooms?.percent} onSpent={() => setUsageTick(t => t + 1)} />
+          <RoomsStep siteId={site.id} photos={p.photos || []} chapters={chapters} onChange={setChapters} description={originalDescription || description} percent={estimate?.rooms?.percent} limitUsd={estimate?.limit_usd} onSpent={() => setUsageTick(t => t + 1)} />
         </EditorCard>
         </>)}
 
@@ -1278,7 +1352,7 @@ function PropertySiteEditorPage() {
             {matchingVideos.map(v => (
               <div key={v.id} className={`group relative flex items-center gap-2 rounded-xl border-2 p-2.5 pr-14 text-left transition-colors sm:pr-2.5 ${videoAssetId === v.id ? 'border-[#C9A24D] bg-[#C9A24D]/5' : 'border-gray-200 dark:border-gray-800'}`}>
                 <button onClick={() => setVideoAssetId(v.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
-                  <div className="relative h-10 w-14 shrink-0 overflow-hidden rounded-lg bg-black"><video src={v.result_url || undefined} className="h-full w-full object-cover" muted /></div>
+                  <div className="relative h-10 w-14 shrink-0 overflow-hidden rounded-lg bg-black"><video src={v.result_url || undefined} preload="metadata" className="h-full w-full object-cover" muted /></div>
                   <span className="truncate text-xs font-black text-[#111827] dark:text-white">{v.options?.custom_name || `Video · ${new Date(v.created_at).toLocaleDateString()}`}</span>
                 </button>
                 <button type="button" onClick={(e) => { e.stopPropagation(); setPreviewVideo(v) }} title="Preview this video" aria-label="Preview this video"
@@ -1318,22 +1392,29 @@ function PropertySiteEditorPage() {
 
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             <FileList
-              icon={LayoutTemplate} title="Floor plans" hint="JPG or PNG" accept="image/jpeg,image/png"
+              icon={LayoutTemplate} title="Floor plans" hint="JPG or PNG, up to 12MB each" accept="image/jpeg,image/png"
               rows={floorPlans.map(f => ({ label: f.label, url: f.image_url }))}
               onChange={rows => setFloorPlans(rows.map(r => ({ label: r.label, image_url: r.url })))}
-              onUpload={async file => { const { success, data } = await api.propertySites.uploadFloorPlan(site.id, file); return success && data ? data.url : null }}
+              onUpload={(file, onProgress) => uploadWithProgress(`/studio/property-sites/${site.id}/floor-plans`, file, onProgress)}
+              onAdded={() => setVisibility(v => (v.floor_plans === true ? v : { ...v, floor_plans: true }))}
+              limits={UPLOAD_LIMITS.floorPlans}
             />
             <FileList
-              icon={FileText} title="Documents" hint="Brochure, disclosures - PDF or image" accept="application/pdf,image/jpeg,image/png"
+              icon={FileText} title="Documents" hint="Brochure, disclosures, HOA docs - PDFs (25MB) or images (15MB), up to 10" accept="application/pdf,image/jpeg,image/png"
               rows={documents}
               onChange={rows => setDocuments(rows)}
-              onUpload={async file => { const { success, data } = await api.propertySites.uploadDocument(site.id, file); return success && data ? data.url : null }}
+              onUpload={(file, onProgress) => uploadWithProgress(`/studio/property-sites/${site.id}/documents`, file, onProgress)}
+              // A document on the page means the Documents section should show it (owner, 10/24).
+              onAdded={() => setVisibility(v => (v.documents === true ? v : { ...v, documents: true }))}
+              nameHint="Tap a name to change it - that's what visitors see on your page."
+              limits={UPLOAD_LIMITS.documents}
             />
           </div>
         </EditorCard>
-        <EditorCard step={7} title="Open Houses" subtitle="Pulled live from your Open House Manager and the MLS - a new one shows up on its own, and each drops off once it's over.">
+        <EditorCard step={7} title="Open Houses" subtitle="Pulled in automatically from Bright MLS and your Open House Manager - a new one shows up on its own, and each drops off once it's over.">
           <LiveOpenHouses siteId={site.id} refreshKey={openHouses.length} onRows={rows => setLiveOhDays(rows.filter(o => o.source !== 'manual').map(o => o.date))} />
-          <p className="mb-2 mt-4 text-[11px] font-black uppercase tracking-[0.16em] text-gray-400">Add a date yourself</p>
+          <p className="mb-0.5 mt-4 text-[11px] font-black uppercase tracking-[0.16em] text-gray-400">Add a date yourself</p>
+          <p className="mb-2 text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400">Not in Bright MLS yet? Add it here - it shows on this page, in your Open House Manager and dashboard, and on Discovery for other agents.</p>
           <OpenHousesEditor rows={openHouses} onChange={setOpenHouses} taken={liveOhDays} photo={heroImage} street={site.property_snapshot.address || null} />
         </EditorCard>
         </>)}
@@ -1353,7 +1434,7 @@ function PropertySiteEditorPage() {
               })}
             </div>
             <div ref={sectionsBox} className="lg:sticky lg:top-24">
-              <ScaledPreview ref={sectionsFrame} src={`/spotlight-preview/${templateId}?site=${site.id}&embed=1`} aspect={1.25} label={`${site.slug}.openhousepal.com`}
+              <ScaledPreview ref={sectionsFrame} src={`/spotlight-preview/${templateId}?site=${site.id}&embed=1`} aspect={1.25} label={siteLabel} poster={heroImage}
                 onLoad={() => {
                   const frame = sectionsFrame.current
                   if (!frame?.contentWindow) return
@@ -1415,6 +1496,44 @@ function PropertySiteEditorPage() {
               </div>
             )}
 
+            {/* "Your site is set up" in one line (owner, 10/24): green = good, red = missing (tap to
+                fix it), yellow = still being written. */}
+            {(() => {
+              const working = (key: string) => setupSteps.some(s => s.key === key && (s.state === 'run' || s.state === 'wait'))
+              const checks: { key: string; label: string; to: StepKey; state: 'ok' | 'bad' | 'wait' }[] = [
+                { key: 'featured', label: 'Amenities', to: 'standouts', state: working('featured') ? 'wait' : featured.length || !allFeatureTags.length ? 'ok' : 'bad' },
+                { key: 'highlights', label: 'Highlights', to: 'standouts', state: working('highlights') ? 'wait' : highlights.length ? 'ok' : 'bad' },
+                { key: 'story', label: 'Story', to: 'story', state: working('story') ? 'wait' : description.trim() ? 'ok' : 'bad' },
+                { key: 'town', label: 'Town', to: 'town', state: working('town') ? 'wait' : town.facts || town.body.trim() || town.hidden ? 'ok' : 'bad' },
+              ]
+              const waiting = checks.some(c => c.state === 'wait')
+              const missing = checks.some(c => c.state === 'bad')
+              return (
+                <div className="ohp-rise mt-4 rounded-2xl border border-gray-200 bg-white px-3 py-2.5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:flex sm:items-center sm:gap-4 sm:px-4">
+                  <p className="mb-2 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400 sm:mb-0 sm:shrink-0">
+                    <Sparkles className="h-3.5 w-3.5 text-[#C9A24D]" /> {waiting ? 'Setting up your site…' : missing ? 'Almost set up' : 'Your site is set up'}
+                  </p>
+                  <div className="grid grid-cols-4 gap-1.5 sm:flex sm:flex-1 sm:flex-wrap sm:justify-end sm:gap-2">
+                    {checks.map(c => (
+                      <button key={c.key} type="button" onClick={() => c.state === 'bad' && goStep(c.to)} disabled={c.state !== 'bad'} title={c.state === 'bad' ? `Add ${c.label.toLowerCase()}` : c.state === 'wait' ? 'Being written…' : 'Done'}
+                        className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[11px] font-black transition sm:flex-row sm:rounded-full sm:px-3 ${c.state === 'ok' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : c.state === 'bad' ? 'bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'}`}>
+                        <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full text-white ${c.state === 'ok' ? 'bg-emerald-500' : c.state === 'bad' ? 'bg-red-500' : 'bg-amber-400'}`}>
+                          {c.state === 'ok' ? <Check className="h-2.5 w-2.5" strokeWidth={3.5} /> : c.state === 'bad' ? <X className="h-2.5 w-2.5" strokeWidth={3.5} /> : <Loader2 className="h-2.5 w-2.5 animate-spin" strokeWidth={3} />}
+                        </span>
+                        <span className="truncate">{c.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {(waiting || publishPending) && !live && (
+                    <p className="mt-2 basis-full text-[11px] font-bold leading-snug text-amber-700 dark:text-amber-300 sm:mt-0 sm:hidden">{publishPending ? 'Your site will publish once these are done - you can leave this page.' : 'Publishing now? Your site will publish once these are done.'}</p>
+                  )}
+                </div>
+              )
+            })()}
+            {(publishPending || setupRunning) && !live && (
+              <p className="mt-1.5 hidden px-1 text-right text-[11px] font-bold text-amber-700 dark:text-amber-300 sm:block">{publishPending ? 'Your site will publish once these are done - you can leave this page, it finishes on its own.' : 'Publish any time - your site will publish once these are done.'}</p>
+            )}
+
             {(() => {
               const roomCount = chapters.filter(c => c.enabled && c.photos.length).length
               const extras = [videoAssetId && 'video', virtualTourUrl.trim() && '3D tour', floorPlans.some(f => f.image_url) && 'floor plans', documents.some(d => d.url) && 'documents'].filter(Boolean).join(' · ')
@@ -1440,7 +1559,7 @@ function PropertySiteEditorPage() {
                     <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#C9A24D]/25 blur-3xl" />
                     <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl" />
                     <div className="relative grid grid-cols-1 items-center gap-6 lg:grid-cols-[1.3fr_1fr]">
-                      <ScaledPreview className="min-w-0" src={`/spotlight-preview/${templateId}?site=${site.id}&embed=1`} aspect={0.6} label={`${site.slug}.openhousepal.com`} />
+                      <ScaledPreview className="min-w-0" src={`/spotlight-preview/${templateId}?site=${site.id}&embed=1`} aspect={0.6} label={siteLabel} poster={heroImage} />
                       <div>
                         <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-[#e8c97a]"><span className="h-px w-6 bg-[#e8c97a]" /> Step 9 · Review &amp; publish</p>
                         <h3 className="mt-2 font-serif text-3xl font-black leading-[1.05] sm:text-4xl">{live ? <>Your page is <em className="font-light text-[#e8c97a]">live.</em></> : <>Your page is <em className="font-light text-[#e8c97a]">ready.</em></>}</h3>
@@ -1451,10 +1570,10 @@ function PropertySiteEditorPage() {
                         {/* Phones: one big button per line (side by side, "Publish my page" broke onto two lines). */}
                         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                           {!live && (
-                            <button onClick={() => publish()} disabled={publishing}
+                            <button onClick={() => publish()} disabled={publishing || publishPending}
                               // phones publish from the flow bar right below - one Publish, not two
                               className="rv-shine max-sm:hidden inline-flex min-h-[52px] items-center justify-center gap-2 whitespace-nowrap rounded-2xl sm:min-h-0 sm:flex-1 bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-6 py-3.5 text-sm font-black text-[#111827] shadow-xl shadow-[#C9A24D]/30 transition hover:-translate-y-0.5 disabled:opacity-70">
-                              {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />} {publishing ? 'Publishing…' : 'Publish my page'}
+                              {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />} {publishing ? 'Publishing…' : publishPending ? 'Publishing as soon as it’s ready' : 'Publish my page'}
                             </button>
                           )}
                           {/* Computers: a new tab, as before. Phones: the page slides up right here (PhonePagePreview). */}
@@ -1532,7 +1651,7 @@ function PropertySiteEditorPage() {
             ? { onContinue: () => goStep(STEPS[stepIndex + 1].key), continueLabel: STEPS[stepIndex + 1].key === 'review' ? 'Review' : STEPS[stepIndex + 1].label, icon: <ChevronRight /> }
             : live
               ? { onContinue: () => router.push('/studio/property-sites'), continueLabel: 'Close', disabled: autoPublishing || saving, icon: <X /> }
-              : { onContinue: () => publish(), continueLabel: 'Publish', busy: publishing, icon: <Globe /> })} />
+              : { onContinue: () => publish(), continueLabel: publishPending ? 'Soon' : 'Publish', busy: publishing || publishPending, icon: <Globe /> })} />
 
         {/* Back / Next (computers; phones use the flow bar above) */}
         <div className="fixed inset-x-0 bottom-0 z-30 hidden border-t border-gray-200/80 bg-white/90 dark:border-white/10 dark:bg-[#111113]/90 sm:block">
@@ -1591,7 +1710,7 @@ function PropertySiteEditorPage() {
         )}
       </AnimatePresence>
 
-      <PhonePagePreview open={phonePreview} onClose={() => setPhonePreview(false)} src={`/spotlight-preview/${templateId}?site=${site.id}`} label={`${site.slug}.openhousepal.com`} />
+      <PhonePagePreview open={phonePreview} onClose={() => setPhonePreview(false)} src={`/spotlight-preview/${templateId}?site=${site.id}`} label={siteLabel} />
     </div>
   )
 }
@@ -1636,15 +1755,15 @@ function TownFactsEditor({ facts, onChange }: { facts: TownFacts; onChange: (f: 
   return (
     <div className="mt-4 grid gap-3 lg:grid-cols-2">
       <Group tone="bg-amber-50 text-amber-900 dark:bg-amber-500/10 dark:text-amber-200" title="One line about the town" wide>
-        <input value={facts.tagline || ''} onChange={e => onChange({ ...facts, tagline: e.target.value })} className={input} placeholder="One line about the town" />
+        <GrowInput value={facts.tagline || ''} onChange={v => onChange({ ...facts, tagline: v })} className={input} placeholder="One line about the town" />
       </Group>
       <Group tone="bg-violet-50 text-violet-900 dark:bg-violet-500/10 dark:text-violet-200" title="Known for">
         <StringListEditor items={facts.known_for || []} onChange={v => onChange({ ...facts, known_for: v })} max={6} placeholder="e.g. Historic King Street" />
       </Group>
       <Group tone="bg-rose-50 text-rose-900 dark:bg-rose-500/10 dark:text-rose-200" title="Downtown">
         <div className="grid gap-2 sm:grid-cols-2">
-          <input value={dt.name || ''} onChange={e => onChange({ ...facts, downtown: { ...dt, name: e.target.value } })} className={input} placeholder="Name (e.g. King Street)" />
-          <input value={dt.where || ''} onChange={e => onChange({ ...facts, downtown: { ...dt, where: e.target.value } })} className={input} placeholder="Where it is" />
+          <GrowInput value={dt.name || ''} onChange={v => onChange({ ...facts, downtown: { ...dt, name: v } })} className={input} placeholder="Name (e.g. King Street)" />
+          <GrowInput value={dt.where || ''} onChange={v => onChange({ ...facts, downtown: { ...dt, where: v } })} className={input} placeholder="Where it is" />
         </div>
         <div className="mt-2"><StringListEditor items={dt.highlights || []} onChange={v => onChange({ ...facts, downtown: { ...dt, highlights: v } })} max={4} placeholder="What's there" /></div>
       </Group>
@@ -1657,8 +1776,8 @@ function TownFactsEditor({ facts, onChange }: { facts: TownFacts; onChange: (f: 
             // Phones: the place gets the whole line, the time and the bin sit under it (two narrow
             // boxes side by side cut both off - "Center City Ph").
             <div key={i} className="flex flex-wrap gap-2 rounded-xl bg-white/40 p-1.5 dark:bg-black/10 sm:flex-nowrap sm:rounded-none sm:bg-transparent sm:p-0 sm:dark:bg-transparent">
-              <input value={g.label} onChange={e => onChange({ ...facts, getting_around: around.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} className={`${input} basis-full sm:basis-auto`} placeholder="Destination or line" />
-              <input value={g.detail || ''} onChange={e => onChange({ ...facts, getting_around: around.map((x, j) => (j === i ? { ...x, detail: e.target.value } : x)) })} className={`${input} min-w-0 flex-1 sm:flex-initial`} placeholder="about 40 min" />
+              <div className="basis-full sm:min-w-0 sm:flex-1 sm:basis-auto"><GrowInput value={g.label} onChange={v => onChange({ ...facts, getting_around: around.map((x, j) => (j === i ? { ...x, label: v } : x)) })} className={input} placeholder="Destination or line" /></div>
+              <div className="min-w-0 flex-1 sm:max-w-[45%]"><GrowInput value={g.detail || ''} onChange={v => onChange({ ...facts, getting_around: around.map((x, j) => (j === i ? { ...x, detail: v } : x)) })} className={input} placeholder="about 40 min" /></div>
               <button onClick={() => onChange({ ...facts, getting_around: around.filter((_, j) => j !== i) })} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg opacity-60 hover:bg-white hover:text-red-600 hover:opacity-100 sm:block sm:h-auto sm:w-auto sm:p-2" aria-label="Remove"><Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" /></button>
             </div>
           ))}
@@ -1673,7 +1792,7 @@ function TownFactsEditor({ facts, onChange }: { facts: TownFacts; onChange: (f: 
         <StringListEditor items={facts.outdoors || []} onChange={v => onChange({ ...facts, outdoors: v })} max={4} placeholder="e.g. Chester Valley Trail" />
       </Group>
       <Group tone="bg-orange-50 text-orange-900 dark:bg-orange-500/10 dark:text-orange-200" title="New in town (optional)" wide>
-        <input value={facts.whats_new || ''} onChange={e => onChange({ ...facts, whats_new: e.target.value })} className={input} placeholder="Something new that just opened" />
+        <GrowInput value={facts.whats_new || ''} onChange={v => onChange({ ...facts, whats_new: v })} className={input} placeholder="Something new that just opened" />
       </Group>
     </div>
   )
@@ -1751,22 +1870,125 @@ function AutoTextarea({ value, onChange, className }: { value: string; onChange:
   return <textarea ref={ref} value={value} onChange={e => onChange(e.target.value)} rows={4} className={className} />
 }
 
+// A "one line" field that wraps onto as many lines as its text needs (owner, 10/24: on a phone the
+// long town line sat in a single-line box you had to scroll sideways in). Enter never adds a line
+// break - it stays one line of text, just shown in full.
+function GrowInput({ value, onChange, className, placeholder, onEnter }: { value: string; onChange: (v: string) => void; className: string; placeholder?: string; onEnter?: () => void }) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  const fit = useCallback(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight + 2}px`
+  }, [])
+  useEffect(fit, [value, fit])
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    let w = el.clientWidth
+    const ro = new ResizeObserver(() => { if (el.clientWidth !== w) { w = el.clientWidth; fit() } })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [fit])
+  return (
+    <textarea ref={ref} rows={1} value={value} placeholder={placeholder}
+      onChange={e => onChange(e.target.value.replace(/\s*\n\s*/g, ' '))}
+      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onEnter?.() } }}
+      className={`${className} block resize-none overflow-hidden leading-snug`} />
+  )
+}
+
+// Sends one file straight to an editor upload route with real progress (fetch can't report it).
+function uploadWithProgress(path: string, file: File, onProgress: (pct: number) => void): Promise<string | null> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${API_BASE_URL}${path}`)
+    const token = getToken()
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.upload.onprogress = e => { if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100)) }
+    xhr.onload = () => {
+      let body: { url?: string; detail?: unknown } | null = null
+      try { body = JSON.parse(xhr.responseText) } catch { /* not JSON */ }
+      if (xhr.status >= 200 && xhr.status < 300) { resolve(body?.url || null); return }
+      // The server's own reason ("too big", "not a real PDF", "up to 10 documents") - shown as is.
+      reject(new Error(typeof body?.detail === 'string' ? body.detail : xhr.status === 413 ? 'That file is too big.' : "It didn't upload - try again in a moment."))
+    }
+    xhr.onerror = () => resolve(null)
+    const form = new FormData()
+    form.append('file', file)
+    xhr.send(form)
+  })
+}
+
+// Same limits the server enforces (backend property_website_service: _DOCUMENT_MAX_BYTES etc.) -
+// checked here first so a too-big file is turned away before it spends minutes uploading.
+const MB = 1024 * 1024
+const UPLOAD_LIMITS = {
+  documents: { max: 10, types: ['application/pdf', 'image/jpeg', 'image/png'], bytes: (f: File) => (f.type === 'application/pdf' ? 25 : 15) * MB },
+  floorPlans: { max: 10, types: ['image/jpeg', 'image/png'], bytes: () => 12 * MB },
+}
+const mbText = (n: number) => `${Math.round(n / MB)}MB`
+
+const fileLabel = (name: string) => name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim()
+
 // Floor plans / documents: title, count and the add buttons on one line; each file a tidy row.
-function FileList({ icon: Icon, title, hint, accept, rows, onChange, onUpload }: {
+// 10/24 (owner): pick several files at once (they upload side by side, each with its own progress
+// bar), and every file's name is a plainly editable bar - that's the name visitors see.
+function FileList({ icon: Icon, title, hint, accept, rows, onChange, onUpload, onAdded, nameHint, limits }: {
   icon: typeof FileText; title: string; hint: string; accept: string
+  limits: { max: number; types: string[]; bytes: (f: File) => number }
   rows: { label: string; url: string }[]
   onChange: (rows: { label: string; url: string }[]) => void
-  onUpload: (file: File) => Promise<string | null>
+  onUpload: (file: File, onProgress: (pct: number) => void) => Promise<string | null>
+  /** After a successful upload (e.g. switch the page's Documents section on). */
+  onAdded?: () => void
+  nameHint?: string
 }) {
-  const [busy, setBusy] = useState(false)
+  const [pending, setPending] = useState<{ key: string; name: string; pct: number }[]>([])
   const [err, setErr] = useState('')
-  const add = async (file: File) => {
-    setBusy(true); setErr('')
-    const url = await onUpload(file)
-    setBusy(false)
-    if (url) onChange([...rows, { label: file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' '), url }])
-    else setErr('Upload failed - check the file type and size.')
+  const rowsRef = useRef(rows)
+  rowsRef.current = rows
+  const add = async (picked: File[]) => {
+    if (!picked.length) return
+    setErr('')
+    // Checked before anything is sent: type, size, and how many fit (owner, 10/24).
+    const problems: string[] = []
+    const room = Math.max(0, limits.max - rowsRef.current.length - pending.length)
+    const ok = picked.filter(f => {
+      if (!limits.types.includes(f.type)) { problems.push(`"${f.name}" isn't a ${limits.types.includes('application/pdf') ? 'PDF, JPG or PNG' : 'JPG or PNG'}`); return false }
+      if (f.size > limits.bytes(f)) { problems.push(`"${f.name}" is ${mbText(f.size)} - the limit is ${mbText(limits.bytes(f))}`); return false }
+      return true
+    })
+    const files = ok.slice(0, room)
+    if (ok.length > room) problems.push(room ? `only ${room} more fit${room === 1 ? 's' : ''} (up to ${limits.max})` : `this page already has the most it can hold (${limits.max}) - remove one first`)
+    if (problems.length) setErr(`${problems.join('; ')}.`.replace(/^./, c => c.toUpperCase()))
+    if (!files.length) return
+    const jobs = files.map((f, i) => ({ key: `${Date.now()}-${i}`, file: f }))
+    setPending(p => [...p, ...jobs.map(j => ({ key: j.key, name: fileLabel(j.file.name) || j.file.name, pct: 0 }))])
+    const failed: string[] = []
+    const reasons: string[] = []
+    // Three at a time - side by side is faster, but a phone's upload doesn't get split too thin.
+    const queue = [...jobs]
+    const worker = async () => {
+      for (let job = queue.shift(); job; job = queue.shift()) {
+        const j = job
+        let url: string | null = null
+        try { url = await onUpload(j.file, pct => setPending(p => p.map(x => (x.key === j.key ? { ...x, pct } : x)))) }
+        catch (e) { reasons.push(`"${j.file.name}": ${(e as Error).message}`) }
+        setPending(p => p.filter(x => x.key !== j.key))
+        if (url) {
+          const next = [...rowsRef.current, { label: fileLabel(j.file.name) || 'Document', url }]
+          rowsRef.current = next
+          onChange(next)
+          onAdded?.()
+        } else if (!reasons.some(r => r.startsWith(`"${j.file.name}"`))) failed.push(j.file.name)
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(3, jobs.length) }, worker))
+    if (reasons.length) setErr(e => `${e ? `${e} ` : ''}${reasons.join(' ')}`)
+    if (failed.length) setErr(e => `${e ? `${e} ` : ''}${failed.length === 1 ? `"${failed[0]}" didn't upload` : `${failed.length} files didn't upload`} - try again in a moment.`)
   }
+  const busy = pending.length > 0
   return (
     <div className="min-w-0 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
       {/* Phones: title and hint get the whole line, Upload / Link sit under it at full width. */}
@@ -1778,26 +2000,44 @@ function FileList({ icon: Icon, title, hint, accept, rows, onChange, onUpload }:
         </div>
         <div className="mt-1 grid w-full grid-cols-[1fr_auto] gap-2 sm:mt-0 sm:flex sm:w-auto">
           <label className="inline-flex min-h-[44px] shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-[#C9A24D] px-3 py-2 text-[13px] font-black text-[#111827] transition hover:brightness-110 active:scale-[.98] sm:min-h-0 sm:text-[11px]">
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Upload
-            <input type="file" accept={accept} className="hidden" onChange={e => { const f = e.target.files?.[0]; e.currentTarget.value = ''; if (f) void add(f) }} />
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} {busy ? 'Uploading…' : 'Upload'}
+            <input type="file" multiple accept={accept} className="hidden" onChange={e => { const fs = Array.from(e.target.files || []); e.currentTarget.value = ''; void add(fs) }} />
           </label>
           <button onClick={() => onChange([...rows, { label: '', url: '' }])} className="inline-flex min-h-[44px] shrink-0 items-center justify-center gap-1 rounded-lg border border-gray-200 px-4 py-2 text-[13px] font-black text-gray-500 hover:border-[#C9A24D] dark:border-gray-700 sm:min-h-0 sm:px-2.5 sm:text-[11px]" title="Add a link instead">
             <Plus className="h-3.5 w-3.5" /> Link
           </button>
         </div>
       </div>
-      {rows.length > 0 && (
-        <ul className="mt-3 space-y-1.5">
+      {(rows.length > 0 || pending.length > 0) && (
+        <ul className="mt-3 space-y-2">
           {rows.map((r, i) => (
-            <motion.li key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }} className="flex items-center gap-2 rounded-lg bg-gray-50 p-1.5 dark:bg-white/5">
-              {/\.(jpe?g|png|webp)(\?|$)/i.test(r.url) ? <img src={r.url} alt="" className="h-8 w-10 shrink-0 rounded object-cover" /> : <span className="flex h-8 w-10 shrink-0 items-center justify-center rounded bg-white text-gray-400 dark:bg-black/30"><FileText className="h-4 w-4" /></span>}
-              <input value={r.label} onChange={e => onChange(rows.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} placeholder="Name" className="min-w-0 flex-1 bg-transparent text-[14px] font-bold text-[#111827] outline-none dark:text-white sm:text-xs" />
-              {!r.url && <input value={r.url} onChange={e => onChange(rows.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))} placeholder="https://…" className="min-w-0 flex-1 rounded border border-gray-200 bg-white px-2 py-1.5 text-[13px] outline-none dark:border-gray-700 dark:bg-black/20 dark:text-white sm:py-1 sm:text-[11px]" />}
-              <button onClick={() => onChange(rows.filter((_, j) => j !== i))} className="grid h-10 w-10 shrink-0 place-items-center rounded text-gray-400 hover:bg-red-50 hover:text-red-600 sm:block sm:h-auto sm:w-auto sm:p-1.5" aria-label="Remove"><Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" /></button>
+            <motion.li key={r.url || `row-${i}`} layout initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }} className="rounded-xl bg-gray-50 p-2 dark:bg-white/5">
+              <div className="flex items-center gap-2">
+                {/\.(jpe?g|png|webp)(\?|$)/i.test(r.url) ? <img src={r.url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" /> : <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[#C9A24D] dark:bg-black/30"><FileText className="h-4 w-4" /></span>}
+                <label className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-2.5 transition focus-within:border-[#C9A24D] focus-within:ring-2 focus-within:ring-[#C9A24D]/15 dark:border-gray-700 dark:bg-black/25">
+                  <span className="sr-only">Name visitors see</span>
+                  <input value={r.label} onChange={e => onChange(rows.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} placeholder="Name it (e.g. Seller's disclosure)"
+                    className="h-10 min-w-0 flex-1 bg-transparent text-[16px] font-bold text-[#111827] outline-none dark:text-white sm:h-9 sm:text-xs" />
+                  <Pencil className="h-3.5 w-3.5 shrink-0 text-gray-400" aria-hidden />
+                </label>
+                <button onClick={() => onChange(rows.filter((_, j) => j !== i))} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600" aria-label="Remove"><Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" /></button>
+              </div>
+              {!r.url && <input value={r.url} onChange={e => onChange(rows.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))} placeholder="Paste the link - https://…" className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-[16px] outline-none dark:border-gray-700 dark:bg-black/20 dark:text-white sm:text-[11px]" />}
             </motion.li>
+          ))}
+          {pending.map(p => (
+            <li key={p.key} className="flex items-center gap-2 rounded-xl bg-[#C9A24D]/[0.07] p-2">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[#C9A24D] dark:bg-black/30"><Loader2 className="h-4 w-4 animate-spin" /></span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-bold text-[#111827] dark:text-white sm:text-xs">{p.name}</p>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#C9A24D]/15"><div className="h-full rounded-full bg-[#C9A24D] transition-[width] duration-300" style={{ width: `${Math.max(4, p.pct)}%` }} /></div>
+              </div>
+              <span className="w-12 shrink-0 text-right text-[11px] font-black tabular-nums text-[#8b7355]">{p.pct >= 100 ? 'Saving' : `${p.pct}%`}</span>
+            </li>
           ))}
         </ul>
       )}
+      {rows.length > 0 && nameHint && <p className="mt-2 text-[10px] font-semibold text-gray-400">{nameHint}</p>}
       {err && <p className="mt-2 text-[11px] font-bold text-red-600">{err}</p>}
     </div>
   )
@@ -1858,13 +2098,10 @@ function StringListEditor({
       )}
       {items.length < max && (
         <div className="flex items-center gap-2">
-          <input
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
-            placeholder={placeholder}
-            className="h-11 min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[14px] font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-800 dark:bg-[#1A1A1C] dark:text-white sm:h-auto sm:text-xs"
-          />
+          <div className="min-w-0 flex-1">
+            <GrowInput value={draft} onChange={setDraft} onEnter={add} placeholder={placeholder}
+              className="min-h-[44px] w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-[14px] font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-800 dark:bg-[#1A1A1C] dark:text-white sm:min-h-0 sm:py-2 sm:text-xs" />
+          </div>
           <button onClick={add} className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 sm:block sm:h-auto sm:w-auto sm:p-2" aria-label="Add">
             <Plus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
           </button>
@@ -2000,7 +2237,7 @@ function LiveOpenHouses({ siteId, refreshKey, onRows }: { siteId: string; refres
   if (rows === null) return <div className="flex items-center gap-2 text-xs font-bold text-gray-400"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking your schedule…</div>
   if (!rows.length) return (
     <p className="rounded-xl border border-dashed border-gray-200 px-4 py-3 text-xs font-semibold text-gray-500 dark:border-gray-800 dark:text-gray-400">
-      No upcoming open houses for this home right now. Schedule one in the <a href="/open-houses" className="font-black text-[#8b7355] hover:underline">Open House Manager</a> and it appears on the page by itself.
+      No upcoming open houses for this home right now. One you post in Bright MLS or schedule in the <a href="/open-houses" className="font-black text-[#8b7355] hover:underline">Open House Manager</a> appears on the page by itself.
     </p>
   )
   return (

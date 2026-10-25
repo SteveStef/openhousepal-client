@@ -12,6 +12,7 @@ import api from '@/lib/api-service'
 import { formatNumberWithCommas, sanitizeNumericInput, stripCommas } from '@/lib/utils'
 import { FORM_LOOK_CSS, formLookClass, formLookVars, formPaint, type FormLook } from '@/lib/formLook'
 import WhenPicker, { WhenField, WhenSheet, emptyWhen } from '@/components/ui/WhenPicker'
+import { AreaPicker, ShowcaseCard, ShowcaseTrail, WHEEL_CSS, WheelPicker, emptyLabelOf, isAreaField, pickerKindOf, pickerOptions, questionHasAnswer, showcaseStepOf, stateNameOf, useCoarsePointer } from '@/components/forms/FormRunnerParts'
 
 export interface FormRunnerBranding {
   title: string
@@ -23,6 +24,8 @@ export interface FormRunnerBranding {
   agentPhotoUrl?: string | null
   agentTitle?: string | null
   agentMarket?: string | null
+  /** The state the agent serves ("PA") - a form's State answer starts there. */
+  agentState?: string | null
 }
 
 interface FormRunnerProps {
@@ -242,6 +245,8 @@ export function WelcomeMotionBackdrop({ accent, light = false, intro = false }: 
     { className: 'sm:right-[4%] sm:top-[max(44px,9%)]', phone: null, delay: 0.45, label: 'Near Parks', value: '0.4 mi', icon: MapPin },
     { className: 'sm:left-[calc(50%-66px)] sm:top-[max(32px,6%)]', phone: 'max-sm:right-3 max-sm:top-7', delay: 0.75, label: 'Tour Ready', value: 'Today', icon: Sparkles },
   ]
+  // A short screen (a phone turned sideways) has no room around the form - the big panels and
+  // floating cards stay off there so they never sit on top of the questions (user, 10/24).
   // Panel fills/strokes are strong enough to read on both the light theme's near-white backdrop
   // and the dark theme's near-black one - the old sketch panels here used a white/30-35 fill,
   // which is essentially invisible against the light theme's own near-white background.
@@ -268,12 +273,14 @@ export function WelcomeMotionBackdrop({ accent, light = false, intro = false }: 
           ...edgeFade,
         }}
       />
-      <div className={lt('absolute inset-0 bg-[linear-gradient(90deg,rgba(17,24,39,0.055)_1px,transparent_1px),linear-gradient(180deg,rgba(17,24,39,0.055)_1px,transparent_1px)] bg-[size:44px_44px] opacity-80 dark:opacity-25')} style={edgeFade} />
+      {/* The grid: dark lines on a light page, light ones on a dark page (dark-on-dark lines were
+          invisible - the effects looked switched off on every Midnight form, user 10/24). */}
+      <div className={lt('absolute inset-0 bg-[linear-gradient(90deg,rgba(17,24,39,0.055)_1px,transparent_1px),linear-gradient(180deg,rgba(17,24,39,0.055)_1px,transparent_1px)] bg-[size:44px_44px] opacity-80 dark:bg-[linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.06)_1px,transparent_1px)] dark:opacity-100')} style={edgeFade} />
 
       {/* Listing card: a little house with a warm glinting window and a rising-value tag */}
       <motion.div
         aria-hidden
-        className={`absolute -left-6 top-28 hidden h-64 w-60 rounded-[2rem] p-5 sm:block ${panelShell}`}
+        className={`absolute -left-6 top-28 hidden h-64 w-60 rounded-[2rem] p-5 sm:block [@media(max-height:620px)]:!hidden ${panelShell}`}
         initial={{ opacity: 0, rotate: -6, y: 18 }}
         animate={{ opacity: 1, rotate: [-6, -3, -6], y: [0, -10, 0] }}
         transition={{ opacity: { duration: 0.8 }, rotate: { duration: 9, repeat: Infinity, ease: 'easeInOut' }, y: { duration: 9, repeat: Infinity, ease: 'easeInOut' } }}
@@ -306,7 +313,7 @@ export function WelcomeMotionBackdrop({ accent, light = false, intro = false }: 
       {/* Nearby/route card: a pin at the end of an animated route across a mini map */}
       <motion.div
         aria-hidden
-        className={`absolute -right-8 bottom-6 hidden h-52 w-64 rounded-[2rem] p-5 sm:block ${panelShell}`}
+        className={`absolute -right-8 bottom-6 hidden h-52 w-64 rounded-[2rem] p-5 sm:block [@media(max-height:620px)]:!hidden ${panelShell}`}
         initial={{ opacity: 0, rotate: 6, y: 20 }}
         animate={{ opacity: 1, rotate: [6, 3, 6], y: [0, 12, 0] }}
         transition={{ opacity: { duration: 0.8, delay: 0.2 }, rotate: { duration: 10, repeat: Infinity, ease: 'easeInOut' }, y: { duration: 10, repeat: Infinity, ease: 'easeInOut' } }}
@@ -354,10 +361,12 @@ export function WelcomeMotionBackdrop({ accent, light = false, intro = false }: 
       {floatingCards.map(card => {
         const Icon = card.icon
         const onPhone = intro && card.phone
+        // "Tour Ready" sits top-centre - on a question page that's right under the agent's pill.
+        if (!intro && card.label === 'Tour Ready') return null
         return (
           <motion.div
             key={card.label}
-            className={lt(`absolute ${onPhone ? `block ${card.phone}` : 'hidden'} min-w-[118px] rounded-2xl border border-white/80 bg-white/80 p-2.5 text-left shadow-[0_18px_50px_rgba(17,24,39,0.12)] dark:border-white/10 dark:bg-[#171719]/80 sm:block sm:min-w-[132px] sm:p-3 ${card.className}`)}
+            className={lt(`absolute ${onPhone ? `block ${card.phone}` : 'hidden'} min-w-[118px] rounded-2xl border border-white/80 bg-white/80 p-2.5 text-left shadow-[0_18px_50px_rgba(17,24,39,0.12)] dark:border-white/10 dark:bg-[#171719]/80 sm:block sm:min-w-[132px] sm:p-3 [@media(max-height:620px)]:!hidden ${card.className}`)}
             initial={{ opacity: 0, y: 18, scale: 0.94 }}
             animate={{ opacity: 1, y: [0, -9, 0], scale: 1 }}
             transition={{ opacity: { duration: 0.55, delay: card.delay }, y: { duration: 5.8, delay: card.delay, repeat: Infinity, ease: 'easeInOut' }, scale: { duration: 0.55, delay: card.delay } }}
@@ -377,7 +386,7 @@ export function WelcomeMotionBackdrop({ accent, light = false, intro = false }: 
       {/* Sits in the gap between the top-left listing panel and the bottom-left "New Match" card,
           instead of on top of the listing panel like before. */}
       <motion.div
-        className={lt('absolute left-[3%] top-[58%] hidden h-12 w-12 items-center justify-center rounded-2xl border border-white/80 bg-white/80 shadow-lg dark:border-white/10 dark:bg-white/10 sm:flex')}
+        className={lt('absolute left-[3%] top-[58%] hidden h-12 w-12 items-center justify-center rounded-2xl border border-white/80 bg-white/80 shadow-lg dark:border-white/10 dark:bg-white/10 sm:flex [@media(max-height:620px)]:!hidden')}
         initial={{ opacity: 0, y: 12, rotate: -8 }}
         animate={{ opacity: 1, y: [0, -8, 0], rotate: [-8, -2, -8] }}
         transition={{ opacity: { duration: 0.7, delay: 0.25 }, y: { duration: 5, repeat: Infinity, ease: 'easeInOut' }, rotate: { duration: 5, repeat: Infinity, ease: 'easeInOut' } }}
@@ -387,7 +396,7 @@ export function WelcomeMotionBackdrop({ accent, light = false, intro = false }: 
       {/* Sits in the gap between the top-right "Near Parks" card and the bottom-right route panel,
           instead of stacked on either. */}
       <motion.div
-        className={lt('absolute right-[5%] top-[46%] hidden h-12 w-12 items-center justify-center rounded-2xl border border-white/80 bg-white/80 shadow-lg dark:border-white/10 dark:bg-white/10 sm:flex')}
+        className={lt('absolute right-[5%] top-[46%] hidden h-12 w-12 items-center justify-center rounded-2xl border border-white/80 bg-white/80 shadow-lg dark:border-white/10 dark:bg-white/10 sm:flex [@media(max-height:620px)]:!hidden')}
         initial={{ opacity: 0, y: 16, rotate: 8 }}
         animate={{ opacity: 1, y: [0, 10, 0], rotate: [8, 3, 8] }}
         transition={{ opacity: { duration: 0.7, delay: 0.45 }, y: { duration: 6, repeat: Infinity, ease: 'easeInOut' }, rotate: { duration: 6, repeat: Infinity, ease: 'easeInOut' } }}
@@ -805,31 +814,89 @@ function isQuestionVisible(question: FormQuestion, answers: AnswersState): boole
 
 // The input control for a single question, shared by every layout so none of them duplicate
 // per-question-type rendering.
-function renderQuestionField(question: FormQuestion, answers: AnswersState, setAnswer: (questionId: string, value: AnswerValue) => void, accent: string) {
+type FieldOpts = {
+  /** A single-choice answer was tapped - move on to the next question. */
+  onChoose?: (questionId: string) => void
+  /** Phones: never focus a text box by itself (it pops the keyboard and shifts the page). */
+  noAutoFocus?: boolean
+  /** A home-search question in the Showcase builder look (chips instead of full-width rows). */
+  showcase?: boolean
+}
+
+function renderQuestionField(question: FormQuestion, answers: AnswersState, setAnswer: (questionId: string, value: AnswerValue) => void, accent: string, opts: FieldOpts = {}) {
   const value = answers[question.id]
   const textValue = typeof value === 'string' ? value : ''
   const arrayValue = Array.isArray(value) ? value : []
 
   if (question.type === 'contact_group') {
     const fields = question.fields || []
+    // "Where are you looking?" - towns OR school districts OR counties, each picked in a sheet.
+    if (fields.some(field => isAreaField(field.type))) {
+      return (
+        <AreaPicker
+          fields={fields.map(field => ({ id: field.id, type: field.type, label: field.label, options: field.options }))}
+          answers={answers}
+          setAnswer={setAnswer}
+          accent={accent}
+          apiFor={type => type === 'city_multiselect' ? api.properties.citiesPublic : type === 'school_district_multiselect' ? api.properties.schoolDistrictsPublic : api.properties.countiesPublic}
+        />
+      )
+    }
     // When every field in the group is a plain number/currency (price, beds, acres, sqft, build
     // year - everything except the location screen), one chip clears them all at once instead of
-    // making the visitor blank out each input by hand.
+    // making the visitor blank out each input by hand - and moves on, like any single choice.
     const isAllNumeric = fields.length > 0 && fields.every(field => field.type === 'number' || field.type === 'currency')
     const isAnySelected = isAllNumeric && fields.every(field => !answers[field.id] || answers[field.id] === '')
+    const wheels = fields.filter(field => pickerKindOf(field))
+    // Min / max side by side: two wheels in one row.
+    const wheelPair = isAllNumeric && wheels.length === fields.length && fields.length === 2
+    const wheelOf = (field: (typeof fields)[number]) => {
+      const kind = pickerKindOf(field)!
+      const current = typeof answers[field.id] === 'string' ? (answers[field.id] as string) : ''
+      return (
+        <WheelPicker
+          options={pickerOptions(kind, field, emptyLabelOf(field, true), current)}
+          value={current}
+          onChange={next => setAnswer(field.id, next)}
+          accent={accent}
+          label={field.label}
+          compact={wheels.length >= 3}
+        />
+      )
+    }
     return (
-      <div className="space-y-5 text-left">
+      <div className={`${wheelPair ? 'space-y-4' : 'space-y-5'} text-left`}>
         {isAllNumeric && (
-          <button
+          <motion.button
             type="button"
-            onClick={() => fields.forEach(field => setAnswer(field.id, ''))}
-            className="inline-flex items-center gap-1.5 rounded-full border-2 px-4 py-1.5 text-xs font-black transition-all"
-            style={isAnySelected ? { borderColor: accent, backgroundColor: `${accent}1A`, color: accent } : { borderColor: '#e5e7eb' }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => { fields.forEach(field => setAnswer(field.id, '')); opts.onChoose?.(question.id) }}
+            className={`inline-flex items-center gap-1.5 rounded-full border-2 px-4 py-2 text-xs font-black transition-colors ${isAnySelected ? '' : 'border-gray-200 bg-white text-[#374151] hover:border-gray-300 dark:border-white/15 dark:bg-[#151517] dark:text-gray-100'}`}
+            style={isAnySelected ? { borderColor: accent, backgroundColor: `${accent}1A`, color: accent } : undefined}
           >
             {isAnySelected && <Check className="h-3.5 w-3.5" />} Any / No preference
-          </button>
+          </motion.button>
         )}
-        {fields.map(field => {
+        {wheelPair ? (
+          <div className="grid grid-cols-2 gap-3">
+            {fields.map(field => (
+              <div key={field.id}>
+                <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">{field.label}</p>
+                {wheelOf(field)}
+              </div>
+            ))}
+          </div>
+        ) : fields.map(field => {
+          if (pickerKindOf(field)) {
+            return (
+              <div key={field.id}>
+                <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+                  {field.label}{field.required && <span style={{ color: accent }}> *</span>}
+                </p>
+                <div className="mx-auto max-w-[260px]">{wheelOf(field)}</div>
+              </div>
+            )
+          }
           if (field.type === 'city_multiselect' || field.type === 'school_district_multiselect' || field.type === 'county_multiselect') {
             const fieldValues = Array.isArray(answers[field.id]) ? (answers[field.id] as string[]) : []
             const apiMethod = field.type === 'city_multiselect' ? api.properties.citiesPublic : field.type === 'school_district_multiselect' ? api.properties.schoolDistrictsPublic : api.properties.countiesPublic
@@ -961,11 +1028,13 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
         {(question.options || []).map((option, optionIndex) => {
           const selected = textValue === option
           return (
-            <button
+            <motion.button
               key={`${question.id}-${optionIndex}`}
               type="button"
-              onClick={() => setAnswer(question.id, option)}
-              className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 text-left text-sm font-bold transition-all ${
+              whileTap={{ scale: 0.97 }}
+              // One tap answers it and moves on - no Continue needed for a single choice.
+              onClick={() => { setAnswer(question.id, option); opts.onChoose?.(question.id) }}
+              className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 text-left text-sm font-bold transition-colors ${
                 selected
                   ? 'text-[#0B0B0B] dark:text-white'
                   : 'border-gray-200 bg-white text-[#0B0B0B] hover:border-gray-300 dark:border-gray-700 dark:bg-[#151517] dark:text-white'
@@ -974,7 +1043,38 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
             >
               {option}
               {selected && <Check className="h-4 w-4 shrink-0" style={{ color: accent }} />}
-            </button>
+            </motion.button>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // Pick-all-that-apply as chips that wrap (the Showcase creator's look) - a long list of short
+  // options (key features: 10) fits on a phone screen with no scrolling inside the question.
+  if (question.type === 'multi_select' && (opts.showcase || ((question.options || []).length >= 6 && (question.options || []).every(o => o.length <= 26)))) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        {(question.options || []).map((option, optionIndex) => {
+          const selected = arrayValue.includes(option)
+          return (
+            <motion.button
+              key={`${question.id}-${optionIndex}`}
+              type="button"
+              whileTap={{ scale: 0.92 }}
+              onClick={() => setAnswer(question.id, selected ? arrayValue.filter(item => item !== option) : [...arrayValue, option])}
+              className={`inline-flex items-center gap-1.5 rounded-full border-2 px-4 py-2.5 text-sm font-bold transition-colors ${selected ? 'text-[#0B0B0B] dark:text-white' : 'border-gray-200 bg-white text-[#374151] hover:border-gray-300 dark:border-white/15 dark:bg-[#151517] dark:text-gray-100'}`}
+              style={selected ? { borderColor: accent, backgroundColor: `${accent}1F` } : undefined}
+            >
+              <AnimatePresence initial={false}>
+                {selected && (
+                  <motion.span key="c" initial={{ width: 0, opacity: 0, scale: 0 }} animate={{ width: 'auto', opacity: 1, scale: 1 }} exit={{ width: 0, opacity: 0, scale: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 30 }} className="inline-flex">
+                    <Check className="h-3.5 w-3.5" strokeWidth={3} style={{ color: accent }} />
+                  </motion.span>
+                )}
+              </AnimatePresence>
+              {option}
+            </motion.button>
           )
         })}
       </div>
@@ -1013,7 +1113,7 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
   if (question.type === 'long_text') {
     return (
       <textarea
-        autoFocus
+        autoFocus={!opts.noAutoFocus}
         rows={4}
         value={textValue}
         onChange={event => setAnswer(question.id, event.target.value)}
@@ -1047,12 +1147,23 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
     )
   }
 
+  // Price / bedrooms / baths / square feet / lot / build year on their own: one scroll wheel, no keyboard.
+  const soloKind = pickerKindOf(question)
+  if (soloKind) {
+    return (
+      <div className="mx-auto max-w-[280px]">
+        <WheelPicker options={pickerOptions(soloKind, question, emptyLabelOf(question, false), textValue)} value={textValue}
+          onChange={next => setAnswer(question.id, next)} accent={accent} label={question.label} />
+      </div>
+    )
+  }
+
   if (question.type === 'currency') {
     return (
       <div className="relative">
         <span className="pointer-events-none absolute bottom-3 left-1 text-xl font-bold text-gray-400">$</span>
         <input
-          autoFocus
+          autoFocus={!opts.noAutoFocus}
           type="text"
           inputMode="decimal"
           value={formatNumberWithCommas(textValue)}
@@ -1080,7 +1191,7 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
     return (
       <div className="relative">
         <input
-          autoFocus
+          autoFocus={!opts.noAutoFocus}
           type="text"
           inputMode="decimal"
           value={formatNumberWithCommas(textValue)}
@@ -1100,7 +1211,7 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
   return (
     <div className="relative">
       <input
-        autoFocus
+        autoFocus={!opts.noAutoFocus}
         autoComplete={fieldAutoComplete(question)}
         type={question.type === 'email' ? 'email' : question.type === 'phone' ? 'tel' : 'text'}
         value={formatAsNumericText ? formatNumericTextWithCommas(textValue) : textValue}
@@ -1150,7 +1261,7 @@ function fieldAutoComplete(field: { id: string; type: string; label?: string }):
 }
 
 // Submit-error message + Next/Back controls, shared by every layout.
-function QuestionNavButtons({ isLastStep, canAdvance, submitting, submitError, onNext, onBack, accent }: {
+function QuestionNavButtons({ isLastStep, canAdvance, submitting, submitError, onNext, onBack, accent, tapToAnswer = false, canSkip = false }: {
   isLastStep: boolean
   canAdvance: boolean
   submitting: boolean
@@ -1158,7 +1269,24 @@ function QuestionNavButtons({ isLastStep, canAdvance, submitting, submitError, o
   onNext: () => void
   onBack: () => void
   accent: string
+  /** A single choice: tapping an answer moves on, so there's no Next - just Back (and Skip when it's optional). */
+  tapToAnswer?: boolean
+  canSkip?: boolean
 }) {
+  if (tapToAnswer && !isLastStep) {
+    return (
+      <div className="mt-7 flex items-center gap-5">
+        <button type="button" onClick={onBack} disabled={submitting} className="text-sm font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+          Back
+        </button>
+        {canSkip && (
+          <button type="button" onClick={onNext} className="inline-flex items-center gap-1 text-sm font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+            Skip <ChevronDown className="h-4 w-4 -rotate-90" />
+          </button>
+        )}
+      </div>
+    )
+  }
   return (
     <>
       {submitError && (
@@ -1225,12 +1353,17 @@ export default function FormRunner({ questions, branding, successHeading, succes
   const introScrollAreaRef = useRef<HTMLDivElement>(null)
   const introContentRef = useRef<HTMLDivElement>(null)
   const [introScale, setIntroScale] = useState(1)
+  const [introShrink, setIntroShrink] = useState(0)
 
   // Prefill address-style fields from a linked property (and anything the host page passed in
   // `prefill`), without clobbering anything the visitor already typed.
+  // The home search's State starts as the state the agent serves (Peter -> Pennsylvania).
+  const agentStateName = stateNameOf(branding.agentState)
+  const hasStatePick = questions.some(question => (question.fields || []).some(field => field.id === 'state' && field.type === 'select'))
   useEffect(() => {
-    if (!linkedProperty && !prefill) return
+    if (!linkedProperty && !prefill && !(agentStateName && hasStatePick)) return
     const prefillMap: Record<string, string | null | undefined> = {
+      ...(agentStateName && hasStatePick ? { state: agentStateName } : {}),
       ...(linkedProperty ? { address_line1: linkedProperty.address, city: linkedProperty.city, state: linkedProperty.state, zip: linkedProperty.zipcode } : {}),
       ...(prefill || {}),
     }
@@ -1249,7 +1382,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
       return changed ? next : current
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linkedProperty, prefill, questions])
+  }, [linkedProperty, prefill, questions, agentStateName])
 
   const visibleQuestions = useMemo(() => questions.filter(question => isQuestionVisible(question, answers)), [questions, answers])
   const totalQuestions = visibleQuestions.length
@@ -1266,6 +1399,8 @@ export default function FormRunner({ questions, branding, successHeading, succes
     const out: Record<string, unknown> = {}
     for (const [id, value] of Object.entries(answers)) {
       if (value === undefined || value === null) continue
+      // the agent's own state, filled in for them - not something this visitor told us
+      if (id === 'state' && value === agentStateName) continue
       if (Array.isArray(value) ? value.length === 0 : String(value).trim() === '') continue
       out[id] = value
     }
@@ -1384,9 +1519,14 @@ export default function FormRunner({ questions, branding, successHeading, succes
       const available = areaEl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - introTopPad
       const needed = contentEl.scrollHeight
       if (available > 0 && needed > available) {
-        setIntroScale(Math.max(0.68, available / needed))
+        const s = Math.max(0.68, available / needed)
+        setIntroScale(s)
+        // a scaled box still takes its full height - give back the difference so there's nothing
+        // left to scroll into below the Start button
+        setIntroShrink(Math.round(needed * (1 - s)))
       } else {
         setIntroScale(1)
+        setIntroShrink(0)
       }
     }
 
@@ -1470,9 +1610,20 @@ export default function FormRunner({ questions, branding, successHeading, succes
     setStep(nextStep)
     setSubmitError('')
     // A long question scrolled down to its Next button would otherwise open the next one
-    // part-way down, its title hidden above the fold (phones).
+    // part-way down, its title hidden above the fold (phones) - and a page the keyboard nudged
+    // down goes back to the top, so the progress bar + branding are always in full view.
     introScrollAreaRef.current?.scrollTo({ top: 0 })
+    if (typeof document !== 'undefined') {
+      const active = document.activeElement as HTMLElement | null
+      if (active?.matches?.('input, textarea')) active.blur()
+      if (window.scrollY !== 0 && !focusBlockId) window.scrollTo(0, 0)
+    }
   }
+
+  // A single choice (or "Any / No preference") was tapped: once the answer is in, move on - a
+  // short beat later, so the tick on the picked answer is seen first.
+  const [chosen, setChosen] = useState<{ id: string; n: number } | null>(null)
+  const choose = (questionId: string) => setChosen(c => ({ id: questionId, n: (c?.n || 0) + 1 }))
 
   const handleNext = async () => {
     if (!canAdvance || submitting) return
@@ -1513,6 +1664,23 @@ export default function FormRunner({ questions, branding, successHeading, succes
     if (submitting) return
     if (step > 0) goToStep(step - 1, -1)
   }
+
+  useEffect(() => {
+    if (!chosen || currentQuestion?.id !== chosen.id) return
+    // The last question still waits for its Submit - never sent by a single tap.
+    if (step === totalQuestions && displayTotal === totalQuestions) return
+    const t = setTimeout(() => handleNext(), 320)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chosen])
+
+  const coarse = useCoarsePointer()
+  const fieldOpts = (q: FormQuestion): FieldOpts => ({ onChoose: choose, noAutoFocus: coarse || focusBlockId !== undefined, showcase: !!showcaseStepOf(q) })
+  // Single choice = tap to answer: no Next button (Back, plus Skip when it's optional).
+  const tapToAnswer = (q: FormQuestion) => q.type === 'select' && !q.searchable
+  // The home-search questions that build the visitor's Showcase, in order (for its trail).
+  const showcaseSteps = visibleQuestions.filter(q => showcaseStepOf(q))
+  const currentShowcaseStep = showcaseStepOf(currentQuestion)
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key !== 'Enter') return
@@ -1571,15 +1739,16 @@ export default function FormRunner({ questions, branding, successHeading, succes
       // establish a new stacking context, so the backdrop's -z-10 below would otherwise compare
       // against ancestors far up the page tree instead of just its siblings here, and could end
       // up hidden behind an unrelated opaque background elsewhere on the page.
-      className={`fr-root relative z-0 flex h-full min-h-[560px] w-full flex-col overflow-hidden bg-[#FAFAF7] transition-colors duration-300 ${forceLightMode ? 'ohp-force-light' : 'dark:bg-[#0B0B0B]'} ${look ? formLookClass(look) : ''}`}
+      className={`fr-root relative z-0 flex h-full min-h-[min(560px,100dvh)] w-full flex-col overflow-hidden bg-[#FAFAF7] transition-colors duration-300 ${forceLightMode ? 'ohp-force-light' : 'dark:bg-[#0B0B0B]'} ${look ? formLookClass(look) : ''}`}
       style={look ? (formLookVars(look) as React.CSSProperties) : undefined}
     >
       {look && <style dangerouslySetInnerHTML={{ __html: FORM_LOOK_CSS }} />}
       {backgroundEffects && <WelcomeMotionBackdrop accent={accent} light={forceLightMode} intro={isIntro} />}
       {isSuccess && <ConfettiBurst />}
 
+      <style dangerouslySetInnerHTML={{ __html: `${WHEEL_CSS}.fr-scroll{scrollbar-width:none}.fr-scroll::-webkit-scrollbar{display:none}` }} />
       {!isIntro && !isSuccess && !useIntegratedLayout && (
-        <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800">
+        <div className="h-1.5 w-full shrink-0 bg-gray-100 dark:bg-white/10">
           <motion.div
             className="h-full"
             data-fill="" style={{ backgroundColor: accent }}
@@ -1592,16 +1761,21 @@ export default function FormRunner({ questions, branding, successHeading, succes
 
       {currentQuestion && showTopBar && (
         <div ref={topBarRef} className="px-6 pt-3">
-          <div className="mx-auto w-full max-w-xl border-b border-gray-100 pb-5 dark:border-gray-800">
+          <div className="mx-auto w-full max-w-xl border-b border-gray-100 pb-5 dark:border-white/[0.07]">
             <QuestionBrandBar branding={topBarBranding} property={topBarProperty} accent={accent} />
           </div>
         </div>
       )}
 
-      <div ref={introScrollAreaRef} className="flex flex-1 justify-center overflow-y-auto px-6 py-8">
+      {/* The page's one scroll area - only scrolls when a step really is taller than the screen
+          (never sideways: the veil below reaches past the edges). On a question, two spacers
+          centre it a little above the middle; they shrink to nothing before the step would ever
+          have to scroll (the old fixed bottom padding made short phones scroll for no reason). */}
+      <div ref={introScrollAreaRef} data-fr-scroll="" className={`fr-scroll flex min-h-0 flex-1 flex-col items-center overflow-y-auto overflow-x-hidden overscroll-contain px-6 ${currentQuestion ? 'py-6 sm:py-8' : 'py-8'}`}>
+        {currentQuestion && <div aria-hidden style={{ flex: '1 1 0px' }} />}
         <div
-          className={`w-full max-w-xl ${isIntro && showcasePreview ? '' : isIntro || isSuccess ? 'my-auto pb-14 sm:pb-20' : 'my-auto'}`}
-          style={currentQuestion ? { paddingBottom: `${(isSmUp ? 72 : 40) + topBarHeight}px` } : isIntro && introTopPad ? { paddingTop: `${introTopPad}px` } : undefined}
+          className={`w-full max-w-xl shrink-0 ${currentQuestion ? '' : isIntro && showcasePreview ? '' : isIntro || isSuccess ? 'my-auto pb-14 sm:pb-20' : 'my-auto'}`}
+          style={!currentQuestion && isIntro && introTopPad ? { paddingTop: `${introTopPad}px` } : undefined}
         >
           {/* Readability veil: an edgeless fade of the page colour right behind the questions (no
               box, border or shadow), so the animated backdrop never runs under the text but still
@@ -1638,7 +1812,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
                   <div
                     ref={introContentRef}
                     className="flex flex-col items-center text-center"
-                    style={showcasePreview ? { transform: `scale(${introScale})`, transformOrigin: 'top center' } : undefined}
+                    style={showcasePreview ? { transform: `scale(${introScale})`, transformOrigin: 'top center', marginBottom: introShrink ? -introShrink : undefined } : undefined}
                   >
                     <motion.div variants={welcomeTextEffects ? introItemVariants : introStaticItemVariants}>
                       <AgentProfileBlock branding={branding} accent={accent} tight={showcasePreview} />
@@ -1805,7 +1979,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
                           </div>
 
                           <div className="mt-6">
-                            {renderQuestionField(currentQuestion, answers, setAnswer, accent)}
+                            {renderQuestionField(currentQuestion, answers, setAnswer, accent, fieldOpts(currentQuestion))}
                             {currentQuestion.helper_text && (
                               <p className="mt-2 text-xs font-medium text-gray-400">{currentQuestion.helper_text}</p>
                             )}
@@ -1819,6 +1993,8 @@ export default function FormRunner({ questions, branding, successHeading, succes
                             onNext={handleNext}
                             onBack={handleBack}
                             accent={accent}
+                            tapToAnswer={tapToAnswer(currentQuestion)}
+                            canSkip={!currentQuestion.required}
                           />
                         </>
                       )}
@@ -1865,6 +2041,27 @@ export default function FormRunner({ questions, branding, successHeading, succes
                       )}
                     </div>
                   </>
+                ) : currentShowcaseStep ? (
+                  // A home-search question: the Showcase creator's look, right in the form - the
+                  // builder trail on top, the question as one of the creator's criteria cards.
+                  <>
+                    <ShowcaseTrail steps={showcaseSteps} currentId={currentQuestion.id} answers={answers} accent={accent} />
+                    <ShowcaseCard step={currentShowcaseStep} title={currentQuestion.label} set={questionHasAnswer(currentQuestion, answers)} accent={accent} hint={currentQuestion.required ? undefined : 'optional'}>
+                      {renderQuestionField(currentQuestion, answers, setAnswer, accent, fieldOpts(currentQuestion))}
+                      {currentQuestion.helper_text && (
+                        <p className="mt-2 text-xs font-medium text-gray-400">{currentQuestion.helper_text}</p>
+                      )}
+                    </ShowcaseCard>
+                    <QuestionNavButtons
+                      isLastStep={step === totalQuestions && displayTotal === totalQuestions}
+                      canAdvance={canAdvance}
+                      submitting={submitting}
+                      submitError={submitError}
+                      onNext={handleNext}
+                      onBack={handleBack}
+                      accent={accent}
+                    />
+                  </>
                 ) : (
                   <>
                 {currentQuestion.section_title && (
@@ -1880,8 +2077,8 @@ export default function FormRunner({ questions, branding, successHeading, succes
                   {currentQuestion.required && currentQuestion.type !== 'contact_group' && <span style={{ color: accent }}> *</span>}
                 </h2>
 
-                <div className="mt-8">
-                  {renderQuestionField(currentQuestion, answers, setAnswer, accent)}
+                <div className="mt-7">
+                  {renderQuestionField(currentQuestion, answers, setAnswer, accent, fieldOpts(currentQuestion))}
                   {currentQuestion.helper_text && (
                     <p className="mt-2 text-xs font-medium text-gray-400">{currentQuestion.helper_text}</p>
                   )}
@@ -1895,6 +2092,8 @@ export default function FormRunner({ questions, branding, successHeading, succes
                   onNext={handleNext}
                   onBack={handleBack}
                   accent={accent}
+                  tapToAnswer={tapToAnswer(currentQuestion)}
+                  canSkip={!currentQuestion.required}
                 />
                   </>
                 )}
@@ -1955,6 +2154,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
           </AnimatePresence>
           </div>
         </div>
+        {currentQuestion && <div aria-hidden style={{ flex: `1 1 ${(isSmUp ? 72 : 40) + topBarHeight}px` }} />}
       </div>
 
       {currentQuestion && showBottomBar && (

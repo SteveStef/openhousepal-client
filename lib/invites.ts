@@ -39,10 +39,19 @@ export type InviteProperty = {
 
 export type InviteCounts = { yes: number; maybe: number; no: number; guests_yes: number; guests_maybe: number; unseen: number; last_rsvp_at: string | null }
 
+/** One day of an invite (10/24: an invite can have several - pick scheduled open houses and/or add days). */
+export type InviteDay = { date: string; start?: string | null; end?: string | null }
+export type InviteMotion = 'normal' | 'luxe'
+export type InviteMetal = 'gold' | 'silver' | 'bronze'
+/** A scheduled open house for the picked home (ours or Bright's) - the date step's first picks. */
+export type ScheduledSlot = InviteDay & { source: 'ohp' | 'bright' }
+
 export type InviteDraft = {
   invite_type: InviteType
   audience?: InviteAudience
   title: string
+  /** The flyer's line 2 as the agent typed it (round 8): null = automatic (the town), '' = none. */
+  subtitle?: string | null
   message?: string | null
   event_date?: string | null
   start_time?: string | null
@@ -54,6 +63,15 @@ export type InviteDraft = {
   design: InviteDesign
   accent_color?: string | null
   questions: InviteQuestion[]
+  /** Days after the first (event_date / start_time / end_time is always the first). */
+  extra_dates?: InviteDay[]
+  motion?: InviteMotion
+  /** A Luxe metal colour was picked (accent_color is then that metal's base tone). */
+  luxe_metal?: InviteMetal | null
+  /** Where the cover photo sits (% from left / top) - dragged in the builder. */
+  cover_position?: { x: number; y: number } | null
+  /** The agent's open house for this home - the guest page's Cheat Sheet + requests. */
+  open_house_event_id?: string | null
 }
 
 export type Invite = InviteDraft & {
@@ -64,6 +82,8 @@ export type Invite = InviteDraft & {
   view_count: number
   when_label: string
   is_past: boolean
+  /** Every day, soonest first. */
+  dates: InviteDay[]
   share_url: string
   platform_url: string
   created_at: string | null
@@ -85,23 +105,44 @@ export type InviteRsvp = {
   updated_at: string | null
   token?: string
   updated?: boolean
+  days?: string[]
+  is_agent?: boolean | null
+  has_agent?: boolean | null
+  /** lead | agent | represented | declined (invites_service.lead_kind_of) - agent view only. */
+  lead_kind?: 'lead' | 'agent' | 'represented' | 'declined' | null
+  still_interested?: boolean | null
+  keep_updated?: boolean | null
+  requests?: Record<string, unknown>
 }
+
+export type InviteRequestKind = 'disclosure' | 'second_tour' | 'updates'
 
 export type InviteDetail = Invite & { rsvps: InviteRsvp[]; recipients: { total: number; waiting: number } }
 
 export type InviteAgent = {
   name: string; title: string; brokerage: string; photo_url?: string | null
+  /** Service area (the profile's market - the same field the Agent Hub and signature show). */
+  market?: string
   phone: string; text_phone: string; email: string; hub_slug?: string | null; logo_url?: string | null
+  id?: string; first_name?: string
 }
 
-export type PublicInvite = Omit<Invite, 'counts' | 'view_count'> & { host_ok: boolean; agent: InviteAgent }
+export type PublicInvite = Omit<Invite, 'counts' | 'view_count'> & {
+  host_ok: boolean; agent: InviteAgent
+  /** The open house's Cheat Sheet (the Guest Pass's), when the invite belongs to one. */
+  cheat_sheet?: { property: any; amenities: any } | null
+}
 
 export type InvitePreset = {
   id: InviteType; label: string; blurb: string; audience: InviteAudience; design: InviteDesign
   title: string; message: string; questions: InviteQuestion[]
 }
 
-export type InvitePresets = { presets: InvitePreset[]; brand: { accent_color: string; logo_url?: string | null }; share_base: string }
+export type InvitePresets = {
+  presets: InvitePreset[]; brand: { accent_color: string; logo_url?: string | null }; share_base: string
+  /** The invite footer's agent (round 5): from the Agent Hub profile, like the signature. */
+  host?: { name: string; brokerage: string; market: string; photo_url?: string | null }
+}
 
 type Res<T> = { success: true; data: T } | { success: false; error: string }
 
@@ -137,15 +178,58 @@ export const invitesApi = {
   send: (id: string, recipients: { email: string; name?: string }[]) =>
     call<{ sent: number; sent_to: string[]; skipped: { email: string; reason: string }[] }>(`/invites/${id}/send`, { method: 'POST', body: JSON.stringify({ recipients }) }),
   resend: (id: string) => call<{ sent: number; sent_to: string[]; skipped: { email: string; reason: string }[] }>(`/invites/${id}/resend`, { method: 'POST' }),
+  scheduled: (listingKey?: string | null, address?: string | null) => {
+    const q = new URLSearchParams()
+    if (listingKey) q.set('listing_key', listingKey)
+    if (address) q.set('address', address)
+    return call<{ slots: ScheduledSlot[]; open_house_event_id: string | null }>(`/invites/scheduled?${q.toString()}`)
+  },
   // ---- the guest's side (no login)
   publicGet: (code: string, host?: string) => call<PublicInvite>(`/invites/public/${encodeURIComponent(code)}${host ? `?host=${encodeURIComponent(host)}` : ''}`, {}, false),
   publicView: (code: string) => call<null>(`/invites/public/${encodeURIComponent(code)}/view`, { method: 'POST' }, false),
   publicMine: (code: string, token: string) => call<InviteRsvp>(`/invites/public/${encodeURIComponent(code)}/rsvp/${encodeURIComponent(token)}`, {}, false),
-  publicRsvp: (code: string, body: { response: RsvpResponse; name: string; email?: string; phone?: string; answers: { questionId: string; value: unknown }[]; token?: string }) =>
+  publicRsvp: (code: string, body: {
+    response: RsvpResponse; name: string; email?: string; phone?: string; answers: { questionId: string; value: unknown }[]; token?: string
+    days?: string[]; is_agent?: boolean | null; has_agent?: boolean | null; still_interested?: boolean | null; keep_updated?: boolean | null
+  }) =>
     call<InviteRsvp>(`/invites/public/${encodeURIComponent(code)}/rsvp`, { method: 'POST', body: JSON.stringify(body) }, false),
+  publicRequest: (code: string, body: { kind: InviteRequestKind; token?: string; name?: string; email?: string; phone?: string; times?: string; is_agent?: boolean | null; has_agent?: boolean | null }) =>
+    call<{ sent: boolean; already: boolean }>(`/invites/public/${encodeURIComponent(code)}/request`, { method: 'POST', body: JSON.stringify(body) }, false),
 }
 
-export const icsUrl = (code: string) => `${API_BASE_URL}/invites/public/${encodeURIComponent(code)}/ics`
+/** Apple / Outlook calendar file - every day, or just the days given. */
+export const icsUrl = (code: string, days?: string[] | null) =>
+  `${API_BASE_URL}/invites/public/${encodeURIComponent(code)}/ics${days && days.length ? `?days=${days.join(',')}` : ''}`
+
+/** Every day of a draft / invite, soonest first (the first is event_date / start_time / end_time). */
+export function allDays(d: Pick<InviteDraft, 'event_date' | 'start_time' | 'end_time' | 'extra_dates'>): InviteDay[] {
+  const out: InviteDay[] = []
+  if (d.event_date) out.push({ date: d.event_date, start: d.start_time || null, end: d.end_time || null })
+  for (const x of d.extra_dates || []) if (x?.date && !out.some(o => o.date === x.date)) out.push({ date: x.date, start: x.start || null, end: x.end || null })
+  return out.sort((a, b) => a.date.localeCompare(b.date))
+}
+
+/** The other way round: a list of days -> the draft's first day + extra_dates. */
+export function daysPatch(days: InviteDay[]): Pick<InviteDraft, 'event_date' | 'start_time' | 'end_time' | 'extra_dates'> {
+  const s = [...days].sort((a, b) => a.date.localeCompare(b.date))
+  const first = s[0]
+  return { event_date: first?.date || null, start_time: first?.start || null, end_time: first?.end || null, extra_dates: s.slice(1).map(x => ({ date: x.date, start: x.start || null, end: x.end || null })) }
+}
+
+const dayShort = (s: string) => parseDay(s).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+/** "Saturday, November 8 · 1 - 3 PM"; several days: "Sat, Nov 8 & Sun, Nov 9 · 1 - 3 PM" or each with its own hours. */
+export function daysText(days: InviteDay[]): string {
+  if (!days.length) return ''
+  if (days.length === 1) return whenText({ event_date: days[0].date, start_time: days[0].start, end_time: days[0].end })
+  const same = new Set(days.map(d => `${d.start}|${d.end}`)).size === 1
+  if (same) {
+    const names = days.map(d => dayShort(d.date))
+    const joined = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}`
+    const rng = clockRange(days[0].start, days[0].end)
+    return rng ? `${joined} · ${rng}` : joined
+  }
+  return days.map(d => [dayShort(d.date), clockRange(d.start, d.end)].filter(Boolean).join(' · ')).join(' / ')
+}
 
 // ---------------------------------------------------------------- helpers
 
@@ -174,16 +258,18 @@ export function mapsUrl(address?: string | null) {
 }
 
 /** "Add to Google Calendar" - times are Eastern wall clock, like the rest of the app. */
-export function googleCalendarUrl(inv: Pick<InviteDraft, 'title' | 'event_date' | 'start_time' | 'end_time' | 'message' | 'place_name' | 'address'>, link: string) {
+export function googleCalendarUrl(src: Pick<InviteDraft, 'title' | 'event_date' | 'start_time' | 'end_time' | 'message' | 'place_name' | 'address'>, link: string, oneDay?: InviteDay | null) {
+  // One of several days: that day's date + hours.
+  const inv = oneDay ? { ...src, event_date: oneDay.date, start_time: oneDay.start || null, end_time: oneDay.end || null } : src
   if (!inv.event_date) return ''
-  const day = inv.event_date.replace(/-/g, '')
+  const ymd = inv.event_date.replace(/-/g, '')
   const t = (v: string) => v.replace(':', '') + '00'
-  const start = inv.start_time ? `${day}T${t(inv.start_time)}` : day
-  let end = inv.end_time ? `${day}T${t(inv.end_time)}` : ''
+  const start = inv.start_time ? `${ymd}T${t(inv.start_time)}` : ymd
+  let end = inv.end_time ? `${ymd}T${t(inv.end_time)}` : ''
   if (!end) {
     if (inv.start_time) {
       const [h, m] = inv.start_time.split(':').map(Number)
-      end = `${day}T${pad(Math.min(23, h + 2))}${pad(m)}00`
+      end = `${ymd}T${pad(Math.min(23, h + 2))}${pad(m)}00`
     } else {
       const d = parseDay(inv.event_date); d.setDate(d.getDate() + 1); end = isoDay(d).replace(/-/g, '')
     }
@@ -217,6 +303,13 @@ export const accentOf = (v?: string | null) => hex6(v)
 export const onAccent = (v?: string | null) => (lum(hex6(v)) > 0.6 ? '#111827' : '#FFFFFF')
 
 export const INVITE_COLORS = ['#C9A24D', '#1F3A5F', '#4F6F52', '#B5654A', '#9C4F6B', '#5B4B8A', '#111827', '#2F6F73']
+
+/** The two animation types (10/24): Normal = the envelope; Luxe = the black-lacquer, gold-foil
+ *  opening and a page that keeps moving. */
+export const MOTIONS: { id: InviteMotion; label: string; note: string }[] = [
+  { id: 'normal', label: 'Normal', note: 'A paper envelope that opens to the card' },
+  { id: 'luxe', label: 'Luxe', note: 'Lacquer, foil and light - a cinematic reveal' },
+]
 
 export const DESIGNS: { id: InviteDesign; label: string; note: string }[] = [
   { id: 'classic', label: 'Classic', note: 'Ivory card, fine border, timeless' },

@@ -1,15 +1,20 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { CalendarPlus, ChevronDown, Contact, Mail, MessageSquare, Phone } from 'lucide-react'
+import { Apple, CalendarDays, CalendarPlus, ChevronDown, Contact, Mail, MessageSquare, Phone } from 'lucide-react'
+import { useIsPhone } from '@/components/ui/windowMotion'
 import { downloadAgentVcard, downloadOpenHouseIcs, googleCalendarUrl, telHref } from './actions'
-import { openLeadForm, fmtMoney, type PropertySiteAgent, type PropertySiteOpenHouse, type SpotlightModel } from './model'
+import { openLeadForm, fmtDay, fmtMoney, fmtTimeRange, type PropertySiteAgent, type PropertySiteOpenHouse, type SpotlightModel } from './model'
 import { TONE, type Tone } from './tone'
+import SpotSheet from './SpotSheet'
 
 // ---------- Add to calendar ----------
 
+// Apple Calendar (an .ics the iPhone / Mac opens straight into Calendar), Google Calendar and
+// Outlook - offered everywhere an open house can be saved (user, 10/24). A small menu on a
+// computer; on a phone the three choices slide up from the bottom (drag down to close).
 export function AddToCalendar({
-  openHouse, address, fullAddress, url, agentName, tone, className = '',
+  openHouse, address, fullAddress, url, agentName, tone, className = '', compact = false, sheetTone, align = 'left',
 }: {
   openHouse: PropertySiteOpenHouse
   address: string
@@ -18,18 +23,24 @@ export function AddToCalendar({
   agentName?: string
   tone: Tone
   className?: string
+  /** A small round calendar button (the open-house rows under the header). */
+  compact?: boolean
+  /** The phone sheet's look when it differs from the button's (Editorial's dark band -> paper sheet). */
+  sheetTone?: Tone
+  align?: 'left' | 'right'
 }) {
   const t = TONE[tone]
+  const phone = useIsPhone()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (!open) return
+    if (!open || phone) return
     const onDoc = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('mousedown', onDoc)
     document.addEventListener('keydown', onKey)
     return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
-  }, [open])
+  }, [open, phone])
 
   const details = {
     title: `Open House: ${address}`,
@@ -38,26 +49,63 @@ export function AddToCalendar({
     url,
   }
   const google = googleCalendarUrl(openHouse, details)
+  const when = [fmtDay(openHouse.date), fmtTimeRange(openHouse.start_time, openHouse.end_time)].filter(Boolean).join(' · ')
+  const close = () => setOpen(false)
+  const ics = () => { downloadOpenHouseIcs(openHouse, details); close() }
+  const st = sheetTone || tone
+  const s = TONE[st]
 
   return (
     <div ref={ref} className={`relative inline-block ${className}`}>
-      <button
-        type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} aria-haspopup="menu"
-        className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold transition ${t.ghostBtn}`}
-      >
-        <CalendarPlus className="h-3.5 w-3.5" /> Add to calendar <ChevronDown className={`h-3 w-3 transition ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div role="menu" className={`absolute left-0 z-30 mt-2 w-56 overflow-hidden p-1.5 ${t.menu}`}>
+      {compact ? (
+        <button
+          type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} aria-haspopup="menu" aria-label={`Add ${when} to your calendar`}
+          className={`inline-flex h-10 shrink-0 items-center justify-center gap-1.5 px-3 text-[11px] font-semibold transition sm:px-3.5 ${t.ghostBtn}`}
+        >
+          <CalendarPlus className="h-4 w-4" /><span className="hidden min-[400px]:inline">Add</span>
+        </button>
+      ) : (
+        <button
+          type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} aria-haspopup="menu"
+          className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold transition ${t.ghostBtn}`}
+        >
+          <CalendarPlus className="h-3.5 w-3.5" /> Add to calendar <ChevronDown className={`h-3 w-3 transition ${open && !phone ? 'rotate-180' : ''}`} />
+        </button>
+      )}
+      {open && !phone && (
+        <div role="menu" className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} z-30 mt-2 w-56 overflow-hidden p-1.5 ${t.menu}`}>
+          <button role="menuitem" type="button" onClick={ics} className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm ${t.menuItem}`}>
+            <Apple className="h-4 w-4 opacity-70" /> Apple Calendar
+          </button>
           {google && (
-            <a role="menuitem" href={google} target="_blank" rel="noreferrer" onClick={() => setOpen(false)} className={`block px-3 py-2.5 text-sm ${t.menuItem}`}>
-              Google Calendar
+            <a role="menuitem" href={google} target="_blank" rel="noreferrer" onClick={close} className={`flex items-center gap-2.5 px-3 py-2.5 text-sm ${t.menuItem}`}>
+              <CalendarDays className="h-4 w-4 opacity-70" /> Google Calendar
             </a>
           )}
-          <button role="menuitem" type="button" onClick={() => { downloadOpenHouseIcs(openHouse, details); setOpen(false) }} className={`block w-full px-3 py-2.5 text-left text-sm ${t.menuItem}`}>
-            Apple / Outlook (.ics)
+          <button role="menuitem" type="button" onClick={ics} className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm ${t.menuItem}`}>
+            <Mail className="h-4 w-4 opacity-70" /> Outlook / other (.ics)
           </button>
         </div>
+      )}
+      {phone && (
+        <SpotSheet open={open} onClose={close} tone={st} kicker="Add to your calendar" title={fmtDay(openHouse.date) || 'Open house'}>
+          {fmtTimeRange(openHouse.start_time, openHouse.end_time) && (
+            <p className={`-mt-2 text-sm ${s.muted}`}>{fmtTimeRange(openHouse.start_time, openHouse.end_time)} · {address}</p>
+          )}
+          <div className="mt-4 grid gap-2">
+            <button type="button" onClick={ics} className={`flex items-center gap-3 px-4 py-3.5 text-left text-[15px] font-semibold ${s.chip}`}>
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-[#ff5f6d] to-[#ff9966] text-white"><Apple className="h-4 w-4" /></span> Apple Calendar
+            </button>
+            {google && (
+              <a href={google} target="_blank" rel="noreferrer" onClick={close} className={`flex items-center gap-3 px-4 py-3.5 text-[15px] font-semibold ${s.chip}`}>
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-white text-[#1a73e8] ring-1 ring-black/10"><CalendarDays className="h-4 w-4" /></span> Google Calendar
+              </a>
+            )}
+            <button type="button" onClick={ics} className={`flex items-center gap-3 px-4 py-3.5 text-left text-[15px] font-semibold ${s.chip}`}>
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-[#0a64ad] text-white"><Mail className="h-4 w-4" /></span> Outlook / other
+            </button>
+          </div>
+        </SpotSheet>
       )}
     </div>
   )
@@ -66,26 +114,37 @@ export function AddToCalendar({
 // ---------- Agent contact actions ----------
 
 export function AgentActions({
-  agent, address, url, tone, className = '',
+  agent, address, url, tone, className = '', siteId,
 }: {
   agent: PropertySiteAgent
   address: string
   url: string
   tone: Tone
   className?: string
+  /** The live Spotlight's id: Save contact then comes from the server with the agent's photo in it. */
+  siteId?: string
 }) {
   const t = TONE[tone]
   const btn = `inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold transition ${t.ghostBtn}`
+  // A plain link to the server-built card (user, 10/24: the contact came without the agent's
+  // photo) - a phone opens it straight into "Create New Contact". The editor's previews and the
+  // sample page build a simple card here instead.
+  const live = !!siteId && siteId !== 'preview'
   return (
     <div className={`flex flex-wrap gap-2 ${className}`}>
       {agent.phone && <a href={telHref(agent.phone)} className={btn}><Phone className="h-3.5 w-3.5" /> Call</a>}
       {(agent.text_phone || agent.phone) && <a href={telHref(agent.text_phone || agent.phone || '', 'sms')} className={btn}><MessageSquare className="h-3.5 w-3.5" /> Text</a>}
       {agent.email && <a href={`mailto:${agent.email}?subject=${encodeURIComponent(address)}`} className={btn}><Mail className="h-3.5 w-3.5" /> Email</a>}
-      {(agent.phone || agent.email) && (
+      {(agent.phone || agent.email) && (live ? (
+        <a href={`/api/website-property-sites/${encodeURIComponent(siteId!)}/vcard`} className={btn}
+          onClick={e => { if (window.location.pathname.startsWith('/spotlight-preview')) { e.preventDefault(); downloadAgentVcard(agent, { address, url }) } }}>
+          <Contact className="h-3.5 w-3.5" /> Save contact
+        </a>
+      ) : (
         <button type="button" onClick={() => downloadAgentVcard(agent, { address, url })} className={btn}>
           <Contact className="h-3.5 w-3.5" /> Save contact
         </button>
-      )}
+      ))}
     </div>
   )
 }

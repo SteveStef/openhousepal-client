@@ -169,11 +169,12 @@ function ShowcaseTeaser({ home, more, data, onShowcase, building, className = ''
 }) {
   const photo = home?.ListPictureURL || home?.image
   const has = !!data.showcase?.url
+  const preparing = !has && !!data.showcase?.building   // still being made from the sign-in
   return (
     <motion.button
       type="button"
       onClick={onShowcase}
-      disabled={building}
+      disabled={building || preparing}
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
@@ -195,7 +196,7 @@ function ShowcaseTeaser({ home, more, data, onShowcase, building, className = ''
         <span className="mt-1.5 text-[2.4rem] font-black leading-none tracking-tight">+{more}</span>
         <span className="mt-1 text-[13px] font-bold text-white/85">more similar {more === 1 ? 'home' : 'homes'} waiting</span>
         <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#0B0B0B] shadow-lg transition-transform group-hover:-translate-y-0.5">
-          {building ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Building</> : <>{has ? 'See them all' : 'Unlock them'} <ArrowUpRight className="h-3.5 w-3.5" /></>}
+          {building || preparing ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {preparing ? "Loading" : "Building"}</> : <>{has ? "See them all" : "Unlock them"} <ArrowUpRight className="h-3.5 w-3.5" /></>}
         </span>
       </div>
     </motion.button>

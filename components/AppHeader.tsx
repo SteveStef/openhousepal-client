@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import Header from './Header'
+import { TodaysRundownHost } from './rundown/TodaysRundown'
 import { hasAppHeader } from '@/lib/appChrome'
 
 export default function AppHeader() {
@@ -17,6 +18,7 @@ export default function AppHeader() {
     return <Header mode="landing" />
   }
 
-  // All other pages get 'app' mode (which persists)
-  return <Header mode="app" />
+  // All other pages get 'app' mode (which persists). Today's Rundown window lives here once, so
+  // the bell, Activity and Dash can open it on any page.
+  return <><Header mode="app" /><TodaysRundownHost /></>
 }

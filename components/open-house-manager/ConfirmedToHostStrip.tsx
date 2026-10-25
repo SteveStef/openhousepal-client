@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { CalendarCheck2, CheckCircle2, FolderOpen, Hammer, StickyNote } from 'lucide-react'
 import api from '@/lib/api-service'
+import NumberPager, { scrollListTop } from '@/components/ui/NumberPager'
 import type { HostRequest, OpenHouse } from '@/types'
 import { todayLocal } from '@/lib/relativeDays'
 
@@ -27,6 +28,10 @@ export default function ConfirmedToHostStrip({ openHouses, onBuild, onOpenKit, a
 }) {
   const [requests, setRequests] = useState<HostRequest[]>([])
   const autoDone = useRef(false)
+  // Long lists page by 3 (user, 10/24 - nothing on Opens should pile up).
+  const [page, setPage] = useState(0)
+  const topRef = useRef<HTMLElement>(null)
+  const PER = 3
 
   useEffect(() => {
     api.openHouseManager.getMyRequests().then(({ success, data }) => { if (success && data) setRequests(data) })
@@ -50,9 +55,11 @@ export default function ConfirmedToHostStrip({ openHouses, onBuild, onOpenKit, a
   }, [autoBuildId, upcoming.length, openHouses.length])
 
   if (upcoming.length === 0) return null
+  const pages = Math.ceil(upcoming.length / PER)
+  const shownPage = Math.min(page, pages - 1)
   const toBuild = upcoming.filter(r => !kitFor(r)).length
   return (
-    <section className="mt-6">
+    <section ref={topRef} className="mt-6 scroll-mt-24">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-500 text-white shadow-sm"><CalendarCheck2 size={14} /></span>
         <h2 className="font-serif text-xl font-black text-[#111827] dark:text-white">You&apos;re confirmed to host</h2>
@@ -63,7 +70,7 @@ export default function ConfirmedToHostStrip({ openHouses, onBuild, onOpenKit, a
         )}
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {upcoming.map(r => {
+        {upcoming.slice(shownPage * PER, shownPage * PER + PER).map(r => {
           const kit = kitFor(r)
           return (
             <div key={r.id} className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-white p-3 shadow-[0_14px_34px_-28px_rgba(16,185,129,.8)] dark:border-emerald-500/25 dark:bg-[#151517]">
@@ -101,6 +108,7 @@ export default function ConfirmedToHostStrip({ openHouses, onBuild, onOpenKit, a
           )
         })}
       </div>
+      <NumberPager page={shownPage} pages={pages} onChange={n => { setPage(n); scrollListTop(topRef.current) }} total={upcoming.length} size={PER} className="mt-3" />
     </section>
   )
 }

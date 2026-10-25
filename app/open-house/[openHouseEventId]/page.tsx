@@ -14,6 +14,8 @@ import OhpLoader from '@/components/brand/OhpLoader'
 import { useQrDataUrl } from '@/lib/qr'
 import { MlsUpdatedText } from '@/components/MLSComplianceFooter'
 import { setQrOwner } from '@/lib/qr'
+import GuestPassIntro from '@/components/guest-pass/GuestPassIntro'
+import { passTokenOf, setPassHandoff } from '@/components/guest-pass/handoff'
 
 // Auto-reset delay after a guest submits, before Kiosk mode clears back to a blank form for
 // the next one.
@@ -468,6 +470,12 @@ export default function OpenHouseSignInPage() {
   const [success, setSuccess] = useState(false)
   const [goingTo, setGoingTo] = useState<{ kind: string; url: string } | null>(null)
   const goingToSpotlight = !!goingTo
+  // The Guest Pass opening, played here the moment the guest answers the last question (user,
+  // 10/24 - no "Processing", no wait): held on the home + "Welcome, {name}" until the pass link is
+  // back, then the pass page picks up that same frame and parts the curtain. `release` = it didn't
+  // go through (offline) - part it here and show the thank-you instead.
+  const [passOpening, setPassOpening] = useState<{ firstName: string; street: string; photo?: string; startedAt: number; release?: boolean } | null>(null)
+  const [passAccent, setPassAccent] = useState<string | undefined>(undefined)
   // Sign-ins that couldn't reach the server yet (offline / hiccup) and are waiting to sync.
   const [queuedCount, setQueuedCount] = useState(0)
 
@@ -639,15 +647,19 @@ export default function OpenHouseSignInPage() {
       .catch(() => {})
   }, [property, isLoading, error, isKiosk, kioskMode, formInstanceKey, openHouseEventId])
 
+
   useEffect(() => {
     // Fetch property data from open house event by ID
     const fetchData = async () => {
       setIsLoading(true)
-      const { success, data, error, qrDarkMode }: any = await api.public.getOpenHouseProperty(openHouseEventId)
+      const { success, data, error, qrDarkMode, theme }: any = await api.public.getOpenHouseProperty(openHouseEventId)
 
       if (success && data) {
         setProperty(data)
         setError(null)
+        if (theme?.accentColor) setPassAccent(theme.accentColor)
+        // Get the Guest Pass page's code ready while they type, so it opens the moment they answer.
+        if (data.guestPass) { try { router.prefetch(`/open-house/${openHouseEventId}/pass/_`) } catch { /* best effort */ } }
         // Default this page's own local theme to the agent's configured "QR Dark Mode" setting.
         setKioskDark(Boolean(qrDarkMode))
       } else {
@@ -678,6 +690,15 @@ export default function OpenHouseSignInPage() {
     }
     // Going straight on to the Guest Pass / Agent Hub - keep the button spinning until it opens.
     let leaving = false
+    // Their Guest Pass opens next: start its opening right now, over this page.
+    const opensPass = !isKiosk && !wantsSimilar && !!(property as any)?.guestPass
+    const opening = opensPass ? {
+      firstName: (formData.fullName || '').trim().split(/\s+/)[0] || '',
+      street: (property?.FullStreetAddress || '').split(',')[0].trim(),
+      photo: property?.photos?.[0] || property?.ListPictureURL || undefined,
+      startedAt: Date.now(),
+    } : null
+    if (opening) setPassOpening(opening)
     try {
       setIsSubmitting(true)
       setError(null)
@@ -705,17 +726,29 @@ export default function OpenHouseSignInPage() {
       // for a Similar Homes QR guest (they asked to see other homes), and not while offline (the
       // page wouldn't load) - those get the normal thank-you.
       const next = passUrl || spotlightUrl
+      if (ok && !isKiosk && !wantsSimilar && passUrl && opening) {
+        // Hand the opening over and go - in-app, so the held curtain never blinks.
+        leaving = true
+        const token = passTokenOf(passUrl)
+        if (token) setPassHandoff(token, { ...opening, accent: passAccent })
+        if (passUrl.startsWith('/')) router.push(passUrl)
+        else window.location.assign(passUrl)
+        return
+      }
       if (ok && !isKiosk && !wantsSimilar && next) {
         leaving = true
+        if (opening) setPassOpening(o => (o ? { ...o, release: true } : o))
         setGoingTo({ kind: passUrl ? 'pass' : (afterSignin?.kind || 'hub'), url: next })
         window.location.assign(next)
         return
       }
+      if (opening) setPassOpening(o => (o ? { ...o, release: true } : o))
       setSuccess(true)
     } catch (err) {
       console.error('Error submitting form:', err)
       enqueueSignIn(payload)
       setQueuedCount(queueCount())
+      if (opening) setPassOpening(o => (o ? { ...o, release: true } : o))
       setSuccess(true)
     } finally {
       if (!leaving) setIsSubmitting(false)
@@ -895,7 +928,20 @@ export default function OpenHouseSignInPage() {
   // more deliberate for a "your turn is over, next guest" handoff than a simultaneous swap would.
   return (
     <div className={kioskDark ? 'dark' : undefined}>
-    <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col items-center justify-center p-4 transition-colors duration-300">
+    {passOpening && (
+      <GuestPassIntro
+        firstName={passOpening.firstName}
+        street={passOpening.street}
+        photo={passOpening.photo}
+        accent={passAccent || '#C9A24D'}
+        hold={!passOpening.release}
+        onReveal={() => {}}
+        onDone={() => setPassOpening(null)}
+      />
+    )}
+    {/* Anchored at the top (not centred): a shorter next question only moves the bottom edge,
+        so nothing above it ever jumps (user, 10/24). */}
+    <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col items-center justify-start px-4 pb-4 pt-[max(1rem,4vh)] sm:pt-[max(1.5rem,7vh)] transition-colors duration-300">
       {isKiosk && kioskMode === 'interactive' && <KioskExitHandle onExit={exitKiosk} />}
       {isKiosk && kioskMode === 'interactive' && <KioskThemeToggle dark={kioskDark} onToggle={toggleKioskDark} />}
       {queuedCount > 0 && (
@@ -903,7 +949,7 @@ export default function OpenHouseSignInPage() {
           {queuedCount} sign-in{queuedCount === 1 ? '' : 's'} waiting to sync
         </div>
       )}
-      <div className="flex-1 flex items-center justify-center w-full">
+      <div className="flex-1 flex items-start justify-center w-full">
         <AnimatePresence mode="wait" initial={false}>
           {success ? (
             <motion.div
@@ -998,6 +1044,7 @@ export default function OpenHouseSignInPage() {
                 onSubmit={handleFormSubmit}
                 isLoading={isSubmitting}
                 headline={wantsSimilar ? 'Start Your Showcase' : undefined}
+                intro={formInstanceKey === 0 && !wantsSimilar}
               />
               </div>
             </motion.div>

@@ -55,7 +55,7 @@ const nearestIdx = (v: number | null | undefined, fallback: number) => (v ? PRIC
 const titleTown = (v: string) => v.split(',')[0].toLowerCase().replace(/(^|[\s-])([a-z])/g, (_, a: string, c: string) => a + c.toUpperCase())
 const townKey = (v: string) => v.toLowerCase().replace(/\s+/g, ' ').trim()
 
-export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, areas, mode = 'create', initial, existingCode, serverVisitor, headingClass = '' }: {
+export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, areas, mode = 'create', initial, existingCode, serverVisitor, headingClass = '', startStep }: {
   siteId: string
   basePrefix: string
   accent: string
@@ -67,6 +67,8 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
   existingCode?: string | null
   serverVisitor?: SiteVisitor | null
   headingClass?: string
+  /** Open part-way in (a town page's "Get alerts" lands on 'place' with its town ticked). */
+  startStep?: 'where' | 'place'
 }) {
   const live = useVisitor()
   const visitor = live || serverVisitor || null
@@ -74,7 +76,7 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
   const first = visitor?.firstName || visitor?.name?.split(' ')[0] || ''
 
   const startWhere: Where | null = initial?.center_lat != null && initial?.radius_miles ? 'home' : initial?.school_districts?.length && !initial?.cities?.length ? 'district' : initial?.cities?.length ? 'towns' : null
-  const [step, setStep] = useState<Step>(mode === 'edit' ? 'where' : 'intro')
+  const [step, setStep] = useState<Step>(startStep || (mode === 'edit' ? 'where' : 'intro'))
   const [dir, setDir] = useState(1)
   const [where, setWhere] = useState<Where | null>(startWhere)
   const [home, setHome] = useState<PickedHome | null>(initial?.center_lat != null && initial?.center_lng != null

@@ -134,9 +134,12 @@ function EmailSettingsInner() {
             {/* 2. Emails to your clients */}
             <motion.section variants={rise} className="overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-white shadow-sm dark:border-white/[0.07] dark:bg-[#121214]">
               <SectionHead icon={Send} kicker="Emails to your clients" title={<>What your clients <em>get</em></>}
-                sub="Turn any of these off, or choose which address sends it. Off means it never goes out - their Showcase and your follow-ups still work." />
+                sub={s.client.some(c => c.key.startsWith('showcase'))
+                  ? 'Turn any of these off, or choose which address sends it. Off means it never goes out - their Showcase and your follow-ups still work.'
+                  : 'Turn any of these off, or choose which address sends it. Off means it never goes out - your follow-ups still work.'} />
               <div className="space-y-6 p-5 sm:p-6">
-                {([1, 2] as const).map(tier => (
+                {/* Only the groups this plan has emails in (No-MLS plans have no automatic updates). */}
+                {([1, 2] as const).filter(tier => s.client.some(c => c.tier === tier)).map(tier => (
                   <div key={tier}>
                     <TierTitle tier={tier} title={tier === 1 ? 'Most important' : 'Automatic updates'}
                       blurb={tier === 1 ? 'The emails that win clients - keep these on.' : 'Sent by themselves when something changes. Quiet days send nothing.'} />

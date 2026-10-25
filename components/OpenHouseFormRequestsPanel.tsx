@@ -1,11 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Loader2, Check, Copy, Home, ChevronLeft, ChevronRight, CalendarCheck2, FileText, Mail, Phone, QrCode, Sparkles } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import NumberPager, { scrollListTop } from '@/components/ui/NumberPager'
+import { Loader2, Check, Home, CalendarCheck2, FileText, Mail, Phone, QrCode, Sparkles } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { OpenHouseFormRequest } from '@/types'
 import api from '@/lib/api-service'
 import { copyText } from '@/lib/copyText'
+import { toTitleCase } from '@/lib/cheatSheetContent'
+import { refreshOpenRequestsCount } from '@/hooks/useOpenRequestsCount'
+import { refreshFormsActionCount } from '@/hooks/useFormsActionCount'
+
+// Where the guest asked (10/25) - shown on every request.
+const SOURCE_LABEL: Record<string, string> = { guest_pass: 'Guest Pass', cheat_sheet: 'Cheat Sheet QR', invite: 'Invite' }
 
 interface OpenHouseFormRequestsPanelProps {
   // 'card' (default) renders its own heading + count badge, for a standalone section (Open
@@ -20,12 +27,6 @@ interface OpenHouseFormRequestsPanelProps {
   // (the Open Houses tab's standalone 'card' use), but the Forms page's 'inline' use gates this
   // behind its own Stats toggle button to keep the default view compact.
   showStats?: boolean
-}
-
-// "Rachel Kimberly-Anderson" -> "Rachel K." - phones show the short form so it never wraps.
-const shortName = (full: string) => {
-  const parts = (full || '').trim().split(/\s+/)
-  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1].charAt(0)}.` : parts[0] || ''
 }
 
 const TABS: { id: 'upcoming' | 'past'; label: string }[] = [
@@ -49,6 +50,7 @@ export function OpenHouseFormRequestsPanel({ variant = 'card', limit = 8, onActi
   // Deep link (?request=<id> - from a lead's page, the Leads list, the digest): the tab + page
   // holding that exact request, scrolled into view and highlighted.
   const [focusId, setFocusId] = useState<string | null>(null)
+  const sectionRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     api.openHouses.getFormRequests().then(({ success, data }) => {
@@ -89,6 +91,8 @@ export function OpenHouseFormRequestsPanel({ variant = 'card', limit = 8, onActi
     const { success, data } = await api.openHouses.completeFormRequest(id)
     if (success && data) {
       setRequests(current => current.map(r => r.id === id ? data : r))
+      // The red badges on the Opens tab / Forms clear right away.
+      refreshOpenRequestsCount(); refreshFormsActionCount()
     }
     setCompletingId(null)
   }
@@ -160,7 +164,7 @@ export function OpenHouseFormRequestsPanel({ variant = 'card', limit = 8, onActi
   ) : (
     // Inline = the Forms page, where this sits in a half-width card - one per row there, or each
     // card gets crushed to a sliver beside its photo.
-    <div className={`grid grid-cols-1 gap-3 ${variant === 'card' ? 'lg:grid-cols-2' : ''}`}>
+    <div className={`grid grid-cols-1 gap-2.5 ${variant === 'card' ? 'sm:grid-cols-2 xl:grid-cols-3' : ''}`}>
       <AnimatePresence initial={false} mode="popLayout">
       {visible.map((req, idx) => {
         const note = req.formType === 'disclosure'
@@ -170,6 +174,7 @@ export function OpenHouseFormRequestsPanel({ variant = 'card', limit = 8, onActi
         const isDisclosure = req.formType === 'disclosure'
         const [street, ...rest] = (req.propertyAddress || 'Open House').split(',')
         const dateLabel = new Date(req.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+        const via = SOURCE_LABEL[req.source || 'cheat_sheet'] || 'Cheat Sheet QR'
         return (
           <motion.div
             key={req.id}
@@ -180,106 +185,71 @@ export function OpenHouseFormRequestsPanel({ variant = 'card', limit = 8, onActi
             exit={{ opacity: 0, scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 380, damping: 32, delay: Math.min(idx * 0.04, 0.25) }}
             onClick={() => focusId === req.id && setFocusId(null)}
-            className={`group overflow-hidden rounded-2xl border bg-white shadow-[0_14px_34px_-28px_rgba(139,115,85,.8)] transition-[box-shadow,border-color] duration-300 hover:shadow-[0_22px_44px_-28px_rgba(139,115,85,.9)] dark:bg-[#151517] ${focusId === req.id ? 'ring-2 ring-[#C9A24D] ring-offset-2 ring-offset-white dark:ring-offset-[#0B0B0B]' : ''} ${needsAction ? 'border-red-200 dark:border-red-900/50' : 'border-[#C9A24D]/20 dark:border-white/[0.08]'}`}
+            className={`group overflow-hidden rounded-2xl border bg-white shadow-[0_10px_26px_-22px_rgba(139,115,85,.8)] transition-[box-shadow,border-color] duration-300 hover:shadow-[0_18px_36px_-24px_rgba(139,115,85,.9)] dark:bg-[#151517] ${focusId === req.id ? 'ring-2 ring-[#C9A24D] ring-offset-2 ring-offset-white dark:ring-offset-[#0B0B0B]' : ''} ${needsAction ? 'border-gray-200/90 dark:border-white/[0.1]' : 'border-gray-100 opacity-90 dark:border-white/[0.06]'}`}
           >
             {(() => {
-              const photo = req.propertyImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={req.propertyImage} alt="" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a]/60"><Home size={20} /></div>
-              )
-              const typePill = (
-                <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[8px] font-black uppercase leading-none tracking-widest ${isDisclosure ? 'bg-[#111827]/90 text-[#e8c97a]' : 'bg-white/95 text-[#8b7355]'} shadow-sm`}>
-                  {isDisclosure ? <FileText size={9} /> : <CalendarCheck2 size={9} />}
-                  {isDisclosure ? 'Disclosure' : 'Second visit'}
-                </span>
-              )
               const contacts = ([['email', req.email, Mail], ['phone', req.phone, Phone]] as const).filter(([, v]) => !!v)
               const copy = (e: React.MouseEvent, kind: string, value: string) => {
                 const key = `${req.id}-${kind}`
                 copyToClipboard(e, value); setCopiedKey(key); setTimeout(() => setCopiedKey(k => (k === key ? null : k)), 1200)
               }
-              const action = (chip: boolean) => req.completedAt ? (
-                <span className={`inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 font-black uppercase leading-none tracking-widest text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400 ${chip ? 'px-2.5 py-1 text-[9px]' : 'w-full px-3 py-2 text-[10px]'}`}>
-                  <Check size={10} /> {isDisclosure ? 'Sent' : 'Scheduled'}
-                </span>
-              ) : (
-                <button
-                  onClick={() => handleComplete(req.id)}
-                  disabled={completingId === req.id}
-                  className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap border border-[#C9A24D]/50 bg-[#C9A24D]/10 font-black uppercase leading-none tracking-widest text-[#8b7355] transition hover:border-[#111827] hover:bg-[#111827] hover:text-white disabled:opacity-50 dark:text-[#e8c97a] dark:hover:border-[#C9A24D] dark:hover:bg-[#C9A24D] dark:hover:text-[#111827] ${chip ? 'rounded-full px-2.5 py-1 text-[9px]' : 'w-full rounded-xl px-3 py-2.5 text-[10px]'}`}
-                >
-                  {completingId === req.id ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
-                  {isDisclosure ? 'Mark sent' : 'Mark scheduled'}
-                </button>
-              )
+              // WHAT to do is the headline (user, 10/25): its own colour + icon per kind.
+              const look = isDisclosure
+                ? { Icon: FileText, task: "Send the seller's disclosure", done: 'Disclosure sent', tile: 'bg-sky-600 text-white', text: 'text-sky-700 dark:text-sky-300', stripe: 'bg-sky-500' }
+                : { Icon: CalendarCheck2, task: 'Schedule a second visit', done: 'Second visit scheduled', tile: 'bg-emerald-600 text-white', text: 'text-emerald-700 dark:text-emerald-300', stripe: 'bg-emerald-500' }
               return (
-                <>
-                  {/* Phones: a short photo banner (home, type, date on it), then the person. */}
-                  <div className="lg:hidden">
-                    <div className="relative h-24 w-full overflow-hidden">
-                      {photo}
-                      <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-                      <span className="absolute left-2 top-2 flex">{typePill}</span>
-                      <span className="absolute right-2 top-2 rounded-full bg-black/45 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-white ">{dateLabel}</span>
-                      <p className="absolute inset-x-3 bottom-2.5 truncate text-[12px] font-black text-white drop-shadow">{street}{rest.length ? <span className="font-semibold text-white/75">,{rest.join(',')}</span> : null}</p>
-                      {needsAction && <span className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-red-500 to-red-400" />}
-                    </div>
-                    <div className="p-3">
-                      <p className="truncate font-serif text-base font-black leading-tight text-[#111827] dark:text-white">{shortName(req.fullName)}</p>
-                      {note && <p className="mt-1 line-clamp-2 text-[11px] font-black leading-snug text-[#8b7355] dark:text-[#e8c97a]">{note}</p>}
-                      <div className={`mt-2.5 grid gap-2 ${contacts.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                        {contacts.map(([kind, value, Icon]) => {
-                          const copied = copiedKey === `${req.id}-${kind}`
-                          return (
-                            <button key={kind} onClick={(e) => copy(e, kind, value)} title={`Copy ${kind}`}
-                              className={`flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-[11px] font-black transition ${copied ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-gray-200 text-gray-600 dark:border-white/10 dark:text-gray-300'}`}>
-                              <Icon size={12} className="shrink-0" /> {copied ? 'Copied' : `Copy ${kind}`}
-                            </button>
-                          )
-                        })}
-                      </div>
-                      <div className="mt-2.5">{action(false)}</div>
-                    </div>
+                <div className="relative flex h-full flex-col gap-2.5 p-3 pl-4">
+                  <span aria-hidden className={`absolute inset-y-0 left-0 w-1 ${needsAction ? look.stripe : 'bg-gray-200 dark:bg-white/10'}`} />
+                  <div className="flex items-center gap-2.5">
+                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl shadow-sm ${needsAction ? look.tile : 'bg-gray-100 text-gray-400 dark:bg-white/10'}`}>
+                      <look.Icon className="h-[18px] w-[18px]" />
+                    </span>
+                    <p className={`min-w-0 flex-1 text-[15px] font-black leading-tight ${needsAction ? look.text : 'text-gray-400'}`}>
+                      {needsAction ? look.task : look.done}
+                    </p>
+                    <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-gray-400">{dateLabel}</span>
                   </div>
-
-                  {/* Desktop: one compact row - inset photo, then name (+ the action as a small chip),
-                      home + date, what they asked for, and email + phone together on one line. */}
-                  <div className="hidden gap-3.5 p-3 lg:flex">
-                    <div className="relative h-[84px] w-[92px] shrink-0 overflow-hidden rounded-xl ring-1 ring-black/5">
-                      {photo}
-                      <span className="absolute inset-x-1 bottom-1.5 flex justify-center">{typePill}</span>
-                      {needsAction && <span className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-red-500 to-red-400" />}
-                    </div>
-                    <div className="flex min-w-0 flex-1 flex-col justify-center">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="truncate font-serif text-[15px] font-black leading-tight text-[#111827] dark:text-white" title={req.fullName}>{req.fullName}</p>
-                        <div className="shrink-0">{action(true)}</div>
-                      </div>
-                      <p className="mt-0.5 truncate text-[11px] font-bold text-[#8b7355] dark:text-[#e8c97a]">
-                        {street}{rest.length ? <span className="font-semibold text-gray-400">,{rest.join(',')}</span> : null}
-                        <span className="font-semibold text-gray-400"> · {dateLabel}</span>
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    {req.propertyImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={req.propertyImage} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover ring-1 ring-black/5" />
+                    ) : (
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a]/70"><Home size={15} /></span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-black text-[#111827] dark:text-white" title={req.propertyAddress || undefined}>
+                        {toTitleCase(street.trim())}{rest.length ? <span className="font-semibold text-gray-400">, {toTitleCase(rest[0].trim())}</span> : null}
                       </p>
-                      {note && <p className="mt-0.5 truncate text-[11px] font-black text-[#111827] dark:text-white" title={note}>{note}</p>}
-                      {contacts.length > 0 && (
-                        <div className="mt-1.5 flex min-w-0 max-w-full items-center self-start rounded-lg bg-[#faf9f7] px-2 py-1 text-[11px] font-semibold text-gray-500 ring-1 ring-gray-100 dark:bg-white/[0.04] dark:text-gray-400 dark:ring-white/10">
-                          {contacts.map(([kind, value, Icon], i) => {
-                            const copied = copiedKey === `${req.id}-${kind}`
-                            return (
-                              <button key={kind} onClick={(e) => copy(e, kind, value)} title={`Copy ${kind}`}
-                                className={`group/copy flex items-center gap-1 transition hover:text-[#8b7355] dark:hover:text-[#e8c97a] ${kind === 'email' ? 'min-w-0' : 'shrink-0'} ${i > 0 ? 'ml-2 border-l border-gray-200 pl-2 dark:border-white/10' : ''}`}>
-                                <Icon size={11} className="shrink-0 text-gray-400" />
-                                <span className="truncate">{value}</span>
-                                {copied ? <Check size={11} className="shrink-0 text-emerald-500" /> : <Copy size={10} className="shrink-0 text-gray-300 group-hover/copy:text-[#C9A24D]" />}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      )}
+                      <p className="truncate text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                        <span className="font-black text-gray-700 dark:text-gray-200" title={req.fullName}>{req.fullName}</span>
+                        <span> · via </span><span className="font-black text-[#8b7355] dark:text-[#e8c97a]">{via}</span>
+                      </p>
                     </div>
                   </div>
-                </>
+                  {note && <p className="-mt-1 truncate pl-[46px] text-[11px] font-bold text-[#111827] dark:text-gray-200" title={note}>{note}</p>}
+                  <div className="mt-auto flex items-center gap-1.5">
+                    {contacts.map(([kind, value, Icon]) => {
+                      const copied = copiedKey === `${req.id}-${kind}`
+                      return (
+                        <button key={kind} type="button" onClick={(e) => copy(e, kind, value)} title={copied ? 'Copied' : `Copy ${kind}: ${value}`} aria-label={`Copy ${kind}`}
+                          className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border transition ${copied ? 'border-emerald-300 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border-gray-200 text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/10 dark:text-gray-300'}`}>
+                          {copied ? <Check size={14} /> : <Icon size={14} />}
+                        </button>
+                      )
+                    })}
+                    {req.completedAt ? (
+                      <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
+                        <Check size={11} /> {isDisclosure ? 'Sent' : 'Scheduled'}
+                      </span>
+                    ) : (
+                      <button type="button" onClick={() => handleComplete(req.id)} disabled={completingId === req.id}
+                        className="ml-auto inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#111827] px-3.5 text-[11px] font-black uppercase tracking-wider text-white transition hover:bg-[#8b7355] disabled:opacity-50 dark:bg-white dark:text-[#111827] dark:hover:bg-[#e8c97a]">
+                        {completingId === req.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                        {isDisclosure ? 'Mark sent' : 'Mark scheduled'}
+                      </button>
+                    )}
+                  </div>
+                </div>
               )
             })()}
           </motion.div>
@@ -292,42 +262,31 @@ export function OpenHouseFormRequestsPanel({ variant = 'card', limit = 8, onActi
   // Page-number nav, not a growing "show more" - flips between fixed-size pages of `limit` items
   // each so this card's footprint stays put regardless of how much history there is, instead of
   // stretching the tab taller every time there's more to see.
-  const pager = totalPages > 1 && (
-    <div className="mt-2 flex items-center justify-center gap-3">
-      <button
-        type="button"
-        onClick={() => setPage(p => Math.max(0, p - 1))}
-        disabled={currentPage === 0}
-        aria-label="Previous page"
-        className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-400 transition hover:border-[#C9A24D]/50 hover:text-[#8b7355] disabled:pointer-events-none disabled:opacity-30 dark:border-gray-700 dark:hover:text-[#d7b974]"
-      >
-        <ChevronLeft className="h-3.5 w-3.5" />
-      </button>
-      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Page {currentPage + 1} of {totalPages}</span>
-      <button
-        type="button"
-        onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-        disabled={currentPage >= totalPages - 1}
-        aria-label="Next page"
-        className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 text-gray-400 transition hover:border-[#C9A24D]/50 hover:text-[#8b7355] disabled:pointer-events-none disabled:opacity-30 dark:border-gray-700 dark:hover:text-[#d7b974]"
-      >
-        <ChevronRight className="h-3.5 w-3.5" />
-      </button>
-    </div>
+  // Page numbers + arrows (user, 10/24 - the section piled up); a new page brings the top of THIS
+  // section back into view, not the top of the page.
+  const pager = (
+    <NumberPager
+      page={currentPage}
+      pages={totalPages}
+      onChange={n => { setPage(n); scrollListTop(sectionRef.current) }}
+      total={filtered.length}
+      size={limit}
+      className="mt-4"
+    />
   )
 
-  if (variant === 'inline') return <div>{stats}{tabs}{list}{pager}</div>
+  if (variant === 'inline') return <div ref={sectionRef as React.RefObject<HTMLDivElement>}>{stats}{tabs}{list}{pager}</div>
 
   return (
-    <section id="requests" className="relative mt-8 scroll-mt-24 overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-gradient-to-br from-[#fffdf8] via-white to-[#fbf6ec] p-5 shadow-[0_24px_50px_-38px_rgba(139,115,85,.8)] dark:border-white/[0.08] dark:from-[#151517] dark:via-[#121214] dark:to-[#1a1712] sm:p-6">
+    <section id="requests" ref={sectionRef} className="relative mt-8 scroll-mt-24 overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-gradient-to-br from-[#fffdf8] via-white to-[#fbf6ec] p-5 shadow-[0_24px_50px_-38px_rgba(139,115,85,.8)] dark:border-white/[0.08] dark:from-[#151517] dark:via-[#121214] dark:to-[#1a1712] sm:p-6">
       <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/70 to-transparent" />
       <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[#C9A24D]/12 blur-3xl" />
       <div className="relative mb-4 flex flex-wrap items-end justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-md ring-1 ring-[#C9A24D]/30"><QrCode className="h-5 w-5" /></span>
           <div>
-            <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.28em] text-[#8b7355] dark:text-[#e8c97a]"><Sparkles className="h-3 w-3" /> From your cheat sheets</p>
-            <h2 className="font-serif text-2xl font-black tracking-tight text-[#111827] dark:text-white">Disclosure &amp; Second Visits</h2>
+            <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.28em] text-[#8b7355] dark:text-[#e8c97a]"><Sparkles className="h-3 w-3" /> {upcoming.length ? `${upcoming.length} waiting on you` : "Requests from your guests"}</p>
+            <h2 className="font-serif text-2xl font-black tracking-tight text-[#111827] dark:text-white">Disclosure &amp; <span className="whitespace-nowrap">Second Visits</span></h2>
           </div>
         </div>
         {requests.length > 0 && tabs}

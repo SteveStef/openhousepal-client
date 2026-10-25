@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   // form's words, its look or the hub's look / photo change, so apps that cache previews by
   // address (iMessage, Facebook, Slack) show the new one.
   const cfg = hub?.config || {}
-  const v = cardVersion('c2', data.headline, data.title, data.subtitle, data.darkMode, JSON.stringify(data.look || null), data.agentPhotoUrl, data.agentName, cfg.savedAt, cfg.hubTheme, cfg.hubLuxeMetal, cfg.hubAccent, cfg.visitorDarkMode)
+  const v = cardVersion('c3', data.headline, data.title, data.subtitle, data.darkMode, JSON.stringify(data.look || null), data.agentPhotoUrl, data.agentName, cfg.savedAt, cfg.hubTheme, cfg.hubLuxeMetal, cfg.hubAccent, cfg.visitorDarkMode)
   const image = { url: `/api/og/form?agent=${encodeURIComponent(slug)}&form=${encodeURIComponent(formSlug)}&v=${v}`, width: 1200, height: 630, alt: title }
   return {
     title,

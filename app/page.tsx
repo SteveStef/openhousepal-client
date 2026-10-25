@@ -10,6 +10,8 @@ import { HouseMotif, PinRouteMotif, KeyMotif, ChatMotif, QrBadge, StarBadge, Shi
 import { PRICING_PLANS, TRIAL_PERIOD_DAYS } from '@/lib/pricing'
 import { useAuth } from '@/contexts/AuthContext'
 import { BasicPricingCard, PremiumPricingCard, IdxPricingCard, NoMlsPricingCard, ProNoMlsPricingCard } from '@/components/pricing/PricingCards'
+import PlanPills from '@/components/pricing/PlanPills'
+import SmoothHeight from '@/components/pricing/SmoothHeight'
 import api from '@/lib/api-service'
 import { Check, ChevronDown, Loader2, Send, Sparkles } from 'lucide-react'
 import HeroTagline from '@/components/home/HeroTagline'
@@ -197,13 +199,43 @@ function HomePageContent() {
   // moving up-tier slides in from the right and moving down-tier slides in from the left.
   const [brightSwitchDir, setBrightSwitchDir] = useState<'left' | 'right'>('right')
   const [noMlsSwitchDir, setNoMlsSwitchDir] = useState<'left' | 'right'>('right')
+  const pickBrightPlan = (key: 'BASIC' | 'PREMIUM' | 'IDX') => {
+    if (key === selectedBrightPlan) return
+    setBrightSwitchDir(BRIGHT_PLAN_RANK[key] > BRIGHT_PLAN_RANK[selectedBrightPlan] ? 'right' : 'left')
+    setSelectedBrightPlan(key)
+  }
+  const pickNoMlsPlan = (key: 'NO_MLS' | 'PRO_NO_MLS') => {
+    if (key === selectedNoMlsPlan) return
+    setNoMlsSwitchDir(NO_MLS_PLAN_RANK[key] > NO_MLS_PLAN_RANK[selectedNoMlsPlan] ? 'right' : 'left')
+    setSelectedNoMlsPlan(key)
+  }
+  // Phones: a clear sideways swipe on the card moves to the next / previous plan.
+  const planTouch = useRef<{ x: number; y: number } | null>(null)
+  const onPlanTouchStart = (e: React.TouchEvent) => { const t = e.touches[0]; planTouch.current = { x: t.clientX, y: t.clientY } }
+  const onPlanTouchEnd = (e: React.TouchEvent) => {
+    const start = planTouch.current; planTouch.current = null
+    if (!start || window.innerWidth >= 768) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - start.x, dy = t.clientY - start.y
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6) return
+    const step = dx < 0 ? 1 : -1
+    if (pricingAudience === 'bright') {
+      const order = ['BASIC', 'PREMIUM', 'IDX'] as const
+      const next = order[BRIGHT_PLAN_RANK[selectedBrightPlan] + step]
+      if (next) pickBrightPlan(next)
+    } else {
+      const order = ['NO_MLS', 'PRO_NO_MLS'] as const
+      const next = order[NO_MLS_PLAN_RANK[selectedNoMlsPlan] + step]
+      if (next) pickNoMlsPlan(next)
+    }
+  }
   const brightPlanCardClass = (key: 'BASIC' | 'PREMIUM' | 'IDX') =>
     selectedBrightPlan === key
-      ? `${brightSwitchDir === 'right' ? 'animate-tab-in-right' : 'animate-tab-in-left'} md:animate-none`
+      ? `${brightSwitchDir === 'right' ? 'animate-plan-in-right' : 'animate-plan-in-left'} md:animate-none`
       : 'hidden md:block'
   const noMlsPlanCardClass = (key: 'NO_MLS' | 'PRO_NO_MLS') =>
     selectedNoMlsPlan === key
-      ? `${noMlsSwitchDir === 'right' ? 'animate-tab-in-right' : 'animate-tab-in-left'} md:animate-none`
+      ? `${noMlsSwitchDir === 'right' ? 'animate-plan-in-right' : 'animate-plan-in-left'} md:animate-none`
       : 'hidden md:block'
   const [activeFeature, setActiveFeature] = useState<FeatureTabKey>('signin')
   const currentFeature = FEATURE_TABS.find(t => t.key === activeFeature)!
@@ -981,7 +1013,7 @@ function HomePageContent() {
             {([['bright', 'Bright MLS Agent'], ['no_mls', 'Non-Bright MLS']] as const).map(([id, label]) => (
               <button
                 key={id}
-                onClick={() => setPricingAudience(id)}
+                onClick={() => { if (id === pricingAudience) return; if (id === 'no_mls') setNoMlsSwitchDir('right'); else setBrightSwitchDir('left'); setPricingAudience(id) }}
                 className={`relative px-4 py-2 rounded-full text-xs font-black whitespace-nowrap transition-colors duration-300 ${pricingAudience === id ? 'text-white dark:text-[#111827]' : 'text-gray-500 dark:text-gray-400 hover:text-[#0B0B0B] dark:hover:text-white'}`}
               >
                 {label}
@@ -995,55 +1027,14 @@ function HomePageContent() {
             them. A small sparkle marks any plan ranked above the one currently showing, as a
             quiet "there's a better plan than this one" cue - it clears once you're on the top tier. */}
         <div className="flex justify-center mb-6 px-6 md:hidden">
-          <div className="inline-flex items-center gap-1 rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151517] p-1 shadow-sm overflow-x-auto max-w-full">
-            {pricingAudience === 'bright' ? (
-              <>
-                {(['BASIC', 'PREMIUM', 'IDX'] as const).map(key => {
-                  const isSelected = selectedBrightPlan === key
-                  const isBetter = BRIGHT_PLAN_RANK[key] > BRIGHT_PLAN_RANK[selectedBrightPlan]
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => {
-                        setBrightSwitchDir(BRIGHT_PLAN_RANK[key] > BRIGHT_PLAN_RANK[selectedBrightPlan] ? 'right' : 'left')
-                        setSelectedBrightPlan(key)
-                      }}
-                      className={`relative flex items-center gap-1 overflow-hidden px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${isSelected ? 'bg-[#111827] text-white dark:bg-[#C9A24D] dark:text-[#111827]' : 'text-gray-500 dark:text-gray-400 hover:text-[#0B0B0B] dark:hover:text-white'}`}
-                    >
-                      {/* IDX is the flagship tier - shimmer it like its own card does (see
-                          .animate-card-shimmer on IdxPricingCard) whenever it isn't the one
-                          already showing, as a quiet "look at this one" nudge. */}
-                      {key === 'IDX' && !isSelected && (
-                        <span className="pointer-events-none absolute inset-y-0 left-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-[#C9A24D]/40 to-transparent animate-card-shimmer" />
-                      )}
-                      <span className="relative">{PRICING_PLANS[key].name}</span>
-                      {isBetter && <Sparkles className="relative w-3 h-3 text-[#C9A24D]" />}
-                    </button>
-                  )
-                })}
-              </>
-            ) : (
-              <>
-                {(['NO_MLS', 'PRO_NO_MLS'] as const).map(key => {
-                  const isSelected = selectedNoMlsPlan === key
-                  const isBetter = NO_MLS_PLAN_RANK[key] > NO_MLS_PLAN_RANK[selectedNoMlsPlan]
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => {
-                        setNoMlsSwitchDir(NO_MLS_PLAN_RANK[key] > NO_MLS_PLAN_RANK[selectedNoMlsPlan] ? 'right' : 'left')
-                        setSelectedNoMlsPlan(key)
-                      }}
-                      className={`flex items-center gap-1 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${isSelected ? 'bg-[#111827] text-white dark:bg-[#C9A24D] dark:text-[#111827]' : 'text-gray-500 dark:text-gray-400 hover:text-[#0B0B0B] dark:hover:text-white'}`}
-                    >
-                      {PRICING_PLANS[key].name}
-                      {isBetter && <Sparkles className="w-3 h-3 text-[#C9A24D]" />}
-                    </button>
-                  )
-                })}
-              </>
-            )}
-          </div>
+          {/* One ink pill glides between plans (PlanPills) - owner, 10/24: switching felt abrupt. */}
+          {pricingAudience === 'bright' ? (
+            <PlanPills key="bright" value={selectedBrightPlan} onChange={id => pickBrightPlan(id as 'BASIC' | 'PREMIUM' | 'IDX')}
+              items={(['BASIC', 'PREMIUM', 'IDX'] as const).map(key => ({ id: key, label: PRICING_PLANS[key].name, better: BRIGHT_PLAN_RANK[key] > BRIGHT_PLAN_RANK[selectedBrightPlan], shimmer: key === 'IDX' }))} />
+          ) : (
+            <PlanPills key="no_mls" value={selectedNoMlsPlan} onChange={id => pickNoMlsPlan(id as 'NO_MLS' | 'PRO_NO_MLS')}
+              items={(['NO_MLS', 'PRO_NO_MLS'] as const).map(key => ({ id: key, label: PRICING_PLANS[key].name, better: NO_MLS_PLAN_RANK[key] > NO_MLS_PLAN_RANK[selectedNoMlsPlan] }))} />
+          )}
         </div>
 
         {/* Both audiences' grids stay permanently mounted (toggled with a plain `hidden`, not a
@@ -1053,15 +1044,20 @@ function HomePageContent() {
             area below flickered as if the page had reloaded. Toggling `hidden` instead just
             replays each grid's tab-in animation (CSS animations restart on display:none -> block)
             without ever destroying the mounted cards. */}
-        <div className={`grid md:grid-cols-3 gap-8 max-w-6xl mx-auto px-6 items-stretch ${pricingAudience === 'bright' ? 'animate-tab-in-left' : 'hidden'}`}>
+        {/* Phones: the card area glides to each card's height (no jump below) and swipes left/right between plans. */}
+        <SmoothHeight>
+        <div onTouchStart={onPlanTouchStart} onTouchEnd={onPlanTouchEnd}>
+        <div className={`grid md:grid-cols-3 gap-8 max-w-6xl mx-auto px-6 items-stretch ${pricingAudience === 'bright' ? 'md:animate-tab-in-left' : 'hidden'}`}>
           <div id="plan-basic" className={brightPlanCardClass('BASIC')}><BasicPricingCard isVisible={seenSections.has('pricing')} /></div>
           <div id="plan-premium" className={brightPlanCardClass('PREMIUM')}><PremiumPricingCard isVisible={seenSections.has('pricing')} /></div>
           <div id="plan-idx" className={brightPlanCardClass('IDX')}><IdxPricingCard isVisible={seenSections.has('pricing')} /></div>
         </div>
-        <div className={`grid md:grid-cols-2 gap-8 max-w-4xl mx-auto px-6 items-stretch ${pricingAudience === 'no_mls' ? 'animate-tab-in-right' : 'hidden'}`}>
+        <div className={`grid md:grid-cols-2 gap-8 max-w-4xl mx-auto px-6 items-stretch ${pricingAudience === 'no_mls' ? 'md:animate-tab-in-right' : 'hidden'}`}>
           <div id="plan-no_mls" className={noMlsPlanCardClass('NO_MLS')}><NoMlsPricingCard isVisible={seenSections.has('pricing')} /></div>
           <div id="plan-pro_no_mls" className={noMlsPlanCardClass('PRO_NO_MLS')}><ProNoMlsPricingCard isVisible={seenSections.has('pricing')} /></div>
         </div>
+        </div>
+        </SmoothHeight>
 
         {renderInlineCue('pricing', false)}
         </div>

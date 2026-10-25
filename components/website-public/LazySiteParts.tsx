@@ -29,3 +29,4 @@ export const MyShowcase = dynamic(() => import('@/components/website-public/show
 export const ShowcaseBuilder = dynamic(() => import('@/components/website-public/showcase/ShowcaseBuilder'))
 export const CinematicLuxuryTemplate = dynamic(() => import('@/components/property-sites/CinematicLuxuryTemplate'))
 export const EditorialEstateTemplate = dynamic(() => import('@/components/property-sites/EditorialEstateTemplate'))
+export const SpotlightFactSheet = dynamic(() => import('@/components/property-sites/SpotlightFactSheet'))

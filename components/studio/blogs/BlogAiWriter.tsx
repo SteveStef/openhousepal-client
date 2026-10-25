@@ -33,6 +33,7 @@ import api, { resolveMediaUrl } from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import { startAiActivity, endAiActivity } from '@/lib/aiActivity'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
+import AiRunReceipt, { secondsBetween } from '@/components/ai/AiRunReceipt'
 import { OhpSpinner } from '@/components/brand/OhpLoader'
 import type { BlogAiBrief, BlogAiContext, BlogAiGenerateResult, BlogAiLength, BlogAiPropertyRef, BlogAiTone, LinkedProperty } from '@/types'
 import { BLOG_CTA_FORMS } from '@/lib/studio/blogTopics'
@@ -186,6 +187,14 @@ export default function BlogAiWriter({
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   const [result, setResult] = useState<BlogAiGenerateResult | null>(null)
+  // The monthly allowance, for "used X% of monthly AI" on the finished draft.
+  const [monthBudgetUsd, setMonthBudgetUsd] = useState<number | null>(null)
+  useEffect(() => {
+    if (!result) return
+    let alive = true
+    api.ai.monthlyUsage().then(r => { if (alive && r.success && r.data) setMonthBudgetUsd(r.data.limit_usd) })
+    return () => { alive = false }
+  }, [result])
   const [finish, setFinish] = useState<FinishChoices>(emptyFinish(true))
   // IDX neighborhood pages this article links (saved with the Finish step).
   const [linkedAreas, setLinkedAreas] = useState<string[]>([])
@@ -815,6 +824,9 @@ export default function BlogAiWriter({
                       </div>
                       <p className="mt-2 text-[11px] font-semibold text-gray-400">The button opens your {cta === 'question' ? 'question box' : `"${CTAS.find(c => c.id === cta)?.label}" form`} right on the article - readers never leave.</p>
                     </Question>
+                    {/* Before writing: where this month's AI allowance stands (after, the draft
+                        shows what it used and how long it took). */}
+                    <MonthlyAiUsageMeter variant="inline" compact stretch />
                   </>
                 )}
 
@@ -884,6 +896,12 @@ export default function BlogAiWriter({
               <motion.div key={doneStep} initial={{ opacity: 0, x: doneDir * 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: doneDir * -18 }} transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }} className="space-y-4">
                 {doneStep === 0 && (
                   <>
+              <AiRunReceipt
+                label="This article"
+                costUsd={result.verification?.run_cost_usd}
+                monthlyBudgetUsd={monthBudgetUsd}
+                tookSeconds={secondsBetween(result.verification?.run_started_at, result.verification?.run_finished_at)}
+              />
               <div className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
                 {result.blog.category && <p className="text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">{result.blog.category}</p>}
                 <h3 className="mt-1 font-serif text-2xl font-black leading-tight text-[#111827] dark:text-white">{result.blog.title}</h3>

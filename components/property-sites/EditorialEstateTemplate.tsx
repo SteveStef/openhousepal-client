@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Playfair_Display, DM_Mono, Manrope } from 'next/font/google'
 import {
-  ArrowRight, ArrowUpRight, Box, ChevronDown, Expand, FileText, Menu, Navigation, Play, Share2, X,
+  ArrowRight, ArrowUpRight, Box, ChevronDown, Compass, Expand, FileText, Mail, Menu, Navigation, Play, Share2, X,
 } from 'lucide-react'
 import ExploreNearby from '@/components/website-public/ExploreNearby'
 import MlsDisclaimer from '@/components/property-sites/MlsDisclaimer'
@@ -17,7 +17,9 @@ import PhotoShow from './spotlight/PhotoShow'
 import HeroMedia from './spotlight/HeroMedia'
 import GuestTools from './spotlight/GuestTools'
 import RoomChapters from './spotlight/RoomChapters'
+import { DocumentRequestWindow, flowHomeOf } from './spotlight/GuestFlows'
 import OpenHouseChip from './spotlight/OpenHouseChip'
+import OpenHouseBrief from './spotlight/OpenHouseBrief'
 import TownFeature from './spotlight/TownSection'
 import PresentedByPill from './spotlight/PresentedByPill'
 import { groupSpecs, prettyFeature, splitFeatures } from './spotlight/features'
@@ -29,6 +31,7 @@ import {
 import { onAccent, usableAccent } from './spotlight/tone'
 import { SP_MOTION_CSS, useOffscreenPause, usePresence } from './spotlight/motion'
 import NearbyMap from '@/components/maps/NearbyMap'
+import { openDirections } from '@/lib/directions'
 
 const playfair = Playfair_Display({ subsets: ['latin'], weight: ['400', '500'], style: ['normal', 'italic'], variable: '--font-ee-display' })
 const dmMono = DM_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-ee-mono' })
@@ -102,6 +105,7 @@ export default function EditorialEstateTemplate({ data, publicUrl }: { data: Pro
   return (
     <div
       ref={rootRef}
+      data-spotlight-root=""
       className={`ee ${playfair.variable} ${dmMono.variable} ${manrope.variable}`}
       style={{ ['--sp-accent' as string]: accent, ['--sp-on-accent' as string]: onAccent(accent) }}
     >
@@ -112,8 +116,8 @@ export default function EditorialEstateTemplate({ data, publicUrl }: { data: Pro
 
       <Masthead items={navItems} m={m} onShare={() => setShareOpen(true)} allowTour={allowTour} />
       <Cover m={m} onPhotos={() => openPhotos(0)} allowTour={allowTour} />
+      {has.openHouses && <OpenHouseBrief m={m} url={publicUrl} look="editorial" />}
       <IndexBand m={m} />
-      {has.openHouses && m.nextOpenHouse && <OpenHouseNotice m={m} url={publicUrl} />}
 
       {has.story && <Article m={m} n={next()} />}
       {has.gallery && <PhotoEssay m={m} n={next()} onOpen={openPhotos} />}
@@ -140,8 +144,8 @@ export default function EditorialEstateTemplate({ data, publicUrl }: { data: Pro
       )}
       {has.payment && p.price && <Payment m={m} n={next()} />}
       {has.openHouses && <OpenHouses m={m} n={next()} url={publicUrl} />}
-      {has.documents && <Documents m={m} n={next()} />}
-      {has.agents && m.agent && <PresentedBy m={m} url={publicUrl} signatureSlug={has.signature ? data.signature_hub_slug || null : null} />}
+      {has.documents && <Documents m={m} n={next()} siteId={data.site_id} />}
+      {has.agents && m.agent && <PresentedBy m={m} url={publicUrl} siteId={data.site_id} signatureSlug={has.signature ? data.signature_hub_slug || null : null} />}
       {m.show('guest_tools') && <GuestTools m={m} siteId={data.site_id} url={publicUrl} tone="paper" />}
       <Visit m={m} siteId={data.site_id} url={publicUrl} onShare={() => setShareOpen(true)} allowTour={allowTour} />
       <Footer m={m} navItems={navItems} onShare={() => setShareOpen(true)} />
@@ -308,7 +312,14 @@ function Cover({ m, onPhotos, allowTour }: { m: SpotlightModel; onPhotos: () => 
           <HeroMedia hero={m.heroImage} photos={m.photos} mode={m.header.mode} motion={m.header.motion} videoUrl={m.header.videoUrl} videoPoster={m.header.videoPoster} frame={m.header.frame} alt={m.fullAddress} />
         </div>
       )}
-      <div className="ee-cover-inner flex h-full w-full flex-col justify-between px-5 pb-10 pt-24 sm:px-10 sm:pb-14 xl:px-14">
+      {/* The open house, top-middle of the cover: the day only - a tap glides to the rows right
+          under the cover with every date, time and Add to calendar (user, 10/24). */}
+      {oh && m.has.openHouses && (
+        <div className="pointer-events-none absolute inset-x-0 top-[4.75rem] z-[3] flex justify-center px-5 sm:top-[5.25rem]">
+          <OpenHouseChip dateOnly oh={oh} onClick={() => scrollToId('open-house-brief')} className="ee-tag ee-oh-pill pointer-events-auto" />
+        </div>
+      )}
+      <div className={`ee-cover-inner flex h-full w-full flex-col justify-between px-5 pb-10 sm:px-10 sm:pb-14 xl:px-14 ${oh && m.has.openHouses ? 'pt-[8.1rem] sm:pt-[8.5rem]' : 'pt-24'}`}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <p className="sp-mono text-[10px] uppercase tracking-[0.22em] opacity-85">
             {[p.city, p.state].filter(Boolean).join(', ') || 'A private residence'}
@@ -316,7 +327,6 @@ function Cover({ m, onPhotos, allowTour }: { m: SpotlightModel; onPhotos: () => 
           </p>
           <div className="flex flex-wrap gap-2">
             {m.reduction && <span className="ee-tag">Price improved {fmtCompactMoney(m.reduction)}</span>}
-            {oh && <OpenHouseChip oh={oh} onClick={() => scrollToId('open-houses')} className="ee-tag" />}
           </div>
         </div>
 
@@ -380,22 +390,6 @@ function IndexBand({ m }: { m: SpotlightModel }) {
         )}
       </div>
     </section>
-  )
-}
-
-function OpenHouseNotice({ m, url }: { m: SpotlightModel; url: string }) {
-  const oh = m.nextOpenHouse!
-  return (
-    <div className="ee-deep">
-      <div className="flex w-full flex-col gap-4 px-5 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-10 xl:px-14">
-        <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <span className="sp-mono text-[10px] uppercase tracking-[0.2em] text-[color:var(--ee-gold)]">Open house</span>
-          <span className="sp-display text-2xl italic">{fmtDay(oh.date)}</span>
-          {fmtTimeRange(oh.start_time, oh.end_time) && <span className="sp-mono text-[11px] uppercase tracking-[0.14em] opacity-75">{fmtTimeRange(oh.start_time, oh.end_time)}</span>}
-        </p>
-        <div className="ee-on-deep"><AddToCalendar openHouse={oh} address={m.p.address} fullAddress={m.fullAddress} url={url} agentName={m.agent?.name} tone="dark" /></div>
-      </div>
-    </div>
   )
 }
 
@@ -701,18 +695,27 @@ function Town({ m, n }: { m: SpotlightModel; n: string }) {
       photo={t.photo}
       place={[['County', m.p.county], ['Township', m.p.township], ['School district', m.p.school_district_name]]}
       kicker={<p className="sp-mono text-[10px] uppercase tracking-[0.2em] text-[color:var(--ee-gold)]">{n} — The town</p>}
-      onExplore={m.has.nearby ? () => scrollToId('explore-nearby') : undefined}
+      onExplore={m.has.nearby && !(m.has.location && m.hasCoords) ? () => scrollToId('explore-nearby') : undefined}
     />
   )
 }
 
+// With nearby places on, the map section IS "Explore what's nearby" (user, 10/24): its title says
+// so right above the map, instead of an arrow card in the town section pointing down at it.
 function Location({ m, n, siteId }: { m: SpotlightModel; n: string; siteId: string }) {
   const { p } = m
+  const explore = m.has.nearby && m.hasCoords
   return (
     <section id="location" className="ee-paper scroll-mt-16 px-5 py-24 sm:px-10 sm:py-32">
       <div className="mx-auto max-w-[1500px]">
-        <SectionHead n={n} kicker="Location" title={p.city ? <>A private <i>latitude.</i></> : <>Where it <i>sits.</i></>}
+        <SectionHead n={n} kicker={explore ? 'Location · Explore nearby' : 'Location'} title={explore ? <>What’s <i>nearby.</i></> : p.city ? <>A private <i>latitude.</i></> : <>Where it <i>sits.</i></>}
           aside={m.hasCoords ? `${toDMS(p.latitude!, 'N', 'S')} / ${toDMS(p.longitude!, 'E', 'W')}` : [p.city, p.state].filter(Boolean).join(', ')} />
+        {explore && (
+          <Reveal className="-mt-6 mb-8 flex max-w-2xl items-start gap-3 md:-mt-10">
+            <Compass className="mt-1 h-5 w-5 shrink-0 text-[color:var(--sp-accent)]" strokeWidth={1.4} />
+            <p className="text-[16px] leading-relaxed opacity-80">Restaurants, coffee, parks and more - tap a kind of place and they drop onto the map, each with how far it is from {street(p.address)}.</p>
+          </Reveal>
+        )}
         <div className="grid gap-10 lg:grid-cols-[1.6fr_1fr]">
           {m.hasCoords ? (
             <Reveal className="min-w-0">
@@ -748,7 +751,7 @@ function Location({ m, n, siteId }: { m: SpotlightModel; n: string; siteId: stri
                 <p className="mt-3 text-[11px] leading-relaxed opacity-55">Per the MLS record; confirm enrollment with the district.</p>
               </div>
             )}
-            <a href={m.directionsUrl} target="_blank" rel="noreferrer" className="ee-linebtn sp-mono mt-10"><Navigation className="h-3.5 w-3.5" /> Get directions</a>
+            <button type="button" onClick={() => openDirections(m.fullAddress, { label: m.fullAddress })} className="ee-linebtn sp-mono mt-10"><Navigation className="h-3.5 w-3.5" /> Get directions</button>
           </Reveal>
         </div>
       </div>
@@ -796,29 +799,37 @@ function OpenHouses({ m, n, url }: { m: SpotlightModel; n: string; url: string }
   )
 }
 
-function Documents({ m, n }: { m: SpotlightModel; n: string }) {
+// Documents are never handed over on the spot (user, 10/24): tapping one opens a short window that
+// asks where to send it, and it's emailed - the agent gets the lead.
+function Documents({ m, n, siteId }: { m: SpotlightModel; n: string; siteId: string }) {
+  const [open, setOpen] = useState<number | null>(null)
+  const last = useRef(0)
+  if (open !== null) last.current = open
   return (
     <section id="documents" className="ee-paper scroll-mt-16 px-5 pb-24 sm:px-10 sm:pb-32">
       <div className="mx-auto max-w-[1500px]">
-        <SectionHead n={n} kicker="Supplements" title={<>For the <i>file.</i></>} />
+        <SectionHead n={n} kicker="Supplements" title={<>For the <i>file.</i></>} aside={m.documents.length > 1 ? 'Emailed to you on request' : 'Emailed to you'} />
         <ul className="grid gap-x-14 md:grid-cols-2">
           {m.documents.map((d, i) => (
             <li key={i}>
-              <a href={d.url} target="_blank" rel="noreferrer" className="group flex items-center gap-4 border-b border-[#172522]/15 py-5">
+              <button type="button" onClick={() => setOpen(i)} className="group flex w-full items-center gap-4 border-b border-[#172522]/15 py-5 text-left">
                 <FileText className="h-4 w-4 shrink-0 text-[color:var(--sp-accent)]" />
-                <span className="sp-display flex-1 text-xl">{d.label || 'Document'}</span>
-                <span className="sp-mono text-[10px] uppercase tracking-[0.16em] opacity-55">{/\.pdf($|\?)/i.test(d.url) ? 'PDF' : 'Open'}</span>
-                <ArrowUpRight className="h-4 w-4 opacity-50 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100" />
-              </a>
+                <span className="sp-display min-w-0 flex-1 truncate text-xl">{d.label || 'Document'}</span>
+                <span className="sp-mono text-[10px] uppercase tracking-[0.16em] opacity-55">{/\.pdf($|\?)/i.test(d.url) ? 'PDF' : 'File'}</span>
+                <span className="sp-mono inline-flex items-center gap-1.5 border border-[#172522]/30 px-2.5 py-1.5 text-[9px] uppercase tracking-[0.16em] transition group-hover:border-[#172522] group-hover:bg-[#172522] group-hover:text-[#f3efe6]">
+                  <Mail className="h-3 w-3" /> Get it
+                </span>
+              </button>
             </li>
           ))}
         </ul>
       </div>
+      <DocumentRequestWindow open={open !== null} onClose={() => setOpen(null)} home={flowHomeOf(m, siteId)} documents={m.documents} initial={last.current} />
     </section>
   )
 }
 
-function PresentedBy({ m, url, signatureSlug }: { m: SpotlightModel; url: string; signatureSlug?: string | null }) {
+function PresentedBy({ m, url, siteId, signatureSlug }: { m: SpotlightModel; url: string; siteId: string; signatureSlug?: string | null }) {
   const [primary, ...co] = m.agents
   const first = primary.name.split(' ')[0]
   return (
@@ -840,7 +851,7 @@ function PresentedBy({ m, url, signatureSlug }: { m: SpotlightModel; url: string
           <p className="sp-mono mt-4 text-[11px] uppercase tracking-[0.16em] opacity-70">{[primary.title || 'Listing agent', primary.brokerage].filter(Boolean).join(' · ')}</p>
           {primary.license_number && <p className="sp-mono mt-1 text-[10px] uppercase tracking-[0.14em] opacity-50">Lic. #{primary.license_number}</p>}
           {primary.bio && <p className="mt-7 max-w-xl text-[16px] leading-[1.8] opacity-80">{excerpt(primary.bio, 3, 420)}</p>}
-          <AgentActions agent={primary} address={m.p.address} url={url} tone="light" className="mt-8" />
+          <AgentActions agent={primary} address={m.p.address} url={url} tone="light" className="mt-8" siteId={siteId} />
           {primary.hub_url && (
             <a href={primary.hub_url} target="_blank" rel="noreferrer" className="ee-linebtn sp-mono mt-6">
               Visit {first}’s Agent Hub <ArrowUpRight className="h-3.5 w-3.5" />
@@ -953,7 +964,7 @@ const EE_CSS = `
 .ee-deep{background:var(--deep);color:var(--paper)}
 .ee-progress{position:fixed;z-index:120;top:0;left:0;height:2px;width:100%;background:var(--sp-accent);transform-origin:0 50%;transform:scaleX(0)}
 .ee-masthead{position:fixed;inset:0 0 auto 0;z-index:90;color:var(--paper);transition:background .45s ease,color .45s ease,border-color .45s ease;border-bottom:1px solid rgba(243,239,230,.18);background:linear-gradient(180deg,rgba(9,21,19,.55),transparent)}
-.ee-masthead.is-solid{background:rgba(243,239,230,.92);color:var(--ink);border-bottom-color:rgba(23,37,34,.14);}
+.ee-masthead.is-solid{background:#f3efe6;color:var(--ink);border-bottom-color:rgba(23,37,34,.14);box-shadow:0 10px 30px -22px rgba(16,32,30,.45)}
 .ee-navlink{position:relative;padding:6px 0;opacity:.72;transition:opacity .25s}.ee-navlink:hover,.ee-navlink.is-active{opacity:1}
 .ee-navlink:after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:currentColor;transform:scaleX(0);transform-origin:left;transition:transform .35s cubic-bezier(.2,.7,.2,1)}.ee-navlink.is-active:after,.ee-navlink:hover:after{transform:scaleX(1)}
 .ee-iconbtn{align-items:center;justify-content:center;width:40px;height:40px;border:1px solid currentColor;border-radius:999px;opacity:.85;transition:opacity .2s,background .2s}.ee-iconbtn:hover{opacity:1;background:rgba(127,127,127,.12)}
@@ -980,6 +991,10 @@ const EE_CSS = `
 @keyframes eeTitleIn{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
 .ee-tag{font-family:var(--font-ee-mono),monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:7px 12px;border:1px solid currentColor;background:rgba(9,21,19,.25);}
 .ee-cover.no-photo .ee-tag{background:transparent}
+.ee-oh-pill{background:rgba(9,21,19,.62);border-color:color-mix(in srgb,var(--ee-gold) 70%,transparent);color:var(--paper);padding:8px 14px;box-shadow:0 12px 30px -14px rgba(0,0,0,.7);transition:background .25s;animation:eeFade .9s .7s ease both}
+@media(prefers-reduced-motion:reduce){.ee-oh-pill{animation:none}}
+.ee-oh-pill:hover{background:rgba(9,21,19,.8)}
+.ee-cover.no-photo .ee-oh-pill{background:var(--deep);color:var(--paper)}
 .ee-cover-btn{display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 20px;font-size:10px;letter-spacing:.18em;text-transform:uppercase;border:1px solid currentColor;transition:background .25s,color .25s}
 .ee-cover-btn:hover{background:rgba(243,239,230,.12)}
 .ee-cover.has-photo .ee-cover-btn.is-primary{background:var(--paper);color:var(--ink);border-color:var(--paper)}

@@ -1,6 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useToast } from '@/contexts/ToastContext'
+import OhpLoader from '@/components/brand/OhpLoader'
+import { saveFile } from '@/lib/mobileShare'
 import { useRouter } from 'next/navigation'
 import {
   Clapperboard, LayoutGrid, Lightbulb, Loader2, Moon, Sofa, Sparkles, Video,
@@ -14,7 +17,7 @@ import StorageMeter from '@/components/StorageMeter'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import api from '@/lib/api-service'
 import type { StudioMediaAsset } from '@/types'
-import { OHP_MEDIA_STYLE, ProjectCard, mediaGroup, type MediaGroup } from '@/components/studio/media/shared'
+import { OHP_MEDIA_STYLE, ProjectCard, actionLabel, mediaGroup, type MediaGroup } from '@/components/studio/media/shared'
 
 // This is now purely a list page, mirroring /studio/cma - the actual create wizard lives at its
 // own route (/studio/media/new) and a finished/in-progress project at its own
@@ -35,6 +38,10 @@ function MediaLabListPage() {
   const [filter, setFilter] = useState<'all' | MediaGroup>('all')
 
   const refreshUsage = useCallback(() => setUsageTick(t => t + 1), [])
+  // Only the two meters (not the whole list) - after something finishes.
+  const [meterTick, setMeterTick] = useState(0)
+  const refreshUsageMeters = useCallback(() => setMeterTick(t => t + 1), [])
+  const { showToast } = useToast()
 
   useEffect(() => {
     let alive = true
@@ -52,14 +59,39 @@ function MediaLabListPage() {
     return () => { alive = false }
   }, [usageTick])
 
-  // Some still-processing videos in the list never get a live poll here (that's the [id] page's
-  // job while it's open) - a plain focus-triggered refetch is enough for the list itself to catch
-  // up once the agent comes back, without running a poll loop for every card at once.
+  // Coming back to the tab catches the list up.
   useEffect(() => {
     const onFocus = () => refreshUsage()
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [refreshUsage])
+
+  // Like the CMA list (user, 10/24): anything still generating shows its progress on its card, the
+  // list quietly re-checks every few seconds while something is working, and a project that
+  // finishes while the list is open gets a "Ready - tap to open" moment and a toast.
+  const anyProcessing = projects.some(p => p.status === 'processing')
+  useEffect(() => {
+    if (!anyProcessing) return
+    const t = setInterval(() => {
+      api.mediaLab.listAssets({ limit: 60 }).then(r => { if (r.success && r.data) setProjects(r.data.assets) })
+    }, 4000)
+    return () => clearInterval(t)
+  }, [anyProcessing])
+  const prevStatus = useRef<Map<string, string>>(new Map())
+  const [justDone, setJustDone] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    const prev = prevStatus.current
+    const finished = projects.filter(p => prev.get(p.id) === 'processing' && p.status === 'succeeded')
+    const failed = projects.filter(p => prev.get(p.id) === 'processing' && p.status === 'failed')
+    prevStatus.current = new Map(projects.map(p => [p.id, p.status]))
+    if (finished.length) {
+      setJustDone(s => { const n = new Set(s); finished.forEach(p => n.add(p.id)); return n })
+      showToast(finished.length === 1 ? `Your ${actionLabel(finished[0].action).toLowerCase()} is ready - tap it to open.` : `${finished.length} projects are ready.`, 'success')
+      refreshUsageMeters()
+    }
+    if (failed.length) showToast(failed[0].error_message || "One of your projects didn't finish - open it to try again.", 'error')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects])
 
   const storageFull = !!usage && usage.storage_cap_bytes > 0 && usage.storage_used_bytes >= usage.storage_cap_bytes
 
@@ -75,12 +107,8 @@ function MediaLabListPage() {
       : await api.mediaLab.download(asset.id)
     setDownloadingId(null)
     if (!success || !blob) { setError('Download failed. Try again in a moment.'); return }
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${asset.action.replace(/\+/g, '-')}-${asset.id.slice(0, 8)}.${isVid ? 'mp4' : 'png'}`
-    document.body.appendChild(a); a.click(); a.remove()
-    URL.revokeObjectURL(url)
+    // Phone: the Share sheet (Save Image / Save to Files). Computer: a plain download.
+    await saveFile(blob, `${asset.action.replace(/\+/g, '-')}-${asset.id.slice(0, 8)}.${isVid ? 'mp4' : 'png'}`)
   }
 
   const confirmDelete = async () => {
@@ -113,10 +141,11 @@ function MediaLabListPage() {
           title={<>Every photo, <em>at its best.</em></>}
           subtitle="Twilight, virtual staging, lights-on and video - from any listing photo or your own."
           aside={
-            // AI usage lines up with the title, storage with the line under it
-            <div className="w-full space-y-1.5 lg:mt-0.5">
-              <MonthlyAiUsageMeter variant="inline" compact stretch refreshKey={usageTick} />
-              <StorageMeter variant="inline" compact stretch refreshKey={usageTick} />
+            // AI usage lines up with the title, storage with the line under it - side by side on a
+            // phone (user, 10/24)
+            <div className="grid w-full grid-cols-2 gap-1.5 lg:mt-0.5 lg:block lg:space-y-1.5">
+              <MonthlyAiUsageMeter variant="inline" compact stretch refreshKey={`${usageTick}:${meterTick}`} />
+              <StorageMeter variant="inline" compact stretch refreshKey={`${usageTick}:${meterTick}`} />
             </div>
           }
           tabs={
@@ -155,24 +184,25 @@ function MediaLabListPage() {
         )}
 
         {loading ? (
-          <div className="mt-16 flex items-center justify-center gap-2 py-16 text-sm font-bold text-gray-400">
-            <Loader2 className="h-5 w-5 animate-spin" /> Loading your projects...
-          </div>
+          <OhpLoader fullScreen={false} label="Loading your projects" className="mt-10 py-16" />
         ) : projects.length > 0 ? (
           (() => {
             const shown = filter === 'all' ? projects : projects.filter(p => mediaGroup(p) === filter)
             return (
               <div className="mt-6">
-                <div className="mb-3">
-                  <h2 className="font-serif text-xl font-black text-[#111827] dark:text-white">Your projects</h2>
-                  <div className="mt-0.5 flex items-baseline justify-between gap-3">
-                    <p className="min-w-0 text-[11px] font-semibold text-gray-500 sm:truncate dark:text-gray-400">
-                      Open one to compare, download or make another version - or delete it to free storage.
+                {/* Title + count on one line, one short line under it (the old long sentence
+                    wrapped around the count on a phone - user, 10/24). */}
+                <div className="mb-3 flex items-end justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="font-serif text-xl font-black leading-tight text-[#111827] dark:text-white">Your projects</h2>
+                    <p className="mt-0.5 truncate text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                      <span className="sm:hidden">Tap one to view, download or remake it.</span>
+                      <span className="hidden sm:inline">Open one to compare, download or make another version - or delete it to free storage.</span>
                     </p>
-                    <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#d7b974]">
-                      {filter === 'all' ? projects.length : `${shown.length} of ${projects.length}`} {projects.length === 1 ? 'project' : 'projects'}
-                    </span>
                   </div>
+                  <span className="mb-0.5 shrink-0 rounded-full border border-[#C9A24D]/35 bg-[#C9A24D]/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#8b7355] dark:text-[#d7b974]">
+                    {filter === 'all' ? projects.length : `${shown.length} of ${projects.length}`} {projects.length === 1 ? 'project' : 'projects'}
+                  </span>
                 </div>
                 <div className="mb-4 h-px bg-gradient-to-r from-[#C9A24D]/55 via-[#C9A24D]/15 to-transparent" />
                 {shown.length === 0 ? (
@@ -197,6 +227,7 @@ function MediaLabListPage() {
                         active={false}
                         index={i}
                         downloading={downloadingId === p.id}
+                        justDone={justDone.has(p.id)}
                         onOpen={() => router.push(`/studio/media/${p.id}`)}
                         onDownload={() => downloadAsset(p)}
                         onDelete={() => setPendingDelete(p)}

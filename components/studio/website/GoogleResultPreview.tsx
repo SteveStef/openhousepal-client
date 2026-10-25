@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
 import { ChevronRight, EyeOff, Globe, Moon, MoreVertical, Search, Star, Sun, X } from 'lucide-react'
 import type { SitePage, SiteSeo } from '@/types'
-import { seoLinksFor } from './SearchAppearancePanel'
+import { OHP_TAB_ICON, seoLinksFor } from './SearchAppearancePanel'
 import { autoSectionMeta, type SeoCtx } from '@/lib/siteSeoAuto'
 import type { SeoPreviewPage } from './SeoPagesList'
 
@@ -50,7 +50,7 @@ export default function GoogleResultPreview({ seo, pages, defaults, siteUrl, foc
   const autoHome = ctx ? autoSectionMeta('home', ctx) : null
   const title = seo.home_title || autoHome?.title || siteName
   const description = seo.description || autoHome?.description || `Search homes for sale${defaults.area ? ` in ${defaults.area}` : ''}, see recent sales and connect with ${siteName}.`
-  const icon = seo.favicon_url || defaults.logoUrl
+  const icon = seo.favicon_url || OHP_TAB_ICON
   const one = focusKey.startsWith('pg:') && page ? page : null
   const links = seoLinksFor(pages, defaults.area, ctx).map(l => ({ ...l, title: seo.pages[l.key]?.title || l.fallbackTitle, description: seo.pages[l.key]?.description || l.fallbackDescription })).filter(l => l.description).slice(0, 6)
   // Local dev links run through /ohp-site-render/<host> - show the real address the site lives at.

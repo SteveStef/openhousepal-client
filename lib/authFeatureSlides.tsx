@@ -17,7 +17,7 @@ const cls = 'w-6 h-6 text-white'
 
 export const AUTH_FEATURE_SLIDES: AuthFeatureSlide[] = [
   { kicker: 'Automated', title: 'Open House Kits & Sign-In', description: 'Instantly generates a QR code sign-in sheet, Brag Sheet, Similar Properties flyer, and Cheat Sheet for your open house.', icon: <Home className={cls} strokeWidth={2.5} /> },
-  { kicker: 'Capture Leads', title: 'Forms', description: 'Build lead forms, launch campaigns, and track every response.', icon: <ClipboardList className={cls} strokeWidth={2.5} /> },
+  { kicker: 'Capture Leads', title: 'Forms & Invites', description: 'Build lead forms and open house invites, launch campaigns, and track every response & RSVP.', icon: <ClipboardList className={cls} strokeWidth={2.5} /> },
   { kicker: 'Pricing', title: 'CMA Builder', description: 'AI deep-dives listing facts & photos, then builds a detailed, pro-grade report.', icon: <Calculator className={cls} strokeWidth={2.5} /> },
   { kicker: 'Open House Tools', title: 'Discovery + Manager', description: 'Find and request to host open houses, manage hosting on your own listings, and track performance.', icon: <Search className={cls} strokeWidth={2.5} /> },
   { kicker: 'Track & Convert', title: 'Leads', description: 'Every sign-in and inquiry captured and organized in one place.', icon: <Users className={cls} strokeWidth={2.5} /> },

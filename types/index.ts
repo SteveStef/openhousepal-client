@@ -206,7 +206,7 @@ export type OpenHouseWizardStep = 'ADDRESS' | 'PREFERENCES' | 'COVER_IMAGE' | 'C
 
 // No-MLS Pro only (Bright MLS plans get the Guest Pass instead).
 export type AfterSignin = 'hub' | 'none'
-export type GuestSettingsPatch = { autoShowcase?: boolean; similarHomes?: boolean; afterSignin?: AfterSignin; guestPass?: boolean; passSignature?: boolean }
+export type GuestSettingsPatch = { autoShowcase?: boolean; similarHomes?: boolean; afterSignin?: AfterSignin; guestPass?: boolean; passSignature?: boolean; passShowcase?: boolean }
 
 export interface OpenHouse {
   id: string;
@@ -233,6 +233,8 @@ export interface OpenHouse {
   // default). passSignatureAvailable = the plan includes Email Signature.
   passSignature?: boolean;
   passSignatureAvailable?: boolean;
+  // Showcases off (autoShowcase false): the Guest Pass still offers a build-on-tap Showcase button.
+  passShowcase?: boolean;
   // No-MLS Pro: send guests to the Agent Hub after signing in ("hub") or not.
   afterSignin?: AfterSignin | null;
   // The agent's own published Spotlight for this home - only set when it's their own listing (IDX).
@@ -291,6 +293,8 @@ export interface OpenHouseFormRequest {
   anotherTourTime?: string | null;
   preferredVisitTime?: string | null;
   wantsDisclosure?: boolean | null;
+  /** Where they asked: 'guest_pass' | 'cheat_sheet' | 'invite' (null = an older one, from the Cheat Sheet QR). */
+  source?: 'guest_pass' | 'cheat_sheet' | 'invite' | null;
   createdAt: string;
   completedAt?: string | null;
   propertyAddress?: string | null;
@@ -793,6 +797,8 @@ export interface Collection {
   };
   stats: {
     totalProperties: number;
+    /** "100+" - holds the most homes a Showcase can (lib/showcaseLimit). */
+    atLimit?: boolean;
     activeProperties: number;
     newProperties: number;
     viewedProperties: number;
@@ -823,6 +829,12 @@ export interface Collection {
   /** The client's automatic emails: daily, weekly (not opening them) or off - and why. */
   emailMode?: 'daily' | 'weekly' | 'off';
   emailModeReason?: string | null;
+  /** Where the client came from - the open house they attended (asleep cards show it), or how the
+   *  Showcase was made ('manual' | 'form' | ...). */
+  cameFrom?: { kind: string; address?: string | null; city?: string | null; state?: string | null; price?: number | null; image?: string | null; date?: string | null } | null;
+  /** Emails slowed / stopped because they don't open them - but they keep using the Showcase, so it
+   *  stays awake (showcase sleep rule, 10/24). */
+  stillUsing?: boolean;
 }
 
 export interface User {
@@ -1098,6 +1110,8 @@ export interface AgentFormConfig {
   look_theme?: 'classic' | 'luxe' | null;
   luxe_metal?: 'gold' | 'silver' | 'bronze' | null;
   redirect_to_agent_hub: boolean;
+  /** Showcase-building forms: open the Showcase the answers just built (wins over the Agent Hub). */
+  redirect_to_showcase?: boolean;
   property_photo_carousel: boolean;
   background_effects: boolean;
   welcome_text_effects: boolean;
@@ -1181,6 +1195,8 @@ export interface PublicFormConfig {
   agentPhotoUrl?: string | null;
   agentTitle?: string | null;
   agentMarket?: string | null;
+  /** The state the agent serves ("PA") - pre-fills the form's State answer. */
+  agentState?: string | null;
   linkedProperty?: LinkedProperty | null;
   exampleProperties?: { address: string; city?: string | null; price?: number | null; image?: string | null }[] | null;
 }
@@ -1326,6 +1342,17 @@ export interface BrandKit {
   updated_at?: string | null;
   /** The brand LOOK every feature on "My Brand Kit" wears (lib/brandKit.ts, backend brand_look_service). */
   look?: BrandKitLook | null;
+}
+
+/** Branding center: which features wear the brand right now (GET /studio/brand-kit/usage). */
+export interface BrandUsage {
+  hub: { exists: boolean; follows: boolean }
+  signature: { exists: boolean; follows: boolean }
+  forms: { total: number; follows: number }
+  idx: { exists: boolean; follows: boolean }
+  designs: { total: number; brand: number }
+  invites: { total: number; follows: number }
+  spotlight: { total: number }
 }
 
 export interface BrandKitLook {
@@ -1568,6 +1595,7 @@ export interface StudioMediaGeneratePayload {
   options?: StudioMediaOptions;
   effects?: StudioImageEffect[];   // photo edit: stack these into one gpt-image-2 call
   photos?: string[];               // AI video: source photos (max 8), one 5s clip each
+  client_request_id?: string;      // one per Generate press - a resend returns the same project
 }
 
 export interface StudioMediaAsset {
@@ -1946,6 +1974,8 @@ export interface PropertyWebsiteChapter {
   enabled: boolean;
   photos: string[];
   copy: string;
+  /** The agent tapped "Looks good" on this room in the editor's fine-tuning list (10/24). */
+  confirmed?: boolean;
 }
 
 export interface PropertyWebsiteDraft {
@@ -2043,6 +2073,10 @@ export interface BlogAiReview {
   /** 'interview' = the writer's answers are autosaved but it hasn't been written yet. */
   status?: 'interview' | 'running' | 'done' | 'failed'
   stage?: string
+  /** The finished run's receipt: what it cost and when it started / finished (10/24). */
+  run_cost_usd?: number
+  run_started_at?: string
+  run_finished_at?: string
   /** A brand-new article the AI is (or was) writing - not a rewrite of an existing one. */
   new?: boolean
   /** The writer's saved answers + the step the agent was on (unfinished drafts). */
@@ -2271,6 +2305,9 @@ export interface Lead {
   places?: string[];
   showcase_deleted?: boolean;
   showcase_new_matches?: number;
+  /** The agent's star on this person (PATCH /leads/{id} is_favorite) - and whether their Showcase is starred. */
+  is_favorite?: boolean;
+  showcase_starred?: boolean;
   has_second_visit_request?: boolean;
   has_disclosure_request?: boolean;
   /** The newest still-open disclosure / second-visit request (deep link: /open-houses?request=<id>). */
@@ -2311,6 +2348,23 @@ export interface Lead {
 /** How automatic emails go to one client: daily (normal), weekly (stopped opening them) or off. */
 export type EmailMode = 'daily' | 'weekly' | 'off';
 export type EmailDelivery = 'delivered' | 'delayed' | 'bounced' | 'blocked' | 'spam';
+
+/** Whether the agent opens OpenHousePal's own emails (backend agent_email_health_service).
+ *  warned = 5 unopened in a row (junk?); weekly = routine emails now come as one weekly summary. */
+export interface EmailHealth {
+  mode: 'normal' | 'warned' | 'weekly';
+  unopened: number;
+  after_warning: number;
+  show_banner: boolean;
+  warned_at: string | null;
+  weekly_at: string | null;
+  held: number;
+  email: string | null;
+  first_strike: number;
+  second_strike: number;
+  test_sent_at: string | null;
+  can_test: boolean;
+}
 
 export interface EmailPerson {
   email: string;
@@ -2409,7 +2463,7 @@ export interface AgentTask {
   created_at: string;
 }
 
-export type FollowupWhen = 'same_day' | 'next_day';
+export type FollowupWhen = 'same_day' | 'later_today' | 'next_day';
 export type FollowupStyle = 'timed' | 'all_day';
 
 export interface AutoFollowupRule {
@@ -2496,11 +2550,18 @@ export interface PublicFollowup {
 /** The tap-to-text page (/d/<code>/text): the guest's number + the ready-to-send message. */
 export interface PublicFollowupText extends PublicFollowup {
   first_name?: string | null;
-  phone: string;
-  sms_to: string;
+  /** null when the guest left no phone (the page still offers Email). */
+  phone: string | null;
+  sms_to: string | null;
   message: string;
   /** Placeholders still in the message ("[ADD DATE & TIME]") the agent should replace before sending. */
   fill_ins: string[];
+  /** The Email button (10/25): their address, a subject, the message written as an email, and the
+   *  mailbox the agent connected for send-as-agent ('gmail' | 'outlook'), offered first. */
+  email?: string | null;
+  email_subject?: string | null;
+  email_body?: string | null;
+  mail_provider?: 'gmail' | 'outlook' | null;
 }
 
 export interface TaskCounts {

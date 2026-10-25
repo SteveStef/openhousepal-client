@@ -54,6 +54,53 @@ function Tile({ on, onClick, disabled, title, blurb, badge, children }: { on: bo
   )
 }
 
+// Ivory / Midnight as two little scenes (user, 10/24 - "much nicer + animated"): a warm page with a
+// sun whose rays turn, or a night page with a moon and twinkling stars. The picked one lifts, gets
+// a ring and a tick, and its sky comes alive.
+function ModeCard({ dark, on, accent, onClick }: { dark: boolean; on: boolean; accent: string; onClick: () => void }) {
+  const stars = [[18, 22, 0], [74, 16, 0.6], [58, 40, 1.2], [86, 52, 0.3], [30, 50, 0.9]]
+  return (
+    <motion.button type="button" onClick={onClick} aria-pressed={on} whileTap={{ scale: 0.95 }}
+      animate={{ y: on ? -2 : 0 }} transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+      className={`relative h-[86px] overflow-hidden rounded-2xl text-left transition-shadow duration-300 ${on ? 'shadow-[0_16px_30px_-18px_rgba(17,24,39,.75)]' : 'opacity-80 hover:opacity-100'}`}
+      style={{
+        background: dark ? 'radial-gradient(120% 90% at 85% 0%, #23263a 0%, #0d0e14 60%, #08080b 100%)' : 'radial-gradient(120% 90% at 85% 0%, #fff4d6 0%, #fdf8ee 55%, #f6efe1 100%)',
+        boxShadow: on ? `inset 0 0 0 2px ${accent}, 0 16px 30px -18px rgba(17,24,39,.75)` : `inset 0 0 0 1px ${dark ? 'rgba(255,255,255,.08)' : 'rgba(17,24,39,.08)'}`,
+      }}>
+      {dark ? (
+        <>
+          {stars.map(([x, y, delay], i) => (
+            <motion.span key={i} className="absolute h-[3px] w-[3px] rounded-full bg-white" style={{ left: `${x}%`, top: `${y}%` }}
+              animate={on ? { opacity: [0.2, 1, 0.2], scale: [0.7, 1.2, 0.7] } : { opacity: 0.35, scale: 0.8 }}
+              transition={on ? { duration: 2.2, delay, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.3 }} />
+          ))}
+          <motion.span className="absolute right-3 top-2.5 text-[#f3e3b3]" animate={on ? { rotate: [-12, 8, -12] } : { rotate: 0 }} transition={on ? { duration: 4, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.3 }}>
+            <Moon className="h-7 w-7 fill-[#f3e3b3]/30" />
+          </motion.span>
+        </>
+      ) : (
+        <motion.span className="absolute right-2.5 top-2 text-[#e0a526]" animate={on ? { rotate: 360 } : { rotate: 0 }} transition={on ? { duration: 14, repeat: Infinity, ease: 'linear' } : { duration: 0.4 }}>
+          <Sun className="h-8 w-8 fill-[#ffd36a]/50" />
+        </motion.span>
+      )}
+      <span className="absolute bottom-2.5 left-3 right-3 flex items-end justify-between">
+        <span>
+          <span className={`block text-[15px] font-black ${dark ? 'text-white' : 'text-[#111827]'}`}>{dark ? 'Midnight' : 'Ivory'}</span>
+          <span className={`block text-[11px] font-semibold ${dark ? 'text-white/55' : 'text-[#6b5a3a]/70'}`}>{dark ? 'Dark & dramatic' : 'Light & airy'}</span>
+        </span>
+        <AnimatePresence>
+          {on && (
+            <motion.span key="tick" initial={{ scale: 0, rotate: -60 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: 'spring', stiffness: 600, damping: 18 }}
+              className="grid h-6 w-6 place-items-center rounded-full text-white" style={{ background: accent }}>
+              <Check className="h-3.5 w-3.5" strokeWidth={3.5} style={{ color: dark ? '#111827' : '#fff' }} />
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </span>
+    </motion.button>
+  )
+}
+
 function Label({ children }: { children: React.ReactNode }) {
   return <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-gray-400">{children}</p>
 }
@@ -176,16 +223,10 @@ export default function FormLookPicker({ value, hubLook, brandLook, luxeAllowed,
 
             <div>
               <Label>Ivory or Midnight</Label>
-              <div className="grid grid-cols-2 gap-2 rounded-2xl bg-black/[0.04] p-1 dark:bg-white/[0.05]">
+              <div className="grid grid-cols-2 gap-3">
                 {[false, true].map(d => {
                   const on = (value.look_mode === 'custom' ? !!value.dark_mode : shown.dark) === d
-                  return (
-                    <button key={String(d)} type="button" onClick={() => pick({ dark_mode: d })} aria-pressed={on}
-                      className={`relative flex items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-black transition ${on ? 'text-[#111827] dark:text-white' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
-                      {on && <motion.span layoutId="form-look-mode" className="absolute inset-0 rounded-xl bg-white shadow-sm dark:bg-[#26262a]" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
-                      <span className="relative flex items-center gap-2">{d ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}{d ? 'Midnight' : 'Ivory'}</span>
-                    </button>
-                  )
+                  return <ModeCard key={String(d)} dark={d} on={on} accent={formPaint({ ...shown, dark: d }).text} onClick={() => pick({ dark_mode: d })} />
                 })}
               </div>
             </div>
@@ -194,12 +235,31 @@ export default function FormLookPicker({ value, hubLook, brandLook, luxeAllowed,
       </AnimatePresence>
 
       {onApplyAll && (
-        <button type="button" disabled={applied === 'busy'}
+        // A real button, not a dashed link (user, 10/24): the look's own thumbnail, what it does,
+        // and a tick that pops when every form has it.
+        <motion.button type="button" disabled={applied === 'busy'}
+          whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}
           onClick={async () => { setApplied('busy'); setApplied((await onApplyAll()) ? 'done' : 'error') }}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#e7dfcf] px-4 py-3 text-[13px] font-black text-[#8b6a2b] transition hover:border-[#C9A24D] hover:bg-[#C9A24D]/[0.06] disabled:opacity-60 dark:border-white/10 dark:text-[#e8c97a]">
-          {applied === 'busy' ? <Loader2 className="h-4 w-4 animate-spin" /> : applied === 'done' ? <Check className="h-4 w-4" strokeWidth={3} /> : <Layers className="h-4 w-4" />}
-          {applied === 'done' ? 'All your forms use this look now' : applied === 'error' ? 'That didn’t save - try again' : applyAllLabel}
-        </button>
+          className={`group relative flex w-full items-center gap-3.5 overflow-hidden rounded-2xl border-2 p-3 text-left shadow-[0_18px_34px_-26px_rgba(17,24,39,.8)] transition-colors disabled:cursor-wait ${applied === 'done' ? 'border-emerald-400 bg-emerald-50 dark:border-emerald-500/50 dark:bg-emerald-500/10' : 'border-[#111827] bg-[#111827] dark:border-white dark:bg-white'}`}>
+          {applied !== 'done' && (
+            <motion.span aria-hidden className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 skew-x-[-20deg]" style={{ background: 'linear-gradient(90deg, transparent, rgba(232,201,122,.35), transparent)' }}
+              animate={{ x: ['0%', '420%'] }} transition={{ duration: 2.2, repeat: Infinity, repeatDelay: 1.6, ease: 'easeInOut' }} />
+          )}
+          <FormLookThumb look={shown} className="h-12 w-12 shrink-0 !rounded-xl" />
+          <span className="relative min-w-0 flex-1">
+            <span className={`block text-[14px] font-black ${applied === 'done' ? 'text-emerald-700 dark:text-emerald-300' : 'text-white dark:text-[#111827]'}`}>
+              {applied === 'done' ? 'All your forms use this look now' : applied === 'error' ? 'That didn’t save - try again' : applyAllLabel}
+            </span>
+            <span className={`mt-0.5 block truncate text-[12px] font-semibold ${applied === 'done' ? 'text-emerald-600/80 dark:text-emerald-300/70' : 'text-white/60 dark:text-[#111827]/60'}`}>{formLookName(shown)} on every form</span>
+          </span>
+          <span className={`relative grid h-9 w-9 shrink-0 place-items-center rounded-full ${applied === 'done' ? 'bg-emerald-500 text-white' : 'bg-[#e8c97a] text-[#111827]'}`}>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span key={applied} initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: 'spring', stiffness: 600, damping: 20 }} className="grid place-items-center">
+                {applied === 'busy' ? <Loader2 className="h-4 w-4 animate-spin" /> : applied === 'done' ? <Check className="h-4 w-4" strokeWidth={3} /> : <Layers className="h-4 w-4" />}
+              </motion.span>
+            </AnimatePresence>
+          </span>
+        </motion.button>
       )}
     </div>
   )

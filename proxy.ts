@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hubOwnDomainTarget } from './lib/hubOwnDomainRedirect'
+import { subdomainOwnDomainTarget } from './lib/subdomainOwnDomainRedirect'
 
 // Any hostname NOT in this set gets rewritten to the (sitepublic) route group - see
 // app/(sitepublic)/ohp-site-render/[host]/[[...path]]/page.tsx. Nested under a literal
@@ -74,6 +75,15 @@ export async function proxy(request: NextRequest) {
     const inviteHeaders = new Headers(request.headers)
     inviteHeaders.set('x-ohp-public-site', '1')
     return NextResponse.next({ request: { headers: inviteHeaders } })
+  }
+
+  // <slug>.openhousepal.com -> the agent's own domain once it's their working default address
+  // (lib/subdomainOwnDomainRedirect - same rule as every link they share; any doubt = no redirect).
+  const ownSiteUrl = await subdomainOwnDomainTarget(hostWithoutPort, request)
+  if (ownSiteUrl) {
+    const res = NextResponse.redirect(ownSiteUrl, 307)
+    res.headers.set('Cache-Control', 'no-store')
+    return res
   }
 
   const url = request.nextUrl.clone()

@@ -4,10 +4,11 @@ import { Inter } from 'next/font/google'
 import { Providers } from './providers'
 import AppShell from '@/components/AppShellLazy'
 import ScrollLockWatcher from '@/components/ScrollLockWatcher'
-import { Metadata } from 'next'
+import { Metadata, Viewport } from 'next'
 import ThemeColorSync from '@/components/ThemeColorSync'
 import Script from 'next/script'
 import { FRAME_LINK_GUARD_SCRIPT } from '@/lib/frameLinkGuard'
+import { CHUNK_RECOVERY_SCRIPT } from '@/lib/chunkRecovery'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -53,6 +54,16 @@ export const metadata: Metadata = {
   },
 }
 
+// No zoom-in on phones when a text box is tapped, anywhere on the site (user, 10/24: "never do
+// these zoom ins automatically"). iPhone / iPad Safari zooms into any focused box under 16px;
+// `maximum-scale=1` stops that while pinch-zoom still works (iOS ignores it for pinches). Android
+// does not auto-zoom on focus, and there maximum-scale would block pinch-zoom, so it is iOS only.
+export async function generateViewport(): Promise<Viewport> {
+  const ua = (await headers()).get('user-agent') || ''
+  const isIos = /iPhone|iPad|iPod/i.test(ua)
+  return { width: 'device-width', initialScale: 1, ...(isIos ? { maximumScale: 1 } : {}) }
+}
+
 export default async function RootLayout({
   children,
 }: {
@@ -71,6 +82,11 @@ export default async function RootLayout({
           sticks relative to that non-scrolling container instead of the real page scroll, so it
           never actually stays put. `clip` blocks horizontal overflow the same way without
           triggering that pairing, so overflow-y stays genuinely visible. */}
+      {/* A page whose own code failed to download reloads once instead of sitting dark
+          (lib/chunkRecovery). A plain inline script in <head> - it must be listening before the
+          page's first script tag starts loading (a Next "beforeInteractive" script ran too late:
+          tested in WebKit, the failed download had already happened). */}
+      <head><script id="ohp-chunk-recovery" dangerouslySetInnerHTML={{ __html: CHUNK_RECOVERY_SCRIPT }} /></head>
       <body suppressHydrationWarning className={`${inter.className} bg-[#faf9f7] dark:bg-[#0B0B0B] min-h-screen text-[#111827] dark:text-[#F3F4F6] overflow-x-clip overflow-y-visible`}>
         {/* Framed by an agent's IDX site: links that leave this page open top-level, never a
             second site inside the frame (lib/frameLinkGuard). No-op when not framed. */}

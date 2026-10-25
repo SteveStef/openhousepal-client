@@ -1,6 +1,6 @@
 import { Metadata } from 'next'
 import {
-  OpenHouseFrame, TownSectionNav, TownLiving, TownInsights, TownCommute, TownMap, TownWalk, PropertyGallery, FeaturedPageClient, PropertyMapSearch, PropertyLocationMap, ExploreNearby, NeighborhoodCompareLauncher, WebsitePublicFormPage, ContactPageView, NeighborhoodsExplorer, MediaHub, SiteBlogArticle, IdxPropertyPage, MyShowcase, ShowcaseBuilder, CinematicLuxuryTemplate, EditorialEstateTemplate,
+  OpenHouseFrame, TownSectionNav, TownLiving, TownInsights, TownCommute, TownMap, TownWalk, PropertyGallery, FeaturedPageClient, PropertyMapSearch, PropertyLocationMap, ExploreNearby, NeighborhoodCompareLauncher, WebsitePublicFormPage, ContactPageView, NeighborhoodsExplorer, MediaHub, SiteBlogArticle, IdxPropertyPage, MyShowcase, ShowcaseBuilder, CinematicLuxuryTemplate, EditorialEstateTemplate, SpotlightFactSheet,
 } from '@/components/website-public/LazySiteParts'
 import { cookies, headers } from 'next/headers'
 import { notFound, permanentRedirect, redirect } from 'next/navigation'
@@ -140,8 +140,14 @@ async function baseMetadata({
   // A Spotlight lives at the root of its own <slug>.openhousepal.com, or at /listings/<slug> on the
   // agent's connected custom domain (where the agent's whole site also resolves).
   const spotlightOnCustomDomain = Boolean(resolved && path?.[0] === 'listings' && path[1] && !path[2])
-  if (!resolved || spotlightOnCustomDomain) {
+  // A Spotlight's printable fact sheet (…/fact-sheet): its own plain title, never indexed.
+  const segs = path || []
+  const factSheet = segs[segs.length - 1] === 'fact-sheet' && (!resolved ? segs.length === 1 : segs[0] === 'listings' && segs.length === 3)
+  if (!resolved || spotlightOnCustomDomain || factSheet) {
     const propertySite = await resolvePropertySite(host, joinPath(path))
+    if (propertySite && factSheet) {
+      return { title: `Fact sheet | ${toTitleCase(propertySite.property.address || '')}`, robots: { index: false, follow: false } }
+    }
     if (propertySite) {
       // MLS data is all caps ("1 DOVECOTE LN") - tab titles and link previews read better title-cased.
       const cityState = [propertySite.property.city ? toTitleCase(propertySite.property.city) : '', propertySite.property.state].filter(Boolean).join(', ')
@@ -236,7 +242,7 @@ async function baseMetadata({
         hubSlug && form?.slug ? `https://${OHP_BASE_DOMAIN}/${encodeURIComponent(hubSlug)}/${encodeURIComponent(form.slug)}` : undefined,
         {
           description: form?.subtitle,
-          ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug, v: cardVersion('c2', form.headline, form.title, form.subtitle, form.darkMode, JSON.stringify((form as any).look || null)) }) : undefined,
+          ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug, v: cardVersion('c3', form.headline, form.title, form.subtitle, form.darkMode, JSON.stringify((form as any).look || null)) }) : undefined,
         },
       )
     }
@@ -251,7 +257,7 @@ async function baseMetadata({
       canonical || undefined,
       {
         description: form?.subtitle,
-        ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug, v: cardVersion('c2', form.headline, form.title, form.subtitle, form.darkMode, JSON.stringify((form as any).look || null)) }) : undefined,
+        ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug, v: cardVersion('c3', form.headline, form.title, form.subtitle, form.darkMode, JSON.stringify((form as any).look || null)) }) : undefined,
       },
     )
   }
@@ -264,7 +270,7 @@ async function baseMetadata({
       hubSlug && form?.slug ? `https://${OHP_BASE_DOMAIN}/${encodeURIComponent(hubSlug)}/${encodeURIComponent(form.slug)}` : undefined,
       {
         description: form?.subtitle,
-        ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug, v: cardVersion('c2', form.headline, form.title, form.subtitle, form.darkMode, JSON.stringify((form as any).look || null)) }) : undefined,
+        ogImage: hubSlug && form?.slug ? ogCard('form', { agent: hubSlug, form: form.slug, v: cardVersion('c3', form.headline, form.title, form.subtitle, form.darkMode, JSON.stringify((form as any).look || null)) }) : undefined,
       },
     )
   }
@@ -385,7 +391,8 @@ function applySiteSeo(meta: Metadata, resolved: ResolveResponse, path: string[] 
   const pages = snapshot.pages || []
   const home = pages.find((p: any) => p.is_home) || pages[0]
   const siteName = (seo.site_name || '').trim() || (home?.title && home.title !== 'Home' ? home.title : '') || profile?.name || ''
-  const icon = seo.favicon_url || snapshot.theme?.logo_url || null
+  // Tab icon: the agent's own upload, else the OpenHousePal house mark for everyone (owner, 10/24).
+  const icon = seo.favicon_url || '/icon-512.png'
   const segs = path || []
   const key = segs.length === 0 ? 'home' : segs.length === 1 ? (segs[0] === 'communities' ? 'neighborhoods' : segs[0]) : null
   const isPageSlug = key && key !== 'home' && pages.some((p: any) => p.slug === key)
@@ -406,8 +413,9 @@ function applySiteSeo(meta: Metadata, resolved: ResolveResponse, path: string[] 
     // a neighborhood page - the agent can override its Google text in the Google tab too
     title = (custom?.title || '').trim() || (baseTitle && siteName ? withSiteName(baseTitle, siteName) : baseTitle)
     description = (custom?.description || '').trim() || meta.description
-  } else if (segs[0] === 'showcase' || segs[0] === 'showcases') {
-    // A guest's own Showcase is named for them alone - no " | Agent Name" on the end.
+  } else if (segs[0] === 'showcase' || segs[0] === 'showcases' || segs[0] === 'forms' || segs[0] === 'create-showcase') {
+    // A guest's own Showcase is named for them alone - no " | Agent Name" on the end. A form is
+    // just its own title too ("Let's Find Your Next Home", not "... | Peter ..." - user, 10/24).
   } else if (baseTitle && siteName && !baseTitle.includes(siteName)) {
     // every other page (a home, a blog post) carries the site's name too, when it fits
     title = withSiteName(baseTitle, siteName)
@@ -1194,7 +1202,7 @@ async function siteVisitorCookie(): Promise<{ name: string; firstName: string; e
   } catch { return null }
 }
 
-async function MyShowcaseRoute({ siteId, basePrefix, theme, create }: { siteId: string; basePrefix: string; theme: SiteTheme; create: boolean }) {
+async function MyShowcaseRoute({ siteId, basePrefix, theme, create, town }: { siteId: string; basePrefix: string; theme: SiteTheme; create: boolean; town?: string | null }) {
   const visitor = await siteVisitorCookie()
   const [summary, areas, profile] = await Promise.all([
     visitor?.showcase ? fetchFreshJson(`${INTERNAL_API_URL}/public/sites/${siteId}/my-showcase/${encodeURIComponent(visitor.showcase)}`) : Promise.resolve(null),
@@ -1207,7 +1215,10 @@ async function MyShowcaseRoute({ siteId, basePrefix, theme, create }: { siteId: 
   if (summary?.code && !create) {
     return <MyShowcase summary={summary} siteId={siteId} basePrefix={basePrefix} accent={accent} agent={agent} areas={areaList} headingClass="ohp-site-heading" />
   }
-  return <ShowcaseBuilder siteId={siteId} basePrefix={basePrefix} accent={accent} agent={agent} areas={areaList} existingCode={summary?.code || null} serverVisitor={visitor} headingClass="ohp-site-heading" />
+  // ?town= (a town page's "Get alerts"): start on the towns step with that town already ticked.
+  const startTown = typeof town === 'string' ? town.trim().slice(0, 80) : ''
+  return <ShowcaseBuilder siteId={siteId} basePrefix={basePrefix} accent={accent} agent={agent} areas={areaList} existingCode={summary?.code || null} serverVisitor={visitor} headingClass="ohp-site-heading"
+    {...(startTown ? { initial: { cities: [startTown] }, startStep: 'place' as const } : {})} />
 }
 
 // The Search tab's results - real full-MLS search (see content_adapters.get_search_results),
@@ -2057,6 +2068,10 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
   const luxe = theme.template !== 'default'
   const townLabel = [area.name, area.state].filter(Boolean).join(', ')
   const prefill = JSON.stringify({ property_of_interest: townLabel })
+  // "Get alerts" on a town page (owner, 10/24): straight into the normal Showcase builder, already
+  // on the towns step with this town ticked (the agent's other towns + "add a town" still there) -
+  // no separate mini flow. Same builder + form pipeline = the same follow-up as every Showcase.
+  const townShowcaseHref = `${basePrefix}/create-showcase?town=${encodeURIComponent(townLabel)}`
   const trends = area.market_trends || {}
   const faq = buildTownFaq(area, inventoryTotal)
   const summary = String(area.narrative?.summary || '').trim()
@@ -2139,7 +2154,7 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
         >
           <div className="mt-7 flex flex-wrap gap-3">
             <a href="#homes" className="inline-flex rounded-xl px-6 py-3.5 text-sm font-bold shadow-sm transition hover:-translate-y-0.5" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>See homes for sale</a>
-            <a href={`${basePrefix}/create-showcase?site_chrome=1`} data-ohp-form="showcase_request" data-ohp-form-title={`New homes in ${area.name}`} data-ohp-prefill={prefill} data-ohp-criteria={JSON.stringify({ kind: 'search', cities: [area.name] })}
+            <a href={townShowcaseHref}
               className="inline-flex items-center gap-2 rounded-xl border px-6 py-3.5 text-sm font-bold transition hover:-translate-y-0.5" style={{ borderColor: 'var(--site-line-strong)', color: 'var(--site-heading)', backgroundColor: 'var(--site-surface)' }}>
               <Bell className="h-4 w-4" style={{ color: 'var(--site-accent)' }} /> Get new-listing alerts
             </a>
@@ -2170,7 +2185,7 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
             <a href="#homes" className="ohp-gold-sheen inline-flex rounded-full px-7 py-3.5 text-xs font-black uppercase tracking-widest shadow-xl transition hover:-translate-y-0.5" style={{ backgroundColor: theme.secondary_color, color: theme.primary_color }}>
               See homes for sale
             </a>
-            <a href={`${basePrefix}/create-showcase?site_chrome=1`} data-ohp-form="showcase_request" data-ohp-form-title={`New homes in ${area.name}`} data-ohp-prefill={prefill} data-ohp-criteria={JSON.stringify({ kind: 'search', cities: [area.name] })}
+            <a href={townShowcaseHref}
               className="inline-flex items-center gap-2 rounded-full border border-white/40 px-7 py-3.5 text-xs font-black uppercase tracking-widest text-white transition hover:bg-white/10">
               <Bell className="h-3.5 w-3.5" /> Get new-listing alerts
             </a>
@@ -2326,7 +2341,7 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
               <p className="mt-0.5 text-sm" style={{ color: 'var(--site-muted)' }}>Tell me what you want - matching homes come to you the day they list, in your own private Showcase.</p>
             </div>
           </div>
-          <a href={`${basePrefix}/create-showcase?site_chrome=1`} data-ohp-form="showcase_request" data-ohp-form-title={`New homes in ${area.name}`} data-ohp-prefill={prefill} data-ohp-criteria={JSON.stringify({ kind: 'search', cities: [area.name] })}
+          <a href={townShowcaseHref}
             className={`inline-flex shrink-0 items-center gap-2 px-6 py-3 text-sm font-black transition hover:-translate-y-0.5 ${btnRound}`} style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>
             Set up my alerts <ArrowRight className="h-4 w-4" />
           </a>
@@ -2482,7 +2497,7 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
                       ? <a href={f.source.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-bold" style={{ color: 'var(--site-accent-text)' }}>Source: {f.source.name} <ExternalLink className="h-3 w-3" /></a>
                       : <p className="mt-2 text-xs font-bold" style={{ color: 'var(--site-muted)' }}>Source: {f.source.name}</p>)}
                     {i === faq.length - 1 && (
-                      <a href={`${basePrefix}/create-showcase?site_chrome=1`} data-ohp-form="showcase_request" data-ohp-form-title={`New homes in ${area.name}`} data-ohp-prefill={prefill} data-ohp-criteria={JSON.stringify({ kind: 'search', cities: [area.name] })}
+                      <a href={townShowcaseHref}
                         className="mt-3 inline-flex items-center gap-1.5 text-sm font-black" style={{ color: 'var(--site-accent-text)' }}>
                         Set up my alerts <ArrowRight className="h-4 w-4" />
                       </a>
@@ -2605,6 +2620,8 @@ export default async function PublicSitePage({
     const propertySite = await resolvePropertySite(host, joinPath(path))
     if (propertySite) {
       const publicUrl = `https://${propertySite.canonical_hostname || host}`
+      // <slug>.openhousepal.com/fact-sheet - the listing's one-page fact sheet, opened in its own tab.
+      if (path?.[0] === 'fact-sheet' && !path[1]) return <SpotlightFactSheet data={propertySite} publicUrl={publicUrl} />
       if (propertySite.template_id === 'editorial_estate') {
         return <EditorialEstateTemplate data={propertySite} publicUrl={publicUrl} />
       }
@@ -2701,7 +2718,7 @@ export default async function PublicSitePage({
       ? <ContactPageView profile={contactProfile} theme={theme} basePrefix={basePrefix} />
       : <ContactAliasPage siteId={resolved.site_id} basePrefix={basePrefix} />
     hasDarkHero = true
-  } else if (path?.[0] === 'listings' && path[1] && !path[2]) {
+  } else if (path?.[0] === 'listings' && path[1] && (!path[2] || (path[2] === 'fact-sheet' && !path[3]))) {
     // A Listing Spotlight on the agent's own connected domain (<domain>/listings/<slug>) - the
     // link the app hands out once a custom domain is ACTIVE (see property_website_service.public_url).
     const propertySite = await resolvePropertySite(host, joinPath(path))
@@ -2712,6 +2729,7 @@ export default async function PublicSitePage({
       notFound()
     }
     const publicUrl = `https://${propertySite.canonical_hostname || host}`
+    if (path[2] === 'fact-sheet') return <SpotlightFactSheet data={propertySite} publicUrl={publicUrl} />
     return propertySite.template_id === 'editorial_estate'
       ? <EditorialEstateTemplate data={propertySite} publicUrl={publicUrl} />
       : <CinematicLuxuryTemplate data={propertySite} publicUrl={publicUrl} />
@@ -2721,7 +2739,7 @@ export default async function PublicSitePage({
   } else if ((path?.[0] === 'my-showcase' || path?.[0] === 'create-showcase') && !path[1]) {
     // "{first}'s Showcase" (the glowing header tab) and every "Create my Showcase" button: their
     // Showcase if this browser knows it (the ohp_visitor cookie - lib/visitor), else the builder.
-    content = <MyShowcaseRoute siteId={resolved.site_id} basePrefix={basePrefix} theme={theme} create={path[0] === 'create-showcase'} />
+    content = <MyShowcaseRoute siteId={resolved.site_id} basePrefix={basePrefix} theme={theme} create={path[0] === 'create-showcase'} town={typeof (currentSearchParams as Record<string, unknown>).town === 'string' ? (currentSearchParams as Record<string, string>).town : null} />
     hideFooter = true
   } else if ((path?.[0] === 'showcase' || path?.[0] === 'showcases') && path[1] && !path[3]) {
     // /showcase/dana-k7q2 (or the old long token), optionally /732-buck-ln for one home in it.

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
@@ -16,8 +16,10 @@ const SIDE_IN = {
   exit: { x: '100%', transition: { duration: 0.22, ease: [0.4, 0, 1, 1] } },
 } as const
 
-export default function OhSheet({ open, onClose, variant = 'center', width = 'max-w-2xl', title, subtitle, icon, image, badge, children, footer }: {
+export default function OhSheet({ open, onClose, variant = 'center', width = 'max-w-2xl', title, subtitle, icon, image, badge, children, footer, zClass = 'z-[60]' }: {
   open: boolean
+  /** Stacking layer - raise it when the sheet opens from inside a higher window (e.g. the kit flow). */
+  zClass?: string
   onClose: () => void
   variant?: 'center' | 'side'
   /** Desktop width (Tailwind max-w class). */
@@ -39,14 +41,14 @@ export default function OhSheet({ open, onClose, variant = 'center', width = 'ma
   return createPortal(
     <AnimatePresence onExitComplete={release}>
       {open && (
-        <Sheet key="oh-sheet" {...{ onClose, variant, width, title, subtitle, icon, image, badge, footer }}>{children}</Sheet>
+        <Sheet key="oh-sheet" {...{ onClose, variant, width, title, subtitle, icon, image, badge, footer, zClass }}>{children}</Sheet>
       )}
     </AnimatePresence>,
     host,
   )
 }
 
-function Sheet({ onClose, variant, width, title, subtitle, icon, image, badge, footer, children }: Omit<Parameters<typeof OhSheet>[0], 'open'>) {
+function Sheet({ onClose, variant, width, title, subtitle, icon, image, badge, footer, children, zClass = 'z-[60]' }: Omit<Parameters<typeof OhSheet>[0], 'open'>) {
   const phone = useIsPhone()
   const sheetMotion = useSheetMotion()
   const { sheetRef, y } = useSwipeToClose(onClose, phone)
@@ -54,7 +56,7 @@ function Sheet({ onClose, variant, width, title, subtitle, icon, image, badge, f
   const side = variant === 'side' && !phone
   return (
     <motion.div {...backdropMotion} data-scroll-lock="off" onClick={e => { if (e.target === e.currentTarget) onClose() }}
-      className={`fixed inset-0 z-[60] flex bg-[#0b0b0c]/55 ${phone ? 'items-end' : side ? 'justify-end' : 'items-center justify-center p-6'}`}>
+      className={`fixed inset-0 ${zClass} flex bg-[#0b0b0c]/55 ${phone ? 'items-end' : side ? 'justify-end' : 'items-center justify-center p-6'}`}>
       <motion.div ref={sheetRef} {...(side ? SIDE_IN : sheetMotion)} style={phone ? { y } : undefined}
         className={`relative flex w-full flex-col overflow-hidden bg-[#FAFAF7] shadow-[0_40px_100px_-30px_rgba(0,0,0,.7)] dark:bg-[#0d0d0f] ${
           phone ? 'max-h-[92dvh] rounded-t-[28px]' : side ? 'h-full max-w-md' : `max-h-[min(900px,calc(100dvh-3rem))] ${width} rounded-[28px]`}`}>
@@ -102,14 +104,27 @@ export function FourPager<T>({ items, render, size = 4, empty, resetKey }: {
 }) {
   const [page, setPage] = useState(0)
   const [dir, setDir] = useState(1)
+  const topRef = useRef<HTMLDivElement>(null)
+  const pagerId = useId()
   const pages = Math.max(1, Math.ceil(items.length / size))
   useEffect(() => { setPage(0) }, [resetKey])
   useEffect(() => { if (page > pages - 1) setPage(pages - 1) }, [page, pages])
   if (!items.length) return <>{empty ?? null}</>
-  const go = (n: number) => { setDir(n > page ? 1 : -1); setPage(n) }
+  // A new page brings the top of THIS list back into view (not the top of the window) - user, 10/24.
+  const go = (n: number) => {
+    if (n < 0 || n > pages - 1 || n === page) return
+    setDir(n > page ? 1 : -1); setPage(n)
+    const el = topRef.current
+    if (el) {
+      const r = el.getBoundingClientRect()
+      if (r.top < 70 || r.top > window.innerHeight * 0.6) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
   const shown = items.slice(page * size, page * size + size)
+  // Page numbers, folding the middle away on long lists: 1 … 4 5 6 … 12.
+  const nums = Array.from({ length: pages }, (_, i) => i).filter(n => pages <= 5 || n === 0 || n === pages - 1 || Math.abs(n - page) <= 1)
   return (
-    <div>
+    <div ref={topRef} className="scroll-mt-4">
       <div className="relative overflow-hidden">
         <AnimatePresence mode="popLayout" initial={false} custom={dir}>
           <motion.div key={page} custom={dir}
@@ -130,10 +145,16 @@ export function FourPager<T>({ items, render, size = 4, empty, resetKey }: {
             className="grid h-10 w-10 place-items-center rounded-full border border-gray-200 bg-white text-gray-600 transition hover:border-[#C9A24D] disabled:opacity-30 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
             <ChevronLeft className="h-4 w-4" />
           </motion.button>
-          <div className="flex items-center gap-1.5">
-            {Array.from({ length: pages }, (_, n) => (
-              <button key={n} type="button" onClick={() => go(n)} aria-label={`Page ${n + 1}`}
-                className={`h-2 rounded-full transition-all duration-300 ${n === page ? 'w-6 bg-[#C9A24D]' : 'w-2 bg-gray-300 hover:bg-gray-400 dark:bg-white/20'}`} />
+          <div className="flex items-center gap-1">
+            {nums.map((n, i) => (
+              <span key={n} className="flex items-center gap-1">
+                {i > 0 && n - nums[i - 1] > 1 && <span className="px-0.5 text-xs font-bold text-gray-300">…</span>}
+                <motion.button type="button" whileTap={{ scale: 0.9 }} onClick={() => go(n)} aria-label={`Page ${n + 1}`} aria-current={n === page ? 'page' : undefined}
+                  className={`relative grid h-9 min-w-9 place-items-center rounded-full px-2 text-xs font-black tabular-nums transition-colors ${n === page ? 'text-white dark:text-[#111827]' : 'text-gray-500 hover:bg-gray-100 hover:text-[#111827] dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white'}`}>
+                  {n === page && <motion.span layoutId={pagerId} className="absolute inset-0 rounded-full bg-[#111827] shadow-md dark:bg-[#e8c97a]" transition={{ type: 'spring', stiffness: 500, damping: 36 }} />}
+                  <span className="relative">{n + 1}</span>
+                </motion.button>
+              </span>
             ))}
           </div>
           <motion.button type="button" whileTap={{ scale: 0.9 }} onClick={() => go(page + 1)} disabled={page === pages - 1} aria-label="Next"

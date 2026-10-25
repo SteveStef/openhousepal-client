@@ -11,6 +11,7 @@ import {
   PhoneBar, PriceHistory, HERO_COLS, HeroShareActions, PropertyHero, PropertySurface, SectionDivider, SectionTitle, hasDetails, homeFromIdx, pp,
 } from '@/components/property/PropertyKit'
 import NearbyMap from '@/components/maps/NearbyMap'
+import { SignedInShowcases } from '@/components/property/ShowcaseMembership'
 import PaymentCalculator from './PaymentCalculator'
 import { fontClass } from './blocks/fontClass'
 import type { SiteTheme } from './types'
@@ -93,6 +94,8 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
           {/* The photos take the whole top. Under them: the summary, with the agent's card riding beside it
               all on desktop (phones: summary, the card, then the rest). */}
           <PropertyHero home={home} actions={<HeroShareActions home={home} />} />
+          {/* A signed-in agent: which of their Showcases have this home (guests: nothing). */}
+          <SignedInShowcases listingKey={p.listing_key} street={home.street} />
           <div className={`mt-9 grid gap-x-6 gap-y-6 ${HERO_COLS}`}>
             <aside className="lg:col-start-2 lg:row-start-1">
               <div className="pp-stick space-y-4">

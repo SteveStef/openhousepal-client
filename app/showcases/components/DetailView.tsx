@@ -17,6 +17,9 @@ import { inSoldFolder } from '@/lib/showcaseStatus'
 import { openHousePalPublicUrl, websitePublicUrl } from '@/lib/publicResourceLinks'
 import { computeMatchScore } from '@/lib/matchScore'
 import { copyText } from '@/lib/copyText'
+import LuxeSelect from '@/components/ui/LuxeSelect'
+import { SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
+import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
 
 interface DetailViewProps {
   selectedCollection: Collection;
@@ -326,13 +329,13 @@ export const DetailView = memo(function DetailView({
                   <>
                   <button
                     onClick={() => handleCopyField('email', selectedCollection.customer.email)}
-                    className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-[#C9A24D] transition-colors hover:border-[#C9A24D]/50 dark:border-gray-800 dark:bg-white/5 sm:hidden"
+                    className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-[#C9A24D] transition-colors hover:border-[#C9A24D]/50 dark:border-gray-800 dark:bg-white/5 lg:hidden"
                     title={`Copy ${selectedCollection.customer.email}`}
                     aria-label="Copy email"
                   >
                     {copiedField === 'email' ? <Check size={15} className="text-emerald-500" /> : <Mail size={15} />}
                   </button>
-                  <span className="hidden items-center gap-1.5 text-gray-500 dark:text-gray-400 font-medium sm:inline-flex">
+                  <span className="hidden items-center gap-1.5 text-gray-500 dark:text-gray-400 font-medium lg:inline-flex">
                     <Mail size={14} className="text-[#C9A24D]" />
                     {selectedCollection.customer.email}
                     <button
@@ -349,13 +352,13 @@ export const DetailView = memo(function DetailView({
                   <>
                   <button
                     onClick={() => handleCopyField('phone', selectedCollection.customer.phone)}
-                    className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-[#C9A24D] transition-colors hover:border-[#C9A24D]/50 dark:border-gray-800 dark:bg-white/5 sm:hidden"
+                    className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-[#C9A24D] transition-colors hover:border-[#C9A24D]/50 dark:border-gray-800 dark:bg-white/5 lg:hidden"
                     title={`Copy ${selectedCollection.customer.phone}`}
                     aria-label="Copy phone"
                   >
                     {copiedField === 'phone' ? <Check size={15} className="text-emerald-500" /> : <Phone size={15} />}
                   </button>
-                  <span className="hidden items-center gap-1.5 text-gray-500 dark:text-gray-400 font-medium sm:inline-flex">
+                  <span className="hidden items-center gap-1.5 text-gray-500 dark:text-gray-400 font-medium lg:inline-flex">
                     <Phone size={14} className="text-[#C9A24D]" />
                     {selectedCollection.customer.phone}
                     <button
@@ -559,12 +562,15 @@ export const DetailView = memo(function DetailView({
                     ? 'bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8cf8a]'
                     : 'bg-gray-100 dark:bg-gray-800 text-[#6B7280] dark:text-gray-400'
                 }`}>
-                  {tab.count}
+                  {tab.key === 'all' && selectedCollection.stats?.atLimit ? `${SHOWCASE_MAX_HOMES}+` : tab.count}
                 </motion.span>
               </motion.button>
             ))}
           </div>
         </div>
+
+        {/* Holding the most homes a Showcase can (lib/showcaseLimit): ask for a tighter search. */}
+        <ShowcaseLimitNote show={activeTab === 'all' && !!selectedCollection.stats?.atLimit} className="mb-4" />
 
         {/* Professional Separator */}
         <div className="relative mb-4">
@@ -610,30 +616,29 @@ export const DetailView = memo(function DetailView({
           onMoveToSold={onMoveToSold}
           sortControl={
             <div className="flex items-center gap-2">
-              <div className="relative group w-44">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#C9A24D] transition-colors">
-                  <ArrowUpDown size={14} />
-                </div>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-800 rounded-full text-gray-900 dark:text-white text-xs font-bold focus:outline-none focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/5 transition-all appearance-none cursor-pointer shadow-sm"
-                >
-                  {!!compareProperty && <option value="bestMatch">Best Match</option>}
-                  <option value="daysOnMarket">Days on Market</option>
-                  <option value="lastUpdated">Last Updated</option>
-                  <option value="price">Price</option>
-                  <option value="pricePerSqft">Price per Sq Ft</option>
-                  <option value="squareFeet">Square Feet</option>
-                  <option value="acres">Lot Size (Acres)</option>
-                  <option value="beds">Bedrooms</option>
-                  <option value="baths">Bathrooms</option>
-                  <option value="yearBuilt">Year Built</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                </div>
-              </div>
+              {/* The app's own menu (a pull-up sheet on phones that drags down to close - user,
+                  10/24) instead of the browser's native picker. */}
+              <LuxeSelect
+                className="w-44 [&>button]:rounded-full [&>button]:py-2 [&>button]:shadow-sm"
+                ariaLabel="Sort homes"
+                sheetOnPhone
+                sheetTitle="Sort the homes"
+                icon={<ArrowUpDown size={13} />}
+                value={String(sortBy)}
+                onChange={(v) => setSortBy(v)}
+                options={[
+                  ...(compareProperty ? [{ value: 'bestMatch', label: 'Best Match' }] : []),
+                  { value: 'daysOnMarket', label: 'Days on Market' },
+                  { value: 'lastUpdated', label: 'Last Updated' },
+                  { value: 'price', label: 'Price' },
+                  { value: 'pricePerSqft', label: 'Price per Sq Ft' },
+                  { value: 'squareFeet', label: 'Square Feet' },
+                  { value: 'acres', label: 'Lot Size (Acres)' },
+                  { value: 'beds', label: 'Bedrooms' },
+                  { value: 'baths', label: 'Bathrooms' },
+                  { value: 'yearBuilt', label: 'Year Built' },
+                ]}
+              />
               <button
                 type="button"
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
@@ -686,6 +691,7 @@ export const DetailView = memo(function DetailView({
             if (!success || !data) return null
             return {
               count: data.count,
+              at_limit: data.at_limit,
               points: (data.properties || [])
                 .filter((p: any) => p.Latitude != null && p.Longitude != null)
                 .map((p: any) => ({ id: String(p.ListingKey || p.id), lat: p.Latitude, lng: p.Longitude })),

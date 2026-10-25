@@ -73,8 +73,11 @@ export function stepCopy(id: SetupStepId, plan: string | null, hasMls: boolean):
       return {
         icon: Home, label: 'Your sales', title: ['Show off your ', 'sales'],
         intro: mls ? 'We look up the homes you’ve sold for you. Take a quick look and hide anything you don’t want shown.' : 'Add a few homes you’ve sold - an address, the price and a photo is plenty.',
-        powers: where(['Agent Hub "Recent Sales"', 'Sales stats'], [[sig, 'Email signature'], [idx, 'Website']]),
-        skip: 'Your Sales section stays empty.',
+        // Plain No-MLS has no Agent Hub - their sales only print on the open house Brag Sheet.
+        powers: hub
+          ? where(['Agent Hub "Recent Sales"', 'Sales stats'], [[sig, 'Email signature'], [idx, 'Website']])
+          : ['Open house Brag Sheet', 'Sales stats'],
+        skip: hub ? 'Your Sales section stays empty.' : 'Your Brag Sheet stays empty until you add a sale.',
       }
     case 'reviews':
       return {

@@ -3,8 +3,14 @@
 import Link from 'next/link'
 import { OhpWordmark } from '@/components/brand/OhpBrand'
 import { MlsUpdatedText } from '@/components/MLSComplianceFooter'
+import { useOptionalAuth } from '@/contexts/AuthContext'
+import { hasMlsAccess } from '@/lib/navAccess'
 
 export default function Footer() {
+  // A signed-in No-MLS agent never sees Bright data in the app, so the Bright notice would only
+  // confuse them (and implies a Bright connection they don't have). Everyone else keeps it.
+  const user = useOptionalAuth()?.user
+  const noMlsAgent = !!user?.plan_tier && !hasMlsAccess(user.plan_tier) && !user.is_admin
   return (
     <footer className="relative isolate mt-auto overflow-hidden bg-[#0B0B0B] py-16 text-white">
       {/* gold edge, soft gold light and a faint grid - the same language as the page headers */}
@@ -50,7 +56,7 @@ export default function Footer() {
         </div>
 
         {/* Bright MLS Compliance Section */}
-        <div className="rounded-3xl border border-white/[0.06] bg-white/[0.02] p-6 sm:p-8">
+        {!noMlsAgent && <div className="rounded-3xl border border-white/[0.06] bg-white/[0.02] p-6 sm:p-8">
           <div className="grid grid-cols-1 gap-6 text-[10px] uppercase tracking-widest leading-loose text-gray-500 font-medium">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-gray-400 mb-2">
               <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
@@ -76,7 +82,7 @@ export default function Footer() {
               </p>
             </div>
           </div>
-        </div>
+        </div>}
       </div>
     </footer>
   )

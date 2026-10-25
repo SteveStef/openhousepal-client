@@ -1,5 +1,6 @@
 'use client'
 
+import OhpSwitch from '@/components/ui/OhpSwitch'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Info, Mail, MessageCircle, Phone, Video } from 'lucide-react'
 
@@ -155,14 +156,7 @@ export default function ContactCardPanel({
                     </div>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onChange(meta.key, { include: !field.include })}
-                  className={`relative h-7 w-12 shrink-0 rounded-full transition active:scale-90 ${field.include ? 'bg-[#111827] dark:bg-white' : 'bg-gray-300 dark:bg-gray-700'}`}
-                  aria-label={`${field.include ? 'Remove' : 'Include'} ${meta.label} in saved contact`}
-                >
-                  <span className={`absolute top-1 h-5 w-5 rounded-full transition ${field.include ? 'left-6 bg-white dark:bg-[#111827]' : 'left-1 bg-white'}`} />
-                </button>
+                <OhpSwitch on={!!field.include} onChange={next => onChange(meta.key, { include: next })} label={`${field.include ? 'Remove' : 'Include'} ${meta.label} in saved contact`} />
               </div>
             </div>
           )

@@ -2,8 +2,10 @@
 
 import { formVisitContext, type FormVisitContext } from '@/lib/formTracking'
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import FormRunner from '@/components/forms/FormRunner'
+import OhpLoader from '@/components/brand/OhpLoader'
+import { useFormViewportLock } from '@/components/forms/FormRunnerParts'
 import { PublicFormConfig } from '@/types'
 import { API_BASE_URL } from '@/lib/api-service'
 import { useForcedLightMode } from '@/lib/useForcedLightMode'
@@ -77,6 +79,8 @@ export default function WebsitePublicFormPage({
       ? `/api/website-forms/${encodeURIComponent(formId)}/progress?site_id=${encodeURIComponent(siteId)}`
       : ''
   useForcedLightMode(forceLightMode)
+  // A form on its own page sits still - the phone's keyboard can't drag it down (forms group, 10/24).
+  const pinnedRef = useFormViewportLock(!!form && !embeddedInSiteChrome)
 
   useEffect(() => {
     const fetchForm = async () => {
@@ -96,11 +100,8 @@ export default function WebsitePublicFormPage({
   }, [apiPath, initialForm])
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#FAFAF7] dark:bg-[#0B0B0B]">
-        <Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" />
-      </div>
-    )
+    // the house only - a visitor's page never shows the OpenHousePal wordmark
+    return <OhpLoader guest />
   }
 
   if (notFound || !form) {
@@ -117,7 +118,7 @@ export default function WebsitePublicFormPage({
   }
 
   const useDarkMode = Boolean(form.darkMode && !forceLightMode)
-  const heightClass = embeddedInSiteChrome ? 'h-[calc(100vh-5rem)]' : 'h-screen'
+  const heightClass = embeddedInSiteChrome ? 'relative h-[calc(100vh-5rem)]' : 'fixed inset-x-0 top-0 h-[100dvh]'
   const backHref = `${basePrefix || ''}/`
   // A campaign link's own after-submit choice wins (own-domain pages are short: /hub, /sales).
   const campaignAfter = form.afterSubmitMode === 'none' ? { enabled: false, url: '' }
@@ -130,7 +131,7 @@ export default function WebsitePublicFormPage({
     : { enabled: Boolean(form.redirectToAgentHub && agentHubPath), url: agentHubPath || '/' })
 
   return (
-    <div className={`relative ${embeddedInSiteChrome ? 'flex flex-col' : ''} ${forceLightMode ? 'ohp-force-light' : ''} ${useDarkMode ? 'dark bg-[#0B0B0B]' : 'bg-[#FAFAF7]'} ${heightClass}`}>
+    <div ref={pinnedRef} className={`${embeddedInSiteChrome ? 'flex flex-col' : ''} ${forceLightMode ? 'ohp-force-light' : ''} ${useDarkMode ? 'dark bg-[#0B0B0B]' : 'bg-[#FAFAF7]'} ${heightClass}`}>
       {embeddedInSiteChrome && <PublicFormBackButton fallbackHref={backHref} />}
       <div className={embeddedInSiteChrome ? 'min-h-0 flex-1' : 'contents'}>
       <FormRunner
@@ -151,6 +152,7 @@ export default function WebsitePublicFormPage({
           agentPhotoUrl: resolvePhotoUrl(form.agentPhotoUrl),
           agentTitle: form.agentTitle,
           agentMarket: form.agentMarket,
+          agentState: form.agentState,
         }}
         successHeading={form.successHeading}
         successMessage={form.successMessage}

@@ -4,6 +4,9 @@ import { HUB_ICON, HUB_ICON_TILE, HubCollapse, hubCardClass, useHubPanelOpen } f
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Check, ChevronDown, ChevronRight, Pencil, Tag, Trash2 } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
+import { useOptionalAuth } from '@/contexts/AuthContext'
+import { hasMlsAccess } from '@/lib/navAccess'
+import QuickAddHomeSheet, { quickHomeToEntry, type QuickHome } from './QuickAddHomeSheet'
 import { AgentSale, formatSaleStatus, getEligibleListings, getSaleStatusClass, getStreetOnly, shouldAutoShowListing } from '@/lib/agentSales'
 import { SettingToggleRow } from './RecentSalesPanel'
 
@@ -34,9 +37,23 @@ export default function MyListingsPanel({ listings, setListings, carousel, setCa
 }) {
   const [isLoading, setIsLoading] = useState(false)
   const [isOpen, setIsOpen] = useHubPanelOpen('listings')
+  // No-MLS plans: no Bright listings to pull (that call 403s) - listings are added by hand.
+  const authUser = useOptionalAuth()?.user
+  const noMls = !!authUser?.plan_tier && !hasMlsAccess(authUser.plan_tier)
+  const listingsSubtitle = noMls
+    ? 'Add your active and coming-soon listings by hand.'
+    : 'Active, pending, and coming-soon listings pulled from your properties.'
   const [sortMode, setSortMode] = useState<'recent' | 'price-high' | 'price-low'>('recent')
   const [page, setPage] = useState(1)
   const [manualAddOpen, setManualAddOpen] = useState(false)
+  const [quickAddOpen, setQuickAddOpen] = useState(false)
+  const addQuickListing = (home: QuickHome) => {
+    const nextListings = [...getEligibleListings(listings), quickHomeToEntry(home, 'listing') as AgentSale]
+    setListings(nextListings)
+    onSave({ myListings: nextListings })
+    setQuickAddOpen(false)
+    setPage(1)
+  }
   const [editingListingId, setEditingListingId] = useState<string | null>(null)
   const [manualListingDraft, setManualListingDraft] = useState({
     street: '',
@@ -104,8 +121,8 @@ export default function MyListingsPanel({ listings, setListings, carousel, setCa
   }
 
   useEffect(() => {
-    if (ready && !getEligibleListings(listings).length) loadListings()
-  }, [ready])
+    if (ready && !noMls && !getEligibleListings(listings).length) loadListings()
+  }, [ready, noMls])
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages)
@@ -218,7 +235,7 @@ export default function MyListingsPanel({ listings, setListings, carousel, setCa
               )}
               <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:bg-gray-800 dark:text-gray-400">{visibleCount}/{eligibleListings.length} shown</span>
             </div>
-            <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">Active, pending, and coming-soon listings pulled from your properties.</p>
+            <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">{listingsSubtitle}</p>
           </div>
           <ChevronDown className={`h-5 w-5 shrink-0 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
         </button>
@@ -230,7 +247,7 @@ export default function MyListingsPanel({ listings, setListings, carousel, setCa
           </span>
           <div>
             <h3 className="font-serif text-xl font-black text-[#111827] dark:text-white">My Listings</h3>
-            <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">Active, pending, and coming-soon listings pulled from your properties.</p>
+            <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">{listingsSubtitle}</p>
           </div>
         </button>
         <div className="flex shrink-0 items-center justify-end gap-2">
@@ -270,19 +287,16 @@ export default function MyListingsPanel({ listings, setListings, carousel, setCa
               </select>
               <button
                 onClick={() => {
-                  if (manualAddOpen) {
-                    setManualAddOpen(false)
-                  } else {
-                    setEditingListingId(null)
-                    setManualListingDraft({ street: '', city: '', state: '', zipcode: '', price: '', status: 'Active', image: '' })
-                    setManualAddOpen(true)
-                  }
+                  // Quick-add window (pull-up sheet on phones) - Where / Details / Photos.
+                  setManualAddOpen(false)
+                  setEditingListingId(null)
+                  setQuickAddOpen(true)
                 }}
-                className={`rounded-xl border px-3.5 py-2.5 text-sm font-black shadow-sm ${manualAddOpen ? 'border-[#C9A24D] bg-[#C9A24D]/15 text-[#8b7355]' : 'border-gray-200 bg-[#fbfaf7] text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white'}`}
+                className={`rounded-xl border px-3.5 py-2.5 text-sm font-black shadow-sm ${manualAddOpen ? 'border-[#C9A24D] bg-[#C9A24D]/15 text-[#8b7355]' : noMls ? 'border-[#111827] bg-[#111827] text-white dark:border-white dark:bg-white dark:text-[#111827]' : 'border-gray-200 bg-[#fbfaf7] text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white'}`}
               >
-                Manually Add
+                {noMls ? '+ Add a listing' : 'Manually Add'}
               </button>
-              <button onClick={loadListings} disabled={isLoading} className="rounded-xl bg-[#111827] px-3.5 py-2.5 text-sm font-black text-white shadow-sm disabled:opacity-60">{isLoading ? 'Refreshing...' : 'Refresh Listings'}</button>
+              {!noMls && <button onClick={loadListings} disabled={isLoading} className="rounded-xl bg-[#111827] px-3.5 py-2.5 text-sm font-black text-white shadow-sm disabled:opacity-60">{isLoading ? 'Refreshing...' : 'Refresh Listings'}</button>}
             </div>
           </div>
 
@@ -348,16 +362,21 @@ export default function MyListingsPanel({ listings, setListings, carousel, setCa
                 </label>
                 <label className="block md:col-span-2">
                   <span className="text-xs font-black uppercase tracking-widest text-gray-400">Photo</span>
-                  <div className="mt-2 flex items-center gap-4 rounded-xl border border-gray-200 bg-[#fbfaf7] p-3 dark:border-gray-700 dark:bg-gray-800">
-                    <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-cover bg-center" style={{ backgroundImage: manualListingDraft.image ? `url(${manualListingDraft.image})` : 'none' }} />
+                  <div className={`mt-2 flex cursor-pointer items-center rounded-xl border border-gray-200 bg-[#fbfaf7] p-3 dark:border-gray-700 dark:bg-gray-800 ${manualListingDraft.image ? 'gap-4' : ''}`}>
+                    {manualListingDraft.image && <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-cover bg-center" style={{ backgroundImage: `url(${manualListingDraft.image})` }} />}
                     <input
                       ref={fileInputRef}
                       type="file"
                       accept="image/jpeg"
                       disabled={manualPhotoUploading}
                       onChange={(event) => handleManualPhoto(event.target.files?.[0])}
-                      className="block w-full text-sm font-semibold file:mr-3 file:rounded-lg file:border-0 file:bg-[#111827] file:px-3 file:py-2 file:text-sm file:font-black file:text-white disabled:opacity-60"
+                      className="hidden"
                     />
+                    {/* Same button look as Recent Sales' photo row (no browser "Choose File"). */}
+                    <span className={`inline-flex items-center gap-2 rounded-lg bg-[#111827] px-3.5 py-2 text-sm font-black text-white transition active:scale-95 dark:bg-white dark:text-[#111827] ${manualPhotoUploading ? 'opacity-60' : ''}`}>
+                      {manualPhotoUploading ? 'Uploading...' : manualListingDraft.image ? 'Replace photo' : 'Upload photo'}
+                    </span>
+                    {!manualListingDraft.image && !manualPhotoUploading && <span className="ml-3 text-xs font-semibold text-gray-400">JPG, under 5MB</span>}
                   </div>
                   {manualPhotoUploading && <p className="mt-1 text-xs font-semibold text-gray-400">Uploading photo...</p>}
                   {manualPhotoError && <p className="mt-1 text-xs font-semibold text-rose-500">{manualPhotoError}</p>}
@@ -397,7 +416,7 @@ export default function MyListingsPanel({ listings, setListings, carousel, setCa
               <div className="rounded-2xl border border-gray-200 bg-[#fbfaf7] p-5 text-sm font-bold text-gray-500">Finding your listings...</div>
             ) : eligibleListings.length ? (
               pagedListings.map(listing => (
-                <div key={listing.id} className={`grid grid-cols-[56px_1fr_auto] items-center gap-2 rounded-xl border p-2.5 sm:grid-cols-[68px_1fr_auto] sm:gap-3 ${listing.visible ? 'border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900' : 'border-dashed border-gray-300 bg-gray-100 shadow-inner dark:border-gray-700 dark:bg-gray-950'}`}>
+                <div key={listing.id} className={`grid grid-cols-[56px_minmax(0,1fr)] items-center gap-2 rounded-xl border p-2.5 sm:grid-cols-[68px_minmax(0,1fr)_auto] sm:gap-3 ${listing.visible ? 'border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900' : 'border-dashed border-gray-300 bg-gray-100 shadow-inner dark:border-gray-700 dark:bg-gray-950'}`}>
                   <div className={`h-14 w-14 shrink-0 rounded-lg bg-cover bg-center sm:w-[68px] ${listing.visible ? '' : 'grayscale opacity-60'}`} style={{ backgroundImage: `url(${listing.image || '/placeholder.jpg'})` }} />
                   <div className="min-w-0 self-center">
                     <div className="mb-1 flex flex-wrap items-center gap-2">
@@ -407,9 +426,10 @@ export default function MyListingsPanel({ listings, setListings, carousel, setCa
                     <p className={`truncate text-sm font-black leading-snug ${listing.visible ? 'text-gray-950 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>{getStreetOnly(listing.address)}</p>
                     <p className={`mt-1 truncate text-sm font-semibold ${listing.visible ? 'text-gray-500 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>{[listing.city, listing.state].filter(Boolean).join(', ') || 'Location unavailable'}</p>
                   </div>
-                  <div className="self-center text-right">
+                  {/* Phones: price + buttons on their own row (they squeezed the address to "88 ..."). */}
+                  <div className="self-center text-right max-sm:col-span-2 max-sm:flex max-sm:items-center max-sm:justify-between max-sm:gap-2 max-sm:border-t max-sm:border-gray-100 max-sm:pt-2 dark:max-sm:border-gray-800">
                     <p className={`whitespace-nowrap text-sm font-black ${listing.visible ? 'text-[#8b7355]' : 'text-gray-400 dark:text-gray-500'}`}>{listing.price ? `$${listing.price.toLocaleString()}` : 'No price'}</p>
-                    <div className="mt-1 flex flex-nowrap items-center justify-end gap-2">
+                    <div className="flex flex-nowrap items-center justify-end gap-2 sm:mt-1">
                       {listing.source === 'manual' && (
                         <>
                           <button
@@ -476,6 +496,7 @@ export default function MyListingsPanel({ listings, setListings, carousel, setCa
           )}
         </div>
       </HubCollapse>
+      <QuickAddHomeSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} kind="listing" onSave={addQuickListing} />
     </section>
   )
 }

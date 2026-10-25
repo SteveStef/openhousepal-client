@@ -55,6 +55,17 @@ module.exports = {
           '0%': { opacity: '0', transform: 'translateX(28px) scale(0.97)' },
           '100%': { opacity: '1', transform: 'translateX(0) scale(1)' },
         },
+        // Homepage plan cards on phones (owner, 10/24) - a fuller, softer slide than the tab one.
+        'plan-in-left': {
+          '0%': { opacity: '0', transform: 'translateX(-56px) scale(0.94)' },
+          '60%': { opacity: '1' },
+          '100%': { opacity: '1', transform: 'translateX(0) scale(1)' },
+        },
+        'plan-in-right': {
+          '0%': { opacity: '0', transform: 'translateX(56px) scale(0.94)' },
+          '60%': { opacity: '1' },
+          '100%': { opacity: '1', transform: 'translateX(0) scale(1)' },
+        },
         'ken-burns': {
           '0%, 100%': { transform: 'scale(1) translate(0, 0)' },
           '50%': { transform: 'scale(1.08) translate(-1%, -1%)' },
@@ -92,6 +103,8 @@ module.exports = {
         'shimmer-mini': 'shimmer-mini 3.5s ease-in-out infinite',
         'tab-in-left': 'tab-in-left 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
         'tab-in-right': 'tab-in-right 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
+        'plan-in-left': 'plan-in-left 0.6s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'plan-in-right': 'plan-in-right 0.6s cubic-bezier(0.22, 1, 0.36, 1) both',
         'ken-burns': 'ken-burns 6s ease-in-out infinite',
         'meter-pulse': 'meter-pulse 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 1',
         'rpm-needle': 'rpm-needle 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite',

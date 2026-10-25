@@ -179,17 +179,28 @@ export default function SeoPagesList({ seo, onChange, pages, data, siteName, foc
 }
 
 function MiniField({ label, value, placeholder, onChange, max, multiline }: { label: string; value: string; placeholder: string; onChange: (v: string) => void; max: number; multiline?: boolean }) {
-  const len = value.length
+  // Blank = the automatic text, shown as real (dark) text so nothing looks unfinished (owner,
+  // 10/24). Clearing it while typing really empties the box until they leave it.
+  const [cleared, setCleared] = useState(false)
+  const isAuto = !value && !cleared && !!placeholder
+  const shown = value || (cleared ? '' : placeholder)
+  const change = (v: string) => { setCleared(v === ''); onChange(v) }
+  const len = shown.length
   const cls = `mt-1 w-full rounded-lg border bg-white px-2.5 py-2 text-xs font-semibold outline-none transition placeholder:text-gray-400/80 focus:border-[#C9A24D] dark:bg-[#0B0B0B] dark:text-white ${len > max ? 'border-amber-400' : 'border-gray-200 dark:border-gray-700'}`
   return (
     <label className="block">
       <span className="flex items-center justify-between">
-        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/50">{label}</span>
+        <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/50">{label}{isAuto && <AutoChip />}</span>
         <span className={`text-[10px] font-black tabular-nums ${len > max ? 'text-amber-600' : 'text-gray-300'}`}>{len}/{max}</span>
       </span>
       {multiline
-        ? <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={3} className={`${cls} resize-none`} />
-        : <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={cls} />}
+        ? <textarea value={shown} onChange={e => change(e.target.value)} onBlur={() => setCleared(false)} placeholder={placeholder} rows={3} className={`${cls} resize-none`} />
+        : <input value={shown} onChange={e => change(e.target.value)} onBlur={() => setCleared(false)} placeholder={placeholder} className={cls} />}
     </label>
   )
+}
+
+/** "Written for you" marker beside a field that shows the automatic text. */
+export function AutoChip() {
+  return <span title="Written for you automatically - edit it any time" className="rounded-full bg-[#C9A24D]/15 px-1.5 py-px text-[8.5px] font-black tracking-wide text-[#8b6a2b] dark:text-[#e8c97a]">AUTO</span>
 }

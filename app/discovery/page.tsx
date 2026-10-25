@@ -4,7 +4,13 @@ import { OhpSpinner } from '@/components/brand/OhpLoader'
 import React, { useState, memo, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
+import OhSheet from '@/components/open-house-manager/OhSheet'
+import PageReveal from '@/components/ui/PageReveal'
+import ExpandOnFocus from '@/components/ui/ExpandOnFocus'
+import { useImagesReady } from '@/hooks/useImagesReady'
+import { clockRange, dayShort } from '@/components/open-house-manager/HostFlowParts'
+import EmailHostFlow from '@/components/open-house-manager/EmailHostFlow'
 import {
   Search, Filter, ChevronDown, ChevronLeft, ChevronRight, Home, Bed, Bath,
   MapPin, Calendar, CalendarX, Inbox,
@@ -43,6 +49,53 @@ function compactAgentName(fullName: string | null | undefined): string {
   const parts = fullName.trim().split(/\s+/)
   if (parts.length <= 2) return fullName
   return `${parts[0]} ${parts[parts.length - 1]}`
+}
+
+// Below lg (phones, phone landscape, small tablets) the filters live in one pull-up sheet that
+// drags down to close (user, 10/24) - the inline pill row needs a wide screen.
+function useBelowLg(): boolean {
+  const [below, setBelow] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)')
+    const on = () => setBelow(mq.matches)
+    on()
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return below
+}
+
+function SheetOr({ sheet, open, onClose, footer, children }: { sheet: boolean; open: boolean; onClose: () => void; footer: React.ReactNode; children: React.ReactNode }) {
+  if (!sheet) return <>{children}</>
+  return (
+    <OhSheet open={open} onClose={onClose} title="Filters & Sort" subtitle="Narrow the homes you can host" icon={<Filter className="h-5 w-5" />} footer={footer}>
+      {children}
+    </OhSheet>
+  )
+}
+
+// One filter's options: on a computer a menu that springs open under its pill (and drops away on
+// close); inside the phone sheet it unfolds in place with a smooth height animation.
+function DropPanel({ open, sheet, className = 'w-64', children }: { open: boolean; sheet: boolean; className?: string; children: React.ReactNode }) {
+  return (
+    <AnimatePresence initial={false}>
+      {open && (sheet ? (
+        <motion.div key="sheet-panel" className="overflow-hidden"
+          initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+          transition={{ height: { type: 'spring', stiffness: 320, damping: 34 }, opacity: { duration: 0.18 } }}>
+          <div className="mt-1.5 overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-[#1A1A1C]">{children}</div>
+        </motion.div>
+      ) : (
+        <motion.div key="menu-panel" style={{ transformOrigin: 'top left' }}
+          initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -4, scale: 0.98, transition: { duration: 0.12 } }}
+          transition={{ type: 'spring', stiffness: 520, damping: 34 }}
+          className={`absolute left-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl dark:border-gray-800 dark:bg-[#1A1A1C] ${className}`}>
+          {children}
+        </motion.div>
+      ))}
+    </AnimatePresence>
+  )
 }
 
 // --- Email Template Modal ---
@@ -181,10 +234,16 @@ const StatCard = ({ title, value, icon: Icon, accent = 'neutral' }: { title: str
 }
 
 // --- Dashboard Property Row ---
-const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, openHouseSchedule, isNewAndUnseen, onRequestToHost, onViewDetail, requestedDates, busyDates }: { requestedDates?: string[], busyDates?: string[], property: any, openHouseSchedule?: { status: string, scheduled_date?: string | null, scheduled_start_time?: string | null, scheduled_end_time?: string | null, scheduled_opens?: { scheduled_date: string | null, scheduled_start_time: string | null, scheduled_end_time: string | null, hosting_agent_id?: string | null }[] }, isNewAndUnseen: boolean, onRequestToHost: (p: any, prefillDate?: string) => void, onViewDetail: (p: any) => void }) {
+const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, openHouseSchedule, isNewAndUnseen, onRequestToHost, onViewDetail, requestedDates, busyDates, eager = false }: { eager?: boolean, requestedDates?: string[], busyDates?: string[], property: any, openHouseSchedule?: { status: string, scheduled_date?: string | null, scheduled_start_time?: string | null, scheduled_end_time?: string | null, scheduled_opens?: { scheduled_date: string | null, scheduled_start_time: string | null, scheduled_end_time: string | null, hosting_agent_id?: string | null }[] }, isNewAndUnseen: boolean, onRequestToHost: (p: any, prefillDate?: string) => void, onViewDetail: (p: any) => void }) {
   const { user } = useAuth()
   const isOpenHouseScheduled = openHouseSchedule?.status === 'scheduled'
   const upcomingOpens = openHouseSchedule?.scheduled_opens || []
+  // The next open on the calendar, for the "Open house Sat, Oct 25 · 1 - 3 PM" line.
+  const todayIso = new Date().toLocaleDateString('en-CA')
+  const datedUpcoming = upcomingOpens.filter(o => o.scheduled_date && String(o.scheduled_date) >= todayIso)
+    .sort((a, b) => String(a.scheduled_date).localeCompare(String(b.scheduled_date)))
+  const nextOpen = datedUpcoming[0]
+  const laterOpens = Math.max(0, datedUpcoming.length - 1)
   return (
     <div
       className="bg-white dark:bg-[#1A1A1C] border-2 border-gray-200 dark:border-gray-800 rounded-3xl p-3.5 flex flex-col md:flex-row md:items-start gap-2 md:gap-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-[#C9A24D] dark:hover:border-[#C9A24D] hover:shadow-[0_16px_32px_-12px_rgba(0,0,0,0.12)] dark:hover:shadow-black/30 transition-all duration-300 group"
@@ -198,7 +257,7 @@ const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, open
           dimensions) rather than the fixed-height square crop the /open-houses kit cards use;
           city overlaid on the photo itself with a MapPin, same treatment as the open house
           page cards. */}
-      <div className="relative w-full md:w-[188px] aspect-[4/3] md:aspect-auto md:h-auto shrink-0 overflow-hidden rounded-2xl bg-gray-100 dark:bg-[#0B0B0B]">
+      <div className="relative w-full md:w-[188px] aspect-[4/3] md:self-start xl:self-stretch xl:aspect-auto xl:h-auto shrink-0 overflow-hidden rounded-2xl bg-gray-100 dark:bg-[#0B0B0B]">
         <Image
           // No photo yet: the site's own placeholder. Prefixing it with the API address pointed it at
           // a host next/image doesn't allow, which crashed the whole page on a photo-less listing.
@@ -207,6 +266,7 @@ const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, open
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-105"
           sizes="(max-width: 768px) 100vw, 188px"
+          priority={eager}
         />
 
         {/* Price overlay - mobile only, bottom-left over a gradient scrim (city moved into the
@@ -223,15 +283,16 @@ const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, open
           </div>
         )}
         {isOpenHouseScheduled && (
-          // Centered when it's the only badge on the photo - stacked directly under "New" (same
-          // left edge, not centered) when both show, since a centered badge on a narrow thumbnail
-          // overlaps "New" pinned top-left. Stacking guarantees no overlap regardless of exact
-          // badge widths, unlike trying to share the top row side by side.
-          <div className={`absolute flex items-center gap-1 bg-emerald-500 text-white px-2 py-1 rounded-lg shadow-lg border border-white/10 whitespace-nowrap ${
-            isNewAndUnseen ? 'left-2.5 top-9' : 'left-1/2 -translate-x-1/2 top-2.5'
-          }`}>
-            <Check size={10} strokeWidth={3.5} />
-            <span className="text-[9px] font-black uppercase tracking-widest leading-none">Open Scheduled</span>
+          // Always top-middle of the photo, between "New" (left) and the days-on-market tag
+          // (right) - user, 10/24. On the narrow computer thumbnail next to "New" it folds onto
+          // two short lines so the three never touch.
+          <div className="pointer-events-none absolute inset-x-0 top-2.5 flex justify-center">
+            <div className={`flex items-center gap-1 rounded-lg border border-white/10 bg-emerald-500 px-2 py-1 text-white shadow-lg ${isNewAndUnseen ? 'md:ml-11 md:gap-0 md:px-1.5 md:py-[3px]' : ''}`}>
+              <Check size={10} strokeWidth={3.5} className={isNewAndUnseen ? 'md:hidden' : ''} />
+              <span className={`whitespace-nowrap text-[9px] font-black uppercase leading-none tracking-widest ${isNewAndUnseen ? 'md:flex md:flex-col md:items-center md:gap-[2px] md:text-[7.5px] md:tracking-[0.12em]' : ''}`}>
+                <span>Open</span>{isNewAndUnseen ? <span className="md:hidden">&nbsp;</span> : ' '}<span>Scheduled</span>
+              </span>
+            </div>
           </div>
         )}
         {/* Days on Market - top-right of the photo on mobile; desktop keeps its own text row below. */}
@@ -303,6 +364,35 @@ const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, open
           <Clock size={11} />
           {property.DaysOnMarket === 0 ? 'Just Listed' : `${property.DaysOnMarket} Days on Market`}
         </div>
+
+        {/* Phones / smaller screens (user, 10/24): when it has an open house, say when, plus the
+            same small day cards the wide screen shows - open days to ask for vs taken ones. Tap
+            an open day to ask to host it. (Wide screens keep the big cards in their own column.) */}
+        {(isOpenHouseScheduled || upcomingOpens.length > 0) && nextOpen && (
+          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] font-black text-emerald-700 dark:text-emerald-400 xl:hidden">
+            <Calendar size={12} className="shrink-0" />
+            <span className="truncate">Open house {dayShort(String(nextOpen.scheduled_date))}{nextOpen.scheduled_start_time && nextOpen.scheduled_end_time ? ` · ${clockRange(String(nextOpen.scheduled_start_time).slice(0, 5), String(nextOpen.scheduled_end_time).slice(0, 5))}` : ''}</span>
+            {laterOpens > 0 && <span className="shrink-0 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">+{laterOpens} more</span>}
+          </p>
+        )}
+        <div className={`${isOpenHouseScheduled ? 'block' : 'hidden md:block'} mt-1 xl:hidden`}>
+          <WeekendCalendarCards
+            opens={upcomingOpens}
+            size="md"
+            filledClickable={false}
+            emptyCellTitle="Tap to ask to host this day"
+            filledCellTitle="Already scheduled"
+            emptyCellLabel="Open"
+            onCellClick={(cell, open) => { if (!open) onRequestToHost(property, cell.date) }}
+            viewerId={user?.id}
+            othersMuted
+            hostingWindow={{ hosting_blocked: property.HostingBlocked, hosts_from: property.HostsFrom }}
+            pendingDates={requestedDates}
+            pendingLabel="Requested"
+            pendingTitle="You asked to host this day - waiting on the listing agent"
+            busyDates={busyDates}
+          />
+        </div>
       </div>
 
       {/* Weekend mini calendar - same "which of the next 2 weekends still needs a host" glance as
@@ -313,7 +403,7 @@ const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, open
           own cards since this is the row's only path into Request to Host now - no separate button
           underneath - so the time needs to read clearly at a glance. Desktop only - mobile keeps
           the "Open Scheduled" checkmark on the photo instead, there's no room for a 4-cell grid there. */}
-      <div className="hidden md:flex w-[430px] shrink-0 flex-col">
+      <div className="hidden xl:flex w-[430px] shrink-0 flex-col">
         <WeekendCalendarCards
           opens={upcomingOpens}
           size="lg"
@@ -455,6 +545,9 @@ export default function OpenHouseDiscovery() {
   // Mobile: all 7 filter/sort pills live behind one "Filters & Sort" button that opens a bottom
   // sheet, instead of a horizontally-scrolling pill row - same pills, just re-homed.
   const [showMobileFiltersSheet, setShowMobileFiltersSheet] = useState(false)
+  const sheetMode = useBelowLg()
+  const pageRef = useRef<HTMLElement>(null)
+  const pageReady = useImagesReady(pageRef, !isLoading, { count: 4 })
 
   // Results pagination - client-side, since Discovery already caps results server-side.
   const [resultsPerPage, setResultsPerPage] = useState(12)
@@ -476,7 +569,7 @@ export default function OpenHouseDiscovery() {
   // Flat "tab" look for the filter/sort trigger buttons - same recipe as the flat action segments
   // on Open House Manager's header card (no pill/border of their own, just background + text
   // color, all living inside one shared bordered toolbar card instead).
-  const filterTabBase = 'flex items-center justify-start md:justify-center gap-2 px-4 py-3 md:py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.96] w-full md:w-auto'
+  const filterTabBase = 'flex items-center justify-start lg:justify-center gap-2 px-4 py-3.5 lg:py-2.5 rounded-xl text-[11px] lg:text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.96] w-full lg:w-auto max-lg:border max-lg:border-gray-100 max-lg:dark:border-gray-800 max-lg:bg-white max-lg:dark:bg-[#151517]'
   const filterTabActive = 'bg-[#FCF9F1] dark:bg-[#C9A24D]/10 text-[#C9A24D]'
   const filterTabInactive = 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'
 
@@ -984,7 +1077,10 @@ export default function OpenHouseDiscovery() {
       <SubscriptionGuard requireMlsAccess>
         <BrokerAuthorizationGuard>
           <div className="min-h-screen bg-[#fafafb] dark:bg-[#0B0B0B] flex flex-col">
-            <main className="flex-grow container mx-auto px-4 py-4 sm:py-6 max-w-7xl text-[#111827] dark:text-[#F3F4F6]">
+            {/* Opening (user, 10/24): the house loader until the listings AND the first photos
+                are in, then the page rises into place - never half-drawn. */}
+            <PageReveal ready={pageReady} label="Finding homes to host" className="flex flex-grow flex-col">
+            <main ref={pageRef} className="flex-grow container mx-auto px-4 py-4 sm:py-6 max-w-7xl text-[#111827] dark:text-[#F3F4F6]">
               {/* Header + Stats - same bordered-card recipe as the Open House Manager header
                   (PageHeader noMargin on the left, stat cards on the right, one shared shadow/
                   border) instead of the two floating unboxed halves this had before, which was
@@ -1057,8 +1153,10 @@ export default function OpenHouseDiscovery() {
 
                     <span className="text-[9px] sm:text-[10px] font-black text-white/30 uppercase tracking-widest sm:tracking-[0.2em] shrink-0">from</span>
 
-                    {/* Address Search */}
-                    <div className="relative flex-1 md:ml-2 flex items-center min-w-0 bg-white/5 border border-white/10 rounded-2xl">
+                    {/* Address Search - on a phone, tapping it lifts it to the top, full width and
+                        bigger, so a long address reads in full while typing (user, 10/24). */}
+                    <ExpandOnFocus className="flex-1 min-w-0 md:ml-2" openClassName="bg-[#172536]" label="Search from an address or landmark">
+                    <div className="relative flex items-center min-w-0 bg-white/5 border border-white/10 rounded-2xl">
                       <div className="flex-1 min-w-0">
                         <GooglePlacesAutocomplete
                           ref={addressRef}
@@ -1086,6 +1184,7 @@ export default function OpenHouseDiscovery() {
                         </button>
                       )}
                     </div>
+                    </ExpandOnFocus>
 
                     {/* Find - same row as the search bar on every breakpoint, including mobile. */}
                     <button
@@ -1128,32 +1227,27 @@ export default function OpenHouseDiscovery() {
                     point) the pills collapse into the "Filters" trigger above (opens a bottom
                     sheet with the same pills, just re-homed) instead of a scrolling row; desktop
                     keeps the normal inline wrapping row. */}
-                <div className="p-3 md:p-4">
-                  {showMobileFiltersSheet && (
-                    <div
-                      className="md:hidden fixed inset-0 z-[90] bg-black/60 animate-in fade-in duration-200"
-                      onClick={closeMobileFiltersSheet}
-                    />
-                  )}
-
-                  <div className={`${
-                    showMobileFiltersSheet
-                      ? 'fixed inset-x-0 bottom-0 z-[95] max-h-[80vh] overflow-y-auto bg-white dark:bg-[#1A1A1C] rounded-t-3xl p-4 pb-6 flex flex-col gap-3 shadow-2xl animate-in slide-in-from-bottom duration-300'
-                      : 'hidden'
-                  } md:static md:flex md:flex-row md:flex-wrap md:items-center md:justify-center md:max-h-none md:overflow-visible md:rounded-2xl md:border md:border-gray-100 md:dark:border-gray-800 md:bg-white md:dark:bg-[#151517] md:shadow-sm md:p-2 md:z-auto md:gap-1.5`}>
-                    {showMobileFiltersSheet && (
-                      <div className="md:hidden sticky top-0 -mx-4 -mt-4 px-4 pt-4 pb-3 mb-1 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1A1A1C]">
-                        <span className="text-sm font-black uppercase tracking-wide text-[#111827] dark:text-white">Filters &amp; Sort</span>
-                        <button
-                          onClick={closeMobileFiltersSheet}
-                          className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 active:scale-90 text-gray-400 transition-all"
-                        >
-                          <X size={18} />
+                <div className={sheetMode ? 'contents' : 'p-4'}>
+                  {/* Below lg: the same pills in a pull-up sheet that drags down to close; each
+                      pill unfolds its options in place. Wide screens: the inline row. */}
+                  <SheetOr sheet={sheetMode} open={showMobileFiltersSheet} onClose={closeMobileFiltersSheet}
+                    footer={
+                      <div className="flex items-center gap-2">
+                        <button onClick={resetAllFiltersMobile}
+                          className="flex-1 py-3 rounded-xl border border-dashed border-gray-200 dark:border-gray-800 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 active:scale-[0.97] transition-all">
+                          Reset All
+                        </button>
+                        <button onClick={closeMobileFiltersSheet}
+                          className="flex-1 py-3 rounded-xl bg-[#C9A24D] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#C9A24D]/30 active:scale-[0.97] transition-all">
+                          Show {filteredListings.length} {filteredListings.length === 1 ? 'Result' : 'Results'}
                         </button>
                       </div>
-                    )}
+                    }>
+                  <div className={sheetMode
+                    ? 'flex flex-col gap-1.5'
+                    : 'flex flex-row flex-wrap items-center justify-center gap-1.5 rounded-2xl border border-gray-100 bg-white p-2 shadow-sm dark:border-gray-800 dark:bg-[#151517]'}>
 
-                    <div className="relative shrink-0 w-full md:w-auto" ref={dropdownRef}>
+                    <div className="relative shrink-0 w-full lg:w-auto" ref={dropdownRef}>
                       <button
                         onClick={() => setShowBrokerageDropdown(!showBrokerageDropdown)}
                         className={`${filterTabBase} ${showBrokerageDropdown ? filterTabActive : filterTabInactive}`}
@@ -1162,21 +1256,20 @@ export default function OpenHouseDiscovery() {
                         <span className="bg-[#C9A24D] text-white text-[8px] px-1.5 py-0.5 rounded-md leading-none">
                           {preferences?.brokerages?.length || 0}
                         </span>
-                        <ChevronDown size={12} className={`ml-auto md:ml-0 transition-transform duration-200 ${showBrokerageDropdown ? 'rotate-180' : ''}`} />
+                        <ChevronDown size={12} className={`ml-auto lg:ml-0 transition-transform duration-200 ${showBrokerageDropdown ? 'rotate-180' : ''}`} />
                       </button>
 
-                      {showBrokerageDropdown && (
-                        <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-[#1A1A1C] border border-gray-100 dark:border-gray-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <DropPanel open={showBrokerageDropdown} sheet={sheetMode}>
                           <div className="p-3 border-b border-gray-50 dark:border-gray-800/50">
                             <div className="relative">
                               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                               <input 
                                 type="text"
                                 placeholder="Search brokerages..."
-                                className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-none rounded-xl py-2 pl-9 pr-4 text-xs font-bold placeholder:text-gray-400 focus:ring-1 focus:ring-[#C9A24D]/30 transition-all outline-none"
+                                className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-none rounded-xl py-2 pl-9 pr-4 text-xs max-lg:py-3 max-lg:text-[15px] font-bold placeholder:text-gray-400 focus:ring-1 focus:ring-[#C9A24D]/30 transition-all outline-none"
                                 value={brokerageSearch}
                                 onChange={(e) => setBrokerageSearch(e.target.value)}
-                                autoFocus
+                                autoFocus={!sheetMode}
                               />
                             </div>
                           </div>
@@ -1231,11 +1324,10 @@ export default function OpenHouseDiscovery() {
                               </div>
                             )}
                           </div>
-                        </div>
-                      )}
+                        </DropPanel>
                     </div>
 
-                    <div className="relative shrink-0 w-full md:w-auto" ref={agentDropdownRef}>
+                    <div className="relative shrink-0 w-full lg:w-auto" ref={agentDropdownRef}>
                       <button
                         onClick={() => setShowAgentDropdown(!showAgentDropdown)}
                         className={`${filterTabBase} ${showAgentDropdown ? agentAccent.pillActive : filterTabInactive}`}
@@ -1244,11 +1336,10 @@ export default function OpenHouseDiscovery() {
                         <span className={`${agentAccent.badge} text-white text-[8px] px-1.5 py-0.5 rounded-md leading-none`}>
                           {preferences?.excluded_agents?.length || 0}
                         </span>
-                        <ChevronDown size={12} className={`ml-auto md:ml-0 transition-transform duration-200 ${showAgentDropdown ? 'rotate-180' : ''}`} />
+                        <ChevronDown size={12} className={`ml-auto lg:ml-0 transition-transform duration-200 ${showAgentDropdown ? 'rotate-180' : ''}`} />
                       </button>
 
-                      {showAgentDropdown && (
-                        <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-[#1A1A1C] border border-gray-100 dark:border-gray-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <DropPanel open={showAgentDropdown} sheet={sheetMode}>
                           <div className="p-3 border-b border-gray-50 dark:border-gray-800/50">
                             <div className="mb-2 grid grid-cols-2 gap-1 rounded-xl bg-gray-100 dark:bg-[#0B0B0B] p-1">
                               <button
@@ -1280,10 +1371,10 @@ export default function OpenHouseDiscovery() {
                               <input
                                 type="text"
                                 placeholder="Search agents..."
-                                className={`w-full bg-gray-50 dark:bg-[#0B0B0B] border-none rounded-xl py-2 pl-9 pr-4 text-xs font-bold placeholder:text-gray-400 focus:ring-1 ${agentAccent.ring} transition-all outline-none`}
+                                className={`w-full bg-gray-50 dark:bg-[#0B0B0B] border-none rounded-xl py-2 pl-9 pr-4 text-xs max-lg:py-3 max-lg:text-[15px] font-bold placeholder:text-gray-400 focus:ring-1 ${agentAccent.ring} transition-all outline-none`}
                                 value={agentSearch}
                                 onChange={(e) => setAgentSearch(e.target.value)}
-                                autoFocus
+                                autoFocus={!sheetMode}
                               />
                             </div>
                           </div>
@@ -1324,11 +1415,10 @@ export default function OpenHouseDiscovery() {
                               </div>
                             )}
                           </div>
-                        </div>
-                      )}
+                        </DropPanel>
                     </div>
 
-                    <div className="relative shrink-0 w-full md:w-auto" ref={cityDropdownRef}>
+                    <div className="relative shrink-0 w-full lg:w-auto" ref={cityDropdownRef}>
                       <button
                         onClick={() => setShowCityDropdown(!showCityDropdown)}
                         className={`${filterTabBase} ${showCityDropdown ? filterTabActive : filterTabInactive}`}
@@ -1337,21 +1427,20 @@ export default function OpenHouseDiscovery() {
                         <span className="bg-[#C9A24D] text-white text-[8px] px-1.5 py-0.5 rounded-md leading-none">
                           {preferences?.cities?.length || 0}
                         </span>
-                        <ChevronDown size={12} className={`ml-auto md:ml-0 transition-transform duration-200 ${showCityDropdown ? 'rotate-180' : ''}`} />
+                        <ChevronDown size={12} className={`ml-auto lg:ml-0 transition-transform duration-200 ${showCityDropdown ? 'rotate-180' : ''}`} />
                       </button>
 
-                      {showCityDropdown && (
-                        <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-[#1A1A1C] border border-gray-100 dark:border-gray-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <DropPanel open={showCityDropdown} sheet={sheetMode}>
                           <div className="p-3 border-b border-gray-50 dark:border-gray-800/50">
                             <div className="relative">
                               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                               <input 
                                 type="text"
                                 placeholder="Search cities..."
-                                className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-none rounded-xl py-2 pl-9 pr-4 text-xs font-bold placeholder:text-gray-400 focus:ring-1 focus:ring-[#C9A24D]/30 transition-all outline-none"
+                                className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-none rounded-xl py-2 pl-9 pr-4 text-xs max-lg:py-3 max-lg:text-[15px] font-bold placeholder:text-gray-400 focus:ring-1 focus:ring-[#C9A24D]/30 transition-all outline-none"
                                 value={citySearch}
                                 onChange={(e) => setCitySearch(e.target.value)}
-                                autoFocus
+                                autoFocus={!sheetMode}
                               />
                             </div>
                           </div>
@@ -1406,11 +1495,10 @@ export default function OpenHouseDiscovery() {
                               </div>
                             )}
                           </div>
-                        </div>
-                      )}
+                        </DropPanel>
                     </div>
 
-                    <div className="relative shrink-0 w-full md:w-auto" ref={districtDropdownRef}>
+                    <div className="relative shrink-0 w-full lg:w-auto" ref={districtDropdownRef}>
                       <button
                         onClick={() => setShowDistrictDropdown(!showDistrictDropdown)}
                         className={`${filterTabBase} ${showDistrictDropdown ? filterTabActive : filterTabInactive}`}
@@ -1419,21 +1507,20 @@ export default function OpenHouseDiscovery() {
                         <span className="bg-[#C9A24D] text-white text-[8px] px-1.5 py-0.5 rounded-md leading-none">
                           {preferences?.school_districts?.length || 0}
                         </span>
-                        <ChevronDown size={12} className={`ml-auto md:ml-0 transition-transform duration-200 ${showDistrictDropdown ? 'rotate-180' : ''}`} />
+                        <ChevronDown size={12} className={`ml-auto lg:ml-0 transition-transform duration-200 ${showDistrictDropdown ? 'rotate-180' : ''}`} />
                       </button>
 
-                      {showDistrictDropdown && (
-                        <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-[#1A1A1C] border border-gray-100 dark:border-gray-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <DropPanel open={showDistrictDropdown} sheet={sheetMode}>
                           <div className="p-3 border-b border-gray-50 dark:border-gray-800/50">
                             <div className="relative">
                               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                               <input 
                                 type="text"
                                 placeholder="Search districts..."
-                                className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-none rounded-xl py-2 pl-9 pr-4 text-xs font-bold placeholder:text-gray-400 focus:ring-1 focus:ring-[#C9A24D]/30 transition-all outline-none"
+                                className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-none rounded-xl py-2 pl-9 pr-4 text-xs max-lg:py-3 max-lg:text-[15px] font-bold placeholder:text-gray-400 focus:ring-1 focus:ring-[#C9A24D]/30 transition-all outline-none"
                                 value={districtSearch}
                                 onChange={(e) => setDistrictSearch(e.target.value)}
-                                autoFocus
+                                autoFocus={!sheetMode}
                               />
                             </div>
                           </div>
@@ -1488,20 +1575,18 @@ export default function OpenHouseDiscovery() {
                               </div>
                             )}
                           </div>
-                        </div>
-                      )}
+                        </DropPanel>
                     </div>
-                    <div className="relative shrink-0 w-full md:w-auto" ref={stateDropdownRef}>
+                    <div className="relative shrink-0 w-full lg:w-auto" ref={stateDropdownRef}>
                       <button
                         onClick={() => setShowStateDropdown(!showStateDropdown)}
                         className={`${filterTabBase} ${showStateDropdown ? filterTabActive : filterTabInactive}`}
                       >
                         State: {preferences?.state || 'Any'}
-                        <ChevronDown size={12} className={`ml-auto md:ml-0 transition-transform duration-200 ${showStateDropdown ? 'rotate-180' : ''}`} />
+                        <ChevronDown size={12} className={`ml-auto lg:ml-0 transition-transform duration-200 ${showStateDropdown ? 'rotate-180' : ''}`} />
                       </button>
 
-                      {showStateDropdown && (
-                        <div className="absolute top-full left-0 mt-2 w-32 bg-white dark:bg-[#1A1A1C] border border-gray-100 dark:border-gray-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <DropPanel open={showStateDropdown} sheet={sheetMode} className="w-32">
                           <div className="p-2">
                             {US_STATES.map((state) => (
                               <button
@@ -1518,14 +1603,13 @@ export default function OpenHouseDiscovery() {
                               </button>
                             ))}
                           </div>
-                        </div>
-                      )}
+                        </DropPanel>
                     </div>
 
                     {/* Only shown once the agent is actually on at least one team - otherwise
                         there's nothing for it to filter to. */}
                     {myTeams.length > 0 && (
-                      <div className="relative shrink-0 w-full md:w-auto" ref={teamDropdownRef}>
+                      <div className="relative shrink-0 w-full lg:w-auto" ref={teamDropdownRef}>
                         <button
                           onClick={() => setShowTeamDropdown(!showTeamDropdown)}
                           className={`${filterTabBase} ${showTeamDropdown || selectedTeamOwnerIds.length > 0 ? filterTabActive : filterTabInactive}`}
@@ -1537,11 +1621,10 @@ export default function OpenHouseDiscovery() {
                               {selectedTeamOwnerIds.length}
                             </span>
                           )}
-                          <ChevronDown size={12} className={`ml-auto md:ml-0 transition-transform duration-200 ${showTeamDropdown ? 'rotate-180' : ''}`} />
+                          <ChevronDown size={12} className={`ml-auto lg:ml-0 transition-transform duration-200 ${showTeamDropdown ? 'rotate-180' : ''}`} />
                         </button>
 
-                        {showTeamDropdown && (
-                          <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-[#1A1A1C] border border-gray-100 dark:border-gray-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <DropPanel open={showTeamDropdown} sheet={sheetMode}>
                             <div className="max-h-72 overflow-y-auto p-2">
                               <button
                                 onClick={() => setSelectedTeamOwnerIds(selectedTeamOwnerIds.length === myTeams.length ? [] : myTeams.map(t => t.owner_id))}
@@ -1576,14 +1659,13 @@ export default function OpenHouseDiscovery() {
                                 )
                               })}
                             </div>
-                          </div>
-                        )}
+                          </DropPanel>
                       </div>
                     )}
 
-                    <div className="w-px h-6 bg-gray-100 dark:bg-gray-800 mx-1 hidden sm:block"></div>
+                    <div className="w-px h-6 bg-gray-100 dark:bg-gray-800 mx-1 hidden lg:block"></div>
 
-                    <div className="relative shrink-0 w-full md:w-auto" ref={filterDropdownRef}>
+                    <div className="relative shrink-0 w-full lg:w-auto" ref={filterDropdownRef}>
                       <button
                         onClick={() => setShowFilterDropdown(!showFilterDropdown)}
                         className={`${filterTabBase} ${showFilterDropdown || activeFilterCount > 0 ? filterTabActive : filterTabInactive}`}
@@ -1597,8 +1679,7 @@ export default function OpenHouseDiscovery() {
                         )}
                       </button>
 
-                      {showFilterDropdown && (
-                        <div className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-[#1A1A1C] border border-gray-100 dark:border-gray-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <DropPanel open={showFilterDropdown} sheet={sheetMode} className="w-72">
                           <div className="p-4 space-y-4">
                             <div>
                               <div className="flex items-center justify-between mb-2">
@@ -1693,7 +1774,7 @@ export default function OpenHouseDiscovery() {
                                     type="text"
                                     inputMode="numeric"
                                     placeholder="2,000"
-                                    className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-none rounded-xl py-2.5 px-3 text-xs font-bold placeholder:text-gray-400 focus:ring-1 focus:ring-[#C9A24D]/30 transition-all outline-none"
+                                    className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-none rounded-xl py-2.5 px-3 text-xs max-lg:py-3 max-lg:text-[15px] font-bold placeholder:text-gray-400 focus:ring-1 focus:ring-[#C9A24D]/30 transition-all outline-none"
                                     value={minSqft ? minSqft.toLocaleString() : ''}
                                     onChange={(e) => {
                                       const val = e.target.value.replace(/[^0-9]/g, '');
@@ -1724,7 +1805,7 @@ export default function OpenHouseDiscovery() {
                                     type="text"
                                     inputMode="numeric"
                                     placeholder="500,000"
-                                    className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-none rounded-xl py-2.5 px-3 text-xs font-bold placeholder:text-gray-400 focus:ring-1 focus:ring-[#C9A24D]/30 transition-all outline-none"
+                                    className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-none rounded-xl py-2.5 px-3 text-xs max-lg:py-3 max-lg:text-[15px] font-bold placeholder:text-gray-400 focus:ring-1 focus:ring-[#C9A24D]/30 transition-all outline-none"
                                     value={minPrice ? minPrice.toLocaleString() : ''}
                                     onChange={(e) => {
                                       const val = e.target.value.replace(/[^0-9]/g, '');
@@ -1754,10 +1835,9 @@ export default function OpenHouseDiscovery() {
                               Reset All Filters
                             </button>
                           </div>
-                        </div>
-                      )}
+                        </DropPanel>
                     </div>
-                    <div className="relative shrink-0 w-full md:w-auto" ref={sortDropdownRef}>
+                    <div className="relative shrink-0 w-full lg:w-auto" ref={sortDropdownRef}>
                       <button
                         onClick={() => setShowSortDropdown(!showSortDropdown)}
                         className={`${filterTabBase} ${showSortDropdown ? filterTabActive : filterTabInactive}`}
@@ -1773,8 +1853,7 @@ export default function OpenHouseDiscovery() {
                         ].find(opt => opt.value === sortBy)?.label}
                       </button>
 
-                      {showSortDropdown && (
-                        <div className="absolute top-full left-0 mt-2 w-52 bg-white dark:bg-[#1A1A1C] border border-gray-100 dark:border-gray-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <DropPanel open={showSortDropdown} sheet={sheetMode} className="w-52">
                           <div className="p-2">
                             {[
                               { label: 'Newest Listed', value: 'dom_asc' },
@@ -1808,27 +1887,11 @@ export default function OpenHouseDiscovery() {
                               </p>
                             )}
                           </div>
-                        </div>
-                      )}
+                        </DropPanel>
                     </div>
 
-                    {showMobileFiltersSheet && (
-                      <div className="md:hidden sticky bottom-0 -mx-4 -mb-6 px-4 pt-3 pb-4 mt-2 flex items-center gap-2 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1A1A1C]">
-                        <button
-                          onClick={resetAllFiltersMobile}
-                          className="flex-1 py-3 rounded-xl border border-dashed border-gray-200 dark:border-gray-800 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 active:scale-[0.97] transition-all"
-                        >
-                          Reset All
-                        </button>
-                        <button
-                          onClick={closeMobileFiltersSheet}
-                          className="flex-1 py-3 rounded-xl bg-[#C9A24D] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#C9A24D]/30 active:scale-[0.97] transition-all"
-                        >
-                          Show Results
-                        </button>
-                      </div>
-                    )}
                   </div>
+                  </SheetOr>
                 </div>
 
                 {/* Listings Section */}
@@ -1850,6 +1913,7 @@ export default function OpenHouseDiscovery() {
                           requestedDates={myRequests.filter((r: any) => r.listing_key === property.ListingKey && (r.status === 'pending' || r.status === 'countered')).map((r: any) => String(r.requested_date))}
                           busyDates={myRequests.filter((r: any) => r.listing_key !== property.ListingKey && r.status === 'approved').map((r: any) => String(r.requested_date))}
                           isNewAndUnseen={Boolean(property.New) && !seenNewKeys.has(property.ListingKey)}
+                          eager={currentPage === 1 && idx < 4}
                           onViewDetail={(p) => setQuickViewListingKey(p.ListingKey)}
                           onRequestToHost={(p, prefillDate) => {
                             // Skip straight to the email template if we already know this listing
@@ -1952,7 +2016,8 @@ export default function OpenHouseDiscovery() {
                 </div>
               </div>
             </main>
-            
+            </PageReveal>
+
             <Footer />
           </div>
 
@@ -1978,11 +2043,12 @@ export default function OpenHouseDiscovery() {
           )}
 
           {emailFallbackProperty && (
-            <EmailModal
+            // The listing agent isn't on OpenHousePal: the same slide-up step window, by email.
+            <EmailHostFlow
+              key={emailFallbackProperty.ListingKey}
               property={emailFallbackProperty}
               user={user}
               onClose={() => setEmailFallbackProperty(null)}
-              showToast={showToast}
             />
           )}
 

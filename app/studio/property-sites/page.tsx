@@ -3,8 +3,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
-  Bath, Bed, Check, Eye, ExternalLink, Globe, Home, Inbox, Loader2, Maximize, Plus, Sparkles, Trash2, Users, X,
+  Bath, Bed, Check, Download, Eye, EyeOff, ExternalLink, Globe, Home, Inbox, Loader2, Maximize, Pencil, Plus, QrCode, Share2, Sparkles, Trash2, Users, X,
 } from 'lucide-react'
+import OhSheet from '@/components/open-house-manager/OhSheet'
+import { saveFile, shareLink } from '@/lib/mobileShare'
+import { useQrDataUrl } from '@/lib/qr'
+import { notify } from '@/contexts/ToastContext'
 import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import PageHeader from '@/components/PageHeader'
@@ -133,6 +137,36 @@ function PropertySitesPage() {
     }
   }
 
+  // Card buttons (owner, 10/24): Open / QR / Download / Share / Take offline - Publish when offline.
+  const [qrFor, setQrFor] = useState<PropertyWebsite | null>(null)
+  const [pendingOffline, setPendingOffline] = useState<PropertyWebsite | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const replaceSite = (next: PropertyWebsite) => setSites(prev => prev.map(s => (s.id === next.id ? { ...next, property_snapshot: s.property_snapshot } : s)))
+  const refreshLive = () => fetch('/api/website-property-sites/revalidate', { method: 'POST' }).catch(() => {})
+  const publishFromList = async (site: PropertyWebsite) => {
+    // Never published: finish the steps first - open it on its last step.
+    if (!site.published_at) {
+      try { localStorage.setItem(`spotlight-step:${site.id}`, 'review') } catch { /* private mode */ }
+      router.push(`/studio/property-sites/${site.id}`)
+      return
+    }
+    setBusyId(site.id)
+    const { success, data, error: e } = await api.propertySites.publish(site.id)
+    setBusyId(null)
+    if (success && data) { replaceSite(data); void refreshLive(); notify('Your page is live again.', 'success') }
+    else notify(e || 'Could not publish - try again in a moment.')
+  }
+  const confirmOffline = async () => {
+    const site = pendingOffline
+    if (!site) return
+    setBusyId(site.id)
+    const { success, data } = await api.propertySites.unpublish(site.id)
+    setBusyId(null)
+    setPendingOffline(null)
+    if (success && data) { replaceSite(data); void refreshLive() }
+    else notify('Could not take it offline - try again in a moment.')
+  }
+
   const confirmDelete = async () => {
     if (!pendingDelete) return
     setDeleting(true)
@@ -198,7 +232,7 @@ function PropertySitesPage() {
                         <span aria-hidden className="sp-sweep pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
                         <span className={`absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide shadow ${live ? 'bg-emerald-500/90 text-white' : 'bg-white/85 text-[#111827]'}`}>
                           {live && <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-80" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" /></span>}
-                          {live ? 'Live' : 'Draft'}
+                          {live ? 'Live' : site.published_at ? 'Offline' : 'Draft'}
                         </span>
                         {st && col && <span className="absolute right-3 top-3 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide shadow" style={{ background: col.bg, color: col.fg }}>{st.label}</span>}
                         <div className="absolute inset-x-0 bottom-0 p-4">
@@ -226,18 +260,10 @@ function PropertySitesPage() {
                         </span>
                       ))}
                     </div>
-                    <div className="flex items-center justify-between gap-2 px-3.5 py-2.5">
-                      {live ? (
-                        <a href={`${propertyWebsitePublicUrl(site.slug)}?ohp_owner=1`} target="_blank" rel="noreferrer" className="inline-flex min-h-[40px] min-w-0 items-center gap-1.5 rounded-full border border-[#C9A24D]/30 bg-[#C9A24D]/[0.08] px-3 py-1 text-[12px] font-bold sm:min-h-0 sm:px-2.5 sm:text-[11px] text-[#8b6a2b] transition hover:border-[#C9A24D] dark:text-[#e8c97a]">
-                          <Globe className="h-3 w-3 shrink-0" /> <span className="truncate">{site.slug}.openhousepal.com</span> <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
-                        </a>
-                      ) : (
-                        <span className="text-[11px] font-semibold text-gray-400">Not published yet</span>
-                      )}
-                      <button onClick={() => setPendingDelete(site)} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-gray-400 hover:bg-red-50 active:bg-red-50 sm:block sm:h-auto sm:w-auto sm:p-1.5 hover:text-red-600 dark:hover:bg-red-900/20" aria-label="Delete page">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                    <SpotlightActions site={site} url={siteUrl(site)} busy={busyId === site.id}
+                      onQr={() => setQrFor(site)} onEdit={() => router.push(`/studio/property-sites/${site.id}`)}
+                      onPublish={() => void publishFromList(site)} onUnpublish={() => setPendingOffline(site)} onDelete={() => setPendingDelete(site)} />
+
                   </div>
                 </motion.div>
               )
@@ -309,11 +335,22 @@ function PropertySitesPage() {
         onClose={() => setPendingDelete(null)}
         onConfirm={confirmDelete}
         title="Delete this property website?"
-        message={`This removes the site at ${pendingDelete?.slug}.openhousepal.com permanently. This can't be undone.`}
+        message={`This removes the page at ${pendingDelete ? linkLabel(siteUrl(pendingDelete)) : ''} permanently. This can't be undone.`}
         confirmText="Delete"
         confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
         isLoading={deleting}
       />
+      <ConfirmationModal
+        isOpen={!!pendingOffline}
+        onClose={() => setPendingOffline(null)}
+        onConfirm={confirmOffline}
+        title="Take this page offline?"
+        message="Visitors and your QR codes won't open it until you publish it again. Nothing is deleted - tap Publish on the card any time."
+        confirmText="Take offline"
+        confirmButtonClass="bg-[#111827] hover:bg-black text-white"
+        isLoading={!!pendingOffline && busyId === pendingOffline.id}
+      />
+      <SpotlightQrSheet site={qrFor} url={qrFor ? siteUrl(qrFor) : ''} onClose={() => setQrFor(null)} />
     </div>
   )
 }
@@ -419,6 +456,112 @@ function OverallStat({ icon: Icon, label, value, accent }: { icon: typeof Users;
       </span>
       <span className="text-[10px] font-black uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</span>
     </div>
+  )
+}
+
+// The page's link: the server's public_url is the source of truth - the agent's own domain when
+// they have IDX + a connected domain (10/24), else the openhousepal one. Local dev keeps the
+// host-render link the backend hands out.
+function siteUrl(site: PropertyWebsite): string {
+  return site.public_url || propertyWebsitePublicUrl(site.slug)
+}
+function linkLabel(url: string): string {
+  return (url.includes('/ohp-site-render/') ? decodeURIComponent(url.split('/ohp-site-render/')[1]) : url.replace(/^https?:\/\//, '')).replace(/\/$/, '')
+}
+function dataUrlBlob(dataUrl: string): Blob {
+  const [head, b64] = dataUrl.split(',')
+  const bin = atob(b64)
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return new Blob([bytes], { type: head.match(/data:([^;]+)/)?.[1] || 'image/png' })
+}
+const qrText = (url: string) => `${url}${url.includes('?') ? '&' : '?'}src=qr`
+
+function ActionTile({ icon: Icon, label, onClick, href, tone = 'plain', disabled }: { icon: typeof Globe; label: string; onClick?: () => void; href?: string; tone?: 'plain' | 'gold' | 'quiet' | 'danger'; disabled?: boolean }) {
+  const cls = `flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10.5px] font-black transition active:scale-95 disabled:opacity-50 sm:min-h-[52px] ${
+    tone === 'gold' ? 'bg-gradient-to-br from-[#e8c97a] to-[#C9A24D] text-[#111827] shadow-sm hover:brightness-105'
+      : tone === 'danger' ? 'text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20'
+        : tone === 'quiet' ? 'text-gray-500 hover:bg-gray-100 hover:text-[#111827] dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white'
+          : 'bg-[#C9A24D]/[0.08] text-[#8b6a2b] hover:bg-[#C9A24D]/15 dark:text-[#e8c97a]'}`
+  const body = <><Icon className={`h-4 w-4 shrink-0 ${Icon === Loader2 ? 'animate-spin' : ''}`} /><span className="w-full truncate text-center">{label}</span></>
+  return href
+    ? <a href={href} target="_blank" rel="noreferrer" className={cls}>{body}</a>
+    : <button type="button" onClick={onClick} disabled={disabled} className={cls}>{body}</button>
+}
+
+function SpotlightActions({ site, url, busy, onQr, onEdit, onPublish, onUnpublish, onDelete }: {
+  site: PropertyWebsite; url: string; busy: boolean
+  onQr: () => void; onEdit: () => void; onPublish: () => void; onUnpublish: () => void; onDelete: () => void
+}) {
+  const live = site.status === 'PUBLISHED'
+  // Built ahead so a phone's Share sheet opens straight from the tap (iPhone drops it after a wait).
+  const qr = useQrDataUrl(live ? qrText(url) : null, { size: 1024, dark: '#111827' })
+  const street = (site.property_snapshot.address || 'spotlight').split(',')[0]
+  const fileName = `${street.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'spotlight'}-qr.png`
+  const [copied, setCopied] = useState(false)
+  const share = async () => {
+    const r = await shareLink(url, street)
+    if (r === 'copied') { setCopied(true); window.setTimeout(() => setCopied(false), 1800) }
+  }
+  if (!live) {
+    return (
+      <div className="px-2.5 py-2.5">
+        <p className="mb-1.5 px-1 text-[11px] font-semibold text-gray-400">{site.published_at ? 'Offline - visitors can’t open it right now' : 'Not published yet'}</p>
+        <div className="grid grid-cols-4 gap-1.5">
+          <ActionTile icon={Pencil} label="Edit" onClick={onEdit} />
+          <ActionTile icon={Eye} label="Preview" href={`/spotlight-preview/${site.draft_data?.template_id || site.template_id}?site=${site.id}`} />
+          <ActionTile icon={busy ? Loader2 : Globe} label={site.published_at ? 'Publish' : 'Finish'} onClick={onPublish} tone="gold" disabled={busy} />
+          <ActionTile icon={Trash2} label="Delete" onClick={onDelete} tone="danger" />
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="px-2.5 py-2.5">
+      <div className="mb-1.5 flex items-center gap-2 pl-1">
+        <p className="flex min-w-0 flex-1 items-center gap-1 text-[11px] font-bold text-[#8b6a2b] dark:text-[#e8c97a]" title={url}>
+          <Globe className="h-3 w-3 shrink-0" /> <span className="truncate">{linkLabel(url)}</span>
+        </p>
+        <button type="button" onClick={onDelete} aria-label="Delete page" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"><Trash2 className="h-3.5 w-3.5" /></button>
+      </div>
+      <div className="grid grid-cols-5 gap-1">
+        <ActionTile icon={ExternalLink} label="Open" href={`${url}${url.includes('?') ? '&' : '?'}ohp_owner=1`} />
+        <ActionTile icon={QrCode} label="QR" onClick={onQr} />
+        <ActionTile icon={Download} label="Download" onClick={() => { if (qr) void saveFile(dataUrlBlob(qr), fileName) }} disabled={!qr} />
+        <ActionTile icon={copied ? Check : Share2} label={copied ? 'Copied' : 'Share'} onClick={() => void share()} />
+        <ActionTile icon={busy ? Loader2 : EyeOff} label="Unpublish" onClick={onUnpublish} tone="quiet" disabled={busy} />
+      </div>
+    </div>
+  )
+}
+
+// The page's QR code, big enough to scan off the agent's own screen, with Save + Share.
+function SpotlightQrSheet({ site, url, onClose }: { site: PropertyWebsite | null; url: string; onClose: () => void }) {
+  const qr = useQrDataUrl(site ? qrText(url) : null, { size: 1024, dark: '#111827' })
+  const street = site ? (site.property_snapshot.address || '').split(',')[0] : ''
+  const [copied, setCopied] = useState(false)
+  return (
+    <OhSheet open={!!site} onClose={onClose} width="max-w-md" title={street || 'Your page'} subtitle="Scan to open your Listing Spotlight"
+      image={site ? site.draft_data?.hero_image || site.property_snapshot.photos?.[0] || null : null}
+      footer={site && (
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" disabled={!qr} onClick={() => { if (qr) void saveFile(dataUrlBlob(qr), `${street.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'spotlight'}-qr.png`) }}
+            className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[#111827] text-sm font-black text-white transition hover:bg-black disabled:opacity-50 dark:bg-white dark:text-[#111827]">
+            <Download className="h-4 w-4" /> Save QR
+          </button>
+          <button type="button" onClick={async () => { const r = await shareLink(url, street); if (r === 'copied') { setCopied(true); window.setTimeout(() => setCopied(false), 1800) } }}
+            className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-gray-200 text-sm font-black text-[#111827] transition hover:border-[#C9A24D] dark:border-white/15 dark:text-white">
+            {copied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />} {copied ? 'Copied' : 'Share link'}
+          </button>
+        </div>
+      )}>
+      <div className="flex flex-col items-center py-2">
+        <div className="rounded-3xl bg-white p-4 shadow-[0_18px_40px_-24px_rgba(17,24,39,.6)] ring-1 ring-gray-100">
+          {qr ? <img src={qr} alt="QR code for this page" className="h-56 w-56 sm:h-64 sm:w-64" /> : <div className="grid h-56 w-56 place-items-center sm:h-64 sm:w-64"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>}
+        </div>
+        <p className="mt-3 max-w-full truncate px-2 text-center text-[12px] font-bold text-gray-500 dark:text-gray-400">{linkLabel(url)}</p>
+      </div>
+    </OhSheet>
   )
 }
 

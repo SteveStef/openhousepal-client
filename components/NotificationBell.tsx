@@ -8,6 +8,7 @@ import { Notification } from '@/types'
 import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import { AUTO_HIDE_WHEN_READ_TYPES, visibleNotifications } from '@/lib/notificationDisplay'
+import { isRundownNotification, openTodaysRundown } from '@/components/rundown/TodaysRundown'
 
 // Matches the poll interval used across the app's other "live" badges (leads/open-house action
 // counts) so the notification center itself updates on the same near-real-time cadence, not just
@@ -173,9 +174,12 @@ export default function NotificationBell() {
   }
 
   const handleNotificationClick = (notification: Notification) => {
-    // Opens in a new tab - clicking a notification shouldn't navigate away from whatever the
-    // agent is currently doing.
-    if (notification.link) {
+    // Today's Rundown (old ones say "Today's Showcase update") opens its window right here.
+    if (isRundownNotification(notification)) {
+      openTodaysRundown()
+    } else if (notification.link) {
+      // Opens in a new tab - clicking a notification shouldn't navigate away from whatever the
+      // agent is currently doing.
       window.open(notification.link, '_blank', 'noopener,noreferrer')
     }
 

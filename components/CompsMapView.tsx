@@ -136,6 +136,10 @@ export default function CompsMapView({ subject, candidates, addedKeys, radiusMil
         streetViewControl: false,
         fullscreenControl: false,
         clickableIcons: false,
+        // Touch screens: one finger pans the map (user, 10/24) - in map view there's nothing else
+        // on that screen to scroll, so the "use two fingers" overlay only got in the way.
+        // Computers keep the default (the page still scrolls over the map with the wheel).
+        gestureHandling: typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches ? 'greedy' : 'auto',
       })
       mapRef.current = map
 

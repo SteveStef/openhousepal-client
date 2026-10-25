@@ -3,6 +3,7 @@
 import { X, Heart, ThumbsDown, MessageSquare, Calendar, SlidersHorizontal, Eye, Inbox } from 'lucide-react'
 import type { ShowcaseActivityItem } from '@/types'
 import { useEscapeToClose } from '@/components/ui/windowMotion'
+import MotionModal from '@/components/ui/MotionModal'
 
 interface ShowcaseActivityInboxProps {
   isOpen: boolean
@@ -39,10 +40,10 @@ const street = (address?: string | null) => {
 
 export default function ShowcaseActivityInbox({ isOpen, onClose, items, onOpenItem }: ShowcaseActivityInboxProps) {
   useEscapeToClose(onClose, isOpen)
-  if (!isOpen) return null
 
+  // Same spring-up open / drop-away close as the Tours window (MotionModal) - user, 10/24.
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+    <MotionModal open={isOpen} onBackdropClick={(e) => { if (e.target === e.currentTarget) onClose() }} className="bg-black/60">
       <div className="bg-white dark:bg-[#151517] rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 max-w-xl w-full max-h-[80vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
           <div className="flex items-center gap-2.5">
@@ -111,6 +112,6 @@ export default function ShowcaseActivityInbox({ isOpen, onClose, items, onOpenIt
           )}
         </div>
       </div>
-    </div>
+    </MotionModal>
   )
 }

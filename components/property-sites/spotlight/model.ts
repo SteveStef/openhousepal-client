@@ -192,7 +192,7 @@ export function fmtTimeRange(start?: string | null, end?: string | null): string
 // shown elsewhere on the page).
 export function excerpt(text: string, count: number, maxChars: number, skip = 0): string {
   if (!text) return ''
-  const sentences = text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean)
+  const sentences = text.replace(/([.!?])\s+/g, '$1\u0000').split('\u0000').map(s => s.trim()).filter(Boolean)
   let out = sentences.slice(skip, skip + count).join(' ')
   if (out.length > maxChars) out = out.slice(0, maxChars).replace(/\s+\S*$/, '') + '…'
   return out
@@ -219,7 +219,7 @@ const DESCRIPTION_HIGHLIGHT_PATTERNS: RegExp[] = [
 export function extractDescriptionHighlights(description: string, alreadyShown: string[]): string[] {
   if (!description) return []
   const already = new Set(alreadyShown.map(s => s.toLowerCase()))
-  const sentences = description.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean)
+  const sentences = description.replace(/([.!?])\s+/g, '$1\u0000').split('\u0000').map(s => s.trim()).filter(Boolean)
   const out: string[] = []
   for (const sentence of sentences) {
     for (const pattern of DESCRIPTION_HIGHLIGHT_PATTERNS) {
@@ -513,9 +513,17 @@ export type SpotlightModel = ReturnType<typeof buildSpotlight>
 // Opens the lead form from anywhere on the page (hero CTA, sticky bar, open house card...) -
 // a tiny window event instead of lifting form state into every template.
 export const LEAD_EVENT = 'ohp-spotlight:lead'
+/** A phone (upright or on its side): the contact form is two buttons that open windows instead of
+ *  rows of fields (user, 10/24). */
+export const COMPACT_QUERY = '(max-width: 639px), (pointer: coarse) and (max-height: 520px)'
+export function isCompactScreen(): boolean {
+  return typeof window !== 'undefined' && !!window.matchMedia?.(COMPACT_QUERY).matches
+}
 export function openLeadForm(tab: 'info' | 'tour', extra?: { date?: string; message?: string }) {
   if (typeof window === 'undefined') return
   window.dispatchEvent(new CustomEvent(LEAD_EVENT, { detail: { tab, ...extra } }))
+  // Phones get a window right where they are - no trip down the page to the form.
+  if (isCompactScreen()) return
   document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 

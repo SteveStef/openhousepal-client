@@ -1,15 +1,16 @@
 import type { Metadata } from 'next'
 import { ogFetch } from '@/lib/og/shared'
+import { teaserText } from '@/lib/inviteTitle'
 
 // The invitation's link preview text (the image is opengraph-image.tsx next to this file).
 export async function generateMetadata({ params }: { params: Promise<{ code: string }> }): Promise<Metadata> {
   const { code } = await params
   const data = await ogFetch<any>(`/invites/public/${encodeURIComponent(code)}`, 120)
   if (!data) return { title: 'Invitation', robots: { index: false, follow: false } }
-  const host = data.agent?.name || ''
-  const place = [data.place_name, data.address].filter(Boolean).join(', ')
-  const title = data.title || "You're invited"
-  const description = [data.when_label, place, host ? `Hosted by ${host}` : ''].filter(Boolean).join(' · ') + ' - tap to RSVP.'
+  // Round 6 (owner, 10/24): the link text never gives the home away - no address, no town. Just
+  // who invited you to what, and when ("Quinn Reviewer invited you to an Open House" /
+  // "Sun, Oct 25 · 1 - 3 PM - tap to RSVP.").
+  const { title, description } = teaserText(data)
   return {
     title,
     description,

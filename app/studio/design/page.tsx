@@ -4,7 +4,9 @@ import { Suspense, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowRight, Copy, LayoutGrid, Loader2, Palette, PenLine, Plus, Search, Trash2, X } from 'lucide-react'
+import { ArrowRight, Copy, Download, Image as ImageIcon, LayoutGrid, Loader2, Palette, PenLine, Plus, Printer, Search, Trash2, X } from 'lucide-react'
+import { useDesignSaver } from '@/lib/studio/designDownload'
+import OhSheet from '@/components/open-house-manager/OhSheet'
 import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import { BrandKit, DesignColorMode, DesignProject, DesignStatus, DesignStyleId, LinkedProperty, MarketingMoments, StudioPick } from '@/types'
@@ -24,6 +26,7 @@ import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 
 const STATUS_TABS: (DesignStatus | 'ALL')[] = ['ALL', 'DRAFT', 'READY', 'EXPORTED', 'PUBLISHED', 'ARCHIVED']
+const CARD_ACTION = 'inline-flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-[10px] font-black text-gray-500 transition hover:bg-gray-100 hover:text-[#111827] disabled:opacity-50 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white lg:flex-row lg:gap-1.5 lg:px-2 lg:text-[11px]'
 
 export default function DesignStudioDashboard() {
   return (
@@ -157,6 +160,34 @@ function DesignStudioDashboardInner() {
     }
   }
 
+  // Download from the list: a social post saves its image; a print piece asks PDF or image first.
+  const saver = useDesignSaver()
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [printChoice, setPrintChoice] = useState<DesignProject | null>(null)
+  const [savedNote, setSavedNote] = useState<string | null>(null)
+  const runDownload = async (design: DesignProject, kind: 'png' | 'pdf') => {
+    setDownloadingId(design.id)
+    const r = await saver.save(design.id, design.name, kind, design.updated_at || null)
+    setDownloadingId(null)
+    if (r === 'error') { setSavedNote("That file couldn't be made just now - try again in a moment."); return }
+    if (r === 'cancelled') return
+    if (design.status === 'DRAFT') {
+      const res = await api.designs.updateStatus(design.id, 'EXPORTED')
+      if (res.success && res.data) setDesigns(list => list.map(d => (d.id === design.id ? { ...d, status: res.data!.status } : d)))
+    }
+    if (r !== 'waiting') { setSavedNote(r === 'shared' ? 'Saved' : 'Downloaded'); window.setTimeout(() => setSavedNote(null), 2200) }
+  }
+  const startDownload = (design: DesignProject) => {
+    if (getDesignFormat(design.design_type)?.isPrint) {
+      setPrintChoice(design)
+      // phones: both files start now, so the choice below can open the Share sheet right away
+      saver.prebuild(design.id, 'pdf', design.updated_at || null)
+      saver.prebuild(design.id, 'png', design.updated_at || null)
+      return
+    }
+    void runDownload(design, 'png')
+  }
+
   // A native browser confirm() dialog read as a jarring "Chrome warning" mid-flow - swapped for
   // the same styled ConfirmationModal used elsewhere in Studio (e.g. AI Property Media's delete).
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
@@ -172,7 +203,8 @@ function DesignStudioDashboardInner() {
 
   return (
     <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]">
-      <div className="mx-auto max-w-6xl px-5 py-10">
+      {/* Phones: the header sits right under the nav bar (owner 10/24: dead space above it). */}
+      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-5 sm:py-10">
         <StudioPageHeader
           icon={Palette}
           kicker="Studio"
@@ -180,11 +212,12 @@ function DesignStudioDashboardInner() {
           subtitle="Flyers, social posts, brochures & campaigns from your listing data."
           asideClassName="w-full lg:w-auto lg:max-w-[560px] lg:self-center lg:-translate-y-3"
           actions={
-            <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
-              <StorageMeter variant="inline" compact />
+            // Phones: storage and Create share one row (owner 10/24) - the storage bar gives way.
+            <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 sm:w-auto sm:gap-3">
+              <div className="min-w-0 flex-1 sm:w-64 sm:flex-none"><StorageMeter variant="inline" compact stretch /></div>
               <button
                 onClick={() => { setPendingSeed(null); setShowCreate(true) }}
-                className="group relative inline-flex shrink-0 items-center gap-2 overflow-hidden whitespace-nowrap rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-5 py-3 text-sm font-black text-[#111827] shadow-lg shadow-[#C9A24D]/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
+                className="group relative inline-flex shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-3.5 py-2.5 text-[13px] font-black sm:gap-2 sm:px-5 sm:py-3 sm:text-sm text-[#111827] shadow-lg shadow-[#C9A24D]/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
               >
                 <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
                 <Plus className="relative h-4 w-4 transition-transform duration-300 group-hover:rotate-90" /> <span className="relative">Create a Design</span>
@@ -382,12 +415,17 @@ function DesignStudioDashboardInner() {
                           <p className="truncate text-xs font-semibold text-gray-400">{situation ? situation.label : format?.label || design.design_type}{situation && format ? ` · ${format.label}` : ''}</p>
                         </div>
                       </Link>
-                      <div className="mt-auto flex items-center gap-1 px-2 pb-2 pt-2">
-                        <Link href={`/studio/design/${design.id}`} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-black text-gray-500 transition hover:bg-gray-100 hover:text-[#111827] dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white">
+                      {/* Edit / Copy / Download (owner 10/24) - phones stack each icon over its word
+                          so all three fit a half-width card; Download is the Share sheet there. */}
+                      <div className="mt-auto grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-0.5 px-1.5 pb-2 pt-2 sm:gap-1 sm:px-2">
+                        <Link href={`/studio/design/${design.id}`} className={CARD_ACTION}>
                           <PenLine className="h-3.5 w-3.5" /> Edit
                         </Link>
-                        <button onClick={() => handleDuplicate(design.id)} disabled={duplicatingId === design.id} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-black text-gray-500 transition hover:bg-gray-100 hover:text-[#111827] disabled:opacity-50 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white">
-                          {duplicatingId === design.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />} Duplicate
+                        <button onClick={() => handleDuplicate(design.id)} disabled={duplicatingId === design.id} className={CARD_ACTION}>
+                          {duplicatingId === design.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />} Copy
+                        </button>
+                        <button onClick={() => startDownload(design)} disabled={saver.busy !== null && downloadingId === design.id} data-testid="design-card-download" className={CARD_ACTION}>
+                          {saver.busy && downloadingId === design.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download
                         </button>
                         <button onClick={() => setPendingDeleteId(design.id)} title="Delete" aria-label="Delete" className="rounded-lg p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10">
                           <Trash2 className="h-3.5 w-3.5" />
@@ -404,8 +442,10 @@ function DesignStudioDashboardInner() {
         </div>
       </div>
 
+      <AnimatePresence>
       {showCreate && (
         <DesignCreateFlow
+          key="create-flow"
           onClose={() => { setShowCreate(false); setPendingSeed(null); setPickInProgress(null); router.replace('/studio/design'); loadDesigns() }}
           onCreated={() => { setLibraryTab('mine'); setStatusTab('ALL'); if (pickInProgress) { dismissPick(pickInProgress); setPickInProgress(null) } }}
           initialSituationId={pendingSeed?.situationId}
@@ -417,6 +457,30 @@ function DesignStudioDashboardInner() {
           initialPhoto={pendingSeed?.photo}
         />
       )}
+      </AnimatePresence>
+
+      <OhSheet open={!!printChoice} onClose={() => setPrintChoice(null)} width="max-w-md" title="Download" subtitle={printChoice?.name} icon={<Download className="h-5 w-5" />}>
+        <div className="space-y-2 p-4">
+          {([['pdf', Printer, 'Print-ready PDF', 'Exact size for your printer'], ['png', ImageIcon, 'Image', 'For email, texts or screens']] as const).map(([kind, Icon, label, sub]) => (
+            <button key={kind} type="button" data-testid={`design-download-${kind}`}
+              onClick={() => { const d = printChoice; setPrintChoice(null); if (d) void runDownload(d, kind) }}
+              className="flex w-full items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-left transition hover:border-[#C9A24D] active:scale-[0.99] dark:border-white/10 dark:bg-white/5">
+              <Icon className="h-5 w-5 shrink-0 text-[#8b7355]" />
+              <span><span className="block text-sm font-black text-[#111827] dark:text-white">{label}</span><span className="block text-[11px] font-semibold text-gray-400">{sub}</span></span>
+            </button>
+          ))}
+          <p className="rounded-xl bg-[#fffaf0] px-3 py-2.5 text-[11px] font-semibold leading-snug text-gray-600 dark:bg-white/5 dark:text-gray-300">Before it goes out: if your brokerage reviews marketing, get their OK first.</p>
+        </div>
+      </OhSheet>
+      {saver.sheet}
+      <AnimatePresence>
+        {savedNote && (
+          <motion.div key="saved-note" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+            className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-full bg-[#111827] px-4 py-2 text-xs font-black text-white shadow-xl dark:bg-white dark:text-[#111827]">
+            {savedNote}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <ConfirmationModal
         isOpen={!!pendingDeleteId}

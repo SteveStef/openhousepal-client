@@ -161,12 +161,13 @@ export function showcaseShareText(data: any): { title: string; description: stri
   const forName = raw && raw === raw.toUpperCase() ? raw.charAt(0) + raw.slice(1).toLowerCase() : raw
   const homes: any[] = Array.isArray(data?.matchedProperties) ? data.matchedProperties : []
   const count = homes.length
-  const title = forName ? `${forName}’s personal Showcase` : 'Your personal Showcase'
+  // "Dana's Home Search" under the preview card (user, 10/24 - was "Dana's personal Showcase").
+  const title = forName ? `${forName}’s Home Search` : 'Your Home Search'
   const description = agent
     ? `${count ? `${count} homes` : 'Homes'} hand-picked for you by ${agent} - updated the moment new ones list. Tap a home to save it, comment or book a tour.`
     : 'Homes hand-picked for you - updated the moment new ones list. Tap a home to save it, comment or book a tour.'
   const newest = homes.reduce((m, h) => Math.max(m, Date.parse(h?.AddedAt || '') || 0), 0)
-  return { title, description, v: `c2-${count}-${Math.floor(newest / 60000) || 0}` }
+  return { title, description, v: `c3-${count}-${Math.floor(newest / 60000) || 0}` }
 }
 
 export function money(n?: number | null): string {

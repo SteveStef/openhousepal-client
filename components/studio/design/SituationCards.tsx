@@ -5,6 +5,8 @@ import { ArrowRight } from 'lucide-react'
 import { DESIGN_SITUATIONS, DesignSituationDef, DesignSituationId } from '@/lib/studio/designSituations'
 import { getDesignFormat } from '@/lib/studio/designFormats'
 import { SITUATION_ICONS } from '@/components/studio/design/DesignCreateFlow'
+import { useOptionalAuth } from '@/contexts/AuthContext'
+import { hasMlsAccess } from '@/lib/navAccess'
 import { CardAlive, GoldLastWord, TOOL_CARD_CSS, TOOL_CARD_ICON_TILE, TOOL_CARD_SURFACE, trackGlow } from '@/components/ui/LuxeSurface'
 
 // "What are you creating marketing for?" - the first choice in Studio, as the same feature cards
@@ -16,10 +18,13 @@ import { CardAlive, GoldLastWord, TOOL_CARD_CSS, TOOL_CARD_ICON_TILE, TOOL_CARD_
 export default function SituationCards({ onPick }: { onPick: (id: DesignSituationId) => void }) {
   const listing = DESIGN_SITUATIONS.filter(s => s.propertyAttached)
   const leads = DESIGN_SITUATIONS.filter(s => !s.propertyAttached)
+  // No-MLS plans enter the home themselves - never promise MLS data there.
+  const user = useOptionalAuth()?.user
+  const mls = hasMlsAccess(user?.plan_tier)
   return (
     <div>
       <style>{TOOL_CARD_CSS}</style>
-      <GroupLabel label="Market a listing" hint="Pulls the photos, price and facts straight from the MLS" />
+      <GroupLabel label="Market a listing" hint={mls ? 'Pulls the photos, price and facts straight from the MLS' : 'Uses the photos, price and facts you enter for the home'} />
       <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         {listing.map((s, i) => <SituationCard key={s.id} situation={s} index={i} onPick={onPick} />)}
       </div>

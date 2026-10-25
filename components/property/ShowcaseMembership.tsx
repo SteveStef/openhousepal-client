@@ -8,7 +8,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, Layers, Loader2, Plus, Search, Star, X } from 'lucide-react'
-import api from '@/lib/api-service'
+import api, { API_BASE_URL } from '@/lib/api-service'
+import { getToken } from '@/lib/token'
 import { pp } from './PropertyKit'
 
 type Row = { id: string; name: string; client: string | null; status: string; homes: number; contains: boolean; recommended: boolean }
@@ -114,7 +115,7 @@ export default function ShowcaseMembership({ propertyId, listingKey, street, zIn
                 {rows.length > 6 && (
                   <label className="mx-5 mt-3 flex items-center gap-2 rounded-xl bg-gray-100 px-3 dark:bg-white/5">
                     <Search className="h-4 w-4 text-gray-400" />
-                    <input value={q} onChange={e => setQ(e.target.value)} placeholder="Find a client…" autoFocus className="h-10 min-w-0 flex-1 bg-transparent text-sm font-semibold text-[#111827] outline-none dark:text-white" />
+                    <input value={q} onChange={e => setQ(e.target.value)} placeholder="Find a client…" className="h-10 min-w-0 flex-1 bg-transparent text-sm font-semibold text-[#111827] outline-none dark:text-white" />
                   </label>
                 )}
                 <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4 pt-2">
@@ -154,4 +155,25 @@ export default function ShowcaseMembership({ propertyId, listingKey, street, zIn
       )}
     </>
   )
+}
+
+/** The same "Showcases" strip on the public property pages (Listing Page, IDX property page) when
+ *  the person looking is a signed-in agent (user, 10/24) - which of their Showcases have this home,
+ *  and add it to one. Guests (no session) see the regular page: nothing renders. */
+export function SignedInShowcases(props: Parameters<typeof ShowcaseMembership>[0]) {
+  const [signedIn, setSignedIn] = useState(false)
+  useEffect(() => {
+    // A raw check first: a stale session cookie on a guest's phone must never bounce them to sign-in.
+    const t = getToken()
+    if (!t) return
+    const q = new URLSearchParams()
+    if (props.propertyId) q.set('property_id', props.propertyId)
+    if (props.listingKey) q.set('listing_key', props.listingKey)
+    let alive = true
+    fetch(`${API_BASE_URL}/collections/membership?${q}`, { headers: { Authorization: `Bearer ${t}` } })
+      .then(r => { if (alive && r.ok) setSignedIn(true) }).catch(() => {})
+    return () => { alive = false }
+  }, [props.propertyId, props.listingKey])
+  if (!signedIn) return null
+  return <ShowcaseMembership {...props} />
 }

@@ -3,8 +3,10 @@
 import { formVisitContext, type FormVisitContext } from '@/lib/formTracking'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import FormRunner from '@/components/forms/FormRunner'
+import OhpLoader from '@/components/brand/OhpLoader'
+import { useFormViewportLock } from '@/components/forms/FormRunnerParts'
 import ShowingRequestFlow, { canUseShowingFlow } from '@/components/forms/ShowingRequestFlow'
 import { PublicFormConfig } from '@/types'
 import api, { API_BASE_URL } from '@/lib/api-service'
@@ -100,6 +102,8 @@ export default function PublicFormPage() {
   // The form's own light/dark choice, never the app's: an agent who uses OpenHousePal in dark mode
   // put 'dark' on <html> for this whole browser, turning a light form's text white (user, 10/18).
   useHubColorMode(!!look?.dark, !!form && !forceLightMode)
+  // The question pages sit still: the phone's keyboard can't drag the page down (user, 10/24).
+  const pinnedRef = useFormViewportLock(!!form && !canUseShowingFlow(form))
 
   useEffect(() => {
     const fetchForm = async () => {
@@ -124,11 +128,8 @@ export default function PublicFormPage() {
   }, [slug])
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#FAFAF7] dark:bg-[#0B0B0B]">
-        <Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" />
-      </div>
-    )
+    // The house only - a visitor's page never shows the OpenHousePal wordmark.
+    return <OhpLoader guest />
   }
 
   if (notFound || !form) {
@@ -179,7 +180,7 @@ export default function PublicFormPage() {
   }
 
   return (
-    <div className={`relative ${forceLightMode ? 'ohp-force-light' : ''} ${pageBg} h-screen`}>
+    <div ref={pinnedRef} className={`fixed inset-x-0 top-0 ${forceLightMode ? 'ohp-force-light' : ''} ${pageBg} h-[100dvh]`}>
       {forceLightMode && <PublicFormBackButton fallbackHref={idxFallbackHref} />}
       <FormRunner
         formId={form.formId}
@@ -199,6 +200,7 @@ export default function PublicFormPage() {
           agentPhotoUrl: resolvePhotoUrl(form.agentPhotoUrl),
           agentTitle: form.agentTitle,
           agentMarket: form.agentMarket,
+          agentState: form.agentState,
         }}
         successHeading={form.successHeading}
         successMessage={form.successMessage}

@@ -122,7 +122,7 @@ function BlogsDashboardInner() {
 
   return (
     <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]">
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-5 sm:py-10">
+      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-5 sm:py-10">
         <StudioPageHeader
           icon={Newspaper}
           kicker="Blogs"

@@ -4,6 +4,7 @@ import { Notification } from '@/types'
 import { getNotificationMeta } from '@/lib/notificationDisplay'
 import { formatDateTime } from '@/lib/relativeDays'
 import api from '@/lib/api-service'
+import { isRundownNotification, openTodaysRundown } from '@/components/rundown/TodaysRundown'
 
 // Mirrors the notification bell's own feed (same endpoint/window), not a leads query - this
 // panel is meant to answer "what actually happened recently," same as the bell.
@@ -14,6 +15,8 @@ export default function DashActivityFeed({ notifications, onRead }: { notificati
       onRead?.(notification.id)
       api.notifications.markAsRead(notification.id).then(() => window.dispatchEvent(new Event('leads-notification-count:refresh')))
     }
+    // Today's Rundown (old ones say "Today's Showcase update") opens its window right here.
+    if (isRundownNotification(notification)) { openTodaysRundown(); return }
     // Opens in a new tab, same as the bell dropdown and the Activity page - clicking one shouldn't
     // navigate the Dashboard itself away.
     window.open(notification.link || '/activity', '_blank', 'noopener,noreferrer')

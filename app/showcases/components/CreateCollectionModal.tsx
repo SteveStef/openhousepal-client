@@ -178,7 +178,7 @@ export const CreateCollectionModal = memo(function CreateCollectionModal({ isOpe
                           <label className={label}>Client&apos;s full name *</label>
                           <div className="relative">
                             <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#C9A24D]" />
-                            <input autoFocus type="text" required value={info.fullName} onChange={(e) => set('fullName', e.target.value)} className={field} placeholder="Customer's full name" />
+                            <input type="text" required value={info.fullName} onChange={(e) => set('fullName', e.target.value)} className={field} placeholder="Customer's full name" />
                           </div>
                         </div>
                         <div>

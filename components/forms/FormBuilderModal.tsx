@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { hasAgentHubAccess } from '@/lib/navAccess'
 import FormLookPicker from '@/components/forms/FormLookPicker'
 import { resolveFormLook, type FormLook, type FormLookFields } from '@/lib/formLook'
+import { AfterSubmitSettings, EffectsSettings, RevertButton, SaveFormButton, SettingSwitch } from '@/components/forms/FormSettingsBits'
 
 type BlockId = 'welcome' | 'thankyou' | string
 
@@ -63,6 +64,10 @@ interface FormBuilderModalProps {
   onUpdateLook: (patch: FormLookFields) => void
   onApplyLookToAll: () => Promise<boolean>
   onToggleRedirectToAgentHub: () => void
+  /** Showcase-building forms: open the visitor's new Showcase after they submit. */
+  onToggleRedirectToShowcase?: () => void
+  /** Unsaved changes - the Save button shimmers until they're saved. */
+  isDirty?: boolean
   onTogglePropertyPhotoCarousel: () => void
   onToggleBackgroundEffects: () => void
   onToggleWelcomeTextEffects: () => void
@@ -81,7 +86,7 @@ interface FormBuilderModalProps {
 }
 
 export default function FormBuilderModal({
-  isOpen, form, onClose, onUpdateField, onToggleBranding, onToggleRedirectToAgentHub, hubLook, brandLook, luxeAllowed, onUpdateLook, onApplyLookToAll, onTogglePropertyPhotoCarousel, onToggleBackgroundEffects, onToggleWelcomeTextEffects, onUpdateBrandingLayout, onUpdateLinkedProperty,
+  isOpen, form, onClose, onUpdateField, onToggleBranding, onToggleRedirectToAgentHub, onToggleRedirectToShowcase, isDirty, hubLook, brandLook, luxeAllowed, onUpdateLook, onApplyLookToAll, onTogglePropertyPhotoCarousel, onToggleBackgroundEffects, onToggleWelcomeTextEffects, onUpdateBrandingLayout, onUpdateLinkedProperty,
   onUpdateQuestion, onAddQuestion, onRemoveQuestion, onReorderQuestions, onSave, onResetToDefault, saveStatus, showPropertyLink, branding, defaultDescription,
 }: FormBuilderModalProps) {
   const [selectedBlockId, setSelectedBlockId] = useState<BlockId>('welcome')
@@ -94,6 +99,7 @@ export default function FormBuilderModal({
   const addQuestionButtonRef = useRef<HTMLButtonElement>(null)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [resetDone, setResetDone] = useState(false)
   const { user } = useAuth()
 
   if (!isOpen || !form) return null
@@ -104,6 +110,8 @@ export default function FormBuilderModal({
     try {
       await onResetToDefault()
       setShowResetConfirm(false)
+      setResetDone(true)
+      window.setTimeout(() => setResetDone(false), 2600)
     } finally {
       setResetting(false)
     }
@@ -129,7 +137,8 @@ export default function FormBuilderModal({
     agentMarket: branding.agentMarket,
   }
 
-  const previewKey = `${form.id}-${form.questions.map(question => question.id).join(',')}`
+  // Flipping an effect replays the preview from the start, so the agent sees what it does.
+  const previewKey = `${form.id}-${form.questions.map(question => question.id).join(',')}-${form.background_effects !== false}-${form.welcome_text_effects !== false}`
   const look = resolveFormLook(form, hubLook, luxeAllowed, brandLook)
 
   return (
@@ -154,26 +163,7 @@ export default function FormBuilderModal({
             >
               <Settings className="h-4 w-4" />
             </button>
-            <button
-              onClick={onSave}
-              disabled={saveStatus === 'saving'}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black shadow-sm transition disabled:opacity-60 ${
-                saveStatus === 'saved'
-                  ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                  : saveStatus === 'error'
-                    ? 'bg-red-600 text-white hover:bg-red-700'
-                    : 'bg-[#111827] text-white hover:bg-black dark:bg-white dark:text-[#111827] dark:hover:bg-gray-200'
-              }`}
-            >
-              {saveStatus === 'saving' ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : saveStatus === 'saved' ? (
-                <Check className="h-4 w-4" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              {saveStatus === 'saved' ? 'Saved' : saveStatus === 'error' ? 'Try Again' : 'Save'}
-            </button>
+            <SaveFormButton status={saveStatus} dirty={isDirty} onClick={onSave} className="min-w-[104px]" />
             <button onClick={onClose} className="rounded-full p-2 text-gray-400 transition hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" aria-label="Close builder">
               <X className="h-5 w-5" />
             </button>
@@ -401,56 +391,12 @@ export default function FormBuilderModal({
                   />
                 </label>
 
-                <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-[#fbfaf7] p-4 dark:border-gray-700 dark:bg-[#151517]">
-                  <div>
-                    <p className="text-sm font-black text-[#111827] dark:text-white">Show your photo &amp; name</p>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Turn off to keep this form unbranded/anonymous.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={onToggleBranding}
-                    className={`relative h-7 w-12 shrink-0 rounded-full transition ${form.show_branding ? 'bg-[#111827] dark:bg-white' : 'bg-gray-300 dark:bg-gray-700'}`}
-                    aria-label={`${form.show_branding ? 'Turn off' : 'Turn on'} branding`}
-                  >
-                    <span className={`absolute top-1 h-5 w-5 rounded-full transition ${form.show_branding ? 'left-6 bg-white dark:bg-[#111827]' : 'left-1 bg-white'}`} />
-                  </button>
-                </div>
+                <SettingSwitch on={!!form.show_branding} onToggle={onToggleBranding} icon={<Users className="h-4 w-4" />}
+                  title="Show your photo & name" blurb="Turn off to keep this form unbranded / anonymous." />
 
-                <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-[#fbfaf7] p-4 dark:border-gray-700 dark:bg-[#151517]">
-                  <div className="flex items-center gap-3">
-                    <Sparkles className="h-5 w-5 shrink-0 text-[#8b7355]" />
-                    <div>
-                      <p className="text-sm font-black text-[#111827] dark:text-white">Background effects</p>
-                      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Keeps subtle animated graphics behind the welcome screen and questions.</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={onToggleBackgroundEffects}
-                    className={`relative h-7 w-12 shrink-0 rounded-full transition ${form.background_effects !== false ? 'bg-[#111827] dark:bg-white' : 'bg-gray-300 dark:bg-gray-700'}`}
-                    aria-label={`${form.background_effects !== false ? 'Turn off' : 'Turn on'} background effects`}
-                  >
-                    <span className={`absolute top-1 h-5 w-5 rounded-full transition ${form.background_effects !== false ? 'left-6 bg-white dark:bg-[#111827]' : 'left-1 bg-white'}`} />
-                  </button>
-                </div>
+                <EffectsSettings form={form} onToggleBackground={onToggleBackgroundEffects} onToggleWelcome={onToggleWelcomeTextEffects} />
 
-                <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-[#fbfaf7] p-4 dark:border-gray-700 dark:bg-[#151517]">
-                  <div className="flex items-center gap-3">
-                    <Type className="h-5 w-5 shrink-0 text-[#8b7355]" />
-                    <div>
-                      <p className="text-sm font-black text-[#111827] dark:text-white">Welcome text effects</p>
-                      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Animates the welcome title, description, and Start button as the form opens.</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={onToggleWelcomeTextEffects}
-                    className={`relative h-7 w-12 shrink-0 rounded-full transition ${form.welcome_text_effects !== false ? 'bg-[#111827] dark:bg-white' : 'bg-gray-300 dark:bg-gray-700'}`}
-                    aria-label={`${form.welcome_text_effects !== false ? 'Turn off' : 'Turn on'} welcome text effects`}
-                  >
-                    <span className={`absolute top-1 h-5 w-5 rounded-full transition ${form.welcome_text_effects !== false ? 'left-6 bg-white dark:bg-[#111827]' : 'left-1 bg-white'}`} />
-                  </button>
-                </div>
+                <AfterSubmitSettings form={form} hubAvailable={hasAgentHubAccess(user?.plan_tier)} onToggleHub={onToggleRedirectToAgentHub} onToggleShowcase={onToggleRedirectToShowcase} />
 
                 {showPropertyLink && (
                   <div>
@@ -512,13 +458,7 @@ export default function FormBuilderModal({
                   <div className="rounded-xl border border-red-200 bg-red-50/50 p-4 dark:border-red-900/30 dark:bg-red-900/10">
                     <p className="text-sm font-black text-[#111827] dark:text-white">Revert to default</p>
                     <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Resets this form's questions, wording, and settings back to OpenHousePal's original template. Your link and on/off state stay the same.</p>
-                    <button
-                      type="button"
-                      onClick={() => setShowResetConfirm(true)}
-                      className="mt-3 flex items-center gap-2 rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-black text-red-600 transition hover:bg-red-50 dark:border-red-800 dark:bg-[#151517] dark:text-red-400 dark:hover:bg-red-900/20"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" /> Revert to Default
-                    </button>
+                    <RevertButton onClick={() => setShowResetConfirm(true)} busy={resetting} done={resetDone} />
                   </div>
                 )}
               </div>
@@ -536,23 +476,8 @@ export default function FormBuilderModal({
                   <textarea rows={4} value={form.success_message || ''} onChange={(event) => onUpdateField('success_message', event.target.value)} className="mt-2 w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 font-semibold leading-6 outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white" />
                 </label>
 
-                {/* Only on plans with a public Agent Hub page - elsewhere there's nowhere to send them. */}
-                {hasAgentHubAccess(user?.plan_tier) && (
-                <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-[#fbfaf7] p-4 dark:border-gray-700 dark:bg-[#151517]">
-                  <div>
-                    <p className="text-sm font-black text-[#111827] dark:text-white">Redirect to Agent Hub</p>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">After submitting, show a 3-second loading bar then send the visitor to your Agent Hub.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={onToggleRedirectToAgentHub}
-                    className={`relative h-7 w-12 shrink-0 rounded-full transition ${form.redirect_to_agent_hub ? 'bg-[#111827] dark:bg-white' : 'bg-gray-300 dark:bg-gray-700'}`}
-                    aria-label={`${form.redirect_to_agent_hub ? 'Turn off' : 'Turn on'} Agent Hub redirect`}
-                  >
-                    <span className={`absolute top-1 h-5 w-5 rounded-full transition ${form.redirect_to_agent_hub ? 'left-6 bg-white dark:bg-[#111827]' : 'left-1 bg-white'}`} />
-                  </button>
-                </div>
-                )}
+                {/* The Agent Hub one only on plans with a public Agent Hub page - elsewhere there's nowhere to send them. */}
+                <AfterSubmitSettings form={form} hubAvailable={hasAgentHubAccess(user?.plan_tier)} onToggleHub={onToggleRedirectToAgentHub} onToggleShowcase={onToggleRedirectToShowcase} />
               </div>
             )}
 

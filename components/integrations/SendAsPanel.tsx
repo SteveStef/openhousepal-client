@@ -11,6 +11,8 @@ import { CONNECTED_EVENT, OUTLOOK_LIVE, openSignInTab } from '@/lib/providers'
 import { GoogleLogo, OutlookLogo } from '@/components/brand/ProviderLogos'
 import { AlertTriangle, ArrowRight, Check, Gauge, Loader2, MailCheck, Send, ShieldCheck } from 'lucide-react'
 import api, { type MailboxInfo } from '@/lib/api-service'
+import { useOptionalAuth } from '@/contexts/AuthContext'
+import { hasMlsAccess } from '@/lib/navAccess'
 
 const GUEST_EMAILS = ['Showcase invites', 'New homes for your clients', 'Tour confirmations', 'Your replies to comments', 'Listing alerts']
 
@@ -207,12 +209,17 @@ export function InboxRules() {
   )
 }
 
+// No-MLS plans have no Showcases / listing alerts - what actually goes out from their mailbox.
+const NO_MLS_GUEST_EMAILS = ['Invite RSVP confirmations', 'Tour confirmations']
+
 function Chips() {
+  const planTier = useOptionalAuth()?.user?.plan_tier
+  const list = planTier && !hasMlsAccess(planTier) ? NO_MLS_GUEST_EMAILS : GUEST_EMAILS
   return (
     <div>
       <p className="flex items-center gap-1.5 text-[12px] font-black uppercase tracking-[0.16em] text-gray-400"><MailCheck className="h-3.5 w-3.5" /> Sent from you</p>
       <div className="mt-2 flex flex-wrap gap-1.5">
-        {GUEST_EMAILS.map(g => <span key={g} className="rounded-full border border-[#C9A24D]/30 bg-white px-3 py-1 text-[12.5px] font-bold text-[#111827] dark:border-white/10 dark:bg-white/5 dark:text-white">{g}</span>)}
+        {list.map(g => <span key={g} className="rounded-full border border-[#C9A24D]/30 bg-white px-3 py-1 text-[12.5px] font-bold text-[#111827] dark:border-white/10 dark:bg-white/5 dark:text-white">{g}</span>)}
       </div>
       <p className="mt-2 text-[12.5px] font-medium text-gray-500 dark:text-gray-400">Your own alerts (daily digest, new-lead emails) still come from OpenHousePal. If your email ever can&apos;t send, OpenHousePal sends it instead - nothing gets lost.</p>
     </div>

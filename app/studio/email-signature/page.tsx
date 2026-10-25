@@ -15,6 +15,7 @@ import { openHousePalPublicUrl } from '@/lib/publicResourceLinks'
 import { useOwnDomainBase, agentHubUrl as agentHubLink } from '@/lib/ownDomainLinks'
 import { buildDesignPreviewHtml } from '@/lib/signaturePreview'
 import { buildSignatureSiteInput } from '@/lib/signatureSiteData'
+import SignatureWebCard from '@/components/studio/blogs/SignatureWebCard'
 import { LUXE_METALS, LUXE_METAL_ORDER, metalOf, type LuxeMetal } from '@/lib/luxeMetals'
 import { epochDayIndex, formatSaleStatus, getEligibleListings, getSalesRotationPool, getSaleSummary } from '@/lib/agentSales'
 import DraggableAvatarPhoto from '@/components/agent-hub/DraggableAvatarPhoto'
@@ -326,6 +327,14 @@ export default function EmailSignaturePage() {
   // photo/listing/badge images live by URL every time the installed signature is VIEWED, not just
   // once at copy time - so a new sale, a new listing, or a changed accent color shows up with no
   // re-copy-paste ever required, which this client-rendered preview can't do on its own.
+  // The Site Version preview (10/24): the very card websites now show (SignatureWebCard - Guest
+  // Pass, CMA, Spotlight, IDX, blogs), built from the same form state. The EMAIL version below is
+  // untouched and still comes from the backend's install HTML.
+  const siteInput = useMemo(() => buildSignatureSiteInput({
+    config, hubConfig, agentHubSlug, ownerId: user?.id, forms: myForms,
+    fallbackName: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(), fallbackPhoto: user?.photo_url || '',
+  }), [config, hubConfig, agentHubSlug, user, myForms])
+
   const previewHtml = useMemo(() => buildDesignPreviewHtml({
     ...previewData,
     accent: config.luxe ? luxeAccentFor(config.luxeMetal) : config.accentColor, fontFamily: fontStackFor(config.luxe ? LUXE_FONT : config.fontFamily), dark: config.darkMode, luxe: config.luxe, metal: config.luxeMetal,
@@ -448,7 +457,7 @@ export default function EmailSignaturePage() {
     <AuthGuard>
       <SubscriptionGuard requireEmailSignatureAccess>
         <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]">
-          <div className="mx-auto max-w-5xl px-4 py-6 sm:py-8">
+          <div className="mx-auto max-w-5xl px-4 py-4 sm:py-8">
             <PageHeader
               icon={Mail}
               backHref="/studio"
@@ -757,7 +766,7 @@ export default function EmailSignaturePage() {
                               )
                             })}
                           </div>
-                          {followsBrand && <p className="mt-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Follows your <Link href="/studio/brand-kit" className="font-black text-[#8b7355] underline-offset-2 hover:underline dark:text-[#e8c97a]">Brand Kit</Link> - change it there and this changes too. Picking anything below makes it this signature&apos;s own.</p>}
+                          {followsBrand && <p className="mt-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Follows your <Link href="/studio/brand-kit" className="font-black text-[#8b7355] underline-offset-2 hover:underline dark:text-[#e8c97a]">Branding</Link> - change it there and this changes too. Picking anything below makes it this signature&apos;s own.</p>}
                         </div>
                         <AnimatePresence mode="wait" initial={false}>
                         {config.luxe ? (
@@ -943,7 +952,7 @@ export default function EmailSignaturePage() {
               className="mx-auto mt-2 max-w-3xl text-center text-[11px] text-gray-400"
             >
               {previewMode === 'site'
-                ? "How your signature can look elsewhere on OpenHousePal (like your public bio page) - full motion, since a real webpage can animate."
+                ? "Exactly how your card shows on your web pages - the Guest Pass, CMAs, Spotlights, your IDX site and blogs. Built for websites: big buttons, stacked on phones."
                 : "Exactly what gets pasted into Gmail, Outlook, or Apple Mail. Email inboxes can't run the same animations a webpage can, so this version is calmer and settles in place - that's normal, not a bug."}
             </motion.p>
             </AnimatePresence>
@@ -964,19 +973,12 @@ export default function EmailSignaturePage() {
               className="mx-auto mt-4 max-w-3xl"
             >
               {previewMode === 'site' && (
-                <iframe
-                  ref={previewFrameRef}
-                  title="Signature preview"
-                  srcDoc={previewHtml}
-                  // colorScheme 'light' on the <iframe> element itself: next-themes puts
-                  // `color-scheme: dark` on <html> in dark mode, and when an iframe's scheme
-                  // differs from its (light) document's, the browser paints an opaque WHITE
-                  // backdrop behind the whole frame - the white box around both previews in dark
-                  // mode. Matching them keeps the frame transparent so only the card shows.
-                  style={{ height: previewHeight, colorScheme: 'light' }}
-                  className="w-full border-0 bg-transparent transition-[height] duration-200"
-                  sandbox="allow-scripts"
-                />
+                // Exactly what websites show (SignatureWebCard). followPage off: the app's own dark
+                // mode doesn't recolour it - only the agent's dark setting does (on a dark website
+                // it follows that page).
+                <div className="min-w-0">
+                  <SignatureWebCard input={siteInput} formPaths={[]} followPage={false} onForm={url => window.open(url, '_blank', 'noopener')} />
+                </div>
               )}
               {previewMode === 'email' && (
                 <>
@@ -1084,6 +1086,15 @@ export default function EmailSignaturePage() {
                   </ol>
                 )}
               </div>
+
+              {/* Gmail / Outlook web load the strip's picture fresh every time (owner, 10/24: "keep it +
+                  add that line"). Outlook desktop / Apple Mail keep their own copy - see the note below. */}
+              {(installTab === 'gmail' || installTab === 'outlook') && (
+                <p data-testid="sig-auto-update-note" className="mt-3 flex items-start gap-1.5 rounded-lg bg-emerald-50 p-2.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200">
+                  <Check className="mt-px h-3.5 w-3.5 shrink-0" strokeWidth={3} />
+                  <span>Your featured home and sales update by themselves - no re-copy needed.</span>
+                </p>
+              )}
 
               {(installTab === 'outlook_desktop' || installTab === 'apple') && (
                 <p className="mt-3 rounded-lg bg-gray-100 p-2.5 text-[11px] font-semibold text-gray-600 dark:bg-white/5 dark:text-gray-300">

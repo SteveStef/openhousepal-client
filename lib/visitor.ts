@@ -17,6 +17,8 @@ export interface SiteVisitor {
   email: string
   /** Their Showcase's short code with this agent, when they have one. */
   showcase?: string
+  /** Their phone, once they gave it in a Spotlight form (fills the other forms on the page). */
+  phone?: string
 }
 
 function parse(raw: string | undefined | null): SiteVisitor | null {
@@ -26,7 +28,8 @@ function parse(raw: string | undefined | null): SiteVisitor | null {
     const email = typeof v?.e === 'string' && v.e.includes('@') ? v.e : ''
     const showcase = typeof v?.s === 'string' && /^[\w-]{3,80}$/.test(v.s) ? v.s : undefined
     if (!email && !showcase) return null
-    return { name: String(v.n || ''), firstName: String(v.f || ''), email, ...(showcase ? { showcase } : {}) }
+    const phone = typeof v?.p === 'string' && /^[\d\s()+.-]{7,24}$/.test(v.p) ? v.p : undefined
+    return { name: String(v.n || ''), firstName: String(v.f || ''), email, ...(showcase ? { showcase } : {}), ...(phone ? { phone } : {}) }
   } catch {
     return null
   }
@@ -56,6 +59,7 @@ export function saveVisitor(v: Partial<SiteVisitor>) {
     f: v.firstName || was?.firstName || (v.name || was?.name || '').split(' ')[0] || '',
     e: v.email || was?.email || '',
     ...((v.showcase || was?.showcase) ? { s: v.showcase || was?.showcase } : {}),
+    ...((v.phone || was?.phone) ? { p: v.phone || was?.phone } : {}),
   }
   const value = encodeURIComponent(JSON.stringify(next))
   const secure = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; secure' : ''

@@ -45,10 +45,12 @@ export default function StatCard({ metric, label, shortLabel, icon: Icon, entry,
         <button
           onClick={() => setOpen(true)}
           title={`${label} - last 30 days`}
-          className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#C9A24D]/30 bg-white/80 py-1 pl-2.5 pr-3 text-left leading-none shadow-sm transition hover:-translate-y-0.5 hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.06]"
+          aria-label={`${label}: ${entry.current}${isPercent ? '%' : ''} in the last 30 days`}
+          className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-[#C9A24D]/30 bg-white/80 py-1 pl-2 pr-2.5 text-left leading-none shadow-sm transition hover:-translate-y-0.5 hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.06] sm:gap-1.5 sm:pl-2.5 sm:pr-3"
         >
           <Icon className="h-3.5 w-3.5 shrink-0 text-[#8b7355] dark:text-[#e8c97a]" />
-          <span className="text-[9px] font-black uppercase tracking-[0.14em] text-gray-400">{label}</span>
+          {/* Phones: icon + number only - the word never gets cut off (owner, 10/24); the icon says what it is. */}
+          <span className="hidden text-[9px] font-black uppercase tracking-[0.14em] text-gray-400 sm:inline">{label}</span>
           <span className="text-sm font-black tabular-nums text-[#111827] dark:text-white"><AnimatedNumber value={entry.current} />{isPercent ? '%' : ''}</span>
           <span className={`text-[10px] font-black ${tone}`}>{changeLabel(entry)}</span>
         </button>

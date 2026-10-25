@@ -126,7 +126,7 @@ export const DESIGN_SITUATIONS: DesignSituationDef[] = [
       { id: 'thinking_about_selling', headline: 'Thinking about selling?' },
     ],
     leadGenCopy: {
-      eyebrow: 'For Homeowners',
+      eyebrow: 'Homeowners', // owner 10/24: never "For homeowners"
       subtext: "Tell me the number that would make a move worth it. I'll show you what today's market can do. Private, just between us.",
       cta: 'Share your number',
       qrLabel: 'Scan & name your price',

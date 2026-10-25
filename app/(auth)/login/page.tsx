@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import api from '@/lib/api-service'
 import { setToken } from '@/lib/token'
+import { safeRedirect } from '@/lib/loginRedirect'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { AUTH_FEATURE_SLIDES } from '@/lib/authFeatureSlides'
@@ -18,8 +19,13 @@ import { Suspense } from 'react'
 function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { refreshUser } = useAuth()
+  const { refreshUser, isAuthenticated, isLoading: authLoading } = useAuth()
   const { showToast } = useToast()
+  // Already signed in (another tab signed in meanwhile) and sent here from a link: go straight there.
+  useEffect(() => {
+    const target = searchParams.get('redirect') || searchParams.get('next')
+    if (!authLoading && isAuthenticated && target) router.replace(safeRedirect(target))
+  }, [authLoading, isAuthenticated, searchParams, router])
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -90,9 +96,8 @@ function LoginContent() {
       
       showToast('Login successful! Redirecting...', 'success')
       
-      // Get redirect path from URL params or default to /dash
-      const redirectPath = searchParams.get('redirect') || '/dash'
-      router.push(redirectPath)
+      // Back to the exact page they were sent here from (an email link, query included) - else the Dash.
+      router.replace(safeRedirect(searchParams.get('redirect') || searchParams.get('next')))
     } else {
       // Handle failure
       const errorMessage = error || 'Login failed. Please try again.'

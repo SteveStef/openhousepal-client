@@ -9,7 +9,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Loader2, MapPin, Star } from 'lucide-react'
 import HomeAreaMap from './HomeAreaMap'
 import type { CanvasMarker } from './BoundaryCanvas'
-import useNearby, { NEARBY_CATEGORIES, milesText, type Nearby, type NearbyKind } from './useNearby'
+import useNearby, { NEARBY_CATEGORIES, milesText, nearbyCategory, type Nearby, type NearbyKind } from './useNearby'
 
 type Tone = 'light' | 'dark' | 'auto'
 
@@ -28,11 +28,13 @@ function inkOn(hex: string): string {
 }
 
 export function placeMarkers(nb: Nearby, color: string): CanvasMarker[] {
+  // The category's own colour + icon (user, 10/24) - the page accent only if it's an unknown one.
+  const cat = nearbyCategory(nb.active)
   return (nb.places || []).map((p, i) => {
     const d = nb.details[p.place_id]
     const rating = d?.rating != null ? `★ ${d.rating.toFixed(1)}${d.review_count != null ? ` (${d.review_count.toLocaleString()})` : ''}` : nb.loadingDetails === p.place_id ? 'Loading rating…' : ''
     return {
-      id: p.place_id, lat: p.latitude, lng: p.longitude, kind: 'place' as const, color, glyph: String(i + 1),
+      id: p.place_id, lat: p.latitude, lng: p.longitude, kind: 'place' as const, color: cat?.color || color, glyph: String(i + 1), icon: cat?.icon,
       title: p.name, kicker: [p.category, milesText(p.distance_miles)].filter(Boolean).join(' · '),
       lines: [rating, p.address || ''].filter(Boolean),
     }
@@ -40,8 +42,16 @@ export function placeMarkers(nb: Nearby, color: string): CanvasMarker[] {
 }
 
 /** Category chips + the cards for the picked one. */
-export function NearbyPicker({ nb, accent, tone = 'auto', originLabel }: { nb: Nearby; accent: string; tone?: Tone; originLabel: string }) {
+export function NearbyPicker({ nb, accent, tone = 'auto', originLabel, categories, variant = 'row' }: {
+  nb: Nearby; accent: string; tone?: Tone; originLabel: string
+  /** Only these category keys, in this order (the Guest Pass keeps it to the six people ask about). */
+  categories?: string[]
+  /** 'grid' = big easy buttons, two rows of three (phone-first pages like the Guest Pass). */
+  variant?: 'row' | 'grid'
+}) {
   const t = T[tone]
+  const cats = categories ? categories.map(k => nearbyCategory(k)).filter(Boolean) as typeof NEARBY_CATEGORIES : NEARBY_CATEGORIES
+  const activeCat = nearbyCategory(nb.active)
   const rail = useRef<HTMLDivElement>(null)
   const accentHex = /^#[0-9a-f]{6}$/i.test(accent) ? accent : '#C9A24D'
 
@@ -63,16 +73,23 @@ export function NearbyPicker({ nb, accent, tone = 'auto', originLabel }: { nb: N
           <button type="button" onClick={() => nb.select(null)} className={`text-[11px] font-black uppercase tracking-[0.14em] ${t.faint} transition hover:opacity-80`}>Clear</button>
         )}
       </div>
-      {/* chips - one swipeable row on a phone */}
-      <div className="-mx-1 mt-2.5 flex snap-x gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {NEARBY_CATEGORIES.map(({ key, label, icon: Icon }) => {
+      {/* chips - one swipeable row on a phone (or big buttons, two rows of three) - each in its own colour */}
+      <div className={variant === 'grid'
+        ? 'mt-2.5 grid grid-cols-3 gap-2'
+        : '-mx-1 mt-2.5 flex snap-x gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}>
+        {cats.map(({ key, label, icon: Icon, color }) => {
           const on = nb.active === key
           return (
             <motion.button key={key} type="button" whileTap={{ scale: 0.95 }} onClick={() => nb.select(on ? null : key)}
-              className={`relative inline-flex shrink-0 snap-start items-center gap-1.5 rounded-full border px-3.5 py-2 text-[12px] font-black transition-colors ${on ? 'border-transparent' : t.chip}`}
-              style={on ? { color: inkOn(accentHex) } : undefined}>
-              {on && <motion.span layoutId={`nearby-chip-${originLabel}`} className="absolute inset-0 rounded-full" style={{ background: accent }} transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
-              {nb.loading === key ? <Loader2 className="relative h-3.5 w-3.5 animate-spin" /> : <Icon className="relative h-3.5 w-3.5" />}
+              className={variant === 'grid'
+                ? `relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border py-3 text-[12.5px] font-black transition-colors ${on ? 'border-transparent text-white' : t.chip}`
+                : `relative inline-flex shrink-0 snap-start items-center gap-1.5 rounded-full border px-3.5 py-2 text-[12px] font-black transition-colors ${on ? 'border-transparent text-white' : t.chip}`}>
+              {on && <motion.span layoutId={`nearby-chip-${originLabel}`} className={`absolute inset-0 ${variant === 'grid' ? 'rounded-2xl' : 'rounded-full'}`} style={{ background: color }} transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
+              {variant === 'grid' ? (
+                <span className="relative grid h-9 w-9 place-items-center rounded-xl" style={{ background: on ? 'rgba(255,255,255,.18)' : `color-mix(in srgb, ${color} 13%, transparent)`, color: on ? '#fff' : color }}>
+                  {nb.loading === key ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Icon className="h-[18px] w-[18px]" />}
+                </span>
+              ) : (nb.loading === key ? <Loader2 className="relative h-3.5 w-3.5 animate-spin" /> : <Icon className="relative h-3.5 w-3.5" style={on ? undefined : { color }} />)}
               <span className="relative">{label}</span>
             </motion.button>
           )
@@ -97,13 +114,19 @@ export function NearbyPicker({ nb, accent, tone = 'auto', originLabel }: { nb: N
             <div ref={rail} className="relative -mx-1 mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {nb.places.map((p, i) => {
                 const on = nb.selected === p.place_id
+                const pin = activeCat?.color || accent
+                const PinIcon = activeCat?.icon
                 const d = nb.details[p.place_id]
                 return (
                   <motion.button key={p.place_id} data-place={p.place_id} type="button" onClick={() => nb.selectPlace(on ? null : p.place_id)}
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 6) * 0.04, type: 'spring', stiffness: 320, damping: 28 }}
                     className={`flex w-[78%] max-w-[280px] shrink-0 snap-start items-start gap-3 rounded-2xl border p-3.5 text-left transition-shadow sm:w-[260px] ${t.card}`}
-                    style={on ? { borderColor: accent, boxShadow: `0 0 0 1px ${accent}, 0 14px 30px -18px ${accent}` } : undefined}>
-                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-black" style={{ background: accent, color: inkOn(accentHex) }}>{i + 1}</span>
+                    style={on ? { borderColor: pin, boxShadow: `0 0 0 1px ${pin}, 0 14px 30px -18px ${pin}` } : undefined}>
+                    {/* the same badge as its pin on the map: the category's icon, its number on the shoulder */}
+                    <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full text-white shadow-[0_6px_14px_-6px_rgba(0,0,0,.45)]" style={{ background: pin }}>
+                      {PinIcon ? <PinIcon className="h-4 w-4" strokeWidth={2.4} /> : <span className="text-[11px] font-black" style={{ color: inkOn(accentHex) }}>{i + 1}</span>}
+                      {PinIcon && <span className="absolute -right-1.5 -top-1.5 grid h-[17px] min-w-[17px] place-items-center rounded-full bg-white px-1 text-[9.5px] font-black" style={{ color: pin, boxShadow: `0 0 0 1.5px ${pin}` }}>{i + 1}</span>}
+                    </span>
                     <span className="min-w-0 flex-1">
                       <span className={`block truncate text-[14px] font-black leading-snug ${t.ink}`}>{p.name}</span>
                       <span className={`mt-0.5 block truncate text-[11px] font-bold uppercase tracking-[0.08em] ${t.faint}`}>{[p.category, milesText(p.distance_miles)].filter(Boolean).join(' · ')}</span>
@@ -111,7 +134,7 @@ export function NearbyPicker({ nb, accent, tone = 'auto', originLabel }: { nb: N
                       {on && (
                         <span className={`mt-1.5 flex items-center gap-1 text-[12px] font-black ${t.ink}`}>
                           {nb.loadingDetails === p.place_id ? <><Loader2 className="h-3 w-3 animate-spin" /> Rating…</>
-                            : d?.rating != null ? <><Star className="h-3.5 w-3.5 fill-current" style={{ color: accent }} /> {d.rating.toFixed(1)}{d.review_count != null && <span className={`font-bold ${t.faint}`}>({d.review_count.toLocaleString()})</span>}</>
+                            : d?.rating != null ? <><Star className="h-3.5 w-3.5 fill-current" style={{ color: pin }} /> {d.rating.toFixed(1)}{d.review_count != null && <span className={`font-bold ${t.faint}`}>({d.review_count.toLocaleString()})</span>}</>
                             : <span className={t.faint}>On the map</span>}
                         </span>
                       )}
@@ -129,7 +152,7 @@ export function NearbyPicker({ nb, accent, tone = 'auto', originLabel }: { nb: N
 }
 
 /** The map box + the picker under it. `boxClassName` sizes / frames the map box. */
-export default function NearbyMap({ latitude, longitude, address, accent, dark, tone = 'auto', siteId, kind, listingKey, slug, nearbyOn = true, originLabel, boxClassName, showHome = true, homeLabel }: {
+export default function NearbyMap({ latitude, longitude, address, accent, dark, tone = 'auto', siteId, kind, listingKey, slug, nearbyOn = true, originLabel, boxClassName, showHome = true, homeLabel, categories, variant, gestures }: {
   latitude: number
   longitude: number
   address?: string | null
@@ -147,6 +170,9 @@ export default function NearbyMap({ latitude, longitude, address, accent, dark, 
   boxClassName: string
   showHome?: boolean
   homeLabel?: string
+  categories?: string[]
+  variant?: 'row' | 'grid'
+  gestures?: 'cooperative' | 'greedy'
 }) {
   const enabled = nearbyOn && !!siteId
   const nb = useNearby({ siteId: siteId || '', kind, listingKey, slug, enabled })
@@ -166,9 +192,10 @@ export default function NearbyMap({ latitude, longitude, address, accent, dark, 
     <div ref={boxRef} className="min-w-0">
       <div className={boxClassName}>
         <HomeAreaMap latitude={latitude} longitude={longitude} address={address} accent={accent} dark={dark} className="absolute inset-0 h-full w-full" rounded=""
-          places={markers} activePlace={nb.selected} onActivePlace={id => nb.selectPlace(id)} showHome={showHome} homeLabel={homeLabel} />
+          places={markers} activePlace={nb.selected} onActivePlace={id => nb.selectPlace(id)} showHome={showHome} homeLabel={homeLabel}
+          holdCamera={!!nb.active && (nb.loading === nb.active || !nb.places)} gestures={gestures} />
       </div>
-      {enabled && <NearbyPicker nb={nb} accent={pinColor} tone={tone} originLabel={originLabel} />}
+      {enabled && <NearbyPicker nb={nb} accent={pinColor} tone={tone} originLabel={originLabel} categories={categories} variant={variant} />}
     </div>
   )
 }
