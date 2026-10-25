@@ -3238,9 +3238,11 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
   // (e.g. the agent leaves the whole CMA while a generation is going), not just on the happy path.
   const genIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const resumePollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollCleanupRef = useRef<(() => void) | null>(null)
   useEffect(() => () => {
     if (genIntervalRef.current) clearInterval(genIntervalRef.current)
     if (resumePollRef.current) clearInterval(resumePollRef.current)
+    pollCleanupRef.current?.()
   }, [])
 
   // Re-seed local comps from the server ONLY when a genuinely different report is shown (switching
@@ -3401,17 +3403,43 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
   const [genError, setGenError] = useState<string | null>(null)
   const [aiEstimate, setAiEstimate] = useState<{ usd: number; percent: number | null; max_percent: number | null } | null>(null)
   useEffect(() => { api.cma.aiEstimate().then(r => { if (r.success && r.data) setAiEstimate(r.data) }) }, [])
+  // One check at a time, each given up after 15 s, and an extra check the moment the tab is back in
+  // front (user, 10/25: came back to a finished report still "running" at 17 min until a refresh -
+  // checks started while the tab was in the background hung and piled up, so none got through).
   const pollUntilDone = () => {
     if (resumePollRef.current) clearInterval(resumePollRef.current)
+    pollCleanupRef.current?.()
     let misses = 0
-    resumePollRef.current = setInterval(async () => {
-      const polled = await api.cma.get(report.id)
+    let busy = false
+    let done = false
+    const check = async () => {
+      if (busy || done) return
+      busy = true
+      const ctl = new AbortController()
+      const timer = setTimeout(() => ctl.abort(), 15000)
+      const polled = await api.cma.get(report.id, { signal: ctl.signal })
+      clearTimeout(timer)
+      busy = false
+      if (done) return
       if (!polled.success || !polled.data) { if (++misses > 45) finish(null, 'We lost touch with the server - refresh to see if it finished.'); return }
       misses = 0
       if (polled.data.generation_status === 'generating') return
       finish(polled.data, polled.data.generation_status === 'complete' ? null : (polled.data.generation_error || "The AI analysis didn't finish - please try again."))
-    }, 4000)
+    }
+    const onBack = () => { if (document.visibilityState === 'visible') check() }
+    document.addEventListener('visibilitychange', onBack)
+    window.addEventListener('focus', onBack)
+    window.addEventListener('online', onBack)
+    pollCleanupRef.current = () => {
+      document.removeEventListener('visibilitychange', onBack)
+      window.removeEventListener('focus', onBack)
+      window.removeEventListener('online', onBack)
+      pollCleanupRef.current = null
+    }
+    resumePollRef.current = setInterval(check, 4000)
     const finish = (data: CmaReport | null, error: string | null) => {
+      done = true
+      pollCleanupRef.current?.()
       if (resumePollRef.current) { clearInterval(resumePollRef.current); resumePollRef.current = null }
       stopProgressSimulation()
       if (data && !error) { applyGeneratedReport(data); setGenError(null) }

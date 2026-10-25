@@ -2093,7 +2093,7 @@ class ApiService {
     create: (payload: { client_name?: string, mode?: CmaMode, subject?: Partial<CmaSubjectProperty> }) =>
       this.request<CmaReport>('/api/cma', { method: 'POST', body: JSON.stringify(payload) }),
 
-    get: (id: string) => this.request<CmaReport>(`/api/cma/${id}`),
+    get: (id: string, opts?: { signal?: AbortSignal }) => this.request<CmaReport>(`/api/cma/${id}`, opts?.signal ? { signal: opts.signal } : {}),
 
     update: (id: string, payload: Partial<{
       client_name: string | null, mode: CmaMode, status: CmaStatus,
